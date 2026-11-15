@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.CliNode.Tools;
 
@@ -24,6 +25,10 @@ internal static class Program {
     private static async Task<int> RunAsync(string[] args, CancellationToken ct) {
         if (args.Length == 0 || IsHelp(args[0])) {
             PrintHelp();
+            return 0;
+        }
+        if (CliNodeCoverage.IsRequested(args[0])) {
+            Console.Out.Write(CliNodeCoverage.Render("tools", ToolsCommands.LocalToolIds));
             return 0;
         }
         var toolId = args[0];

@@ -1,4 +1,5 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
 id: web
 name: jcc-tool-web
 summary: "下载文件到指定路径(支持多线程并发+断点续传); Open a URL in the browser or perform browser actions; Fetch web content from a URL and process with AI model"
@@ -6,4 +7,16 @@ category: web
 exe: jcc-tool-web.exe
 tags: [download, web]
 tool_count: 5
+local_tool_count: 0
 parameters: []
+tools:
+  - id: download_file
+    mode: host
+  - id: web_browser
+    mode: host
+  - id: web_fetch
+    mode: host
+  - id: web_to_markdown
+    mode: host
+  - id: web_search
+    mode: host

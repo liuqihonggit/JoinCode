@@ -1,4 +1,5 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
 id: media
 name: jcc-tool-media
 summary: "右键点击指定坐标,等待菜单渲染后点击菜单项坐标; 拖拽到目标位置并悬停等待弹出菜单,然后可选点击弹出项; 按顺序点击多个坐标,每步之间可配置等待时间"
@@ -6,4 +7,126 @@ category: media
 exe: jcc-tool-media.exe
 tags: [close, desktop, detect, drag, find, focus, get, image]
 tool_count: 60
+local_tool_count: 0
 parameters: []
+tools:
+  - id: right_click_menu
+    mode: host
+  - id: drag_with_hover
+    mode: host
+  - id: multi_click
+    mode: host
+  - id: mouse_click
+    mode: host
+  - id: mouse_move
+    mode: host
+  - id: mouse_drag
+    mode: host
+  - id: key_press
+    mode: host
+  - id: type_text
+    mode: host
+  - id: show_desktop_overlay
+    mode: host
+  - id: show_desktop_pulse
+    mode: host
+  - id: look_at_cursor
+    mode: host
+  - id: desktop_click
+    mode: host
+  - id: desktop_detect
+    mode: host
+  - id: desktop_look
+    mode: host
+  - id: desktop_scene_menu
+    mode: host
+  - id: desktop_scene_status
+    mode: host
+  - id: desktop_zoom
+    mode: host
+  - id: get_environment_state
+    mode: host
+  - id: wait_for_idle
+    mode: host
+  - id: undo_last_action
+    mode: host
+  - id: get_operation_history
+    mode: host
+  - id: start_recording
+    mode: host
+  - id: stop_recording
+    mode: host
+  - id: play_macro
+    mode: host
+  - id: list_macros
+    mode: host
+  - id: start_observation
+    mode: host
+  - id: learn_from_observation
+    mode: host
+  - id: optimize_steps
+    mode: host
+  - id: reproduce_from_logic
+    mode: host
+  - id: list_processes
+    mode: host
+  - id: kill_process
+    mode: host
+  - id: start_process
+    mode: host
+  - id: detect_ui_elements
+    mode: host
+  - id: find_element
+    mode: host
+  - id: list_windows
+    mode: host
+  - id: focus_window
+    mode: host
+  - id: move_window
+    mode: host
+  - id: close_window
+    mode: host
+  - id: screenshot
+    mode: host
+  - id: voice_start_recording
+    mode: host
+  - id: voice_stop_recording
+    mode: host
+  - id: voice_transcribe
+    mode: host
+  - id: voice_status
+    mode: host
+  - id: vcr_record
+    mode: host
+  - id: vcr_playback
+    mode: host
+  - id: vcr_status
+    mode: host
+  - id: image_describe
+    mode: host
+  - id: image_drill_down
+    mode: host
+  - id: measure_length
+    mode: host
+  - id: measure_depth
+    mode: host
+  - id: measure_ratio
+    mode: host
+  - id: quadtree_to_screen_rects
+    mode: host
+  - id: quadtree_build
+    mode: host
+  - id: quadtree_zoom
+    mode: host
+  - id: quadtree_paint
+    mode: host
+  - id: quadtree_render
+    mode: host
+  - id: quadtree_neighbor
+    mode: host
+  - id: screen_indicate
+    mode: host
+  - id: temporal_aggregate
+    mode: host
+  - id: temporal_stable_contour
+    mode: host

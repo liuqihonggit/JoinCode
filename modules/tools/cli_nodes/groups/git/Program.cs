@@ -1,5 +1,6 @@
 // HANDCRAFTED — DO NOT OVERWRITE BY GENERATOR
 using System.Reflection;
+using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.CliNode.Git;
 
@@ -20,6 +21,10 @@ internal static class Program {
     private static async Task<int> RunAsync(string[] args, CancellationToken ct) {
         if (args.Length == 0 || IsHelp(args[0])) {
             PrintHelp();
+            return 0;
+        }
+        if (CliNodeCoverage.IsRequested(args[0])) {
+            Console.Out.Write(CliNodeCoverage.Render("git", GitCommandCatalog.ToolIds));
             return 0;
         }
         var toolId = args[0];

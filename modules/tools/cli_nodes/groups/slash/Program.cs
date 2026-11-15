@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.CliNode.Slash;
 
@@ -21,34 +22,19 @@ internal static class Program {
     }
 
     /// <summary>
-    /// 恢复 MSYS2/Git Bash 的路径展开 — 与 jcc 主程序同一逻辑。
-    /// Git Bash 会把以 / 开头的命令名（如 /agents）当成 Unix 路径展开为 C:/Program Files/Git/agents，
-    /// 不恢复的话斜杠命令名全部失配。只恢复形如 &lt;盘符&gt;:/…/Git/&lt;纯名称&gt; 的参数。
+    /// 恢复 MSYS2/Git Bash 的路径展开 — 委托契约层 <see cref="CliArgNormalizer"/>（唯一数据源）。
+    /// Git Bash 会把以 / 开头的命令名（如 /agents）当成 Unix 路径展开为 &lt;Git安装根&gt;/agents，
+    /// 不恢复的话斜杠命令名全部失配。此处不再保留私有副本，避免与 jcc 主程序行为分叉。
     /// </summary>
-    private static string[] RestoreMsysPathExpansion(string[] args) {
-        if (args.Length == 0) return args;
-        var restored = new string[args.Length];
-        for (var i = 0; i < args.Length; i++)
-            restored[i] = TryRestoreMsysPath(args[i]) ?? args[i];
-        return restored;
-    }
-
-    private static string? TryRestoreMsysPath(string arg) {
-        if (arg.Length < 12 || arg.Length > 4096 || arg[1] != ':') return null;
-        var gitIdx = arg.IndexOf("/Git/", StringComparison.OrdinalIgnoreCase);
-        if (gitIdx < 0)
-            gitIdx = arg.IndexOf("\\Git\\", StringComparison.OrdinalIgnoreCase);
-        if (gitIdx < 0) return null;
-        var rest = arg.AsSpan(gitIdx + 4);
-        while (!rest.IsEmpty && (rest[0] == '/' || rest[0] == '\\'))
-            rest = rest[1..];
-        if (rest.IsEmpty || rest.Contains('.') || rest.Contains('/') || rest.Contains('\\')) return null;
-        return "/" + rest.ToString();
-    }
+    private static string[] RestoreMsysPathExpansion(string[] args) => CliArgNormalizer.RestoreMsysPathExpansion(args);
 
     private static async Task<int> RunAsync(string[] args, CancellationToken ct) {
         if (args.Length == 0 || IsHelp(args[0])) {
             PrintHelp();
+            return 0;
+        }
+        if (CliNodeCoverage.IsRequested(args[0])) {
+            Console.Out.Write(CliNodeCoverage.Render("slash", []));
             return 0;
         }
         var command = NormalizeCommandName(args[0]);
@@ -62,19 +48,9 @@ internal static class Program {
 
     /// <summary>
     /// 归一化命令名 — 兼容 /agents、agents、以及 Git Bash 把 /agents 展开成的 Windows 路径。
-    /// 取最后一段并去掉可能的扩展名；中文/多词命令名不含路径分隔符，不受影响。
+    /// 委托契约层 <see cref="CliArgNormalizer.NormalizeNodeName"/>，与 jcc 执行器同一规则。
     /// </summary>
-    private static string NormalizeCommandName(string raw) {
-        var name = (raw ?? string.Empty).Trim();
-        var lastSep = name.LastIndexOfAny(['/', '\\']);
-        if (lastSep >= 0 && lastSep + 1 < name.Length)
-            name = name[(lastSep + 1)..];
-        name = name.TrimStart('/');
-        var dot = name.LastIndexOf('.');
-        if (dot > 0 && !name.Contains(' '))
-            name = name[..dot];
-        return name;
-    }
+    private static string NormalizeCommandName(string raw) => CliArgNormalizer.NormalizeNodeName(raw);
 
     /// <summary>把 --key 值 / --key=值 / 位置参数组装成 JSON 对象；首参已是 JSON 时原样透传。</summary>
     private static string BuildArgsJson(string[] args) {

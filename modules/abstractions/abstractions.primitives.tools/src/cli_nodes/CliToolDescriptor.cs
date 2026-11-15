@@ -29,6 +29,24 @@ public sealed record CliToolDescriptor {
     /// <summary>参数定义。</summary>
     public CliToolParameter[] Parameters { get; init; } = [];
 
+    /// <summary>
+    /// 分组节点内的子工具清单（含执行方式）；基础工具与未声明时为空。
+    /// 供「按工具名反查分组」与「进程隔离覆盖率审计」使用。
+    /// </summary>
+    public CliToolEntry[] Tools { get; init; } = [];
+
+    /// <summary>本地实现（真进程隔离）的子工具数量。</summary>
+    public int LocalToolCount => Tools.Count(entry => entry.IsLocal);
+
+    /// <summary>是否有子工具清单（分组节点为 true）。</summary>
+    public bool HasToolEntries => Tools.Length > 0;
+
+    /// <summary>按工具 ID 或别名查找子工具条目。</summary>
+    /// <param name="toolId">工具 ID 或别名（大小写不敏感）。</param>
+    /// <returns>命中条目；未声明时返回 <see langword="null"/>。</returns>
+    public CliToolEntry? FindTool(string toolId) =>
+        Tools.FirstOrDefault(entry => entry.Matches(toolId));
+
     /// <summary>是否为进入协议原生 tools 字段的基础工具。</summary>
     public bool IsBaseTool => Exe is null;
 }

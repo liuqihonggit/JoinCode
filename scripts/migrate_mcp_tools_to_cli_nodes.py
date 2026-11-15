@@ -301,11 +301,12 @@ def render_group_csproj(category: str) -> str:
 '''
 
 
-def render_group_index(category: str, exe: str, tools: list[dict]) -> str:
+def render_group_index(category: str, exe: str, tools: list[dict], local_ids: set[str]) -> str:
     summaries = "; ".join(yaml_escape(t["summary"]) for t in tools[:3])
     tags = ", ".join(sorted({t["id"].split("_")[0] for t in tools})[:8])
-    return (
+    header = (
         f"# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成\n"
+        f"# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。\n"
         f"id: {category}\n"
         f"name: jcc-tool-{category}\n"
         f"summary: \"{summaries}\"\n"
@@ -313,8 +314,34 @@ def render_group_index(category: str, exe: str, tools: list[dict]) -> str:
         f"exe: {exe}\n"
         f"tags: [{tags}]\n"
         f"tool_count: {len(tools)}\n"
+        f"local_tool_count: {len(local_ids)}\n"
         f"parameters: []\n"
+        f"tools:\n"
     )
+    lines = [
+        f"  - id: {t['id']}\n    mode: {'local' if t['id'] in local_ids else 'host'}\n"
+        for t in tools
+    ]
+    return header + "".join(lines)
+
+
+LOCAL_REGISTRY_PATTERN = re.compile(r'^\s*\["([A-Za-z_][A-Za-z_0-9]*)"\]\s*=', re.M)
+
+
+def collect_local_ids(target_dir: Path) -> set[str]:
+    """从分组私有实现里反推本地已实现的工具 id。
+
+    以 private/*.cs 的字典字面量键为唯一依据（`["<id>"] = ...`）——这是「代码里真实现了什么」，
+    而不是另写一份清单来自称实现了什么。手工组才有 private/；纯转发组返回空集。
+    """
+    private_dir = target_dir / "private"
+    if not private_dir.exists():
+        return set()
+    ids: set[str] = set()
+    for cs in sorted(private_dir.glob("*.cs")):
+        body = cs.read_text(encoding="utf-8", errors="replace")
+        ids.update(m.group(1) for m in LOCAL_REGISTRY_PATTERN.finditer(body))
+    return ids
 
 
 def dedupe_tools(tools: list[dict]) -> list[dict]:
@@ -400,7 +427,15 @@ def main() -> int:
         help_path = target_dir / "help.txt"
         index_path = target_dir / "node.yaml"
         help_path.write_text(render_group_help(category, exe, unique), encoding="utf-8")
-        index_path.write_text(render_group_index(category, exe, unique), encoding="utf-8")
+        local_ids = collect_local_ids(target_dir)
+        unknown = local_ids - {t["id"] for t in unique}
+        if unknown:
+            raise SystemExit(
+                f"分组 '{category}' 的私有实现注册了未在 [McpTool] 中声明的工具 id: {sorted(unknown)}。\n"
+                f"这通常意味着 id 拼写漂移（改名后忘了改实现），必须先对齐再生成——"
+                f"否则 node.yaml 的执行方式元数据会与真实实现不一致。"
+            )
+        index_path.write_text(render_group_index(category, exe, unique, local_ids), encoding="utf-8")
         report["outputs"].extend([help_path.as_posix(), index_path.as_posix()])
         if args.emit_exe and is_generated_or_missing(target_dir / "Program.cs"):
             program_path = target_dir / "Program.cs"

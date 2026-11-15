@@ -283,6 +283,50 @@ def render_csproj() -> str:
 """
 
 
+def render_node_yaml(commands: list[dict]) -> str:
+    """节点自描述 — 让 jcc tool tree/find/help 能发现斜杠命令 exe，并记录执行方式。
+
+    斜杠命令依赖会话状态（聊天上下文 / 服务容器）与 LLM，无法零依赖实现，
+    因此全部标记为 host（转发宿主执行）。这里的 mode 不是"待办占位"，
+    而是如实声明：它们是会话绑定命令，进程隔离只能做到"命令名解析与 -h 在独立进程内"。
+    """
+    categories = sorted({c["category"] for c in commands})
+    summaries = "; ".join(yaml_scalar(c["description"]) for c in commands[:3])
+    header = (
+        f"# 由 generate_slash_cli_node.py 从现有 [ChatCommand] / [ChatCommandArg] 特性生成\n"
+        f"id: slash\n"
+        f"name: jcc-tool-slash\n"
+        f"summary: \"斜杠命令节点 — {len(commands)} 个命令，{len(categories)} 个分类；{summaries}\"\n"
+        f"category: slash\n"
+        f"exe: jcc-tool-slash.exe\n"
+        f"tags: [{', '.join(categories[:8])}]\n"
+        f"tool_count: {len(commands)}\n"
+        f"local_tool_count: 0\n"
+        f"parameters: []\n"
+        f"tools:\n"
+    )
+    body = "".join(
+        f"  - id: {yaml_id(c['name'])}\n"
+        f"    mode: host\n"
+        + (f"    aliases: [{', '.join(yaml_id(a) for a in c['aliases'])}]\n" if c.get("aliases") else "")
+        for c in sorted(commands, key=lambda item: item["name"])
+    )
+    return header + body
+
+
+SAFE_YAML_ID = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
+
+
+def yaml_id(value: str) -> str:
+    """安全标量 — 命令名可能含 ? 等 YAML 指示符（如 `??`），必须加引号否则解析成映射键。"""
+    return value if SAFE_YAML_ID.match(value) else '"' + value.replace('"', '\\"') + '"'
+
+
+def yaml_scalar(text: str) -> str:
+    """压成单行并去掉会破坏 YAML 双引号标量的字符。"""
+    return (text or "").replace('"', "'").replace("\n", " ").strip()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="生成 jcc-slash 独立 CLI 节点")
     parser.add_argument("--scan", default="modules", help="扫描根目录（默认 modules）")
@@ -297,6 +341,7 @@ def main() -> int:
 
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "help.txt").write_text(render_help(commands), encoding="utf-8")
+    (out_dir / "node.yaml").write_text(render_node_yaml(commands), encoding="utf-8")
     (out_dir / "jcc_tool_slash.csproj").write_text(render_csproj(), encoding="utf-8")
 
     categories = sorted({c["category"] for c in commands})
@@ -305,7 +350,11 @@ def main() -> int:
         "with_args": sum(1 for c in commands if c["args"]),
         "categories": len(categories),
         "hidden": sum(1 for c in commands if c["is_hidden"]),
-        "outputs": [str((out_dir / "help.txt").as_posix()), str((out_dir / "jcc_tool_slash.csproj").as_posix())],
+        "outputs": [
+            (out_dir / "help.txt").as_posix(),
+            (out_dir / "node.yaml").as_posix(),
+            (out_dir / "jcc_tool_slash.csproj").as_posix(),
+        ],
     }
     if args.dump:
         report["items"] = commands

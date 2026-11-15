@@ -9,11 +9,20 @@
     2. 清单对账：node.yaml 的 tool_count、tools 条目数、-h 索引里的工具名个数三者一致
     3. 帮助可用：<exe> -h 能输出、不超长（大组必须走索引），单工具 -h 能定位到参数表
 
+  另有声明侧自洽（不需要 exe，-DeclarationsOnly 只跑这部分）：
+  tool_count / local_tool_count 与条目对得上、mode 只有 local/delegate/host、id 不重复、
+  exe 名与组名一致、delegates 与 group_map.yaml 双向一致、分组目录与 groups 段双向一致。
+
   加 -Sample 才真调工具，且只用无副作用的那几个（读文件 / git 状态 / glob / worktree 列表 /
-  sleep 1 秒）。写文件、提交、删除类工具一律不抽样 —— 校验脚本不该改仓库。
+  sleep 1 秒 / 临时目录里建一个 notebook 再读回）。写文件、提交、删除类工具一律不抽样 ——
+  校验脚本不该改仓库。
 
 .PARAMETER SkipBuild
   不编译，直接用已有产物。
+
+.PARAMETER DeclarationsOnly
+  只验声明侧：13 份 node.yaml 自洽 + 与 group_map.yaml 交叉一致。
+  不编译、不跑 exe，几秒完成 —— CI 用这个模式，本地全量校验不要加它。
 
 .PARAMETER Sample
   抽样真跑每组一个无副作用工具。
@@ -24,6 +33,7 @@
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
+    [switch]$DeclarationsOnly,
     [switch]$Sample,
     [int]$MaxHelpBytes = 8192,
     [string]$Configuration = "Debug"
@@ -36,6 +46,26 @@ $groupsRoot = Join-Path $repoRoot "modules/tools/cli_nodes/groups"
 $problems = @()
 $rows = @()
 
+# 一切分组 exe 调用都必须经此转发。
+# 原因：分组 exe 正常业务失败时会把诊断写到 stderr，而本脚本的 $ErrorActionPreference = "Stop"
+# 会把原生命令的 stderr 变成终止性异常 —— 于是「被校验对象报了个错」会把对账脚本自己掀翻，
+# 连汇总表都打不出来。校验器不许被校验对象的正常错误路径打死。
+function Invoke-Probe {
+    param(
+        [Parameter(Mandatory = $true)][string]$Exe,
+        [Parameter(Mandatory = $true)][string[]]$Arguments
+    )
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = & $Exe @Arguments 2>&1 | Out-String
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    [pscustomobject]@{ Code = $code; Output = $output.TrimEnd() }
+}
+
 $groups = Get-ChildItem -Path $groupsRoot -Directory |
     Where-Object { Test-Path (Join-Path $_.FullName ("jcc_tool_" + $_.Name + ".csproj")) } |
     Sort-Object Name
@@ -45,15 +75,105 @@ if (-not $groups) {
     exit 2
 }
 
+if ($DeclarationsOnly -and $Sample) {
+    Write-Output "-DeclarationsOnly 与 -Sample 互斥（前者不跑任何 exe），已忽略 -Sample。"
+    $Sample = $false
+}
+
+# ── 单一数据源侧：group_map.yaml ────────────────────────────────────
+# 只解析两段键名，不引入 YAML 库：delegates 段（委托给独立 exe 的组）与 groups 段（组→分类）。
+$groupMapPath = Join-Path $repoRoot "resources/tools/group_map.yaml"
+$groupMapText = Get-Content -Path $groupMapPath -Raw
+
+$delegatedInMap = @{}
+$delegateSection = [regex]::Match($groupMapText, '(?ms)^delegates:\s*$(.*?)(?=^\S)')
+if ($delegateSection.Success) {
+    foreach ($m in [regex]::Matches($delegateSection.Groups[1].Value, '(?m)^  ([A-Za-z0-9_]+):\s*$')) {
+        $delegatedInMap[$m.Groups[1].Value] = $true
+    }
+} else {
+    $problems += "group_map.yaml 里找不到 delegates 段（github 组的委托登记靠它）"
+}
+
+$mappedGroups = @{}
+$groupSection = [regex]::Match($groupMapText, '(?ms)^groups:\s*$(.*)')
+if ($groupSection.Success) {
+    foreach ($m in [regex]::Matches($groupSection.Groups[1].Value, '(?m)^  ([A-Za-z0-9_]+):\s*$')) {
+        $mappedGroups[$m.Groups[1].Value] = $true
+    }
+} else {
+    $problems += "group_map.yaml 里找不到 groups 段"
+}
+
+$dirNames = @($groups | ForEach-Object { $_.Name })
+# slash 组本来就不该在 groups 段：它由 [ChatCommand] 经 generate_slash_cli_node.py 生成，
+# 没有 MCP 分类可映射。除它之外出现「有工程没登记」都是真漂移。
+$groupsOutsideMap = @("slash")
+foreach ($missing in @($dirNames | Where-Object { $groupsOutsideMap -notcontains $_ -and -not $mappedGroups.ContainsKey($_) })) {
+    $problems += "[$missing] 有分组工程，但 group_map.yaml 的 groups 段没登记"
+}
+foreach ($orphan in @($mappedGroups.Keys | Where-Object { $dirNames -notcontains $_ })) {
+    $problems += "[$orphan] group_map.yaml 登记了分组，但没有对应的分组工程"
+}
+
 foreach ($group in $groups) {
     $name = $group.Name
+
+    # ── 声明侧：node.yaml 自身必须自洽（不需要编译，CI 里几秒跑完）─────────
+    $yaml = Get-Content -Path (Join-Path $group.FullName "node.yaml") -Raw
+    $declaredTotal = [int]([regex]::Match($yaml, 'tool_count:\s*(\d+)').Groups[1].Value)
+    $declaredLocalCount = [int]([regex]::Match($yaml, 'local_tool_count:\s*(\d+)').Groups[1].Value)
+    $declaredLocal = ([regex]::Matches($yaml, 'mode:\s*local\b')).Count
+    $declaredDelegate = ([regex]::Matches($yaml, 'mode:\s*delegate\b')).Count
+    $declaredHost = ([regex]::Matches($yaml, 'mode:\s*host\b')).Count
+    $declaredExe = [regex]::Match($yaml, '(?m)^exe:\s*(\S+)').Groups[1].Value
+    $toolIds = @([regex]::Matches($yaml, '(?m)^\s+- id:\s*(\S+)') | ForEach-Object { $_.Groups[1].Value })
+    $entryCount = $toolIds.Count
+    $declaredOther = $entryCount - $declaredLocal - $declaredDelegate - $declaredHost
+
+    if ($declaredTotal -ne $entryCount) {
+        $problems += "[$name] node.yaml 自相矛盾: tool_count=$declaredTotal 但只有 $entryCount 条 tools 条目"
+    }
+    if ($declaredLocalCount -ne $declaredLocal) {
+        $problems += "[$name] node.yaml 自相矛盾: local_tool_count=$declaredLocalCount 但 mode: local 有 $declaredLocal 条"
+    }
+    if ($declaredOther -ne 0) {
+        $problems += "[$name] node.yaml 有 $declaredOther 条 tools 的 mode 不是 local/delegate/host"
+    }
+    $duplicateIds = @($toolIds | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
+    if ($duplicateIds.Count -gt 0) {
+        $problems += "[$name] tools 里重复登记了 $($duplicateIds -join ', ')（同名工具会互相覆盖）"
+    }
+    if ($declaredExe -ne "jcc-tool-$name.exe") {
+        $problems += "[$name] node.yaml 的 exe=$declaredExe 与组名对不上（应为 jcc-tool-$name.exe）"
+    }
+    if ($delegatedInMap.ContainsKey($name) -ne ($declaredDelegate -gt 0)) {
+        $problems += if ($declaredDelegate -gt 0) {
+            "[$name] node.yaml 有 $declaredDelegate 条 delegate，但 group_map.yaml 的 delegates 段没登记该组"
+        } else {
+            "[$name] group_map.yaml 的 delegates 段登记了该组，但 node.yaml 里没有 mode: delegate"
+        }
+    }
+
+    if ($DeclarationsOnly) {
+        $rows += [pscustomobject]@{
+            Group = $name; Total = $declaredTotal; Local = $declaredLocal
+            Delegate = $declaredDelegate; Isolated = $declaredLocal + $declaredDelegate
+            Target = ""; HelpKB = 0
+        }
+        continue
+    }
+
+    # ── 现实侧：先编译，再自报 ────────────────────────────────────────
     if (-not $SkipBuild) {
-        $out = & dotnet build (Join-Path $group.FullName ("jcc_tool_" + $name + ".csproj")) `
-            -c $Configuration --no-restore --nologo -v minimal `
-            -p:BuildProjectReferences=false -p:EmitCompilerGeneratedFiles=false 2>&1
-        if ($LASTEXITCODE -ne 0) {
+        $build = Invoke-Probe -Exe "dotnet" -Arguments @(
+            "build", (Join-Path $group.FullName ("jcc_tool_" + $name + ".csproj")),
+            "-c", $Configuration, "--no-restore", "--nologo", "-v", "minimal",
+            "-p:BuildProjectReferences=false", "-p:EmitCompilerGeneratedFiles=false")
+        if ($build.Code -ne 0) {
             $problems += "[$name] 编译失败"
-            $out | Select-Object -Last 6 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+            $build.Output -split "`r?`n" | Select-Object -Last 6 |
+                ForEach-Object { Write-Output "    $_" }
             continue
         }
     }
@@ -64,19 +184,7 @@ foreach ($group in $groups) {
         continue
     }
 
-    # ── 声明侧：node.yaml ──────────────────────────────────────────────
-    $yaml = Get-Content -Path (Join-Path $group.FullName "node.yaml") -Raw
-    $declaredTotal = [int]([regex]::Match($yaml, 'tool_count:\s*(\d+)').Groups[1].Value)
-    $declaredLocal = ([regex]::Matches($yaml, 'mode:\s*local\b')).Count
-    $declaredDelegate = ([regex]::Matches($yaml, 'mode:\s*delegate\b')).Count
-    $entryCount = ([regex]::Matches($yaml, '(?m)^\s+- id:')).Count
-
-    if ($declaredTotal -ne $entryCount) {
-        $problems += "[$name] node.yaml 自相矛盾: tool_count=$declaredTotal 但只有 $entryCount 条 tools 条目"
-    }
-
-    # ── 现实侧：--list-local ─────────────────────────────────────────
-    $selfReport = (& $exe --list-local) -join "`n"
+    $selfReport = (Invoke-Probe -Exe $exe -Arguments @("--list-local")).Output
     $reportedLocal = 0
     $match = [regex]::Match($selfReport, 'local_count=(\d+)')
     if ($match.Success) { $reportedLocal = [int]$match.Groups[1].Value }
@@ -88,9 +196,12 @@ foreach ($group in $groups) {
     if ($declaredDelegate -gt 0 -and -not $reportedDelegate) {
         $problems += "[$name] node.yaml 声明了 delegate，但 exe 未自报 delegated_to"
     }
+    if ($reportedDelegate -and -not $delegatedInMap.ContainsKey($name)) {
+        $problems += "[$name] exe 自报委托到 $reportedDelegate，但 group_map.yaml 没登记"
+    }
 
     # ── 帮助侧：-h 体积与单工具定位 ─────────────────────────────────
-    $helpText = (& $exe -h) -join "`n"
+    $helpText = (Invoke-Probe -Exe $exe -Arguments @("-h")).Output
     $helpBytes = [System.Text.Encoding]::UTF8.GetByteCount($helpText)
     if ($helpText.Length -eq 0) {
         $problems += "[$name] -h 无输出"
@@ -101,7 +212,7 @@ foreach ($group in $groups) {
     # 单工具 -h：取第一个工具名验证参数表能定位（不执行）
     $firstTool = [regex]::Match($helpText, '(?m)^\s{2}([/\w-]+)\s{2,}').Groups[1].Value
     if ($firstTool) {
-        $toolHelp = (& $exe $firstTool -h) -join "`n"
+        $toolHelp = (Invoke-Probe -Exe $exe -Arguments @($firstTool, "-h")).Output
         if ($toolHelp -notmatch '执行方式') {
             $problems += "[$name] '$firstTool -h' 未打印执行方式（无法审计它跑在哪）"
         }
@@ -119,49 +230,76 @@ foreach ($group in $groups) {
 }
 
 # ── 可选抽样：只用无副作用工具 ──────────────────────────────────────
+# code 组整组都是 notebook 系列，仓库里没有 .ipynb，所以先在临时目录建一个再读回来：
+# 这样验到的是成功路径（写-读闭环），而不是只验「拿 .md 当 notebook 会报错」。
 $sampleSpecs = @(
-    @{ Group = "file";   Args = @("file_read", "--file_path", (Join-Path $repoRoot "AGENTS.md")) }
-    @{ Group = "git";    Args = @("git_status") }
-    @{ Group = "search"; Args = @("glob", "--pattern", "resources/tools/*.yaml") }
-    @{ Group = "agent";  Args = @("worktree_list_all") }
-    @{ Group = "system"; Args = @("sleep", "--duration_seconds", "1") }
-    @{ Group = "code";   Args = @("notebook_read", "--file_path", (Join-Path $repoRoot "AGENTS.md")) }
+    @{ Group = "file";   Args = @("file_read", "--file_path", (Join-Path $repoRoot "AGENTS.md"));             Expect = 0 }
+    @{ Group = "git";    Args = @("git_status");                                                              Expect = 0 }
+    @{ Group = "search"; Args = @("glob", "--pattern", "resources/tools/*.yaml");                             Expect = 0 }
+    @{ Group = "agent";  Args = @("worktree_list_all");                                                       Expect = 0 }
+    @{ Group = "system"; Args = @("sleep", "--duration_seconds", "1");                                        Expect = 0 }
+    @{ Group = "code";   Args = @("notebook_read", "--file_path", (Join-Path $repoRoot "AGENTS.md"));         Expect = 2 }
 )
 
 if ($Sample) {
+    $probeRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("jcc-verify-" + [guid]::NewGuid().ToString("N"))
+    $null = New-Item -ItemType Directory -Path $probeRoot -Force
+    $notebookPath = Join-Path $probeRoot "probe.ipynb"
+
+    # 写-读闭环放在最前面，避免临时目录里没有 notebook 时后面读空文件。
+    $sampleSpecs = @(
+        @{ Group = "code"; Args = @("notebook_create", "--file_path", $notebookPath); Expect = 0 }
+        @{ Group = "code"; Args = @("notebook_read", "--file_path", $notebookPath);   Expect = 0 }
+    ) + $sampleSpecs
+
+    $sampleRuns = 0
     foreach ($spec in $sampleSpecs) {
         $exe = Join-Path $repoRoot ("artifacts/bin/jcc_tool_" + $spec.Group + "/" + $Configuration + "/net10.0/jcc-tool-" + $spec.Group + ".exe")
         if (-not (Test-Path $exe)) { continue }
-        $null = & $exe @($spec.Args) 2>&1
-        $code = $LASTEXITCODE
-        # notebook_read 传 .md 预期失败（退出 2），那是「错误路径可用」，不算问题。
-        $expectedFail = $spec.Args[0] -eq "notebook_read"
-        if ($expectedFail) {
-            if ($code -ne 2) { $problems += "[$($spec.Group)] 错误路径未返回 2（实际 $code）" }
-        } elseif ($code -ne 0) {
-            $problems += "[$($spec.Group)] 抽样 '$($spec.Args[0])' 退出码 $code"
+
+        $probe = Invoke-Probe -Exe $exe -Arguments $spec.Args
+        $sampleRuns++
+        if ($probe.Code -ne $spec.Expect) {
+            $problems += "[$($spec.Group)] 抽样 '$($spec.Args[0])' 退出码 $($probe.Code)，预期 $($spec.Expect)"
+            $probe.Output -split "`r?`n" | Select-Object -First 3 |
+                ForEach-Object { Write-Output "    $_" }
         }
     }
+
+    # 只删自己刚建的临时文件，不用 -Recurse。
+    Remove-Item -LiteralPath $notebookPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $probeRoot -Force -ErrorAction SilentlyContinue
+    Write-Output ("抽样真跑 {0} 次（临时目录，不碰仓库）" -f $sampleRuns)
 }
 
 # ── 汇总 ────────────────────────────────────────────────────────────
-Write-Host ""
-$rows | Format-Table -AutoSize -Property Group, Total, Local, Delegate, Isolated, Target, HelpKB |
-    Out-String -Width 200 | Write-Host
+# 报告体一律走 Write-Output 一次输出：Write-Host 对含换行的多行字符串在部分终端/ConPTY
+# 下会吞掉行尾换行，把表格和汇总行粘成一行（「2.6共 13 组」就是这么来的）。
+$report = @()
+$report += ""
+$report += ($rows | Format-Table -AutoSize -Property Group, Total, Local, Delegate, Isolated, Target, HelpKB |
+    Out-String -Width 200).TrimEnd()
 
 $totalTools = ($rows | Measure-Object -Property Total -Sum).Sum
 $totalIsolated = ($rows | Measure-Object -Property Isolated -Sum).Sum
-$delegateGroups = ($rows | Where-Object { $_.Delegate -gt 0 }).Count
+$delegateGroups = @($rows | Where-Object { $_.Delegate -gt 0 }).Count
 $percent = if ($totalTools -gt 0) { [math]::Floor($totalIsolated * 100 / $totalTools) } else { 0 }
-Write-Host ("共 {0} 组 / {1} 个工具，进程隔离 {2}（{3}%），其中 {4} 组走 delegate" -f `
-    $rows.Count, $totalTools, $totalIsolated, $percent, $delegateGroups) -ForegroundColor Green
+if ($DeclarationsOnly) {
+    $report += ("共 {0} 组 / {1} 个工具，声明隔离 {2}（{3}%），其中 {4} 组走 delegate —— 仅声明侧，未编译未真跑" -f `
+        @($rows).Count, $totalTools, $totalIsolated, $percent, $delegateGroups)
+} else {
+    $report += ("共 {0} 组 / {1} 个工具，进程隔离 {2}（{3}%），其中 {4} 组走 delegate" -f `
+        @($rows).Count, $totalTools, $totalIsolated, $percent, $delegateGroups)
+}
 
 if ($problems.Count -gt 0) {
-    Write-Host ""
-    Write-Host ("发现 {0} 个问题:" -f $problems.Count) -ForegroundColor Red
-    $problems | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+    $report += ""
+    $report += ("发现 {0} 个问题:" -f $problems.Count)
+    $problems | ForEach-Object { $report += "  - $_" }
+    Write-Output ($report -join [Environment]::NewLine)
     exit 1
 }
 
-Write-Host "声明与现实一致。" -ForegroundColor Green
+$report += if ($DeclarationsOnly) { "声明自洽（node.yaml 与 group_map.yaml 一致）。" } else { "声明与现实一致。" }
+Write-Output ($report -join [Environment]::NewLine)
 exit 0

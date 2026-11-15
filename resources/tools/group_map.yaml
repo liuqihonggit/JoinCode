@@ -8,6 +8,9 @@
 #
 # 说明: worktree 归 agent 而非 git，使 git 组保持既有的 10 个本地实现工具（groups/git/private/）。
 #       github 单独成组，避免单个 exe 塞入 172 个工具。
+#       斜杠命令组（groups/slash）不在本表登记：它由 [ChatCommand] 经
+#       scripts/generate_slash_cli_node.py 生成，没有 MCP 分类可映射。
+#       本表只回答「一个 [McpTool] 分类属于哪个组」，不回答「一共有哪些 exe」。
 
 version: 1
 default: system

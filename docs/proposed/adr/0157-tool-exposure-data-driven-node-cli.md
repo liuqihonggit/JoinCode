@@ -67,9 +67,11 @@
 
 > 「大部分的 mcp 特性是不需要改的，你只需要按照每个分组单独一个 cli.exe，这样就可以 bash 调用它们了。而且复用现有的 mcp 说明，来制造 -h 说明也很好。」
 
-由此取消 v2 的「把参数描述从 C# 特性搬到新 `node.yaml`」这一整套数据迁移工作。新增 `scripts/migrate_mcp_tools_to_cli_nodes.py`：**只读**扫描 5248 个 .cs，按分组把现有特性说明渲染成 `help.txt`（编译期内嵌）+ 分组级 `node.yaml`（供下钻索引），不修改任何源 .cs、不重复写一份描述。
+由此取消 v2 的「把参数描述从 C# 特性搬到新 `node.yaml`」这一整套数据迁移工作。新增 `scripts/migrate_mcp_tools_to_cli_nodes.py`：**只读**扫描全仓 `.cs`（排除 `*.g.cs`），按分组把现有特性说明渲染成 `help.txt`（编译期内嵌）+ 分组级 `node.yaml`（供下钻索引），不修改任何源 .cs、不重复写一份描述。
 
-实测产出（**v3 归并后**）：扫描 5298 个 .cs / 发现 546 个工具 / 归入 **12 个功能大类** / 生成 46 个文件。初次直接用 `[McpTool]` 第三参数当组名曾炸出 51 个碎组（20 个组仅 1~3 个工具），经用户指出「分组应该不多」后，改为 `resources/tools/group_map.yaml` 单一映射表向上归并；42 个旧碎组目录按规则移到项目根 `.xxx/` 归档，未删除。
+实测产出（**v3 归并后**，2026-11-16 复跑核对）：扫描 7014 个 .cs / **原始命中 546 条** / 归入 **12 个功能大类** / 生成 24 个文件（每组 `help.txt` + `node.yaml`）。初次直接用 `[McpTool]` 第三参数当组名曾炸出 51 个碎组（20 个组仅 1~3 个工具），经用户指出「分组应该不多」后，改为 `resources/tools/group_map.yaml` 单一映射表向上归并；42 个旧碎组目录按规则移到项目根 `.xxx/` 归档，未删除。
+
+> **口径对齐**：扫描器的 546 是**原始命中条数**（同一个工具名在多处登记会重复计入，实测多出 7 条），去重后 12 组共 **539** 条；再加斜杠命令 99 条，才是 ADR 3.2.8 使用的总数 **638**。三个数字并非矛盾：`546` 是扫描原始量，`539` 是去重后的 MCP 工具数，`638` 是含斜杠命令的总口径。
 
 12 个大类与工具数：`github` 172、`system` 71、`media` 60、`agent` 59、`search` 47、`code` 32、`shell` 27、`mcp` 25、`tools` 18、`file` 13、`git` 10、`web` 5。`github` 单独成组避免单 exe 塞入过多工具；`worktree` 归 `agent` 使 `git` 组保持既有 10 个本地实现工具。新增分类只需在 YAML 登记，不在脚本加分支。
 
@@ -190,7 +192,7 @@
 | 未知工具 | 按帮助文本的工具清单判定，给近似名建议（包含关系 + 编辑距离 ≤ 2），退出码 2 |
 | 本地/转发分发 | `CliNodeDefinition.Resolve` 返回 null 即转发；本地异常统一映射退出码 2 并给下一步 |
 | 转发宿主 | `jcc mcp_call <工具> <json>`，`ArgumentList` 传参，失败退出码 3 |
-| 委托独立 exe | `DelegateExecutable` 声明后改走另一进程（github → `jcc-gh.exe --call-tool`），定位顺序：环境变量 → 同目录 → 上一级目录 → PATH，缺失退出码 3 且提示缺的是哪个 exe |
+| 委托独立 exe | `DelegateExecutable` 声明后改走另一进程（github → `jcc-gh.exe --call-tool`），定位顺序：环境变量 → 同目录 → 同目录 `delegate/` → 上一级目录 → PATH，缺失退出码 3 且提示缺的是哪个 exe；命中后 `--list-local` 自报 `delegate_path=`、`-h` 打印该绝对路径，否则无从判断「跑的是刚编的还是几个月前部署的那份」 |
 | `-h` 输出分档 | 工具数 ≤ 20 的组输出全文；超过则只输出「标题 + 用法 + 分组索引」，详情走 `-h <工具名>` 或 `-h <关键字>` |
 
 **`-h` 为什么必须分档**：github 组 172 个工具的完整参数表是 1037 行 / 70 KB（约 2 万 token），LLM 调一次 `-h` 就吃满上下文，而它通常只需要「这组有哪些工具」。分档后各组体积：github 69926→2315、slash 28247→1467、system 21125→1524、search 23725→1161、shell 12414→846 字节；file/git/web/tools 四组维持全文（≤20 个工具，全文反而更有用）。索引按名字前缀折叠（`gh_issue/` 收 15 个），有类别分节时（斜杠命令的 `[Agent]`）直接用类别当分组键。
@@ -201,7 +203,7 @@
 
 **逐组做实清单（`--list-local` 自报，2026-11-16 实测 227/638）**：
 
-口径说明：工具总数为 `node.yaml` 的 `tool_count` 之和 = 638（12 个 MCP 分组 539 + 斜杠命令 99）。此前文档写的 546 是早期扫描口径，已作废。
+口径说明：工具总数为 `node.yaml` 的 `tool_count` 之和 = 638（12 个 MCP 分组 539 + 斜杠命令 99）。扫描器报的 546 不是总数，而是**原始命中条数**（同一工具名在多处登记会重复计入，实测多 7 条），去重后即 539；两个数字的关系见 3.2 开头的「口径对齐」。
 
 | 组 | 隔离/总数 | 方式 | 依据 / 仍转发的部分及原因 |
 |----|-----------|------|--------------------------|
@@ -219,9 +221,15 @@
 | media | 0/60 | host | 桌面控制（鼠标注入、GDI 截图、UI Automation、透明窗标注）需要桌面 UI 栈，且绕过宿主安全策略的风险高于收益 |
 | slash | 0/99 | host (`slash_call`) | 斜杠命令依赖会话上下文与服务容器 |
 
-**三类执行方式**（`node.yaml` 的 `mode`）：`local` 本 exe 内实现；`delegate` 委托另一个独立 exe（不经宿主，与 local 同档计入隔离）；`host` 转发宿主。三者都可由 `--list-local` 自报（委托时输出 `delegated_to=jcc-gh`），`-h` 会打印当前工具的执行方式。
+**三类执行方式**（`node.yaml` 的 `mode`）：`local` 本 exe 内实现；`delegate` 委托另一个独立 exe（不经宿主，与 local 同档计入隔离）；`host` 转发宿主。三者都可由 `--list-local` 自报（委托时输出 `delegated_to=jcc-gh` 与实际解析到的 `delegate_path=`），`-h` 会打印当前工具的执行方式。
 
-**对账脚本**：`non_deliverables_tools/scripts/Verify-ToolNodes.ps1` 做三件事——① `--list-local` 的 local 数与 `node.yaml` 的 `mode: local` 条数必须相等（实现与登记漂移即失败）；② `tool_count` / `tools` 条目数 / `-h` 索引里的工具名个数三者一致；③ `-h` 体积不超阈（大组必须走索引）。加 `-Sample` 才真跑，且只用无副作用工具（读文件 / git 状态 / glob / worktree 列表 / sleep 1 秒），校验脚本不改仓库。当前实测输出：`共 13 组 / 638 个工具，进程隔离 227（35%），其中 1 组走 delegate`。
+**委托执行器的落位**（两套布局都要成立，否则 delegate 会静默退回 PATH 上的旧副本）：
+- 开发布局：`jcc_tool_github.csproj` 在 `AfterBuild` 把 `artifacts/bin/gh/<cfg>/net10.0/` 的产物拷进本工程输出目录的 **`delegate/` 子目录**。不能平铺到输出目录——gh 是卫星项目，输出里带整套引擎（85 个文件），平铺会 ① 破坏工具节点的依赖墙（本组只该有 5 个 DLL）；② 用 gh 侧那份更旧的 `Abstractions.Primitives.Tools.dll` 覆盖本组刚编的，症状是「重新编译了但行为没变」（实测踩过）。
+- 装配/部署布局：`tools/<组>/jcc-tool-<组>.exe`，委托执行器 `tools/jcc-gh.exe` 由上级目录规则命中，20 MB 只放一份。
+
+**对账脚本**：`non_deliverables_tools/scripts/Verify-ToolNodes.ps1` 做三件事——① `--list-local` 的 local 数与 `node.yaml` 的 `mode: local` 条数必须相等（实现与登记漂移即失败）；② `tool_count` / `tools` 条目数 / `-h` 索引里的工具名个数三者一致；③ `-h` 体积不超阈（大组必须走索引）。加 `-Sample` 才真跑，且只用无副作用工具（读文件 / git 状态 / glob / worktree 列表 / sleep 1 秒 / 临时目录里建一个 notebook 再读回），校验脚本不改仓库。当前实测输出：`共 13 组 / 638 个工具，进程隔离 227（35%），其中 1 组走 delegate`。
+
+另设 `-DeclarationsOnly`：只验声明侧自洽（`tool_count` / `local_tool_count` 与条目数对得上、`mode` 只有 local/delegate/host、工具 id 不重复、`exe` 名与组名一致、`delegates` 段与 `group_map.yaml` 双向一致、13 个分组工程与 `groups:` 段双向一致），不编译、不跑 exe，几秒完成。这部分已进 CI 单测矩阵（job `Tool Nodes - declarations`），因为不需要 13 个 exe 就能拦住「登记与实现漂移」；完整对账仍由本地全量跑。`slash` 组不在 `groups:` 段是设计如此——它由 `[ChatCommand]` 经 `generate_slash_cli_node.py` 生成，没有 MCP 分类可映射，脚本里以显式例外登记并注明原因。
 
 **为什么剩下 411 个不硬做**：它们依赖的东西可归为 6 类——① 模型调用（`web_fetch`/`generate_*`/`analyze_*`）；② 会话与代理状态（`slash` 99、计划 / 子代理 / 任务队列）；③ Roslyn AST + SQLite 索引（`code_index_*`、`lsp_*`）；④ 桌面 UI 与浏览器（`media` 60、`web_browser`）；⑤ MCP 连接与认证（`mcp` 25）；⑥ 宿主存储（`config_*`/`permission_*`/`memory_*`/`analytics_*`/`skill_*`）。在零依赖 exe 内等价实现任何一类，要么引入整套引擎（81 DLL / 16 MB，违反依赖墙），要么分叉出第二份真相源。这是**能力边界，不是遗漏**。
 
@@ -304,7 +312,7 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 | 4 | `resources/tools/base.yaml` 注册 4 个基础工具 + 单元测试 | ✅ 已完成（`jcc tool base` 真实 exe 验收） |
 | 5 | 垂直切片：改造 `jcc-rg.exe`（`node.yaml` + `-h` + 独立可运行），实测单 exe 编译/体积成本 | ✅ 已完成（实测 81 DLL / 16 MB，见 TASK082 §4） |
 | 6 | 依赖墙收敛 + `cli_node.props` 共享配置 + AOT 成本实测 | ✅ 已完成（81 DLL/16MB → 5 DLL/653KB，增量编译 1.94s） |
-| 7 | 只读扫描器 + `group_map.yaml` 按 12 大类重切，生成各组索引/帮助/exe，`jcc-tool-git.exe` 本地实现样板 | ✅ 已完成（12 组 / 546 工具；42 个旧碎组归档 `.xxx/`；3 组编译零警告 + 真机验收） |
+| 7 | 只读扫描器 + `group_map.yaml` 按 12 大类重切，生成各组索引/帮助/exe，`jcc-tool-git.exe` 本地实现样板 | ✅ 已完成（12 组 / 去重后 539 工具，扫描原始命中 546；42 个旧碎组归档 `.xxx/`；3 组编译零警告 + 真机验收） |
 | 8 | 逐组做实本地实现（混合模式）：`git`(10/10)、`file`(11/13)、`shell`(6/27)、`tools`(2/18)；剩余 8 组待推进 | 进行中（4/12 组） |
 | 8b | **进程隔离执行器** `jcc tool call <组> <工具>`：jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码，不初始化引擎 DI | ✅ 已完成（七连真机验收，退出码 0/2/3 全覆盖） |
 | 8c | **斜杠命令独立 exe** `jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>` 进程隔离调用 | ✅ 已完成（生成器 + 真机验收，含 Git Bash 命令名归一化） |

@@ -6,7 +6,8 @@ namespace JoinCode.Abstractions.Tools;
 /// 而"声明"和"真实注册表"可能漂移（改了实现忘了改登记、或反过来）。让 exe 自报实际注册表，
 /// CI 就能把两者对齐校验，交付说明里的"已隔离 N 个"才不是一句无法验真的话。</para>
 /// <para>格式刻意用单行 key=value，便于脚本 diff：<c>group=file local_count=11 local=a,b,c</c>；
-/// 整组委托给独立 exe 时追加 <c>delegated_to=jcc-gh</c>（delegate 与 local 同为不经过宿主）。</para>
+/// 整组委托给独立 exe 时追加 <c>delegated_to=jcc-gh</c>（delegate 与 local 同为不经过宿主），
+/// 能解析到该 exe 时再追加 <c>delegate_path=&lt;绝对路径&gt;</c>。</para>
 /// </summary>
 public static class CliNodeCoverage {
     /// <summary>自报开关。</summary>
@@ -22,8 +23,13 @@ public static class CliNodeCoverage {
     /// <param name="group">分组 ID。</param>
     /// <param name="localToolIds">该 exe 内真实注册的本地工具 ID。</param>
     /// <param name="delegatedExecutable">整组委托给另一个独立 exe 时的目标名；无委托传 null。</param>
-    /// <returns>单行 <c>group=... local_count=... local=...</c>（委托时追加 <c>delegated_to=...</c>）。</returns>
-    public static string Render(string group, IEnumerable<string> localToolIds, string? delegatedExecutable = null) {
+    /// <param name="delegatePath">委托 exe 实际解析到的绝对路径；未解析到传 null。</param>
+    /// <returns>单行 <c>group=... local_count=... local=...</c>（委托时追加 <c>delegated_to=...</c> 与 <c>delegate_path=...</c>）。</returns>
+    public static string Render(
+        string group,
+        IEnumerable<string> localToolIds,
+        string? delegatedExecutable = null,
+        string? delegatePath = null) {
         var ids = localToolIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Distinct(StringComparer.Ordinal)
@@ -32,6 +38,9 @@ public static class CliNodeCoverage {
         var line = $"group={group} local_count={ids.Length} local={string.Join(",", ids)}";
         // 委托也算「不经过宿主」：数字上不是本地实现，但隔离性与本地实现同档，必须能自报出来。
         if (!string.IsNullOrWhiteSpace(delegatedExecutable)) line += $" delegated_to={delegatedExecutable}";
+        // 路径必须报出来：委托 exe 可能来自同目录、上级目录或 PATH，
+        // 不报路径就分不清跑的是本次构建还是几个月前部署的那份。
+        if (!string.IsNullOrWhiteSpace(delegatePath)) line += $" delegate_path={delegatePath}";
         return line + Environment.NewLine;
     }
 }

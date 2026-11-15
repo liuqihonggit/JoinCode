@@ -6,10 +6,38 @@
     <AssemblyName>jcc-tool-github</AssemblyName>
     <RootNamespace>JoinCode.CliNode.Github</RootNamespace>
     <Description>github 工具分组独立 CLI.exe — -h 复用现有 MCP 特性说明</Description>
+    <!-- 委托执行器 jcc-gh 的产物目录；与 jcc-gh 的 OutputPath 规则保持一致（Directory.Build.props:41）。 -->
+    <DelegateOutputDir>$(RepoRoot)artifacts/bin/gh/$(Configuration)/net10.0/</DelegateOutputDir>
   </PropertyGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="help.txt" LogicalName="JoinCode.CliNodes.Groups.github.help.txt" />
   </ItemGroup>
+
+  <!--
+    委托执行器必须能被确定地找到 —— 这是 delegate 模式能落地的前提。
+
+    CliNodeRunner 按「同目录 → 同目录/delegate → 上级目录 → PATH」找 jcc-gh。开发布局下
+    jcc-gh 的产物在 artifacts/bin/gh/，不在本工程输出目录，于是只能命中 PATH —— 而 PATH 上
+    那份是上次部署的旧 exe，会静默跑旧代码（ADR 0132「jcc-gh.dll 部署遗漏」是同一个坑的
+    另一种表现）。打包布局（Pack-ToolNodes 把 jcc-gh 放 tools/ 根）由上级目录规则命中。
+
+    ⚠️ 必须拷进 OutDir/delegate/ 子目录，不能平铺到 OutDir：
+      jcc-gh 是卫星项目，输出里带着整套引擎（80+ DLL）。平铺会① 破坏工具节点的依赖墙
+      （工具 exe 本就只该有 5 个 DLL）；② 用 gh 侧那份可能更旧的 Abstractions.Primitives.Tools.dll
+      覆盖本组刚编出来的新版 —— 实测正是这样把新契约层盖回旧版，症状是「重新编译了但行为没变」。
+
+    jcc-gh 不是本项目的 ProjectReference（它自带实现与独立 deps.json），所以只能拷产物，
+    不能靠编译引用带过来。gh 工程没编过时降级为警告：此时 github 组仍可用 PATH 上的副本。
+  -->
+  <Target Name="CopyDelegateExecutable" AfterTargets="Build">
+    <ItemGroup>
+      <_DelegatePayload Include="$(DelegateOutputDir)*.exe;$(DelegateOutputDir)*.dll;$(DelegateOutputDir)*.json" />
+    </ItemGroup>
+    <Warning Condition="!Exists('$(DelegateOutputDir)jcc-gh.exe')"
+             Text="委托执行器 jcc-gh.exe 不在 $(DelegateOutputDir)：先编 modules/tools/gh/gh.csproj，否则 github 组只能靠 PATH 上的副本（可能是旧部署）。" />
+    <Copy SourceFiles="@(_DelegatePayload)" DestinationFolder="$(OutDir)delegate/"
+          SkipUnchangedFiles="true" Condition="Exists('$(DelegateOutputDir)jcc-gh.exe')" />
+  </Target>
 
 </Project>

@@ -23,9 +23,14 @@ parameters:
     aliases: 位置参数1
   - name: path
     type: array
-    description: 搜索路径，可多个；省略则搜索当前目录
+    description: 搜索路径，可多个；省略时若 stdin 被重定向则读 stdin（最多等 3 秒），否则报错退出
     required: false
     aliases: 位置参数2..N
+  - name: replace
+    type: string
+    description: 把匹配替换成该文本（-r 是 replace，不是「递归」：给了 path 就已经递归）
+    required: false
+    aliases: -r,--replace
   - name: type
     type: string
     description: 限定文件扩展名类型，如 cs / py / ts

@@ -523,6 +523,31 @@ public sealed class RgSubCommandTests {
     }
 
     /// <summary>
+    /// 没给 path 且 stdin 被重定向时，解析层补一个 `-`，并把它标记为「猜出来的」。
+    /// <para>这个标记决定读 stdin 要不要设上限。少了它，stdin 是「打开但永不 EOF」的管道
+    /// （agent / CI / 包装脚本都长这样）时会静默挂死 —— 实测直跑 <c>jcc-rg id:</c> 挂 15 秒以上。</para>
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_未给path且stdin重定向_猜出的连字符应带推断标记() {
+        var opts = RgSubCommand.ParseArgs(["rg", "foo"]);
+        opts.Should().NotBeNull();
+        opts!.Paths.Should().ContainSingle().Which.Should().Be("-");
+        opts.StdinPathInferred.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// 用户显式写 `-` 时不能被当成「猜出来的」：否则慢管道（<c>git diff | jcc rg x -</c>）会被上限误杀。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_显式连字符作为path_不应带推断标记() {
+        var opts = RgSubCommand.ParseArgs(["rg", "foo", "-"]);
+        opts.Should().NotBeNull();
+        opts!.StdinPathInferred.Should().BeFalse();
+    }
+
+    /// <summary>
     /// 多个 path 中混合 `-` 和普通路径时，`-` 应被加入 paths 列表。
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

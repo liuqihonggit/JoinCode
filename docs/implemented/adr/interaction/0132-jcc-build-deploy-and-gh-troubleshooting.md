@@ -30,9 +30,14 @@ pwsh non_deliverables_tools/scripts/Deploy-JccDev.ps1 -SkipBuild
 
 脚本逻辑：
 1. 调用 `Build-AllDomains.ps1` 全量编译 16 域 + 卫星项目
-2. 拷贝 `artifacts/bin/JoinCode/Debug/net10.0/` 的所有文件（dll/exe/json/pdb/xml）到 `C:/Users/54076/bin/jcc.d/dev/`
-3. 拷贝 `artifacts/bin/gh/Debug/net10.0/jcc-gh.*` 到 `C:/Users/54076/bin/jcc.d/dev/`
-4. 验证 `jcc.exe`/`jcc-gh.dll`/`jcc.deps.json` 存在
+2. **先**拷贝 `artifacts/bin/gh/Debug/net10.0/` 与 `artifacts/bin/rg/Debug/net10.0/` 的产物到 `C:/Users/54076/bin/jcc.d/dev/`
+3. **后**拷贝 `artifacts/bin/JoinCode/Debug/net10.0/` 的所有文件（dll/exe/json/pdb/xml）覆盖上去
+4. 装配工具节点：13 个分组 exe 到 `dev/tools/<组>/`，委托执行器 `jcc-gh.exe` 到 `dev/tools/` 根（复用 `Pack-ToolNodes.ps1`）
+5. 验证：`jcc.exe`/`jcc-gh.dll`/`jcc-rg.exe`/`jcc.deps.json` 存在；主项目 219 个文件与产物**逐项比大小**；委托链路自报路径必须落在 `dev/tools/`；`file_read` 实跑退出 0；`jcc tool tree` 零环境变量列出 13 组 / 638 工具
+
+⚠️ **顺序不能反（2026-11-16 实测事故）**：gh/rg 是卫星项目，它们的输出目录里带着整套引擎 DLL（gh 179 个文件，含 `Abstractions.*`）。三个 exe 装进同一目录，**谁后拷谁的同名 DLL 生效**。主项目先拷、插件后拷时，插件里那份更旧的 `Abstractions.Primitives.Tools.dll`（04:33）会盖掉主项目刚编的（05:08），症状是「部署完行为没变、还拒绝 `mode: delegate`」，且全程无报错。所以：插件先铺、主项目最后覆盖，并在部署后用逐项比大小兜底。
+
+⚠️ **卫星产物缺失要失败，不能跳过**：`jcc rg` 曾在部署后直接 `TypeLoadException: Could not load type 'SearchOutputMode'` —— 因为 `artifacts/bin/rg/` 从未编译过，部署目录里留着 11-05 的旧 `jcc-rg.exe`，与新版 `Abstractions.Primitives` 不匹配。「跳过」等于把旧 exe 留在原地继续用，所以脚本现在缺产物即失败并提示该编哪个 csproj。
 
 ⚠️ **必须全量拷贝**，包括 `*.deps.json` 和 `*.runtimeconfig.json`。只拷贝 dll 不拷贝 deps.json 会导致 `Could not load file or assembly` 错误（deps.json 包含程序集依赖图，旧 deps.json 不含新增依赖）。
 
@@ -118,6 +123,16 @@ C:\Users\54076\bin\
 - handler 实现在 `kit/mcp/git_hub/GitHubToolHandlers.*.cs`
 - 工具名枚举在 `lib/abstractions/abs_core/core_utils/constants/tool_names/GitHubToolName.cs`
 
+#### 转发层三条铁律（2026-11-16，三次死锁踩出来的）
+
+`gh` / `rg` 都是「jcc 拉起卫星 exe、再透传三条标准流」。任何一条做错都表现为**静默挂死**——不是报错，是零输出卡住，属于最难排查的一类失败。三条约束缺一不可：
+
+1. **stdin 转发不能进 await 链**。Windows 上重定向 stdin 是同步原生 `ReadFile`，取消令牌打断不了阻塞中的读；进 await 链就会出现「子进程已退出、输出也打完了，父进程还挂着」（实测 15 秒不返回）。放独立长驻线程、不 await，线程随进程退出回收。
+2. **下游关闭输出时必须终止子进程**。`| head`、`| grep -m1` 这类下游读够就走并关闭管道，本进程写失败；此时若只是「等子进程退出」，它会永远阻塞在写满的管道上。终止它并返回 141，等价 shell 给上游发 SIGPIPE。
+3. **程序自己猜出来的输入必须有上限**。「没给路径就猜 stdin」是宽容，但 stdin 可能是打开却永不 EOF 的管道。猜出来的路径设 3 秒上限并明确报错；只有用户**显式**指定的（`-`）才允许无限等。
+
+可观测性配套：这些命令的耗时应在「单层 .NET 启动 200–320 ms × 层数」量级。任何一条明显超时，先怀疑这三条，而不是网络慢或搜索慢。
+
 ### 4. rg 引擎与功能
 
 **rg 子命令是 jcc 内置的 ripgrep 兼容搜索**，独立实现于 `RgEngine`（mmap + PLINQ 并行 + 零 GC Span 行遍历）。
@@ -195,9 +210,29 @@ C:\Users\54076\bin\
 | rg `-F` 走 Regex 性能差 | ✅ 已修复(2026-10-10) | `-F` 单独使用时走 `Span.IndexOf`（SIMD 加速），不走 Regex |
 | rg 无 ASCII 快速路径 | ✅ 已修复(2026-10-10) | `MemoryMarshal.Cast<byte, char>` 跳过 UTF-8 解码，ASCII 文件直接在 byte span 上搜索 |
 | rg 缺 `-v`/`-e`/`-x`/`--max-count` | ✅ 已修复(2026-10-10) | 新增反向匹配/多模式OR/整行匹配/每文件上限 |
+| `jcc gh` / `jcc rg` 在 stdin 重定向且未 EOF 时挂死 | ✅ 已修复(2026-11-16) | 两个子命令原来各自 `Console.In.ReadToEndAsync` 把整个 stdin 读完再喂子进程，而 stdin 若是「打开但未关闭」的管道（CI / 包装脚本 / agent 执行器），EOF 永不到来 → 父子互等死锁（实测 20 秒零输出）。现收成 `StdinForwarder`：流式转发 + 放在独立长驻线程且**不进 await 链**（Windows 上重定向 stdin 是同步原生读，`Cancel` 打断不了阻塞中的 ReadFile，await 它仍会挂）。修后 `jcc gh auth status` 1180ms、`jcc rg -c "id:" path` 668ms |
+| `jcc rg ... \| head -1` 挂死 8 秒以上 | ✅ 已修复(2026-11-16) | 同一条链上的**第三种**死锁：转发先 `await WaitForExitAsync()` 等子进程、再等输出转发。下游 `head` 读够就退出并关闭管道，本进程写 Console 失败，而子进程仍在往没人读的管道里写、缓冲区满后阻塞在写调用上 —— 父进程永远等不到它退出。现改为输出转发失败时按 SIGPIPE 语义**终止子进程**并返回 141（与 shell 给上游发 SIGPIPE 一致）。修后 `jcc rg ... \| head -1` 0.35s、`jcc gh api user \| head -1` 2.0s |
+| `jcc rg <pattern>`（不给路径）挂死 15 秒以上 | ✅ 已修复(2026-11-16) | 解析层在「无路径且 stdin 被重定向」时补一个 `-` 去猜 stdin；`ReadToEnd` 在「打开但永不 EOF」的管道上永不返回。现把猜出来的 `-` 标记为 `StdinPathInferred`，读 stdin 上限 3 秒、超时报错退出；用户**显式**写 `-` 不设上限（`git diff \| jcc rg x -` 这类慢管道要能等完，实测 5 秒后给数据仍成功）。顺带修 `-c`/`-l` 把带 GUID 的临时文件路径当文件名输出（统一显示 `<stdin>`），以及 help 缺 `--replace` 说明 —— `-r` 是 replace 且会吃掉后续参数，使 paths 为空进而触发上面的猜 stdin，正是踩坑入口 |
+| 部署时卫星项目旧 DLL 盖掉主项目新 DLL | ✅ 已查明(2026-11-16) | gh 产物含整套引擎（179 文件）。主先拷、插件后拷 → 旧 `Abstractions.Primitives.Tools.dll` 覆盖新编版本，表现为「部署后行为没变」。改为插件先、主项目后，并逐项比大小兜底（见部署流程） |
+| `jcc rg` 部署后 TypeLoadException | ✅ 已查明(2026-11-16) | `artifacts/bin/rg/` 从未编译，`dev/` 里是 11-05 的旧 `jcc-rg.exe`，与新版 `Abstractions.Primitives` 不匹配。部署脚本原「输出目录不存在→跳过」把旧 exe 留在原地继续用；现改为缺产物即失败并提示编译 `modules/tools/rg/rg.csproj` |
+| `jcc gh api user --jq login` 未应用 jq | ⚠️ 待确认 | 实测返回完整 JSON 而非 `login` 字段值（`auth status` 路径正常）。下次排查 `GhApi` 分支是否绕过 `FormatGhOutput` |
+
+### 6. 启动开销实测（2026-11-16，dev 部署，Debug 框架依赖版）
+
+| 命令 | 耗时 | 构成 |
+|------|------|------|
+| `jcc --version` | 316 ms | jcc 自身 .NET 启动 + 参数解析 |
+| `jcc tool tree` | 323 ms | 同上 + 扫 `tools/` 13 组 node.yaml |
+| `jcc tool call file file_read` | 471 ms | jcc 300 + 子进程 `jcc-tool-file.exe` 204 |
+| `jcc rg -r -c` | 668 ms | jcc 300 + 子进程 `jcc-rg.exe` 268 |
+| `jcc gh auth status` | 1180 ms | jcc 300 + `jcc-gh.exe` 359 + token 校验/网络 |
+| 直跑 `jcc-tool-file.exe` | 204 ms | 单个 .NET apphost 启动 + 工具逻辑 |
+| 直跑 `jcc-gh.exe` | 359 ms | 同上 + LSM 读 hosts.yml |
+| 直跑 `jcc-rg.exe` | 268 ms | 同上 + 递归扫描 13 个 yaml |
+
+结论：**这四条路径都不初始化引擎**，4.4 秒的 `BuildHostAsync` 只在需要宿主上下文的命令（`jcc -p`、MCP 转发）才付。当前基线是「每层 .NET 进程 ~200-320 ms」，两层就是 0.5-0.7 秒。要「瞬间」（<50 ms）只能 NativeAOT；本机 AOT 链接缺 `advapi32.lib`、`reg.exe` 又被安全策略拦截，AOT 体积/启动收益待 CI 补测。
 
 ## 原因
-
 1. **文档化部署流程**：新开发者需要知道如何编译和部署 jcc，避免手动复制遗漏 DLL
 2. **明确修复方向**：AI 训练数据中系统 gh CLI 用法占主导，遇到问题时可能误修系统 gh CLI 而非 jcc 源码
 3. **记录已知限制**：避免重复排查已分析过的问题（启动开销、optional 位置参数等）

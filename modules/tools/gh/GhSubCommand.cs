@@ -1,6 +1,14 @@
 namespace JoinCode.Gh;
 
 internal static class GhSubCommand {
+    /// <summary>
+    /// 按工具名直调的选项 —— 给 CLI 节点 exe（jcc-tool-github）用。
+    /// <para>存在理由：节点侧的工具名是 <c>gh_issue_list</c>，而本 exe 走 gh 风格的
+    /// <c>issue list</c> 解析。若让节点侧自己把名字拆成 group/action，就得复制一份组名表，
+    /// 迟早和这里的 KnownGroups 漂移；直调入口让两边共用同一个 GhDispatcher。</para>
+    /// </summary>
+    internal const string CallToolOption = "--call-tool";
+
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var hasHelp = Array.IndexOf(args, CliArgCliOptionConstants.HelpLongName) >= 0
                     || Array.IndexOf(args, CliArgCliOptionConstants.HelpShortName) >= 0;
@@ -18,6 +26,9 @@ internal static class GhSubCommand {
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;
         }
+
+        var callToolIndex = Array.IndexOf(args, CallToolOption);
+        if (callToolIndex > 0) return await CallToolAsync(args, callToolIndex, ct).ConfigureAwait(false);
 
         var noCache = Array.IndexOf(args, "--no-cache") >= 0;
         var cleanArgs = noCache ? args.Where(a => !string.Equals(a, "--no-cache", StringComparison.Ordinal)).ToArray() : args;
@@ -40,22 +51,61 @@ internal static class GhSubCommand {
         }
 
         if (resolved.Json && !bound.ContainsKey("verbosity")) bound["verbosity"] = "2";
+        return await InvokeAndOutputAsync(resolved.ToolName, bound, resolved.Json, noCache, ct).ConfigureAwait(false);
+    }
 
+    /// <summary>按工具名直接分发 —— 跳过 gh 风格命令解析，参数按同一份 schema 绑定。</summary>
+    private static async Task<int> CallToolAsync(string[] args, int index, CancellationToken ct) {
+        if (index + 1 >= args.Length) {
+            TerminalHelper.WriteError($"{CallToolOption} 需要一个工具名，例如: {CallToolOption} gh_issue_list --repo owner/name");
+            return 1;
+        }
+        var toolName = args[index + 1];
+        if (!GhDispatcher.ContainsTool(toolName)) {
+            TerminalHelper.WriteError(UnknownToolMessage(toolName));
+            return 1;
+        }
+        var tail = args[(index + 2)..];
+        var json = FlatSubCommandRouter.ShouldOutputJson(args);
+        var parameters = GhDispatcher.GetParams(toolName);
+        var bound = GhArgsBinder.Bind(tail, parameters, toolName, out var bindError);
+        if (bound is null) {
+            TerminalHelper.WriteError(bindError!);
+            return 1;
+        }
+        if (json && !bound.ContainsKey("verbosity")) bound["verbosity"] = "2";
+        return await InvokeAndOutputAsync(toolName, bound, json, noCache: false, ct).ConfigureAwait(false);
+    }
+
+    private static async Task<int> InvokeAndOutputAsync(
+        string toolName, Dictionary<string, string> bound, bool json, bool noCache, CancellationToken ct) {
         var tracker = new GhTimingTracker { CacheDisabled = noCache };
         var prevTimer = GhTimingTracker.CurrentTimer.Value;
         GhTimingTracker.CurrentTimer.Value = tracker;
         ToolResult? result;
         try {
-            result = await GhDispatcher.InvokeAsync(resolved.ToolName, bound, ct).ConfigureAwait(false);
+            result = await GhDispatcher.InvokeAsync(toolName, bound, ct).ConfigureAwait(false);
         } finally {
             GhTimingTracker.CurrentTimer.Value = prevTimer;
         }
         if (result is null) {
-            TerminalHelper.WriteError($"工具 '{resolved.ToolName}' 调用返回 null");
+            TerminalHelper.WriteError($"工具 '{toolName}' 调用返回 null");
             return 1;
         }
         result.TimingInfo = tracker.Format();
-        return OutputResult(result, resolved.Json);
+        return OutputResult(result, json);
+    }
+
+    /// <summary>直调入口的未知工具提示 —— 没有 group/action 可拆，直接按名字做包含/近似匹配。</summary>
+    private static string UnknownToolMessage(string toolName) {
+        var lowered = toolName.ToLowerInvariant();
+        var candidates = GhDispatcher.GetToolNames()
+            .Where(n => n.Contains(lowered, StringComparison.OrdinalIgnoreCase))
+            .Take(10)
+            .ToList();
+        var head = CliErrorCatalog.ResourceNotFound("gh 工具", toolName).ToRustStyleString(toolName);
+        return candidates.Count == 0 ? $"{head}\n提示: {CallToolOption} 后接 [McpTool] 特性里的完整工具名（如 gh_issue_list）"
+                                     : $"{head}\n可用: {string.Join(", ", candidates)}";
     }
 
     private static string ToolNotFoundMessage(GhResolvedCommand resolved) {

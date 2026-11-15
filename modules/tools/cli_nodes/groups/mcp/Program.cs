@@ -6,7 +6,7 @@ namespace JoinCode.CliNode.Mcp;
 
 /// <summary>
 /// mcp 分组独立 CLI.exe — 由 migrate_mcp_tools_to_cli_nodes.py 生成。
-/// <para>入口行为（-h / --list-local / 参数解析 / 本地分发 / 转发宿主 / 退出码）统一在
+/// <para>入口行为（-h / --list-local / 参数解析 / 本地分发 / 转发 / 退出码）统一在
 /// <see cref="CliNodeRunner"/>，本文件只声明分组身份与本地实现表。</para>
 /// <para>Resolve 返回 null 表示该工具走宿主转发；逐组做实时把它换成私有实现表的 Find。</para>
 /// -h 文本来自现有 [McpTool] 特性，不在生成物里重复维护说明。

@@ -61,6 +61,30 @@ $allGroups = Get-ChildItem -Path $groupsRoot -Directory |
     Where-Object { Test-Path (Join-Path $_.FullName ("jcc_tool_" + $_.Name + ".csproj")) } |
     Sort-Object Name
 
+# 委托执行器: group_map.yaml 的 delegates 段声明「某组工具由另一个独立 exe 实现」。
+# 这里读同样一份数据源，把被委托的 exe 放到 tools/ 根共享一份（jcc-gh 带依赖 20 MB，
+# 按组各放一份不划算）。刻意不引入 YAML 库，格式与 migrate 脚本的解析规则保持一致。
+function Read-Delegates {
+    param([string]$MapPath)
+    $result = @{}
+    if (-not (Test-Path $MapPath)) { return $result }
+    $section = ""
+    $current = ""
+    foreach ($line in Get-Content -Path $MapPath) {
+        if ($line -match '^\s*#' -or [string]::IsNullOrWhiteSpace($line)) { continue }
+        if ($line -match '^delegates:\s*$') { $section = "delegates"; $current = ""; continue }
+        if ($line -match '^\S') { if ($line -notmatch '^delegates:') { $section = "" }; continue }
+        if ($section -ne "delegates") { continue }
+        if ($line -match '^  (\w+):\s*$') { $current = $Matches[1]; $result[$current] = @{}; continue }
+        if ($current -and $line -match '^\s{4,}([\w_]+):\s*(.+)$') {
+            $result[$current][$Matches[1]] = $Matches[2].Trim()
+        }
+    }
+    return $result
+}
+
+$delegateMap = Read-Delegates -MapPath (Join-Path $repoRoot "resources/tools/group_map.yaml")
+
 if ($Groups.Count -gt 0) {
     $allGroups = $allGroups | Where-Object { $Groups -contains $_.Name }
     if (-not $allGroups) {
@@ -71,6 +95,29 @@ if ($Groups.Count -gt 0) {
 
 $results = @()
 $failures = @()
+
+# 委托执行器先落位：分组 exe 启动时会先找同目录、再找上一级目录（此处 = tools/）。
+$delegatePlaced = @{}
+foreach ($groupName in $delegateMap.Keys) {
+    $info = $delegateMap[$groupName]
+    $exeStem = $info["exe"]
+    if ([string]::IsNullOrWhiteSpace($exeStem) -or $delegatePlaced.ContainsKey($exeStem)) { continue }
+    $project = $info["project"]
+    if ([string]::IsNullOrWhiteSpace($project)) { $project = $exeStem }
+    $srcBin = Join-Path $repoRoot ("artifacts/bin/" + $project + "/" + $Configuration + "/net10.0")
+    $srcExe = Join-Path $srcBin ($exeStem + ".exe")
+    if (-not (Test-Path $srcExe)) {
+        Write-Host ("[delegate-missing] {0}.exe —— 先编译 {1}.csproj（{2}）" -f $exeStem, $project, $srcBin) -ForegroundColor Yellow
+        continue
+    }
+    $payload = Get-ChildItem -Path $srcBin -File |
+        Where-Object { $_.Extension -in @(".exe", ".dll", ".json") -and $_.Name -notlike "*.pdb" }
+    foreach ($file in $payload) {
+        Copy-Item -Path $file.FullName -Destination (Join-Path $toolsOut $file.Name) -Force
+    }
+    $delegatePlaced[$exeStem] = (Get-ChildItem -Path $srcBin -File | Measure-Object -Property Length -Sum).Sum
+    Write-Host ("[delegate] {0} -> tools/ ({1} 个文件)" -f $exeStem, $payload.Count) -ForegroundColor DarkCyan
+}
 
 foreach ($group in $allGroups) {
     $name = $group.Name

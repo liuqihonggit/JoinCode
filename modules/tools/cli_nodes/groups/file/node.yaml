@@ -1,5 +1,6 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=本 exe 内实现，
+# delegate=委托另一个独立 exe（不经宿主），host=转发宿主执行。
 id: file
 name: jcc-tool-file
 summary: "Delete the specified file; Edit file contents by search-and-replace; Edit file using regex pattern to replace matched text"
@@ -7,7 +8,7 @@ category: file
 exe: jcc-tool-file.exe
 tags: [directory, file, send]
 tool_count: 13
-local_tool_count: 11
+local_tool_count: 12
 parameters: []
 tools:
   - id: file_delete
@@ -25,7 +26,7 @@ tools:
   - id: directory_list
     mode: local
   - id: file_apply_patch
-    mode: host
+    mode: local
   - id: file_read
     mode: local
   - id: file_snip_lines

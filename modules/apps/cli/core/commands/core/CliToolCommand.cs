@@ -243,7 +243,7 @@ internal static class CliToolCommand {
             .Take(8)
             .ToArray();
         Console.Error.WriteLine($"分组 '{node.Id}' 内没有工具 '{toolName}'（由 jcc tool call 的工具校验层拦截）。");
-        Console.Error.WriteLine($"该分组共 {node.Tools.Length} 个工具，本地实现 {node.LocalToolCount} 个。");
+        Console.Error.WriteLine($"该分组共 {node.Tools.Length} 个工具，进程隔离 {node.LocalToolCount} 个（local 本 exe 内实现 + delegate 独立 exe）。");
         if (close.Length > 0) Console.Error.WriteLine($"相近工具: {string.Join(", ", close)}");
         Console.Error.WriteLine($"正确写法: jcc tool help {node.Id} 查看全部工具，或 jcc tool find <关键词> 搜索。");
         failureExitCode = 2;

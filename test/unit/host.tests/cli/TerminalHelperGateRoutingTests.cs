@@ -6,6 +6,7 @@ namespace Host.Tests.Cli;
 /// 必须改道闸门环形缓冲，不再触碰终端画布 — /?? 需求澄清等 CLI 命令在 TUI 内运行时
 /// 曾直接写 RealOut 与 inline 渲染器双写互踩（用户实测整帧错乱）。
 /// Console.SetOut 是进程全局态 — 本类测试串行（xUnit 同类内串行）。
+/// 防御性清空：Begin 之后清空 originalOut，消除 Begin 之前并行测试泄漏的输出（偶发 CI 失败根因）。
 /// </summary>
 [Collection("ConsoleOutput")]
 public sealed class TerminalHelperGateRoutingTests {
@@ -15,6 +16,7 @@ public sealed class TerminalHelperGateRoutingTests {
         Console.SetOut(originalOut);
         try {
             using var _ = ConsoleSuppressionGate.Begin("TUI 会话");
+            originalOut.GetStringBuilder().Clear();
             TerminalHelper.WriteLine("[TEST-TH] line");
             Assert.Equal(string.Empty, originalOut.ToString());
             var drained = ConsoleSuppressionGate.TakeSuppressedLines();
@@ -30,6 +32,7 @@ public sealed class TerminalHelperGateRoutingTests {
         Console.SetOut(originalOut);
         try {
             using var _ = ConsoleSuppressionGate.Begin("TUI 会话");
+            originalOut.GetStringBuilder().Clear();
             TerminalHelper.WriteRaw("[TEST-TH] rawx");
             Assert.Equal(string.Empty, originalOut.ToString());
             var drained = ConsoleSuppressionGate.TakeSuppressedLines();
@@ -45,6 +48,7 @@ public sealed class TerminalHelperGateRoutingTests {
         Console.SetOut(originalOut);
         try {
             using var _ = ConsoleSuppressionGate.Begin("TUI 会话");
+            originalOut.GetStringBuilder().Clear();
             TerminalHelper.WriteRaw('z');
             Assert.Equal(string.Empty, originalOut.ToString());
             var drained = ConsoleSuppressionGate.TakeSuppressedLines();
@@ -60,6 +64,7 @@ public sealed class TerminalHelperGateRoutingTests {
         Console.SetOut(originalOut);
         try {
             using var _ = ConsoleSuppressionGate.Begin("TUI 会话");
+            originalOut.GetStringBuilder().Clear();
             TerminalHelper.WriteLineReal("[TEST-TH] real");
             Assert.Equal(string.Empty, originalOut.ToString());
             var drained = ConsoleSuppressionGate.TakeSuppressedLines();

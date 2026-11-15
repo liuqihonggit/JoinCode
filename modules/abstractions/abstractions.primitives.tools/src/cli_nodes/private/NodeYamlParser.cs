@@ -83,7 +83,7 @@ internal static class NodeYamlParser {
         var rawMode = ReadScalar(map, "mode");
         if (string.IsNullOrWhiteSpace(rawMode))
             throw new InvalidOperationException(
-                $"CLI 节点清单 '{source}' 子工具 '{toolId}' 缺少 mode（local/host）——" +
+                $"CLI 节点清单 '{source}' 子工具 '{toolId}' 缺少 mode（local/delegate/host）——" +
                 "没有执行方式就无法判断该工具是否真正进程隔离，禁止省略");
         return new CliToolEntry {
             Id = toolId,
@@ -94,9 +94,10 @@ internal static class NodeYamlParser {
 
     private static CliExecutionMode ParseMode(string raw, string source, string toolId) => raw.Trim().ToLowerInvariant() switch {
         "local" => CliExecutionMode.Local,
+        "delegate" => CliExecutionMode.Delegate,
         "host" => CliExecutionMode.Host,
         _ => throw new InvalidOperationException(
-            $"CLI 节点清单 '{source}' 子工具 '{toolId}' 的 mode 只能是 local 或 host，实际为 '{raw}'")
+            $"CLI 节点清单 '{source}' 子工具 '{toolId}' 的 mode 只能是 local / delegate / host，实际为 '{raw}'")
     };
 
     private static CliToolParameter ParseParameter(YamlMappingNode map, string source, string nodeId) {

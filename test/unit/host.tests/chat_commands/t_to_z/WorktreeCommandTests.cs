@@ -6,7 +6,9 @@ namespace Host.Tests.ChatCommands;
 /// 覆盖:list/ls/delete/rm/create + cleanup/clean/status (保留字符串) + 未知子命令
 /// 验证目标:Step 3.5 重构后,所有 case 标签能被正确识别
 /// 注意:WorktreeService null 时 ExecuteAsync 直接返回,case 不会触发,需用 Mock 触发 case
+/// ExecuteAsync 通过 TerminalHelper.WriteLine 间接写入 Console.Out — 加入 ConsoleOutput collection 串行执行
 /// </summary>
+[Collection("ConsoleOutput")]
 public sealed class WorktreeCommandTests {
     [Fact]
     public void Name_Should_Be_worktree() {

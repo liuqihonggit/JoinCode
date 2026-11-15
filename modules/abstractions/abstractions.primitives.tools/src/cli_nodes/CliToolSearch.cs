@@ -22,27 +22,64 @@ public static class CliToolSearch {
             .ToArray();
     }
 
+    /// <summary>树里每行的摘要上限 — 分组节点的 summary 是前 3 个工具描述的拼接，不截断会占满一行。</summary>
+    private const int TreeSummaryLimit = 110;
+
+    /// <summary>搜索结果里的摘要上限 — 比目录树宽松，但仍要留住「一行看清是什么」的定位作用。</summary>
+    private const int ResultSummaryLimit = 180;
+
     /// <summary>渲染目录树 — 分类即目录，节点即叶子；分组节点附带本地实现覆盖率。</summary>
     public static string RenderTree(IEnumerable<CliToolDescriptor> nodes) {
         var sb = new StringBuilder();
-        var groups = nodes
+        var list = nodes as IReadOnlyList<CliToolDescriptor> ?? nodes.ToList();
+        AppendTotals(sb, list);
+        var groups = list
             .GroupBy(node => node.Category, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal);
         foreach (var group in groups) {
+            var ordered = group.OrderBy(item => item.Id, StringComparer.Ordinal).ToArray();
+            // 单节点组（当前全部 13 组都是 1:1）：目录名就是节点 ID，再打一遍 "github/ —" 纯属噪音。
+            if (ordered.Length == 1 && string.Equals(ordered[0].Id, group.Key, StringComparison.Ordinal)) {
+                sb.AppendLine($"{group.Key}/ — {Brief(ordered[0].Summary, TreeSummaryLimit)}{Coverage(ordered[0])}");
+                continue;
+            }
             sb.AppendLine($"{group.Key}/");
-            foreach (var node in group.OrderBy(item => item.Id, StringComparer.Ordinal))
-                sb.AppendLine($"  {node.Id}/ — {node.Summary}{Coverage(node)}");
+            foreach (var node in ordered)
+                sb.AppendLine($"  {node.Id}/ — {Brief(node.Summary, TreeSummaryLimit)}{Coverage(node)}");
         }
         return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// 总览行 —— 「546 个工具里到底隔离了多少」应当一眼可见，否则只能逐组把分母加起来。
+    /// </summary>
+    private static void AppendTotals(StringBuilder sb, IReadOnlyList<CliToolDescriptor> nodes) {
+        var withTools = nodes.Where(node => node.HasToolEntries).ToList();
+        if (withTools.Count == 0) return;
+        var total = withTools.Sum(node => node.Tools.Length);
+        var isolated = withTools.Sum(node => node.LocalToolCount);
+        var percent = total == 0 ? 0 : isolated * 100 / total;
+        sb.AppendLine(
+            $"共 {withTools.Count} 组 / {total} 个工具，进程隔离 {isolated}（{percent}%：local 本 exe 内实现 + delegate 独立 exe）");
+    }
+
+    /// <summary>
+    /// 摘要截断：目录树只用来定位节点，细节交给 `-h`。
+    /// 不截断时 search 组那一行近千字符，等于把 3 个工具的描述塞进了「索引」。
+    /// </summary>
+    private static string Brief(string summary, int limit) {
+        if (string.IsNullOrEmpty(summary) || summary.Length <= limit) return summary;
+        return summary[..limit].TrimEnd() + "…";
     }
 
     /// <summary>渲染搜索结果 — 给出 -h 命令，引导 LLM 按需阅读而非一次性吞下全部描述。</summary>
     public static string RenderResults(IReadOnlyList<CliToolDescriptor> nodes, string? query = null) {
         if (nodes.Count == 0) return "未找到匹配的 CLI 工具节点。";
         var sb = new StringBuilder();
-        sb.AppendLine($"命中 {nodes.Count} 个节点（用 <exe> -h 查看完整参数）:");
+        // 下面每行都会给出真实 exe 名，这里再写 `<exe>` 占位符只会让人去找「exe 是哪个」。
+        sb.AppendLine($"命中 {nodes.Count} 个节点（`-h` 看该组完整参数）:");
         foreach (var node in nodes) {
-            sb.AppendLine($"  {node.Id,-14} [{node.Category}] {node.Summary}{Coverage(node)}");
+            sb.AppendLine($"  {node.Id,-14} [{node.Category}] {Brief(node.Summary, ResultSummaryLimit)}{Coverage(node)}");
             // 写出真实 exe 名：LLM 只看「<exe>」占位符时仍要去猜节点对应的可执行文件。
             if (!string.IsNullOrWhiteSpace(node.Exe)) sb.AppendLine($"       {node.Exe} -h");
             AppendMatchedTools(sb, node, query);
@@ -51,9 +88,16 @@ public static class CliToolSearch {
         return sb.ToString().TrimEnd();
     }
 
-    /// <summary>本地实现覆盖率 — 只有分组节点才有意义。</summary>
-    private static string Coverage(CliToolDescriptor node) =>
-        node.HasToolEntries ? $"  (本地实现 {node.LocalToolCount}/{node.Tools.Length})" : string.Empty;
+    /// <summary>进程隔离覆盖率（local + delegate）— 只有分组节点才有意义。</summary>
+    private static string Coverage(CliToolDescriptor node) {
+        if (!node.HasToolEntries) return string.Empty;
+        var total = node.Tools.Length;
+        var isolated = node.LocalToolCount;
+        // 「进程隔离 0/60」会被读成「这组不能用」；它其实 60 个都能用，只是都走宿主。
+        if (isolated == 0) return $"  (全部 {total} 个转发宿主)";
+        if (isolated == total) return $"  (全部 {total} 个进程隔离)";
+        return $"  (进程隔离 {isolated}/{total}，其余转发宿主)";
+    }
 
     /// <summary>
     /// 查询命中分组内某个子工具时，列出命中的子工具及其执行方式 —
@@ -68,8 +112,14 @@ public static class CliToolSearch {
             .OrderBy(entry => entry.Id, StringComparer.Ordinal)
             .ToArray();
         foreach (var entry in matched)
-            sb.AppendLine($"      · {entry.Id,-30} {(entry.IsLocal ? "本地进程隔离" : "转发宿主执行")}{Aliases(entry)}");
+            sb.AppendLine($"      · {entry.Id,-30} {ModeText(entry)}{Aliases(entry)}");
     }
+
+    private static string ModeText(CliToolEntry entry) => entry.Mode switch {
+        CliExecutionMode.Local => "本地进程隔离",
+        CliExecutionMode.Delegate => "委托独立 exe（不经宿主）",
+        _ => "转发宿主执行"
+    };
 
     private static string Aliases(CliToolEntry entry) =>
         entry.Aliases.Length == 0 ? string.Empty : $"  别名: {string.Join(", ", entry.Aliases)}";

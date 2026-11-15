@@ -9,6 +9,13 @@ public enum CliExecutionMode {
     /// <summary>在分组 exe 自己的进程内实现（纯 BCL），离开宿主也能跑 —— 真进程隔离。</summary>
     Local,
 
+    /// <summary>
+    /// 委托另一个独立 exe 执行（如 github 组 → jcc-gh.exe）。
+    /// <para>同样是跨进程隔离，且不经过宿主的引擎与 Hub；区别只在于实现放在哪个可执行文件里，
+    /// 因此不能并入 <see cref="Host"/>，否则审计会把「已隔离」看成「还在宿主里」。</para>
+    /// </summary>
+    Delegate,
+
     /// <summary>依赖宿主引擎状态（会话 / DI / LLM / 浏览器 / 调度器），exe 内转发宿主执行。</summary>
     Host
 }
@@ -29,13 +36,29 @@ public sealed record CliToolEntry {
     /// </summary>
     public string[] Aliases { get; init; } = [];
 
-    /// <summary>是否真正进程隔离（本地实现）。</summary>
-    public bool IsLocal => Mode == CliExecutionMode.Local;
+    /// <summary>是否真正进程隔离（本地实现或委托独立 exe，都不经过宿主）。</summary>
+    public bool IsLocal => Mode is CliExecutionMode.Local or CliExecutionMode.Delegate;
+
+    /// <summary>执行方式的可读标签，用于 node.yaml 展示与审计输出。</summary>
+    public string ModeLabel => Mode switch {
+        CliExecutionMode.Local => "local",
+        CliExecutionMode.Delegate => "delegate",
+        _ => "host"
+    };
 
     /// <summary>该条目是否匹配给定名称（ID 或任一别名，大小写不敏感）。</summary>
     /// <param name="name">待查名称。</param>
     /// <returns>命中为 true。</returns>
     public bool Matches(string name) =>
-        string.Equals(Id, name, StringComparison.OrdinalIgnoreCase)
-        || Aliases.Any(alias => string.Equals(alias, name, StringComparison.OrdinalIgnoreCase));
+        NameEquals(Id, name) || Aliases.Any(alias => NameEquals(alias, name));
+
+    /// <summary>
+    /// 名称等价判定，额外把前导 <c>/</c> 视作同一名称。
+    /// <para>斜杠命令的 ID 写作 <c>/agents</c>，但 Git Bash 会把以 <c>/</c> 开头的参数展开成安装根下的路径，
+    /// 调用方还原后通常只剩 <c>agents</c>；不互认的话 <c>jcc tool call slash /agents</c> 与
+    /// <c>jcc tool call slash agents</c> 两种写法都会「工具不存在」。</para>
+    /// </summary>
+    private static bool NameEquals(string candidate, string name) =>
+        string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(candidate.TrimStart('/'), name.TrimStart('/'), StringComparison.OrdinalIgnoreCase);
 }

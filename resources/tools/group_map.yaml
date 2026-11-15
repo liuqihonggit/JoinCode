@@ -12,6 +12,17 @@
 version: 1
 default: system
 
+# 委托执行: 某些组的工具实现已经存在于另一个独立 exe 里,分组 exe 只转发过去。
+# 这不是「转发宿主」——被委托方自带实现与凭据,不需要引擎 DI / Hub / 会话状态,
+# 跳过宿主即达成进程隔离; 在分组 exe 内重写一份只会得到两份互相对不上的实现。
+# 新增委托只在此登记,不要在生成器里加分支。
+delegates:
+  github:
+    exe: jcc-gh
+    verb: --call-tool
+    project: gh
+    reason: github 组 172 个工具由独立 jcc-gh.exe 实现（自带 REST 调用与 hosts.yml 凭据），分组 exe 只做转发。
+
 groups:
   file:
     - file

@@ -76,7 +76,8 @@ public static class CliToolSearch {
     public static string RenderResults(IReadOnlyList<CliToolDescriptor> nodes, string? query = null) {
         if (nodes.Count == 0) return "未找到匹配的 CLI 工具节点。";
         var sb = new StringBuilder();
-        sb.AppendLine($"命中 {nodes.Count} 个节点（用 <exe> -h 查看完整参数）:");
+        // 下面每行都会给出真实 exe 名，这里再写 `<exe>` 占位符只会让人去找「exe 是哪个」。
+        sb.AppendLine($"命中 {nodes.Count} 个节点（`-h` 看该组完整参数）:");
         foreach (var node in nodes) {
             sb.AppendLine($"  {node.Id,-14} [{node.Category}] {Brief(node.Summary, ResultSummaryLimit)}{Coverage(node)}");
             // 写出真实 exe 名：LLM 只看「<exe>」占位符时仍要去猜节点对应的可执行文件。

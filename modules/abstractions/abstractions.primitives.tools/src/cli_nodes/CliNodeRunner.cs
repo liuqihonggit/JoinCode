@@ -432,13 +432,34 @@ public static class CliNodeRunner {
         if (entries.Count <= FullHelpEntryLimit) return normalized;
 
         var header = HeaderOf(normalized);
+        var exe = ExecutableNameOf(header);
         var builder = new StringBuilder(4096);
         builder.Append(header).Append("\n\n");
         builder.Append("工具索引（").Append(entries.Count)
-            .Append(" 个，详情: <exe> -h <工具名> 或 <exe> -h <关键字>）:\n");
+            .Append(" 个，详情: ").Append(exe).Append(" -h <工具名> 或 ").Append(exe).Append(" -h <关键字>）:\n");
         AppendGrouped(builder, entries);
-        builder.Append("\n提示: 直接 `<exe> <工具名> -h` 看单个工具的完整参数。\n");
+        builder.Append("\n提示: 直接 `").Append(exe).Append(" <工具名> -h` 看单个工具的完整参数。\n");
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// 从帮助头部取可执行文件名 —— 提示里写死别名或占位符都会让调用方去猜。
+    /// <para>优先取用法行里的 <c>xxx.exe</c>：标题行只有 <c>jcc-tool-github</c>，
+    /// 在 bash 里不带扩展名敲不出来。</para>
+    /// </summary>
+    private static string ExecutableNameOf(string header) {
+        if (string.IsNullOrWhiteSpace(header)) return "<exe>";
+        foreach (var line in header.Split('\n')) {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0) continue;
+            var space = trimmed.IndexOf(' ');
+            var candidate = space > 0 ? trimmed[..space] : trimmed;
+            if (candidate.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return candidate;
+        }
+        var firstLine = header.Split('\n')[0].Trim();
+        var marker = firstLine.IndexOf(" — ", StringComparison.Ordinal);
+        var name = marker > 0 ? firstLine[..marker].Trim() : firstLine;
+        return name.Length == 0 ? "<exe>" : name;
     }
 
     private static void AppendGrouped(StringBuilder builder, List<HelpEntry> entries) {
@@ -550,9 +571,10 @@ public static class CliNodeRunner {
             .ToList();
         if (hits.Count == 0) {
             var suggestions = Suggest(keyword, entries.Select(entry => entry.Id).ToList());
+            var exe = ExecutableNameOf(HeaderOf(normalized));
             var message = new StringBuilder($"没有匹配 '{keyword}' 的工具。");
             if (suggestions.Count > 0) message.Append("\n你是不是想用：").Append(string.Join(" / ", suggestions));
-            message.Append("\n执行 <exe> -h 查看完整工具索引。");
+            message.Append("\n执行 ").Append(exe).Append(" -h 查看完整工具索引。");
             return message.ToString();
         }
 

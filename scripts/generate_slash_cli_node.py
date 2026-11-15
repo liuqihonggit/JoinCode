@@ -227,7 +227,7 @@ def scan_modules(scan_root: Path, name_map: dict[str, str]) -> list[dict]:
 
 def render_help(commands: list[dict]) -> str:
     lines = [f"jcc-slash — 斜杠命令节点（{len(commands)} 个命令）", "",
-             "用法:", "  jcc-slash <命令名> [--参数 值 ...]", "  jcc-slash -h", "  jcc-slash <命令名> -h", "",
+             "用法:", "  jcc-slash.exe <命令名> [--参数 值 ...]", "  jcc-slash.exe -h", "  jcc-slash.exe <命令名> -h", "",
              "命令列表（说明复用自 [ChatCommand] 特性，按分类分组）:"]
     by_cat: dict[str, list[dict]] = {}
     for cmd in commands:

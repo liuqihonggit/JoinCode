@@ -211,6 +211,15 @@
 
 **安全边界**：本地化的 `bash` / `powershell` 直连操作系统，绕过宿主 Shell 中间件栈与 `DangerousCommandCatalog`。生产环境命令执行仍应走宿主；该组本地实现只用于进程隔离验证与离线可用性，已在组入口注释中标注。
 
+**转发路径的隐含依赖（实测 2026-11-16）**：未本地化的工具走 `jcc mcp_call`，而宿主的进程内 handler 注册表由 `McpToolDispatch` 生成器产出、且依赖 Hub：
+
+| 场景 | 实测结果 |
+|------|----------|
+| 无 Hub 直接调用 | `jcc mcp_call config_list '{}'` → 致命错误「Hub 服务不可达」 |
+| `JCC_ALLOW_DIRECT_FALLBACK=1` | `jcc mcp_list` → `total_count: 0`；`mcp_call config_list` → `TOOL_ERROR 未找到工具` |
+
+结论：**`modules/generators/mcp_tool_dispatch.generator/` 现在不能归档**（TASK082 步骤 9 的前提不成立）——转发兜底正是靠它注册的 handler。这也解释了为什么「全部 546 个工具真隔离」不能靠转发达成，只能逐组做实。无 Hub 环境下的转发验收需先起 `jcchub.exe`，或在 CI 里注入假 Hub。
+
 ### 3.3 对 ADR 0149 的显式收窄
 
 ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**语境下仍然成立（`jcc.exe` + `NativeGui.Host.exe` 保持），但**不适用于工具层**：工具 exe 不是用户交互宿主，而是能力的物理封装单元。本次决策把工具层从「宿主内进程」改为「独立可执行文件」，exe 数量显著增加。记录为对 0149 适用范围的收窄，而非整体废弃。

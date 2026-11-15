@@ -7,6 +7,10 @@
 #   * 参数描述是单一数据源，禁止再写一份到 C# 特性或提示词里
 #
 # 这 4 个工具覆盖高频操作；其余能力由 LLM 用 bash 探索 CLI 目录树获得。
+#
+# 2026-11-16 修正：原第 3 项 code_execution 在 546 个内核工具里**并不存在**（凭空命名），
+# 接上主链路后 LLM 会拿到一个永远「工具不存在」的槽位。编译/构建本就由 bash 覆盖，
+# 故改为真实高频的 file_edit（局部查找替换，与 file_write 的整体覆写互补）。
 
 version: 1
 
@@ -52,29 +56,30 @@ tools:
         required: true
         aliases: -c,--content
 
-  - id: code_execution
-    name: CodeExecution
-    summary: 执行编译或构建命令并返回标准输出与退出码
-    category: build
+  - id: file_edit
+    name: FileEdit
+    summary: 在文件中按精确文本查找替换，用于局部修改而非整体覆写
+    category: file
     examples:
-      - CodeExecution dotnet build build/sln/JoinCode.slnx --timeout_seconds 300
+      - FileEdit /abs/path/to/File.cs --old_string "旧片段" --new_string "新片段"
     parameters:
-      - name: command
+      - name: file_path
         type: string
-        description: 要执行的编译/构建命令
+        description: 要修改的文件路径（相对或绝对）
         required: true
-        aliases: -c,--command
-      - name: working_directory
+      - name: old_string
         type: string
-        description: 命令工作目录，省略则用当前目录
+        description: 要被替换的原文，必须精确匹配
+        required: true
+      - name: new_string
+        type: string
+        description: 替换后的新文本
+        required: true
+      - name: replace_all
+        type: boolean
+        description: 是否替换全部匹配项
         required: false
-        aliases: -w,--cwd
-      - name: timeout_seconds
-        type: integer
-        description: 超时秒数
-        required: false
-        default: "120"
-        aliases: -t,--timeout
+        default: "false"
 
   - id: bash
     name: Bash

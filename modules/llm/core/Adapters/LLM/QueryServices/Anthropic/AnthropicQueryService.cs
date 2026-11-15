@@ -91,8 +91,8 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         if (settings?.ToolChoice != ToolChoice.AutoInvoke || kernel == null)
             return request;
 
-        var (allTools, toolGroups) = BuildAnthropicToolsFromKernel(kernel);
-        if (allTools.Count == 0 && toolGroups.Count == 0)
+        var allTools = BuildBaseTools(kernel);
+        if (allTools.Count == 0)
             return request;
 
         var deferredToolInfos = settings.DeferredTools;
@@ -103,10 +103,6 @@ public sealed class AnthropicQueryService : QueryServiceBase {
             request.Tools = ToolDiscoveryOrdering.PutToolSearchFirst(FilterDeferredTools(allTools, deferredToolInfos, snapshot), t => t.Name);
         } else {
             request.Tools = ToolDiscoveryOrdering.PutToolSearchFirst(allTools, t => t.Name);
-        }
-
-        if (toolGroups.Count > 0) {
-            request.ToolGroups = toolGroups;
         }
 
         request.ToolChoice = AnthropicToolChoice.Auto;
@@ -330,34 +326,32 @@ public sealed class AnthropicQueryService : QueryServiceBase {
     }
 
     /// <summary>
-    /// 构建工具列表 — 两阶段加载：core_tools 发完整 schema，mcp_tools 发分组+名称
+    /// 构建首轮 tools 字段 —— 唯一来源是 <c>resources/tools/base.yaml</c>（ADR 0157 步骤 8）。
+    /// <para>其余工具不再进入协议原生 tools 字段，改由 LLM 用 bash 调 <c>jcc tool tree/find/call</c> 发现。
+    /// 参数 schema 取内核元数据、描述取 base.yaml，理由同 <c>OpenAIQueryService.BuildBaseTools</c>。</para>
     /// </summary>
-    internal static (List<AnthropicToolDefinition> Tools, List<OpenAIToolGroup> ToolGroups) BuildAnthropicToolsFromKernel(IChatClient kernel) {
+    internal static List<AnthropicToolDefinition> BuildBaseTools(IChatClient kernel) {
+        var registry = BaseToolRegistry.LoadDefault();
         var tools = new List<AnthropicToolDefinition>();
-        var toolGroups = new List<OpenAIToolGroup>();
-
         foreach (var pluginName in kernel.Plugins.GetPluginNames()) {
-            var plugin = kernel.Plugins.GetPlugin(pluginName);
-            if (plugin is not IToolGroup group)
-                continue;
-
-            if (group.Name == ToolGroupNameConstants.McpTools) {
-                toolGroups.Add(new OpenAIToolGroup {
-                    Name = group.Name,
-                    Tools = group.Functions.Select(f => f.Name).ToList()
-                });
-            } else {
-                foreach (var function in group.Functions) {
-                    tools.Add(new AnthropicToolDefinition {
-                        Name = function.Name,
-                        Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
-                        InputSchema = BuildAnthropicInputSchema(function.Parameters)
-                    });
-                }
-            }
+            if (kernel.Plugins.GetPlugin(pluginName) is IToolGroup group)
+                tools.AddRange(CollectBaseTools(group, registry));
         }
+        return tools;
+    }
 
-        return (tools, toolGroups);
+    private static List<AnthropicToolDefinition> CollectBaseTools(IToolGroup group, BaseToolRegistry registry) {
+        var tools = new List<AnthropicToolDefinition>();
+        foreach (var function in group.Functions) {
+            var descriptor = registry.Get(function.Name);
+            if (descriptor is null) continue;   // 非基础工具：不进 tools 字段，留给 CLI 目录树
+            tools.Add(new AnthropicToolDefinition {
+                Name = function.Name,
+                Description = descriptor.Summary,
+                InputSchema = BuildAnthropicInputSchema(function.Parameters)
+            });
+        }
+        return tools;
     }
 
     /// <summary>

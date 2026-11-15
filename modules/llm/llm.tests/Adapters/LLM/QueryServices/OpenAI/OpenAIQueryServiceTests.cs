@@ -280,56 +280,53 @@ public class OpenAIQueryServiceTests {
 
     #endregion
 
-    #region Two-Phase Tool Loading — BuildToolsFromKernel
+    #region 首轮 tools 只读 base.yaml — BuildBaseTools（ADR 0157 步骤 8）
 
     [Fact]
-    public async Task BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
+    public async Task BuildBaseTools_OnlyBaseTools_ToolsPopulated() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
-            new ToolDef("read", "Read a file"),
-            new ToolDef("write", "Write a file")
+            new ToolDef("file_read", "Read a file"),
+            new ToolDef("file_write", "Write a file")
         ]));
 
-        var (tools, toolGroups) = OpenAIQueryService.BuildToolsFromKernel(kernel);
+        var tools = OpenAIQueryService.BuildBaseTools(kernel);
 
         tools.Should().HaveCount(2);
-        tools.Select(t => t.Function.Name).Should().Contain(["read", "write"]);
-        toolGroups.Should().BeEmpty();
+        tools.Select(t => t.Function.Name).Should().Contain(["file_read", "file_write"]);
     }
 
     [Fact]
-    public async Task BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
+    public async Task BuildBaseTools_NonBaseTools_ExcludedFromProtocolField() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.server1.tool1", "MCP tool 1"),
             new ToolDef("mcp.server2.tool2", "MCP tool 2")
         ]));
 
-        var (tools, toolGroups) = OpenAIQueryService.BuildToolsFromKernel(kernel);
+        var tools = OpenAIQueryService.BuildBaseTools(kernel);
 
+        // 非基础工具一律不进 tools 字段 —— 它们改成独立 CLI.exe，靠 bash 探索发现
         tools.Should().BeEmpty();
-        toolGroups.Should().ContainSingle();
-        toolGroups[0].Name.Should().Be(ToolGroupNameConstants.McpTools);
-        toolGroups[0].Tools.Should().Contain(["mcp.server1.tool1", "mcp.server2.tool2"]);
     }
 
     [Fact]
-    public async Task BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
+    public async Task BuildBaseTools_MixedTools_OnlyBaseToolsSurvive() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
-            new ToolDef("read", "Read a file")
+            new ToolDef("file_read", "Read a file"),
+            new ToolDef("grep", "Not a base tool")
         ]));
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
 
-        var (tools, toolGroups) = OpenAIQueryService.BuildToolsFromKernel(kernel);
+        var tools = OpenAIQueryService.BuildBaseTools(kernel);
 
         tools.Should().ContainSingle();
-        tools[0].Function.Name.Should().Be("read");
-        toolGroups.Should().ContainSingle();
-        toolGroups[0].Name.Should().Be(ToolGroupNameConstants.McpTools);
-        toolGroups[0].Tools.Should().ContainSingle().Which.Should().Be("mcp.tool1");
+        tools[0].Function.Name.Should().Be("file_read");
+        // 描述以 base.yaml 为准，不是内核特性里的那句
+        tools[0].Function.Description.Should().Be("读取指定路径的文件内容，可按行偏移与行数限制截取");
     }
 
     #endregion

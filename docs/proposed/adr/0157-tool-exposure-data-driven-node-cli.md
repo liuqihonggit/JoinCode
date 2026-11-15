@@ -86,7 +86,7 @@
 | JSON 构造 | `JsonSerializerContext` 源生成（避免 AOT 的 IL3050），不手写字符串拼接 |
 | 宿主缺失 | 退出码 3 + 四要素错误引导（原因/触发/拦截层/修复方式） |
 
-**诚实边界**：10 个 exe 是**转发实现，不是完全独立**——它们逻辑上是独立 CLI（自带 `-h`、可 bash 调用、零引擎引用），但执行委托宿主。`git` 与 `file` 组是本地实现样板，其余 10 组待逐组做实。
+**诚实边界**：exe 的控制流是独立的（自带 `-h`、可 bash 调用、零引擎引用），但执行能力按组分布——`git`/`file`/`code`/`search`/`shell`/`web`/`system`/`tools` 共 52 个工具已本地实现，其余由 exe 转发宿主。哪些工具真进程隔离由 `--list-local` 自报（见 3.2.8）。
 
 ### 3.2.3 混合模式（逐组做实的可持续路径）
 
@@ -178,6 +178,38 @@
 | 实测 | 13 组 / 9045 KB / 装配 23.6 秒；`jcc tool tree` 首行指向装配目录，`jcc tool call file file_read` 退出码 0，装配后的 exe 自带 `-h` |
 
 **诚实边界**：装配产物是框架依赖构建（每组约 680 KB，含契约层 DLL），不是单文件；AOT 单文件本机不可测（缺 `advapi32.lib`，`reg.exe` 被安全策略拦截）。
+
+### 3.2.8 入口统一与逐组做实进展（2026-11-16）
+
+**入口统一**：13 个 exe 原本各写一份「`-h` / `--list-local` / 参数解析 / 本地分发 / 转发宿主 / 退出码」，到第 6 组时已经长出差异（catch 过滤器不同、未知工具提示各写一套）。现收到契约层 `CliNodeRunner` + `CliNodeDefinition`：
+
+| 关注点 | 收口位置 |
+|--------|----------|
+| `-h` / `<工具> -h` / `--list-local` | `CliNodeRunner`（帮助文本仍读各组内嵌 `help.txt`，不重复维护说明） |
+| 参数解析 | 一处实现，支持 `--k v`、`--k=v`、单横线短选项（`-i` / `-A 3`，排除 `-5` 这类负数） |
+| 未知工具 | 按帮助文本的工具清单判定，给近似名建议（包含关系 + 编辑距离 ≤ 2），退出码 2 |
+| 本地/转发分发 | `CliNodeDefinition.Resolve` 返回 null 即转发；本地异常统一映射退出码 2 并给下一步 |
+| 转发宿主 | `jcc mcp_call <工具> <json>`，`ArgumentList` 传参，失败退出码 3 |
+
+结果：13 组 `Program.cs` 退化为 10~20 行声明（git 组保留「工具 id → git 命令行」翻译，经 `ArgBag(options)` 复用已解析参数，不再有第二套 `--key` 规则）。
+
+**逐组做实清单（`--list-local` 自报，共 52/546）**：
+
+| 组 | 本地/总数 | 本地化依据 | 仍转发的部分及原因 |
+|----|-----------|------------|--------------------|
+| git | 10/10 | 参数→`git` 命令行 | — |
+| file | 11/13 | BCL 文件读写 | `file_apply_patch`（补丁事务/冲突校验）、`send_user_file`（附件管道） |
+| code | 10/32 | `.ipynb` 是纯 JSON，`JsonNode` 直读 | `lsp_*`（语言服务器进程）、`generate_*`/`analyze_*`（模型）、`recall_*`（宿主召回库） |
+| search | 8/47 | glob 匹配器；grep 族优先 `rg --json`，缺失时内置扫描 | `code_index_*`（持久化 AST 索引）、`graph_*`（调用图存储）、semantic/document（向量模型） |
+| shell | 6/27 | BCL 进程执行 | 构建/沙箱/终端会话（宿主进程树与中间件栈） |
+| web | 2/5 | `HttpClient`（分块并发+续传）/ 自研 HTML→Markdown | `web_fetch`（二级 LLM 提炼）、`web_search`（供应商搜索）、`web_browser`（浏览器会话） |
+| system | 3/71 | 纯等待 + 本进程信息 | `config_*`/`permission_*`/`agent_*`/`memory_*`/`analytics_*`（宿主存储与服务） |
+| tools | 2/18 | BCL | `skill_*`/`tool_*`（宿主技能注册表与工具索引） |
+| agent / mcp / media / github / slash | 0 | — | 计划/任务/团队共享状态、MCP 客户端连接、桌面控制与安全策略、`gh` 令牌与 API、斜杠命令派发 |
+
+**判定原则（重要）**：只有「宿主无状态依赖」才本地实现。像 `memory_*`、`permission_*`、任务/计划类工具，其数据落在宿主持有的存储里——在 exe 内重写一份会分叉出第二个真相源（LLM 在 A 处写、宿主在 B 处读），比不隔离更糟。这类工具继续转发，并在 `node.yaml` 里标 `mode: host`，同时 `-h` 会打印「执行方式: host（转发宿主）」让调用方可审计。
+
+**安全边界**：本地化的 `bash` / `powershell` 直连操作系统，绕过宿主 Shell 中间件栈与 `DangerousCommandCatalog`。生产环境命令执行仍应走宿主；该组本地实现只用于进程隔离验证与离线可用性，已在组入口注释中标注。
 
 ### 3.3 对 ADR 0149 的显式收窄
 

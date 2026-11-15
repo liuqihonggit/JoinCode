@@ -7,7 +7,7 @@ category: system
 exe: jcc-tool-system.exe
 tags: [agent, analytics, ask, brief, config, confirm, continue, ctx]
 tool_count: 71
-local_tool_count: 0
+local_tool_count: 3
 parameters: []
 tools:
   - id: config_get
@@ -83,7 +83,7 @@ tools:
   - id: flash_taskbar
     mode: host
   - id: get_process_info
-    mode: host
+    mode: local
   - id: analytics_report
     mode: host
   - id: analytics_tools
@@ -105,9 +105,9 @@ tools:
   - id: snip
     mode: host
   - id: sleep
-    mode: host
+    mode: local
   - id: sleep_until
-    mode: host
+    mode: local
   - id: ask_user_question
     mode: host
   - id: confirm_action

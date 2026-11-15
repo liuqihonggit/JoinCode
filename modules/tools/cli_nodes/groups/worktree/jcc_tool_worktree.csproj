@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../../cli_node.props" />
+
+  <PropertyGroup>
+    <AssemblyName>jcc-tool-worktree</AssemblyName>
+    <RootNamespace>JoinCode.CliNode.Worktree</RootNamespace>
+    <Description>worktree 工具分组独立 CLI.exe — -h 复用现有 MCP 特性说明</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="help.txt" LogicalName="JoinCode.CliNodes.Groups.worktree.help.txt" />
+  </ItemGroup>
+
+</Project>

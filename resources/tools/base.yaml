@@ -10,18 +10,23 @@
 #
 # 2026-11-16 修正：原第 3 项 code_execution 在 546 个内核工具里**并不存在**（凭空命名），
 # 接上主链路后 LLM 会拿到一个永远「工具不存在」的槽位。编译/构建本就由 bash 覆盖，
-# 故改为真实高频的 file_edit（局部查找替换，与 file_write 的整体覆写互补）。
+# 故改为真实高频的 edit（局部查找替换，与 write 的整体覆写互补）。
+#
+# 2026-11-16 第二次修正（id 必须等于运行时注册名）：内核注册表里的名字是 [EnumValue] 的字符串
+# （read / write / edit / bash），不是枚举成员的驼峰（FileRead→file_read）。BuildBaseTools 用
+# kernel function.Name 去 registry.Get()，id 写成 file_read 会一条都匹配不上 —— 实测首轮 tools
+# 只剩 bash 一个，模型无论如何都读不到文件。同理 CLI 目录里的 id 也已统一到运行时名。
 
 version: 1
 
 tools:
-  - id: file_read
+  - id: read
     name: FileRead
     summary: 读取指定路径的文件内容，可按行偏移与行数限制截取
     category: file
     examples:
-      - FileRead /abs/path/to/File.cs
-      - FileRead /abs/path/to/File.cs --offset 120 --limit 40
+      - jcc tool call file read --file_path /abs/path/to/File.cs
+      - jcc tool call file read --file_path /abs/path/to/File.cs --offset 120 --limit 40
     parameters:
       - name: file_path
         type: string
@@ -39,12 +44,12 @@ tools:
         required: false
         aliases: -n,--limit
 
-  - id: file_write
+  - id: write
     name: FileWrite
     summary: 创建或整体覆写指定路径的文件内容
     category: file
     examples:
-      - FileWrite /abs/path/to/File.cs --content "..."
+      - jcc tool call file write --file_path /abs/path/to/File.cs --content "..."
     parameters:
       - name: file_path
         type: string
@@ -56,12 +61,12 @@ tools:
         required: true
         aliases: -c,--content
 
-  - id: file_edit
+  - id: edit
     name: FileEdit
     summary: 在文件中按精确文本查找替换，用于局部修改而非整体覆写
     category: file
     examples:
-      - FileEdit /abs/path/to/File.cs --old_string "旧片段" --new_string "新片段"
+      - jcc tool call file edit --file_path /abs/path/to/File.cs --old_string "旧片段" --new_string "新片段"
     parameters:
       - name: file_path
         type: string
@@ -86,9 +91,9 @@ tools:
     summary: 在 shell 中执行命令，用于系统操作与探索 CLI 工具目录树
     category: shell
     examples:
-      - Bash "ls tools/search/"
-      - Bash "jcc-rg -h"
-      - Bash "jcc tool find pr check"
+      - jcc tool call shell bash --command "ls tools/search/"
+      - jcc tool call shell bash --command "jcc-rg -h"
+      - jcc tool call shell bash --command "jcc tool find pr check"
     parameters:
       - name: command
         type: string

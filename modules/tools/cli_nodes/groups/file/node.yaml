@@ -6,14 +6,14 @@ name: jcc-tool-file
 summary: "Delete the specified file; Edit file contents by search-and-replace; Edit file using regex pattern to replace matched text"
 category: file
 exe: jcc-tool-file.exe
-tags: [directory, file, send]
+tags: [apply, directory, edit, file, read, send, write]
 tool_count: 13
 local_tool_count: 12
 parameters: []
 tools:
   - id: file_delete
     mode: local
-  - id: file_edit
+  - id: edit
     mode: local
   - id: file_edit_regex
     mode: local
@@ -25,15 +25,15 @@ tools:
     mode: local
   - id: directory_list
     mode: local
-  - id: file_apply_patch
+  - id: apply_patch
     mode: local
-  - id: file_read
+  - id: read
     mode: local
   - id: file_snip_lines
     mode: local
   - id: file_snip_preview
     mode: local
-  - id: file_write
+  - id: write
     mode: local
   - id: send_user_file
     mode: host

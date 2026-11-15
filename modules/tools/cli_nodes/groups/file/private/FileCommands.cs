@@ -12,10 +12,10 @@ namespace JoinCode.CliNode.File;
 internal static class FileCommands {
     private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
         new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
-            ["file_read"] = ReadAsync,
-            ["file_write"] = WriteAsync,
+            ["read"] = ReadAsync,
+            ["write"] = WriteAsync,
             ["file_delete"] = DeleteAsync,
-            ["file_edit"] = EditAsync,
+            ["edit"] = EditAsync,
             ["file_edit_regex"] = EditRegexAsync,
             ["file_insert_lines"] = InsertLinesAsync,
             ["file_delete_lines"] = DeleteLinesAsync,
@@ -23,7 +23,7 @@ internal static class FileCommands {
             ["directory_list"] = DirectoryListAsync,
             ["file_snip_lines"] = SnipLinesAsync,
             ["file_snip_preview"] = SnipPreviewAsync,
-            ["file_apply_patch"] = FilePatchCommands.ApplyPatchAsync
+            ["apply_patch"] = FilePatchCommands.ApplyPatchAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;
@@ -32,7 +32,7 @@ internal static class FileCommands {
 
     private static Task<int> ReadAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         ct.ThrowIfCancellationRequested();
-        var path = Required(o, "file_path", "file_read");
+        var path = Required(o, "file_path", "read");
         var lines = ReadLines(path);
         var offset = Math.Max(1, GetInt(o, "offset", 1));
         var limit = GetInt(o, "limit", lines.Length);
@@ -43,8 +43,8 @@ internal static class FileCommands {
 
     private static Task<int> WriteAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         ct.ThrowIfCancellationRequested();
-        var path = Required(o, "file_path", "file_write");
-        var content = Required(o, "content", "file_write");
+        var path = Required(o, "file_path", "write");
+        var content = Required(o, "content", "write");
         global::System.IO.File.WriteAllText(path, content);
         Console.Out.WriteLine($"已写入 {path} ({content.Length} 字符)");
         return Task.FromResult(0);
@@ -62,14 +62,14 @@ internal static class FileCommands {
 
     private static Task<int> EditAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         ct.ThrowIfCancellationRequested();
-        var path = Required(o, "file_path", "file_edit");
-        var oldValue = Required(o, "old_string", "file_edit");
-        var newValue = Required(o, "new_string", "file_edit");
+        var path = Required(o, "file_path", "edit");
+        var oldValue = Required(o, "old_string", "edit");
+        var newValue = Required(o, "new_string", "edit");
         var text = global::System.IO.File.ReadAllText(path);
         var replaced = IsTrue(o, "replace_all")
             ? text.Replace(oldValue, newValue, StringComparison.Ordinal)
             : ReplaceFirst(text, oldValue, newValue);
-        return WriteChangedAsync(path, text, replaced, "file_edit");
+        return WriteChangedAsync(path, text, replaced, "edit");
     }
 
     private static Task<int> EditRegexAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {

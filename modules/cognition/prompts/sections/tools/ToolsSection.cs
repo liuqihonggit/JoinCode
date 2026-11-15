@@ -20,12 +20,12 @@ public static class ToolsSection {
         var items = new List<string>();
 
         var direct = new List<string>();
-        if (declared.Contains("file_read"))
-            direct.Add("使用 file_read 读取文件，而不是 cat、head、tail 或 sed");
-        if (declared.Contains("file_edit"))
-            direct.Add("使用 file_edit 做局部修改，而不是 sed 或 awk");
-        if (declared.Contains("file_write"))
-            direct.Add("使用 file_write 创建或整体覆写文件，而不是 heredoc 或 echo 重定向");
+        if (declared.Contains(FileToolNameEnumConstants.FileRead))
+            direct.Add($"使用 {FileToolNameEnumConstants.FileRead} 读取文件，而不是 cat、head、tail 或 sed");
+        if (declared.Contains(FileToolNameEnumConstants.FileEdit))
+            direct.Add($"使用 {FileToolNameEnumConstants.FileEdit} 做局部修改，而不是 sed 或 awk");
+        if (declared.Contains(FileToolNameEnumConstants.FileWrite))
+            direct.Add($"使用 {FileToolNameEnumConstants.FileWrite} 创建或整体覆写文件，而不是 heredoc 或 echo 重定向");
         if (direct.Count > 0) {
             items.Add("首轮直接可用的文件工具（本清单外不要再假设同名工具存在）：");
             items.AddRange(direct.Select(line => "  - " + line));
@@ -42,7 +42,7 @@ public static class ToolsSection {
         items.Add("  4. `jcc tool call <组> <工具> --参数 值` —— 执行；组名可省略，给出工具名会自动反查所属分组。");
         items.Add("探索一次就记住：同一任务内不要反复 tree/find 同一个关键词，查到就往下做；探索结果用完即弃，不要复述进回答。");
         items.Add($"不要因为首轮清单没有列出某个能力就断言它不存在 —— 先用 `{ShellToolNameEnumConstants.Bash}` 跑 `jcc tool tree` 或 `jcc tool find` 确认。");
-        items.Add("当专用 CLI 节点能完成时优先用它，而不是用裸 shell 命令硬拼（例如用文件节点的 file_edit 而不是 sed -i），这样用户能看懂并审查你的改动。");
+        items.Add("当专用 CLI 节点能完成时优先用它，而不是用裸 shell 命令硬拼（例如用文件节点的 edit 而不是 sed -i），这样用户能看懂并审查你的改动。");
         items.Add("您可以在单个响应中调用多个工具。如果多个调用之间没有依赖关系，请并行发起；如果后一个调用依赖前一个的结果，则必须顺序执行。尽可能并行以提高效率。");
 
         var result = new System.Text.StringBuilder();

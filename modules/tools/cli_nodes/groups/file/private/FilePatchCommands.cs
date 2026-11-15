@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Tools;
 namespace JoinCode.CliNode.File;
 
 /// <summary>
-/// unified diff 应用（file_apply_patch）—— 纯字符串与文件读写，不依赖 IFileSystem / 引擎。
+/// unified diff 应用（apply_patch）—— 纯字符串与文件读写，不依赖 IFileSystem / 引擎。
 /// <para>宿主实现（ApplyPatchLogic）在 <c>modules/cognition/hands_core</c> 里绑定了 IFileSystem 与
 /// 编码探测器；这里按 BCL 重写同一套语义，并保留最有价值的那部分：上下文不匹配时打印
 /// 「期望行 vs 实际行」对照，让 LLM 知道该改哪一行，而不是只拿到一句 context mismatch。</para>
@@ -241,7 +241,7 @@ internal static partial class FilePatchCommands {
         options.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value
             : throw new ArgumentException(
-                $"file_apply_patch 缺少必填参数 --{key}。正确写法: jcc-tool-file.exe file_apply_patch --patch \"$(cat fix.patch)\"");
+                $"apply_patch 缺少必填参数 --{key}。正确写法: jcc-tool-file.exe apply_patch --patch \"$(cat fix.patch)\"");
 
     private static string Get(IReadOnlyDictionary<string, string> options, string key, string fallback) =>
         options.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value : fallback;

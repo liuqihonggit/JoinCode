@@ -102,7 +102,7 @@ public class OpenAIQueryServiceTests {
         var service = CreateService();
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
-            new ToolDef("file_read", "Read a file")
+            new ToolDef("read", "Read a file")
         ]));
         var options = new ChatOptions { ToolChoice = ToolChoice.AutoInvoke };
 
@@ -111,7 +111,7 @@ public class OpenAIQueryServiceTests {
         request.Tools.Should().NotBeNull();
         request.Tools.Should().ContainSingle();
         request.ToolChoice.Should().Be("auto");
-        request.Tools![0].Function.Name.Should().Be("file_read");
+        request.Tools![0].Function.Name.Should().Be("read");
     }
 
     [Fact]
@@ -288,14 +288,14 @@ public class OpenAIQueryServiceTests {
     public async Task BuildBaseTools_OnlyBaseTools_ToolsPopulated() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
-            new ToolDef("file_read", "Read a file"),
-            new ToolDef("file_write", "Write a file")
+            new ToolDef("read", "Read a file"),
+            new ToolDef("write", "Write a file")
         ]));
 
         var tools = OpenAIQueryService.BuildBaseTools(kernel);
 
         tools.Should().HaveCount(2);
-        tools.Select(t => t.Function.Name).Should().Contain(["file_read", "file_write"]);
+        tools.Select(t => t.Function.Name).Should().Contain(["read", "write"]);
     }
 
     [Fact]
@@ -316,7 +316,7 @@ public class OpenAIQueryServiceTests {
     public async Task BuildBaseTools_MixedTools_OnlyBaseToolsSurvive() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
-            new ToolDef("file_read", "Read a file"),
+            new ToolDef("read", "Read a file"),
             new ToolDef("grep", "Not a base tool")
         ]));
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
@@ -326,7 +326,7 @@ public class OpenAIQueryServiceTests {
         var tools = OpenAIQueryService.BuildBaseTools(kernel);
 
         tools.Should().ContainSingle();
-        tools[0].Function.Name.Should().Be("file_read");
+        tools[0].Function.Name.Should().Be("read");
         // 描述以 base.yaml 为准，不是内核特性里的那句
         tools[0].Function.Description.Should().Be("读取指定路径的文件内容，可按行偏移与行数限制截取");
     }

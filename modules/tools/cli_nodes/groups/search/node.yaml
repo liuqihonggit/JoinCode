@@ -6,7 +6,7 @@ name: jcc-tool-search
 summary: "Fast file pattern matching tool that works with any codebase size. Supports glob patterns like \"**/*.js\" or \"src/**/*.ts\". Returns matching file paths sorted by modification time. Use this tool when you need to find files by name patterns. When doing open-ended searches that may require multiple rounds of glob and grep, use the Agent tool instead.; A powerful search tool built on ripgrep. Supports full regex syntax (e.g., \"log.*Error\", \"function\\s+\\w+\"). Filter files with glob parameter (e.g., \"*.js\", \"**/*.tsx\") or type parameter (e.g., \"js\", \"py\", \"rust\"). Output modes: \"content\" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), \"files_with_matches\" shows file paths (default), \"count\" shows match counts. Use Agent tool for open-ended searches requiring multiple rounds of glob and grep.; Search for code patterns in source files. Supports regex queries. Defaults to common code file types (.cs, .ts, .js, .py, .go, .rs, .java). Use this when you need to find code definitions or usages."
 category: search
 exe: jcc-tool-search.exe
-tags: [code, glob, graph, grep, search, symbol]
+tags: [code, create, glob, graph, grep, search, symbol, update]
 tool_count: 47
 local_tool_count: 8
 parameters: []
@@ -27,49 +27,49 @@ tools:
     mode: local
   - id: symbol_search
     mode: local
-  - id: code_index_search
+  - id: search_symbol
     mode: host
-  - id: code_index_search_comprehensive
+  - id: search_comprehensive
     mode: host
-  - id: code_index_find_definition
+  - id: search_definition
     mode: host
-  - id: code_index_find_references
+  - id: search_references
     mode: host
-  - id: code_index_get_callers
+  - id: search_callers
     mode: host
-  - id: code_index_get_callees
+  - id: search_callees
     mode: host
-  - id: code_index_get_call_chain
+  - id: search_call_chain
     mode: host
-  - id: code_index_get_impact_scope
+  - id: search_impact_scope
     mode: host
-  - id: code_index_get_inheritors
+  - id: search_inheritors
     mode: host
-  - id: code_index_get_dependencies
+  - id: search_dependencies
     mode: host
-  - id: code_index_get_affected_files
+  - id: search_affected_files
     mode: host
-  - id: code_index_rebuild
+  - id: create_index
     mode: host
-  - id: code_index_update_file
+  - id: update_index
     mode: host
-  - id: code_index_stats
+  - id: search_stats
     mode: host
-  - id: code_index_explore
+  - id: search_explore
     mode: host
-  - id: code_index_search_semantic
+  - id: search_semantic
     mode: host
-  - id: code_index_get_project_deps
+  - id: search_project_deps
     mode: host
-  - id: code_index_get_project_dependents
+  - id: search_project_dependents
     mode: host
-  - id: code_index_get_affected_projects
+  - id: search_affected_projects
     mode: host
-  - id: code_index_get_project_nu_gets
+  - id: search_project_nugets
     mode: host
-  - id: code_index_get_nu_get_projects
+  - id: search_nuget_projects
     mode: host
-  - id: code_index_get_all_projects
+  - id: search_all_projects
     mode: host
   - id: search_document
     mode: host
@@ -79,7 +79,7 @@ tools:
     mode: host
   - id: graph_detect_dead_code
     mode: host
-  - id: graph_extract_subgraph
+  - id: search_subgraph
     mode: host
   - id: graph_analyze_change_impact
     mode: host
@@ -93,11 +93,11 @@ tools:
     mode: host
   - id: graph_export_wiki
     mode: host
-  - id: graph_query
+  - id: search_graph
     mode: host
-  - id: graph_path
+  - id: search_path
     mode: host
-  - id: graph_explain
+  - id: search_explain
     mode: host
   - id: graph_register
     mode: host

@@ -347,3 +347,29 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 | 3 | 发现机制在哪层 | CLI 目录树 + 搜索，不在 MCP | 供应商协议不提供分组；CLI 原生有路径与 grep |
 | 4 | 生成器如何处理 | 渐进退役，归档到 `.xxx/`，不删除 | 禁止删除文件；需先切换全部消费方 |
 | 5 | 批量迁移策略 | 先垂直切片实测成本，再按域分批 | 540 个 AOT exe 成本未知，禁止盲目全铺 |
+
+---
+
+## 9. 2026-11-16 补记：目录 id 与运行时注册名对齐（生成器的假 id）
+
+只读扫描器的 `to_snake(枚举成员名)` 会把 `[McpTool(...)]` 里的枚举常量翻成**成员名的驼峰转写**，
+而内核注册表用的是 `[EnumValue("...")]` 字符串。两者在 33 个工具上不一致，例如：
+
+| 生成器算出的假 id | 运行时真名 | 后果 |
+|---|---|---|
+| `file_read` / `file_write` / `file_edit` / `file_apply_patch` | `read` / `write` / `edit` / `apply_patch` | `base.yaml` 三条全匹配不上，首轮 tools **只剩 bash** |
+| `code_index_search` / `code_index_stats` 等 23 个 | `search_symbol` / `search_stats` 等 | `jcc tool call search ...` 被目录校验层拦死 |
+| `mcp_auth_o_auth2` / `sub_agent_control` | `mcp_auth_oauth2` / `subagent_control` | 同上 |
+
+**决策更新（覆盖第 8 节决策 2 的表述）**：YAML 仍是描述/参数的单一数据源，但**工具 id 的单一数据源是运行时
+`[EnumValue]`**，不是生成器对 C# 标识符的猜测。新增约束：
+
+- 生成器扫描全仓枚举，按「枚举类型 → 成员 → EnumValue」解析 id；`XxxToolNameEnumConstants.Member` 剥掉 `EnumConstants` 后缀再查表；
+- 同名成员跨枚举有歧义时不用「取第一个」（`AllowedPromptTool.Bash="Bash"` vs `ShellToolName.Bash="bash"`），歧义与查不到都 fail-fast；
+- 本地实现的注册键（`groups/file/private/*.cs`）、`base.yaml` 的 `id`、提示词里的工具名，全部以解析后的 id 为准；
+- `node.yaml` 的 `tool_count` 不变（改名不是增补），总数仍是 **638**。
+
+**验收**：`python scripts/migrate_mcp_tools_to_cli_nodes.py --scan modules --out modules/tools/cli_nodes/groups` 零 warn；
+`Verify-ToolNodes.ps1 -DeclarationsOnly` 声明自洽；`jcc tool base` 4 条；`jcc tool call file read/write/edit` 与
+`search_stats` 真机退出 0。`BaseToolRegistryTests` / `ToolsSectionTests` / 三个 provider 的
+`BuildBaseTools` 测试均改为断言运行时名。

@@ -233,7 +233,7 @@ foreach ($group in $groups) {
 # code 组整组都是 notebook 系列，仓库里没有 .ipynb，所以先在临时目录建一个再读回来：
 # 这样验到的是成功路径（写-读闭环），而不是只验「拿 .md 当 notebook 会报错」。
 $sampleSpecs = @(
-    @{ Group = "file";   Args = @("file_read", "--file_path", (Join-Path $repoRoot "AGENTS.md"));             Expect = 0 }
+    @{ Group = "file";   Args = @("read", "--file_path", (Join-Path $repoRoot "AGENTS.md"));             Expect = 0 }
     @{ Group = "git";    Args = @("git_status");                                                              Expect = 0 }
     @{ Group = "search"; Args = @("glob", "--pattern", "resources/tools/*.yaml");                             Expect = 0 }
     @{ Group = "agent";  Args = @("worktree_list_all");                                                       Expect = 0 }

@@ -138,3 +138,16 @@ Debug framework-dependent 构建，真实产物统计（非估算）：
 <!-- 替代方案: v1 复用 mcp_call/mcp_schema/mcp_search 且不新增 exe — 被用户否决，工具描述仍以 MCP schema 形式存在，未真正外置 -->
 <!-- 风险: 540 个 NativeAOT 独立 exe 编译时间/体积非线性增长 — 先垂直切片实测单 exe 成本再决定批量策略 -->
 <!-- 验证: 待步骤 3-5 编译 + 测试 + 真实 exe 实测 -->
+
+### 2026-11-16 第三轮补记（host 链路 + 目录 id）
+
+| # | 任务 | 关键文件 | 编译 | 测试 | commit |
+|---|------|---------|------|------|--------|
+| 7b7 | **修 host 工具全不可达**：`ToolNameFilter` 只注册本次工具 + 元命令直连兜底 + `SkipProviderConfig`（LoadConfig 1282→约 200ms，单次 host 调用 2.5s→1.4s）；`requiredTool` 命中编译期注册表即跳过插件等待 | `CommandLineOptions.cs`、`EngineApplicationBuilder.cs`、`McpCommand.cs` | ✅ | ✅ 真机 host 六组抽样 | 本轮 |
+| 7b8 | **目录 id 对齐运行时名**：生成器按 `[EnumValue]` 解析，修掉 33 个假 id（含 base.yaml 三条 → 首轮 tools 只剩 bash）；file 组本地键与提示词/测试同步 | `migrate_mcp_tools_to_cli_nodes.py`、`groups/*/node.yaml`、`resources/tools/base.yaml`、`ToolsSection.cs` | ✅ 13 组 | ✅ 声明对账 + 真机读写闭环 | 本轮 |
+| 7b9 | gh `-q` for api + jq 写错不再静默回退整份 JSON（退出 2 + 原因）；git 分支探测 stderr 不再污染工具输出 | `GhCommandResolver.cs`、`SimpleJqEvaluator.cs`、`SessionIdFactory.cs` | ✅ | ✅ gh.tests 787/787 | 本轮 |
+
+> 步骤 9（归档生成器）前提仍不成立，但**理由变了**：`mcp_tool_dispatch.generator` 现在还得提供
+> `RegisterAllMcpToolDispatchAsync` 给 `mcp_call` 的进程内注册用；缺了它，host 工具照样查不到。
+> 另有一处能力边界已量化：`mcp_list` 全量只能注册 368 个工具，余下 171 个（`code_index` / `graph` /
+> `media` / `mcp` 等）依赖 SkipChatServices 下未启用的服务，不属于「改个过滤条件就能修」的范围。

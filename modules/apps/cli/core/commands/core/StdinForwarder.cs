@@ -6,10 +6,13 @@ namespace JoinCode.CliCommands;
 /// 于是同一个死锁缺陷也复制了两份（见下）。</para>
 /// </summary>
 internal static class StdinForwarder {
+    /// <summary>下游提前关闭输出管道时返回的退出码，与 SIGPIPE 的 141 对齐。</summary>
+    public const int BrokenPipeExitCode = 141;
+
     /// <summary>启动子进程、透传 stdout/stderr，返回子进程退出码。</summary>
     /// <param name="psi">子进程启动信息，至少要有 FileName 与 ArgumentList。</param>
     /// <param name="ct">取消令牌。</param>
-    /// <returns>子进程退出码。</returns>
+    /// <returns>子进程退出码；输出管道被下游关闭时返回 <see cref="BrokenPipeExitCode"/>。</returns>
     public static async Task<int> RunAsync(ProcessStartInfo psi, CancellationToken ct) {
         psi.UseShellExecute = false;
         // 只有调用方 stdin 被重定向时才接管道：接管的目的是把管道里的内容喂给子进程。
@@ -23,19 +26,49 @@ internal static class StdinForwarder {
 
         if (psi.RedirectStandardInput) StartStdinPump(process);
 
-        var tasks = new List<Task>(2) {
-            process.StandardOutput.BaseStream.CopyToAsync(Console.OpenStandardOutput(), ct),
-            process.StandardError.BaseStream.CopyToAsync(Console.OpenStandardError(), ct)
-        };
+        var stdout = PumpAsync(process, process.StandardOutput.BaseStream, Console.OpenStandardOutput(), ct);
+        var stderr = PumpAsync(process, process.StandardError.BaseStream, Console.OpenStandardError(), ct);
 
         await process.WaitForExitAsync(ct).ConfigureAwait(false);
+        var broken = await Task.WhenAll(stdout, stderr).ConfigureAwait(false);
+        return broken.Any(downstreamClosed => downstreamClosed) ? BrokenPipeExitCode : process.ExitCode;
+    }
+
+    /// <summary>把子进程的一条输出流搬到本进程对应流，返回是否因下游关闭而中止。</summary>
+    /// <param name="process">子进程，用于在下游关闭时终止它。</param>
+    /// <param name="source">子进程输出流。</param>
+    /// <param name="sink">本进程标准输出 / 标准错误流。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>因下游提前关闭管道而中止时为 true。</returns>
+    /// <remarks>
+    /// 这里是第三个死锁点，触发条件是 <c>jcc rg ... | head -1</c> 这种最常见不过的用法：
+    /// 下游读够就退出并关闭管道，本进程写失败；而子进程还在往已经没人读的管道里写，缓冲区写满后就阻塞在写调用上，
+    /// 于是 <c>WaitForExitAsync</c> 永远等不到它退出 —— 实测挂 8 秒以上、零输出。
+    /// 必须在下游关闭时主动终止子进程（等价于 shell 给上游发 SIGPIPE），而不是干等。
+    /// </remarks>
+    private static async Task<bool> PumpAsync(Process process, Stream source, Stream sink, CancellationToken ct) {
         try {
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-        } catch (IOException) {
-            // 子进程提前关管道：输出已尽力透传，以子进程退出码为准。
-            Debug.WriteLine("[StdinForwarder] 子进程管道提前关闭，输出可能被截断");
+            await source.CopyToAsync(sink, ct).ConfigureAwait(false);
+            return false;
+        } catch (Exception ex) when (ex is IOException or ObjectDisposedException or NotSupportedException or OperationCanceledException) {
+            Debug.WriteLine($"[StdinForwarder] 输出转发中止（{ex.GetType().Name}），按 SIGPIPE 语义终止子进程");
+            Terminate(process);
+            return true;
         }
-        return process.ExitCode;
+    }
+
+    /// <summary>终止子进程；进程已退出或无法终止时静默跳过。</summary>
+    private static void Terminate(Process process) {
+        try {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+        } catch (InvalidOperationException) {
+            Debug.WriteLine("[StdinForwarder] 子进程已退出，无需终止");
+        } catch (NotSupportedException) {
+            Debug.WriteLine("[StdinForwarder] 当前平台不支持终止子进程树");
+        } catch (System.ComponentModel.Win32Exception ex) {
+            // 权限不足或进程刚被系统回收：此时等待退出即可，不必让转发失败升级成未处理异常。
+            Debug.WriteLine($"[StdinForwarder] 终止子进程失败: {ex.NativeErrorCode}");
+        }
     }
 
     /// <summary>

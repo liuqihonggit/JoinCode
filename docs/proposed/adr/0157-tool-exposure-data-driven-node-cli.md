@@ -86,11 +86,11 @@
 | JSON 构造 | `JsonSerializerContext` 源生成（避免 AOT 的 IL3050），不手写字符串拼接 |
 | 宿主缺失 | 退出码 3 + 四要素错误引导（原因/触发/拦截层/修复方式） |
 
-**诚实边界**：exe 的控制流是独立的（自带 `-h`、可 bash 调用、零引擎引用），但执行能力按组分布——`git`/`file`/`code`/`search`/`shell`/`web`/`system`/`tools` 共 52 个工具已本地实现，其余由 exe 转发宿主。哪些工具真进程隔离由 `--list-local` 自报（见 3.2.8）。
+**诚实边界**：exe 的控制流是独立的（自带 `-h`、可 bash 调用、零引擎引用），但执行能力按组分布——55 个工具在本 exe 内实现、172 个委托独立 `jcc-gh.exe`，合计 227/638 不经过宿主；其余 411 个仍由 exe 转发宿主。哪些工具真进程隔离由 `--list-local` 自报（见 3.2.8）。
 
 ### 3.2.3 混合模式（逐组做实的可持续路径）
 
-用户 2026-11-15 选择「逐组做实本地实现」。设计要点：**不要求一次性实现 546 个工具**，每组独立推进且 exe 始终可用。
+用户 2026-11-15 选择「逐组做实本地实现」。设计要点：**不要求一次性实现 638 个工具**，每组独立推进且 exe 始终可用。
 
 | 机制 | 说明 |
 |------|------|
@@ -190,22 +190,38 @@
 | 未知工具 | 按帮助文本的工具清单判定，给近似名建议（包含关系 + 编辑距离 ≤ 2），退出码 2 |
 | 本地/转发分发 | `CliNodeDefinition.Resolve` 返回 null 即转发；本地异常统一映射退出码 2 并给下一步 |
 | 转发宿主 | `jcc mcp_call <工具> <json>`，`ArgumentList` 传参，失败退出码 3 |
+| 委托独立 exe | `DelegateExecutable` 声明后改走另一进程（github → `jcc-gh.exe --call-tool`），定位顺序：环境变量 → 同目录 → 上一级目录 → PATH，缺失退出码 3 且提示缺的是哪个 exe |
+| `-h` 输出分档 | 工具数 ≤ 20 的组输出全文；超过则只输出「标题 + 用法 + 分组索引」，详情走 `-h <工具名>` 或 `-h <关键字>` |
+
+**`-h` 为什么必须分档**：github 组 172 个工具的完整参数表是 1037 行 / 70 KB（约 2 万 token），LLM 调一次 `-h` 就吃满上下文，而它通常只需要「这组有哪些工具」。分档后各组体积：github 69926→2315、slash 28247→1467、system 21125→1524、search 23725→1161、shell 12414→846 字节；file/git/web/tools 四组维持全文（≤20 个工具，全文反而更有用）。索引按名字前缀折叠（`gh_issue/` 收 15 个），有类别分节时（斜杠命令的 `[Agent]`）直接用类别当分组键。
+
+**参数解析的一条硬约束**：长选项必须「真的是键」（`--` 后全是字母/数字/`_`/`-`，或遇到 `=`）才算选项。此前只判 `StartsWith("--")`，导致 unified diff（必然以 `--- a/x` 开头）被整段当成选项名，`file_apply_patch` 永远报「没有可用的 hunk」。同一原因，**值本身以 `-` 开头时要写成 `--key=值`**（如 `--pattern=-class`），否则会被当成下一个选项。
 
 结果：13 组 `Program.cs` 退化为 10~20 行声明（git 组保留「工具 id → git 命令行」翻译，经 `ArgBag(options)` 复用已解析参数，不再有第二套 `--key` 规则）。
 
-**逐组做实清单（`--list-local` 自报，共 52/546）**：
+**逐组做实清单（`--list-local` 自报，2026-11-16 实测 227/638）**：
 
-| 组 | 本地/总数 | 本地化依据 | 仍转发的部分及原因 |
-|----|-----------|------------|--------------------|
-| git | 10/10 | 参数→`git` 命令行 | — |
-| file | 11/13 | BCL 文件读写 | `file_apply_patch`（补丁事务/冲突校验）、`send_user_file`（附件管道） |
-| code | 10/32 | `.ipynb` 是纯 JSON，`JsonNode` 直读 | `lsp_*`（语言服务器进程）、`generate_*`/`analyze_*`（模型）、`recall_*`（宿主召回库） |
-| search | 8/47 | glob 匹配器；grep 族优先 `rg --json`，缺失时内置扫描 | `code_index_*`（持久化 AST 索引）、`graph_*`（调用图存储）、semantic/document（向量模型） |
-| shell | 6/27 | BCL 进程执行 | 构建/沙箱/终端会话（宿主进程树与中间件栈） |
-| web | 2/5 | `HttpClient`（分块并发+续传）/ 自研 HTML→Markdown | `web_fetch`（二级 LLM 提炼）、`web_search`（供应商搜索）、`web_browser`（浏览器会话） |
-| system | 3/71 | 纯等待 + 本进程信息 | `config_*`/`permission_*`/`agent_*`/`memory_*`/`analytics_*`（宿主存储与服务） |
-| tools | 2/18 | BCL | `skill_*`/`tool_*`（宿主技能注册表与工具索引） |
-| agent / mcp / media / github / slash | 0 | — | 计划/任务/团队共享状态、MCP 客户端连接、桌面控制与安全策略、`gh` 令牌与 API、斜杠命令派发 |
+口径说明：工具总数为 `node.yaml` 的 `tool_count` 之和 = 638（12 个 MCP 分组 539 + 斜杠命令 99）。此前文档写的 546 是早期扫描口径，已作废。
+
+| 组 | 隔离/总数 | 方式 | 依据 / 仍转发的部分及原因 |
+|----|-----------|------|--------------------------|
+| github | 172/172 | delegate → `jcc-gh.exe` | 实现已在 `modules/tools/gh`（18K 行，自带 REST 调用与 hosts.yml 凭据）且本身是独立 exe；分组 exe 用 `--call-tool <工具名>` 直调，不经宿主 |
+| file | 12/13 | local (BCL) | 文件读写 / 正则替换 / 行操作 / `file_apply_patch`（unified diff，含逐行诊断、BOM 与 CRLF 保真）；`send_user_file` 需宿主 UI 附件管道 |
+| git | 10/10 | local → `git` 子进程 | 参数→命令行翻译；零宿主依赖 |
+| code | 10/32 | local | `.ipynb` 是纯 JSON，`JsonNode` 直读；`lsp_*` 需语言服务器进程，`generate_*`/`analyze_*` 需模型，`recall_*` 需宿主召回库 |
+| search | 8/47 | local | glob 匹配器；grep 族优先 `rg --json`、缺失时内置扫描；`code_index_*` 需 Roslyn AST + SQLite FTS5 持久索引，`graph_*` 需调用图存储 |
+| shell | 6/27 | local (BCL 进程) | `bash` / PowerShell 族；构建 / 沙箱 / 终端会话依赖宿主进程树与中间件栈 |
+| agent | 2/59 | local → `git` 子进程 | `worktree_find_git` / `worktree_list_all` 是纯 git 查询；`worktree_create/remove/status/cleanup` 依赖宿主 agent→worktree 会话映射，计划 / 子代理 / 任务队列 / 团队消息同理 |
+| system | 3/71 | local | 纯等待与进程信息（`sleep` / `sleep_until` / `get_process_info`）；`config_*`/`permission_*`/`memory_*`/`analytics_*`/`agent_*` 读写宿主存储与服务 |
+| tools | 2/18 | local | `skill_batch` / `test_tool`；其余查宿主技能注册表与工具索引 |
+| web | 2/5 | local | `HttpClient`（分块并发 + 断点续传 + MD5）、自研 HTML→Markdown；`web_fetch` 需二级模型提炼，`web_search` 需供应商搜索，`web_browser` 需浏览器会话 |
+| mcp | 0/25 | host | MCP 客户端连接、认证与工具/资源/提示词枚举都在宿主进程内 |
+| media | 0/60 | host | 桌面控制（鼠标注入、GDI 截图、UI Automation、透明窗标注）需要桌面 UI 栈，且绕过宿主安全策略的风险高于收益 |
+| slash | 0/99 | host (`slash_call`) | 斜杠命令依赖会话上下文与服务容器 |
+
+**三类执行方式**（`node.yaml` 的 `mode`）：`local` 本 exe 内实现；`delegate` 委托另一个独立 exe（不经宿主，与 local 同档计入隔离）；`host` 转发宿主。三者都可由 `--list-local` 自报（委托时输出 `delegated_to=jcc-gh`），`-h` 会打印当前工具的执行方式。
+
+**为什么剩下 411 个不硬做**：它们依赖的东西可归为 6 类——① 模型调用（`web_fetch`/`generate_*`/`analyze_*`）；② 会话与代理状态（`slash` 99、计划 / 子代理 / 任务队列）；③ Roslyn AST + SQLite 索引（`code_index_*`、`lsp_*`）；④ 桌面 UI 与浏览器（`media` 60、`web_browser`）；⑤ MCP 连接与认证（`mcp` 25）；⑥ 宿主存储（`config_*`/`permission_*`/`memory_*`/`analytics_*`/`skill_*`）。在零依赖 exe 内等价实现任何一类，要么引入整套引擎（81 DLL / 16 MB，违反依赖墙），要么分叉出第二份真相源。这是**能力边界，不是遗漏**。
 
 **判定原则（重要）**：只有「宿主无状态依赖」才本地实现。像 `memory_*`、`permission_*`、任务/计划类工具，其数据落在宿主持有的存储里——在 exe 内重写一份会分叉出第二个真相源（LLM 在 A 处写、宿主在 B 处读），比不隔离更糟。这类工具继续转发，并在 `node.yaml` 里标 `mode: host`，同时 `-h` 会打印「执行方式: host（转发宿主）」让调用方可审计。
 
@@ -218,7 +234,7 @@
 | 无 Hub 直接调用 | `jcc mcp_call config_list '{}'` → 致命错误「Hub 服务不可达」 |
 | `JCC_ALLOW_DIRECT_FALLBACK=1` | `jcc mcp_list` → `total_count: 0`；`mcp_call config_list` → `TOOL_ERROR 未找到工具` |
 
-结论：**`modules/generators/mcp_tool_dispatch.generator/` 现在不能归档**（TASK082 步骤 9 的前提不成立）——转发兜底正是靠它注册的 handler。这也解释了为什么「全部 546 个工具真隔离」不能靠转发达成，只能逐组做实。无 Hub 环境下的转发验收需先起 `jcchub.exe`，或在 CI 里注入假 Hub。
+结论：**`modules/generators/mcp_tool_dispatch.generator/` 现在不能归档**（TASK082 步骤 9 的前提不成立）——转发兜底正是靠它注册的 handler。这也解释了为什么「剩下 411 个工具真隔离」不能靠转发达成，只能逐组做实或改走 delegate。无 Hub 环境下的转发验收需先起 `jcchub.exe`，或在 CI 里注入假 Hub。
 
 ### 3.3 对 ADR 0149 的显式收窄
 

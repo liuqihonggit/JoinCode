@@ -13,7 +13,7 @@
 | 首轮 `tools` 字段工具数 | 506 工具全量 schema = 466KB 巨型请求（`McpToolDispatchAttribute.cs:18`） | 4（读/写/编译/bash） |
 | 基础工具注册方式 | `[McpToolDispatch]` 特性 + 源码生成器按程序集扫描 | `resources/tools/base.yaml` |
 | 工具描述存放位置 | C# 特性 / LLM 上下文 / `tool_groups`（真实 API 忽略） | **特性原封不动**，编译期只读扫描渲染 `-h` |
-| 其余工具形态 | 宿主进程内 handler | **12 个功能大类，每组一个独立 exe**（546 工具），组内工具为子命令 |
+| 其余工具形态 | 宿主进程内 handler | **12 个功能大类，每组一个独立 exe**（638 工具 = 539 MCP 工具 + 99 斜杠命令），组内工具为子命令 |
 | 发现机制 | MCP `tool_search` 三级 `map[]` 下钻（错误层） | CLI 目录树 + 搜索（正确层） |
 | MCP 分组 | `tool_groups` 自定义字段 | 退役 |
 | 交互宿主 exe 数 | 2（ADR 0149） | 2（不变）；工具层 exe 数另行增加 |
@@ -36,6 +36,9 @@
 | 7b | 逐组做实本地实现（混合模式：本地优先 + 转发兜底，HANDCRAFTED 保护手工文件） | `groups/git/`、`groups/file/private/FileCommands.cs`、`groups/shell/`、`groups/tools/` | ✅ 4 组 | ✅ 真机 | ✅ |
 | 7b2 | **续做 4 组**：`search`（glob + grep 族，rg 优先/内置扫描兜底）、`code`（10 个 notebook_*）、`web`（download_file / web_to_markdown）、`system`（sleep / sleep_until / get_process_info）→ 8 组共 52/546 本地实现 | `groups/*/private/*.cs` | ✅ 13 组 0 警告 | ✅ 真机（含续传 MD5、nbformat 4.5 校验、两通道 grep 对比） | ✅ |
 | 7b3 | **入口统一**：13 组共用契约层 `CliNodeRunner` + `CliNodeDefinition`，各组 `Program.cs` 退化为声明；顺带支持短选项别名、未知工具近似名建议 | `src/cli_nodes/CliNodeRunner.cs`、`groups/*/Program.cs` | ✅ | ✅ 契约层 18/18 | ✅ |
+| 7b4 | **`-h` 分档 + slash 收敛**：≤20 个工具给全文，超过只给分组索引 + `-h <关键字>` 检索（github 70 KB→2.3 KB）；slash 从手写 127 行入口收进 `CliNodeRunner`（新增 `HostVerb` / `NameNormalizer` 声明项） | `CliNodeRunner.cs`、`groups/slash/Program.cs` | ✅ | ✅ 契约层 28/28 | ✅ |
+| 7b5 | **github 172 个改走 delegate**：`jcc-gh --call-tool` 直调入口 + `group_map.yaml` 的 `delegates` 段（单一数据源）；装配时把 `jcc-gh` 及依赖放 `tools/` 根共享一份（20 MB 不按组复制） | `GhSubCommand.cs`、`CliNodeDefinition.DelegateExecutable`、`Pack-ToolNodes.ps1` | ✅ 172/172 | ✅ 真机（`jcc tool call github gh_auth_status` 退出 0） | ✅ |
+| 7b6 | **补做剩余可做项**：`file_apply_patch`（含逐行诊断 / BOM / CRLF 保真）、agent 组 `worktree_find_git` / `worktree_list_all`；修掉「`---` 开头的多行 patch 被当选项」的解析 bug | `groups/file/private/FilePatchCommands.cs`、`groups/agent/private/AgentCommands.cs` | ✅ 227/638 | ✅ 真机 | ✅ |
 | 7c | **进程隔离执行器**：`jcc tool call <组> <工具> [参数]` 由 jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码；不初始化引擎 DI | `CliToolCommand.cs`（`RunCallAsync` / `ResolveGroupExe`） | ✅ | ✅ 真实 exe 七连验 + 反查/别名/超时补充验证 | ✅ |
 | 7d | **斜杠命令独立 exe**：`jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>`；`-h` 来自 `[ChatCommand]`/`[ChatCommandArg]` | `scripts/generate_slash_cli_node.py`、`groups/slash/` | ✅ | ✅ 真实 exe（含 Git Bash 命令名归一化） | ✅ |
 | 8 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildBaseTools`（3 个 QueryService）、`resources/tools/base.yaml` | ✅ | ✅ 9 个单测（锁定「非基础工具不进 tools」）+ 契约层 7/7 | ✅ |

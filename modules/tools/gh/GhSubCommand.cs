@@ -85,6 +85,10 @@ internal static class GhSubCommand {
         ToolResult? result;
         try {
             result = await GhDispatcher.InvokeAsync(toolName, bound, ct).ConfigureAwait(false);
+        } catch (JqSyntaxException ex) {
+            // jq 写错属参数错误（不是执行失败）：报原因 + 退出 2，避免静默回退成整份 JSON
+            TerminalHelper.WriteError(ex.Message);
+            return 2;
         } finally {
             GhTimingTracker.CurrentTimer.Value = prevTimer;
         }

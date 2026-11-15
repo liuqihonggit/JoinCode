@@ -42,8 +42,8 @@ public partial class GitHubToolHandlers {
             if (!result.Success) return Fail(BuildRunListErrorHint(result, workflow));
             var effectiveVerbosity = common?.Verbosity ?? GetVerbosityFromEnv();
             if (!string.IsNullOrEmpty(common?.Jq)) {
-                var jqOutput = SimpleJqEvaluator.Evaluate(result.Body, common.Jq);
-                return Ok(ApplyPaginationAndTruncation(jqOutput ?? result.Body, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: false));
+                var jqOutput = EvaluateJqOrThrow(result.Body, common.Jq);
+                return Ok(ApplyPaginationAndTruncation(jqOutput, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: false));
             }
             if (!string.IsNullOrEmpty(common?.JsonFields)) {
                 var filtered = FilterJsonFields(result.Body, common.JsonFields);

@@ -673,7 +673,7 @@ internal static class GhArgsBinder {
         // 通用: -L→limit, -w→web, -q→jq
         new('L', IsList, "limit"),
         new('w', IsView, "web"),
-        new('q', t => IsView(t) || IsList(t), "jq"),
+        new('q', t => IsView(t) || IsList(t) || t == "gh_api", "jq"),
         // pr/issue 通用
         new('a', t => IsPrOrIssue(t) && (IsList(t) || t.EndsWith("_create")), "assignee"),
         new('A', t => IsPrOrIssue(t) && IsList(t), "author"),

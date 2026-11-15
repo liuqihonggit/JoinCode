@@ -206,8 +206,8 @@ if (Test-Path "$toolsDir/file/jcc-tool-file.exe") {
 
 # jcc 侧零配置发现：不带 JCC_CLI_TOOLS_DIR 也要能列出工具树
 $jccProbe = Invoke-Capture -Exe $jccExe -Arguments @("tool", "tree")
-if ($jccProbe.Code -eq 0 -and $jccProbe.Output -match '638') {
-    Write-Host "  jcc tool tree: 零环境变量发现 13 组 / 638 工具" -ForegroundColor Green
+if ($jccProbe.Code -eq 0 -and $jccProbe.Output -match '640') {
+    Write-Host "  jcc tool tree: 零环境变量发现 13 组 / 640 工具" -ForegroundColor Green
 } else {
     Write-Host "  jcc tool tree 未按预期发现工具节点（退出码 $($jccProbe.Code)）" -ForegroundColor Red
     ($jccProbe.Output -split "`r?`n" | Select-Object -First 6) | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }

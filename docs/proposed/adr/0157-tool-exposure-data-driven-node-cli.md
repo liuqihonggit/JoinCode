@@ -71,7 +71,7 @@
 
 实测产出（**v3 归并后**，2026-11-16 复跑核对）：扫描 7014 个 .cs / **原始命中 546 条** / 归入 **12 个功能大类** / 生成 24 个文件（每组 `help.txt` + `node.yaml`）。初次直接用 `[McpTool]` 第三参数当组名曾炸出 51 个碎组（20 个组仅 1~3 个工具），经用户指出「分组应该不多」后，改为 `resources/tools/group_map.yaml` 单一映射表向上归并；42 个旧碎组目录按规则移到项目根 `.xxx/` 归档，未删除。
 
-> **口径对齐**：扫描器的 546 是**原始命中条数**（同一个工具名在多处登记会重复计入，实测多出 7 条），去重后 12 组共 **539** 条；再加斜杠命令 99 条，才是 ADR 3.2.8 使用的总数 **638**。三个数字并非矛盾：`546` 是扫描原始量，`539` 是去重后的 MCP 工具数，`638` 是含斜杠命令的总口径。
+> **口径对齐**：扫描器的 546 是**原始命中条数**（同一个工具名在多处登记会重复计入，实测多出 7 条），去重后 12 组共 **541** 条；再加斜杠命令 99 条，总数为 **640**。三个数字并非矛盾：`546` 是早期扫描原始量，`541` 是补收 2 个真实工具后的 MCP 工具数，`640` 是含斜杠命令的总口径（原先记为 539/638）。
 
 12 个大类与工具数：`github` 172、`system` 71、`media` 60、`agent` 59、`search` 47、`code` 32、`shell` 27、`mcp` 25、`tools` 18、`file` 13、`git` 10、`web` 5。`github` 单独成组避免单 exe 塞入过多工具；`worktree` 归 `agent` 使 `git` 组保持既有 10 个本地实现工具。新增分类只需在 YAML 登记，不在脚本加分支。
 
@@ -92,7 +92,7 @@
 
 ### 3.2.3 混合模式（逐组做实的可持续路径）
 
-用户 2026-11-15 选择「逐组做实本地实现」。设计要点：**不要求一次性实现 638 个工具**，每组独立推进且 exe 始终可用。
+用户 2026-11-15 选择「逐组做实本地实现」。设计要点：**不要求一次性实现全部 640 个工具**，每组独立推进且 exe 始终可用。
 
 | 机制 | 说明 |
 |------|------|
@@ -203,7 +203,7 @@
 
 **逐组做实清单（`--list-local` 自报，2026-11-16 实测 227/638）**：
 
-口径说明：工具总数为 `node.yaml` 的 `tool_count` 之和 = 638（12 个 MCP 分组 539 + 斜杠命令 99）。扫描器报的 546 不是总数，而是**原始命中条数**（同一工具名在多处登记会重复计入，实测多 7 条），去重后即 539；两个数字的关系见 3.2 开头的「口径对齐」。
+口径说明：工具总数为 `node.yaml` 的 `tool_count` 之和 = 640（12 个 MCP 分组 541 + 斜杠命令 99）。扫描器报的 546 不是总数，而是**原始命中条数**（同一工具名在多处登记会重复计入，实测多 7 条），去重后为 541；两个数字的关系见 3.2 开头的「口径对齐」。
 
 | 组 | 隔离/总数 | 方式 | 依据 / 仍转发的部分及原因 |
 |----|-----------|------|--------------------------|
@@ -227,7 +227,7 @@
 - 开发布局：`jcc_tool_github.csproj` 在 `AfterBuild` 把 `artifacts/bin/gh/<cfg>/net10.0/` 的产物拷进本工程输出目录的 **`delegate/` 子目录**。不能平铺到输出目录——gh 是卫星项目，输出里带整套引擎（85 个文件），平铺会 ① 破坏工具节点的依赖墙（本组只该有 5 个 DLL）；② 用 gh 侧那份更旧的 `Abstractions.Primitives.Tools.dll` 覆盖本组刚编的，症状是「重新编译了但行为没变」（实测踩过）。
 - 装配/部署布局：`tools/<组>/jcc-tool-<组>.exe`，委托执行器 `tools/jcc-gh.exe` 由上级目录规则命中，20 MB 只放一份。
 
-**对账脚本**：`non_deliverables_tools/scripts/Verify-ToolNodes.ps1` 做三件事——① `--list-local` 的 local 数与 `node.yaml` 的 `mode: local` 条数必须相等（实现与登记漂移即失败）；② `tool_count` / `tools` 条目数 / `-h` 索引里的工具名个数三者一致；③ `-h` 体积不超阈（大组必须走索引）。加 `-Sample` 才真跑，且只用无副作用工具（读文件 / git 状态 / glob / worktree 列表 / sleep 1 秒 / 临时目录里建一个 notebook 再读回），校验脚本不改仓库。当前实测输出：`共 13 组 / 638 个工具，进程隔离 227（35%），其中 1 组走 delegate`。
+**对账脚本**：`non_deliverables_tools/scripts/Verify-ToolNodes.ps1` 做三件事——① `--list-local` 的 local 数与 `node.yaml` 的 `mode: local` 条数必须相等（实现与登记漂移即失败）；② `tool_count` / `tools` 条目数 / `-h` 索引里的工具名个数三者一致；③ `-h` 体积不超阈（大组必须走索引）。加 `-Sample` 才真跑，且只用无副作用工具（读文件 / git 状态 / glob / worktree 列表 / sleep 1 秒 / 临时目录里建一个 notebook 再读回），校验脚本不改仓库。当前实测输出：`共 13 组 / 640 个工具，进程隔离 227（35%），其中 1 组走 delegate`。
 
 另设 `-DeclarationsOnly`：只验声明侧自洽（`tool_count` / `local_tool_count` 与条目数对得上、`mode` 只有 local/delegate/host、工具 id 不重复、`exe` 名与组名一致、`delegates` 段与 `group_map.yaml` 双向一致、13 个分组工程与 `groups:` 段双向一致），不编译、不跑 exe，几秒完成。这部分已进 CI 单测矩阵（job `Tool Nodes - declarations`），因为不需要 13 个 exe 就能拦住「登记与实现漂移」；完整对账仍由本地全量跑。`slash` 组不在 `groups:` 段是设计如此——它由 `[ChatCommand]` 经 `generate_slash_cli_node.py` 生成，没有 MCP 分类可映射，脚本里以显式例外登记并注明原因。
 
@@ -367,7 +367,7 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 - 生成器扫描全仓枚举，按「枚举类型 → 成员 → EnumValue」解析 id；`XxxToolNameEnumConstants.Member` 剥掉 `EnumConstants` 后缀再查表；
 - 同名成员跨枚举有歧义时不用「取第一个」（`AllowedPromptTool.Bash="Bash"` vs `ShellToolName.Bash="bash"`），歧义与查不到都 fail-fast；
 - 本地实现的注册键（`groups/file/private/*.cs`）、`base.yaml` 的 `id`、提示词里的工具名，全部以解析后的 id 为准；
-- `node.yaml` 的 `tool_count` 不变（改名不是增补），总数仍是 **638**。
+- 改名不是增补；同轮把两个此前漏收的真实工具（`list_peers` / `subscribe_pr`，描述走 `StringKey` 本地化键）补入目录，并排除测试项目里的 `[McpTool]` 桩，总数由 638 调整为 **640**（541 MCP + 99 slash）。
 
 **验收**：`python scripts/migrate_mcp_tools_to_cli_nodes.py --scan modules --out modules/tools/cli_nodes/groups` 零 warn；
 `Verify-ToolNodes.ps1 -DeclarationsOnly` 声明自洽；`jcc tool base` 4 条；`jcc tool call file read/write/edit` 与

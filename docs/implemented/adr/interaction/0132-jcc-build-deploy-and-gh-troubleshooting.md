@@ -33,7 +33,7 @@ pwsh non_deliverables_tools/scripts/Deploy-JccDev.ps1 -SkipBuild
 2. **先**拷贝 `artifacts/bin/gh/Debug/net10.0/` 与 `artifacts/bin/rg/Debug/net10.0/` 的产物到 `C:/Users/54076/bin/jcc.d/dev/`
 3. **后**拷贝 `artifacts/bin/JoinCode/Debug/net10.0/` 的所有文件（dll/exe/json/pdb/xml）覆盖上去
 4. 装配工具节点：13 个分组 exe 到 `dev/tools/<组>/`，委托执行器 `jcc-gh.exe` 到 `dev/tools/` 根（复用 `Pack-ToolNodes.ps1`）
-5. 验证：`jcc.exe`/`jcc-gh.dll`/`jcc-rg.exe`/`jcc.deps.json` 存在；主项目 219 个文件与产物**逐项比大小**；委托链路自报路径必须落在 `dev/tools/`；`file_read` 实跑退出 0；`jcc tool tree` 零环境变量列出 13 组 / 638 工具
+5. 验证：`jcc.exe`/`jcc-gh.dll`/`jcc-rg.exe`/`jcc.deps.json` 存在；主项目 219 个文件与产物**逐项比大小**；委托链路自报路径必须落在 `dev/tools/`；`file_read` 实跑退出 0；`jcc tool tree` 零环境变量列出 13 组 / 640 工具
 
 ⚠️ **顺序不能反（2026-11-16 实测事故）**：gh/rg 是卫星项目，它们的输出目录里带着整套引擎 DLL（gh 179 个文件，含 `Abstractions.*`）。三个 exe 装进同一目录，**谁后拷谁的同名 DLL 生效**。主项目先拷、插件后拷时，插件里那份更旧的 `Abstractions.Primitives.Tools.dll`（04:33）会盖掉主项目刚编的（05:08），症状是「部署完行为没变、还拒绝 `mode: delegate`」，且全程无报错。所以：插件先铺、主项目最后覆盖，并在部署后用逐项比大小兜底。
 
@@ -288,7 +288,7 @@ C:\Users\54076\bin\
 修复：生成器按枚举类型 + `[EnumValue]` 解析真名（处理 `XxxEnumConstants` 包装类与同名成员歧义），解析不到即 fail-fast；
 `file` 组本地实现键与 `base.yaml` / `ToolsSection` / 相关测试同步改为 `read` / `write` / `edit` / `apply_patch`。
 真机复核：`jcc tool base` 4 条齐；`mcp_schema read` 有 schema；`read → write → edit → read` 闭环退出 0；
-`jcc tool call search search_stats` 退出 0。工具总数仍是 638（改名不是增补）。
+`jcc tool call search search_stats` 退出 0。改名不改变总数；同轮补收 `list_peers` / `subscribe_pr` 两个真实工具后，目录总数由 638 调整为 **640**（541 MCP + 99 slash）。
 
 ### gh 的 jq 两个缺陷
 
@@ -296,6 +296,11 @@ C:\Users\54076\bin\
 - `--jq login`（漏点号）静默打印整份 JSON：`SimpleJqEvaluator` 对不支持的管道阶段是 `continue`，
   用户以为筛选生效。改成 `TryEvaluate` 返回原因，`FormatGhOutput` / `gh_api` / `gh_run_list` 统一抛
   `JqSyntaxException`，`GhSubCommand` 转成 stderr + 退出码 2。现有「不支持语法宽容跳过」测试已按新语义改写。
+
+**纠错**：曾据「`mcp_list` 只有 368 个」推断还有 171 个工具不可达。实为假 id 造成的统计假象：
+目录写 `code_index_*`，运行时叫 `search_*`。按 `[EnumValue]` 对齐后，非 gh 工具与注册表一一对应，
+`test_tool` 是唯一无 `[McpTool]` 声明的本地诊断工具。411 个 host 工具现在都能调用，未消除的只是
+「是否在本 exe 内零依赖实现」这一隔离度问题。
 
 **测试**：gh.tests 787/787、契约层 33/33、llm.tests 613/613、prompt ToolsSection 4/4、host.tests CLI 相关 216/216。
 **编译**：改动项目逐个 0 警告 0 错误；未跑全仓编译（用户明确要求只编改动项目）。

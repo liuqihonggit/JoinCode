@@ -6,6 +6,7 @@ jcc-tool-tools — tools 工具分组（18 个工具）
   jcc-tool-tools.exe <工具名> -h
 
 工具列表（说明复用自 [McpTool] 特性）:
+  test_tool                          Deterministic echo for CLI plumbing self-test (--arg)
   skill_simplify                     Simplify code and provide refactoring suggestions
   skill_verify                       Verify code correctness, run tests
   skill_debug                        Debug assistance, problem diagnosis
@@ -14,7 +15,6 @@ jcc-tool-tools — tools 工具分组（18 个工具）
   tool_create                        创建新的工具模板并注册到当前会话。当您发现缺少某个工具时，使用此工具动态创建。
   tool_list_templates                列出所有已创建的工具模板
   tool_show_template                 查看工具模板的完整定义
-  test_tool                          test
   skill_search                       Search available skills
   skill_recommend                    Recommend skills based on context
   discover_skills                    Discover relevant skills based on user input or context
@@ -26,6 +26,9 @@ jcc-tool-tools — tools 工具分组（18 个工具）
   tool_score_reset                   重置工具评分（清除健康记录，恢复初始状态）
 
 单个工具的参数说明:
+
+  test_tool — Deterministic echo for CLI plumbing self-test (--arg)
+    --arg                        string    必填   Value to echo back
 
   skill_simplify — Simplify code and provide refactoring suggestions
     --file_path                  string    必填   File path
@@ -67,9 +70,6 @@ jcc-tool-tools — tools 工具分组（18 个工具）
 
   tool_show_template — 查看工具模板的完整定义
     --templateId                 string    必填   模板ID或工具名称
-
-  test_tool — test
-    --arg                        string    必填   参数描述
 
   skill_search — Search available skills
     --keyword                    string    可选   Search keyword

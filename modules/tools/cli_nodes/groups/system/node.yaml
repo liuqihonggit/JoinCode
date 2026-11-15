@@ -7,7 +7,7 @@ summary: "Get a configuration setting value; Set a configuration setting value; 
 category: system
 exe: jcc-tool-system.exe
 tags: [agent, analytics, ask, brief, config, confirm, continue, ctx]
-tool_count: 71
+tool_count: 72
 local_tool_count: 3
 parameters: []
 tools:
@@ -109,6 +109,8 @@ tools:
     mode: local
   - id: sleep_until
     mode: local
+  - id: list_peers
+    mode: host
   - id: ask_user_question
     mode: host
   - id: confirm_action

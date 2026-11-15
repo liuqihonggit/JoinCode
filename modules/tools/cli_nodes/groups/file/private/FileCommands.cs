@@ -6,7 +6,7 @@ namespace JoinCode.CliNode.File;
 
 /// <summary>
 /// file 分组的本地命令表 — 只用 BCL，不引用引擎 / DI / IFileSystem。
-/// 未登记的工具（file_apply_patch / send_user_file）由 Program 转发宿主，exe 始终可用。
+/// file_apply_patch 的实现在 FilePatchCommands（同目录）；未登记的 send_user_file 需要宿主 UI 通道，转发宿主。
 /// 参数名与 [McpToolParameter] 特性逐一对应，说明不在此重复。
 /// </summary>
 internal static class FileCommands {
@@ -22,7 +22,8 @@ internal static class FileCommands {
             ["file_batch_edit"] = BatchEditAsync,
             ["directory_list"] = DirectoryListAsync,
             ["file_snip_lines"] = SnipLinesAsync,
-            ["file_snip_preview"] = SnipPreviewAsync
+            ["file_snip_preview"] = SnipPreviewAsync,
+            ["file_apply_patch"] = FilePatchCommands.ApplyPatchAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;

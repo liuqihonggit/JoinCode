@@ -8,7 +8,7 @@ category: file
 exe: jcc-tool-file.exe
 tags: [directory, file, send]
 tool_count: 13
-local_tool_count: 11
+local_tool_count: 12
 parameters: []
 tools:
   - id: file_delete
@@ -26,7 +26,7 @@ tools:
   - id: directory_list
     mode: local
   - id: file_apply_patch
-    mode: host
+    mode: local
   - id: file_read
     mode: local
   - id: file_snip_lines

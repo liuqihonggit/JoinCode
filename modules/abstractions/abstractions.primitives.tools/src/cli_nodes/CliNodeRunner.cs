@@ -647,10 +647,19 @@ public static class CliNodeRunner {
     }
 
     /// <summary>
-    /// 选项判定：--long，或 -x（排除 -5 这类负数，避免把值当选项）。
+    /// 选项判定：<c>--long</c> / <c>--key=value</c>，或 <c>-x</c>（排除 <c>-5</c> 这类负数，避免把值当选项）。
+    /// <para>长选项必须真的是「键」才算：unified diff 的内容以 <c>---</c> 开头，多行 patch 更含空格与换行，
+    /// 早先只判 <c>StartsWith("--")</c> 时会把整段 patch 当成选项名，导致 file_apply_patch 永远报「没有可用的 hunk」。</para>
     /// </summary>
     private static bool IsOptionToken(string token) {
-        if (token.StartsWith("--", StringComparison.Ordinal)) return true;
+        if (token.Length > 2 && token[0] == '-' && token[1] == '-') {
+            for (var i = 2; i < token.Length; i++) {
+                var c = token[i];
+                if (c == '=') return true;
+                if (!char.IsLetterOrDigit(c) && c != '_' && c != '-') return false;
+            }
+            return true;
+        }
         return token.Length > 1 && token[0] == '-' && !char.IsDigit(token[1]);
     }
 

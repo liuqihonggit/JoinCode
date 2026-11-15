@@ -387,7 +387,7 @@ REGISTRY_DECL_RE = re.compile(
     r"new\s+Dictionary<string,\s*.+?>\s*\([^)]*\)\s*\{",
 )
 REGISTRY_ENTRY_RE = re.compile(
-    r'\["(?P<id>[A-Za-z_][A-Za-z_0-9]*)"\]\s*=\s*(?P<handler>[A-Za-z_][A-Za-z0-9_]*)\s*(?=[,}\s])',
+    r'\["(?P<id>[A-Za-z_][A-Za-z_0-9]*)"\]\s*=\s*(?P<handler>[A-Za-z_][A-Za-z0-9_.]*)\s*(?=[,}\s])',
 )
 
 

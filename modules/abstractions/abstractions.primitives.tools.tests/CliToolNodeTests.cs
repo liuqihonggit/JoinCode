@@ -78,8 +78,17 @@ public sealed class CliToolNodeTests {
 
         Assert.Contains("github/", tree);
         Assert.Contains("search/", tree);
-        Assert.Contains("rg/ — ripgrep 兼容的代码内容搜索", tree);
+        Assert.Contains("  rg/ — ripgrep 兼容的代码内容搜索", tree);
         Assert.True(tree.IndexOf("github/", StringComparison.Ordinal) < tree.IndexOf("search/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RenderTree_FoldsSingleNodeGroupWhoseIdEqualsCategory() {
+        // 13 个分组 exe 都是「一组一节点」，目录名与节点 ID 相同；
+        // 再打一遍 "github/ —" 只是把同一个词写两次，目录树会白占一行。
+        var tree = CliToolSearch.RenderTree([MakeNode("github", "github", "GitHub 工具", [])]);
+
+        Assert.Equal("github/ — GitHub 工具", tree);
     }
 
     [Fact]

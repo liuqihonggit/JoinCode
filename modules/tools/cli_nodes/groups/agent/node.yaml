@@ -8,7 +8,7 @@ category: agent
 exe: jcc-tool-agent.exe
 tags: [add, approve, complete, cron, enter, execute, exit, explore]
 tool_count: 59
-local_tool_count: 0
+local_tool_count: 2
 parameters: []
 tools:
   - id: enter_plan_mode
@@ -76,9 +76,9 @@ tools:
   - id: worktree_cleanup
     mode: host
   - id: worktree_find_git
-    mode: host
+    mode: local
   - id: worktree_list_all
-    mode: host
+    mode: local
   - id: worktree_merge
     mode: host
   - id: task_output

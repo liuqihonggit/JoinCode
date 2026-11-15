@@ -31,15 +31,36 @@ public static class CliToolSearch {
     /// <summary>渲染目录树 — 分类即目录，节点即叶子；分组节点附带本地实现覆盖率。</summary>
     public static string RenderTree(IEnumerable<CliToolDescriptor> nodes) {
         var sb = new StringBuilder();
-        var groups = nodes
+        var list = nodes as IReadOnlyList<CliToolDescriptor> ?? nodes.ToList();
+        AppendTotals(sb, list);
+        var groups = list
             .GroupBy(node => node.Category, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal);
         foreach (var group in groups) {
+            var ordered = group.OrderBy(item => item.Id, StringComparer.Ordinal).ToArray();
+            // 单节点组（当前全部 13 组都是 1:1）：目录名就是节点 ID，再打一遍 "github/ —" 纯属噪音。
+            if (ordered.Length == 1 && string.Equals(ordered[0].Id, group.Key, StringComparison.Ordinal)) {
+                sb.AppendLine($"{group.Key}/ — {Brief(ordered[0].Summary, TreeSummaryLimit)}{Coverage(ordered[0])}");
+                continue;
+            }
             sb.AppendLine($"{group.Key}/");
-            foreach (var node in group.OrderBy(item => item.Id, StringComparer.Ordinal))
+            foreach (var node in ordered)
                 sb.AppendLine($"  {node.Id}/ — {Brief(node.Summary, TreeSummaryLimit)}{Coverage(node)}");
         }
         return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// 总览行 —— 「546 个工具里到底隔离了多少」应当一眼可见，否则只能逐组把分母加起来。
+    /// </summary>
+    private static void AppendTotals(StringBuilder sb, IReadOnlyList<CliToolDescriptor> nodes) {
+        var withTools = nodes.Where(node => node.HasToolEntries).ToList();
+        if (withTools.Count == 0) return;
+        var total = withTools.Sum(node => node.Tools.Length);
+        var isolated = withTools.Sum(node => node.LocalToolCount);
+        var percent = total == 0 ? 0 : isolated * 100 / total;
+        sb.AppendLine(
+            $"共 {withTools.Count} 组 / {total} 个工具，进程隔离 {isolated}（{percent}%：local 本 exe 内实现 + delegate 独立 exe）");
     }
 
     /// <summary>

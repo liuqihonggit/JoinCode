@@ -160,6 +160,7 @@
 | 数据源 | 三个 provider（OpenAI / Responses / Anthropic）的 `BuildToolsFromKernel` 全部删除，改为 `BuildBaseTools`：只保留 `resources/tools/base.yaml` 里登记的 id，其余 540+ 工具不再进入协议原生 `tools` 字段 |
 | `tool_groups` | 退役——`request.ToolGroups` 不再写入（三个 Type 上的字段保留仅作兼容，恒为空） |
 | 两阶段加载 | `CreateSecond*RequestWithDescriptions` 已无调用方，随 `tool_groups` 一起失效 |
+| 提示词 | `ToolsSection` 重写：只推荐 `base.yaml` 里真实声明的工具，并给出 `jcc tool tree / find / help / call` 四步发现通道；删除 `Glob` / `Grep` / `TodoWrite`（已不在首轮清单）与 `tool_search` `list_groups` `map[...]` 三级下钻文案 |
 | schema 来源 | 参数 schema 取内核元数据、描述取 `base.yaml`。理由：handler 就在内核里，用它的参数定义能保证 LLM 看到的必填项与执行期校验完全一致；而给模型看的文案仍以 YAML 为单一数据源 |
 | 回归守卫 | `BuildBaseTools_*`（9 个单测，三个 provider 各 3 个）锁定「非基础工具一律不进 tools 字段、描述来自 YAML」 |
 

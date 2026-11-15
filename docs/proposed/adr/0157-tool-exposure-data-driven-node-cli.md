@@ -135,7 +135,21 @@
 6. 不存在的组 → 四要素引导 + 查找顺序，退出码 3 ✅
 7. 转发兜底组（code）无宿主时 → exe 的宿主引导透传，退出码 3 ✅（子进程退出码正确回传）
 
-**诚实边界**：jcc 进程隔离执行已打通，但被启动的 exe 分两类——`git`/`file`/`shell`/`tools` 组是本地实现（真隔离，离开宿主可跑）；其余 8 组的工具若未本地化，exe 会再转发宿主 `jcc mcp_call`（此时是 `jcc → exe → jcc` 的进程链，工具逻辑仍落在宿主进程）。要做成完全隔离，需把这 8 组也逐组做实本地实现。首轮 `tools` 字段仍由 `BuildToolsFromKernel` 全量构建（步骤 8 未拨），但那条链路不影响本执行器的进程隔离语义。
+### 3.2.5 斜杠命令独立 exe — `jcc-slash`（用户「例如 mcp 和斜杠命令」的另一半）
+
+用户原话是「拆分成多个 exe，**例如 mcp 和斜杠命令**」。mcp 侧已按 12 组落地，斜杠命令同样拆成独立 exe，避免只做一半。
+
+| 项 | 实现 |
+|----|------|
+| exe | `jcc-tool-slash.exe`（99 个命令 / 15 个分类 / 14 个隐藏命令） |
+| `-h` | 按分类分组列出全部命令 + 单命令参数段；文本来自现有 `[ChatCommand]` / `[ChatCommandArg]` 特性，零手写说明 |
+| 生成 | `scripts/generate_slash_cli_node.py` 只读扫描（枚举 `[EnumValue]` 还原 `rate-limit-options` 这类真实名），生成 `help.txt` + `csproj`；`Program.cs` 手写（`HANDCRAFTED`），脚本不覆盖、不修改任何源 .cs |
+| 执行 | 斜杠命令依赖会话状态（聊天上下文 / 服务容器），无法零依赖实现，统一转发宿主 `jcc slash_call`；jcc 侧用 `jcc tool call slash <命令>` 启动它，形成 `jcc → exe → jcc` 进程隔离链 |
+| Git Bash 兼容 | 命令名归一化：`/agents` 被 MSYS 展开成 Windows 路径时取末段还原；`--exe` 等透传参数不受影响 |
+
+真机验收：`jcc tool call slash -h`（99 命令总览，退出码 0）、`jcc tool call slash agents -h`（单命令参数，退出码 0）、`jcc tool call slash /agents -h`（经 Git Bash 展开后仍正确恢复，退出码 0）、`file` / `git` 组回归通过。
+
+**诚实边界**：jcc 进程隔离执行已打通，但被启动的 exe 分两类——`git`/`file`/`shell`/`tools` 组是本地实现（真隔离，离开宿主可跑）；`slash` 组与其余 8 个分组仍是转发实现，exe 会再转发宿主（`jcc → exe → jcc` 进程链，工具逻辑仍落在宿主进程）。要做成完全隔离，需把这些组也逐组做实本地实现。首轮 `tools` 字段仍由 `BuildToolsFromKernel` 全量构建（步骤 8 未拨），但那条链路不影响本执行器的进程隔离语义。
 
 ### 3.3 对 ADR 0149 的显式收窄
 
@@ -206,6 +220,7 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 | 7 | 只读扫描器 + `group_map.yaml` 按 12 大类重切，生成各组索引/帮助/exe，`jcc-tool-git.exe` 本地实现样板 | ✅ 已完成（12 组 / 546 工具；42 个旧碎组归档 `.xxx/`；3 组编译零警告 + 真机验收） |
 | 8 | 逐组做实本地实现（混合模式）：`git`(10/10)、`file`(11/13)、`shell`(6/27)、`tools`(2/18)；剩余 8 组待推进 | 进行中（4/12 组） |
 | 8b | **进程隔离执行器** `jcc tool call <组> <工具>`：jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码，不初始化引擎 DI | ✅ 已完成（七连真机验收，退出码 0/2/3 全覆盖） |
+| 8c | **斜杠命令独立 exe** `jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>` 进程隔离调用 | ✅ 已完成（生成器 + 真机验收，含 Git Bash 命令名归一化） |
 | 9 | 切换主请求链路：首轮 `tools` 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | 待办 |
 | 10 | 目录节点化重组 + 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 | 待办 |
 | 11 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 部分完成：全仓编译通过（6m7s）、真机 exe 验收通过；全量测试待步骤 8-10 |

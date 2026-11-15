@@ -39,6 +39,17 @@ public sealed class CliNodeDefinition {
     /// <summary>转发宿主时的默认 exe 名。</summary>
     public string HostExecutable { get; init; } = "jcc";
 
+    /// <summary>
+    /// 转发宿主时使用的子命令 — 工具组走 <c>mcp_call</c>，斜杠命令组走 <c>slash_call</c>。
+    /// </summary>
+    public string HostVerb { get; init; } = "mcp_call";
+
+    /// <summary>
+    /// 工具名归一化：斜杠命令要处理 Git Bash 把 <c>/agents</c> 展开成 Windows 路径的情况，
+    /// 工具组则保持原名。默认不做变换。
+    /// </summary>
+    public Func<string, string> NameNormalizer { get; init; } = static name => name;
+
     /// <summary>本地实现依赖宿主独有能力时的说明，出现在转发失败提示里。</summary>
     public string HostReason { get; init; } = "该工具依赖宿主独有能力（引擎服务 / 共享状态 / 模型调用），零依赖 exe 无法等价实现。";
 }
@@ -79,8 +90,13 @@ public static class CliNodeRunner {
     private static async Task<int> RunCoreAsync(CliNodeDefinition definition, string[] args, CancellationToken ct) {
         var help = LoadHelp(definition.HelpResource);
 
-        if (args.Length == 0 || IsHelp(args[0])) {
-            Write(help);
+        if (args.Length == 0) {
+            Write(RenderIndex(help));
+            return ExitSuccess;
+        }
+        if (IsHelp(args[0])) {
+            // `-h <关键字>` 检索详情：大组（github 172 个）没有这个入口就只能整段倒出来。
+            Write(args.Length > 1 ? RenderMatch(help, args[1]) : RenderIndex(help));
             return ExitSuccess;
         }
         if (CliNodeCoverage.IsRequested(args[0])) {
@@ -88,7 +104,8 @@ public static class CliNodeRunner {
             return ExitSuccess;
         }
 
-        var toolId = args[0];
+        // 名字归一化：斜杠命令要把 Git Bash 展开的 Windows 路径还原成 /agents。
+        var toolId = definition.NameNormalizer(args[0]);
         if (args.Length > 1 && IsHelp(args[1])) {
             PrintToolHelp(definition, help, toolId);
             return ExitSuccess;
@@ -144,7 +161,7 @@ public static class CliNodeRunner {
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        psi.ArgumentList.Add("mcp_call");
+        psi.ArgumentList.Add(definition.HostVerb);
         psi.ArgumentList.Add(toolId);
         psi.ArgumentList.Add(payload);
 
@@ -226,7 +243,7 @@ public static class CliNodeRunner {
         var end = boundaries.Length > 0 ? boundaries.Min() : normalized.Length;
         var mode = definition.Resolve(toolId) is not null
             ? "local（本 exe 内零依赖实现）"
-            : "host（转发宿主 jcc mcp_call）";
+            : $"host（转发宿主 jcc {definition.HostVerb}）";
         Write($"{definition.Title} / {toolId} — 参数说明（复用现有 [McpToolParameter] 特性）\n");
         Write($"执行方式: {mode}\n");
         Write(normalized[start..end].TrimEnd() + "\n");
@@ -244,25 +261,237 @@ public static class CliNodeRunner {
         throw new InvalidOperationException($"未找到内嵌帮助资源 '{resourceName}'，请检查 csproj 的 EmbeddedResource 配置。");
     }
 
+    /// <summary>帮助条目：工具 ID + 一行摘要 + 所属类别（斜杠命令按 <c>[Agent]</c> 分节时才有）。</summary>
+    private readonly record struct HelpEntry(string Id, string Summary, string Category);
+
+    /// <summary>工具数超过此值时 <c>-h</c> 只输出索引 —— 172 个工具的完整参数表是 70 KB，一次倒出来直接占满上下文。</summary>
+    private const int FullHelpEntryLimit = 20;
+
+    /// <summary>
+    /// 渲染 <c>-h</c> 输出：小组给全文，大组给压缩索引。
+    /// <para>大组索引按名字前缀折叠（github 的 172 个工具折成 30 余行），
+    /// 详情仍由 <c>&lt;exe&gt; -h &lt;工具名&gt;</c> 或 <c>-h &lt;关键字&gt;</c> 提供。</para>
+    /// </summary>
+    internal static string RenderIndex(string help) {
+        var normalized = help.Replace("\r\n", "\n");
+        var entries = ParseEntries(normalized);
+        if (entries.Count <= FullHelpEntryLimit) return normalized;
+
+        var header = HeaderOf(normalized);
+        var builder = new StringBuilder(4096);
+        builder.Append(header).Append("\n\n");
+        builder.Append("工具索引（").Append(entries.Count)
+            .Append(" 个，详情: <exe> -h <工具名> 或 <exe> -h <关键字>）:\n");
+        AppendGrouped(builder, entries);
+        builder.Append("\n提示: 直接 `<exe> <工具名> -h` 看单个工具的完整参数。\n");
+        return builder.ToString();
+    }
+
+    private static void AppendGrouped(StringBuilder builder, List<HelpEntry> entries) {
+        var groups = BuildGroups(entries, out var folded);
+        if (!folded) {
+            AppendNameColumns(builder, entries);
+            return;
+        }
+        foreach (var group in groups) {
+            // 单级命令（gh_api / gh_status）分组名就是工具名，重复写两遍只会浪费一行宽度。
+            if (group.Names.Count == 1 && string.Equals(group.Names[0], group.Prefix, StringComparison.Ordinal)) {
+                builder.Append("  ").Append(group.Prefix).Append("  (1)\n");
+                continue;
+            }
+            // 计数写在前缀后而不是行尾：工具多的组要折行，行尾计数会跟着飘到任意一行。
+            var indent = $"  {group.Prefix}/ ({group.Names.Count}) ";
+            AppendWrapped(builder, indent, "    ", group.Names);
+        }
+    }
+
+    /// <summary>把名字列表按行宽折行输出，续行用 <paramref name="continuation"/> 缩进。</summary>
+    private static void AppendWrapped(StringBuilder builder, string indent, string continuation, List<string> names) {
+        const int lineWidth = 96;
+        var line = new StringBuilder(indent);
+        foreach (var name in names) {
+            if (line.Length > indent.Length + 1 && line.Length + name.Length + 2 > lineWidth) {
+                builder.Append(line).Append('\n');
+                line.Clear().Append(continuation);
+            }
+            if (line.Length > continuation.Length) line.Append("  ");
+            line.Append(name);
+        }
+        builder.Append(line).Append('\n');
+    }
+
+    /// <summary>名字折叠不出效果（斜杠命令没有下划线）时退回等宽名字清单，避免每组一行的空转。</summary>
+    private static void AppendNameColumns(StringBuilder builder, List<HelpEntry> entries) {
+        const int lineWidth = 96;
+        var line = new StringBuilder();
+        foreach (var entry in entries) {
+            if (line.Length > 0 && line.Length + entry.Id.Length + 2 > lineWidth) {
+                builder.Append("  ").Append(line).Append('\n');
+                line.Clear();
+            }
+            if (line.Length > 0) line.Append("  ");
+            line.Append(entry.Id);
+        }
+        if (line.Length > 0) builder.Append("  ").Append(line).Append('\n');
+    }
+
+    private readonly record struct HelpGroup(string Prefix, List<string> Names);
+
+    /// <summary>
+    /// 分组：帮助里有类别分节（斜杠命令的 <c>[Agent]</c>）优先用类别，
+    /// 否则按工具名分段折叠——默认取第一段，若第一段覆盖六成以上工具（github 全是 <c>gh_</c>）改用两段。
+    /// </summary>
+    private static List<HelpGroup> BuildGroups(List<HelpEntry> entries, out bool folded) {
+        var categorized = entries.Count(entry => entry.Category.Length > 0);
+        if (categorized * 2 >= entries.Count) {
+            var byCategory = entries
+                .GroupBy(entry => entry.Category, StringComparer.Ordinal)
+                .OrderBy(group => group.Key, StringComparer.Ordinal)
+                .Select(group => new HelpGroup(group.Key, group.Select(entry => entry.Id).ToList()))
+                .ToList();
+            folded = byCategory.Count * 10 <= entries.Count * 7;
+            if (folded) return byCategory;
+        }
+
+        var firstSegments = entries
+            .Select(entry => entry.Id.Split('_')[0])
+            .GroupBy(segment => segment, StringComparer.Ordinal)
+            .OrderByDescending(group => group.Count())
+            .ToList();
+        var widest = firstSegments.Count > 0 ? firstSegments[0].Count() : 0;
+        var take = widest * 10 >= entries.Count * 6 ? 2 : 1;
+
+        var map = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var entry in entries) {
+            var parts = entry.Id.Split('_');
+            var depth = Math.Min(take, parts.Length);
+            var prefix = string.Join('_', parts[..depth]);
+            var name = parts.Length > depth ? string.Join('_', parts[depth..]) : entry.Id;
+            if (!map.TryGetValue(prefix, out var names)) {
+                names = [];
+                map[prefix] = names;
+            }
+            names.Add(name);
+        }
+        // 折叠率不足七成说明命名不是层级式（斜杠命令 /advisor 没有下划线），退回名字清单。
+        folded = map.Count * 10 <= entries.Count * 7;
+        return map
+            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .Select(pair => new HelpGroup(pair.Key, pair.Value))
+            .ToList();
+    }
+
+    /// <summary>按关键字检索工具详情：命中工具名或摘要的工具整段输出。</summary>
+    internal static string RenderMatch(string help, string keyword) {
+        var normalized = help.Replace("\r\n", "\n");
+        var entries = ParseEntries(normalized);
+        // 连字符写法（pull-request）与下划线工具名（gh_pr_*）之间要能互认。
+        var token = keyword.Replace('-', '_');
+        var hits = entries
+            .Where(entry => entry.Id.Contains(token, StringComparison.OrdinalIgnoreCase)
+                            || entry.Summary.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            // 工具名命中排在描述命中之前 —— 前者是直接要查的，后者只是顺带提到。
+            .OrderByDescending(entry => entry.Id.Contains(token, StringComparison.OrdinalIgnoreCase))
+            .ThenBy(entry => entry.Id, StringComparer.Ordinal)
+            .ToList();
+        if (hits.Count == 0) {
+            var suggestions = Suggest(keyword, entries.Select(entry => entry.Id).ToList());
+            var message = new StringBuilder($"没有匹配 '{keyword}' 的工具。");
+            if (suggestions.Count > 0) message.Append("\n你是不是想用：").Append(string.Join(" / ", suggestions));
+            message.Append("\n执行 <exe> -h 查看完整工具索引。");
+            return message.ToString();
+        }
+
+        var builder = new StringBuilder(4096);
+        builder.Append("命中 ").Append(hits.Count).Append(" 个工具（").Append(keyword).Append("）:\n");
+        foreach (var hit in hits) {
+            builder.Append('\n');
+            // 详情段本身已含「  id — 摘要」首行；没有详情段时才补一行摘要，避免同一条打印两遍。
+            var section = DetailSectionOf(normalized, hit.Id);
+            if (section.Length > 0) builder.Append(section);
+            else builder.Append("  ").Append(hit.Id).Append(" — ").Append(hit.Summary).Append('\n');
+        }
+        // 末尾保留换行：Write 不补 \n，缺了会和下一条命令的输出粘在一行。
+        return builder.ToString().TrimEnd() + "\n";
+    }
+
+    /// <summary>取某个工具的参数说明段；帮助文本里没有该段时返回空串（不伪造参数）。</summary>
+    private static string DetailSectionOf(string normalized, string toolId) {
+        var marker = $"  {toolId} — ";
+        var start = normalized.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) return string.Empty;
+        var next = normalized.IndexOf("\n  ", start + marker.Length, StringComparison.Ordinal);
+        while (next > 0 && !IsToolHeaderAt(normalized, next + 1)) {
+            next = normalized.IndexOf("\n  ", next + 1, StringComparison.Ordinal);
+        }
+        var tail = normalized.IndexOf("描述来源:", start, StringComparison.Ordinal);
+        var end = next > 0 ? next : normalized.Length;
+        if (tail > start && tail < end) end = tail;
+        return normalized[start..end].TrimEnd() + "\n";
+    }
+
+    /// <summary>判断某行是否是工具段头（<c>  id — 描述</c>），用于划分详情段边界。</summary>
+    private static bool IsToolHeaderAt(string text, int lineStart) {
+        var lineEnd = text.IndexOf('\n', lineStart);
+        var line = lineEnd > 0 ? text[lineStart..lineEnd] : text[lineStart..];
+        if (!line.StartsWith("  ", StringComparison.Ordinal) || line.StartsWith("    ", StringComparison.Ordinal)) return false;
+        return line.Contains(" — ", StringComparison.Ordinal);
+    }
+
+    /// <summary>帮助头部（标题 + 用法），即列表段之前的内容。</summary>
+    private static string HeaderOf(string normalized) {
+        var index = FindListHeader(normalized);
+        var header = index > 0 ? normalized[..index] : normalized;
+        return header.TrimEnd();
+    }
+
+    /// <summary>列表段标题位置 — 工具组是「工具列表」，斜杠命令组是「命令列表」。</summary>
+    private static int FindListHeader(string normalized) {
+        var best = -1;
+        foreach (var marker in ListHeaderMarkers) {
+            var index = normalized.IndexOf(marker, StringComparison.Ordinal);
+            if (index >= 0 && (best < 0 || index < best)) best = index;
+        }
+        return best;
+    }
+
+    private static readonly string[] ListHeaderMarkers = ["工具列表", "命令列表"];
+
+    /// <summary>从帮助文本的列表段解析工具 ID、摘要与类别。</summary>
+    private static List<HelpEntry> ParseEntries(string normalized) {
+        var entries = new List<HelpEntry>();
+        var headerIndex = FindListHeader(normalized);
+        if (headerIndex < 0) return entries;
+        var lines = normalized[headerIndex..].Split('\n');
+        var category = string.Empty;
+        for (var i = 1; i < lines.Length; i++) {
+            var line = lines[i];
+            if (line.Length == 0) continue;
+            // 列表段与详情段的分界：「单个工具/命令的参数说明:」
+            if (line.StartsWith("单个", StringComparison.Ordinal)) break;
+            if (!line.StartsWith("  ", StringComparison.Ordinal)) {
+                // 斜杠命令组按 [Agent] (9 个) 分节 —— 这层分类正好能当索引的分组键。
+                var heading = line.Trim();
+                if (heading.StartsWith('[') && heading.Contains(']')) {
+                    var close = heading.IndexOf(']');
+                    category = heading[1..close];
+                }
+                continue;
+            }
+            if (line.StartsWith("    ", StringComparison.Ordinal)) continue;
+            var trimmed = line.Trim();
+            var space = trimmed.IndexOf(' ');
+            if (space <= 0) continue;
+            entries.Add(new HelpEntry(trimmed[..space], trimmed[space..].Trim(), category));
+            if (entries.Count >= 1000) break;
+        }
+        return entries;
+    }
+
     /// <summary>从帮助文本的「工具列表」段解析工具 ID，用于未知工具判定与近似名建议。</summary>
     internal static List<string> ListToolIds(string help) {
-        var ids = new List<string>();
         var normalized = help.Replace("\r\n", "\n");
-        var headerIndex = normalized.IndexOf(ToolListHeader, StringComparison.Ordinal);
-        if (headerIndex < 0) return ids;
-        foreach (var line in normalized[headerIndex..].Split('\n')) {
-            if (line.Length == 0) continue;
-            if (line.StartsWith("  ", StringComparison.Ordinal) && !line.StartsWith("    ", StringComparison.Ordinal)) {
-                var trimmed = line.Trim();
-                var space = trimmed.IndexOf(' ');
-                if (space <= 0) continue;
-                var id = trimmed[..space].Trim();
-                if (id.Length > 0 && ids.Count < 1000) ids.Add(id);
-            } else if (ids.Count > 0 && !line.StartsWith(' ')) {
-                break;
-            }
-        }
-        return ids;
+        return ParseEntries(normalized).Select(entry => entry.Id).ToList();
     }
 
     private static Dictionary<string, string> ParseOptions(ReadOnlySpan<string> args) {

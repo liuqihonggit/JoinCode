@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: shell
+name: jcc-tool-shell
+summary: "Execute C# code in sandbox environment; Evaluate a simple C# expression; Test a code snippet with sample input"
+category: shell
+exe: jcc-tool-shell.exe
+tags: [bash, build, evaluate, execute, mcp, powershell, repl, sandbox]
+tool_count: 27
+parameters: []

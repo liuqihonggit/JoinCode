@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: execution
-name: jcc-tool-execution
-summary: "Get build output lines by range for incremental reading; Get build queue status (pending count, current build, recent builds); Cancel a build (kill process if building, remove from queue if pending)"
-category: execution
-exe: jcc-tool-execution.exe
-tags: [bash, build, mcp, powershell, repl, shell]
-tool_count: 17
-parameters: []

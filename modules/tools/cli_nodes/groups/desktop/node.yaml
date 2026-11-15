@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: desktop
-name: jcc-tool-desktop
-summary: "右键点击指定坐标,等待菜单渲染后点击菜单项坐标; 拖拽到目标位置并悬停等待弹出菜单,然后可选点击弹出项; 按顺序点击多个坐标,每步之间可配置等待时间"
-category: desktop
-exe: jcc-tool-desktop.exe
-tags: [close, desktop, detect, drag, find, focus, get, key]
-tool_count: 39
-parameters: []

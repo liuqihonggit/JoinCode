@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: error_recovery
-name: jcc-tool-error_recovery
-summary: "分析工具执行失败的错误信息，提供诊断和修复建议; 分析 Shell 命令执行失败原因，提供替代命令建议; 分析文件操作失败原因，提供修复路径建议"
-category: error_recovery
-exe: jcc-tool-error_recovery.exe
-tags: [continue, diagnose, fix, resume, stop]
-tool_count: 7
-parameters: []

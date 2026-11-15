@@ -1,4 +1,4 @@
-jcc-tool-code — code 工具分组（2 个工具）
+jcc-tool-code — code 工具分组（32 个工具）
 
 用法:
   jcc-tool-code.exe <工具名> [参数...]
@@ -6,10 +6,88 @@ jcc-tool-code — code 工具分组（2 个工具）
   jcc-tool-code.exe <工具名> -h
 
 工具列表（说明复用自 [McpTool] 特性）:
+  notebook_add_cell                  Add a cell to a notebook
+  notebook_delete_cell               Delete a cell from a notebook
+  notebook_edit_cell                 Edit a notebook cell's content
+  notebook_move_cell                 Move a notebook cell to a new position
+  notebook_change_cell_type          Change a notebook cell's type
+  notebook_clear_outputs             Clear outputs of all notebook cells
+  notebook_get_cell                  Get the content of a specific notebook cell
+  notebook_edit                      Replace the contents of a specific cell in a Jupyter notebook (.ipynb)
+  notebook_create                    Create a new Jupyter Notebook file
+  notebook_read                      Read a Jupyter Notebook file
   mcp_ai_workflow_workflow_generate_code Generate code for writing programs, implementing features and developing modules
   mcp_ai_workflow_workflow_analyze_code Analyze code for code review, bug detection, optimization suggestions and security audit
+  recall_list                        List folded conversation archives that can be recalled
+  recall_read                        Read full original content of a folded archive by fold_id
+  recall_search                      Search folded archives by keyword in summary text
+  analyze_csharp_code                Analyze C# code quality and provide improvement suggestions
+  find_bugs                          Find potential bugs and issues in C# code
+  optimize_code                      Analyze and optimize C# code performance and readability
+  security_audit                     Perform security audit on C# code
+  generate_csharp_code               Generate C# code from description
+  generate_unit_test                 Generate unit tests for existing C# code
+  generate_api_controller            Generate ASP.NET Core API controller
+  lsp_goto_definition                Go to symbol definition location
+  lsp_find_references                Find all references to a symbol
+  lsp_hover                          Get hover information
+  lsp_completion                     Get code completion suggestions
+  lsp_document_symbols               Get document symbol list
+  lsp_workspace_symbol               Search symbols in workspace
+  lsp_goto_implementation            Go to symbol implementation location
+  lsp_prepare_call_hierarchy         Prepare call hierarchy information
+  lsp_incoming_calls                 Find incoming calls (who calls this symbol)
+  lsp_outgoing_calls                 Find outgoing calls (symbols called by this symbol)
 
 单个工具的参数说明:
+
+  notebook_add_cell — Add a cell to a notebook
+    --file_path                  string    必填   File path
+    --cell_type                  string    必填   Cell type (code/markdown/raw)
+    --content                    string    必填   Cell content
+    --index                      integer   可选   Insert position index (optional, default end)
+
+  notebook_delete_cell — Delete a cell from a notebook
+    --file_path                  string    必填   File path
+    --index                      integer   必填   Cell index
+
+  notebook_edit_cell — Edit a notebook cell's content
+    --file_path                  string    必填   File path
+    --index                      integer   必填   Cell index
+    --content                    string    必填   New content
+
+  notebook_move_cell — Move a notebook cell to a new position
+    --file_path                  string    必填   File path
+    --from_index                 integer   必填   Source position index
+    --to_index                   integer   必填   Target position index
+
+  notebook_change_cell_type — Change a notebook cell's type
+    --file_path                  string    必填   File path
+    --index                      integer   必填   Cell index
+    --new_type                   string    必填   New type (code/markdown/raw)
+
+  notebook_clear_outputs — Clear outputs of all notebook cells
+    --file_path                  string    必填   File path
+
+  notebook_get_cell — Get the content of a specific notebook cell
+    --file_path                  string    必填   File path
+    --index                      integer   必填   Cell index
+
+  notebook_edit — Replace the contents of a specific cell in a Jupyter notebook (.ipynb)
+    --notebook_path              string    必填   The absolute path to the Jupyter notebook file to edit
+    --new_source                 string    必填   The new source for the cell
+    --cell_id                    string    可选   The ID of the cell to edit (optional for insert mode)
+    --cell_type                  string    可选   The type of the cell: code or markdown (required for insert)
+    --edit_mode                  string    可选   The type of edit: replace, insert, or delete (default: replace)
+
+  notebook_create — Create a new Jupyter Notebook file
+    --file_path                  string    必填   File path
+    --kernel_name                string    可选   Kernel name (e.g. python3)
+    --language                   string    可选   Programming language (e.g. python)
+
+  notebook_read — Read a Jupyter Notebook file
+    --file_path                  string    必填   File path
+    --show_content               boolean   可选   Whether to show cell contents
 
   mcp_ai_workflow_workflow_generate_code — Generate code for writing programs, implementing features and developing modules
     --requirement                string    必填   Code requirement description, e.g.: Create a user authentication service with login and registration
@@ -17,5 +95,94 @@ jcc-tool-code — code 工具分组（2 个工具）
   mcp_ai_workflow_workflow_analyze_code — Analyze code for code review, bug detection, optimization suggestions and security audit
     --code                       string    必填   Code to analyze
     --analysisType               string    可选   Analysis type: general, bugs, optimize, security  默认=general
+
+  recall_list — List folded conversation archives that can be recalled
+    (无参数)
+
+  recall_read — Read full original content of a folded archive by fold_id
+    --fold_id                    string    必填   The fold_id of the archive to read (from recall_list)
+
+  recall_search — Search folded archives by keyword in summary text
+    --keyword                    string    必填   Keyword to search in archive summaries
+
+  analyze_csharp_code — Analyze C# code quality and provide improvement suggestions
+    --code                       string    必填   C# code to analyze
+    --focus                      string    可选   Analysis focus: quality, performance, security, maintainability, all  默认=all
+
+  find_bugs — Find potential bugs and issues in C# code
+    --code                       string    必填   C# code to check
+    --severity                   string    可选   Bug severity filter: low, medium, high, critical, all  默认=all
+
+  optimize_code — Analyze and optimize C# code performance and readability
+    --code                       string    必填   C# code to optimize
+    --target                     string    可选   Optimization target: performance, memory, readability, all  默认=all
+
+  security_audit — Perform security audit on C# code
+    --code                       string    必填   C# code to audit
+    --audit_type                 string    可选   Audit type: web, api, desktop, general  默认=general
+
+  generate_csharp_code — Generate C# code from description
+    --description                string    必填   Code requirement description
+    --context                    string    可选   Code context or related code snippets
+    --framework_version          string    可选   Target framework version, e.g. net8.0, net10.0
+
+  generate_unit_test — Generate unit tests for existing C# code
+    --code                       string    必填   C# code to test
+    --test_framework             string    可选   Test framework, e.g. xunit, nunit, mstest  默认=xunit
+    --test_count                 integer   可选   Number of tests to generate  默认=5
+
+  generate_api_controller — Generate ASP.NET Core API controller
+    --description                string    必填   Controller requirement description
+    --model_definition           string    可选   Entity/model class definition
+    --include_crud               boolean   可选   Whether to include CRUD operations  默认=true
+    --include_auth               boolean   可选   Whether to include authentication  默认=false
+
+  lsp_goto_definition — Go to symbol definition location
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_find_references — Find all references to a symbol
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_hover — Get hover information
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_completion — Get code completion suggestions
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_document_symbols — Get document symbol list
+    --file_path                  string    必填   File path
+
+  lsp_workspace_symbol — Search symbols in workspace
+    --query                      string    必填   Search query
+    --workspacePath              string    必填   Workspace path (file or directory) to search in. If omitted, uses current working directory.
+    --serverName                 string    必填   Explicit LSP server name (e.g. 'csharp-ls'). If omitted, auto-detects from workspacePath or uses first running server.
+
+  lsp_goto_implementation — Go to symbol implementation location
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_prepare_call_hierarchy — Prepare call hierarchy information
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_incoming_calls — Find incoming calls (who calls this symbol)
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_outgoing_calls — Find outgoing calls (symbols called by this symbol)
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
 
 描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

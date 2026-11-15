@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: mcp_auth
-name: jcc-tool-mcp_auth
-summary: "Get authentication status for a config or all configs; Refresh authentication token; Logout and revoke authentication session"
-category: mcp_auth
-exe: jcc-tool-mcp_auth.exe
-tags: [auth]
-tool_count: 3
-parameters: []

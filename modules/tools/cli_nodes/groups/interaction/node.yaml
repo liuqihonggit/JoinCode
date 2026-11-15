@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: interaction
-name: jcc-tool-interaction
-summary: "Ask the user multiple choice questions to gather information, clarify ambiguity, or make decisions; Ask the user to confirm an action with yes/no"
-category: interaction
-exe: jcc-tool-interaction.exe
-tags: [ask, confirm]
-tool_count: 2
-parameters: []

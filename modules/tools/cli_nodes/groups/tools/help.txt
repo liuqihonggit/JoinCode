@@ -1,0 +1,108 @@
+jcc-tool-tools — tools 工具分组（18 个工具）
+
+用法:
+  jcc-tool-tools.exe <工具名> [参数...]
+  jcc-tool-tools.exe -h
+  jcc-tool-tools.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  skill_simplify                     Simplify code and provide refactoring suggestions
+  skill_verify                       Verify code correctness, run tests
+  skill_debug                        Debug assistance, problem diagnosis
+  skill_batch                        Batch process files
+  skill_stuck                        Provide help and alternatives when stuck
+  tool_create                        创建新的工具模板并注册到当前会话。当您发现缺少某个工具时，使用此工具动态创建。
+  tool_list_templates                列出所有已创建的工具模板
+  tool_show_template                 查看工具模板的完整定义
+  test_tool                          test
+  skill_search                       Search available skills
+  skill_recommend                    Recommend skills based on context
+  discover_skills                    Discover relevant skills based on user input or context
+  skill                              Execute a specified skill. Pass skill name (e.g., commit, review-pr, pdf) and optional arguments
+  skill_execute                      Execute a specified skill with name and parameters
+  skill_list                         List all available skills
+  tool_score                         查看工具的评分状态（独立评分+超图评分+有效评分+黑名单/降权）
+  tool_hypergraph                    查看工具链超图结构（所有超边+成员评分+链路顺序）
+  tool_score_reset                   重置工具评分（清除健康记录，恢复初始状态）
+
+单个工具的参数说明:
+
+  skill_simplify — Simplify code and provide refactoring suggestions
+    --file_path                  string    必填   File path
+    --simplify_type              string    可选   Simplification type (all/readability/performance/complexity)
+
+  skill_verify — Verify code correctness, run tests
+    --path                       string    必填   Project path or file path
+    --verify_type                string    可选   Verification type (syntax/build/test/all)
+    --test_filter                string    可选   Test filter (optional)
+
+  skill_debug — Debug assistance, problem diagnosis
+    --path                       string    必填   Project path or file path
+    --error_message              string    必填   Error message or problem description
+    --debug_type                 string    可选   Diagnostic type (error/performance/memory/all)
+
+  skill_batch — Batch process files
+    --pattern                    string    必填   File pattern (e.g. *.cs, **/*.txt)
+    --operation                  string    必填   Operation type (search/replace/delete/count)
+    --search                     string    可选   Search content (for search/replace)
+    --replace                    string    可选   Replace content (for replace)
+    --recursive                  boolean   可选   Recursively search subdirectories
+
+  skill_stuck — Provide help and alternatives when stuck
+    --current_approach           string    必填   Current approach or problem description
+    --obstacle                   string    可选   Error message or obstacle encountered
+    --goal                       string    可选   Goal or expected result
+
+  tool_create — 创建新的工具模板并注册到当前会话。当您发现缺少某个工具时，使用此工具动态创建。
+    --toolName                   string    必填   工具名称（小写+下划线，如 my_validator）
+    --description                string    必填   工具描述（LLM看到的功能说明）
+    --executionType              string    必填   执行类型: shell 或 mcp_call
+    --command                    string    必填   执行命令或MCP目标（shell: 命令路径; mcp_call: 服务器.方法）
+    --parametersJson             string    可选   参数定义JSON数组，格式: [{"name":"param1","description":"参数1","type":"string","required":true}]
+    --argsTemplate               string    可选   命令参数模板（shell类型），支持{{param}}占位符
+    --groupName                  string    可选   二级分组名
+
+  tool_list_templates — 列出所有已创建的工具模板
+    (无参数)
+
+  tool_show_template — 查看工具模板的完整定义
+    --templateId                 string    必填   模板ID或工具名称
+
+  test_tool — test
+    --arg                        string    必填   参数描述
+
+  skill_search — Search available skills
+    --keyword                    string    可选   Search keyword
+    --tags                       string    可选   Tag filter (comma-separated)
+    --category                   string    可选   Category filter
+    --max_results                integer   可选   Maximum number of results  默认=10
+
+  skill_recommend — Recommend skills based on context
+    --context                    string    必填   Context description
+    --max_results                integer   可选   Maximum number of results  默认=5
+
+  discover_skills — Discover relevant skills based on user input or context
+    --context                    string    必填   User input or context to discover skills for
+    --max_results                integer   可选   Maximum number of results  默认=5
+
+  skill — Execute a specified skill. Pass skill name (e.g., commit, review-pr, pdf) and optional arguments
+    --skill                      string    必填   Skill name, e.g., commit, review-pr, pdf
+    --args                       string    可选   Skill arguments, optional
+
+  skill_execute — Execute a specified skill with name and parameters
+    --skill_name                 string    必填   Skill name
+    --JsonElement                string    可选   Skill parameters (JSON object), optional
+
+  skill_list — List all available skills
+    (无参数)
+
+  tool_score — 查看工具的评分状态（独立评分+超图评分+有效评分+黑名单/降权）
+    --toolName                   string    可选   工具名称（留空则显示所有工具）
+
+  tool_hypergraph — 查看工具链超图结构（所有超边+成员评分+链路顺序）
+    (无参数)
+
+  tool_score_reset — 重置工具评分（清除健康记录，恢复初始状态）
+    --toolName                   string    必填   工具名称
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

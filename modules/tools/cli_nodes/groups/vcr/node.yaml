@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: vcr
-name: jcc-tool-vcr
-summary: "录制 HTTP API 交互到 cassette（类似 Fiddler 抓包）。启动后拦截所有 HTTP 请求+响应保存到 JSON 文件，供测试回放用。需在交互式模式(jcc chat)单进程内使用; 回放 VCR cassette 中录制的 HTTP API 响应。启动后匹配请求返回录制的响应，不发真实 HTTP 请求。供测试/离线开发用; 查询 VCR HTTP API 录制/回放服务的当前状态（模式: Off/Record/Playback + cassette 目录）"
-category: vcr
-exe: jcc-tool-vcr.exe
-tags: [vcr]
-tool_count: 3
-parameters: []

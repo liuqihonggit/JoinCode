@@ -1,0 +1,108 @@
+# CLI 工具分组映射 — ADR 0157 v3 单一数据源
+#
+# 背景: [McpTool] 第三参数混用了正式 ToolCategory 字符串与散落标注（code/system/test/mode…），
+#       直接当组名会炸出 51 个碎组（其中 20 个组只有 1~3 个工具）。
+# 规则: 所有碎类向上归并到 12 个功能大类，每个大类一个独立 CLI.exe。
+#       新增工具只需在这里登记其分类，不要在脚本里加分支。
+# 未登记的分类一律归入 default，避免再冒出碎组。
+#
+# 说明: worktree 归 agent 而非 git，使 git 组保持既有的 10 个本地实现工具（groups/git/private/）。
+#       github 单独成组，避免单个 exe 塞入 172 个工具。
+
+version: 1
+default: system
+
+groups:
+  file:
+    - file
+    - file_transfer
+    - snip
+
+  search:
+    - search
+    - code_index
+    - graph
+
+  shell:
+    - shell
+    - powershell
+    - code_execution
+    - execution
+    - build
+    - terminal
+    - sandbox
+    - repl
+
+  web:
+    - web
+    - browser
+
+  git:
+    - git
+
+  github:
+    - github
+    - pr_subscription
+
+  code:
+    - code
+    - code_analysis
+    - code_generation
+    - lsp
+    - notebook
+
+  agent:
+    - agent
+    - team
+    - task
+    - plan
+    - planning
+    - goal
+    - todo
+    - cron
+    - workflow
+    - step_evidence
+    - brief
+    - peers
+    - worktree
+
+  mcp:
+    - mcp
+    - mcp_auth
+    - mcp_resource
+    - mcp_client
+
+  media:
+    - vision
+    - voice
+    - desktop
+    - desktopcontrol
+    - desktop_control
+    - vcr
+
+  system:
+    - config
+    - permission
+    - policy
+    - memory
+    - notification
+    - messaging
+    - context
+    - interaction
+    - sleep
+    - mode
+    - system
+    - chat
+    - analytics
+    - trigger
+    - error_recovery
+    - structured_output
+    - general
+    - monitor
+    - remote_trigger
+
+  tools:
+    - skill
+    - test
+    - tool_debug
+    - tool_creation

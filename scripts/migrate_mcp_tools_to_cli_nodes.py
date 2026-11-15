@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+GROUP_MAP_PATH = REPO_ROOT / "resources/tools/group_map.yaml"
 
 DISPATCH_RE = re.compile(r"\[McpToolDispatch\(ToolCategory\.(?P<cat>\w+)")
 TOOL_RE = re.compile(
@@ -36,6 +37,37 @@ PARAM_RE = re.compile(
     re.S,
 )
 CAMEL_RE = re.compile(r"(?<!^)(?=[A-Z])")
+
+
+def load_group_map() -> tuple[dict[str, str], str]:
+    """读取 group_map.yaml — 极简解析，不引入 PyYAML 依赖。"""
+    if not GROUP_MAP_PATH.is_file():
+        raise FileNotFoundError(f"分组映射表不存在: {GROUP_MAP_PATH}")
+    mapping: dict[str, str] = {}
+    default = "system"
+    group: str | None = None
+    for line in GROUP_MAP_PATH.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent == 0:
+            if stripped.startswith("default:"):
+                default = stripped.split(":", 1)[1].strip()
+            group = None
+            continue
+        if indent == 2 and stripped.endswith(":") and not stripped.startswith("-"):
+            group = stripped[:-1].strip()
+            continue
+        if stripped.startswith("- ") and group:
+            mapping[stripped[2:].strip().lower()] = group
+    if not mapping:
+        raise ValueError(f"分组映射表 '{GROUP_MAP_PATH}' 的 groups 段为空")
+    return mapping, default
+
+
+def canonical_group(raw: str, mapping: dict[str, str], default: str) -> str:
+    return mapping.get(raw.strip().lower(), default)
 
 
 def unescape_csharp(raw: str) -> str:
@@ -76,7 +108,7 @@ def clean_default(raw: str | None) -> str:
     return "" if value in {"null", "default", "null!", "", "0"} else value
 
 
-def parse_file(path: Path) -> list[dict]:
+def parse_file(path: Path, group_map: dict[str, str], default_group: str) -> list[dict]:
     text = path.read_text(encoding="utf-8", errors="replace")
     dispatch = DISPATCH_RE.search(text)
     dispatch_category = dispatch.group("cat").lower() if dispatch else "general"
@@ -100,7 +132,7 @@ def parse_file(path: Path) -> list[dict]:
             "raw_name": raw_name,
             "id": to_snake(raw_name),
             "summary": unescape_csharp(match.group("summary").strip()),
-            "category": (match.group("category") or dispatch_category).lower(),
+            "category": canonical_group(match.group("category") or dispatch_category, group_map, default_group),
             "source": f"{path.as_posix()}:{text.count(chr(10), 0, match.start()) + 1}",
             "parameters": params,
         })
@@ -342,9 +374,10 @@ def main() -> int:
         return 2
 
     candidates = sorted(p for p in scan_root.rglob("*.cs") if ".g.cs" not in p.name)
+    group_map, default_group = load_group_map()
     found: list[dict] = []
     for path in candidates:
-        found.extend(parse_file(path))
+        found.extend(parse_file(path, group_map, default_group))
 
     groups: dict[str, list[dict]] = {}
     for tool in found:

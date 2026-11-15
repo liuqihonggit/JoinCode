@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: skill
-name: jcc-tool-skill
-summary: "Simplify code and provide refactoring suggestions; Verify code correctness, run tests; Debug assistance, problem diagnosis"
-category: skill
-exe: jcc-tool-skill.exe
-tags: [discover, skill]
-tool_count: 11
-parameters: []

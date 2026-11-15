@@ -1,4 +1,4 @@
-jcc-tool-mcp — mcp 工具分组（22 个工具）
+jcc-tool-mcp — mcp 工具分组（25 个工具）
 
 用法:
   jcc-tool-mcp.exe <工具名> [参数...]
@@ -6,6 +6,9 @@ jcc-tool-mcp — mcp 工具分组（22 个工具）
   jcc-tool-mcp.exe <工具名> -h
 
 工具列表（说明复用自 [McpTool] 特性）:
+  auth_get_status                    Get authentication status for a config or all configs
+  auth_refresh                       Refresh authentication token
+  auth_logout                        Logout and revoke authentication session
   mcp_auth_api_key                   Configure API key authentication for MCP server
   mcp_auth_bearer                    Configure Bearer Token authentication for MCP server
   mcp_auth_basic                     Configure Basic authentication for MCP server
@@ -30,6 +33,15 @@ jcc-tool-mcp — mcp 工具分组（22 个工具）
   monitor                            Monitor MCP server status and tool calls
 
 单个工具的参数说明:
+
+  auth_get_status — Get authentication status for a config or all configs
+    --auth_name                  string    可选   Authentication config name (optional, omit for all)
+
+  auth_refresh — Refresh authentication token
+    --auth_name                  string    必填   Authentication config name
+
+  auth_logout — Logout and revoke authentication session
+    --auth_name                  string    必填   Authentication config name
 
   mcp_auth_api_key — Configure API key authentication for MCP server
     --auth_name                  string    必填   Authentication config name

@@ -13,7 +13,7 @@
 | 首轮 `tools` 字段工具数 | 506 工具全量 schema = 466KB 巨型请求（`McpToolDispatchAttribute.cs:18`） | 4（读/写/编译/bash） |
 | 基础工具注册方式 | `[McpToolDispatch]` 特性 + 源码生成器按程序集扫描 | `resources/tools/base.yaml` |
 | 工具描述存放位置 | C# 特性 / LLM 上下文 / `tool_groups`（真实 API 忽略） | **特性原封不动**，编译期只读扫描渲染 `-h` |
-| 其余工具形态 | 宿主进程内 handler | **按组一个独立 exe**（实测 51 组 / 546 工具），组内工具为子命令 |
+| 其余工具形态 | 宿主进程内 handler | **12 个功能大类，每组一个独立 exe**（546 工具），组内工具为子命令 |
 | 发现机制 | MCP `tool_search` 三级 `map[]` 下钻（错误层） | CLI 目录树 + 搜索（正确层） |
 | MCP 分组 | `tool_groups` 自定义字段 | 退役 |
 | 交互宿主 exe 数 | 2（ADR 0149） | 2（不变）；工具层 exe 数另行增加 |
@@ -30,7 +30,7 @@
 | 4 | 垂直切片 `jcc-rg` + CLI 搜索下钻 `tool find/tree/help/base` | `modules/tools/rg/`、`CliToolCommand.cs` | ✅ | ✅ 真实 exe | ✅ `da319bfcf` |
 | 5 | 依赖墙收敛 + AOT 成本实测 | `modules/tools/cli_nodes/cli_node.props`、`sample/` | ✅ | ✅ 13/13 | ✅ `6a1a3154b` |
 | 6 | 只读扫描器从现有特性生成 51 组索引与 `-h` 文本 + `jcc-tool-git.exe` 完整样板 | `scripts/migrate_mcp_tools_to_cli_nodes.py`、`groups/git/` | ✅ | ✅ 真实 exe | ✅ `a15c38b8a` |
-| 7a | 其余 50 个分组 exe 骨架（`-h` + 转发宿主 `jcc mcp_call`），生成物幂等覆盖、手工实现跳过 | `scripts/migrate_mcp_tools_to_cli_nodes.py --emit-exe`、`groups/*/Program.cs` | ✅ 3 组代表 | ✅ 真机 | ⬜ |
+| 7a | `group_map.yaml` 把 51 碎组归并为 12 大类，重切出各组 exe（`-h` + 转发宿主）；旧碎组归档 `.xxx/` | `resources/tools/group_map.yaml`、`--emit-exe`、`groups/*/Program.cs` | ✅ 3 组代表 | ✅ 真机 | ⬜ |
 | 7b | 逐组把转发替换成零依赖本地实现（参考 git 组），并核对工具 id 与实际 MCP 名 | `groups/*/private/` | ⬜ | ⬜ | ⬜ |
 | 8 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildToolsFromKernel`、`ToolsSection.cs`、各 QueryService | ⬜ | ⬜ | ⬜ |
 | 9 | 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ | ⬜ | ⬜ |

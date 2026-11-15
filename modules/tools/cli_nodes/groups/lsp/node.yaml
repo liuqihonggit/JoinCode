@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: lsp
-name: jcc-tool-lsp
-summary: "Go to symbol definition location; Find all references to a symbol; Get hover information"
-category: lsp
-exe: jcc-tool-lsp.exe
-tags: [lsp]
-tool_count: 10
-parameters: []

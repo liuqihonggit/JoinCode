@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: notification
-name: jcc-tool-notification
-summary: "Send push notification to user; 震动当前进程窗口以提醒用户; 闪烁任务栏图标以提醒用户"
-category: notification
-exe: jcc-tool-notification.exe
-tags: [flash, get, push, shake]
-tool_count: 4
-parameters: []

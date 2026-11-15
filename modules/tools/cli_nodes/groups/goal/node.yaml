@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: goal
-name: jcc-tool-goal
-summary: "Get the current goal status including objective, progress, and evaluation results. Returns null if no goal is active.; Update the current goal status. The model can mark a goal as achieved or unmet. Only 'achieved' and 'unmet' statuses are allowed via this tool.; Define a goal execution graph with nodes and edges. The coordinator agent uses this after investigating the task to create an optimal execution plan. Each node is an agent loop, edges define execution flow and conditional routing."
-category: goal
-exe: jcc-tool-goal.exe
-tags: [goal]
-tool_count: 3
-parameters: []

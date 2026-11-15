@@ -1,9 +1,0 @@
-# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-id: graph
-name: jcc-tool-graph
-summary: "Detect code communities (modules/subsystems) using label propagation algorithm on the call graph; Find hub nodes with highest connectivity (in-degree + out-degree) in the call graph; Detect potentially dead code: methods with no callers that are not entry points"
-category: graph
-exe: jcc-tool-graph.exe
-tags: [graph]
-tool_count: 16
-parameters: []

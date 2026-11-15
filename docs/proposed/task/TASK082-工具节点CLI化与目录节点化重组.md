@@ -30,7 +30,7 @@
 | 4 | 垂直切片 `jcc-rg` + CLI 搜索下钻 `tool find/tree/help/base` | `modules/tools/rg/`、`CliToolCommand.cs` | ✅ | ✅ 真实 exe | ✅ `da319bfcf` |
 | 5 | 依赖墙收敛 + AOT 成本实测 | `modules/tools/cli_nodes/cli_node.props`、`sample/` | ✅ | ✅ 13/13 | ✅ `6a1a3154b` |
 | 6 | 只读扫描器从现有特性生成 51 组索引与 `-h` 文本 + `jcc-tool-git.exe` 完整样板 | `scripts/migrate_mcp_tools_to_cli_nodes.py`、`groups/git/` | ✅ | ✅ 真实 exe | ✅ `a15c38b8a` |
-| 7a | `group_map.yaml` 把 51 碎组归并为 12 大类，重切出各组 exe（`-h` + 转发宿主）；旧碎组归档 `.xxx/` | `resources/tools/group_map.yaml`、`--emit-exe`、`groups/*/Program.cs` | ✅ 3 组代表 | ✅ 真机 | ⬜ |
+| 7a | `group_map.yaml` 把 51 碎组归并为 12 大类，重切出各组 exe（`-h` + 转发宿主）；旧碎组归档 `.xxx/` | `resources/tools/group_map.yaml`、`--emit-exe`、`groups/*/Program.cs` | ✅ 12 组全编译 | ✅ 真机 | ✅ `f2ca1154b`+`741b1f4e7` |
 | 7b | 逐组把转发替换成零依赖本地实现（参考 git 组），并核对工具 id 与实际 MCP 名 | `groups/*/private/` | ⬜ | ⬜ | ⬜ |
 | 8 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildToolsFromKernel`、`ToolsSection.cs`、各 QueryService | ⬜ | ⬜ | ⬜ |
 | 9 | 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ | ⬜ | ⬜ |

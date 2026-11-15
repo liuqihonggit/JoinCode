@@ -1,11 +1,12 @@
 namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
-/// 本地实现覆盖自报 —— <c>&lt;分组 exe&gt; --list-local</c> 的输出格式。
-/// <para>存在理由：<c>node.yaml</c> 里的 <c>mode: local</c> 是从私有实现反推出来的<b>声明</b>，
+/// 进程隔离覆盖自报 —— <c>&lt;分组 exe&gt; --list-local</c> 的输出格式。
+/// <para>存在理由：<c>node.yaml</c> 里的 <c>mode</c> 是从私有实现与 <c>group_map.yaml</c> 反推出来的<b>声明</b>，
 /// 而"声明"和"真实注册表"可能漂移（改了实现忘了改登记、或反过来）。让 exe 自报实际注册表，
-/// CI 就能把两者对齐校验，交付说明里的"已本地实现 N 个"才不是一句无法验真的话。</para>
-/// <para>格式刻意用单行 key=value，便于脚本 diff：<c>group=file local_count=11 local=a,b,c</c>。</para>
+/// CI 就能把两者对齐校验，交付说明里的"已隔离 N 个"才不是一句无法验真的话。</para>
+/// <para>格式刻意用单行 key=value，便于脚本 diff：<c>group=file local_count=11 local=a,b,c</c>；
+/// 整组委托给独立 exe 时追加 <c>delegated_to=jcc-gh</c>（delegate 与 local 同为不经过宿主）。</para>
 /// </summary>
 public static class CliNodeCoverage {
     /// <summary>自报开关。</summary>

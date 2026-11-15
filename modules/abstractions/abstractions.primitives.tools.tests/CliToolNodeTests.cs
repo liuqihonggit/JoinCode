@@ -83,6 +83,29 @@ public sealed class CliToolNodeTests {
     }
 
     [Fact]
+    public void RenderTree_TruncatesLongGroupSummary() {
+        // 分组节点的 summary 是「前 3 个工具描述」的拼接，真实的 search 组近千字符；
+        // 目录树是索引不是文档，必须截断，否则一行就吃掉整屏上下文。
+        var node = MakeNode("search", "search", new string('长', 600), []);
+
+        var tree = CliToolSearch.RenderTree([node]);
+
+        var line = tree.Split('\n').First(item => item.Contains("search/ — ", StringComparison.Ordinal));
+        Assert.True(line.Length < 160, $"目录树单行过长: {line.Length} 字符");
+        Assert.EndsWith("…", line.TrimEnd(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RenderResults_TruncatesLongGroupSummary() {
+        var node = MakeNode("search", "search", new string('长', 600), []);
+
+        var text = CliToolSearch.RenderResults([node]);
+
+        Assert.Contains("…", text);
+        Assert.DoesNotContain(new string('长', 200), text);
+    }
+
+    [Fact]
     public void RenderResults_AlwaysPointsToHelpInsteadOfDumpingSchemas() {
         var nodes = new[] { NodeManifestLoader.LoadNodeFromText(NodeYaml, "node.yaml") };
 

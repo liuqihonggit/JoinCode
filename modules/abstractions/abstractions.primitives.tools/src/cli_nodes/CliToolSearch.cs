@@ -22,6 +22,12 @@ public static class CliToolSearch {
             .ToArray();
     }
 
+    /// <summary>树里每行的摘要上限 — 分组节点的 summary 是前 3 个工具描述的拼接，不截断会占满一行。</summary>
+    private const int TreeSummaryLimit = 110;
+
+    /// <summary>搜索结果里的摘要上限 — 比目录树宽松，但仍要留住「一行看清是什么」的定位作用。</summary>
+    private const int ResultSummaryLimit = 180;
+
     /// <summary>渲染目录树 — 分类即目录，节点即叶子；分组节点附带本地实现覆盖率。</summary>
     public static string RenderTree(IEnumerable<CliToolDescriptor> nodes) {
         var sb = new StringBuilder();
@@ -31,9 +37,18 @@ public static class CliToolSearch {
         foreach (var group in groups) {
             sb.AppendLine($"{group.Key}/");
             foreach (var node in group.OrderBy(item => item.Id, StringComparer.Ordinal))
-                sb.AppendLine($"  {node.Id}/ — {node.Summary}{Coverage(node)}");
+                sb.AppendLine($"  {node.Id}/ — {Brief(node.Summary, TreeSummaryLimit)}{Coverage(node)}");
         }
         return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// 摘要截断：目录树只用来定位节点，细节交给 `-h`。
+    /// 不截断时 search 组那一行近千字符，等于把 3 个工具的描述塞进了「索引」。
+    /// </summary>
+    private static string Brief(string summary, int limit) {
+        if (string.IsNullOrEmpty(summary) || summary.Length <= limit) return summary;
+        return summary[..limit].TrimEnd() + "…";
     }
 
     /// <summary>渲染搜索结果 — 给出 -h 命令，引导 LLM 按需阅读而非一次性吞下全部描述。</summary>
@@ -42,7 +57,7 @@ public static class CliToolSearch {
         var sb = new StringBuilder();
         sb.AppendLine($"命中 {nodes.Count} 个节点（用 <exe> -h 查看完整参数）:");
         foreach (var node in nodes) {
-            sb.AppendLine($"  {node.Id,-14} [{node.Category}] {node.Summary}{Coverage(node)}");
+            sb.AppendLine($"  {node.Id,-14} [{node.Category}] {Brief(node.Summary, ResultSummaryLimit)}{Coverage(node)}");
             // 写出真实 exe 名：LLM 只看「<exe>」占位符时仍要去猜节点对应的可执行文件。
             if (!string.IsNullOrWhiteSpace(node.Exe)) sb.AppendLine($"       {node.Exe} -h");
             AppendMatchedTools(sb, node, query);

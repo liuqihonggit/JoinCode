@@ -110,7 +110,7 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 | 6 | 按工具域分批迁移其余工具（每批编译 + 测试 + commit） | 待办 |
 | 7 | 切换主请求链路：首轮 `tools` 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | 待办 |
 | 8 | 目录节点化重组 + 归档生成器项目到 `.xxx/` + 修复引用 | 待办 |
-| 9 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 进行中（全仓编译后台执行） |
+| 9 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 部分完成：`Build-AllDomains.ps1` 全仓编译通过（6m7s）；真机 exe 验收已过；全量测试与 ADR 转 accepted 待步骤 6-8 完成后执行 |
 
 ---
 

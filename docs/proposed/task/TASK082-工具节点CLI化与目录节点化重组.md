@@ -69,6 +69,7 @@ Debug framework-dependent 构建，真实产物统计（非估算）：
 | `JoinCode.csproj` 首次编译 | 6m27s（含整个引擎重建） |
 | 主 CLI 增量编译 | 51s |
 | 契约层单元测试 | 13/13 通过，290ms |
+| 全仓编译 `Build-AllDomains.ps1` | 6m7s，全部通过（JoinCode.slnx） |
 
 **结论**：单工具 exe 拖 81 个依赖，根因是 `rg.csproj` 引用了整个 `Infrastructure.csproj`。按 540 个工具线性外推，仅输出体积即约 8.6 GB（尚未计 NativeAOT 发布膨胀），不可接受。
 

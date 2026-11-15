@@ -117,7 +117,11 @@ public static class CliNodeRunner {
             return ExitSuccess;
         }
         if (CliNodeCoverage.IsRequested(args[0])) {
-            Write(CliNodeCoverage.Render(definition.GroupId, definition.LocalToolIds(), definition.DelegateExecutable));
+            Write(CliNodeCoverage.Render(
+                definition.GroupId,
+                definition.LocalToolIds(),
+                definition.DelegateExecutable,
+                definition.DelegateExecutable is null ? null : ResolveDelegatePath(definition)));
             return ExitSuccess;
         }
 
@@ -275,9 +279,12 @@ public static class CliNodeRunner {
     }
 
     /// <summary>
-    /// 定位委托 exe：环境变量 → 本 exe 同目录 → 上一级目录（装配布局里 tools/ 根共享一份）→ PATH。
+    /// 定位委托 exe：环境变量 → 本 exe 同目录 → 同目录 <c>delegate/</c> → 上一级目录 → PATH。
     /// <para>带上一级目录是因为委托实现可能很重（jcc-gh 连依赖共 20 MB），
     /// 按组各放一份不划算，装配脚本只在 tools/ 根放一份。</para>
+    /// <para>带 <c>delegate/</c> 子目录是因为开发布局下 gh 产物必须拷到组输出目录里才不依赖 PATH，
+    /// 但它的依赖（整套引擎 80+ DLL）不能平铺 —— 平铺会撞掉本组自己的同名 DLL，
+    /// 症状是「重新编译了但行为没变」（用旧契约层盖掉新编的）。</para>
     /// </summary>
     private static string? ResolveDelegatePath(CliNodeDefinition definition) {
         var name = definition.DelegateExecutable;
@@ -287,7 +294,8 @@ public static class CliNodeRunner {
             if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) return configured;
         }
         var baseDir = AppContext.BaseDirectory;
-        foreach (var dir in new[] { baseDir, Path.Combine(baseDir, "..") }) {
+        var searchDirs = new[] { baseDir, Path.Combine(baseDir, "delegate"), Path.Combine(baseDir, "..") };
+        foreach (var dir in searchDirs) {
             foreach (var candidate in CandidateNames(name)) {
                 var full = Path.Combine(dir, candidate);
                 if (File.Exists(full)) return Path.GetFullPath(full);
@@ -320,8 +328,8 @@ public static class CliNodeRunner {
         var env = definition.DelegateEnvironmentVariable;
         var target = definition.DelegateExecutable;
         return string.IsNullOrWhiteSpace(env)
-            ? $"把 {target}.exe 放到本程序同目录，或加入 PATH。"
-            : $"把 {target}.exe 放到本程序同目录 / 加入 PATH，或设置 {env} 指向它。";
+            ? $"把 {target}.exe 放到本程序同目录（或其中的 delegate/ 子目录）、上一级目录、或加入 PATH。"
+            : $"把 {target}.exe 放到本程序同目录（或其中的 delegate/ 子目录）/ 上一级目录 / 加入 PATH，或设置 {env} 指向它。";
     }
 
     private static string BuildUnknownToolMessage(CliNodeDefinition definition, string toolId, List<string> known) {
@@ -396,11 +404,23 @@ public static class CliNodeRunner {
         var mode = definition.Resolve(toolId) is not null
             ? "local（本 exe 内零依赖实现）"
             : definition.DelegateExecutable is not null
-                ? $"delegate（独立执行器 {definition.DelegateExecutable}，不经宿主）"
+                ? DelegateModeLabel(definition)
                 : $"host（转发宿主 jcc {definition.HostVerb}）";
         Write($"{definition.Title} / {toolId} — 参数说明（复用现有 [McpToolParameter] 特性）\n");
         Write($"执行方式: {mode}\n");
         Write(normalized[start..end].TrimEnd() + "\n");
+    }
+
+    /// <summary>
+    /// delegate 的执行方式说明 —— 必须带上解析到的绝对路径。
+    /// <para>委托 exe 可能来自同目录、上级目录或 PATH，只有前两者是本次构建的产物；
+    /// 不打印路径就无从判断「跑的是刚编的还是几个月前部署的那份」，这正是 ADR 0132 记过的坑。</para>
+    /// </summary>
+    private static string DelegateModeLabel(CliNodeDefinition definition) {
+        var resolved = ResolveDelegatePath(definition);
+        return resolved is null
+            ? $"delegate（独立执行器 {definition.DelegateExecutable}，不经宿主；当前未找到，调用会退出 3）"
+            : $"delegate（独立执行器 {definition.DelegateExecutable}，不经宿主）：{resolved}";
     }
 
     private static string LoadHelp(string resourceName) {

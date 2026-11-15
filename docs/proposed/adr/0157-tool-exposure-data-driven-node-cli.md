@@ -192,7 +192,7 @@
 | 未知工具 | 按帮助文本的工具清单判定，给近似名建议（包含关系 + 编辑距离 ≤ 2），退出码 2 |
 | 本地/转发分发 | `CliNodeDefinition.Resolve` 返回 null 即转发；本地异常统一映射退出码 2 并给下一步 |
 | 转发宿主 | `jcc mcp_call <工具> <json>`，`ArgumentList` 传参，失败退出码 3 |
-| 委托独立 exe | `DelegateExecutable` 声明后改走另一进程（github → `jcc-gh.exe --call-tool`），定位顺序：环境变量 → 同目录 → 上一级目录 → PATH，缺失退出码 3 且提示缺的是哪个 exe |
+| 委托独立 exe | `DelegateExecutable` 声明后改走另一进程（github → `jcc-gh.exe --call-tool`），定位顺序：环境变量 → 同目录 → 同目录 `delegate/` → 上一级目录 → PATH，缺失退出码 3 且提示缺的是哪个 exe；命中后 `--list-local` 自报 `delegate_path=`、`-h` 打印该绝对路径，否则无从判断「跑的是刚编的还是几个月前部署的那份」 |
 | `-h` 输出分档 | 工具数 ≤ 20 的组输出全文；超过则只输出「标题 + 用法 + 分组索引」，详情走 `-h <工具名>` 或 `-h <关键字>` |
 
 **`-h` 为什么必须分档**：github 组 172 个工具的完整参数表是 1037 行 / 70 KB（约 2 万 token），LLM 调一次 `-h` 就吃满上下文，而它通常只需要「这组有哪些工具」。分档后各组体积：github 69926→2315、slash 28247→1467、system 21125→1524、search 23725→1161、shell 12414→846 字节；file/git/web/tools 四组维持全文（≤20 个工具，全文反而更有用）。索引按名字前缀折叠（`gh_issue/` 收 15 个），有类别分节时（斜杠命令的 `[Agent]`）直接用类别当分组键。
@@ -221,7 +221,11 @@
 | media | 0/60 | host | 桌面控制（鼠标注入、GDI 截图、UI Automation、透明窗标注）需要桌面 UI 栈，且绕过宿主安全策略的风险高于收益 |
 | slash | 0/99 | host (`slash_call`) | 斜杠命令依赖会话上下文与服务容器 |
 
-**三类执行方式**（`node.yaml` 的 `mode`）：`local` 本 exe 内实现；`delegate` 委托另一个独立 exe（不经宿主，与 local 同档计入隔离）；`host` 转发宿主。三者都可由 `--list-local` 自报（委托时输出 `delegated_to=jcc-gh`），`-h` 会打印当前工具的执行方式。
+**三类执行方式**（`node.yaml` 的 `mode`）：`local` 本 exe 内实现；`delegate` 委托另一个独立 exe（不经宿主，与 local 同档计入隔离）；`host` 转发宿主。三者都可由 `--list-local` 自报（委托时输出 `delegated_to=jcc-gh` 与实际解析到的 `delegate_path=`），`-h` 会打印当前工具的执行方式。
+
+**委托执行器的落位**（两套布局都要成立，否则 delegate 会静默退回 PATH 上的旧副本）：
+- 开发布局：`jcc_tool_github.csproj` 在 `AfterBuild` 把 `artifacts/bin/gh/<cfg>/net10.0/` 的产物拷进本工程输出目录的 **`delegate/` 子目录**。不能平铺到输出目录——gh 是卫星项目，输出里带整套引擎（85 个文件），平铺会 ① 破坏工具节点的依赖墙（本组只该有 5 个 DLL）；② 用 gh 侧那份更旧的 `Abstractions.Primitives.Tools.dll` 覆盖本组刚编的，症状是「重新编译了但行为没变」（实测踩过）。
+- 装配/部署布局：`tools/<组>/jcc-tool-<组>.exe`，委托执行器 `tools/jcc-gh.exe` 由上级目录规则命中，20 MB 只放一份。
 
 **对账脚本**：`non_deliverables_tools/scripts/Verify-ToolNodes.ps1` 做三件事——① `--list-local` 的 local 数与 `node.yaml` 的 `mode: local` 条数必须相等（实现与登记漂移即失败）；② `tool_count` / `tools` 条目数 / `-h` 索引里的工具名个数三者一致；③ `-h` 体积不超阈（大组必须走索引）。加 `-Sample` 才真跑，且只用无副作用工具（读文件 / git 状态 / glob / worktree 列表 / sleep 1 秒 / 临时目录里建一个 notebook 再读回），校验脚本不改仓库。当前实测输出：`共 13 组 / 638 个工具，进程隔离 227（35%），其中 1 组走 delegate`。
 

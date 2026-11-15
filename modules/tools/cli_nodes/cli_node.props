@@ -1,0 +1,50 @@
+<Project>
+
+  <!--
+    CLI 节点工具 exe 的共享 MSBuild 配置 — ADR 0157 v2 依赖墙硬约束。
+
+    只引用 Abstractions.Primitives.Tools 契约层（纯 DTO + YamlDotNet，零 ProjectReference）。
+    禁止引用 Infrastructure / 引擎 / DI 容器 / 源码生成器：
+      jcc-rg 引 Infrastructure 的实测基线 = 81 DLL / 16 MB 输出目录 / 1m33s 首次编译。
+    每个工具 exe 都 Import 本文件，保证 540 个节点配置一致、可批量替换。
+  -->
+
+  <PropertyGroup>
+    <ProjectType>tool</ProjectType>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IsAotCompatible>true</IsAotCompatible>
+
+    <!-- 编译速度：工具节点不需要全仓分析器/代码风格/文档生成 -->
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <JccAnalyzers>false</JccAnalyzers>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EmitCompilerGeneratedFiles>false</EmitCompilerGeneratedFiles>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+
+    <!-- 全局 Directory.Build.props 会给所有 net10.0 项目注入 Structura 引用；
+         工具节点不需要它，切断后可少构建一个项目。 -->
+    <ExcludeStructura>true</ExcludeStructura>
+
+    <!-- AOT 是显式可选的发布步骤，不是默认值：
+         ① 本机链接需要完整 Windows SDK，批量 540 个节点时每个都要跑一次；
+         ② 命令行 -p:PublishAot=true 会全局传播，令 netstandard2.0 生成器项目触发 NETSDK1207。
+         用法: dotnet publish -c Release -r win-x64 -p:CliNodePublishAot=true -->
+    <!-- 覆盖根目录 Directory.Build.props:64（Release 全局启用 AOT）。
+         工具节点默认框架依赖发布；只有显式 -p:CliNodePublishAot=true 才开 AOT。
+         批量 540 个节点时，AOT 的本机链接是发布阶段的可选步骤，不是每次编译的默认成本。 -->
+    <PublishAot Condition="'$(CliNodePublishAot)' != 'true'">false</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: system
+name: jcc-tool-system
+summary: "Get a configuration setting value; Set a configuration setting value; List all configurable settings"
+category: system
+exe: jcc-tool-system.exe
+tags: [agent, analytics, ask, brief, config, confirm, continue, ctx]
+tool_count: 71
+parameters: []

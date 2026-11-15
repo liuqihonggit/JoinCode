@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../cli_node.props" />
+
+  <PropertyGroup>
+    <AssemblyName>jcc-tool-sample</AssemblyName>
+    <RootNamespace>JoinCode.CliNode.Sample</RootNamespace>
+    <Description>CLI 节点最小样板 — 用于 ADR 0157 v2 依赖墙与 AOT 成本实测</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="node.yaml" LogicalName="JoinCode.CliNodes.Nodes.sample.yaml" />
+  </ItemGroup>
+
+</Project>

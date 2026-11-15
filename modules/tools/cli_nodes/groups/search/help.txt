@@ -1,0 +1,234 @@
+jcc-tool-search — search 工具分组（47 个工具）
+
+用法:
+  jcc-tool-search.exe <工具名> [参数...]
+  jcc-tool-search.exe -h
+  jcc-tool-search.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  glob                               Fast file pattern matching tool that works with any codebase size. Supports glob patterns like "**/*.js" or "src/**/*.ts". Returns matching file paths sorted by modification time. Use this tool when you need to find files by name patterns. When doing open-ended searches that may require multiple rounds of glob and grep, use the Agent tool instead.
+  grep                               A powerful search tool built on ripgrep. Supports full regex syntax (e.g., "log.*Error", "function\s+\w+"). Filter files with glob parameter (e.g., "*.js", "**/*.tsx") or type parameter (e.g., "js", "py", "rust"). Output modes: "content" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), "files_with_matches" shows file paths (default), "count" shows match counts. Use Agent tool for open-ended searches requiring multiple rounds of glob and grep.
+  search_code                        Search for code patterns in source files. Supports regex queries. Defaults to common code file types (.cs, .ts, .js, .py, .go, .rs, .java). Use this when you need to find code definitions or usages.
+  search_text                        Search for text patterns in file contents. Supports full regex syntax. Searches all file types by default.
+  search_files                       Find files by glob pattern. Supports patterns like **/*.cs, *.json, src/**/*.ts. Returns matching file paths sorted by modification time.
+  search_codebase                    Search the entire codebase for a query. Supports regex patterns. Use this for broad code searches across the whole project.
+  code_search                        Search code for a query. Supports regex patterns. Equivalent to search_code, provided for naming convention compatibility.
+  symbol_search                      Search for symbol definitions (class, interface, struct, enum, method, property) by name. Returns files and lines where the symbol is defined.
+  code_index_search                  C# AST symbol search ONLY. Searches indexed C# code symbols (classes, methods, properties, etc.) from parsed .cs files. Do NOT use for config files, docs, JSON, YAML, or non-C# content - use grep/glob instead.
+  code_index_search_comprehensive    C# AST comprehensive search ONLY. Fuzzy match C# symbols then AST-extract references + callers/callees. Do NOT use for config, docs, JSON, YAML, or non-C# content - use grep/glob instead.
+  code_index_find_definition         Find the definition location of a C# symbol in AST index
+  code_index_find_references         Find all references to a C# symbol in AST index
+  code_index_get_callers             Find all callers of a specified C# symbol in AST index
+  code_index_get_callees             Find all callees invoked by a specified C# symbol in AST index
+  code_index_get_call_chain          Find the call chain between two symbols
+  code_index_get_impact_scope        Analyze the impact scope of modifying a symbol
+  code_index_get_inheritors          Find types that inherit or implement a specified symbol
+  code_index_get_dependencies        Find dependencies of a specified symbol
+  code_index_get_affected_files      Analyze files affected by modifying a specified file
+  code_index_rebuild                 Rebuild the code index
+  code_index_update_file             Incrementally update index for a single file. Much faster than full rebuild when only a few files changed.
+  code_index_stats                   Get code index statistics
+  code_index_explore                 Progressively explore C# code: symbol index -> call relationships -> source code. AST index only.
+  code_index_search_semantic         Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. Returns metadata (file path, line range, symbol name, similarity score). Set include_source_text=true to get matched block source code. Set include_parent_document=true to get parent class/file source. Set include_graph=true to get caller/callee relations.
+  code_index_get_project_deps        Find project dependencies of a specified project
+  code_index_get_project_dependents  Find projects that depend on a specified project
+  code_index_get_affected_projects   Analyze projects affected by modifying a specified file
+  code_index_get_project_nu_gets     Find NuGet packages referenced by a specified project
+  code_index_get_nu_get_projects     Find all projects referencing a specified NuGet package
+  code_index_get_all_projects        List all projects in the workspace
+  search_document                    Document search: semantic search over .md files only. Returns matching markdown chunks.
+  graph_detect_communities           Detect code communities (modules/subsystems) using label propagation algorithm on the call graph
+  graph_get_hub_nodes                Find hub nodes with highest connectivity (in-degree + out-degree) in the call graph
+  graph_detect_dead_code             Detect potentially dead code: methods with no callers that are not entry points
+  graph_extract_subgraph             Extract a subgraph centered on a symbol with N hops radius
+  graph_analyze_change_impact        Analyze the blast radius of changes to specified files
+  graph_save                         Save the code index to disk for fast reload on next startup
+  graph_load                         Load a previously saved code index from disk
+  graph_export_dot                   Export the call graph as DOT format for Graphviz visualization
+  graph_export_html                  Export the call graph as interactive HTML with D3.js force-directed layout
+  graph_export_wiki                  Export code architecture as Markdown wiki based on community structure
+  graph_query                        Query the code graph with natural language to find related symbols and subgraph summaries
+  graph_path                         Find the shortest path between two symbols in the call graph
+  graph_explain                      Explain a symbol's role and relationships in the codebase (callers, callees, community, same-file)
+  graph_register                     Register a repository for multi-repo graph analysis
+  graph_unregister                   Unregister a repository from multi-repo graph analysis
+  graph_repos                        List all registered repositories for multi-repo graph analysis
+
+单个工具的参数说明:
+
+  glob — Fast file pattern matching tool that works with any codebase size. Supports glob patterns like "**/*.js" or "src/**/*.ts". Returns matching file paths sorted by modification time. Use this tool when you need to find files by name patterns. When doing open-ended searches that may require multiple rounds of glob and grep, use the Agent tool instead.
+    --pattern                    string    必填   Glob pattern, e.g. **/*.cs, **/*.json
+    --path                       string    可选   The directory to search in. If not specified, the current working directory will be used. Do not enter "undefined" or "null", just omit it to use the default behavior
+
+  grep — A powerful search tool built on ripgrep. Supports full regex syntax (e.g., "log.*Error", "function\s+\w+"). Filter files with glob parameter (e.g., "*.js", "**/*.tsx") or type parameter (e.g., "js", "py", "rust"). Output modes: "content" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), "files_with_matches" shows file paths (default), "count" shows match counts. Use Agent tool for open-ended searches requiring multiple rounds of glob and grep.
+    (无参数)
+
+  search_code — Search for code patterns in source files. Supports regex queries. Defaults to common code file types (.cs, .ts, .js, .py, .go, .rs, .java). Use this when you need to find code definitions or usages.
+    (无参数)
+
+  search_text — Search for text patterns in file contents. Supports full regex syntax. Searches all file types by default.
+    (无参数)
+
+  search_files — Find files by glob pattern. Supports patterns like **/*.cs, *.json, src/**/*.ts. Returns matching file paths sorted by modification time.
+    (无参数)
+
+  search_codebase — Search the entire codebase for a query. Supports regex patterns. Use this for broad code searches across the whole project.
+    (无参数)
+
+  code_search — Search code for a query. Supports regex patterns. Equivalent to search_code, provided for naming convention compatibility.
+    (无参数)
+
+  symbol_search — Search for symbol definitions (class, interface, struct, enum, method, property) by name. Returns files and lines where the symbol is defined.
+    (无参数)
+
+  code_index_search — C# AST symbol search ONLY. Searches indexed C# code symbols (classes, methods, properties, etc.) from parsed .cs files. Do NOT use for config files, docs, JSON, YAML, or non-C# content - use grep/glob instead.
+    --query                      string    必填   Search query (supports FTS5 full-text search syntax)
+
+  code_index_search_comprehensive — C# AST comprehensive search ONLY. Fuzzy match C# symbols then AST-extract references + callers/callees. Do NOT use for config, docs, JSON, YAML, or non-C# content - use grep/glob instead.
+    --pattern                    string    必填   Regex pattern to fuzzy match symbol name/FQN (rg-style, e.g. 'User*' or 'Get.*Name')
+    --max_token_budget           integer   必填   Max token budget for result (approx 4 chars/token, truncated if exceeded, default 2000)  默认=2000
+    --include_ast                boolean   必填   Include AST expansion (references + callers/callees). Set false to only return symbol matches, saving tokens for non-code queries. Default true.  默认=true
+
+  code_index_find_definition — Find the definition location of a C# symbol in AST index
+    --symbol_name                string    必填   Symbol name
+
+  code_index_find_references — Find all references to a C# symbol in AST index
+    --symbol_name                string    必填   Symbol name
+    --limit                      integer   必填   Maximum references to return (default 5, pass larger to see more)  默认=5
+
+  code_index_get_callers — Find all callers of a specified C# symbol in AST index
+    --symbol_name                string    必填   Symbol name
+    --limit                      integer   必填   Maximum callers to return (default 5, pass larger to see more)  默认=5
+
+  code_index_get_callees — Find all callees invoked by a specified C# symbol in AST index
+    --symbol_name                string    必填   Symbol name
+    --limit                      integer   必填   Maximum callees to return (default 5, pass larger to see more)  默认=5
+
+  code_index_get_call_chain — Find the call chain between two symbols
+    --from                       string    必填   Source symbol name
+    --to                         string    必填   Target symbol name
+
+  code_index_get_impact_scope — Analyze the impact scope of modifying a symbol
+    --symbol_name                string    必填   Symbol name
+
+  code_index_get_inheritors — Find types that inherit or implement a specified symbol
+    --symbol_name                string    必填   Symbol name
+
+  code_index_get_dependencies — Find dependencies of a specified symbol
+    --symbol_name                string    必填   Symbol name
+
+  code_index_get_affected_files — Analyze files affected by modifying a specified file
+    --file_path                  string    必填   File path
+
+  code_index_rebuild — Rebuild the code index
+    --workspace_root             string    必填   Workspace root directory path
+    --force                      boolean   必填   Force full rebuild, skip hash check  默认=false
+
+  code_index_update_file — Incrementally update index for a single file. Much faster than full rebuild when only a few files changed.
+    --file_path                  string    必填   File path to update (absolute or relative to workspace root)
+
+  code_index_stats — Get code index statistics
+    (无参数)
+
+  code_index_explore — Progressively explore C# code: symbol index -> call relationships -> source code. AST index only.
+    --query                      string    必填   Search query (symbol name or keyword)
+    --level                      string    必填   Disclosure level: index=symbol index only, relationships=with call graph, source=with source code  默认=index
+
+  code_index_search_semantic — Semantic search code blocks via vector embeddings. Find similar code by meaning, not exact text match. Returns metadata (file path, line range, symbol name, similarity score). Set include_source_text=true to get matched block source code. Set include_parent_document=true to get parent class/file source. Set include_graph=true to get caller/callee relations.
+    --query                      string    必填   Natural language query or code snippet (e.g. 'find authentication logic', 'rate limiting implementation')
+    --top_k                      integer   可选   Maximum number of results to return  默认=20
+    --include_source_text        boolean   可选   Include matched block source text (function code) in results  默认=false
+    --include_parent_document    boolean   可选   Include parent document (class/file) source text in results for full context  默认=false
+    --include_graph              boolean   可选   Include knowledge graph triples (caller,calls,callee). GraphRAG: vector recall + graph triples correct AI cognition  默认=true
+    --file_type                  string    可选   Filter by file extension without dot, e.g. 'cs' for C# only, 'md' for Markdown only. Default null = all file types
+    --namespace_filter           string    可选   Filter by namespace prefix, e.g. 'JoinCode.CodeIndex' for code in that namespace only. Default null = all namespaces
+    --symbol_kind                string    可选   Filter by symbol kind, e.g. 'Method' for methods only, 'Class' for classes only. Default null = all kinds
+    --persist_dir                string    可选   Persistence directory path to load index from. Default null = auto-discover git workspace root
+
+  code_index_get_project_deps — Find project dependencies of a specified project
+    --project_path               string    必填   Project file path (.csproj)
+
+  code_index_get_project_dependents — Find projects that depend on a specified project
+    --project_path               string    必填   Project file path (.csproj)
+
+  code_index_get_affected_projects — Analyze projects affected by modifying a specified file
+    --file_path                  string    必填   File path
+
+  code_index_get_project_nu_gets — Find NuGet packages referenced by a specified project
+    --project_path               string    必填   Project file path (.csproj)
+
+  code_index_get_nu_get_projects — Find all projects referencing a specified NuGet package
+    --package_name               string    必填   NuGet package name
+
+  code_index_get_all_projects — List all projects in the workspace
+    (无参数)
+
+  search_document — Document search: semantic search over .md files only. Returns matching markdown chunks.
+    --query                      string    必填   Search query (natural language)
+    --top_k                      integer   可选   Maximum results  默认=10
+    --include_source_text        boolean   必填   Include source text in results  默认=false
+    --persist_dir                string    必填   Index directory (default: auto-discover git workspace)
+
+  graph_detect_communities — Detect code communities (modules/subsystems) using label propagation algorithm on the call graph
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_get_hub_nodes — Find hub nodes with highest connectivity (in-degree + out-degree) in the call graph
+    --top_n                      integer   必填   Number of top hub nodes to return (default 10)  默认=10
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_detect_dead_code — Detect potentially dead code: methods with no callers that are not entry points
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_extract_subgraph — Extract a subgraph centered on a symbol with N hops radius
+    --center_symbol              string    必填   Center symbol name
+    --hops                       integer   必填   Number of hops (radius, default 2)  默认=2
+    --max_edges                  integer   必填   Maximum edges to return (default 50, pass larger to see more)  默认=50
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_analyze_change_impact — Analyze the blast radius of changes to specified files
+    --changed_files              string    必填   Comma-separated list of changed file paths
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_save — Save the code index to disk for fast reload on next startup
+    --directory                  string    必填   Directory path to save the index (default: .jcc/graph)  默认=.jcc/graph
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_load — Load a previously saved code index from disk
+    --directory                  string    必填   Directory path to load the index from (default: .jcc/graph)  默认=.jcc/graph
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_export_dot — Export the call graph as DOT format for Graphviz visualization
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_export_html — Export the call graph as interactive HTML with D3.js force-directed layout
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_export_wiki — Export code architecture as Markdown wiki based on community structure
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_query — Query the code graph with natural language to find related symbols and subgraph summaries
+    --query                      string    必填   Natural language query (e.g. 'how does auth work')
+    --max_results                integer   必填   Maximum number of results (default 20)  默认=20
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_path — Find the shortest path between two symbols in the call graph
+    --from_symbol                string    必填   Starting symbol name
+    --to_symbol                  string    必填   Target symbol name
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_explain — Explain a symbol's role and relationships in the codebase (callers, callees, community, same-file)
+    --symbol_name                string    必填   Symbol name to explain
+    --limit                      integer   必填   Maximum items per category (default 5, pass larger to see more)  默认=5
+    --repo_id                    string    必填   Repository ID (default: default)
+
+  graph_register — Register a repository for multi-repo graph analysis
+    --repo_id                    string    必填   Repository identifier (e.g. 'frontend', 'backend')
+    --workspace_root             string    必填   Workspace root path of the repository
+
+  graph_unregister — Unregister a repository from multi-repo graph analysis
+    --repo_id                    string    必填   Repository identifier to remove
+
+  graph_repos — List all registered repositories for multi-repo graph analysis
+    (无参数)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

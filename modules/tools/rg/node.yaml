@@ -1,0 +1,84 @@
+# jcc-rg 独立 CLI 节点自描述
+#
+# 规则（ADR 0157 v2）:
+#   * 本文件是参数描述的唯一数据源，C# 不再写第二份
+#   * -h 直接渲染本文件；LLM 用 bash 按需阅读，查完即弃
+#   * exe 字段必须与实际 AssemblyName 一致
+
+id: rg
+name: jcc-rg
+summary: ripgrep 兼容的代码内容搜索，基于 mmap + PLINQ 的零 GC 检索引擎
+category: search
+exe: jcc-rg.exe
+tags: [search, grep, ripgrep, code, pattern, 搜索]
+examples:
+  - jcc-rg "NodeRegistry" modules/ --type cs
+  - jcc-rg "TODO" -n --head-limit 50
+  - jcc-rg "class .*Node" -g "*.cs" --json
+parameters:
+  - name: pattern
+    type: string
+    description: 要搜索的正则表达式或固定字符串模式
+    required: true
+    aliases: 位置参数1
+  - name: path
+    type: array
+    description: 搜索路径，可多个；省略则搜索当前目录
+    required: false
+    aliases: 位置参数2..N
+  - name: type
+    type: string
+    description: 限定文件扩展名类型，如 cs / py / ts
+    required: false
+    aliases: --type
+  - name: glob
+    type: string
+    description: 附加 glob 过滤，支持 ! 取反
+    required: false
+    aliases: -g,--glob
+  - name: ignore_case
+    type: boolean
+    description: 忽略大小写
+    required: false
+    aliases: -i
+  - name: line_number
+    type: boolean
+    description: 显示行号
+    required: false
+    aliases: -n
+  - name: context
+    type: integer
+    description: 显示匹配行前后各 N 行
+    required: false
+    aliases: -C
+  - name: head_limit
+    type: integer
+    description: 最多输出 N 条结果
+    required: false
+    default: "200"
+    aliases: --head-limit
+  - name: fixed_strings
+    type: boolean
+    description: 按固定字符串而非正则匹配
+    required: false
+    aliases: -F
+  - name: count
+    type: boolean
+    description: 只输出每个文件的匹配数
+    required: false
+    aliases: --count
+  - name: files_with_matches
+    type: boolean
+    description: 只输出含匹配的文件名
+    required: false
+    aliases: --files-with-matches
+  - name: timeout
+    type: integer
+    description: 超时秒数
+    required: false
+    aliases: --timeout
+  - name: json
+    type: boolean
+    description: 以 JSON 输出结果，便于脚本消费
+    required: false
+    aliases: --json

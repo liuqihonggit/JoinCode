@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: agent
+name: jcc-tool-agent
+summary: "Enter plan mode for complex tasks requiring exploration and design; Exit plan mode and present plan for approval; Get current plan status"
+category: agent
+exe: jcc-tool-agent.exe
+tags: [add, approve, complete, cron, enter, execute, exit, explore]
+tool_count: 59
+parameters: []

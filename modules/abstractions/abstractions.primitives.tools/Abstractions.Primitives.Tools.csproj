@@ -2,11 +2,16 @@
 
   <PropertyGroup>
     <ProjectType>library</ProjectType>
-    <Description>JoinCode 抽象工具 Schema — ToolSchema/ToolHypergraph/StructuredOutputSchema</Description>
+    <Description>JoinCode 抽象工具 Schema + CLI 节点契约与 YAML 基础工具清单</Description>
     <ExcludeStructura>true</ExcludeStructura>
     <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
     <IsAotCompatible>true</IsAotCompatible>
     <AllowPack>true</AllowPack>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="$(YamlDotNetVersion)" />
+    <EmbeddedResource Include="$(RepoRoot)resources/tools/base.yaml" LogicalName="JoinCode.CliNodes.base.yaml" />
+  </ItemGroup>
 
 </Project>

@@ -1,0 +1,590 @@
+jcc-slash — 斜杠命令节点（99 个命令）
+
+用法:
+  jcc-slash <命令名> [--参数 值 ...]
+  jcc-slash -h
+  jcc-slash <命令名> -h
+
+命令列表（说明复用自 [ChatCommand] 特性，按分类分组）:
+
+[Agent] (9 个)
+  /advisor                        配置顾问模型
+  /agents                         查看和管理代理
+  /assistant                      长期助手模式
+  /buddy                          查看你的伙伴精灵 (隐藏)
+  /generate                       生成代码
+  /memory                         编辑记忆文件
+  /plan                           计划模式管理
+  /switch                         切换查看指定子代理输出
+  /ultraplan                      超级计划模式：深度规划+执行
+
+[Auth] (5 个)
+  /login                          登录到 AI 服务
+  /logout                         登出 AI 服务
+  /oauth-refresh                  刷新 OAuth Token (隐藏)
+  /privacy-settings               管理隐私设置
+  /trust                          管理工作区信任目录
+
+[Bridge] (3 个)
+  /bridge                         Bridge 远程控制管理
+  /bridge-kick                    断开指定Bridge连接
+  /peers                          列出对等节点 (隐藏)
+
+[Code] (10 个)
+  /add-dir                        添加额外的工作目录
+  /analyze                        分析代码
+  /code-index                     构建或重建代码索引（符号/调用/依赖图）
+  /commit                         创建 Git 提交
+  /diff                           View uncommitted changes and per-turn diffs
+  /execute                        执行代码
+  /files                          列出当前上下文中的文件
+  /review                         审查 Pull Request 或代码变更
+  /security-review                对当前分支变更进行安全审查
+  /worktree                       管理智能体 Git Worktree
+
+[Config] (11 个)
+  /color                          设置终端颜色主题或测试颜色支持
+  /config                         管理配置设置
+  /doctor                         诊断环境配置和依赖
+  /env                            显示环境变量
+  /init                           AI驱动初始化项目配置文件
+  /permissions                    管理权限规则和工作区目录
+  /profile                        查看或切换运行时 Profile
+  /reset-config                   重置配置文件到默认状态
+  /sandbox-toggle                 切换沙箱模式 (隐藏)
+  /theme                          切换控制台主题
+  /vim                            切换 Vim 输入模式 (无参数时 toggle)
+
+[Info] (9 个)
+  /??                             需求澄清模式 — AI 多轮提问帮你明确需求
+  /context                        显示当前会话上下文统计
+  /help                           显示可用命令帮助
+  /insights                       AI生成会话洞察分析
+  /release-notes                  查看版本发布说明 (隐藏)
+  /stats                          查看会话统计
+  /status                         显示版本、模型、账户、API连接和工具状态
+  /usage                          查看速率限制用量
+  /version                        显示版本信息
+
+[Law] (1 个)
+  /falv                           结构化推理引擎（假定→验证→事实）
+
+[Model] (9 个)
+  /cost                           显示使用成本统计
+  /effort                         调整推理力度
+  /extra-usage                    查看额外用量信息 (隐藏)
+  /fast                           切换快速模式（使用更小/更快的模型）
+  /model                          切换或查看模型
+  /rate-limit-options             配置速率限制选项 (隐藏)
+  /sampling                       查看或设置采样参数（温度/最大Token）
+  /thinkback                      回放 AI 的思考过程
+  /vendor                         查看或切换 LLM 供应商
+
+[Other] (1 个)
+  /simple                         切换精简模式
+
+[Platform] (4 个)
+  /chrome                         Chrome 浏览器集成 (隐藏)
+  /desktop                        将会话转移到桌面应用 (隐藏)
+  /ide                            IDE 集成管理 (隐藏)
+  /mobile                         移动端连接 (隐藏)
+
+[Session] (12 个)
+  /branch                         管理对话分支
+  /brief                          切换简要消息模式
+  /clear                          清空聊天历史并释放上下文
+  /compact                        压缩对话上下文以节省 Token，可选自定义摘要指令
+  /exit                           退出程序
+  /fork                           创建当前对话的分支
+  /history                        查看聊天历史
+  /quit                           退出程序
+  /rename                         重命名当前会话
+  /resume                         恢复之前的会话
+  /rewind                         恢复代码和/或对话到之前的状态
+  /session                        管理历史会话
+
+[Social] (5 个)
+  /btw                            快速向 AI 提一个侧边问题
+  /feedback                       提交反馈 (隐藏)
+  /share                          生成可分享的对话内容
+  /stickers                       获取贴纸
+  /voice                          切换语音输入模式
+
+[System] (10 个)
+  /copy                           复制最近的 AI 回复到剪贴板（/copy N 复制第N条）
+  /debuglog                       显示运行流程全貌（初始化|警告|错误|日志|系统提示词）
+  /diag                           查看崩溃快照和诊断信息 (隐藏)
+  /export                         导出对话到文件或剪贴板
+  /heapdump                       生成堆转储用于诊断 (隐藏)
+  /statusline                     切换状态栏显示
+  /summary                        显示当前会话摘要
+  /tag                            为当前会话添加或管理标签
+  /upgrade                        检查并执行自升级
+  /workflows                      管理工作流
+
+[Task] (3 个)
+  /goal                           目标自主循环引擎 — GoalSpec 收集模式（LLM 询问 6 字段后自主工作）
+  /proactive                      主动执行模式
+  /tasks                          列出和管理后台任务
+
+[Tools] (7 个)
+  /hooks                          管理 Hook 配置
+  /install                        让 AI 执行安装任务
+  /install-github-app             设置 JoinCode GitHub Actions 工作流
+  /mcp                            管理 MCP 服务器
+  /plugin                         管理插件
+  /skills                         查看可用技能（自定义命令）
+  /tools                          显示可用工具列表
+
+单个命令的参数说明:
+
+  /advisor — 配置顾问模型
+    用法: /advisor [model|off]
+    --model                    string    可选   顾问模型名称,或 off 关闭顾问模式  取值: off
+
+  /agents — 查看和管理代理
+    用法: /agents [list|info <name>|resume-all]
+    --action                   string    可选   操作: list=列出代理, info=查看详情, resume-all=从历史恢复所有被中断的子代理  取值: list/info/resume-all  默认=list
+    --name                     string    可选   代理名称,仅在 action=info 时使用
+
+  /assistant — 长期助手模式
+    用法: /assistant [on|off|status]
+    --action                   string    可选   助手模式动作  取值: on/off/status  默认=status
+
+  /buddy — 查看你的伙伴精灵
+    用法: /buddy
+    (无结构化参数)
+
+  /generate — 生成代码
+    用法: /generate <描述>
+    --description              string    必填   要生成的代码描述
+
+  /memory — 编辑记忆文件
+    用法: /memory [edit|open|add|search|db|stats|health|cleanup]
+    别名: /mem
+    --action                   string    可选   记忆操作  取值: edit/open/add/search/db/stats/health/cleanup
+
+  /plan — 计划模式管理
+    用法: /plan [on|off|status|open] [描述]
+    --action                   string    可选   计划操作  取值: on/off/status/open
+    --description              string    可选   计划描述（on/open 时可选）
+
+  /switch — 切换查看指定子代理输出
+    用法: /switch [agentName|all]
+    --target                   string    可选   切换目标: agentName=只看指定子代理输出, all=切回显示全部, 省略=显示当前模式
+
+  /ultraplan — 超级计划模式：深度规划+执行
+    用法: /ultraplan [goal] [--steps N] [--execute]
+    别名: /up
+    --goal                     string    可选   规划目标描述
+    --steps                    number    可选   规划步骤数
+    --execute                  boolean   可选   是否自动执行计划  默认=false
+
+  /login — 登录到 AI 服务
+    用法: /login [provider] [--oauth]
+    --provider                 string    可选   AI 服务供应商名称
+    --oauth                    boolean   可选   使用 OAuth 登录而非 API Key  默认=false
+
+  /logout — 登出 AI 服务
+    用法: /logout [provider]
+    --provider                 string    可选   要登出的供应商名称,省略则登出当前
+
+  /oauth-refresh — 刷新 OAuth Token
+    用法: /oauth-refresh [provider]
+    --provider                 string    可选   要刷新 Token 的供应商名称
+
+  /privacy-settings — 管理隐私设置
+    用法: /privacy-settings [show|telemetry on|off|analytics on|off|crash-reports on|off]
+    --action                   string    可选   隐私设置操作  取值: show/telemetry/analytics/crash-reports  默认=show
+    --value                    string    可选   设置值 on/off,仅在 action=telemetry/analytics/crash-reports 时使用  取值: on/off
+
+  /trust — 管理工作区信任目录
+    用法: /trust [add|remove|list|clear]
+    --action                   string    可选   信任目录操作  取值: add/remove/list/clear  默认=list
+
+  /bridge — Bridge 远程控制管理
+    用法: /bridge [qr|sessions|status|connect|disconnect]
+    别名: /rc
+    --action                   string    可选   Bridge 操作: qr=显示二维码, sessions=列出会话, status=状态, connect=连接, disconnect=断开  取值: qr/sessions/status/connect/disconnect
+
+  /bridge-kick — 断开指定Bridge连接
+    用法: /bridge-kick [session-id]
+    --session-id               string    必填   要断开的 Bridge 会话 ID
+
+  /peers — 列出对等节点
+    用法: /peers
+    别名: /remote
+    (无结构化参数)
+
+  /add-dir — 添加额外的工作目录
+    用法: /add-dir <path> [--remember]
+    --path                     string    必填   要添加的工作目录路径
+    --remember                 boolean   可选   是否记住此目录供后续会话使用  默认=false
+
+  /analyze — 分析代码
+    用法: /analyze <代码>
+    --code                     string    必填   要分析的代码内容
+
+  /code-index — 构建或重建代码索引（符号/调用/依赖图）
+    用法: /code-index
+    (无结构化参数)
+
+  /commit — 创建 Git 提交
+    用法: /commit [message]
+    --message                  string    可选   提交消息
+
+  /diff — View uncommitted changes and per-turn diffs
+    用法: /diff [files|cached]
+    --scope                    string    可选   差异范围  取值: files/cached
+
+  /execute — 执行代码
+    用法: /execute <代码>
+    --code                     string    可选   要执行的代码
+
+  /files — 列出当前上下文中的文件
+    用法: /files
+    (无结构化参数)
+
+  /review — 审查 Pull Request 或代码变更
+    用法: /review [pr-number]
+    --pr_number                string    可选   Pull Request 编号（可选，默认当前分支）
+
+  /security-review — 对当前分支变更进行安全审查
+    用法: /security-review
+    (无结构化参数)
+
+  /worktree — 管理智能体 Git Worktree
+    用法: /worktree [list|cleanup|remove|create|status] [options]
+    --action                   string    可选   Worktree 操作  取值: list/cleanup/remove/create/status
+    --options                  string    可选   操作特定参数,如 create 的分支名
+
+  /color — 设置终端颜色主题或测试颜色支持
+    用法: /color [theme|test|reset]
+    --action                   string    可选   颜色操作: theme=设置主题, test=测试颜色支持, reset=重置默认  取值: theme/test/reset
+
+  /config — 管理配置设置
+    用法: /config [get|set|list|remove] [key] [value]
+    --action                   string    可选   配置操作  取值: get/set/list/remove
+    --key                      string    可选   配置键名
+    --value                    string    可选   配置值（set 操作时需要）
+
+  /doctor — 诊断环境配置和依赖
+    用法: /doctor
+    别名: /dr
+    (无结构化参数)
+
+  /env — 显示环境变量
+    用法: /env [filter]
+    --filter                   string    可选   环境变量名过滤关键词
+
+  /init — AI驱动初始化项目配置文件
+    用法: /init [quick]
+    --mode                     string    可选   初始化模式: quick=快速模式  取值: quick
+
+  /permissions — 管理权限规则和工作区目录
+    用法: /permissions [list|add|remove|clear|workspace] [args]
+    别名: /perm
+    --action                   string    可选   权限操作  取值: list/add/remove/clear/workspace  默认=list
+    --args                     string    可选   操作特定参数,如 add 的权限规则
+
+  /profile — 查看或切换运行时 Profile
+    用法: /profile [名称|list]
+    (无结构化参数)  参数提示: [profile|list]
+
+  /reset-config — 重置配置文件到默认状态
+    用法: /reset-config [all|auth|settings|trust|onboarding]
+    --scope                    string    可选   重置范围  取值: all/auth/settings/trust/onboarding  默认=all
+
+  /sandbox-toggle — 切换沙箱模式
+    用法: /sandbox-toggle [on|off|status|exclude|switch]
+    别名: /sandbox
+    --action                   string    可选   沙箱操作  取值: on/off/status/exclude/switch  默认=status
+
+  /theme — 切换控制台主题
+    用法: /theme [dark|light|auto|dark-daltonized|light-daltonized|dark-ansi|light-ansi]
+    --theme                    string    可选   主题名称  取值: dark/light/auto/dark-daltonized/light-daltonized/dark-ansi/light-ansi
+
+  /vim — 切换 Vim 输入模式 (无参数时 toggle)
+    用法: /vim [on|off]
+    --action                   string    可选   Vim 模式动作,省略时 toggle  取值: on/off
+
+  /?? — 需求澄清模式 — AI 多轮提问帮你明确需求
+    用法: /?? [需求描述]  或  /ask [需求描述]
+    别名: /ask
+    --description              string    可选   需求描述文本,作为澄清循环的初始输入
+
+  /context — 显示当前会话上下文统计
+    用法: /context
+    (无结构化参数)
+
+  /help — 显示可用命令帮助
+    用法: /help
+    别名: /?
+    (无结构化参数)
+
+  /insights — AI生成会话洞察分析
+    用法: /insights [stats|deep|report]
+    --mode                     string    可选   洞察模式: stats=跨会话统计, deep=深度洞察, report=HTML报告; 省略=AI基础洞察  取值: stats/deep/report
+
+  /release-notes — 查看版本发布说明
+    用法: /release-notes [version]
+    --version                  string    可选   要查看的版本号,省略则显示最近 5 个版本的发布说明
+
+  /stats — 查看会话统计
+    用法: /stats [--today|--total|--7d|--30d|--all|--session]
+    别名: /stat
+    --scope                    string    可选   统计范围: today=今日, total=累计, session=当前会话, 7d=近7天, 30d=近30天, all=全部  取值: today/total/7d/30d/all/session  默认=today
+
+  /status — 显示版本、模型、账户、API连接和工具状态
+    用法: /status
+    (无结构化参数)
+
+  /usage — 查看速率限制用量
+    用法: /usage
+    别名: /rate-limit
+    (无结构化参数)
+
+  /version — 显示版本信息
+    用法: /version
+    (无结构化参数)
+
+  /falv — 结构化推理引擎（假定→验证→事实）
+    用法: /falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset
+    --action                   string    可选   推理操作: 默认为假定内容(自由文本),或 --status/--judge/--evidence/--continue/--budget/--cone/--conflict/--reset 子命令  取值: --status/--judge/--evidence/--continue/--budget/--cone/--conflict/--reset
+
+  /cost — 显示使用成本统计
+    用法: /cost [today|session|total]
+    --scope                    string    可选   成本统计范围  取值: today/session/total
+
+  /effort — 调整推理力度
+    用法: /effort [low|medium|high|max|auto|unset]
+    --level                    string    可选   推理力度级别  取值: low/medium/high/max/auto/unset
+
+  /extra-usage — 查看额外用量信息
+    用法: /extra-usage
+    (无结构化参数)
+
+  /fast — 切换快速模式（使用更小/更快的模型）
+    用法: /fast [on|off]
+    --state                    string    可选   开关状态  取值: on/off
+
+  /model — 切换或查看模型
+    用法: /model [model-id|default|info]
+    --model_id                 string    可选   模型 ID、default 或 info
+
+  /rate-limit-options — 配置速率限制选项
+    用法: /rate-limit-options [show]
+    --action                   string    可选   操作类型,目前仅支持 show(显示速率限制快照)  取值: show  默认=show
+
+  /sampling — 查看或设置采样参数（温度/最大Token）
+    用法: /sampling [温度] [最大Token|unset]
+    --temperature              number    可选   采样温度,范围 0-2;单独传 unset 则重置温度与最大Token为引擎默认
+    --maxTokens                number    可选   最大输出 Token 数,须为正整数;仅在 temperature 之后位置传入
+
+  /thinkback — 回放 AI 的思考过程
+    用法: /thinkback [count]
+    --count                    number    可选   回放最近 N 条思考记录,省略或非法时默认 1  默认=1
+
+  /vendor — 查看或切换 LLM 供应商
+    用法: /vendor [名称|list]
+    --name                     string    可选   供应商名称或 list  取值: openai/anthropic/deepseek/azure/agnes/sensenova/bedrock/zhipu/jev/list
+
+  /simple — 切换精简模式
+    用法: /simple
+    (无结构化参数)
+
+  /chrome — Chrome 浏览器集成
+    用法: /chrome [connect|disconnect|install|toggle|status]
+    --action                   string    可选   Chrome 操作  取值: connect/disconnect/install/toggle/status
+
+  /desktop — 将会话转移到桌面应用
+    用法: /desktop
+    别名: /app
+    (无结构化参数)
+
+  /ide — IDE 集成管理
+    用法: /ide [detect|connect|disconnect|status|open]
+    --action                   string    可选   IDE 操作  取值: detect/connect/disconnect/status/open
+    --file_path                string    可选   open 操作时打开的文件路径（可附 :行号）
+
+  /mobile — 移动端连接
+    用法: /mobile [start|stop|url]
+    别名: /ios, /android
+    --action                   string    可选   移动端操作  取值: start/stop/url
+
+  /branch — 管理对话分支
+    用法: /branch [list|create|switch|delete] [name]
+    别名: /branches
+    --action                   string    可选   分支操作  取值: list/create/switch/delete
+    --name                     string    可选   分支名称
+
+  /brief — 切换简要消息模式
+    用法: /brief [on|off]
+    --state                    string    可选   开关状态  取值: on/off
+
+  /clear — 清空聊天历史并释放上下文
+    用法: /clear
+    别名: /reset, /new, /cls
+    (无结构化参数)
+
+  /compact — 压缩对话上下文以节省 Token，可选自定义摘要指令
+    用法: /compact [自定义摘要指令]
+    别名: /comp
+    --instructions             string    可选   自定义压缩摘要指令
+
+  /exit — 退出程序
+    用法: /exit
+    别名: /x
+    (无结构化参数)
+
+  /fork — 创建当前对话的分支
+    用法: /fork [name]
+    别名: /branch
+    --name                     string    可选   分支名称,省略时从首条用户消息推导
+
+  /history — 查看聊天历史
+    用法: /history
+    别名: /hist
+    (无结构化参数)
+
+  /quit — 退出程序
+    用法: /quit
+    别名: /q
+    (无结构化参数)
+
+  /rename — 重命名当前会话
+    用法: /rename <new-name>
+    --new_name                 string    必填   新的会话名称
+
+  /resume — 恢复之前的会话
+    用法: /resume [session-id]
+    别名: /continue
+    --session-id               string    可选   会话 ID(UUID 精确匹配)或自定义标题搜索关键词,省略时进入交互式会话列表选择器
+
+  /rewind — 恢复代码和/或对话到之前的状态
+    用法: /rewind [last|<n>|all]
+    别名: /checkpoint
+    --target                   string    可选   撤回目标: last=最后一轮(默认), all=全部历史, <n>=撤回到第 n 条消息索引  取值: last/all  默认=last
+
+  /session — 管理历史会话
+    用法: /session [list|resume|delete] [id]
+    别名: /sessions
+    --action                   string    可选   会话操作  取值: list/resume/delete
+    --id                       string    可选   会话 ID（resume/delete 时需要）
+
+  /btw — 快速向 AI 提一个侧边问题
+    用法: /btw <question>
+    --question                 string    必填   侧边问题内容
+
+  /feedback — 提交反馈
+    用法: /feedback [反馈内容]
+    别名: /bug
+    --feedback                 string    可选   反馈内容文本
+
+  /share — 生成可分享的对话内容
+    用法: /share
+    (无结构化参数)
+
+  /stickers — 获取贴纸
+    用法: /stickers
+    (无结构化参数)
+
+  /voice — 切换语音输入模式
+    用法: /voice [on|off|status]
+    --action                   string    可选   语音操作  取值: on/off/status/start/stop/record
+
+  /copy — 复制最近的 AI 回复到剪贴板（/copy N 复制第N条）
+    用法: /copy [N|code]
+    --target                   string    可选   复制目标：N=第N条助手消息(1=最新)，code=最近代码块  取值: code/c/1/2/3
+
+  /debuglog — 显示运行流程全貌（初始化|警告|错误|日志|系统提示词）
+    用法: /debuglog [-a|-e|-w|-i|-p|-l|-c]
+    --flags                    string    可选   显示标志（可组合）  取值: -a/--all/-e/--error/-w/--warn/-i/--init/-p/--prompt/-l/--log/-c/--clear
+
+  /diag — 查看崩溃快照和诊断信息
+    用法: /diag [recent|fence <name>|ack <id>|clear]
+    --action                   string    可选   诊断操作  取值: recent/fence/ack/detail/clear
+    --name                     string    可选   fence 围栏名 / ack|detail 快照 ID
+
+  /export — 导出对话到文件或剪贴板
+    用法: /export [filename|--clipboard]
+    --target                   string    可选   导出目标：文件名或 --clipboard  取值: --clipboard
+
+  /heapdump — 生成堆转储用于诊断
+    用法: /heapdump
+    (无结构化参数)
+
+  /statusline — 切换状态栏显示
+    用法: /statusline [on|off|format]
+    --action                   string    可选   状态栏操作  取值: on/enable/off/disable/format
+    --template                 string    可选   format 操作时的模板（变量: {model} {tokens} {cost} {mode} {time}）
+
+  /summary — 显示当前会话摘要
+    用法: /summary
+    (无结构化参数)
+
+  /tag — 为当前会话添加或管理标签
+    用法: /tag [add|remove|list] [tag_name]
+    --action                   string    可选   标签操作  取值: add/remove/list
+    --tag_name                 string    可选   标签名称
+
+  /upgrade — 检查并执行自升级
+    用法: /upgrade [check|force|download|apply|auto]
+    --action                   string    可选   升级操作  取值: check/force/download/apply/auto
+
+  /workflows — 管理工作流
+    用法: /workflows [list|run|status] [name]
+    --action                   string    可选   工作流操作  取值: list/run/status
+    --name                     string    可选   run 工作流名 / status 工作流 ID
+
+  /goal — 目标自主循环引擎 — GoalSpec 收集模式（LLM 询问 6 字段后自主工作）
+    用法: /goal [初始提示] [--constraint '约束'] [--budget <token数>] | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>
+    --subcommand               string    可选   生命周期子命令,省略时进入 GoalSpec 收集模式或显示状态  取值: pause/resume/clear/stop/off/reset/cancel
+    --objective                string    可选   目标描述/初始提示,作为自主循环的目标
+    --constraint               array     可选   约束条件,可多次指定 --constraint
+    --budget                   number    可选   Token 预算上限
+    --cron                     string    可选   Cron 表达式(5 字段),启用定时目标模式
+
+  /proactive — 主动执行模式
+    用法: /proactive [on|off|pause|resume|status]
+    --action                   string    可选   主动模式动作(别名: on=activate/1, off=deactivate/0, status=s, pause=p, resume=r),省略时等同 status  取值: on/off/pause/resume/status  默认=status
+
+  /tasks — 列出和管理后台任务
+    用法: /tasks [kill|detail|create|update|complete|todo]
+    别名: /task, /bashes
+    --action                   string    可选   任务操作  取值: kill/detail/create/update/complete/todo
+
+  /hooks — 管理 Hook 配置
+    用法: /hooks [list|add|remove|test] [args]
+    --action                   string    可选   Hook 操作  取值: list/add/remove/test
+    --args                     string    可选   操作特定参数,如 add 的 Hook 配置
+
+  /install — 让 AI 执行安装任务
+    用法: /install <package-or-command>
+    --package                  string    必填   要安装的包名或命令
+
+  /install-github-app — 设置 JoinCode GitHub Actions 工作流
+    用法: /install-github-app
+    (无结构化参数)
+
+  /mcp — 管理 MCP 服务器
+    用法: /mcp [list|status|add|remove|reconnect|enable|disable] [args]
+    --action                   string    可选   MCP 管理操作  取值: list/status/add/remove/reconnect/enable/disable
+    --args                     string    可选   操作参数（add/remove 时为服务器名或配置 JSON）
+
+  /plugin — 管理插件
+    用法: /plugin [list|install|uninstall|enable|disable] [name]
+    别名: /plugins, /marketplace
+    --action                   string    可选   插件操作  取值: list/install/uninstall/enable/disable
+    --name                     string    可选   插件名称
+
+  /skills — 查看可用技能（自定义命令）
+    用法: /skills [info <skill-name>]
+    --action                   string    可选   操作,目前仅支持 info(查看技能详情)  取值: info
+    --skill-name               string    可选   技能名称,仅在 action=info 时使用
+
+  /tools — 显示可用工具列表
+    用法: /tools
+    (无结构化参数)
+
+描述来源: 现有 [ChatCommand] / [ChatCommandArg] 特性，由本脚本在编译期提取。

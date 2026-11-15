@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../../cli_node.props" />
+
+  <PropertyGroup>
+    <AssemblyName>jcc-tool-git</AssemblyName>
+    <RootNamespace>JoinCode.CliNode.Git</RootNamespace>
+    <Description>git 工具分组独立 CLI.exe — 说明复用现有 [McpTool] 特性，零引擎依赖</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="help.txt" LogicalName="JoinCode.CliNodes.Groups.git.help.txt" />
+  </ItemGroup>
+
+</Project>

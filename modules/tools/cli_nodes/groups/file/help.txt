@@ -1,0 +1,89 @@
+jcc-tool-file — file 工具分组（13 个工具）
+
+用法:
+  jcc-tool-file.exe <工具名> [参数...]
+  jcc-tool-file.exe -h
+  jcc-tool-file.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  file_delete                        Delete the specified file
+  file_edit                          Edit file contents by search-and-replace
+  file_edit_regex                    Edit file using regex pattern to replace matched text
+  file_insert_lines                  Insert new content after a specified line in the file
+  file_delete_lines                  Delete a range of lines from the file
+  file_batch_edit                    Batch edit multiple files with the same search-and-replace
+  directory_list                     List directory contents including files and subdirectories
+  file_apply_patch                   Apply a unified diff patch to one or more files
+  file_read                          Read a file from the local filesystem
+  file_snip_lines                    Read a range of lines from the file (snip read)
+  file_snip_preview                  Get file preview info (size, line count, first N lines)
+  file_write                         Write a file to the local filesystem
+  send_user_file                     Send file for user to view or download
+
+单个工具的参数说明:
+
+  file_delete — Delete the specified file
+    --file_path                  string    必填   File path, relative or absolute
+
+  file_edit — Edit file contents by search-and-replace
+    --file_path                  string    必填   File path, relative or absolute
+    --old_string                 string    必填   String to replace (must match exactly)
+    --new_string                 string    必填   Replacement string
+    --replace_all                boolean   可选   Replace all occurrences, default false  默认=false
+
+  file_edit_regex — Edit file using regex pattern to replace matched text
+    --file_path                  string    必填   File path, relative or absolute
+    --pattern                    string    必填   Regex pattern
+    --replacement                string    必填   Replacement string
+    --replace_all                boolean   可选   Replace all matches, default true  默认=true
+
+  file_insert_lines — Insert new content after a specified line in the file
+    --file_path                  string    必填   File path, relative or absolute
+    --after_line                 integer   必填   Line number after which to insert (0 for file beginning)
+    --new_content                string    必填   New content to insert
+
+  file_delete_lines — Delete a range of lines from the file
+    --file_path                  string    必填   File path, relative or absolute
+    --start_line                 integer   必填   Start line number (1-based)
+    --end_line                   integer   必填   End line number (1-based)
+
+  file_batch_edit — Batch edit multiple files with the same search-and-replace
+    --old_string                 string    必填   String to replace (must match exactly)
+    --new_string                 string    必填   Replacement string
+    --file_paths                 string    必填   List of file paths
+    --replace_all                boolean   可选   Replace all matches, default true  默认=true
+
+  directory_list — List directory contents including files and subdirectories
+    --directory_path             string    必填   Directory path, relative or absolute
+    --recursive                  boolean   可选   Recursively list subdirectory contents, default false  默认=false
+
+  file_apply_patch — Apply a unified diff patch to one or more files
+    --patch                      string    必填   The unified diff patch content
+    --dry_run                    boolean   可选   Preview changes without writing (default: false)  默认=false
+
+  file_read — Read a file from the local filesystem
+    --file_path                  string    必填   The absolute path to the file to read
+    --offset                     integer   可选   The line number to start reading from (1-based). Only use for large files.
+    --limit                      integer   可选   The number of lines to read. Only use for large files.
+    --pages                      string    可选   Page range for PDF files (e.g., "1-5", "3", "10-20"). Only applicable to PDF files. Maximum 20 pages per request.
+
+  file_snip_lines — Read a range of lines from the file (snip read)
+    --file_path                  string    必填   File path, relative or absolute
+    --start_line                 integer   可选   Start line number (0-based)
+    --line_count                 integer   可选   Line count limit  默认=100
+
+  file_snip_preview — Get file preview info (size, line count, first N lines)
+    --file_path                  string    必填   File path, relative or absolute
+    --max_preview_lines          integer   可选   Max preview lines  默认=20
+
+  file_write — Write a file to the local filesystem
+    --file_path                  string    必填   The absolute path to the file to write (must be absolute, not relative)
+    --content                    string    必填   The content to write to the file
+
+  send_user_file — Send file for user to view or download
+    --file_path                  string    必填   File path
+    --description                string    可选   Send description (optional)
+    --preview                    boolean   可选   Preview in terminal (optional, default true)  默认=true
+    --generate_link              boolean   可选   Generate download link (optional, default false)  默认=false
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

@@ -1,0 +1,352 @@
+jcc-tool-system — system 工具分组（71 个工具）
+
+用法:
+  jcc-tool-system.exe <工具名> [参数...]
+  jcc-tool-system.exe -h
+  jcc-tool-system.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  config_get                         Get a configuration setting value
+  config_set                         Set a configuration setting value
+  config_list                        List all configurable settings
+  agent                              Create and launch a sub-agent to handle a task
+  agent_send_message                 Send a message to another agent
+  forward_user_input                 Forward user input to a running sub-agent
+  agent_list                         List available agent types
+  agent_status                       Get agent status
+  agent_stop                         Stop a running agent
+  agent_running                      List all running agents
+  agent_get_messages                 Get pending messages for an agent
+  diagnose_error                     分析工具执行失败的错误信息，提供诊断和修复建议
+  fix_shell_error                    分析 Shell 命令执行失败原因，提供替代命令建议
+  fix_file_error                     分析文件操作失败原因，提供修复路径建议
+  fix_merge_conflict                 分析 worktree 合并失败原因，检测遗留冲突标记和分支冲突，提供修复建议
+  resume_timed_out_task              恢复因超时被终止的命令，以更长超时重新执行
+  continue_long_running_task         继续等待长时间运行的任务，以指定超时再次执行
+  stop_long_running_task             终止长时间运行的任务
+  permission_add_rule                添加代理权限规则
+  permission_remove_rule             Remove a permission rule for an agent
+  permission_list_rules              列出所有权限规则
+  permission_check_tool              Check an agent's permission for a tool
+  permission_check_path              检查代理对路径的权限
+  permission_get_agent_rule          获取指定代理的权限规则
+  permission_clear_rules             Clear all permission rules
+  policy_check                       Check if an action complies with policy rules
+  policy_list                        List all active policy rules
+  model_search                       按功能→型号渐进式查找模型表，用于模态不匹配时寻找支持目标功能的模型
+  tool_search                        Search available tools by keyword or exact selection
+  mcp_ai_workflow_workflow_chat      Chat with AI for communication and Q&A
+  mcp_ai_workflow_workflow_clear_history Clear chat history
+  mcp_ai_workflow_workflow_get_history Get chat history records
+  push_notification                  Send push notification to user
+  remote_trigger                     Manage remote triggers (list/get/create/update/run)
+  shake_window                       震动当前进程窗口以提醒用户
+  flash_taskbar                      闪烁任务栏图标以提醒用户
+  get_process_info                   获取当前进程信息(电脑名+PID)
+  analytics_report                   Get system usage statistics report
+  analytics_tools                    Get tool usage statistics details
+  analytics_events                   Get analytics event history
+  analytics_export                   Export analytics data as JSON
+  analytics_clear                    Clear analytics history data
+  brief_mode                         Enable or disable brief mode (compact output)
+  brief_status                       Get current brief mode status
+  send_user_message                  Send a message to the user, supports markdown and file attachments
+  ctx_inspect                        Inspect current context window usage
+  snip                               Snip old messages from conversation history to free context window space
+  sleep                              Sleep/delay for a specified duration
+  sleep_until                        Wait until a specific time point
+  ask_user_question                  Ask the user multiple choice questions to gather information, clarify ambiguity, or make decisions
+  confirm_action                     Ask the user to confirm an action with yes/no
+  agent_system_stats                 Get overall agent execution statistics
+  agent_list_stats                   List statistics for all agents
+  agent_stats                        Get detailed statistics for a specific agent
+  agent_history                      Get execution history for an agent
+  agent_running_stats                Get currently running agent executions
+  agent_execution_detail             Get detailed information about a specific execution
+  agent_clear_history                Clear agent execution history
+  memory_daily_log_append            Append an entry to the assistant daily log
+  memory_daily_log_get               Get today's assistant daily log
+  memory_search_history              Search past conversation memories
+  memory_team_sync                   Sync team memories
+  memory_team_status                 Get team sync status
+  memory_scan                        Scan memories to find relevant ones
+  memory_age                         Get memory age and access statistics
+  memory_cleanup                     Clean up old memories (archive or delete)
+  memory_health                      Get memory health report
+  memory_add_team_path               Add a team shared memory path
+  memory_list_team_paths             List team memory paths
+  memory_remove_team_path            Remove a team memory path
+  memory_scan_team                   Scan team shared memories
+
+单个工具的参数说明:
+
+  config_get — Get a configuration setting value
+    --setting                    string    必填   The setting key (e.g., "theme", "model", "permissions.defaultMode")
+
+  config_set — Set a configuration setting value
+    --setting                    string    必填   The setting key
+    --value                      string    必填   The new value
+
+  config_list — List all configurable settings
+    (无参数)
+
+  agent — Create and launch a sub-agent to handle a task
+    (无参数)
+
+  agent_send_message — Send a message to another agent
+    --to                         string    必填   Recipient: teammate name, agent ID, or '*' for broadcast
+    --message                    string    必填   Message content (plain text or structured JSON)
+    --summary                    string    可选   5-10 word summary preview (required for plain text messages)
+
+  forward_user_input — Forward user input to a running sub-agent
+    --agentId                    string    必填   Target sub-agent ID
+    --userInput                  string    必填   User input to forward
+
+  agent_list — List available agent types
+    (无参数)
+
+  agent_status — Get agent status
+    --agent_id                   string    必填   Agent ID or name
+
+  agent_stop — Stop a running agent
+    --agent_id                   string    必填   Agent ID or name
+
+  agent_running — List all running agents
+    (无参数)
+
+  agent_get_messages — Get pending messages for an agent
+    --agent_id                   string    必填   Agent ID
+
+  diagnose_error — 分析工具执行失败的错误信息，提供诊断和修复建议
+    --errorMessage               string    必填   失败的错误信息
+    --failedToolName             string    必填   失败的工具名称
+    --workingDirectory           string    可选   工作目录路径
+
+  fix_shell_error — 分析 Shell 命令执行失败原因，提供替代命令建议
+    --failedCommand              string    必填   失败的命令
+    --errorOutput                string    必填   错误输出
+    --exitCode                   integer   可选   退出码
+
+  fix_file_error — 分析文件操作失败原因，提供修复路径建议
+    --filePath                   string    必填   失败的文件路径
+    --errorMessage               string    必填   错误信息
+
+  fix_merge_conflict — 分析 worktree 合并失败原因，检测遗留冲突标记和分支冲突，提供修复建议
+    --source_worktree_path       string    必填   源 worktree 路径
+    --target_worktree_path       string    必填   目标 worktree 路径
+    --error_message              string    必填   错误信息
+
+  resume_timed_out_task — 恢复因超时被终止的命令，以更长超时重新执行
+    --original_command           string    必填   原始命令
+    --original_tool              string    必填   原始工具名称 (Bash/PowerShell)
+    --timeout_minutes            integer   可选   续期超时分钟数 (默认10)  默认=10
+    --working_directory          string    可选   工作目录
+
+  continue_long_running_task — 继续等待长时间运行的任务，以指定超时再次执行
+    --task_id                    string    必填   任务ID
+    --additional_minutes         integer   可选   额外等待分钟数 (默认10)  默认=10
+
+  stop_long_running_task — 终止长时间运行的任务
+    --task_id                    string    必填   任务ID
+
+  permission_add_rule — 添加代理权限规则
+    --agent_pattern              string    必填   代理名称或模式（支持通配符 *）
+    --mode                       string    必填   权限模式 (auto/plan/ask/deny)
+    --level                      string    可选   权限级别 (none/read/write/execute/admin)
+    --allowed_tools              string    可选   允许的工具列表（逗号分隔）
+    --denied_tools               string    可选   拒绝的工具列表（逗号分隔）
+    --description                string    可选   规则描述
+    --priority                   integer   可选   优先级（数字越大优先级越高）
+
+  permission_remove_rule — Remove a permission rule for an agent
+    --agent_pattern              string    必填   代理名称或模式
+
+  permission_list_rules — 列出所有权限规则
+    (无参数)
+
+  permission_check_tool — Check an agent's permission for a tool
+    --agent_name                 string    必填   代理名称
+    --tool_name                  string    必填   工具名称
+
+  permission_check_path — 检查代理对路径的权限
+    --agent_name                 string    必填   代理名称
+    --path                       string    必填   路径
+
+  permission_get_agent_rule — 获取指定代理的权限规则
+    --agent_name                 string    必填   代理名称
+
+  permission_clear_rules — Clear all permission rules
+    --confirm                    string    必填   确认清除（输入 'yes' 确认）
+
+  policy_check — Check if an action complies with policy rules
+    --action                     string    必填   Action name
+    --string                     string    可选   Context information (JSON object, optional)
+
+  policy_list — List all active policy rules
+    (无参数)
+
+  model_search — 按功能→型号渐进式查找模型表，用于模态不匹配时寻找支持目标功能的模型
+    --query                      string    必填   查找查询：'list_groups' 列出功能分组；'map[功能Key]' 列出支持该功能的模型（如 map[generateImage]）；'map[功能Key][vendor]' 按 vendor 过滤；关键词模糊搜索模型名/显示名
+    --max_results                integer   可选   最大结果数（可选，默认 20）  默认=20
+
+  tool_search — Search available tools by keyword or exact selection
+    --query                      string    必填   Search query: keyword search, 'select:Name1,Name2' for exact selection, '+name' for must-include, 'map[主分组]'/'map[主分组][子分组]'/'map[主分组][子分组][工具名]' to drill into groups, 'list_groups' to list all groups
+    --max_results                integer   可选   Maximum number of results (optional, default 10)  默认=10
+
+  mcp_ai_workflow_workflow_chat — Chat with AI for communication and Q&A
+    --message                    string    必填   Message content
+
+  mcp_ai_workflow_workflow_clear_history — Clear chat history
+    (无参数)
+
+  mcp_ai_workflow_workflow_get_history — Get chat history records
+    (无参数)
+
+  push_notification — Send push notification to user
+    --title                      string    必填   Notification title
+    --message                    string    必填   Notification message
+    --level                      string    可选   Notification level: info/warning/error (default info)  默认=info
+    --persistent                 boolean   可选   Persistent display (optional, default false)  默认=false
+
+  remote_trigger — Manage remote triggers (list/get/create/update/run)
+    --action                     string    可选   Action type: list/get/create/update/run  默认=list
+    --trigger_id                 string    可选   Trigger ID (required for get/update/run)
+    --body                       string    可选   Trigger config (JSON format, optional for create/update)
+
+  shake_window — 震动当前进程窗口以提醒用户
+    --reason                     string    可选   震动原因(可选)
+
+  flash_taskbar — 闪烁任务栏图标以提醒用户
+    (无参数)
+
+  get_process_info — 获取当前进程信息(电脑名+PID)
+    (无参数)
+
+  analytics_report — Get system usage statistics report
+    --days                       integer   可选   Number of days for statistics (default 7)
+
+  analytics_tools — Get tool usage statistics details
+    --days                       integer   可选   Number of days for statistics (default 7)
+
+  analytics_events — Get analytics event history
+    --event_type                 string    可选   Event type filter (optional)
+    --limit                      integer   可选   Result count limit
+
+  analytics_export — Export analytics data as JSON
+    --start_date                 string    可选   Start date (optional)
+    --end_date                   string    可选   End date (optional)
+
+  analytics_clear — Clear analytics history data
+    --older_than_days            integer   可选   Clear data older than N days (optional)
+    --confirm                    string    必填   Confirm clear (enter 'yes' to confirm)
+
+  brief_mode — Enable or disable brief mode (compact output)
+    --enabled                    boolean   必填   true to enable, false to disable
+
+  brief_status — Get current brief mode status
+    (无参数)
+
+  send_user_message — Send a message to the user, supports markdown and file attachments
+    --message                    string    必填   The message for the user. Supports markdown formatting.
+    --attachments                string    可选   Optional file paths to attach (photos, screenshots, diffs, logs)
+    --status                     string    可选   Use 'proactive' for unsolicited updates, 'normal' for replies
+
+  ctx_inspect — Inspect current context window usage
+    --inspect_type               string    可选   Inspection type: summary/detailed/layers (optional, default summary)  默认=summary
+
+  snip — Snip old messages from conversation history to free context window space
+    --mode                       string    可选   Snip mode: rewind/rewind_to/clear (default rewind)  默认=rewind
+    --message_index              integer   可选   Message index (used in rewind_to mode)
+
+  sleep — Sleep/delay for a specified duration
+    --duration_seconds           integer   必填   Sleep duration (seconds), max 1800 (30 minutes)
+    --reason                     string    可选   Reason for sleep (optional)
+    --tick_interval_seconds      integer   可选   Periodic wake interval (seconds, optional, 0 means no wake, default 0)
+
+  sleep_until — Wait until a specific time point
+    --target_time                string    必填   Target time (format: HH:mm or yyyy-MM-dd HH:mm:ss)
+    --timezone_offset_hours      integer   可选   Timezone offset (hours, optional, default local time)
+
+  ask_user_question — Ask the user multiple choice questions to gather information, clarify ambiguity, or make decisions
+    --questions                  string    必填   Questions to ask the user (JSON array, 1-4 questions). Each: {question, header, options:[{label,description,preview?}], multiSelect?}
+
+  confirm_action — Ask the user to confirm an action with yes/no
+    --action                     string    必填   The action to confirm
+    --message                    string    可选   Detailed confirmation message (optional)
+
+  agent_system_stats — Get overall agent execution statistics
+    (无参数)
+
+  agent_list_stats — List statistics for all agents
+    (无参数)
+
+  agent_stats — Get detailed statistics for a specific agent
+    --agent_name                 string    必填   Agent name
+
+  agent_history — Get execution history for an agent
+    --agent_name                 string    必填   Agent name
+    --limit                      integer   可选   Result count limit
+
+  agent_running_stats — Get currently running agent executions
+    (无参数)
+
+  agent_execution_detail — Get detailed information about a specific execution
+    --execution_id               string    必填   Execution ID
+
+  agent_clear_history — Clear agent execution history
+    --older_than_days            integer   可选   Clear records older than N days (optional)
+    --confirm                    string    必填   Confirm clear (enter 'yes' to confirm)
+
+  memory_daily_log_append — Append an entry to the assistant daily log
+    --content                    string    必填   Log content
+    --category                   string    可选   Log category (Action/Observation/Decision/Result, optional)
+    --related_memory_id          string    可选   Related memory ID (optional)
+
+  memory_daily_log_get — Get today's assistant daily log
+    (无参数)
+
+  memory_search_history — Search past conversation memories
+    --query                      string    必填   Search query
+    --limit                      integer   可选   Result count limit
+
+  memory_team_sync — Sync team memories
+    --team_id                    string    必填   Team ID
+
+  memory_team_status — Get team sync status
+    --team_id                    string    必填   Team ID
+
+  memory_scan — Scan memories to find relevant ones
+    --query                      string    必填   Search query
+    --category                   string    可选   Category filter (optional)
+    --limit                      integer   可选   Result count limit
+
+  memory_age — Get memory age and access statistics
+    --attention_only             boolean   可选   Show only memories needing attention
+
+  memory_cleanup — Clean up old memories (archive or delete)
+    --archive_after_days         integer   可选   Archive threshold in days (default 90)
+    --delete_after_days          integer   可选   Delete threshold in days (default 180)
+    --confirm                    string    必填   Confirm execution (enter 'yes' to confirm)
+
+  memory_health — Get memory health report
+    (无参数)
+
+  memory_add_team_path — Add a team shared memory path
+    --team_id                    string    必填   Team ID
+    --path                       string    必填   Memory path
+    --is_shared                  boolean   可选   Whether shared
+    --allowed_agents             string    可选   Allowed agents list (comma-separated)
+
+  memory_list_team_paths — List team memory paths
+    --team_id                    string    可选   Team ID (optional, omit to show all)
+
+  memory_remove_team_path — Remove a team memory path
+    --team_id                    string    必填   Team ID
+    --path                       string    必填   Memory path
+
+  memory_scan_team — Scan team shared memories
+    --team_id                    string    必填   Team ID
+    --query                      string    必填   Search query
+    --limit                      integer   可选   Result count limit
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

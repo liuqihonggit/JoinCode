@@ -1,0 +1,48 @@
+jcc-tool-permission — permission 工具分组（7 个工具）
+
+用法:
+  jcc-tool-permission.exe <工具名> [参数...]
+  jcc-tool-permission.exe -h
+  jcc-tool-permission.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  permission_add_rule                添加代理权限规则
+  permission_remove_rule             Remove a permission rule for an agent
+  permission_list_rules              列出所有权限规则
+  permission_check_tool              Check an agent's permission for a tool
+  permission_check_path              检查代理对路径的权限
+  permission_get_agent_rule          获取指定代理的权限规则
+  permission_clear_rules             Clear all permission rules
+
+单个工具的参数说明:
+
+  permission_add_rule — 添加代理权限规则
+    --agent_pattern              string    必填   代理名称或模式（支持通配符 *）
+    --mode                       string    必填   权限模式 (auto/plan/ask/deny)
+    --level                      string    可选   权限级别 (none/read/write/execute/admin)
+    --allowed_tools              string    可选   允许的工具列表（逗号分隔）
+    --denied_tools               string    可选   拒绝的工具列表（逗号分隔）
+    --description                string    可选   规则描述
+    --priority                   integer   可选   优先级（数字越大优先级越高）
+
+  permission_remove_rule — Remove a permission rule for an agent
+    --agent_pattern              string    必填   代理名称或模式
+
+  permission_list_rules — 列出所有权限规则
+    (无参数)
+
+  permission_check_tool — Check an agent's permission for a tool
+    --agent_name                 string    必填   代理名称
+    --tool_name                  string    必填   工具名称
+
+  permission_check_path — 检查代理对路径的权限
+    --agent_name                 string    必填   代理名称
+    --path                       string    必填   路径
+
+  permission_get_agent_rule — 获取指定代理的权限规则
+    --agent_name                 string    必填   代理名称
+
+  permission_clear_rules — Clear all permission rules
+    --confirm                    string    必填   确认清除（输入 'yes' 确认）
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

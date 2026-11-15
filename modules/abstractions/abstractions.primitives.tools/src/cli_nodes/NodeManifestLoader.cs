@@ -41,7 +41,22 @@ public static class NodeManifestLoader {
         Directory.Exists(root)
             ? Directory.EnumerateFiles(root, NodeFileName, SearchOption.AllDirectories)
                 .OrderBy(path => path, StringComparer.Ordinal)
-                .Select(LoadNodeFromFile)
+                .Select(TryLoadNode)
+                .OfType<CliToolDescriptor>()
                 .ToArray()
             : Array.Empty<CliToolDescriptor>();
+
+    /// <summary>
+    /// 单个清单损坏时跳过，而不是让整个搜索崩溃 — 几十个分组里任意一个写错都不该拖垮下钻。
+    /// 报错含原因、触发文件、拦截层与修复方式，避免静默吞掉。
+    /// </summary>
+    private static CliToolDescriptor? TryLoadNode(string path) {
+        try {
+            return LoadNodeFromFile(path);
+        } catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException) {
+            Console.Error.WriteLine($"跳过损坏的 CLI 节点清单 '{path}'（NodeManifestLoader 目录扫描层拦截）：{ex.Message}");
+            Console.Error.WriteLine("修复方式：检查该 node.yaml 的 id/name/summary 是否完整且 YAML 转义正确；或用 --dir 指向其他工具目录。");
+            return null;
+        }
+    }
 }

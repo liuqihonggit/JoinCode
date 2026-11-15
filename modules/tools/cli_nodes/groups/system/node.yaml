@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: system
+name: jcc-tool-system
+summary: "按功能→型号渐进式查找模型表，用于模态不匹配时寻找支持目标功能的模型; Search available tools by keyword or exact selection"
+category: system
+exe: jcc-tool-system.exe
+tags: [model, tool]
+tool_count: 2
+parameters: []

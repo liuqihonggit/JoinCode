@@ -1,0 +1,31 @@
+jcc-tool-code_generation — code_generation 工具分组（3 个工具）
+
+用法:
+  jcc-tool-code_generation.exe <工具名> [参数...]
+  jcc-tool-code_generation.exe -h
+  jcc-tool-code_generation.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  generate_csharp_code               Generate C# code from description
+  generate_unit_test                 Generate unit tests for existing C# code
+  generate_api_controller            Generate ASP.NET Core API controller
+
+单个工具的参数说明:
+
+  generate_csharp_code — Generate C# code from description
+    --description                string    必填   Code requirement description
+    --context                    string    可选   Code context or related code snippets
+    --framework_version          string    可选   Target framework version, e.g. net8.0, net10.0
+
+  generate_unit_test — Generate unit tests for existing C# code
+    --code                       string    必填   C# code to test
+    --test_framework             string    可选   Test framework, e.g. xunit, nunit, mstest  默认=xunit
+    --test_count                 integer   可选   Number of tests to generate  默认=5
+
+  generate_api_controller — Generate ASP.NET Core API controller
+    --description                string    必填   Controller requirement description
+    --model_definition           string    可选   Entity/model class definition
+    --include_crud               boolean   可选   Whether to include CRUD operations  默认=true
+    --include_auth               boolean   可选   Whether to include authentication  默认=false
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

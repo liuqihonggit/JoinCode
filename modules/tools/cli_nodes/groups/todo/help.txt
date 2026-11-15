@@ -1,0 +1,36 @@
+jcc-tool-todo — todo 工具分组（4 个工具）
+
+用法:
+  jcc-tool-todo.exe <工具名> [参数...]
+  jcc-tool-todo.exe -h
+  jcc-tool-todo.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  complete_step                      Record the evidence-backed completion of ONE step of an approved plan. Call it as you finish each step instead of silently moving on: it signs the step off with PROOF it is done — the verification you ran (command + result), the diff/files you changed, or a manual check. A completion with no evidence is REJECTED, so don't claim a step is done until you can show why. The host advances the task list for you when you sign off — it marks this step completed and moves the next to in_progress, so you don't need a separate TodoWrite to mark completions.
+  todo_write                         Update the todo list for the current session. To be used proactively and often to track progress and pending tasks. Make sure that at least one task is in_progress at all times. Always provide both content (imperative) and activeForm (present continuous) for each task. Supports dependsOn (list of todo IDs this task depends on) and ownedFiles (list of file paths this task owns) for DAG-based task planning.
+  todo_list                          List todo items with optional filtering
+  todo_update                        Update a single todo item
+
+单个工具的参数说明:
+
+  complete_step — Record the evidence-backed completion of ONE step of an approved plan. Call it as you finish each step instead of silently moving on: it signs the step off with PROOF it is done — the verification you ran (command + result), the diff/files you changed, or a manual check. A completion with no evidence is REJECTED, so don't claim a step is done until you can show why. The host advances the task list for you when you sign off — it marks this step completed and moves the next to in_progress, so you don't need a separate TodoWrite to mark completions.
+    --step                       string    必填   Which plan step this completes — its title or number, matching the task list
+    --result                     string    必填   What is now true or changed as a result of finishing this step
+    --evidence                   array     可选   Proof the step is done. At least one item is required. Each item has: kind (verification|diff|files|manual) and summary, plus optional command (REQUIRED for verification) and paths (REQUIRED for diff/files)
+    --notes                      string    可选   Optional caveats, follow-ups, or anything deferred
+
+  todo_write — Update the todo list for the current session. To be used proactively and often to track progress and pending tasks. Make sure that at least one task is in_progress at all times. Always provide both content (imperative) and activeForm (present continuous) for each task. Supports dependsOn (list of todo IDs this task depends on) and ownedFiles (list of file paths this task owns) for DAG-based task planning.
+    --todos                      array     可选   The updated todo list. Each item has: content (required), status (pending/in_progress/completed, required), activeForm (required, present tense like 'Implementing feature'), priority (high/medium/low, optional), id (optional, auto-generated if omitted), dependsOn (optional, list of todo IDs this task depends on), ownedFiles (optional, list of file paths this task owns)
+
+  todo_list — List todo items with optional filtering
+    --status                     string    可选   Filter by status: pending, in_progress, completed
+    --priority                   string    可选   Filter by priority: low, medium, high
+    --include_completed          boolean   可选   Whether to include completed todos (default: false)  默认=false
+
+  todo_update — Update a single todo item
+    --todo_id                    string    必填   The ID of the todo item to update
+    --content                    string    可选   New content (optional)
+    --status                     string    可选   New status: pending, in_progress, completed (optional)
+    --priority                   string    可选   New priority: low, medium, high (optional)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

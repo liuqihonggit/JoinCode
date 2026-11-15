@@ -1,6 +1,6 @@
 # ADR 0157: 去生成器 + 基础工具 YAML 注册 + 全量工具独立 CLI.exe + CLI 搜索下钻
 
-- 状态：proposed（v2 修订，取代同编号 v1；v1 的「复用 mcp_call、不新增 exe、Profile 只做开关」方案作废）
+- 状态：proposed（v3 修订 — 按用户 2026-11-15 后续指令改为「按分组一个 exe + 特性原封不动 + 复用现有说明做 -h」；v1 作废，v2 的「540 个独立 exe / 描述搬到新 YAML」已被本版取代）
 - 日期：2026-11-15
 - 关联：ADR 0149（减少 exe 数量 — **本次显式收窄适用范围**）、ADR 0137（功能域就近隔离）、DSG048（节点插件继承架构）、DSG018（工具渐进式暴露 — **本次判定为错误层**）
 - 上游用户指令（2026-11-15 原文）：
@@ -58,10 +58,20 @@
 
 | 用户指令 | 决策 |
 |---------|------|
-| ① 扔掉工具源码生成器 | 移除 `McpToolDispatchGenerator` / `[McpTool]` / `[McpToolDispatch]` / `[McpToolParameter]` 链路。工具改为**自己声明参数契约**（`node.yaml` + `ICliToolNode`），不再由中央生成器按程序集扫描。**渐进式**：先切基础工具与垂直切片，验证后分批迁移，最后归档生成器项目到 `.xxx/` 并修复引用（禁止直接删除） |
-| ② yml 注册基础工具 | 新增 `resources/tools/base.yaml`，用 YamlDotNet 反序列化为 `BaseToolManifest` DTO（复用 `ToolSchema` 类型），经 `BaseToolRegistry` 提供 4 个工具的完整 schema。与 `NodeProfile` 一样作为内嵌资源，AOT 兼容 |
-| ③ 其余全部转独立 CLI.exe | 每个工具一个自包含目录：`node.yaml`（描述 + 参数 + 示例）+ `cli/`（独立 exe 入口）+ handler + 测试。`-h` 从 `node.yaml` 生成。LLM 通过 bash 调用，`-h` 输出即按需阅读的说明 |
-| ④ CLI 搜索下钻 | 移除 MCP 的 `tool_groups` / `tool_search` 三级下钻 / 两阶段加载对工具的适用；改为 `jcc tool find <query>` / `jcc tool tree`（基于目录树 + `node.yaml` 元数据）。**不在提示词里教语法**，LLM 用 bash 自然探索 |
+| ① 扔掉工具源码生成器 | **v3 修订**：`[McpTool]` / `[McpToolParameter]` 特性**全部保留不动** — 它们是现成的描述单一数据源。生成器退役推迟到所有消费方切换完毕之后，避免在迁移期制造两套说明。当前先用编译期只读扫描器复用特性文本 |
+| ② yml 注册基础工具 | 保留 v2 决策：`resources/tools/base.yaml` 声明 4 个基础工具（读/写/编译/bash），由 `BaseToolRegistry` 内嵌资源加载 |
+| ③ 其余全部转独立 CLI.exe | **v3 修订**：不是「每个工具一个 exe」，而是**按 `ToolCategory` 分组，每组一个独立 exe**（全仓实测 51 个分组，覆盖 546 个工具）。组内每个工具是 exe 的一个子命令；`-h` 分组总览 + `<工具名> -h` 单工具详情 |
+| ④ CLI 搜索下钻 | 保留 v2 决策：`jcc tool find` / `tree` / `help` 基于目录树与分组索引；分组索引由脚本从现有特性生成，不放进 MCP、不进提示词 |
+
+### 3.2.1 v3 的关键简化（用户 2026-11-15 指令）
+
+> 「大部分的 mcp 特性是不需要改的，你只需要按照每个分组单独一个 cli.exe，这样就可以 bash 调用它们了。而且复用现有的 mcp 说明，来制造 -h 说明也很好。」
+
+由此取消 v2 的「把参数描述从 C# 特性搬到新 `node.yaml`」这一整套数据迁移工作。新增 `scripts/migrate_mcp_tools_to_cli_nodes.py`：**只读**扫描 5248 个 .cs，按分组把现有特性说明渲染成 `help.txt`（编译期内嵌）+ 分组级 `node.yaml`（供下钻索引），不修改任何源 .cs、不重复写一份描述。
+
+实测产出：扫描 5248 文件 / 发现 546 个工具 / 归入 **51 个分组** / 生成 102 个文件（每组 help.txt + node.yaml）。陈旧分组目录由脚本幂等移到项目根 `.xxx/` 归档，不删除。
+
+首个完整样板：`modules/tools/cli_nodes/groups/git/` → `jcc-tool-git.exe`，10 个 git 工具全部可用 BCL `Process` 实现，零引擎依赖；`-h` 文本完全来自现有特性。
 
 ### 3.3 对 ADR 0149 的显式收窄
 
@@ -128,10 +138,12 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 | 3 | 契约层：`ICliToolNode` / `BaseToolManifest` DTO / YamlDotNet Loader / `BaseToolRegistry` / CLI 搜索下钻 | ✅ 已完成（13/13 单测） |
 | 4 | `resources/tools/base.yaml` 注册 4 个基础工具 + 单元测试 | ✅ 已完成（`jcc tool base` 真实 exe 验收） |
 | 5 | 垂直切片：改造 `jcc-rg.exe`（`node.yaml` + `-h` + 独立可运行），实测单 exe 编译/体积成本 | ✅ 已完成（实测 81 DLL / 16 MB，见 TASK082 §4） |
-| 6 | 按工具域分批迁移其余工具（每批编译 + 测试 + commit） | 待办 |
-| 7 | 切换主请求链路：首轮 `tools` 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | 待办 |
-| 8 | 目录节点化重组 + 归档生成器项目到 `.xxx/` + 修复引用 | 待办 |
-| 9 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 部分完成：`Build-AllDomains.ps1` 全仓编译通过（6m7s）；真机 exe 验收已过；全量测试与 ADR 转 accepted 待步骤 6-8 完成后执行 |
+| 6 | 依赖墙收敛 + `cli_node.props` 共享配置 + AOT 成本实测 | ✅ 已完成（81 DLL/16MB → 5 DLL/653KB，增量编译 1.94s） |
+| 7 | 只读扫描器从现有特性生成分组索引与 `-h` 文本 + `jcc-tool-git.exe` 完整样板 | ✅ 已完成（51 组 / 546 工具 / 102 文件；git 组真机验收通过） |
+| 8 | 其余 50 个分组 exe 按批次实现（每组一个 exe，组内工具为子命令） | 待办 |
+| 9 | 切换主请求链路：首轮 `tools` 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | 待办 |
+| 10 | 目录节点化重组 + 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 | 待办 |
+| 11 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 部分完成：全仓编译通过（6m7s）、真机 exe 验收通过；全量测试待步骤 8-10 |
 
 ---
 
@@ -142,9 +154,9 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 | 首次请求 `tools` 字段只含 4 个基础工具 | 真实 exe + debuglog 抓 `[WIRE]` 请求体 |
 | 请求体字节数量级下降 | 与 466KB 事故基线对比 |
 | 基础工具由 YAML 注册 | `jcc tool base --dump` 输出 4 条，与 `base.yaml` 一致 |
-| 任意 CLI 工具独立运行 | `<tool>.exe <args>` 真实执行，不依赖会话 |
-| 任意工具 `-h` 自描述 | `<tool>.exe -h` 输出参数定义，参数来自 `node.yaml` |
-| 工具描述不进提示词 | 系统提示词快照 grep 无工具参数描述 |
+| 任意分组 exe 独立运行 | `jcc-tool-git.exe git_status` / `git_log` 真实执行，不依赖会话 |
+| 任意工具 `-h` 自描述 | `jcc-tool-git.exe -h` 分组总览 + `<工具名> -h` 单工具详情，文本来自现有 `[McpTool]` 特性 |
+| 描述数据不进提示词，也不重复维护 | 脚本只读扫描源 .cs，未修改任何特性；系统提示词快照无工具参数描述 |
 | CLI 搜索下钻 | `jcc tool find <query>` / `jcc tool tree` 实测 |
 | MCP 分组已退役 | 代码检索无 `tool_groups` 生产路径 |
 | 全仓编译 + 全量测试 | `Build-AllDomains.ps1` + mainAgent 全量测试 |

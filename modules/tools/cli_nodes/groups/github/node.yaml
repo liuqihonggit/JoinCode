@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: github
+name: jcc-tool-github
+summary: "通用 GitHub REST API 调用(直调 api.github.com,输出完整 JSON); 查看 GitHub Auth 状态; 登录 GitHub(PAT token 验证后保存到 hosts.yml)"
+category: github
+exe: jcc-tool-github.exe
+tags: [gh]
+tool_count: 172
+parameters: []

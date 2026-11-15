@@ -1,0 +1,21 @@
+jcc-tool-code — code 工具分组（2 个工具）
+
+用法:
+  jcc-tool-code.exe <工具名> [参数...]
+  jcc-tool-code.exe -h
+  jcc-tool-code.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  mcp_ai_workflow_workflow_generate_code Generate code for writing programs, implementing features and developing modules
+  mcp_ai_workflow_workflow_analyze_code Analyze code for code review, bug detection, optimization suggestions and security audit
+
+单个工具的参数说明:
+
+  mcp_ai_workflow_workflow_generate_code — Generate code for writing programs, implementing features and developing modules
+    --requirement                string    必填   Code requirement description, e.g.: Create a user authentication service with login and registration
+
+  mcp_ai_workflow_workflow_analyze_code — Analyze code for code review, bug detection, optimization suggestions and security audit
+    --code                       string    必填   Code to analyze
+    --analysisType               string    可选   Analysis type: general, bugs, optimize, security  默认=general
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: team
+name: jcc-tool-team
+summary: "Create a new team; Delete a team; Get team information"
+category: team
+exe: jcc-tool-team.exe
+tags: [team]
+tool_count: 10
+parameters: []

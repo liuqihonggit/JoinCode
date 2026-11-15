@@ -1,0 +1,24 @@
+jcc-tool-chat — chat 工具分组（3 个工具）
+
+用法:
+  jcc-tool-chat.exe <工具名> [参数...]
+  jcc-tool-chat.exe -h
+  jcc-tool-chat.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  mcp_ai_workflow_workflow_chat      Chat with AI for communication and Q&A
+  mcp_ai_workflow_workflow_clear_history Clear chat history
+  mcp_ai_workflow_workflow_get_history Get chat history records
+
+单个工具的参数说明:
+
+  mcp_ai_workflow_workflow_chat — Chat with AI for communication and Q&A
+    --message                    string    必填   Message content
+
+  mcp_ai_workflow_workflow_clear_history — Clear chat history
+    (无参数)
+
+  mcp_ai_workflow_workflow_get_history — Get chat history records
+    (无参数)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

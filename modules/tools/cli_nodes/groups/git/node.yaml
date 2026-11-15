@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: git
+name: jcc-tool-git
+summary: "Check Git repository status; Add files to staging area; Commit staged changes"
+category: git
+exe: jcc-tool-git.exe
+tags: [git]
+tool_count: 10
+parameters: []

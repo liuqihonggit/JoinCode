@@ -1,0 +1,74 @@
+jcc-tool-git — git 工具分组（10 个工具）
+
+用法:
+  jcc-tool-git.exe <工具名> [参数...]
+  jcc-tool-git.exe -h
+  jcc-tool-git.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  git_status                         Check Git repository status
+  git_add                            Add files to staging area
+  git_commit                         Commit staged changes
+  git_push                           Push to remote repository
+  git_pull                           Pull from remote repository
+  git_log                            View commit history
+  git_diff                           View file differences
+  git_branch                         Create or switch branch
+  git_clone                          Clone remote repository
+  git_submodule_update               Init and update submodules in parallel
+
+单个工具的参数说明:
+
+  git_status — Check Git repository status
+    --working_dir                string    可选   Working directory path (optional, defaults to current directory)
+
+  git_add — Add files to staging area
+    --path                       string    必填   File path (supports wildcards *, use . for all files)
+    --working_dir                string    可选   Working directory path (optional)
+
+  git_commit — Commit staged changes
+    --message                    string    必填   Commit message
+    --working_dir                string    可选   Working directory path (optional)
+    --allow_empty                boolean   可选   Allow empty commit  默认=false
+
+  git_push — Push to remote repository
+    --remote                     string    可选   Remote name (optional, defaults to origin)  默认=origin
+    --branch                     string    可选   Branch name (optional, defaults to current branch)
+    --working_dir                string    可选   Working directory path (optional)
+    --force                      boolean   可选   Force push  默认=false
+
+  git_pull — Pull from remote repository
+    --remote                     string    可选   Remote name (optional, defaults to origin)  默认=origin
+    --branch                     string    可选   Branch name (optional, defaults to current branch)
+    --working_dir                string    可选   Working directory path (optional)
+
+  git_log — View commit history
+    --count                      integer   可选   Number of entries (optional, defaults to 10)  默认=10
+    --working_dir                string    可选   Working directory path (optional)
+    --format                     string    可选   Format: oneline/short/full (optional)  默认=oneline
+
+  git_diff — View file differences
+    --path                       string    可选   File path (optional, defaults to all files)
+    --working_dir                string    可选   Working directory path (optional)
+    --mode                       string    可选   Compare mode: staged/cached/worktree (optional)  默认=worktree
+
+  git_branch — Create or switch branch
+    --branch_name                string    必填   Branch name
+    --operation                  string    可选   Operation: create/switch/delete (optional, defaults to switch)  默认=switch
+    --working_dir                string    可选   Working directory path (optional)
+    --base_branch                string    可选   Base branch (optional, for create)
+
+  git_clone — Clone remote repository
+    --url                        string    必填   Repository URL
+    --directory                  string    可选   Local directory name (optional)
+    --parent_dir                 string    可选   Parent directory path (optional, defaults to current directory)
+    --branch                     string    可选   Branch (optional)
+    --recursive                  boolean   可选   Recursively clone submodules in parallel (optional, defaults to false)  默认=false
+
+  git_submodule_update — Init and update submodules in parallel
+    --working_dir                string    可选   Working directory path (optional, defaults to current directory)
+    --depth                      integer   可选   Shallow clone depth (optional, defaults to 1 for latest commit only)  默认=1
+    --jobs                       integer   可选   Parallel job count (optional, defaults to CPU×2)
+    --adaptive                   boolean   可选   Adaptive: auto-detect latency, use tarball API for high-latency (optional, defaults to false)  默认=false
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

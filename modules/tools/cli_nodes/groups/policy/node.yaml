@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: policy
+name: jcc-tool-policy
+summary: "Check if an action complies with policy rules; List all active policy rules"
+category: policy
+exe: jcc-tool-policy.exe
+tags: [policy]
+tool_count: 2
+parameters: []

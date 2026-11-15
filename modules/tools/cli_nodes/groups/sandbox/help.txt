@@ -1,0 +1,42 @@
+jcc-tool-sandbox — sandbox 工具分组（6 个工具）
+
+用法:
+  jcc-tool-sandbox.exe <工具名> [参数...]
+  jcc-tool-sandbox.exe -h
+  jcc-tool-sandbox.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  sandbox_enter                      Enter a sandbox with the specified isolation type. If the requested type is unavailable, automatically falls back to a lower isolation level. Available types: soft (path redirection), process (OS-level process isolation), docker (container isolation), bubblewrap (Linux namespace isolation).
+  sandbox_exit                       Exit the current sandbox and restore normal access.
+  sandbox_switch                     Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back.
+  sandbox_status                     Get the current sandbox status including type, isolation level, available types, and health state.
+  sandbox_exec                       Execute a command inside the sandbox with anti-stuck timeout protection. When timeout is reached, the command is NOT interrupted - instead you (LLM) are asked to decide: continue waiting or force stop. Default timeout is 2 minutes.
+  sandbox_exec_continue              Continue a timed-out sandbox execution. Choose to wait longer or force stop the command.
+
+单个工具的参数说明:
+
+  sandbox_enter — Enter a sandbox with the specified isolation type. If the requested type is unavailable, automatically falls back to a lower isolation level. Available types: soft (path redirection), process (OS-level process isolation), docker (container isolation), bubblewrap (Linux namespace isolation).
+    --restrictFileSystem         string    可选   Restrict file system access
+    --restrictNetwork            string    可选   Restrict network access
+    --sandboxRoot                string    可选   Custom sandbox root path
+    --memoryLimitMb              string    可选   Memory limit in MB (process/docker only)
+    --cpuLimitPercent            string    可选   CPU limit percent 1-100 (process/docker only)
+    --allowFallback              string    可选   Allow automatic fallback to lower isolation if requested type unavailable
+
+  sandbox_exit — Exit the current sandbox and restore normal access.
+    (无参数)
+
+  sandbox_switch — Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back.
+    (无参数)
+
+  sandbox_status — Get the current sandbox status including type, isolation level, available types, and health state.
+    (无参数)
+
+  sandbox_exec — Execute a command inside the sandbox with anti-stuck timeout protection. When timeout is reached, the command is NOT interrupted - instead you (LLM) are asked to decide: continue waiting or force stop. Default timeout is 2 minutes.
+    --command                    string    必填   Command to execute in the sandbox
+    --customTimeoutSeconds       string    可选   Custom timeout in seconds (only used when timeout=custom)
+
+  sandbox_exec_continue — Continue a timed-out sandbox execution. Choose to wait longer or force stop the command.
+    --executionId                string    必填   Execution ID from sandbox_exec timeout response
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

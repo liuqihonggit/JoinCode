@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: analytics
+name: jcc-tool-analytics
+summary: "Get system usage statistics report; Get tool usage statistics details; Get analytics event history"
+category: analytics
+exe: jcc-tool-analytics.exe
+tags: [agent, analytics]
+tool_count: 12
+parameters: []

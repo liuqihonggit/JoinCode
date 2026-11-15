@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: tool_debug
+name: jcc-tool-tool_debug
+summary: "查看工具的评分状态（独立评分+超图评分+有效评分+黑名单/降权）; 查看工具链超图结构（所有超边+成员评分+链路顺序）; 重置工具评分（清除健康记录，恢复初始状态）"
+category: tool_debug
+exe: jcc-tool-tool_debug.exe
+tags: [tool]
+tool_count: 3
+parameters: []

@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: code_analysis
+name: jcc-tool-code_analysis
+summary: "Analyze C# code quality and provide improvement suggestions; Find potential bugs and issues in C# code; Analyze and optimize C# code performance and readability"
+category: code_analysis
+exe: jcc-tool-code_analysis.exe
+tags: [analyze, find, optimize, security]
+tool_count: 4
+parameters: []

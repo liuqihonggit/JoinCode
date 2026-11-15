@@ -1,0 +1,229 @@
+jcc-tool-desktop — desktop 工具分组（39 个工具）
+
+用法:
+  jcc-tool-desktop.exe <工具名> [参数...]
+  jcc-tool-desktop.exe -h
+  jcc-tool-desktop.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  right_click_menu                   右键点击指定坐标,等待菜单渲染后点击菜单项坐标
+  drag_with_hover                    拖拽到目标位置并悬停等待弹出菜单,然后可选点击弹出项
+  multi_click                        按顺序点击多个坐标,每步之间可配置等待时间
+  mouse_click                        在指定屏幕坐标执行鼠标点击
+  mouse_move                         移动光标到指定坐标
+  mouse_drag                         从起点拖拽到终点
+  key_press                          按下按键（虚拟键码）
+  type_text                          输入文本（支持 Unicode 中文）
+  show_desktop_overlay               在桌面上显示高亮框标注区域位置。用GDI在桌面画框,超时自动清除。用于向用户实际标注桌面上找到的东西。前置:可用screenshot+detect_ui_elements获取坐标
+  show_desktop_pulse                 在桌面上显示半透明脉冲圆动画标注目标位置。圆从大到小循环收缩(瞄准镜效果),引导用户视线聚焦。用透明窗口绘制不侵入桌面,超时自动关闭。前置:需先screenshot+detect_ui_elements或quadtree_build获取目标坐标
+  look_at_cursor                     获取鼠标位置,四叉树递归截图,让LLM看见鼠标指向的内容。以鼠标所在格子为截图范围,depth控制粒度(depth=0全屏,depth=1四分之一屏)。可选显示四叉树分裂动画。如果截图太小,返回提示建议减小depth重试
+  desktop_click                      点击指定坐标。场景完成后调 desktop_look 继续下一步操作。
+  desktop_detect                     多模态识别当前区域的 UI 元素，返回按钮/输入框列表。识别到按钮推荐 click，输入框推荐 type。
+  desktop_look                       截图并构建四叉树网格，返回带网格标注的截图。场景第一步，AI 看图后调 desktop_zoom 选目标所在象限缩小。
+  desktop_scene_menu                 桌面操作场景入口。调用获取可用动作菜单、场景说明（四叉树夹逼法）、建议编排流程。AI 通过此菜单发现桌面操作工具集。
+  desktop_scene_status               查看当前夹逼进度：当前层/格子/历史路径。用于纠偏或跨调用恢复。
+  desktop_zoom                       选 1/2/3/4 象限缩小，返回更清晰的子图。看不清就反复 zoom，看清后调 detect。back=true 退回上一层纠偏。
+  get_environment_state              获取当前桌面环境状态：光标状态(正常/等待/沙漏)和弹窗检测
+  wait_for_idle                      等待桌面异步操作完成（光标恢复空闲），避免固定等待
+  undo_last_action                   撤销上一步桌面操作，返回被撤销的操作信息
+  get_operation_history              获取最近N步桌面操作历史记录
+  start_recording                    开始录制桌面操作序列为宏
+  stop_recording                     停止录制并保存宏到文件
+  play_macro                         从文件加载宏并回放,支持加速执行
+  list_macros                        列出指定目录中的宏文件(.json)
+  start_observation                  开始观察用户演示操作,录制鼠标键盘事件序列
+  learn_from_observation             停止观察并用AI抽象出参数化操作逻辑
+  optimize_steps                     分析操作逻辑并提出优化建议(合并冗余/缩短等待/替代操作)
+  reproduce_from_logic               从抽象操作逻辑生成具体操作序列并执行(观察复现)
+  list_processes                     枚举运行中进程,可按名称过滤,返回PID/名称/主窗口标题
+  kill_process                       按PID或名称结束进程
+  start_process                      启动新进程,返回PID
+  detect_ui_elements                 截取屏幕并识别所有UI元素（按钮/输入框/菜单等），返回类型/坐标/状态/语义描述
+  find_element                       按自然语言描述查找UI元素（如"红色的停止按钮"），返回坐标供 mouse_click 使用
+  list_windows                       枚举所有可见顶层窗口
+  focus_window                       按标题或进程名激活窗口到前台
+  move_window                        移动并调整窗口大小
+  close_window                       关闭指定窗口（发送WM_CLOSE）
+  screenshot                         截取屏幕/窗口/区域，返回 base64 PNG
+
+单个工具的参数说明:
+
+  right_click_menu — 右键点击指定坐标,等待菜单渲染后点击菜单项坐标
+    --targetX                    integer   必填   右键目标 X 坐标
+    --targetY                    integer   必填   右键目标 Y 坐标
+    --menuItemX                  integer   必填   菜单项 X 坐标
+    --menuItemY                  integer   必填   菜单项 Y 坐标
+    --menuRenderDelayMs          integer   可选   等待菜单渲染毫秒数  默认=500
+
+  drag_with_hover — 拖拽到目标位置并悬停等待弹出菜单,然后可选点击弹出项
+    --fromX                      integer   必填   起点 X
+    --fromY                      integer   必填   起点 Y
+    --toX                        integer   必填   终点 X
+    --toY                        integer   必填   终点 Y
+    --hoverMs                    integer   可选   悬停等待毫秒数（等待弹出）  默认=800
+    --popupItemX                 integer   可选   弹出项 X 坐标（不传则仅拖拽悬停）
+    --popupItemY                 integer   可选   弹出项 Y 坐标
+
+  multi_click — 按顺序点击多个坐标,每步之间可配置等待时间
+    --coordinates                string    必填   坐标列表,格式:x1,y1;x2,y2;x3,y3
+    --stepDelayMs                integer   可选   每步间隔毫秒数  默认=500
+
+  mouse_click — 在指定屏幕坐标执行鼠标点击
+    --x                          integer   必填   X 坐标（像素）
+    --y                          integer   必填   Y 坐标（像素）
+    --action                     string    可选   动作: click/right_click/double_click/middle  默认=click
+
+  mouse_move — 移动光标到指定坐标
+    --x                          integer   必填   X 坐标
+    --y                          integer   必填   Y 坐标
+
+  mouse_drag — 从起点拖拽到终点
+    --fromX                      integer   必填   起点 X
+    --fromY                      integer   必填   起点 Y
+    --toX                        integer   必填   终点 X
+    --toY                        integer   必填   终点 Y
+    --hoverMs                    integer   可选   终点悬停毫秒（等待弹出）
+
+  key_press — 按下按键（虚拟键码）
+    --virtualKey                 integer   必填   Win32 虚拟键码（如 0x0D=回车）
+    --modifiers                  string    可选   修饰键: none/shift/control/alt/win（可组合用 |）  默认=none
+
+  type_text — 输入文本（支持 Unicode 中文）
+    --text                       string    必填   要输入的文本
+
+  show_desktop_overlay — 在桌面上显示高亮框标注区域位置。用GDI在桌面画框,超时自动清除。用于向用户实际标注桌面上找到的东西。前置:可用screenshot+detect_ui_elements获取坐标
+    --x                          integer   必填   高亮框左上角X（屏幕坐标）
+    --y                          integer   必填   高亮框左上角Y（屏幕坐标）
+    --width                      integer   必填   高亮框宽度（像素）
+    --height                     integer   必填   高亮框高度（像素）
+    --durationMs                 integer   可选   显示时长（毫秒），超时自动清除，默认3000  默认=3000
+    --color                      string    可选   边框颜色: red/green/blue/yellow/cyan/magenta，默认yellow  默认=yellow
+
+  show_desktop_pulse — 在桌面上显示半透明脉冲圆动画标注目标位置。圆从大到小循环收缩(瞄准镜效果),引导用户视线聚焦。用透明窗口绘制不侵入桌面,超时自动关闭。前置:需先screenshot+detect_ui_elements或quadtree_build获取目标坐标
+    --centerX                    integer   必填   目标中心X（屏幕坐标）
+    --centerY                    integer   必填   目标中心Y（屏幕坐标）
+    --maxRadius                  integer   可选   最大半径（像素），默认120  默认=120
+    --minRadius                  integer   可选   最小半径（像素），默认30  默认=30
+    --durationMs                 integer   可选   动画总时长（毫秒），超时自动关闭，默认5000  默认=5000
+    --frameMs                    integer   可选   帧间隔（毫秒），默认33约30fps  默认=33
+    --color                      string    可选   圆颜色: red/green/blue/yellow/cyan/magenta，默认yellow  默认=yellow
+
+  look_at_cursor — 获取鼠标位置,四叉树递归截图,让LLM看见鼠标指向的内容。以鼠标所在格子为截图范围,depth控制粒度(depth=0全屏,depth=1四分之一屏)。可选显示四叉树分裂动画。如果截图太小,返回提示建议减小depth重试
+    --depth                      integer   可选   四叉树深度(0-5),depth=0截全屏,depth=1截1/4屏,默认1  默认=1
+    --minPixels                  integer   可选   最小截图像素(宽或高),默认100,小于此值返回提示  默认=100
+    --showAnimation              boolean   可选   是否显示四叉树分裂动画,默认true  默认=true
+    --animationDurationMs        integer   可选   动画时长(毫秒),默认2000  默认=2000
+    --baseColor                  string    可选   基础颜色: red/green/blue/yellow/cyan/magenta,默认cyan  默认=cyan
+
+  desktop_click — 点击指定坐标。场景完成后调 desktop_look 继续下一步操作。
+    --sceneId                    string    必填   场景 ID
+    --x                          integer   必填   X 坐标
+    --y                          integer   必填   Y 坐标
+
+  desktop_detect — 多模态识别当前区域的 UI 元素，返回按钮/输入框列表。识别到按钮推荐 click，输入框推荐 type。
+    --sceneId                    string    必填   场景 ID
+
+  desktop_look — 截图并构建四叉树网格，返回带网格标注的截图。场景第一步，AI 看图后调 desktop_zoom 选目标所在象限缩小。
+    --sceneId                    string    可选   场景 ID，首次调用可留空自动创建
+
+  desktop_scene_menu — 桌面操作场景入口。调用获取可用动作菜单、场景说明（四叉树夹逼法）、建议编排流程。AI 通过此菜单发现桌面操作工具集。
+    (无参数)
+
+  desktop_scene_status — 查看当前夹逼进度：当前层/格子/历史路径。用于纠偏或跨调用恢复。
+    --sceneId                    string    必填   场景 ID
+
+  desktop_zoom — 选 1/2/3/4 象限缩小，返回更清晰的子图。看不清就反复 zoom，看清后调 detect。back=true 退回上一层纠偏。
+    --sceneId                    string    必填   场景 ID
+    --quadrant                   integer   必填   象限编号: 1=左上 2=右上 3=左下 4=右下
+    --back                       boolean   可选   是否退回上一层（纠偏用），默认 false  默认=false
+
+  get_environment_state — 获取当前桌面环境状态：光标状态(正常/等待/沙漏)和弹窗检测
+    (无参数)
+
+  wait_for_idle — 等待桌面异步操作完成（光标恢复空闲），避免固定等待
+    --timeoutSeconds             integer   可选   最大等待秒数  默认=10
+
+  undo_last_action — 撤销上一步桌面操作，返回被撤销的操作信息
+    (无参数)
+
+  get_operation_history — 获取最近N步桌面操作历史记录
+    --count                      integer   可选   查看最近几步（默认10）  默认=10
+
+  start_recording — 开始录制桌面操作序列为宏
+    --macroName                  string    必填   宏名称
+
+  stop_recording — 停止录制并保存宏到文件
+    --savePath                   string    可选   保存路径（.json）,不传则不保存
+
+  play_macro — 从文件加载宏并回放,支持加速执行
+    --filePath                   string    必填   宏文件路径（.json）
+    --speed                      integer   可选   加速倍数（1=原速,2=2倍速,0=最大速度）  默认=1
+
+  list_macros — 列出指定目录中的宏文件(.json)
+    --directory                  string    可选   目录路径
+
+  start_observation — 开始观察用户演示操作,录制鼠标键盘事件序列
+    --sessionName                string    必填   观察会话名称
+
+  learn_from_observation — 停止观察并用AI抽象出参数化操作逻辑
+    (无参数)
+
+  optimize_steps — 分析操作逻辑并提出优化建议(合并冗余/缩短等待/替代操作)
+    --name                       string    必填   操作模式名称
+    --pattern                    string    必填   操作模式描述
+    --parameters                 string    可选   参数化描述
+    --steps                      string    可选   步骤列表(分号分隔)
+
+  reproduce_from_logic — 从抽象操作逻辑生成具体操作序列并执行(观察复现)
+    --name                       string    必填   操作模式名称
+    --pattern                    string    必填   操作模式描述
+    --context                    string    必填   目标上下文(如:在记事本中输入hello)
+    --parameters                 string    可选   参数化描述
+    --steps                      string    可选   步骤列表(分号分隔)
+
+  list_processes — 枚举运行中进程,可按名称过滤,返回PID/名称/主窗口标题
+    --nameFilter                 string    可选   进程名过滤（不传则返回全部）
+    --maxCount                   integer   可选   最大返回数量  默认=50
+
+  kill_process — 按PID或名称结束进程
+    --pid                        integer   可选   进程ID（优先使用）
+    --name                       string    可选   进程名称（pid 未传时使用）
+    --force                      boolean   可选   是否强制终止  默认=true
+
+  start_process — 启动新进程,返回PID
+    --fileName                   string    必填   可执行文件路径或名称
+    --arguments                  string    可选   命令行参数
+    --workingDir                 string    可选   工作目录
+
+  detect_ui_elements — 截取屏幕并识别所有UI元素（按钮/输入框/菜单等），返回类型/坐标/状态/语义描述
+    --base64Screenshot           string    可选   已有截图的 base64 PNG（不传则自动截全屏）
+
+  find_element — 按自然语言描述查找UI元素（如"红色的停止按钮"），返回坐标供 mouse_click 使用
+    --description                string    必填   元素的语义描述（自然语言）
+    --base64Screenshot           string    可选   已有截图的 base64 PNG（不传则自动截全屏）
+
+  list_windows — 枚举所有可见顶层窗口
+    (无参数)
+
+  focus_window — 按标题或进程名激活窗口到前台
+    --title                      string    必填   窗口标题或进程名（模糊匹配）
+
+  move_window — 移动并调整窗口大小
+    --title                      string    必填   窗口标题或进程名
+    --x                          integer   必填   X 坐标
+    --y                          integer   必填   Y 坐标
+    --width                      integer   必填   宽度
+    --height                     integer   必填   高度
+
+  close_window — 关闭指定窗口（发送WM_CLOSE）
+    --title                      string    必填   窗口标题或进程名
+
+  screenshot — 截取屏幕/窗口/区域，返回 base64 PNG
+    --scope                      string    可选   范围: screen/window/region  默认=screen
+    --title                      string    可选   窗口标题（scope=window 时使用）
+    --x                          integer   可选   区域 X（scope=region 时使用）
+    --y                          integer   可选   区域 Y
+    --width                      integer   可选   区域宽度
+    --height                     integer   可选   区域高度
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

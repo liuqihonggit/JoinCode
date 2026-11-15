@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: vision
+name: jcc-tool-vision
+summary: "分析图片返回顶层描述+标签列表。每个标签含suggested_attributes供下钻决策。用于M2隐喻拓扑的入口节点; 按标签下钻获取细粒度属性。受token预算(默认2000)+层数上限(默认3)双保险约束。用于M2隐喻拓扑的递归展开; 计算图片中两点间的像素距离。LLM可联网检索参考物尺寸换算为真实长度。返回像素距离+角度"
+category: vision
+exe: jcc-tool-vision.exe
+tags: [image, measure, quadtree, screen, temporal]
+tool_count: 14
+parameters: []

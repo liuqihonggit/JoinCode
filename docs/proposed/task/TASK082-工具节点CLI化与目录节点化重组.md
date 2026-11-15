@@ -1,7 +1,8 @@
 # TASK082: 去生成器 + YAML 基础工具 + 全量独立 CLI.exe + CLI 搜索下钻
 
-> 📍 状态: proposed（v2 重排）｜ 创建: 2026-11-15 ｜ 关联: [ADR 0157 v2](../adr/0157-tool-exposure-data-driven-node-cli.md)、[DSG048](../design/DSG048-node-plugin-inheritance-architecture.md)、ADR 0149
-> 用户四点指令（2026-11-15）: ① 扔掉工具源码生成器 ② yml 注册基础工具 ③ 其余全部转独立 CLI.exe，各自 `-h` 让 LLM 按需阅读 ④ 分班再分组是 AI 供应商协议不提供的、MCP 用这个做法是错的，CLI 层通过搜索下钻才正确
+> 📍 状态: proposed（v3 重排）｜ 创建: 2026-11-15 ｜ 关联: [ADR 0157 v3](../adr/0157-tool-exposure-data-driven-node-cli.md)、[DSG048](../design/DSG048-node-plugin-inheritance-architecture.md)、ADR 0149
+> 2026-11-15 后续指令（v3，取代 v2 的「540 个独立 exe + 描述搬到新 YAML」）: ① 大部分 mcp 特性不需要改 ② 按每个分组单独一个 CLI.exe，bash 可调用 ③ 复用现有 mcp 说明制造 -h
+> 更早四点指令: ① 扔掉工具源码生成器 ② yml 注册基础工具 ③ 其余转独立 CLI.exe 各自 -h ④ MCP 分组是错误层、CLI 搜索下钻才正确
 
 ---
 
@@ -11,8 +12,8 @@
 |------|-----------------|--------|
 | 首轮 `tools` 字段工具数 | 506 工具全量 schema = 466KB 巨型请求（`McpToolDispatchAttribute.cs:18`） | 4（读/写/编译/bash） |
 | 基础工具注册方式 | `[McpToolDispatch]` 特性 + 源码生成器按程序集扫描 | `resources/tools/base.yaml` |
-| 工具描述存放位置 | C# 特性 / LLM 上下文 / `tool_groups`（真实 API 忽略） | `node.yaml` + `-h`，查完即弃 |
-| 其余工具形态 | 宿主进程内 handler | 各自独立 `*.exe` |
+| 工具描述存放位置 | C# 特性 / LLM 上下文 / `tool_groups`（真实 API 忽略） | **特性原封不动**，编译期只读扫描渲染 `-h` |
+| 其余工具形态 | 宿主进程内 handler | **按组一个独立 exe**（实测 51 组 / 546 工具），组内工具为子命令 |
 | 发现机制 | MCP `tool_search` 三级 `map[]` 下钻（错误层） | CLI 目录树 + 搜索（正确层） |
 | MCP 分组 | `tool_groups` 自定义字段 | 退役 |
 | 交互宿主 exe 数 | 2（ADR 0149） | 2（不变）；工具层 exe 数另行增加 |
@@ -24,14 +25,15 @@
 | # | 任务 | 关键文件 | 编译 | 测试 | commit |
 |---|------|---------|------|------|--------|
 | 1 | 备份 tag + ADR v1 + 任务清单 | `backup/pre-node-cli-20261115072248`、`211f4f379` | — | — | ✅ |
-| 2 | **ADR 0157 v2 修订 + 本清单重排** | `docs/proposed/adr/0157-*.md`、本文件 | — | — | ⬜ 待提交 |
-| 3 | CLI 节点契约层 + `base.yaml` 注册 4 个基础工具 | `modules/abstractions/abstractions.primitives.tools/src/cli_nodes/`、`resources/tools/base.yaml` | ✅ | ✅ 13/13 | ⬜ |
-| 4 | 垂直切片 `jcc-rg`：`node.yaml` + `-h` + 独立 exe，实测单 exe 成本 | `modules/tools/rg/` | ✅ | ✅ 真实 exe | ⬜ |
-| 5 | CLI 搜索下钻 `tool find` / `tree` / `help` / `base` | `modules/apps/cli/core/commands/core/CliToolCommand.cs` | ✅ | ✅ 真实 exe | ⬜ |
-| 6 | 按域分批迁移其余约 540 工具（每批编译+测试+commit） | `modules/*/tool_handlers/` | ⬜ | ⬜ | ⬜ |
-| 7 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildToolsFromKernel`、`ToolsSection.cs`、各 QueryService | ⬜ | ⬜ | ⬜ |
-| 8 | 归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ | ⬜ | ⬜ |
-| 9 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | `Build-AllDomains.ps1`、ADR 0080 | ⬜ | ⬜ | ⬜ |
+| 2 | ADR 0157 v2/v3 修订 + 本清单重排 | `docs/proposed/adr/0157-*.md`、本文件 | — | — | ✅ `55578f676` |
+| 3 | CLI 节点契约层 + `base.yaml` 注册 4 个基础工具 | `src/cli_nodes/`、`resources/tools/base.yaml` | ✅ | ✅ 13/13 | ✅ `da319bfcf` |
+| 4 | 垂直切片 `jcc-rg` + CLI 搜索下钻 `tool find/tree/help/base` | `modules/tools/rg/`、`CliToolCommand.cs` | ✅ | ✅ 真实 exe | ✅ `da319bfcf` |
+| 5 | 依赖墙收敛 + AOT 成本实测 | `modules/tools/cli_nodes/cli_node.props`、`sample/` | ✅ | ✅ 13/13 | ✅ `6a1a3154b` |
+| 6 | 只读扫描器从现有特性生成 51 组索引与 `-h` 文本 + `jcc-tool-git.exe` 完整样板 | `scripts/migrate_mcp_tools_to_cli_nodes.py`、`groups/git/` | ✅ | ✅ 真实 exe | ⬜ 待提交 |
+| 7 | 其余 50 个分组 exe 按批次实现（每组一个 exe） | `modules/tools/cli_nodes/groups/` | ⬜ | ⬜ | ⬜ |
+| 8 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildToolsFromKernel`、`ToolsSection.cs`、各 QueryService | ⬜ | ⬜ | ⬜ |
+| 9 | 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ | ⬜ | ⬜ |
+| 10 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | `Build-AllDomains.ps1`、ADR 0080 | ✅ 部分 | ⬜ | ⬜ |
 
 ---
 

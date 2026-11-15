@@ -1,0 +1,1037 @@
+jcc-tool-github — github 工具分组（172 个工具）
+
+用法:
+  jcc-tool-github.exe <工具名> [参数...]
+  jcc-tool-github.exe -h
+  jcc-tool-github.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  gh_api                             通用 GitHub REST API 调用(直调 api.github.com,输出完整 JSON)
+  gh_auth_status                     查看 GitHub Auth 状态
+  gh_auth_login                      登录 GitHub(PAT token 验证后保存到 hosts.yml)
+  gh_auth_token                      获取 GitHub Auth token(从 hosts.yml 读取)
+  gh_auth_refresh                    刷新 GitHub Auth token(提示用系统 gh)
+  gh_auth_logout                     登出 GitHub(从 hosts.yml 删除认证信息)
+  gh_auth_setup_git                  配置 git credential helper 使用 gh
+  gh_config_list                     列出 gh 配置(读写 config.yml)
+  gh_config_get                      读取 gh 配置(读写 config.yml)
+  gh_config_set                      写入 gh 配置(读写 config.yml)
+  gh_branch_sync_protection          同步分支保护: 从所有 CI yml 读取 job 名, 对比 required_status_checks, PUT 完整 protection 端点同步差异
+  gh_branch_audit_protection         审计分支保护: 对比 CI yml matrix 测试 job 与 required_status_checks, 报告差异(不修改)
+  gh_branch_list                     列出仓库分支(支持 protected 过滤)
+  gh_branch_view                     查看分支详情
+  gh_branch_create                   创建分支(从指定 SHA 或源分支创建)
+  gh_branch_delete                   删除分支
+  gh_branch_rename                   重命名分支
+  gh_gist_list                       列出当前用户的 Gist
+  gh_gist_view                       查看 Gist 详情
+  gh_gist_create                     创建 Gist
+  gh_gist_delete                     删除 Gist
+  gh_gist_edit                       编辑 Gist(描述/文件内容)
+  gh_gist_rename                     重命名 Gist 文件
+  gh_gist_clone                      克隆 Gist 到本地
+  gh_issue_list                      列出 Issue(支持状态/标签/指派人/作者/提及/里程碑/搜索/类型过滤)
+  gh_issue_view                      查看 Issue 详情
+  gh_issue_create                    创建 Issue(支持标签/指派人/里程碑/attach/blocked_by/blocking/parent/type)
+  gh_issue_close                     关闭 Issue(可附评论/原因/重复标记)
+  gh_issue_comment                   评论 Issue
+  gh_issue_reopen                    重新打开 Issue(可附评论)
+  gh_issue_edit                      编辑 Issue(title/body/body_file/label/add_label/remove_label/assignee/add_assignee/remove_assignee/milestone/remove_milestone/add_project/remove_project/attach/add_sub_issue/remove_sub_issue/parent/remove_parent/add_blocked_by/remove_blocked_by/add_blocking/remove_blocking/type/remove_type)
+  gh_issue_delete                    删除 Issue(需 yes 确认,用 GraphQL)
+  gh_issue_lock                      锁定 Issue(可选原因)
+  gh_issue_unlock                    解锁 Issue
+  gh_issue_status                    查看 Issue 状态(当前仓库 open issue)
+  gh_issue_develop                   创建 Issue 开发分支(git checkout -b)
+  gh_issue_pin                       固定 Issue(GraphQL pinIssue)
+  gh_issue_unpin                     取消固定 Issue(GraphQL unpinIssue)
+  gh_issue_transfer                  转移 Issue 到另一个仓库(GraphQL transferIssue)
+  gh_label_list                      列出仓库标签(支持 search/sort/order)
+  gh_label_view                      查看标签详情
+  gh_label_create                    创建标签(--force 更新已存在)
+  gh_label_delete                    删除标签(需 yes 确认)
+  gh_label_edit                      编辑标签(颜色/描述/重命名)
+  gh_label_clone                     克隆标签(从源仓库复制到目标仓库)
+  gh_milestone_list                  列出 Milestone(支持状态过滤)
+  gh_milestone_view                  查看 Milestone 详情
+  gh_notification_list               列出 GitHub 通知(支持未读过滤)
+  gh_team_list                       列出组织团队
+  gh_collaborator_list               列出仓库协作者(含权限)
+  gh_org_list                        列出当前用户的组织
+  gh_org_view                        查看组织详情
+  gh_ssh_key_list                    列出 SSH Key
+  gh_ssh_key_add                     添加 SSH Key
+  gh_ssh_key_delete                  删除 SSH Key
+  gh_ssh_key_view                    查看 SSH Key 详情
+  gh_gpg_key_list                    列出 GPG Key
+  gh_gpg_key_add                     添加 GPG Key
+  gh_gpg_key_delete                  删除 GPG Key
+  gh_gpg_key_view                    查看 GPG Key 详情
+  gh_browse                          在浏览器中打开仓库/Issue/PR/commit(或只返回 URL)
+  gh_cache_list                      列出 Actions 缓存(支持 branch/ref/key 过滤)
+  gh_cache_delete                    删除 Actions 缓存(指定 ID 或 all=true 删全部)
+  gh_cache_clear_log                 立即清理本地日志缓存(LSM-Tree,gh:前缀全部删除)
+  gh_ruleset_list                    列出仓库/组织规则集
+  gh_ruleset_view                    查看规则集详情
+  gh_ruleset_check                   检查分支适用的规则集
+  gh_status                          跨仓库状态(指派的 issue/PR、审查请求、提及)
+  gh_codespace_list                  列出 Codespace
+  gh_codespace_create                创建 Codespace(需指定仓库+分支)
+  gh_codespace_delete                删除 Codespace
+  gh_codespace_code                  在 VS Code 中打开 Codespace(提示用系统 gh)
+  gh_codespace_ssh                   SSH 到 Codespace(提示用系统 gh)
+  gh_discussion_list                 列出 Discussion(GraphQL)
+  gh_discussion_view                 查看 Discussion 详情(GraphQL)
+  gh_discussion_create               创建 Discussion(GraphQL,需分类)
+  gh_discussion_edit                 编辑 Discussion(GraphQL)
+  gh_discussion_comment              评论 Discussion(GraphQL)
+  gh_project_list                    列出 Project(GraphQL v2)
+  gh_project_view                    查看 Project 详情(GraphQL v2)
+  gh_project_create                  创建 Project(GraphQL v2)
+  gh_project_delete                  删除 Project(GraphQL v2)
+  gh_project_edit                    编辑 Project(GraphQL v2)
+  gh_project_close                   关闭 Project(GraphQL v2)
+  gh_alias_list                      列出别名(读写 config.yml)
+  gh_alias_set                       设置别名(读写 config.yml)
+  gh_alias_delete                    删除别名(读写 config.yml)
+  gh_extension_list                  列出已安装扩展(扫描本地目录)
+  gh_extension_install               安装扩展(git clone 到本地)
+  gh_extension_upgrade               升级扩展(git pull)
+  gh_extension_remove                移除扩展(移动到 .xxx 归档)
+  gh_licenses                        查看可用开源许可证列表(API)
+  gh_pr_view                         查看 PR 详情(号/标题/状态/URL/body/变更统计)
+  gh_pr_list                         列出 PR(支持状态/数量/作者/标签/指派人/分支/draft/搜索过滤)
+  gh_pr_diff                         查看 PR diff(patch 文本,支持 name-only/exclude 过滤)
+  gh_pr_checks                       查看 PR 的 CI 检查状态(支持 required 过滤/watch 轮询/fail-fast)
+  gh_pr_wait                         等待 PR 所有 CI checks 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即拉日志返回)
+  gh_pr_merge                        合并 PR(支持 squash/merge/rebase + auto-merge + 自定义提交信息)
+  gh_pr_checkout                     检出 PR 分支到本地(支持自定义分支名/强制/detached HEAD)
+  gh_pr_close                        关闭 PR(可附评论,可选删除分支)
+  gh_pr_reopen                       重新打开 PR(可附评论)
+  gh_pr_create                       创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill/fill_first/dry_run/no_maintainer_edit + auto-merge)
+  gh_pr_comment                      评论 PR
+  gh_pr_edit                         编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone/auto_merge/merge_method)
+  gh_pr_review                       审查 PR(approve/request_changes/comment)
+  gh_pr_lock                         锁定 PR(可选原因)
+  gh_pr_unlock                       解锁 PR
+  gh_pr_status                       查看 PR 状态(当前仓库 open PR)
+  gh_pr_ready                        标记 PR 为 ready for review(--undo 转为 draft)
+  gh_pr_revert                       回退 PR(git revert + 创建回退 PR)
+  gh_pr_update_branch                更新 PR 分支(merge/rebase)
+  gh_release_list                    列出 Release(支持排除 draft/prerelease)
+  gh_release_view                    查看 Release 详情(含 asset 列表)
+  gh_release_create                  创建 Release(支持 draft/prerelease/自动生成 notes/discussion_category/notes_from_tag/verify_tag)
+  gh_release_download                下载 Release asset(复用多线程分片+断点续传,支持 clobber/skip_existing)
+  gh_release_upload                  上传 asset 到 Release(支持 clobber 覆盖)
+  gh_release_delete                  删除 Release(可选同时删除 git tag)
+  gh_release_delete_asset            删除 Release asset
+  gh_release_edit                    编辑 Release(tag/name/notes/draft/prerelease/target/latest)
+  gh_release_verify                  验证 Release 签名(获取 attestation 元数据)
+  gh_release_verify_asset            验证 Asset 文件签名(SHA256 + attestation)
+  gh_repo_view                       查看仓库详情
+  gh_repo_clone                      克隆仓库(支持 depth/bare/single-branch/filter/sparse)
+  gh_repo_create                     创建仓库(public/private/internal,支持 template/clone/source/push/disable-issues/disable-wiki)
+  gh_repo_fork                       Fork 仓库(可选指定组织/fork-name/default-branch-only)
+  gh_repo_list                       列出自己可访问的仓库(支持语言/可见性/source/fork/archived/topic 过滤)
+  gh_repo_edit                       编辑仓库(description/homepage/visibility/default_branch/issues/wiki/projects/discussions/merge_methods/security/topics/template)
+  gh_repo_delete                     删除仓库(需 yes 确认)
+  gh_repo_archive                    归档仓库
+  gh_repo_unarchive                  取消归档仓库
+  gh_repo_rename                     重命名仓库
+  gh_repo_sync                       同步 Fork 仓库(从上游拉取更新)
+  gh_repo_set_default                设置默认仓库(本地 git config,与官方 gh CLI 一致)
+  gh_repo_set_default_branch         设置默认分支(REST API PATCH default_branch)
+  gh_repo_autolink_list              列出仓库 Autolink 引用
+  gh_repo_autolink_view              查看 Autolink 详情
+  gh_repo_autolink_create            创建 Autolink 引用
+  gh_repo_autolink_delete            删除 Autolink 引用
+  gh_repo_deploy_key_list            列出仓库 Deploy Key
+  gh_repo_deploy_key_add             添加 Deploy Key
+  gh_repo_deploy_key_delete          删除 Deploy Key
+  gh_repo_gitignore_list             列出可用 gitignore 模板
+  gh_repo_gitignore_view             查看 gitignore 模板内容
+  gh_repo_license_list               列出常用 license
+  gh_repo_license_view               查看 license 详情
+  gh_run_list                        列出 Actions Run(支持状态/分支/事件/工作流/用户/commit/创建时间过滤)
+  gh_run_view                        查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,start_line 分页续读(1-indexed),refresh 强制刷新,web 返回 URL,attempt 指定重试次数)
+  gh_run_rerun                       重跑 Actions Run(默认只重跑失败的 job,支持 debug 日志和指定 job)
+  gh_run_cancel                      取消 Actions Run
+  gh_run_wait                        等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即返回)
+  gh_run_download                    下载 Run artifact(zip 文件,支持名称过滤)
+  gh_run_delete                      删除 Actions Run
+  gh_run_watch                       观察 Run 直到完成(轮询进度)
+  gh_ci_alerts                       查看后台 CI 监控告警(从 LSM 扫描 gh:ci_alert: 前缀,返回新失败 job 日志路径)
+  gh_search_repos                    搜索 GitHub 仓库
+  gh_search_issues                   搜索 GitHub Issue
+  gh_search_prs                      搜索 GitHub PR
+  gh_search_code                     搜索 GitHub 代码
+  gh_search_commits                  搜索 GitHub 提交
+  gh_search_users                    搜索 GitHub 用户
+  gh_secret_list                     列出仓库 Secret
+  gh_secret_set                      设置 Secret(加密后 PUT API)
+  gh_secret_delete                   删除 Secret
+  gh_variable_list                   列出仓库 Variable
+  gh_variable_get                    获取 Variable 值
+  gh_variable_set                    设置 Variable
+  gh_variable_delete                 删除 Variable
+  gh_workflow_list                   列出仓库 Workflow
+  gh_workflow_view                   查看 Workflow 详情
+  gh_workflow_run                    触发 Workflow 运行(workflow_dispatch)
+  gh_workflow_enable                 启用 Workflow
+  gh_workflow_disable                禁用 Workflow
+
+单个工具的参数说明:
+
+  gh_api — 通用 GitHub REST API 调用(直调 api.github.com,输出完整 JSON)
+    --path                       string    必填   API 路径(如 repos/owner/repo/issues)
+    --method                     string    可选   HTTP 方法(GET/POST/PATCH/PUT/DELETE,默认 GET,path 为 graphql 时默认 POST)
+    --body                       string    可选   请求体 JSON(可选,POST/PATCH/PUT 用)
+    --body_file                  string    可选   请求体 JSON 文件路径(可选,读取文件内容作为 body,彻底绕开命令行转义问题)
+    --fields                     string    可选   查询参数(可选,格式 key=value,多个用逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选结果。支持 .field/.field.sub/[]/select(.f=="v" or .g=="w")/{k: .f}/| 管道)
+    --paginate                   boolean   可选   是否分页(默认 false,结果多时启用)
+    --max_lines                  integer   可选   最大输出行数(默认 500,超出截断)
+    --working_dir                string    可选   工作目录(可选,REST API 直调时忽略,保留兼容性)
+
+  gh_auth_status — 查看 GitHub Auth 状态
+    (无参数)
+
+  gh_auth_login — 登录 GitHub(PAT token 验证后保存到 hosts.yml)
+    --token                      string    必填   GitHub PAT token(ghp_xxx)
+    --host                       string    可选   host(可选,默认 github.com)
+
+  gh_auth_token — 获取 GitHub Auth token(从 hosts.yml 读取)
+    --host                       string    可选   host(可选,默认 github.com)
+
+  gh_auth_refresh — 刷新 GitHub Auth token(提示用系统 gh)
+    --host                       string    可选   host(可选,默认 github.com)
+
+  gh_auth_logout — 登出 GitHub(从 hosts.yml 删除认证信息)
+    --host                       string    可选   host(可选,默认 github.com)
+
+  gh_auth_setup_git — 配置 git credential helper 使用 gh
+    --host                       string    可选   host(可选,默认 github.com)
+
+  gh_config_list — 列出 gh 配置(读写 config.yml)
+    --host                       string    可选   host(可选,列出 per-host 设置,读写 hosts.yml)
+
+  gh_config_get — 读取 gh 配置(读写 config.yml)
+    --key                        string    必填   配置键名(如 git_protocol/editor/prompt)
+    --host                       string    可选   host(可选,per-host 设置,读写 hosts.yml)
+
+  gh_config_set — 写入 gh 配置(读写 config.yml)
+    --key                        string    必填   配置键名
+    --value                      string    必填   配置值
+    --host                       string    可选   host(可选,per-host 设置,读写 hosts.yml)
+
+  gh_branch_sync_protection — 同步分支保护: 从所有 CI yml 读取 job 名, 对比 required_status_checks, PUT 完整 protection 端点同步差异
+    --branch                     string    可选   分支名(默认 main)
+    --yml_path                   string    可选   CI yml 路径(可选,默认自动从 ci.yml 解析所有 workflow)
+    --dry_run                    boolean   可选   试跑模式(只显示差异不实际修改)
+
+  gh_branch_audit_protection — 审计分支保护: 对比 CI yml matrix 测试 job 与 required_status_checks, 报告差异(不修改)
+    --branch                     string    可选   分支名(默认 main)
+    --yml_path                   string    可选   CI yml 路径(默认 .github/workflows/ci-unit-tests.yml)
+
+  gh_branch_list — 列出仓库分支(支持 protected 过滤)
+    (无参数)
+
+  gh_branch_view — 查看分支详情
+    --branch                     string    必填   分支名
+
+  gh_branch_create — 创建分支(从指定 SHA 或源分支创建)
+    --branch                     string    必填   新分支名
+    --from                       string    可选   源分支名(默认仓库默认分支)
+    --sha                        string    可选   源 commit SHA(优先于 from)
+
+  gh_branch_delete — 删除分支
+    --branch                     string    必填   要删除的分支名
+
+  gh_branch_rename — 重命名分支
+    --branch                     string    必填   当前分支名
+    --new_name                   string    必填   新分支名
+
+  gh_gist_list — 列出当前用户的 Gist
+    (无参数)
+
+  gh_gist_view — 查看 Gist 详情
+    --gist_id                    string    必填   Gist ID
+
+  gh_gist_create — 创建 Gist
+    --filename                   string    必填   文件名
+    --content                    string    必填   文件内容
+    --description                string    可选   描述(可选)
+
+  gh_gist_delete — 删除 Gist
+    --gist_id                    string    必填   Gist ID
+
+  gh_gist_edit — 编辑 Gist(描述/文件内容)
+    --gist_id                    string    必填   Gist ID
+    --description                string    可选   描述(可选)
+    --filename                   string    可选   文件名(可选,指定则更新该文件内容)
+    --content                    string    可选   文件内容(可选,需配合 filename)
+
+  gh_gist_rename — 重命名 Gist 文件
+    --gist_id                    string    必填   Gist ID
+    --old_filename               string    必填   旧文件名
+    --new_filename               string    必填   新文件名
+
+  gh_gist_clone — 克隆 Gist 到本地
+    --gist_id                    string    必填   Gist ID
+    --dir                        string    可选   目标目录(可选,默认用 Gist ID)
+
+  gh_issue_list — 列出 Issue(支持状态/标签/指派人/作者/提及/里程碑/搜索/类型过滤)
+    --state                      string    可选   状态(open/closed/all,默认 open)
+    --label                      string    可选   标签过滤(可选,多个用逗号)
+    --assignee                   string    可选   指派人过滤(可选)
+    --author                     string    可选   作者过滤(可选)
+    --mention                    string    可选   提及过滤(可选)
+    --milestone                  string    可选   里程碑过滤(可选,数字 ID 或 * 或 none)
+    --search                     string    可选   搜索查询(可选,GitHub search 语法)
+    --type                       string    可选   类型(issue/pr,默认 issue)
+
+  gh_issue_view — 查看 Issue 详情
+    --comments                   boolean   可选   comments=true 附带评论列表
+    --web                        boolean   可选   web=true 只返回 Issue 浏览器 URL
+
+  gh_issue_create — 创建 Issue(支持标签/指派人/里程碑/attach/blocked_by/blocking/parent/type)
+    --title                      string    必填   Issue 标题
+    --body                       string    可选   Issue 内容(body)
+    --body_file                  string    可选   从文件读取 body(可选,覆盖 body 参数)
+    --label                      string    可选   标签(可选,多个用逗号)
+    --assignee                   string    可选   指派人(可选)
+    --milestone                  integer   可选   里程碑 ID(可选)
+    --project                    integer   可选   添加到 Project 编号(可选,GraphQL addProjectV2ItemById)
+    --attach                     string    可选   附加文件(可选,多个用逗号,暂未支持,需文件上传 API)
+    --blocked_by                 string    可选   被哪些 issue 阻塞(可选,多个用逗号,暂未支持,需 GraphQL sub-issue API)
+    --blocking                   string    可选   阻塞哪些 issue(可选,多个用逗号,暂未支持,需 GraphQL sub-issue API)
+    --parent                     integer   可选   父 issue 编号(epic,可选,暂未支持,需 GraphQL sub-issue API)
+    --type                       string    可选   issue 类型(可选,如 Bug/Task,暂未支持,需 GraphQL issue types API)
+
+  gh_issue_close — 关闭 Issue(可附评论/原因/重复标记)
+    --comment                    string    可选   关闭评论(可选)
+    --reason                     string    可选   关闭原因(completed/not_planned,可选)
+    --duplicate_of               integer   可选   重复的 Issue 编号(可选,设置后 reason 自动 not_planned)
+
+  gh_issue_comment — 评论 Issue
+    --body                       string    必填   评论内容
+
+  gh_issue_reopen — 重新打开 Issue(可附评论)
+    --comment                    string    可选   重开评论(可选)
+
+  gh_issue_edit — 编辑 Issue(title/body/body_file/label/add_label/remove_label/assignee/add_assignee/remove_assignee/milestone/remove_milestone/add_project/remove_project/attach/add_sub_issue/remove_sub_issue/parent/remove_parent/add_blocked_by/remove_blocked_by/add_blocking/remove_blocking/type/remove_type)
+    --title                      string    可选   新标题(可选)
+    --body                       string    可选   新 body(可选)
+    --body_file                  string    可选   从文件读 body(可选,替代 body)
+    --label                      string    可选   标签(可选,多个用逗号,替换全部)
+    --add_label                  string    可选   添加标签(可选,多个用逗号)
+    --remove_label               string    可选   移除标签(可选,多个用逗号)
+    --assignee                   string    可选   指派人(可选,多个用逗号,替换全部)
+    --add_assignee               string    可选   添加指派人(可选,多个用逗号)
+    --remove_assignee            string    可选   移除指派人(可选,多个用逗号)
+    --milestone                  string    可选   里程碑名称(可选,按名称设置)
+    --remove_milestone           boolean   可选   移除里程碑(可选)
+    --add_project                string    可选   添加到项目(可选,按项目标题)
+    --remove_project             string    可选   从项目移除(可选,按项目标题)
+    --attach                     string    可选   附加文件(可选,上传到 GitHub 附件)
+    --add_sub_issue              string    可选   添加子 issue(可选,多个用逗号)
+    --remove_sub_issue           string    可选   移除子 issue(可选,多个用逗号)
+    --parent                     string    可选   设置父 issue(可选,issue 编号)
+    --remove_parent              boolean   可选   移除父 issue(可选)
+    --add_blocked_by             string    可选   添加 blocked-by 关系(可选,多个用逗号)
+    --remove_blocked_by          string    可选   移除 blocked-by 关系(可选,多个用逗号)
+    --add_blocking               string    可选   添加 blocking 关系(可选,多个用逗号)
+    --remove_blocking            string    可选   移除 blocking 关系(可选,多个用逗号)
+    --type                       string    可选   设置 issue 类型(可选,按类型名)
+    --remove_type                boolean   可选   移除 issue 类型(可选)
+
+  gh_issue_delete — 删除 Issue(需 yes 确认,用 GraphQL)
+    --yes                        boolean   可选   是否跳过确认(默认 false)
+
+  gh_issue_lock — 锁定 Issue(可选原因)
+    --reason                     string    可选   锁定原因(off-topic/resolved/spam/too heated,可选)
+
+  gh_issue_unlock — 解锁 Issue
+    (无参数)
+
+  gh_issue_status — 查看 Issue 状态(当前仓库 open issue)
+    (无参数)
+
+  gh_issue_develop — 创建 Issue 开发分支(git checkout -b)
+    --name                       string    可选   分支名(可选,默认 issue-{number})
+    --list                       boolean   可选   list=true 列出链接分支(需 GraphQL,暂未实现)
+    --checkout                   boolean   可选   checkout=true 创建后切换(默认 true)
+
+  gh_issue_pin — 固定 Issue(GraphQL pinIssue)
+    (无参数)
+
+  gh_issue_unpin — 取消固定 Issue(GraphQL unpinIssue)
+    (无参数)
+
+  gh_issue_transfer — 转移 Issue 到另一个仓库(GraphQL transferIssue)
+    --destination_repo           string    必填   目标仓库(owner/repo)
+
+  gh_label_list — 列出仓库标签(支持 search/sort/order)
+    --search                     string    可选   搜索标签名和描述(可选)
+    --sort                       string    可选   排序(created/name,默认 created)
+    --order                      string    可选   顺序(asc/desc,默认 asc)
+
+  gh_label_view — 查看标签详情
+    --name                       string    必填   标签名
+
+  gh_label_create — 创建标签(--force 更新已存在)
+    --name                       string    必填   标签名
+    --color                      string    可选   颜色(6 字符 hex,如 ff0000,可选)
+    --description                string    可选   描述(可选)
+    --force                      boolean   可选   force=true 已存在则更新(默认 false)
+
+  gh_label_delete — 删除标签(需 yes 确认)
+    --name                       string    必填   标签名
+    --yes                        boolean   可选   是否跳过确认(默认 false)
+
+  gh_label_edit — 编辑标签(颜色/描述/重命名)
+    --name                       string    必填   标签名
+    --new_name                   string    可选   新标签名(可选)
+    --color                      string    可选   颜色(6 字符 hex,如 ff0000,可选)
+    --description                string    可选   描述(可选)
+
+  gh_label_clone — 克隆标签(从源仓库复制到目标仓库)
+    --source_repo                string    必填   源仓库(owner/repo)
+    --force                      boolean   可选   force=true 覆盖已存在标签(默认 false)
+
+  gh_milestone_list — 列出 Milestone(支持状态过滤)
+    --state                      string    可选   状态过滤(open/closed/all,默认 open)
+
+  gh_milestone_view — 查看 Milestone 详情
+    --number                     string    必填   Milestone 编号
+
+  gh_notification_list — 列出 GitHub 通知(支持未读过滤)
+    --unread                     boolean   可选   只列出未读(true)/全部(false,默认)
+
+  gh_team_list — 列出组织团队
+    --org                        string    必填   组织名
+
+  gh_collaborator_list — 列出仓库协作者(含权限)
+    (无参数)
+
+  gh_org_list — 列出当前用户的组织
+    (无参数)
+
+  gh_org_view — 查看组织详情
+    --org                        string    必填   组织名(如 JoinCode)
+
+  gh_ssh_key_list — 列出 SSH Key
+    (无参数)
+
+  gh_ssh_key_add — 添加 SSH Key
+    --title                      string    必填   Key 标题
+    --key                        string    必填   SSH public key 内容
+
+  gh_ssh_key_delete — 删除 SSH Key
+    --key_id                     integer   必填   Key ID
+
+  gh_ssh_key_view — 查看 SSH Key 详情
+    --key_id                     integer   必填   Key ID
+
+  gh_gpg_key_list — 列出 GPG Key
+    (无参数)
+
+  gh_gpg_key_add — 添加 GPG Key
+    --key                        string    必填   ASCII armored GPG key 内容
+
+  gh_gpg_key_delete — 删除 GPG Key
+    --key_id                     integer   必填   Key ID
+
+  gh_gpg_key_view — 查看 GPG Key 详情
+    --key_id                     integer   必填   Key ID
+
+  gh_browse — 在浏览器中打开仓库/Issue/PR/commit(或只返回 URL)
+    --target                     string    可选   Issue/PR 编号、文件路径或 commit SHA(可选)
+    --branch                     string    可选   分支名(可选)
+    --commit                     string    可选   commit SHA(可选,默认最新)
+    --actions                    boolean   可选   打开 actions 页(可选)
+    --releases                   boolean   可选   打开 releases 页(可选)
+    --projects                   boolean   可选   打开 projects 页(可选)
+    --settings                   boolean   可选   打开 settings 页(可选)
+    --blame                      boolean   可选   打开 blame 视图(可选)
+    --no_browser                 boolean   可选   只返回 URL 不打开浏览器(默认 false)
+
+  gh_cache_list — 列出 Actions 缓存(支持 branch/ref/key 过滤)
+    --branch                     string    可选   分支过滤(可选)
+    --key                        string    可选   key 过滤(可选,模糊匹配)
+
+  gh_cache_delete — 删除 Actions 缓存(指定 ID 或 all=true 删全部)
+    --cache_id                   string    可选   缓存 ID(可选,all=true 时忽略)
+    --all                        boolean   可选   删除全部缓存(默认 false)
+
+  gh_cache_clear_log — 立即清理本地日志缓存(LSM-Tree,gh:前缀全部删除)
+    --expired_only               boolean   可选   仅删过期(默认 false=删全部 gh: 前缀)
+
+  gh_ruleset_list — 列出仓库/组织规则集
+    --org                        string    可选   组织名(可选,列出组织级规则集)
+
+  gh_ruleset_view — 查看规则集详情
+    --ruleset_id                 string    必填   规则集 ID
+    --org                        string    可选   组织名(可选,查看组织级规则集)
+
+  gh_ruleset_check — 检查分支适用的规则集
+    --branch                     string    必填   分支名
+
+  gh_status — 跨仓库状态(指派的 issue/PR、审查请求、提及)
+    --org                        string    可选   组织名(可选,限定组织范围)
+    --exclude                    string    可选   排除仓库(可选,逗号分隔 owner/repo)
+
+  gh_codespace_list — 列出 Codespace
+    (无参数)
+
+  gh_codespace_create — 创建 Codespace(需指定仓库+分支)
+    --repo                       string    必填   仓库名(owner/repo)
+    --branch                     string    可选   分支名(可选,默认仓库默认分支)
+    --machine                    string    可选   machine 类型(可选,如 basicLinux32gb)
+    --devcontainer_path          string    可选   devcontainer 路径(可选)
+    --display_name               string    可选   显示名(可选)
+
+  gh_codespace_delete — 删除 Codespace
+    --codespace_name             string    必填   Codespace 名称
+
+  gh_codespace_code — 在 VS Code 中打开 Codespace(提示用系统 gh)
+    --codespace_name             string    可选   Codespace 名称(可选,默认最新)
+
+  gh_codespace_ssh — SSH 到 Codespace(提示用系统 gh)
+    --codespace_name             string    可选   Codespace 名称(可选,默认最新)
+
+  gh_discussion_list — 列出 Discussion(GraphQL)
+    (无参数)
+
+  gh_discussion_view — 查看 Discussion 详情(GraphQL)
+    --number                     integer   必填   Discussion 编号
+
+  gh_discussion_create — 创建 Discussion(GraphQL,需分类)
+    --title                      string    必填   标题
+    --body                       string    必填   正文
+    --category                   string    必填   分类名(如 General/Q&A/Ideas)
+
+  gh_discussion_edit — 编辑 Discussion(GraphQL)
+    --number                     integer   必填   Discussion 编号
+    --title                      string    可选   新标题(可选)
+    --body                       string    可选   新正文(可选)
+
+  gh_discussion_comment — 评论 Discussion(GraphQL)
+    --number                     integer   必填   Discussion 编号
+    --body                       string    必填   评论内容
+
+  gh_project_list — 列出 Project(GraphQL v2)
+    --owner                      string    可选   所有者(用户或组织,可选,默认当前用户)
+
+  gh_project_view — 查看 Project 详情(GraphQL v2)
+    --number                     integer   必填   Project 编号
+    --owner                      string    可选   所有者(用户或组织,可选,默认当前用户)
+
+  gh_project_create — 创建 Project(GraphQL v2)
+    --title                      string    必填   标题
+    --owner                      string    可选   所有者(用户或组织,可选,默认当前用户)
+
+  gh_project_delete — 删除 Project(GraphQL v2)
+    --number                     integer   必填   Project 编号
+    --owner                      string    可选   所有者(用户或组织,可选,默认当前用户)
+
+  gh_project_edit — 编辑 Project(GraphQL v2)
+    --number                     integer   必填   Project 编号
+    --title                      string    可选   新标题(可选)
+    --description                string    可选   新描述(可选)
+    --owner                      string    可选   所有者(用户或组织,可选,默认当前用户)
+
+  gh_project_close — 关闭 Project(GraphQL v2)
+    --number                     integer   必填   Project 编号
+    --owner                      string    可选   所有者(用户或组织,可选,默认当前用户)
+
+  gh_alias_list — 列出别名(读写 config.yml)
+    (无参数)
+
+  gh_alias_set — 设置别名(读写 config.yml)
+    --alias                      string    必填   别名名
+    --command                    string    必填   命令内容
+    --shell                      boolean   可选   是否保存到 shell(可选)
+
+  gh_alias_delete — 删除别名(读写 config.yml)
+    --alias                      string    必填   别名名
+
+  gh_extension_list — 列出已安装扩展(扫描本地目录)
+    (无参数)
+
+  gh_extension_install — 安装扩展(git clone 到本地)
+    --extension                  string    必填   扩展名(如 owner/gh-ext)
+
+  gh_extension_upgrade — 升级扩展(git pull)
+    --extension                  string    可选   扩展名(可选,默认全部)
+
+  gh_extension_remove — 移除扩展(移动到 .xxx 归档)
+    --extension                  string    必填   扩展名
+
+  gh_licenses — 查看可用开源许可证列表(API)
+    (无参数)
+
+  gh_pr_view — 查看 PR 详情(号/标题/状态/URL/body/变更统计)
+    --comments                   boolean   可选   comments=true 附带评论列表
+    --web                        boolean   可选   web=true 只返回 PR 浏览器 URL
+    --refresh                    boolean   可选   强制刷新缓存(默认 false,绕过 detail 10min TTL 直拉最新 state — 已知误导案例: PR 已合并仍显示 open)
+
+  gh_pr_list — 列出 PR(支持状态/数量/作者/标签/指派人/分支/draft/搜索过滤)
+    --state                      string    可选   状态(open/closed/merged/all,默认 open)
+    --author                     string    可选   作者过滤(可选)
+    --label                      string    可选   标签过滤(可选,多个用逗号)
+    --assignee                   string    可选   指派人过滤(可选)
+    --head                       string    可选   源分支过滤(可选)
+    --draft                      boolean   可选   是否 draft PR(可选)
+    --search                     string    可选   搜索查询(可选,GitHub search 语法)
+
+  gh_pr_diff — 查看 PR diff(patch 文本,支持 name-only/exclude 过滤)
+    --name_only                  boolean   可选   只显示文件名(可选)
+    --exclude                    string    可选   排除文件(可选,glob 模式,多个用逗号)
+    --patch                      boolean   可选   patch 格式(可选,默认即 patch)
+
+  gh_pr_checks — 查看 PR 的 CI 检查状态(支持 required 过滤/watch 轮询/fail-fast)
+    --required                   boolean   可选   只显示 required checks(可选)
+    --watch                      boolean   可选   watch 模式轮询直到完成(可选)
+    --interval                   integer   可选   轮询间隔秒数(可选,默认 10)
+    --fail_fast                  boolean   可选   有失败立即标记(可选)
+    --limit                      integer   可选   最大显示 check 数量(可选,默认全部,pass 最多 5)
+    --refresh                    boolean   可选   强制刷新缓存(默认 false,绕过 detail TTL 直拉最新 check-runs — 状态冻结/已 rerun 时用)
+    --all                        boolean   可选   显示全部 check(含全部 pass,默认 false 时 pass 最多显示 5 个)
+
+  gh_pr_wait — 等待 PR 所有 CI checks 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即拉日志返回)
+    --timeout_seconds            integer   可选   超时秒数(默认 1800=30分钟)
+    --poll_interval_seconds      integer   可选   初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)
+    --fail_fast                  boolean   可选   fail_fast=true 轮询 jobs 级别,发现 job failure 立即拉日志返回(不等所有 checks 完成)
+
+  gh_pr_merge — 合并 PR(支持 squash/merge/rebase + auto-merge + 自定义提交信息)
+    --merge_method               string    可选   合并方式(squash/merge/rebase,默认 squash)
+    --auto_merge                 boolean   可选   是否启用 auto-merge(CI 通过后自动合并)
+    --disable_auto               boolean   可选   禁用 auto-merge(可选)
+    --subject                    string    可选   合并提交标题(可选)
+    --body                       string    可选   合并提交正文(可选)
+    --admin                      boolean   可选   管理员强制合并(可选,绕过 required checks)
+    --delete_branch              boolean   可选   合并后是否删除分支
+
+  gh_pr_checkout — 检出 PR 分支到本地(支持自定义分支名/强制/detached HEAD)
+    --branch                     string    可选   本地分支名(可选,默认 pr-{number})
+    --force                      boolean   可选   强制重置已有分支(可选)
+    --detach                     boolean   可选   detached HEAD 检出(可选)
+
+  gh_pr_close — 关闭 PR(可附评论,可选删除分支)
+    --comment                    string    可选   关闭评论(可选)
+    --delete_branch              boolean   可选   关闭后是否删除分支
+
+  gh_pr_reopen — 重新打开 PR(可附评论)
+    --comment                    string    可选   重开评论(可选)
+
+  gh_pr_create — 创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill/fill_first/dry_run/no_maintainer_edit + auto-merge)
+    --title                      string    必填   PR 标题
+    --head                       string    可选   源分支(head,可选,缺省时自动推断当前 git 分支)
+    --body                       string    可选   PR 正文(可选,支持 markdown)
+    --body_file                  string    可选   从文件读 body(可选,替代 body)
+    --draft                      boolean   可选   是否 draft PR(可选,默认 false)
+    --assignee                   string    可选   指派人(可选,多个用逗号)
+    --label                      string    可选   标签(可选,多个用逗号)
+    --reviewer                   string    可选   审阅人(可选,多个用逗号)
+    --milestone                  integer   可选   里程碑 ID(可选)
+    --project                    integer   可选   添加到 Project 编号(可选,GraphQL addProjectV2ItemById)
+    --fill                       boolean   可选   从 git commit 自动填充 title/body(可选,取 HEAD 最新 commit)
+    --fill_first                 boolean   可选   从分支第一条 commit 自动填充 title/body(可选,取 base..head 最早 commit)
+    --fill_verbose               boolean   可选   fill 模式下显示 commit 详细信息(可选)
+    --auto_merge                 boolean   可选   是否启用 auto-merge(CI 通过后自动合并,可选)
+    --merge_method               string    可选   auto-merge 合并方式(squash/merge/rebase,默认 squash,可选)
+    --dry_run                    boolean   可选   dry-run 模式(可选,不实际创建 PR,只返回预览信息)
+    --no_maintainer_edit         boolean   可选   禁止维护者编辑 PR(可选,等价 maintainer_can_modify=false)
+    --recover                    boolean   可选   从上次失败的创建恢复(可选,暂未支持,需状态文件持久化)
+    --attach                     string    可选   附加文件到 PR(可选,多个用逗号,暂未支持,需文件上传 API)
+    --wait                       boolean   可选   创建后自动等候 CI 完成(可选,等价 gh pr wait)
+    --fail_fast                  boolean   可选   wait 模式下 fail-fast(可选,job 失败立即拉日志返回)
+    --wait_timeout               integer   可选   wait 模式超时秒数(可选,默认 1800)
+
+  gh_pr_comment — 评论 PR
+    --body                       string    必填   评论内容
+
+  gh_pr_edit — 编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone/auto_merge/merge_method)
+    --title                      string    可选   新标题(可选)
+    --body                       string    可选   新 body(可选)
+    --body_file                  string    可选   从文件读 body(可选,替代 body)
+    --label                      string    可选   标签(可选,多个用逗号,替换全部标签)
+    --add_label                  string    可选   添加标签(可选,多个用逗号)
+    --remove_label               string    可选   移除标签(可选,多个用逗号)
+    --assignee                   string    可选   指派人(可选,多个用逗号,替换全部指派人)
+    --add_reviewer               string    可选   添加审查者(可选,多个用逗号)
+    --remove_reviewer            string    可选   移除审查者(可选,多个用逗号)
+    --add_assignee               string    可选   添加指派人(可选,多个用逗号)
+    --remove_assignee            string    可选   移除指派人(可选,多个用逗号)
+    --milestone                  string    可选   里程碑名称(可选,按名称设置)
+    --remove_milestone           boolean   可选   移除里程碑(可选)
+    --add_project                string    可选   添加到项目(可选,按项目标题)
+    --remove_project             string    可选   从项目移除(可选,按项目标题)
+    --attach                     string    可选   附加文件(可选,上传到 GitHub 附件)
+    --auto_merge                 boolean   可选   是否启用 auto-merge(CI 通过后自动合并,可选)
+    --merge_method               string    可选   auto-merge 合并方式(squash/merge/rebase,默认 squash,可选)
+
+  gh_pr_review — 审查 PR(approve/request_changes/comment)
+    --action                     string    必填   审查动作(approve/request_changes/comment)
+    --body                       string    可选   审查评论(可选)
+
+  gh_pr_lock — 锁定 PR(可选原因)
+    --reason                     string    可选   锁定原因(off-topic/resolved/spam/too heated,可选)
+
+  gh_pr_unlock — 解锁 PR
+    (无参数)
+
+  gh_pr_status — 查看 PR 状态(当前仓库 open PR)
+    --conflict_status            boolean   可选   显示合并冲突状态(可选)
+
+  gh_pr_ready — 标记 PR 为 ready for review(--undo 转为 draft)
+    --pr_number                  string    可选   PR 编号或 URL(可选,默认当前分支 PR)
+    --undo                       boolean   可选   undo=true 转为 draft(默认 false 标记 ready)
+
+  gh_pr_revert — 回退 PR(git revert + 创建回退 PR)
+    --title                      string    可选   回退 PR 标题(可选)
+    --body                       string    可选   回退 PR body(可选)
+    --draft                      boolean   可选   标记为 draft(可选)
+
+  gh_pr_update_branch — 更新 PR 分支(merge/rebase)
+    --pr_number                  string    可选   PR 编号或 URL(可选,默认当前分支 PR)
+    --rebase                     boolean   可选   rebase=true 用 rebase 更新(默认 merge)
+
+  gh_release_list — 列出 Release(支持排除 draft/prerelease)
+    --exclude_drafts             boolean   可选   排除 draft release(可选)
+    --exclude_prereleases        boolean   可选   排除 prerelease(可选)
+
+  gh_release_view — 查看 Release 详情(含 asset 列表)
+    --tag                        string    必填   Release tag 名称
+    --web                        boolean   可选   web=true 只返回 Release 浏览器 URL
+
+  gh_release_create — 创建 Release(支持 draft/prerelease/自动生成 notes/discussion_category/notes_from_tag/verify_tag)
+    --tag                        string    必填   Release tag 名称
+    --title                      string    可选   Release 标题
+    --notes                      string    可选   Release 说明(notes)
+    --notes_file                 string    可选   从文件读取 release notes(可选,覆盖 notes 参数)
+    --draft                      boolean   可选   是否草稿
+    --prerelease                 boolean   可选   是否预发布
+    --target                     string    可选   目标 commit/branch(可选)
+    --generate_notes             boolean   可选   自动生成 release notes(可选)
+    --make_latest                string    可选   标记为 latest release(可选,值 true/false)
+    --discussion_category        string    可选   discussion 分类名(可选,为 release 创建 discussion)
+    --fail_on_no_commits         boolean   可选   没有新 commit 时失败(可选,检查 git log lastTag..target)
+    --notes_from_tag             boolean   可选   使用 tag annotation 作为 notes(可选,git tag -n)
+    --notes_start_tag            string    可选   自动生成 notes 的起始 tag(可选,等价 previous_tag_name)
+    --verify_tag                 boolean   可选   验证 tag 的 GPG 签名(可选,git tag -v)
+
+  gh_release_download — 下载 Release asset(复用多线程分片+断点续传,支持 clobber/skip_existing)
+    --tag                        string    必填   Release tag 名称
+    --dir                        string    必填   保存目录
+    --pattern                    string    可选   asset 名称过滤模式(可选,支持 * 通配,默认下载全部)
+    --max_threads                integer   可选   最大并发线程数(1-32,默认 4)
+    --resume                     boolean   可选   是否启用断点续传(默认 true)
+    --clobber                    boolean   可选   覆盖已存在文件(可选,默认 false,文件存在时报错)
+    --skip_existing              boolean   可选   跳过已存在文件(可选)
+
+  gh_release_upload — 上传 asset 到 Release(支持 clobber 覆盖)
+    --tag                        string    必填   Release tag 名称
+    --files                      string    必填   要上传的文件路径(多个用逗号分隔)
+    --clobber                    boolean   可选   覆盖同名 asset(可选,默认 false)
+
+  gh_release_delete — 删除 Release(可选同时删除 git tag)
+    --tag                        string    必填   Release tag 名称
+    --yes                        boolean   可选   是否跳过确认(默认 true)
+    --cleanup_tag                boolean   可选   同时删除 git tag(可选)
+
+  gh_release_delete_asset — 删除 Release asset
+    --tag                        string    必填   Release tag 名称
+    --asset_name                 string    必填   asset 名称(多个用逗号分隔)
+
+  gh_release_edit — 编辑 Release(tag/name/notes/draft/prerelease/target/latest)
+    --tag                        string    必填   Release tag 名称
+    --new_tag                    string    可选   新 tag 名称(可选)
+    --title                      string    可选   新标题(可选)
+    --notes                      string    可选   新说明(notes,可选)
+    --notes_file                 string    可选   从文件读取 notes(可选,与 notes 互斥)
+    --generate_notes             boolean   可选   自动生成 release notes(默认 false)
+    --draft                      boolean   可选   是否草稿(可选)
+    --prerelease                 boolean   可选   是否预发布(可选)
+    --target                     string    可选   目标 commit/branch(可选)
+    --make_latest                string    可选   标记为 latest(可选,true/false/legacy)
+
+  gh_release_verify — 验证 Release 签名(获取 attestation 元数据)
+    --tag                        string    可选   Release tag(可选,默认最新 release)
+
+  gh_release_verify_asset — 验证 Asset 文件签名(SHA256 + attestation)
+    --file_path                  string    必填   Asset 文件路径
+    --tag                        string    可选   Release tag(可选,默认最新 release)
+
+  gh_repo_view — 查看仓库详情
+    --branch                     string    可选   分支名(可选,web=true 时 URL 带分支)
+    --web                        boolean   可选   web=true 只返回仓库浏览器 URL
+
+  gh_repo_clone — 克隆仓库(支持 depth/bare/single-branch/filter/sparse)
+    --repo                       string    必填   仓库名(owner/repo 或 URL)
+    --dir                        string    可选   克隆目标目录(可选)
+    --depth                      integer   可选   浅克隆深度(可选,如 1)
+    --bare                       boolean   可选   裸克隆(默认 false)
+    --single_branch              boolean   可选   只克隆默认分支(默认 false)
+    --filter                     string    可选   部分克隆过滤器(可选,如 blob:none)
+    --sparse                     boolean   可选   稀疏检出(默认 false)
+    --upstream_remote_name       string    可选   上游 remote 名(可选,默认 origin)
+
+  gh_repo_create — 创建仓库(public/private/internal,支持 template/clone/source/push/disable-issues/disable-wiki)
+    --name                       string    必填   仓库名
+    --visibility                 string    可选   可见性(public/private/internal,默认 private)
+    --description                string    可选   描述(可选)
+    --add_readme                 boolean   可选   是否添加 README(可选)
+    --homepage                   string    可选   主页 URL(可选)
+    --gitignore                  string    可选   gitignore 模板(可选,如 VisualStudio)
+    --license                    string    可选   license 模板(可选,如 mit)
+    --template                   string    可选   模板仓库(owner/repo,可选,用模板创建)
+    --include_all_branches       boolean   可选   模板创建时包含所有分支(可选,默认只复制默认分支)
+    --org                        string    可选   组织名(可选,在组织下创建)
+    --team                       string    可选   团队名(可选,组织仓库添加到团队)
+    --clone                      boolean   可选   创建后克隆到本地(默认 false)
+    --source                     string    可选   本地源目录(可选,将该目录初始化为 git 并添加 remote;空字符串则用 working_dir)
+    --push                       boolean   可选   推送本地提交到远程(source 非空时生效)
+    --disable_issues             boolean   可选   禁用 Issues(可选)
+    --disable_wiki               boolean   可选   禁用 Wiki(可选)
+    --web                        boolean   可选   web=true 只返回仓库浏览器 URL
+
+  gh_repo_fork — Fork 仓库(可选指定组织/fork-name/default-branch-only)
+    --repo                       string    必填   仓库名(owner/repo)
+    --clone                      boolean   可选   是否克隆到本地(默认 false)
+    --org                        string    可选   Fork 到指定组织(可选)
+    --fork_name                  string    可选   Fork 仓库名(可选,默认同原名)
+    --default_branch_only        boolean   可选   只 fork 默认分支(可选)
+    --remote                     string    可选   本地 remote 名(可选,clone=true 时添加)
+
+  gh_repo_list — 列出自己可访问的仓库(支持语言/可见性/source/fork/archived/topic 过滤)
+    --language                   string    可选   语言过滤(可选)
+    --visibility                 string    可选   可见性过滤(public/private/internal,可选)
+    --source                     boolean   可选   只显示非 fork 仓库(可选)
+    --fork                       boolean   可选   只显示 fork 仓库(可选)
+    --archived                   boolean   可选   只显示已归档仓库(可选)
+    --topic                      string    可选   按 topic 过滤(可选,逗号分隔)
+
+  gh_repo_edit — 编辑仓库(description/homepage/visibility/default_branch/issues/wiki/projects/discussions/merge_methods/security/topics/template)
+    --description                string    可选   描述(可选)
+    --homepage                   string    可选   主页 URL(可选)
+    --visibility                 string    可选   可见性(public/private/internal,可选)
+    --default_branch             string    可选   默认分支(可选)
+    --has_issues                 boolean   可选   是否启用 Issues(可选)
+    --has_wiki                   boolean   可选   是否启用 Wiki(可选)
+    --has_projects               boolean   可选   是否启用 Projects(可选)
+    --delete_branch_on_merge     boolean   可选   合并后是否删除分支(可选)
+    --enable_discussions         boolean   可选   是否启用 Discussions(可选)
+    --enable_squash_merge        boolean   可选   是否允许 squash merge(可选)
+    --enable_merge_commit        boolean   可选   是否允许 merge commit(可选)
+    --enable_rebase_merge        boolean   可选   是否允许 rebase merge(可选)
+    --enable_auto_merge          boolean   可选   是否允许 auto-merge(可选)
+    --allow_update_branch        boolean   可选   是否允许 update branch(可选)
+    --allow_forking              boolean   可选   是否允许 fork(可选)
+    --template                   boolean   可选   是否为模板仓库(可选)
+    --squash_merge_commit_message string    可选   squash merge commit 消息/PR 标题模板(default/pr-title/pr-title-commits/pr-title-description,可选)
+    --enable_advanced_security   boolean   可选   启用高级安全(可选)
+    --enable_secret_scanning     boolean   可选   启用密钥扫描(可选)
+    --enable_secret_scanning_push_protection boolean   可选   启用密钥扫描推送保护(可选)
+    --add_topic                  string    可选   添加 topic(可选,多个用逗号)
+    --remove_topic               string    可选   移除 topic(可选,多个用逗号)
+    --accept_visibility_change_consequences boolean   可选   接受可见性变更后果(可选,确认标志)
+
+  gh_repo_delete — 删除仓库(需 yes 确认)
+    --repo                       string    必填   仓库名(owner/repo)
+    --yes                        boolean   可选   是否跳过确认(默认 false)
+
+  gh_repo_archive — 归档仓库
+    (无参数)
+
+  gh_repo_unarchive — 取消归档仓库
+    (无参数)
+
+  gh_repo_rename — 重命名仓库
+    --new_name                   string    必填   新仓库名
+
+  gh_repo_sync — 同步 Fork 仓库(从上游拉取更新)
+    --branch                     string    可选   要同步的分支(可选,默认默认分支)
+    --source                     string    可选   上游仓库(可选,仅兼容 gh CLI --source,始终同步 fork parent)
+
+  gh_repo_set_default — 设置默认仓库(本地 git config,与官方 gh CLI 一致)
+    --repository                 string    可选   仓库(owner/repo,空则从 origin remote 推断)
+    --view                       boolean   可选   查看当前默认仓库
+    --unset                      boolean   可选   取消默认仓库设置
+
+  gh_repo_set_default_branch — 设置默认分支(REST API PATCH default_branch)
+    --branch                     string    必填   默认分支名(如 main/master)
+
+  gh_repo_autolink_list — 列出仓库 Autolink 引用
+    (无参数)
+
+  gh_repo_autolink_view — 查看 Autolink 详情
+    --autolink_id                integer   必填   Autolink ID
+
+  gh_repo_autolink_create — 创建 Autolink 引用
+    --key_prefix                 string    必填   键前缀(如 TICKET-)
+    --url_template               string    必填   URL 模板(含 <num> 占位符,如 https://example.com/TICKET-<num>)
+
+  gh_repo_autolink_delete — 删除 Autolink 引用
+    --autolink_id                integer   必填   Autolink ID
+
+  gh_repo_deploy_key_list — 列出仓库 Deploy Key
+    (无参数)
+
+  gh_repo_deploy_key_add — 添加 Deploy Key
+    --title                      string    必填   Key 标题
+    --key                        string    必填   SSH public key 内容
+    --read_only                  boolean   可选   只读(可选,默认 false)
+
+  gh_repo_deploy_key_delete — 删除 Deploy Key
+    --key_id                     integer   必填   Key ID
+
+  gh_repo_gitignore_list — 列出可用 gitignore 模板
+    (无参数)
+
+  gh_repo_gitignore_view — 查看 gitignore 模板内容
+    --name                       string    必填   模板名(如 Java,Python,Node)
+
+  gh_repo_license_list — 列出常用 license
+    (无参数)
+
+  gh_repo_license_view — 查看 license 详情
+    --key                        string    必填   license key(如 mit,apache-2.0,gpl-3.0)
+
+  gh_run_list — 列出 Actions Run(支持状态/分支/事件/工作流/用户/commit/创建时间过滤)
+    --status                     string    可选   状态过滤(queued/in_progress/completed,可选)
+    --branch                     string    可选   分支过滤(可选)
+    --event_type                 string    可选   事件过滤(可选,如 push/pull_request/schedule)
+    --workflow                   string    可选   工作流名或 ID(可选,如 ci.yml)
+    --user                       string    可选   触发者过滤(可选)
+    --commit                     string    可选   commit SHA 过滤(可选)
+    --created                    string    可选   创建时间过滤(可选,如 >2026-01-01)
+    --refresh                    boolean   可选   强制刷新缓存(兼容参数,run list 直接调 API 无缓存,传入即忽略)
+
+  gh_run_view — 查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,start_line 分页续读(1-indexed),refresh 强制刷新,web 返回 URL,attempt 指定重试次数)
+    --run_id                     string    可选   Run ID(可选,与 pr 二选一;支持 run number 短数字自动解析)
+    --pr                         integer   可选   PR 号(可选,与 run_id 二选一;自动解析 PR 最新 run)
+    --job_id                     string    可选   Job ID(可选,支持逗号分隔多个并行下载,如 123 或 123,456)
+    --log                        boolean   可选   是否拉取日志(默认 false,仅看详情)
+    --max_lines                  integer   可选   最大日志行数(默认 200)
+    --skip_lines                 integer   可选   跳过前 N 行(用于续读截断日志,默认 0)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1,用于行号定位跳转)
+    --expand                     string    可选   按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤(最常用), failures=跨所有失败job批量提取测试名+错误+栈帧, step:Name=只拉指定步骤
+    --filter                     string    可选   日志过滤级别(error/warning/info/all/failed,默认 all=不过滤;failed=智能提取测试失败+Rust风格输出)
+    --refresh                    boolean   可选   强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)
+    --web                        boolean   可选   web=true 只返回 Run 浏览器 URL
+    --attempt                    integer   可选   重试次数(可选,查看指定 attempt 的详情)
+    --log_failed                 boolean   可选   log_failed=true 只拉失败步骤日志(等价于 --expand failed --log,系统 gh CLI --log-failed 缩写)。三选项区别: --log_failed=最常用(只拉失败步骤), --filter error=从全部日志过滤错误行, --expand failed=失败job汇总+各job失败步骤日志
+    --context                    integer   可选   错误行上下文行数(默认 5,--log_failed/--filter error 时控制错误行前后上下文行数)
+    --around                     integer   可选   跳转到第 N 行附近查看(输出该行前后各 context 行,默认 context=10)
+    --all                        boolean   可选   显示全部 job/check(含全部 success,默认 false 时 success 最多显示 5 个)
+    --max_lines_per_job          integer   可选   每个失败 job 的最大日志行数(可选,--expand failed 时控制每个 job 日志量,默认 maxLines/失败job数)
+
+  gh_run_rerun — 重跑 Actions Run(默认只重跑失败的 job,支持 debug 日志和指定 job)
+    --failed_only                boolean   可选   是否只重跑失败的 job(默认 true)
+    --debug                      boolean   可选   启用 debug 日志(可选)
+    --job                        string    可选   指定重跑的 job ID(可选,逗号分隔多个,设置后只重跑这些 job)
+
+  gh_run_cancel — 取消 Actions Run
+    (无参数)
+
+  gh_run_wait — 等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即返回)
+    --timeout_seconds            integer   可选   超时秒数(默认 1800=30分钟)
+    --poll_interval_seconds      integer   可选   初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)
+    --fail_fast                  boolean   可选   fail_fast=true 轮询 jobs 级别,发现 job failure 立即拉日志返回(不等 run completed)
+
+  gh_run_download — 下载 Run artifact(zip 文件,支持名称过滤)
+    --dir                        string    必填   保存目录
+    --name                       string    可选   artifact 名称过滤(可选,支持 * 通配,默认下载全部)
+
+  gh_run_delete — 删除 Actions Run
+    (无参数)
+
+  gh_run_watch — 观察 Run 直到完成(轮询进度)
+    --interval                   integer   可选   刷新间隔秒数(默认 3)
+    --compact                    boolean   可选   compact=true 只显示相关/失败步骤
+    --exit_status                boolean   可选   exit_status=true 失败时返回错误
+
+  gh_ci_alerts — 查看后台 CI 监控告警(从 LSM 扫描 gh:ci_alert: 前缀,返回新失败 job 日志路径)
+    --mark_read                  boolean   可选   清理已读告警(从 LSM 删除已返回的告警 key)
+
+  gh_search_repos — 搜索 GitHub 仓库
+    --query                      string    可选   搜索查询(GitHub search 语法)
+    --sort                       string    可选   排序(stars/forks/updated,可选)
+    --order                      string    可选   顺序(asc/desc,默认 desc)
+    --language                   string    可选   按语言过滤(如 CSharp/Go/Python)
+    --owner                      string    可选   按 owner 过滤
+    --topic                      string    可选   按 topic 过滤
+
+  gh_search_issues — 搜索 GitHub Issue
+    --query                      string    可选   搜索查询(GitHub search 语法)
+    --sort                       string    可选   排序(created/updated/comments,可选)
+    --order                      string    可选   顺序(asc/desc,默认 desc)
+
+  gh_search_prs — 搜索 GitHub PR
+    --query                      string    可选   搜索查询(GitHub search 语法)
+    --sort                       string    可选   排序(created/updated/comments,可选)
+    --order                      string    可选   顺序(asc/desc,默认 desc)
+
+  gh_search_code — 搜索 GitHub 代码
+    --query                      string    必填   搜索查询(GitHub code search 语法,如 auto_merge repo:owner/repo)
+    --sort                       string    可选   排序(indexed,可选)
+    --order                      string    可选   顺序(asc/desc,默认 desc)
+    --language                   string    可选   按语言过滤(如 CSharp/Go/Python)
+    --extension                  string    可选   按扩展名过滤(如 cs/go/py)
+    --path                       string    可选   按路径过滤(如 src/handlers)
+    --filename                   string    可选   按文件名过滤(如 README.md)
+
+  gh_search_commits — 搜索 GitHub 提交
+    --query                      string    必填   搜索查询(GitHub commit search 语法,如 fix repo:owner/repo)
+    --sort                       string    可选   排序(author-date/committer-date,可选)
+    --order                      string    可选   顺序(asc/desc,默认 desc)
+
+  gh_search_users — 搜索 GitHub 用户
+    --query                      string    必填   搜索查询(GitHub user search 语法,如 type:user)
+    --sort                       string    可选   排序(followers/repositories/joined,可选)
+    --order                      string    可选   顺序(asc/desc,默认 desc)
+
+  gh_secret_list — 列出仓库 Secret
+    (无参数)
+
+  gh_secret_set — 设置 Secret(加密后 PUT API)
+    --name                       string    必填   Secret 名称
+    --body                       string    可选   Secret 值
+    --env                        string    可选   环境名(可选,设置环境 Secret)
+
+  gh_secret_delete — 删除 Secret
+    --name                       string    必填   Secret 名称
+
+  gh_variable_list — 列出仓库 Variable
+    (无参数)
+
+  gh_variable_get — 获取 Variable 值
+    --name                       string    必填   Variable 名称
+
+  gh_variable_set — 设置 Variable
+    --name                       string    必填   Variable 名称
+    --body                       string    必填   Variable 值
+
+  gh_variable_delete — 删除 Variable
+    --name                       string    必填   Variable 名称
+
+  gh_workflow_list — 列出仓库 Workflow
+    --all                        boolean   可选   all=true 包含已禁用 workflow(默认 false)
+
+  gh_workflow_view — 查看 Workflow 详情
+    --workflow_id                string    必填   Workflow ID 或名称或文件名
+    --yaml                       boolean   可选   yaml=true 返回 workflow yaml 内容
+    --web                        boolean   可选   web=true 只返回浏览器 URL
+
+  gh_workflow_run — 触发 Workflow 运行(workflow_dispatch)
+    --workflow_id                string    必填   Workflow ID 或名称
+    --inputs                     string    可选   输入参数 JSON(可选,如 {"key":"value"})
+
+  gh_workflow_enable — 启用 Workflow
+    --workflow_id                string    必填   Workflow ID 或名称
+
+  gh_workflow_disable — 禁用 Workflow
+    --workflow_id                string    必填   Workflow ID 或名称
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

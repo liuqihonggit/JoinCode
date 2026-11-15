@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: sandbox
+name: jcc-tool-sandbox
+summary: "Enter a sandbox with the specified isolation type. If the requested type is unavailable, automatically falls back to a lower isolation level. Available types: soft (path redirection), process (OS-level process isolation), docker (container isolation), bubblewrap (Linux namespace isolation).; Exit the current sandbox and restore normal access.; Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back."
+category: sandbox
+exe: jcc-tool-sandbox.exe
+tags: [sandbox]
+tool_count: 6
+parameters: []

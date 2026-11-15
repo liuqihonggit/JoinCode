@@ -1,0 +1,30 @@
+jcc-tool-tool_creation — tool_creation 工具分组（3 个工具）
+
+用法:
+  jcc-tool-tool_creation.exe <工具名> [参数...]
+  jcc-tool-tool_creation.exe -h
+  jcc-tool-tool_creation.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  tool_create                        创建新的工具模板并注册到当前会话。当您发现缺少某个工具时，使用此工具动态创建。
+  tool_list_templates                列出所有已创建的工具模板
+  tool_show_template                 查看工具模板的完整定义
+
+单个工具的参数说明:
+
+  tool_create — 创建新的工具模板并注册到当前会话。当您发现缺少某个工具时，使用此工具动态创建。
+    --toolName                   string    必填   工具名称（小写+下划线，如 my_validator）
+    --description                string    必填   工具描述（LLM看到的功能说明）
+    --executionType              string    必填   执行类型: shell 或 mcp_call
+    --command                    string    必填   执行命令或MCP目标（shell: 命令路径; mcp_call: 服务器.方法）
+    --parametersJson             string    可选   参数定义JSON数组，格式: [{"name":"param1","description":"参数1","type":"string","required":true}]
+    --argsTemplate               string    可选   命令参数模板（shell类型），支持{{param}}占位符
+    --groupName                  string    可选   二级分组名
+
+  tool_list_templates — 列出所有已创建的工具模板
+    (无参数)
+
+  tool_show_template — 查看工具模板的完整定义
+    --templateId                 string    必填   模板ID或工具名称
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

@@ -1,0 +1,24 @@
+jcc-tool-tool_debug — tool_debug 工具分组（3 个工具）
+
+用法:
+  jcc-tool-tool_debug.exe <工具名> [参数...]
+  jcc-tool-tool_debug.exe -h
+  jcc-tool-tool_debug.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  tool_score                         查看工具的评分状态（独立评分+超图评分+有效评分+黑名单/降权）
+  tool_hypergraph                    查看工具链超图结构（所有超边+成员评分+链路顺序）
+  tool_score_reset                   重置工具评分（清除健康记录，恢复初始状态）
+
+单个工具的参数说明:
+
+  tool_score — 查看工具的评分状态（独立评分+超图评分+有效评分+黑名单/降权）
+    --toolName                   string    可选   工具名称（留空则显示所有工具）
+
+  tool_hypergraph — 查看工具链超图结构（所有超边+成员评分+链路顺序）
+    (无参数)
+
+  tool_score_reset — 重置工具评分（清除健康记录，恢复初始状态）
+    --toolName                   string    必填   工具名称
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

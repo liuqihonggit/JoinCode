@@ -1,0 +1,17 @@
+jcc-tool-planning — planning 工具分组（1 个工具）
+
+用法:
+  jcc-tool-planning.exe <工具名> [参数...]
+  jcc-tool-planning.exe -h
+  jcc-tool-planning.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  verify_plan_execution              Verify plan execution results against expectations
+
+单个工具的参数说明:
+
+  verify_plan_execution — Verify plan execution results against expectations
+    --plan_prompt                string    可选   Plan prompt (optional, default empty)
+    --criteria                   string    可选   Verification criteria (optional, describes expected execution results)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

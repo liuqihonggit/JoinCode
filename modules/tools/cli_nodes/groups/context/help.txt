@@ -1,0 +1,21 @@
+jcc-tool-context — context 工具分组（2 个工具）
+
+用法:
+  jcc-tool-context.exe <工具名> [参数...]
+  jcc-tool-context.exe -h
+  jcc-tool-context.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  ctx_inspect                        Inspect current context window usage
+  snip                               Snip old messages from conversation history to free context window space
+
+单个工具的参数说明:
+
+  ctx_inspect — Inspect current context window usage
+    --inspect_type               string    可选   Inspection type: summary/detailed/layers (optional, default summary)  默认=summary
+
+  snip — Snip old messages from conversation history to free context window space
+    --mode                       string    可选   Snip mode: rewind/rewind_to/clear (default rewind)  默认=rewind
+    --message_index              integer   可选   Message index (used in rewind_to mode)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

@@ -1,0 +1,20 @@
+jcc-tool-mode — mode 工具分组（2 个工具）
+
+用法:
+  jcc-tool-mode.exe <工具名> [参数...]
+  jcc-tool-mode.exe -h
+  jcc-tool-mode.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  brief_mode                         Enable or disable brief mode (compact output)
+  brief_status                       Get current brief mode status
+
+单个工具的参数说明:
+
+  brief_mode — Enable or disable brief mode (compact output)
+    --enabled                    boolean   必填   true to enable, false to disable
+
+  brief_status — Get current brief mode status
+    (无参数)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

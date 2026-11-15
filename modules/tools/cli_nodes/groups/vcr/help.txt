@@ -1,0 +1,26 @@
+jcc-tool-vcr — vcr 工具分组（3 个工具）
+
+用法:
+  jcc-tool-vcr.exe <工具名> [参数...]
+  jcc-tool-vcr.exe -h
+  jcc-tool-vcr.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  vcr_record                         录制 HTTP API 交互到 cassette（类似 Fiddler 抓包）。启动后拦截所有 HTTP 请求+响应保存到 JSON 文件，供测试回放用。需在交互式模式(jcc chat)单进程内使用
+  vcr_playback                       回放 VCR cassette 中录制的 HTTP API 响应。启动后匹配请求返回录制的响应，不发真实 HTTP 请求。供测试/离线开发用
+  vcr_status                         查询 VCR HTTP API 录制/回放服务的当前状态（模式: Off/Record/Playback + cassette 目录）
+
+单个工具的参数说明:
+
+  vcr_record — 录制 HTTP API 交互到 cassette（类似 Fiddler 抓包）。启动后拦截所有 HTTP 请求+响应保存到 JSON 文件，供测试回放用。需在交互式模式(jcc chat)单进程内使用
+    --cassette_name              string    必填   Cassette name
+    --cassette_directory         string    必填   Cassette 保存目录（绝对路径或相对路径），不传则用默认 cassettes/ 目录
+
+  vcr_playback — 回放 VCR cassette 中录制的 HTTP API 响应。启动后匹配请求返回录制的响应，不发真实 HTTP 请求。供测试/离线开发用
+    --cassette_name              string    必填   Cassette name
+    --cassette_directory         string    必填   Cassette 所在目录（绝对路径或相对路径），不传则用默认 cassettes/ 目录
+
+  vcr_status — 查询 VCR HTTP API 录制/回放服务的当前状态（模式: Off/Record/Playback + cassette 目录）
+    (无参数)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

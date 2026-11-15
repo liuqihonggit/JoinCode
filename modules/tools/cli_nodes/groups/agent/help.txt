@@ -1,0 +1,48 @@
+jcc-tool-agent — agent 工具分组（7 个工具）
+
+用法:
+  jcc-tool-agent.exe <工具名> [参数...]
+  jcc-tool-agent.exe -h
+  jcc-tool-agent.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  sub_agent_control                  Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript
+  plan_agent                         Use Plan Agent to create task execution plan
+  explore_agent                      Use Explore Agent to analyze codebase structure
+  verification_agent                 Use Verification Agent to check code correctness
+  general_agent                      Use General Agent to handle various tasks
+  guide_agent                        Use
+  list_agents                        List all available built-in agents
+
+单个工具的参数说明:
+
+  sub_agent_control — Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript
+    (无参数)
+
+  plan_agent — Use Plan Agent to create task execution plan
+    --goal                       string    必填   Task goal or requirement description
+    --context                    string    可选   Context information, optional
+    --constraints                string    可选   Constraints (JSON array format), optional
+
+  explore_agent — Use Explore Agent to analyze codebase structure
+    --target_path                string    必填   Target path or directory to explore
+    --focus_area                 string    可选   Focus area, optional
+    --depth                      string    可选   Explore depth: overview/standard/detailed, default standard  默认=standard
+
+  verification_agent — Use Verification Agent to check code correctness
+    --code                       string    必填   Code content
+    --language                   string    可选   Programming language, optional
+    --aspect                     string    可选   Verification aspect: security/performance/maintainability/correctness/style, optional
+
+  general_agent — Use General Agent to handle various tasks
+    --task                       string    必填   Task description
+    --input                      string    可选   Input content, optional
+
+  guide_agent — Use
+    --question                   string    必填   Question or help needed
+    --feature                    string    可选   Feature name, optional
+
+  list_agents — List all available built-in agents
+    (无参数)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

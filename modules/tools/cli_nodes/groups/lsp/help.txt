@@ -1,0 +1,70 @@
+jcc-tool-lsp — lsp 工具分组（10 个工具）
+
+用法:
+  jcc-tool-lsp.exe <工具名> [参数...]
+  jcc-tool-lsp.exe -h
+  jcc-tool-lsp.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  lsp_goto_definition                Go to symbol definition location
+  lsp_find_references                Find all references to a symbol
+  lsp_hover                          Get hover information
+  lsp_completion                     Get code completion suggestions
+  lsp_document_symbols               Get document symbol list
+  lsp_workspace_symbol               Search symbols in workspace
+  lsp_goto_implementation            Go to symbol implementation location
+  lsp_prepare_call_hierarchy         Prepare call hierarchy information
+  lsp_incoming_calls                 Find incoming calls (who calls this symbol)
+  lsp_outgoing_calls                 Find outgoing calls (symbols called by this symbol)
+
+单个工具的参数说明:
+
+  lsp_goto_definition — Go to symbol definition location
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_find_references — Find all references to a symbol
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_hover — Get hover information
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_completion — Get code completion suggestions
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_document_symbols — Get document symbol list
+    --file_path                  string    必填   File path
+
+  lsp_workspace_symbol — Search symbols in workspace
+    --query                      string    必填   Search query
+    --workspacePath              string    必填   Workspace path (file or directory) to search in. If omitted, uses current working directory.
+    --serverName                 string    必填   Explicit LSP server name (e.g. 'csharp-ls'). If omitted, auto-detects from workspacePath or uses first running server.
+
+  lsp_goto_implementation — Go to symbol implementation location
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_prepare_call_hierarchy — Prepare call hierarchy information
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_incoming_calls — Find incoming calls (who calls this symbol)
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+  lsp_outgoing_calls — Find outgoing calls (symbols called by this symbol)
+    --file_path                  string    必填   File path
+    --line                       integer   必填   Line number (1-based, consistent with editor)
+    --character                  integer   必填   Character position (1-based, consistent with editor)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

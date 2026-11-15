@@ -1,0 +1,42 @@
+jcc-tool-web — web 工具分组（5 个工具）
+
+用法:
+  jcc-tool-web.exe <工具名> [参数...]
+  jcc-tool-web.exe -h
+  jcc-tool-web.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  download_file                      下载文件到指定路径(支持多线程并发+断点续传)
+  web_browser                        Open a URL in the browser or perform browser actions
+  web_fetch                          Fetch web content from a URL and process with AI model
+  web_to_markdown                    Fetch a URL and convert its HTML content to Markdown format
+  web_search                         Search the web for up-to-date information (requires Anthropic provider)
+
+单个工具的参数说明:
+
+  download_file — 下载文件到指定路径(支持多线程并发+断点续传)
+    --url                        string    必填   下载 URL
+    --file_path                  string    必填   目标文件保存路径
+    --max_threads                integer   可选   最大并发线程数(1-32,默认 4)
+    --resume                     boolean   可选   是否启用断点续传(默认 true)
+
+  web_browser — Open a URL in the browser or perform browser actions
+    --target                     string    必填   URL to open/screenshot, or JavaScript expression to evaluate
+    --action                     string    可选   Action type: open/screenshot/evaluate (default open)  默认=open
+    --wait_ms                    integer   可选   Wait time in milliseconds (optional, default 3000)  默认=3000
+    --url                        string    可选   URL of the page context for evaluate action (optional)
+
+  web_fetch — Fetch web content from a URL and process with AI model
+    --url                        string    必填   URL to fetch
+    --prompt                     string    必填   Prompt describing what information to extract from the page
+
+  web_to_markdown — Fetch a URL and convert its HTML content to Markdown format
+    --url                        string    必填   URL to fetch and convert to Markdown
+    --max_length                 integer   可选   Maximum length of the output in characters, default 100000
+
+  web_search — Search the web for up-to-date information (requires Anthropic provider)
+    --query                      string    必填   Search query
+    --allowed_domains            string    可选   Only include results from these domains
+    --blocked_domains            string    可选   Exclude results from these domains
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

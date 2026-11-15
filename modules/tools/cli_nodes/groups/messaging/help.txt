@@ -1,0 +1,18 @@
+jcc-tool-messaging — messaging 工具分组（1 个工具）
+
+用法:
+  jcc-tool-messaging.exe <工具名> [参数...]
+  jcc-tool-messaging.exe -h
+  jcc-tool-messaging.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  send_user_message                  Send a message to the user, supports markdown and file attachments
+
+单个工具的参数说明:
+
+  send_user_message — Send a message to the user, supports markdown and file attachments
+    --message                    string    必填   The message for the user. Supports markdown formatting.
+    --attachments                string    可选   Optional file paths to attach (photos, screenshots, diffs, logs)
+    --status                     string    可选   Use 'proactive' for unsolicited updates, 'normal' for replies
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

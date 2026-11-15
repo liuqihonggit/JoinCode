@@ -1,0 +1,106 @@
+jcc-tool-vision — vision 工具分组（14 个工具）
+
+用法:
+  jcc-tool-vision.exe <工具名> [参数...]
+  jcc-tool-vision.exe -h
+  jcc-tool-vision.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  image_describe                     分析图片返回顶层描述+标签列表。每个标签含suggested_attributes供下钻决策。用于M2隐喻拓扑的入口节点
+  image_drill_down                   按标签下钻获取细粒度属性。受token预算(默认2000)+层数上限(默认3)双保险约束。用于M2隐喻拓扑的递归展开
+  measure_length                     计算图片中两点间的像素距离。LLM可联网检索参考物尺寸换算为真实长度。返回像素距离+角度
+  measure_depth                      分析图片指定区域的颜色梯度估算深度。颜色方差大=近，小=远。返回颜色统计+深度估计
+  measure_ratio                      计算区域的长宽比(width/height)。用于M4非等比测量，如屏幕比例、纸张比例等
+  quadtree_to_screen_rects           把四叉树格子转换为屏幕绝对坐标矩形列表(ADR 0032延伸)。返回JSON数组,每项含cellCode/screenX/screenY/width/height/alpha。供LLM逐个调show_desktop_overlay在桌面实际画框。不传paintsJson时全部格子可见(alpha=0.3)
+  quadtree_build                     在图片上构建四叉树网格，返回所有格子的编码(L0.2.1格式)/坐标/方位/象限。depth=1为4格，2为16格，3为64格
+  quadtree_zoom                      聚焦指定格子，裁剪子图并重新构建四叉树网格。返回子图base64+新网格（编码重置L0起算）
+  quadtree_paint                     批量染色格子（设置alpha强度），返回更新后的网格。paintsJson格式: {"L0.0":0.5,"L0.1":0.8}，alpha范围0..1
+  quadtree_render                    渲染虚线网格叠加到原图，返回标注图片base64。不传paintsJson时显示全部网格线(alpha=0.3)
+  quadtree_neighbor                  查询格子的八方位邻居编码（同层）。方向: N/S/W/E/NW/NE/SW/SE，边界外返回null
+  screen_indicate                    在图片上标注指定格子，返回标注后的图片base64。注意:此工具只在图片上画框返回,不在桌面上实际高亮。如需桌面实际高亮请用show_desktop_overlay。前置:需先screenshot获取imageBase64+quadtree_build获取cellCode
+  temporal_aggregate                 分析多帧图片的时序演变。framesJson为base64数组JSON如["base64_1","base64_2"]。用于M3时序隐喻聚合
+  temporal_stable_contour            提取多帧中跨帧稳定的区域轮廓。帧差粗筛:像素差异<threshold视为稳定。返回稳定区域掩码图base64
+
+单个工具的参数说明:
+
+  image_describe — 分析图片返回顶层描述+标签列表。每个标签含suggested_attributes供下钻决策。用于M2隐喻拓扑的入口节点
+    --imageBase64                string    必填   图片 base64 编码
+    --maxLabels                  integer   可选   最大标签数，默认10  默认=10
+
+  image_drill_down — 按标签下钻获取细粒度属性。受token预算(默认2000)+层数上限(默认3)双保险约束。用于M2隐喻拓扑的递归展开
+    --imageBase64                string    必填   图片 base64 编码
+    --label                      string    必填   要下钻的标签名（如"冰箱"）
+    --currentDepth               integer   可选   当前下钻深度（0=顶层，首次下钻传1）  默认=1
+    --maxDepth                   integer   可选   最大下钻深度，默认3  默认=3
+    --tokenBudget                integer   可选   token 预算上限，默认2000  默认=2000
+
+  measure_length — 计算图片中两点间的像素距离。LLM可联网检索参考物尺寸换算为真实长度。返回像素距离+角度
+    --x1                         integer   必填   起点X坐标（像素）
+    --y1                         integer   必填   起点Y坐标（像素）
+    --x2                         integer   必填   终点X坐标（像素）
+    --y2                         integer   必填   终点Y坐标（像素）
+
+  measure_depth — 分析图片指定区域的颜色梯度估算深度。颜色方差大=近，小=远。返回颜色统计+深度估计
+    --imageBase64                string    必填   图片 base64 编码
+    --x                          integer   必填   区域左上角X（像素）
+    --y                          integer   必填   区域左上角Y（像素）
+    --width                      integer   必填   区域宽度（像素）
+    --height                     integer   必填   区域高度（像素）
+
+  measure_ratio — 计算区域的长宽比(width/height)。用于M4非等比测量，如屏幕比例、纸张比例等
+    --width                      integer   必填   区域宽度（像素）
+    --height                     integer   必填   区域高度（像素）
+
+  quadtree_to_screen_rects — 把四叉树格子转换为屏幕绝对坐标矩形列表(ADR 0032延伸)。返回JSON数组,每项含cellCode/screenX/screenY/width/height/alpha。供LLM逐个调show_desktop_overlay在桌面实际画框。不传paintsJson时全部格子可见(alpha=0.3)
+    --imageWidth                 integer   必填   原图宽度(像素)
+    --imageHeight                integer   必填   原图高度(像素)
+    --depth                      integer   必填   四叉树层数
+    --originScreenX              integer   必填   原图左上角在屏幕的X坐标
+    --originScreenY              integer   必填   原图左上角在屏幕的Y坐标
+    --paintsJson                 string    可选   染色映射JSON(可选),不传则全部格子可见。格式: {"L0.0":0.5}
+
+  quadtree_build — 在图片上构建四叉树网格，返回所有格子的编码(L0.2.1格式)/坐标/方位/象限。depth=1为4格，2为16格，3为64格
+    --imageBase64                string    必填   图片 base64 PNG/JPG 编码
+    --depth                      integer   可选   四叉树层数（1=4格, 2=16格, 3=64格），默认2  默认=2
+
+  quadtree_zoom — 聚焦指定格子，裁剪子图并重新构建四叉树网格。返回子图base64+新网格（编码重置L0起算）
+    --imageBase64                string    必填   原图 base64
+    --cellCode                   string    必填   要聚焦的格子编码（如 L0.2.1）
+    --sourceDepth                integer   必填   源格子所在的四叉树层数
+    --targetDepth                integer   可选   子图新网格层数，默认2  默认=2
+
+  quadtree_paint — 批量染色格子（设置alpha强度），返回更新后的网格。paintsJson格式: {"L0.0":0.5,"L0.1":0.8}，alpha范围0..1
+    --imageWidth                 integer   必填   原图宽度（像素）
+    --imageHeight                integer   必填   原图高度（像素）
+    --depth                      integer   必填   四叉树层数
+    --paintsJson                 string    必填   染色映射JSON: {"格子编码":alpha}，alpha范围0..1
+
+  quadtree_render — 渲染虚线网格叠加到原图，返回标注图片base64。不传paintsJson时显示全部网格线(alpha=0.3)
+    --imageBase64                string    必填   原图 base64
+    --imageWidth                 integer   必填   原图宽度（像素）
+    --imageHeight                integer   必填   原图高度（像素）
+    --depth                      integer   必填   四叉树层数
+    --paintsJson                 string    可选   染色映射JSON（可选），不传则显示全部网格线
+
+  quadtree_neighbor — 查询格子的八方位邻居编码（同层）。方向: N/S/W/E/NW/NE/SW/SE，边界外返回null
+    --cellCode                   string    必填   源格子编码（如 L0.2.1）
+    --imageWidth                 integer   必填   原图宽度（像素）
+    --imageHeight                integer   必填   原图高度（像素）
+    --depth                      integer   必填   四叉树层数
+
+  screen_indicate — 在图片上标注指定格子，返回标注后的图片base64。注意:此工具只在图片上画框返回,不在桌面上实际高亮。如需桌面实际高亮请用show_desktop_overlay。前置:需先screenshot获取imageBase64+quadtree_build获取cellCode
+    --imageBase64                string    必填   原图 base64
+    --cellCode                   string    必填   要高亮的格子编码（如 L0.2.1）
+    --imageWidth                 integer   必填   原图宽度（像素）
+    --imageHeight                integer   必填   原图高度（像素）
+    --depth                      integer   必填   四叉树层数
+
+  temporal_aggregate — 分析多帧图片的时序演变。framesJson为base64数组JSON如["base64_1","base64_2"]。用于M3时序隐喻聚合
+    --framesJson                 string    必填   帧图片base64数组的JSON，如["base64_1","base64_2"]
+    --analysisPrompt             string    可选   分析提示词（可选），如"描述物体的运动轨迹"
+
+  temporal_stable_contour — 提取多帧中跨帧稳定的区域轮廓。帧差粗筛:像素差异<threshold视为稳定。返回稳定区域掩码图base64
+    --framesJson                 string    必填   帧图片base64数组的JSON
+    --threshold                  integer   可选   帧差阈值(0-255)，差异<阈值视为稳定，默认30  默认=30
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

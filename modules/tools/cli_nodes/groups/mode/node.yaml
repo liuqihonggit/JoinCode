@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: mode
+name: jcc-tool-mode
+summary: "Enable or disable brief mode (compact output); Get current brief mode status"
+category: mode
+exe: jcc-tool-mode.exe
+tags: [brief]
+tool_count: 2
+parameters: []

@@ -1,0 +1,23 @@
+jcc-tool-sleep — sleep 工具分组（2 个工具）
+
+用法:
+  jcc-tool-sleep.exe <工具名> [参数...]
+  jcc-tool-sleep.exe -h
+  jcc-tool-sleep.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  sleep                              Sleep/delay for a specified duration
+  sleep_until                        Wait until a specific time point
+
+单个工具的参数说明:
+
+  sleep — Sleep/delay for a specified duration
+    --duration_seconds           integer   必填   Sleep duration (seconds), max 1800 (30 minutes)
+    --reason                     string    可选   Reason for sleep (optional)
+    --tick_interval_seconds      integer   可选   Periodic wake interval (seconds, optional, 0 means no wake, default 0)
+
+  sleep_until — Wait until a specific time point
+    --target_time                string    必填   Target time (format: HH:mm or yyyy-MM-dd HH:mm:ss)
+    --timezone_offset_hours      integer   可选   Timezone offset (hours, optional, default local time)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

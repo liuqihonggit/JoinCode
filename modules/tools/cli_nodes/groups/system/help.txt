@@ -1,0 +1,22 @@
+jcc-tool-system — system 工具分组（2 个工具）
+
+用法:
+  jcc-tool-system.exe <工具名> [参数...]
+  jcc-tool-system.exe -h
+  jcc-tool-system.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  model_search                       按功能→型号渐进式查找模型表，用于模态不匹配时寻找支持目标功能的模型
+  tool_search                        Search available tools by keyword or exact selection
+
+单个工具的参数说明:
+
+  model_search — 按功能→型号渐进式查找模型表，用于模态不匹配时寻找支持目标功能的模型
+    --query                      string    必填   查找查询：'list_groups' 列出功能分组；'map[功能Key]' 列出支持该功能的模型（如 map[generateImage]）；'map[功能Key][vendor]' 按 vendor 过滤；关键词模糊搜索模型名/显示名
+    --max_results                integer   可选   最大结果数（可选，默认 20）  默认=20
+
+  tool_search — Search available tools by keyword or exact selection
+    --query                      string    必填   Search query: keyword search, 'select:Name1,Name2' for exact selection, '+name' for must-include, 'map[主分组]'/'map[主分组][子分组]'/'map[主分组][子分组][工具名]' to drill into groups, 'list_groups' to list all groups
+    --max_results                integer   可选   Maximum number of results (optional, default 10)  默认=10
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

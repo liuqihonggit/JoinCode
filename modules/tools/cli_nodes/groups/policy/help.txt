@@ -1,0 +1,21 @@
+jcc-tool-policy — policy 工具分组（2 个工具）
+
+用法:
+  jcc-tool-policy.exe <工具名> [参数...]
+  jcc-tool-policy.exe -h
+  jcc-tool-policy.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  policy_check                       Check if an action complies with policy rules
+  policy_list                        List all active policy rules
+
+单个工具的参数说明:
+
+  policy_check — Check if an action complies with policy rules
+    --action                     string    必填   Action name
+    --string                     string    可选   Context information (JSON object, optional)
+
+  policy_list — List all active policy rules
+    (无参数)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

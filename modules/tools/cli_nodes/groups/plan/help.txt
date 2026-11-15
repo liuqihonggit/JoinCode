@@ -1,0 +1,59 @@
+jcc-tool-plan — plan 工具分组（10 个工具）
+
+用法:
+  jcc-tool-plan.exe <工具名> [参数...]
+  jcc-tool-plan.exe -h
+  jcc-tool-plan.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  enter_plan_mode                    Enter plan mode for complex tasks requiring exploration and design
+  exit_plan_mode                     Exit plan mode and present plan for approval
+  get_plan_status                    Get current plan status
+  add_plan_step                      Add a plan step
+  approve_plan_step                  Approve a plan step
+  reject_plan_step                   Reject a plan step
+  execute_plan_steps                 Execute approved plan steps
+  modify_plan_step                   Modify a plan step
+  remove_plan_step                   Remove a plan step
+  get_plan_history                   Get plan history
+
+单个工具的参数说明:
+
+  enter_plan_mode — Enter plan mode for complex tasks requiring exploration and design
+    --description                string    可选   Plan description (optional)
+
+  exit_plan_mode — Exit plan mode and present plan for approval
+    --execute_remaining_steps    boolean   可选   Whether to execute remaining approved steps  默认=false
+    --JsonElement                string    可选   Prompt-based permissions needed to implement the plan. Each entry specifies a tool and a semantic description of the action, e.g. {"tool":"Bash","prompt":"run tests"}
+
+  get_plan_status — Get current plan status
+    (无参数)
+
+  add_plan_step — Add a plan step
+    --description                string    必填   Step description
+    --tool_name                  string    可选   Tool name (optional)
+    --JsonElement                string    可选   Tool parameters (optional)
+
+  approve_plan_step — Approve a plan step
+    --step_index                 integer   必填   Step index (0-based)
+
+  reject_plan_step — Reject a plan step
+    --step_index                 integer   必填   Step index (0-based)
+    --reason                     string    可选   Rejection reason (optional)
+
+  execute_plan_steps — Execute approved plan steps
+    (无参数)
+
+  modify_plan_step — Modify a plan step
+    --step_index                 integer   必填   Step index (0-based)
+    --new_description            string    可选   New description (optional)
+    --new_tool_name              string    可选   New tool name (optional)
+    --JsonElement                string    可选   New parameters (optional)
+
+  remove_plan_step — Remove a plan step
+    --step_index                 integer   必填   Step index (0-based)
+
+  get_plan_history — Get plan history
+    --limit                      integer   可选   Result count limit (optional, default 10)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

@@ -1,0 +1,25 @@
+jcc-tool-config — config 工具分组（3 个工具）
+
+用法:
+  jcc-tool-config.exe <工具名> [参数...]
+  jcc-tool-config.exe -h
+  jcc-tool-config.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  config_get                         Get a configuration setting value
+  config_set                         Set a configuration setting value
+  config_list                        List all configurable settings
+
+单个工具的参数说明:
+
+  config_get — Get a configuration setting value
+    --setting                    string    必填   The setting key (e.g., "theme", "model", "permissions.defaultMode")
+
+  config_set — Set a configuration setting value
+    --setting                    string    必填   The setting key
+    --value                      string    必填   The new value
+
+  config_list — List all configurable settings
+    (无参数)
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

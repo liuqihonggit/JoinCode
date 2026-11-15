@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: tool_creation
+name: jcc-tool-tool_creation
+summary: "创建新的工具模板并注册到当前会话。当您发现缺少某个工具时，使用此工具动态创建。; 列出所有已创建的工具模板; 查看工具模板的完整定义"
+category: tool_creation
+exe: jcc-tool-tool_creation.exe
+tags: [tool]
+tool_count: 3
+parameters: []

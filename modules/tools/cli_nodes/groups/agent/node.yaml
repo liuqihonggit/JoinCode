@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: agent
+name: jcc-tool-agent
+summary: "Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript; Use Plan Agent to create task execution plan; Use Explore Agent to analyze codebase structure"
+category: agent
+exe: jcc-tool-agent.exe
+tags: [explore, general, guide, list, plan, sub, verification]
+tool_count: 7
+parameters: []

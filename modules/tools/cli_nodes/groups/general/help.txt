@@ -1,0 +1,47 @@
+jcc-tool-general — general 工具分组（8 个工具）
+
+用法:
+  jcc-tool-general.exe <工具名> [参数...]
+  jcc-tool-general.exe -h
+  jcc-tool-general.exe <工具名> -h
+
+工具列表（说明复用自 [McpTool] 特性）:
+  agent                              Create and launch a sub-agent to handle a task
+  agent_send_message                 Send a message to another agent
+  forward_user_input                 Forward user input to a running sub-agent
+  agent_list                         List available agent types
+  agent_status                       Get agent status
+  agent_stop                         Stop a running agent
+  agent_running                      List all running agents
+  agent_get_messages                 Get pending messages for an agent
+
+单个工具的参数说明:
+
+  agent — Create and launch a sub-agent to handle a task
+    (无参数)
+
+  agent_send_message — Send a message to another agent
+    --to                         string    必填   Recipient: teammate name, agent ID, or '*' for broadcast
+    --message                    string    必填   Message content (plain text or structured JSON)
+    --summary                    string    可选   5-10 word summary preview (required for plain text messages)
+
+  forward_user_input — Forward user input to a running sub-agent
+    --agentId                    string    必填   Target sub-agent ID
+    --userInput                  string    必填   User input to forward
+
+  agent_list — List available agent types
+    (无参数)
+
+  agent_status — Get agent status
+    --agent_id                   string    必填   Agent ID or name
+
+  agent_stop — Stop a running agent
+    --agent_id                   string    必填   Agent ID or name
+
+  agent_running — List all running agents
+    (无参数)
+
+  agent_get_messages — Get pending messages for an agent
+    --agent_id                   string    必填   Agent ID
+
+描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

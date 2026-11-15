@@ -1,0 +1,9 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+id: code_index
+name: jcc-tool-code_index
+summary: "C# AST symbol search ONLY. Searches indexed C# code symbols (classes, methods, properties, etc.) from parsed .cs files. Do NOT use for config files, docs, JSON, YAML, or non-C# content - use grep/glob instead.; C# AST comprehensive search ONLY. Fuzzy match C# symbols then AST-extract references + callers/callees. Do NOT use for config, docs, JSON, YAML, or non-C# content - use grep/glob instead.; Find the definition location of a C# symbol in AST index"
+category: code_index
+exe: jcc-tool-code_index.exe
+tags: [code, search]
+tool_count: 23
+parameters: []

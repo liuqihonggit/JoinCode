@@ -137,8 +137,7 @@ public sealed class CliToolNodeTests {
     }
 
     [Fact]
-    public void ParseNode_DelegateModeCountsAsProcessIsolated() {
-        const string yaml = """
+    public void ParseNode_DelegateModeCountsAsProcessIsolated() {        const string yaml = """
             id: github
             name: jcc-tool-github
             summary: github 工具分组
@@ -175,6 +174,47 @@ public sealed class CliToolNodeTests {
 
         var ex = Assert.Throws<InvalidOperationException>(() => NodeManifestLoader.LoadNodeFromText(yaml, "node.yaml"));
         Assert.Contains("local / delegate / host", ex.Message);
+    }
+
+    [Fact]
+    public void FindTool_AcceptsSlashCommandWithOrWithoutLeadingSlash() {
+        const string yaml = """
+            id: slash
+            name: jcc-slash
+            summary: 斜杠命令节点
+            category: slash
+            exe: jcc-slash.exe
+            tools:
+              - id: /agents
+                mode: host
+            """;
+        var descriptor = NodeManifestLoader.LoadNodeFromText(yaml, "node.yaml");
+
+        // Git Bash 会把以 / 开头的参数展开成安装根下的路径，还原后往往只剩 agents；
+        // 两种写法必须命中同一条，否则 `jcc tool call slash /agents` 会报「工具不存在」。
+        Assert.Equal("/agents", descriptor.FindTool("/agents")?.Id);
+        Assert.Equal("/agents", descriptor.FindTool("agents")?.Id);
+        Assert.Null(descriptor.FindTool("agentz"));
+    }
+
+    [Fact]
+    public void RenderTree_DistinguishesFullyDelegatedGroupFromBrokenOne() {
+        var node = new CliToolDescriptor {
+            Id = "media",
+            Name = "media",
+            Summary = "桌面控制",
+            Category = "media",
+            Exe = "jcc-tool-media.exe",
+            Tools = [
+                new CliToolEntry { Id = "mouse_click", Mode = CliExecutionMode.Host },
+                new CliToolEntry { Id = "key_press", Mode = CliExecutionMode.Host }
+            ]
+        };
+
+        var tree = CliToolSearch.RenderTree([node]);
+
+        // 「进程隔离 0/2」会被读成「这组不能用」；它其实 2 个都能用，只是都走宿主。
+        Assert.Contains("全部 2 个转发宿主", tree);
     }
 
     // 目录树下钻 LoadNodesFromDirectory 涉及真实磁盘 IO，按 JCC9001「测试 0 磁盘读写」

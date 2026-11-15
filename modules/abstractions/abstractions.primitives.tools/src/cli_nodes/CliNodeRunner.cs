@@ -122,22 +122,49 @@ public static class CliNodeRunner {
         }
 
         // 名字归一化：斜杠命令要把 Git Bash 展开的 Windows 路径还原成 /agents。
-        var toolId = definition.NameNormalizer(args[0]);
+        var requested = definition.NameNormalizer(args[0]);
+        var known = ListToolIds(help);
+        var canonical = CanonicalToolId(requested, known);
+        var unknown = known.Count > 0 && canonical.Length == 0;
+
         if (args.Length > 1 && IsHelp(args[1])) {
-            PrintToolHelp(definition, help, toolId);
+            if (unknown) {
+                WriteError(BuildUnknownToolMessage(definition, requested, known));
+                return ExitInvalidArguments;
+            }
+            PrintToolHelp(definition, help, canonical.Length > 0 ? canonical : requested);
             return ExitSuccess;
         }
+
+        if (unknown) {
+            WriteError(BuildUnknownToolMessage(definition, requested, known));
+            return ExitInvalidArguments;
+        }
+        // 工具名一律换成帮助里的规范写法：exe 的本地实现表与详情段都用规范 ID 索引。
+        var toolId = canonical.Length > 0 ? canonical : requested;
 
         var options = ParseOptions(args.AsSpan(1));
         var handler = definition.Resolve(toolId);
         if (handler is not null) return await RunLocalAsync(definition, toolId, handler, options, ct).ConfigureAwait(false);
 
-        var known = ListToolIds(help);
-        if (known.Count > 0 && !known.Contains(toolId, StringComparer.Ordinal)) {
-            WriteError(BuildUnknownToolMessage(definition, toolId, known));
-            return ExitInvalidArguments;
-        }
         return await ForwardAsync(definition, toolId, options, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 把调用方给的名字换成帮助清单里的规范 ID；找不到返回空串。
+    /// <para>需要这一层的直接原因：斜杠命令的 ID 是 <c>/agents</c>，而 Git Bash 会把以 <c>/</c> 开头的参数
+    /// 展开成安装根下的路径，还原后往往只剩 <c>agents</c>。两种写法都该能调用同一个命令。</para>
+    /// </summary>
+    private static string CanonicalToolId(string requested, List<string> known) {
+        if (known.Count == 0) return requested;
+        foreach (var candidate in known) {
+            if (string.Equals(candidate, requested, StringComparison.Ordinal)) return candidate;
+        }
+        var trimmed = requested.TrimStart('/');
+        foreach (var candidate in known) {
+            if (string.Equals(candidate.TrimStart('/'), trimmed, StringComparison.OrdinalIgnoreCase)) return candidate;
+        }
+        return string.Empty;
     }
 
     private static async Task<int> RunLocalAsync(

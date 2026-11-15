@@ -88,8 +88,15 @@ public static class CliToolSearch {
     }
 
     /// <summary>进程隔离覆盖率（local + delegate）— 只有分组节点才有意义。</summary>
-    private static string Coverage(CliToolDescriptor node) =>
-        node.HasToolEntries ? $"  (进程隔离 {node.LocalToolCount}/{node.Tools.Length})" : string.Empty;
+    private static string Coverage(CliToolDescriptor node) {
+        if (!node.HasToolEntries) return string.Empty;
+        var total = node.Tools.Length;
+        var isolated = node.LocalToolCount;
+        // 「进程隔离 0/60」会被读成「这组不能用」；它其实 60 个都能用，只是都走宿主。
+        if (isolated == 0) return $"  (全部 {total} 个转发宿主)";
+        if (isolated == total) return $"  (全部 {total} 个进程隔离)";
+        return $"  (进程隔离 {isolated}/{total}，其余转发宿主)";
+    }
 
     /// <summary>
     /// 查询命中分组内某个子工具时，列出命中的子工具及其执行方式 —

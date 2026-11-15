@@ -50,6 +50,15 @@ public sealed record CliToolEntry {
     /// <param name="name">待查名称。</param>
     /// <returns>命中为 true。</returns>
     public bool Matches(string name) =>
-        string.Equals(Id, name, StringComparison.OrdinalIgnoreCase)
-        || Aliases.Any(alias => string.Equals(alias, name, StringComparison.OrdinalIgnoreCase));
+        NameEquals(Id, name) || Aliases.Any(alias => NameEquals(alias, name));
+
+    /// <summary>
+    /// 名称等价判定，额外把前导 <c>/</c> 视作同一名称。
+    /// <para>斜杠命令的 ID 写作 <c>/agents</c>，但 Git Bash 会把以 <c>/</c> 开头的参数展开成安装根下的路径，
+    /// 调用方还原后通常只剩 <c>agents</c>；不互认的话 <c>jcc tool call slash /agents</c> 与
+    /// <c>jcc tool call slash agents</c> 两种写法都会「工具不存在」。</para>
+    /// </summary>
+    private static bool NameEquals(string candidate, string name) =>
+        string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(candidate.TrimStart('/'), name.TrimStart('/'), StringComparison.OrdinalIgnoreCase);
 }

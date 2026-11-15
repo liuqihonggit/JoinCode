@@ -7,25 +7,25 @@ category: search
 exe: jcc-tool-search.exe
 tags: [code, glob, graph, grep, search, symbol]
 tool_count: 47
-local_tool_count: 0
+local_tool_count: 8
 parameters: []
 tools:
   - id: glob
-    mode: host
+    mode: local
   - id: grep
-    mode: host
+    mode: local
   - id: search_code
-    mode: host
+    mode: local
   - id: search_text
-    mode: host
+    mode: local
   - id: search_files
-    mode: host
+    mode: local
   - id: search_codebase
-    mode: host
+    mode: local
   - id: code_search
-    mode: host
+    mode: local
   - id: symbol_search
-    mode: host
+    mode: local
   - id: code_index_search
     mode: host
   - id: code_index_search_comprehensive

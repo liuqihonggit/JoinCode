@@ -7,16 +7,16 @@ category: web
 exe: jcc-tool-web.exe
 tags: [download, web]
 tool_count: 5
-local_tool_count: 0
+local_tool_count: 2
 parameters: []
 tools:
   - id: download_file
-    mode: host
+    mode: local
   - id: web_browser
     mode: host
   - id: web_fetch
     mode: host
   - id: web_to_markdown
-    mode: host
+    mode: local
   - id: web_search
     mode: host

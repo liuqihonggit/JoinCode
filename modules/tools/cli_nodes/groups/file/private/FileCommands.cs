@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Text.RegularExpressions;
+using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.CliNode.File;
 
@@ -9,10 +10,8 @@ namespace JoinCode.CliNode.File;
 /// 参数名与 [McpToolParameter] 特性逐一对应，说明不在此重复。
 /// </summary>
 internal static class FileCommands {
-    internal delegate Task<int> Command(IReadOnlyDictionary<string, string> options, CancellationToken ct);
-
-    private static readonly FrozenDictionary<string, Command> Handlers =
-        new Dictionary<string, Command>(StringComparer.Ordinal) {
+    private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
+        new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             ["file_read"] = ReadAsync,
             ["file_write"] = WriteAsync,
             ["file_delete"] = DeleteAsync,
@@ -26,7 +25,7 @@ internal static class FileCommands {
             ["file_snip_preview"] = SnipPreviewAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    public static Command? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;
+    public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;
 
     public static IEnumerable<string> LocalToolIds => Handlers.Keys.OrderBy(id => id, StringComparer.Ordinal);
 

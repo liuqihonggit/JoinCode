@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Diagnostics;
+using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.CliNode.Shell;
 
@@ -13,10 +14,8 @@ namespace JoinCode.CliNode.Shell;
 /// 调用方需自行负责命令内容；生产场景建议仍通过宿主执行以保留完整守卫。
 /// </summary>
 internal static class ShellCommands {
-    internal delegate Task<int> Command(IReadOnlyDictionary<string, string> options, CancellationToken ct);
-
-    private static readonly FrozenDictionary<string, Command> Handlers =
-        new Dictionary<string, Command>(StringComparer.Ordinal) {
+    private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
+        new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             ["bash"] = BashAsync,
             ["powershell"] = PowerShellAsync,
             ["powershell_script"] = PowerShellScriptAsync,
@@ -25,7 +24,7 @@ internal static class ShellCommands {
             ["powershell_set_execution_policy"] = PowerShellSetExecutionPolicyAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    public static Command? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;
+    public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;
 
     public static IEnumerable<string> LocalToolIds => Handlers.Keys.OrderBy(id => id, StringComparer.Ordinal);
 

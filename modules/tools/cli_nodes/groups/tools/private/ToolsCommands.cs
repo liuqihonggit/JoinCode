@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.CliNode.Tools;
 
@@ -9,15 +10,13 @@ namespace JoinCode.CliNode.Tools;
 /// 参数名与 help.txt 的 [McpToolParameter] 逐一对应，说明不在此重复。
 /// </summary>
 internal static class ToolsCommands {
-    internal delegate Task<int> Command(IReadOnlyDictionary<string, string> options, CancellationToken ct);
-
-    private static readonly FrozenDictionary<string, Command> Handlers =
-        new Dictionary<string, Command>(StringComparer.Ordinal) {
+    private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
+        new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             ["skill_batch"] = BatchProcessAsync,
             ["test_tool"] = TestToolAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    public static Command? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;
+    public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;
 
     public static IEnumerable<string> LocalToolIds => Handlers.Keys.OrderBy(id => id, StringComparer.Ordinal);
 

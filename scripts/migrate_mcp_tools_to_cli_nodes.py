@@ -31,12 +31,23 @@ TOOL_RE = re.compile(
     re.S,
 )
 PARAM_RE = re.compile(
-    r"\[McpToolParameter\(\s*\"(?P<desc>(?:\\.|[^\"\\])*)\"\s*(?P<rest>[^]]*)\)\]\s*"
+    r"\[McpToolParameter\(\s*\"(?P<desc>(?:\\.|[^\"\\])*)\"\s*(?P<rest>(?:[^\[\]]|\[[^\[\]]*\])*)\)\]\s*"
     r"(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>[A-Za-z_][A-Za-z0-9_]*)\s*"
     r"(?:=\s*(?P<default>[^,)\n]+))?",
     re.S,
 )
 CAMEL_RE = re.compile(r"(?<!^)(?=[A-Z])")
+
+# [McpToolOptions] 记录型参数：10 个 search 工具把参数收在 GrepSearchOptions 之类的 record 里，
+# 只扫方法签名会得到「(无参数)」的假帮助，LLM 照此调用必然缺参。
+MCPTOOL_OPTIONS_RE = re.compile(r"\[McpToolOptions\]\s*(?P<type>[A-Za-z_][A-Za-z0-9_.]*)")
+RECORD_RE = re.compile(r"(?:public|internal)\s+(?:sealed\s+|partial\s+)*record\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)")
+PROPERTY_PARAM_RE = re.compile(
+    r"\[McpToolParameter\(\s*\"(?P<desc>(?:\\.|[^\"\\])*)\"\s*(?P<rest>(?:[^\[\]]|\[[^\[\]]*\])*)\)\]\s*"
+    r"public\s+(?P<req>required\s+)?(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>[A-Za-z_][A-Za-z0-9_]*)\s*\{\s*get;",
+    re.S,
+)
+ALIASES_RE = re.compile(r"Aliases\s*=\s*\[(?P<items>[^\]]*)\]")
 
 
 def load_group_map() -> tuple[dict[str, str], str]:
@@ -108,7 +119,76 @@ def clean_default(raw: str | None) -> str:
     return "" if value in {"null", "default", "null!", "", "0"} else value
 
 
-def parse_file(path: Path, group_map: dict[str, str], default_group: str) -> list[dict]:
+def extract_aliases(rest: str) -> str:
+    """从特性剩余参数里取 Aliases（如 -i / -A），写成帮助里的「别名」提示。"""
+    match = ALIASES_RE.search(rest)
+    if not match:
+        return ""
+    items = [item.strip().strip('"') for item in match.group("items").split(",")]
+    kept = [item for item in items if item]
+    return " / ".join(kept)
+
+
+def collect_options_records(root: Path) -> dict[str, list[dict]]:
+    """收集全仓 [McpToolOptions] 记录类型的属性作为工具参数。
+
+    这些 record 的属性才是真实入参（GrepSearchOptions.Pattern 等），
+    只扫方法签名会把 8 个 search 工具渲染成「(无参数)」——那是假帮助，不是省略。
+    """
+    registry: dict[str, list[dict]] = {}
+    for path in sorted(root.rglob("*.cs")):
+        if ".g.cs" in path.name:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if "[McpToolParameter" not in text:
+            continue
+        for record in RECORD_RE.finditer(text):
+            block = extract_braced_block(text, record.end())
+            if not block or "[McpToolParameter" not in block:
+                continue
+            params = []
+            for prop in PROPERTY_PARAM_RE.finditer(block):
+                rest = prop.group("rest") or ""
+                required = bool(prop.group("req")) or "Required = true" in rest
+                if "Required = false" in rest or "Required=false" in rest:
+                    required = False
+                params.append({
+                    "name": to_snake(prop.group("pname")),
+                    "type": normalize_type(prop.group("type")),
+                    "description": unescape_csharp(prop.group("desc").strip()),
+                    "required": required,
+                    "default": clean_default(_default_value(rest)),
+                    "aliases": extract_aliases(rest),
+                })
+            if params:
+                registry[record.group("name")] = params
+    return registry
+
+
+def _default_value(rest: str) -> str | None:
+    match = re.search(r"DefaultValue\s*=\s*\"(?P<value>(?:\\.|[^\"\\])*)\"", rest)
+    return match.group("value") if match else None
+
+
+def extract_braced_block(text: str, start: int) -> str:
+    """从 start 起找到第一个 '{' 并返回配平的块内容（不处理字符串内花括号，够用即可）。"""
+    open_index = text.find("{", start)
+    if open_index < 0:
+        return ""
+    depth = 0
+    for index in range(open_index, len(text)):
+        char = text[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[open_index + 1:index]
+    return ""
+
+
+def parse_file(path: Path, group_map: dict[str, str], default_group: str,
+               options_records: dict[str, list[dict]] | None = None) -> list[dict]:
     text = path.read_text(encoding="utf-8", errors="replace")
     dispatch = DISPATCH_RE.search(text)
     dispatch_category = dispatch.group("cat").lower() if dispatch else "general"
@@ -127,7 +207,11 @@ def parse_file(path: Path, group_map: dict[str, str], default_group: str) -> lis
                 "description": unescape_csharp(p.group("desc").strip()),
                 "required": "Required = false" not in rest and "Required=false" not in rest,
                 "default": clean_default(p.group("default")),
+                "aliases": extract_aliases(rest),
             })
+        # 参数收在 [McpToolOptions] record 里的工具（grep / search_* 等），把 record 的属性并进来。
+        for option in MCPTOOL_OPTIONS_RE.finditer(block):
+            params.extend((options_records or {}).get(option.group("type"), []))
         tools.append({
             "raw_name": raw_name,
             "id": to_snake(raw_name),
@@ -155,129 +239,39 @@ def render_group_help(category: str, exe: str, tools: list[dict]) -> str:
         for p in tool["parameters"]:
             flag = "必填" if p["required"] else "可选"
             default = f"  默认={p['default']}" if p["default"] else ""
-            lines.append(f"    --{p['name']:<26} {p['type']:<9} {flag:<4} {p['description']}{default}")
+            aliases = f"  别名={p['aliases']}" if p.get("aliases") else ""
+            lines.append(f"    --{p['name']:<26} {p['type']:<9} {flag:<4} {p['description']}{default}{aliases}")
     lines.append("")
     lines.append("描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。")
     return "\n".join(lines) + "\n"
 
 
 def render_group_program(category: str) -> str:
-    """通用分组 exe 入口：-h 输出内嵌帮助，工具调用转发宿主 jcc mcp_call。"""
+    """通用分组 exe 入口 —— 只声明身份，行为统一在契约层 CliNodeRunner。"""
     ns = "".join(part.capitalize() for part in category.split("_"))
     return f'''// GENERATED BY migrate_mcp_tools_to_cli_nodes.py — DO NOT EDIT
-// 本文件由扫描器幂等覆盖；如需分组本地实现，请删除本文件并手写（参考 groups/git/）。
-using System.Diagnostics;
-using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+// 本文件由扫描器幂等覆盖；如需分组本地实现，请删除本文件并手写（参考 groups/search/）。
+using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.CliNode.{ns};
 
 /// <summary>
 /// {category} 分组独立 CLI.exe — 由 migrate_mcp_tools_to_cli_nodes.py 生成。
-/// -h 文本来自现有 [McpTool] 特性；调用转发宿主 jcc mcp_call，零引擎依赖。
-/// 后续可把本转发替换成分组本地实现（参考 groups/git/private/GitCommandCatalog.cs）。
+/// <para>入口行为（-h / --list-local / 参数解析 / 本地分发 / 转发宿主 / 退出码）统一在
+/// <see cref="CliNodeRunner"/>，本文件只声明分组身份与本地实现表。</para>
+/// <para>Resolve 返回 null 表示该工具走宿主转发；逐组做实时把它换成私有实现表的 Find。</para>
+/// -h 文本来自现有 [McpTool] 特性，不在生成物里重复维护说明。
 /// </summary>
 internal static class Program {{
-    private const string HelpResource = "JoinCode.CliNodes.Groups.{category}.help.txt";
-    private const string ToolNamePrefix = "{category}";
-
-    private static async Task<int> Main(string[] args) {{
-        using var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) => {{ e.Cancel = true; cts.Cancel(); }};
-        return await RunAsync(args, cts.Token).ConfigureAwait(false);
-    }}
-
-    private static async Task<int> RunAsync(string[] args, CancellationToken ct) {{
-        if (args.Length == 0 || IsHelp(args[0])) {{
-            PrintHelp();
-            return 0;
-        }}
-        var toolId = args[0];
-        if (args.Length > 1 && IsHelp(args[1])) {{
-            PrintToolHelp(toolId);
-            return 0;
-        }}
-        var payload = JsonSerializer.Serialize(BuildArgs(args[1..]), GroupArgsJsonContext.Default.DictionaryStringString);
-        return await ForwardAsync(toolId, payload, ct).ConfigureAwait(false);
-    }}
-
-    private static Dictionary<string, string> BuildArgs(string[] args) {{
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        for (var i = 0; i < args.Length; i++) {{
-            var token = args[i];
-            if (token.StartsWith("--", StringComparison.Ordinal)) {{
-                var key = token[2..];
-                var eq = key.IndexOf('=');
-                if (eq > 0) {{
-                    result[key[..eq]] = key[(eq + 1)..];
-                }} else if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal)) {{
-                    result[key] = args[++i];
-                }} else {{
-                    result[key] = "true";
-                }}
-            }} else {{
-                result["arg" + (i + 1)] = token;
-            }}
-        }}
-        return result;
-    }}
-
-    private static async Task<int> ForwardAsync(string toolId, string payload, CancellationToken ct) {{
-        var host = Environment.GetEnvironmentVariable("JCC_HOST_EXE") ?? "jcc";
-        var psi = new ProcessStartInfo(host) {{
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false
-        }};
-        psi.ArgumentList.Add("mcp_call");
-        psi.ArgumentList.Add(toolId);
-        psi.ArgumentList.Add(payload);
-        try {{
-            using var process = Process.Start(psi)
-                ?? throw new InvalidOperationException("无法启动宿主进程");
-            var stdout = process.StandardOutput.ReadToEndAsync(ct);
-            var stderr = process.StandardError.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct).ConfigureAwait(false);
-            Console.Out.Write(await stdout.ConfigureAwait(false));
-            Console.Error.Write(await stderr.ConfigureAwait(false));
-            return process.ExitCode;
-        }} catch (Exception ex) when (ex is global::System.ComponentModel.Win32Exception or InvalidOperationException) {{
-            Console.Error.WriteLine($"工具 '{{toolId}}' 需要宿主 jcc 才能执行（分组 exe 转发层拦截）：{{ex.Message}}");
-            Console.Error.WriteLine("修复方式：设置 JCC_HOST_EXE 指向 jcc.exe，或把 jcc 加入 PATH；也可用 -h 只查看说明。");
-            return 3;
-        }}
-    }}
-
-    private static bool IsHelp(string token) => token is "-h" or "--help" or "help";
-
-    private static void PrintHelp() => Console.Out.Write(LoadHelp().Replace("\\r\\n", "\\n"));
-
-    private static void PrintToolHelp(string toolId) {{
-        var text = LoadHelp().Replace("\\r\\n", "\\n");
-        var marker = $"  {{toolId}} — ";
-        var start = text.IndexOf(marker, StringComparison.Ordinal);
-        if (start < 0) {{ PrintHelp(); return; }}
-        var boundaries = new[] {{
-            text.IndexOf("\\n\\n  ", start + marker.Length, StringComparison.Ordinal),
-            text.IndexOf("\\n描述来源:", start, StringComparison.Ordinal),
-            text.Length
-        }}.Where(index => index > start).ToArray();
-        var end = boundaries.Length > 0 ? boundaries.Min() : text.Length;
-        Console.Out.WriteLine($"{{ToolNamePrefix}} 分组 / {{toolId}} — 参数说明（复用现有 [McpToolParameter] 特性）");
-        Console.Out.WriteLine(text[start..end].TrimEnd());
-    }}
-
-    private static string LoadHelp() {{
-        using var stream = typeof(Program).Assembly.GetManifestResourceStream(HelpResource)
-            ?? throw new InvalidOperationException($"未找到内嵌资源 '{{HelpResource}}'");
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    }}
+    private static Task<int> Main(string[] args) => CliNodeRunner.RunAsync(new CliNodeDefinition {{
+        GroupId = "{category}",
+        Title = "{category} 分组",
+        HelpResource = "JoinCode.CliNodes.Groups.{category}.help.txt",
+        Resolve = static _ => null,
+        LocalToolIds = static () => [],
+        HostReason = "{category} 组暂无本地实现，工具依赖宿主持有的引擎服务与共享状态。"
+    }}, args);
 }}
-
-[JsonSerializable(typeof(Dictionary<string, string>))]
-internal partial class GroupArgsJsonContext : JsonSerializerContext {{ }}
 '''
 
 
@@ -325,14 +319,19 @@ def render_group_index(category: str, exe: str, tools: list[dict], local_ids: se
     return header + "".join(lines)
 
 
-LOCAL_REGISTRY_PATTERN = re.compile(r'^\s*\["([A-Za-z_][A-Za-z_0-9]*)"\]\s*=', re.M)
+LOCAL_REGISTRY_PATTERN = re.compile(
+    r'^\s*\["(?P<id>[A-Za-z_][A-Za-z_0-9]*)"\]\s*=\s*(?P<handler>[A-Za-z_][A-Za-z0-9_]*)\s*(?=[,}\s])',
+    re.M,
+)
 
 
 def collect_local_ids(target_dir: Path) -> set[str]:
     """从分组私有实现里反推本地已实现的工具 id。
 
-    以 private/*.cs 的字典字面量键为唯一依据（`["<id>"] = ...`）——这是「代码里真实现了什么」，
+    以 private/*.cs 的字典字面量键为唯一依据（`["<id>"] = <方法组>,`）——这是「代码里真实现了什么」，
     而不是另写一份清单来自称实现了什么。手工组才有 private/；纯转发组返回空集。
+
+    右值必须是方法组标识符（不带引号），否则会把 `["amp"] = "&"` 这类字符表误判成工具 id。
     """
     private_dir = target_dir / "private"
     if not private_dir.exists():
@@ -340,7 +339,7 @@ def collect_local_ids(target_dir: Path) -> set[str]:
     ids: set[str] = set()
     for cs in sorted(private_dir.glob("*.cs")):
         body = cs.read_text(encoding="utf-8", errors="replace")
-        ids.update(m.group(1) for m in LOCAL_REGISTRY_PATTERN.finditer(body))
+        ids.update(m.group("id") for m in LOCAL_REGISTRY_PATTERN.finditer(body))
     return ids
 
 
@@ -372,13 +371,20 @@ def is_generated_or_missing(path: Path) -> bool:
 
 
 def prune_stale_groups(out_root: Path, keep: set[str]) -> list[str]:
-    """本次未生成的旧分组目录移到项目根 .xxx/ 归档，不删除任何文件（幂等、可追溯）。"""
+    """本次未生成的旧分组目录移到项目根 .xxx/ 归档，不删除任何文件（幂等、可追溯）。
+
+    只归档「本脚本自己生成过」的目录：别的生成器（generate_slash_cli_node.py 的 slash 组）
+    产物不属于本脚本的清理范围，误清会把整个斜杠命令目录搬走。
+    """
     archive = REPO_ROOT / ".xxx"
     moved: list[str] = []
     if not out_root.is_dir():
         return moved
     for child in sorted(out_root.iterdir()):
         if not child.is_dir() or child.name in keep or not (child / "node.yaml").exists():
+            continue
+        head = (child / "node.yaml").read_text(encoding="utf-8", errors="replace")[:200]
+        if GENERATED_MARK.replace("// ", "# ") not in head and "migrate_mcp_tools_to_cli_nodes" not in head:
             continue
         archive.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%d%H%M%S")
@@ -405,9 +411,10 @@ def main() -> int:
 
     candidates = sorted(p for p in scan_root.rglob("*.cs") if ".g.cs" not in p.name)
     group_map, default_group = load_group_map()
+    options_records = collect_options_records(scan_root)
     found: list[dict] = []
     for path in candidates:
-        found.extend(parse_file(path, group_map, default_group))
+        found.extend(parse_file(path, group_map, default_group, options_records))
 
     groups: dict[str, list[dict]] = {}
     for tool in found:

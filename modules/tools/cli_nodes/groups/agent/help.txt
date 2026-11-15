@@ -106,7 +106,9 @@ jcc-tool-agent — agent 工具分组（59 个工具）
     --limit                      integer   可选   Result count limit (optional, default 10)
 
   sub_agent_control — Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript
-    (无参数)
+    --action                     string    必填   Action: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript
+    --id                         string    可选   Sub-agent ID (required for pause/resume/stop/resume_from_transcript)
+    --prompt                     string    可选   Resume prompt for transcript recovery
 
   plan_agent — Use Plan Agent to create task execution plan
     --goal                       string    必填   Task goal or requirement description
@@ -246,6 +248,7 @@ jcc-tool-agent — agent 工具分组（59 个工具）
     (无参数)
 
   goal_update — Update the current goal status. The model can mark a goal as achieved or unmet. Only 'achieved' and 'unmet' statuses are allowed via this tool.
+    --status                     string    必填   New status for the goal. Must be 'achieved' or 'unmet'.
     --reason                     string    必填   Reason for the status change
 
   goal_graph_define — Define a goal execution graph with nodes and edges. The coordinator agent uses this after investigating the task to create an optimal execution plan. Each node is an agent loop, edges define execution flow and conditional routing.
@@ -276,7 +279,14 @@ jcc-tool-agent — agent 工具分组（59 个工具）
     --offset                     integer   可选   Offset for pagination
 
   task_update — Update task information
-    (无参数)
+    --task_id                    string    必填   Task ID
+    --title                      string    可选   New title (optional)
+    --description                string    可选   New description (optional)
+    --status                     string    可选   New status (optional)
+    --assignee                   string    可选   New assignee (optional)
+    --due_date                   string    可选   New due date (optional)
+    --priority                   string    可选   New priority (optional)
+    --tags                       string    可选   New tag list (optional)
 
   task_get — Get task details
     --task_id                    string    必填   Task ID

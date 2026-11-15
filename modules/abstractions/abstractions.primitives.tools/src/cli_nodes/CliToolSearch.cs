@@ -43,6 +43,8 @@ public static class CliToolSearch {
         sb.AppendLine($"命中 {nodes.Count} 个节点（用 <exe> -h 查看完整参数）:");
         foreach (var node in nodes) {
             sb.AppendLine($"  {node.Id,-14} [{node.Category}] {node.Summary}{Coverage(node)}");
+            // 写出真实 exe 名：LLM 只看「<exe>」占位符时仍要去猜节点对应的可执行文件。
+            if (!string.IsNullOrWhiteSpace(node.Exe)) sb.AppendLine($"       {node.Exe} -h");
             AppendMatchedTools(sb, node, query);
         }
         sb.AppendLine("调用方式: jcc tool call <节点ID> <工具名> [--参数 值]；阅读参数: jcc tool help <节点ID> 或 <exe> -h");

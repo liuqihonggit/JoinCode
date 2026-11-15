@@ -180,7 +180,7 @@ public class ResponsesQueryServiceTests {
         var service = CreateService();
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
-            new ToolDef("file_read", "Read a file")
+            new ToolDef("read", "Read a file")
         ]));
         var options = new ChatOptions { ToolChoice = ToolChoice.AutoInvoke };
 
@@ -189,7 +189,7 @@ public class ResponsesQueryServiceTests {
         request.Tools.Should().NotBeNull();
         request.Tools.Should().ContainSingle();
         request.ToolChoice.Should().Be("auto");
-        request.Tools![0].Name.Should().Be("file_read");
+        request.Tools![0].Name.Should().Be("read");
         request.Tools[0].Type.Should().Be("function");
     }
 
@@ -675,14 +675,14 @@ public class ResponsesQueryServiceTests {
     public async Task BuildBaseTools_OnlyBaseTools_ToolsPopulated() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
-            new ToolDef("file_read", "Read a file"),
-            new ToolDef("file_write", "Write a file")
+            new ToolDef("read", "Read a file"),
+            new ToolDef("write", "Write a file")
         ]));
 
         var tools = ResponsesQueryService.BuildBaseTools(kernel);
 
         tools.Should().HaveCount(2);
-        tools.Select(t => t.Name).Should().Contain(["file_read", "file_write"]);
+        tools.Select(t => t.Name).Should().Contain(["read", "write"]);
     }
 
     [Fact]
@@ -702,7 +702,7 @@ public class ResponsesQueryServiceTests {
     public async Task BuildBaseTools_MixedTools_OnlyBaseToolsSurvive() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
-            new ToolDef("file_read", "Read a file"),
+            new ToolDef("read", "Read a file"),
             new ToolDef("grep", "Not a base tool")
         ]));
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
@@ -712,7 +712,7 @@ public class ResponsesQueryServiceTests {
         var tools = ResponsesQueryService.BuildBaseTools(kernel);
 
         tools.Should().ContainSingle();
-        tools[0].Name.Should().Be("file_read");
+        tools[0].Name.Should().Be("read");
         tools[0].Description.Should().Be("读取指定路径的文件内容，可按行偏移与行数限制截取");
     }
 

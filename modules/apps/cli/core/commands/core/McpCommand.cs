@@ -27,8 +27,18 @@ public sealed class McpCliCommand {
             }
             var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
             return OutputResult(result, json);
-        }, vendor, model, ct).ConfigureAwait(false);
+        }, vendor, model, ct,
+            skipToolFilter: RequiresWholeRegistry(toolName),
+            toolFilter: name => string.Equals(name, toolName, StringComparison.Ordinal),
+            requiredTool: toolName).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// 需要「全量工具表」才有意义的工具 —— 它们本身就是在查目录，只注册自己会让结果退化成 1 条。
+    /// <para>这类调用接受多花约 1 秒全量注册（实测 368 个工具 3.1s vs 单个 2.2s）。</para>
+    /// </summary>
+    private static bool RequiresWholeRegistry(string toolName)
+        => toolName is "tool_search" or "tool_score" or "tool_hypergraph" or "tool_list_templates";
 
     internal static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct = default)
         => WithHostAsync(async services => {
@@ -63,7 +73,7 @@ public sealed class McpCliCommand {
                 TerminalHelper.WriteLine($"总计: {tools.Count} 个工具（用 jcc mcp_schema <工具名> 查看参数详情）");
             }
             return 0;
-        }, ct: ct);
+        }, ct: ct, skipToolFilter: true);
 
     internal static Task<int> ExecuteSearchAsync(string query, bool json, CancellationToken ct = default)
         => WithHostAsync(async services => {
@@ -94,7 +104,7 @@ public sealed class McpCliCommand {
                 }
             }
             return 0;
-        }, ct: ct);
+        }, ct: ct, skipToolFilter: true);
 
     internal static Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct = default)
         => WithHostAsync(async services => {
@@ -122,11 +132,25 @@ public sealed class McpCliCommand {
                 TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name, info.InputSchema));
             }
             return 0;
-        }, ct: ct);
+        }, ct: ct,
+            skipToolFilter: RequiresWholeRegistry(toolName),
+            toolFilter: name => string.Equals(name, toolName, StringComparison.Ordinal),
+            requiredTool: toolName);
 
-    internal static async Task<IAsyncHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default, bool skipToolFilter = false) {
+    internal static async Task<IAsyncHost> BuildHostAsync(
+        string? vendor = null, string? model = null, CancellationToken ct = default,
+        bool skipToolFilter = false, Func<string, bool>? toolFilter = null) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
-        var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true, SkipChatServices = true, SkipToolFilter = skipToolFilter };
+        var options = new CommandLineOptions {
+            NonInteractive = true,
+            TrustWorkspace = true,
+            SkipModelFetch = true,
+            SkipProviderValidation = true,
+            SkipChatServices = true,
+            SkipProviderConfig = true,
+            SkipToolFilter = skipToolFilter,
+            ToolNameFilter = toolFilter
+        };
         if (!string.IsNullOrEmpty(vendor))
             options = options with { Vendor = vendor };
         if (!string.IsNullOrEmpty(model))
@@ -134,6 +158,10 @@ public sealed class McpCliCommand {
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         // 子命令模式抑制初始化警告（ShellCapabilityInitializer 的 pwsh/python 检测警告）
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
+        // 工具元命令只需要 IMcpToolRegistry，不读模型供应商配置 —— Hub 不可达是 jcc -p 的门槛，不是执行单个工具的门槛。
+        // 默认阈值（JCC_ALLOW_DIRECT_FALLBACK 未设时硬失败）会让 411 个 host 工具在无 Hub 的机器上全部不可用，
+        // 这里只在本方法建 Host 期间放行直连配置，退出即恢复，不影响交互会话的默认保护。
+        using var fallbackScope = EnvVarScope.Set("JCC_ALLOW_DIRECT_FALLBACK", "1");
         var result = await CliSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
         return result.Host;
     }
@@ -240,22 +268,43 @@ public sealed class McpCliCommand {
         TerminalHelper.WriteLine($"{TerminalColors.Info}mcp_serve 退出报告{AnsiStyleEnumConstants.Reset}: {report}");
     }
 
-    internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default) {
+    internal static async Task<int> WithHostAsync(
+        Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null,
+        CancellationToken ct = default, bool skipToolFilter = false, Func<string, bool>? toolFilter = null,
+        string? requiredTool = null) {
         // await using 确保 DisposeAsync 级联释放所有服务(IKvStore → PithosKvStore → PithosDb flush MemTable),
         // 使跨进程缓存命中(第一次 MISS → flush → 第二次 HIT)。
         // 历史注释"host.Dispose() 调 Environment.Exit(210)"已过时:退出码 210 在代码中不存在,
         // 且 ExecuteServeAsync 已用 await using var appHost 验证 DisposeAsync 安全。
         var swBuild = PerfTimer.Start("BuildHostAsync");
-        await using var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
+        await using var host = await BuildHostAsync(vendor, model, ct, skipToolFilter, toolFilter).ConfigureAwait(false);
         swBuild?.Stop();
         // 单次命令等待插件后台链完成：八插件加载后台化后 registry 同步可见仅 15 个工具（gh_pr_* 全缺失），
         // gh/mcp_call/mcp_list 查询前等 Completion 补齐工具表（长驻宿主不等待，保留启动优化收益）
+        // requiredTool 非空时先看编译期注册表里有没有：有就不等插件（1.6s 的 MCP 客户端握手与本次调用无关），
+        // 没有才等（如 gh_* 来自插件、tool_search 要全量目录）。
         var swBoot = PerfTimer.Start("bootstrap.Completion");
-        if (host.Services.GetService<JoinCode.App.Modules.McpPluginBootstrapHandle>() is { } bootstrap) {
+        var bootstrap = host.Services.GetService<JoinCode.App.Modules.McpPluginBootstrapHandle>();
+        if (bootstrap is not null && !await IsToolAlreadyRegisteredAsync(host.Services, requiredTool, ct).ConfigureAwait(false)) {
             await bootstrap.Completion.WaitAsync(ct).ConfigureAwait(false);
         }
         swBoot?.Stop();
         return await action(host.Services).ConfigureAwait(false);
+    }
+
+    /// <summary>工具是否已在注册表里（触发一次按需注册，不等待插件后台链）。</summary>
+    /// <param name="services">宿主服务。</param>
+    /// <param name="toolName">工具名；null 表示调用方需要全量工具表，直接返回 false 让它等插件。</param>
+    /// <param name="ct">取消令牌。</param>
+    private static async Task<bool> IsToolAlreadyRegisteredAsync(IServiceProvider services, string? toolName, CancellationToken ct) {
+        if (string.IsNullOrEmpty(toolName)) return false;
+        try {
+            return await services.GetRequiredService<IMcpToolRegistry>().ContainsToolAsync(toolName, ct).ConfigureAwait(false);
+        } catch (Exception ex) {
+            // 注册表初始化失败不该把「等插件」这条更保险的路也堵死 —— 退化到等待后由 action 自己报错
+            System.Diagnostics.Debug.WriteLine($"[McpCliCommand] 预查工具 {toolName} 失败: {ex.GetType().Name}: {ex.Message}");
+            return false;
+        }
     }
 
     private static async Task<Dictionary<string, JsonElement>?> ParseArgsAsync(string? args, string[]? kvArgs, string? argsFile, bool argsStdin) {

@@ -16,7 +16,7 @@ jcc-tool-agent — agent 工具分组（59 个工具）
   modify_plan_step                   Modify a plan step
   remove_plan_step                   Remove a plan step
   get_plan_history                   Get plan history
-  sub_agent_control                  Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript
+  subagent_control                   Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript
   plan_agent                         Use Plan Agent to create task execution plan
   explore_agent                      Use Explore Agent to analyze codebase structure
   verification_agent                 Use Verification Agent to check code correctness
@@ -105,7 +105,7 @@ jcc-tool-agent — agent 工具分组（59 个工具）
   get_plan_history — Get plan history
     --limit                      integer   可选   Result count limit (optional, default 10)
 
-  sub_agent_control — Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript
+  subagent_control — Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript
     --action                     string    必填   Action: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript
     --id                         string    可选   Sub-agent ID (required for pause/resume/stop/resume_from_transcript)
     --prompt                     string    可选   Resume prompt for transcript recovery

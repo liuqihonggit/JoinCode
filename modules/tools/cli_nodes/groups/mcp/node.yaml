@@ -6,7 +6,7 @@ name: jcc-tool-mcp
 summary: "Get authentication status for a config or all configs; Refresh authentication token; Logout and revoke authentication session"
 category: mcp
 exe: jcc-tool-mcp.exe
-tags: [auth, mcp, monitor]
+tags: [auth, list, mcp, monitor, read]
 tool_count: 25
 local_tool_count: 0
 parameters: []
@@ -17,13 +17,13 @@ tools:
     mode: host
   - id: auth_logout
     mode: host
-  - id: mcp_auth_api_key
+  - id: mcp_auth_apikey
     mode: host
   - id: mcp_auth_bearer
     mode: host
   - id: mcp_auth_basic
     mode: host
-  - id: mcp_auth_o_auth2
+  - id: mcp_auth_oauth2
     mode: host
   - id: mcp_auth_refresh
     mode: host
@@ -43,9 +43,9 @@ tools:
     mode: host
   - id: mcp_call_tool
     mode: host
-  - id: mcp_list_resources
+  - id: list_mcp_resources
     mode: host
-  - id: mcp_read_resource
+  - id: read_mcp_resource
     mode: host
   - id: mcp_list_prompts
     mode: host

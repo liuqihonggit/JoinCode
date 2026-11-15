@@ -9,10 +9,10 @@ jcc-tool-mcp — mcp 工具分组（25 个工具）
   auth_get_status                    Get authentication status for a config or all configs
   auth_refresh                       Refresh authentication token
   auth_logout                        Logout and revoke authentication session
-  mcp_auth_api_key                   Configure API key authentication for MCP server
+  mcp_auth_apikey                    Configure API key authentication for MCP server
   mcp_auth_bearer                    Configure Bearer Token authentication for MCP server
   mcp_auth_basic                     Configure Basic authentication for MCP server
-  mcp_auth_o_auth2                   Configure OAuth2 authentication for MCP server
+  mcp_auth_oauth2                    Configure OAuth2 authentication for MCP server
   mcp_auth_refresh                   Refresh MCP authentication token
   mcp_auth_status                    Get MCP authentication status
   mcp_auth_remove                    Delete MCP authentication config
@@ -22,8 +22,8 @@ jcc-tool-mcp — mcp 工具分组（25 个工具）
   mcp_enable_server                  Enable an MCP server (persisted to disk)
   mcp_list_tools                     List tools on MCP server
   mcp_call_tool                      Call a tool on MCP server
-  mcp_list_resources                 List resources on MCP server
-  mcp_read_resource                  Read a resource from MCP server
+  list_mcp_resources                 List resources on MCP server
+  read_mcp_resource                  Read a resource from MCP server
   mcp_list_prompts                   List prompt templates on MCP server
   mcp_remote_list_resources          List all available MCP remote resources
   mcp_remote_read_resource           Read the content of an MCP remote resource by URI
@@ -43,7 +43,7 @@ jcc-tool-mcp — mcp 工具分组（25 个工具）
   auth_logout — Logout and revoke authentication session
     --auth_name                  string    必填   Authentication config name
 
-  mcp_auth_api_key — Configure API key authentication for MCP server
+  mcp_auth_apikey — Configure API key authentication for MCP server
     --auth_name                  string    必填   Authentication config name
     --api_key                    string    必填   API key
     --header_name                string    可选   Header name  默认=X-API-Key
@@ -57,7 +57,7 @@ jcc-tool-mcp — mcp 工具分组（25 个工具）
     --username                   string    必填   Username
     --password                   string    必填   Password
 
-  mcp_auth_o_auth2 — Configure OAuth2 authentication for MCP server
+  mcp_auth_oauth2 — Configure OAuth2 authentication for MCP server
     --auth_name                  string    必填   Authentication config name
     --client_id                  string    必填   Client ID
     --client_secret              string    必填   Client secret
@@ -97,10 +97,10 @@ jcc-tool-mcp — mcp 工具分组（25 个工具）
     --tool_name                  string    必填   Tool name
     --arguments_json             string    可选   Tool arguments (JSON object)
 
-  mcp_list_resources — List resources on MCP server
+  list_mcp_resources — List resources on MCP server
     --connection_name            string    必填   Connection name
 
-  mcp_read_resource — Read a resource from MCP server
+  read_mcp_resource — Read a resource from MCP server
     --connection_name            string    必填   Connection name
     --resource_uri               string    必填   Resource URI
 

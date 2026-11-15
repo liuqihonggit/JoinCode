@@ -136,6 +136,73 @@ def to_snake(raw: str) -> str:
     return re.sub(r"[^a-z0-9_]+", "_", CAMEL_RE.sub("_", tail).lower()).strip("_")
 
 
+# [EnumValue("read")] FileRead —— 运行时的工具名是特性里的字符串，不是枚举成员的驼峰。
+# 只按成员名转驼峰会造出「目录里有、注册表里没有」的假 id（实测 file_read / code_index_stats /
+# mcp_auth_o_auth2 共 33 个），jcc tool call 一律报「分组内没有工具」。
+ENUM_DECL_RE = re.compile(r"\benum\s+(?P<name>[A-Za-z_]\w*)")
+ENUM_MEMBER_RE = re.compile(
+    r"\[EnumValue\(\s*\"(?P<value>(?:\\.|[^\"\\])*)\"\s*\)\]"
+    r"(?:\s*\[[^\]]*\])*"          # 中间常夹着 [SecurityClass(...)] 等特性，不能只允许空白
+    r"\s*(?P<member>[A-Za-z_]\w*)",
+    re.S,
+)
+
+
+def collect_enum_values(root: Path) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
+    """扫描全仓枚举 — 返回 (枚举类型 → {成员: 值}, 成员 → 值 的全局兜底表)。
+
+    <para>兜底表只收「同名成员只有一个候选值」的项：不同枚举里会有同名成员（如
+    <c>AllowedPromptTool.Bash="Bash"</c> 与 <c>ShellToolName.Bash="bash"</c>），
+    取第一个会把工具名解析成 "Bash"。真出现歧义就交给调用方退回驼峰转蛇形并留 warn。</para>
+    """
+    by_type: dict[str, dict[str, str]] = {}
+    candidates: dict[str, set[str]] = {}
+    for path in sorted(root.rglob("*.cs")):
+        if ".g.cs" in path.name:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if "[EnumValue(" not in text:
+            continue
+        for decl in ENUM_DECL_RE.finditer(text):
+            block = extract_braced_block(text, decl.end())
+            if not block or "[EnumValue(" not in block:
+                continue
+            members = {m.group("member"): unescape_csharp(m.group("value")) for m in ENUM_MEMBER_RE.finditer(block)}
+            if not members:
+                continue
+            by_type.setdefault(decl.group("name"), {}).update(members)
+            for member, value in members.items():
+                candidates.setdefault(member, set()).add(value)
+    return by_type, {member: next(iter(values)) for member, values in candidates.items() if len(values) == 1}
+
+
+def resolve_tool_id(raw_name: str, enums: tuple[dict[str, dict[str, str]], dict[str, str]]) -> str:
+    """把 [McpTool] 的名字参数还原成运行时注册名。
+
+    <para>三种写法：字符串字面量（"gh_api"）、枚举成员（CodeToolNameEnumConstants.CodeIndexStats）、
+    裸成员名。枚举写法必须查 [EnumValue]；查不到就 fail-fast —— 退回驼峰转蛇形正是当年造出
+    33 个假 id（file_read / code_index_stats / mcp_auth_o_auth2）的根因，静默生成比不生成更糟。</para>
+    """
+    by_type, flat = enums
+    cleaned = raw_name.strip()
+    if cleaned.startswith('"'):
+        return to_snake(cleaned)
+    if "." in cleaned:
+        type_name, member = cleaned.rsplit(".", 1)
+        # 常见写法是 XxxToolNameEnumConstants（包装类）指向 enum XxxToolName —— 先剥后缀再按类型查
+        for candidate_type in (type_name, type_name.removesuffix("EnumConstants")):
+            if (value := by_type.get(candidate_type, {}).get(member)) is not None:
+                return value
+        if (value := flat.get(member)) is not None:
+            return value
+    elif (value := flat.get(cleaned)) is not None:
+        return value
+    raise SystemExit(
+        f"无法解析工具名 {cleaned} 的 [EnumValue]：会让 node.yaml 出现运行时不存在的假 id。"
+        f"请补 [EnumValue(\"...\")] 或确认扫描目录包含该枚举定义。"
+    )
+
+
 def normalize_type(raw_type: str) -> str:
     t = raw_type.replace(" ", "").lower()
     if "string" in t:
@@ -226,7 +293,8 @@ def extract_braced_block(text: str, start: int) -> str:
 
 
 def parse_file(path: Path, group_map: dict[str, str], default_group: str,
-               options_records: dict[str, list[dict]] | None = None) -> list[dict]:
+               options_records: dict[str, list[dict]] | None = None,
+               enums: tuple[dict[str, dict[str, str]], dict[str, str]] | None = None) -> list[dict]:
     text = path.read_text(encoding="utf-8", errors="replace")
     dispatch = DISPATCH_RE.search(text)
     dispatch_category = dispatch.group("cat").lower() if dispatch else "general"
@@ -252,7 +320,7 @@ def parse_file(path: Path, group_map: dict[str, str], default_group: str,
             params.extend((options_records or {}).get(option.group("type"), []))
         tools.append({
             "raw_name": raw_name,
-            "id": to_snake(raw_name),
+            "id": resolve_tool_id(raw_name, enums or ({}, {})),
             "summary": unescape_csharp(match.group("summary").strip()),
             "category": canonical_group(match.group("category") or dispatch_category, group_map, default_group),
             "source": f"{path.as_posix()}:{text.count(chr(10), 0, match.start()) + 1}",
@@ -484,9 +552,10 @@ def main() -> int:
     group_map, default_group = load_group_map()
     delegates = load_delegates()
     options_records = collect_options_records(scan_root)
+    enums = collect_enum_values(scan_root)
     found: list[dict] = []
     for path in candidates:
-        found.extend(parse_file(path, group_map, default_group, options_records))
+        found.extend(parse_file(path, group_map, default_group, options_records, enums))
 
     groups: dict[str, list[dict]] = {}
     for tool in found:

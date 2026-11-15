@@ -223,6 +223,21 @@ public record CommandLineOptions {
     public bool SkipToolFilter { get; init; }
 
     /// <summary>
+    /// 跳过供应商/模型配置加载 — 工具元命令（<c>mcp_call</c>/<c>mcp_list</c>/<c>mcp_schema</c>）只碰工具注册表，
+    /// 不需要 LLM。原路径要构 <c>ProviderDefinitionRegistry</c> + 读 models 目录，实测占单次调用 2.5s 里的 1.3s。
+    /// <para>为 true 时配置只从 <c>settings.json</c> 的 current 段取 UI 偏好，Provider 留空。</para>
+    /// </summary>
+    public bool SkipProviderConfig { get; init; }
+
+    /// <summary>
+    /// 精确工具名过滤器 — <c>SkipChatServices</c> 模式下默认只注册 <c>gh_*</c>（gh 元命令需要），
+    /// 但 <c>mcp_call &lt;工具&gt;</c> 恰恰要执行「任意一个」工具：不过滤就查不到，全注册又要解析所有 handler。
+    /// 由调用方传入「只放行本次要执行的工具名」，注册表里就只构造这一个 handler。
+    /// <para>为 null 时退回默认的 <c>gh_*</c> 过滤（行为与历史一致）。</para>
+    /// </summary>
+    public Func<string, bool>? ToolNameFilter { get; init; }
+
+    /// <summary>
     /// 启用部分消息流式输出（--include-partial-messages 参数）
     /// 仅在 --format ndjson 模式下生效，将 LLM API 原始流式事件作为 stream_event 透传到 NDJSON 输出
     /// 对齐 TS: claude --include-partial-messages

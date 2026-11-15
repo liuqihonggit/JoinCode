@@ -194,11 +194,11 @@ if (Test-Path $githubExe) {
 
 $probeFile = "$repoRoot/AGENTS.md"
 if (Test-Path "$toolsDir/file/jcc-tool-file.exe") {
-    $readProbe = Invoke-Capture -Exe "$toolsDir/file/jcc-tool-file.exe" -Arguments @("file_read", "--file_path", $probeFile)
+    $readProbe = Invoke-Capture -Exe "$toolsDir/file/jcc-tool-file.exe" -Arguments @("read", "--file_path", $probeFile)
     if ($readProbe.Code -eq 0) {
-        Write-Host "  本地工具实跑: file_read -> 0" -ForegroundColor Green
+        Write-Host "  本地工具实跑: read -> 0" -ForegroundColor Green
     } else {
-        Write-Host "  本地工具实跑失败: file_read -> $($readProbe.Code)" -ForegroundColor Red
+        Write-Host "  本地工具实跑失败: read -> $($readProbe.Code)" -ForegroundColor Red
         ($readProbe.Output -split "`r?`n" | Select-Object -First 3) | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
         exit 1
     }

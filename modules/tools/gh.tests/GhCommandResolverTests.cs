@@ -899,6 +899,25 @@ public sealed class GhCommandResolverTests {
         bound!["fields"].Should().Be("name=test");
     }
 
+    /// <summary>
+    /// -q 短选项映射到 jq（gh api user -q .login）— 系统 gh CLI 的 <c>api</c> 子命令同样支持 -q，
+    /// 复现 bug: 旧规则只对 view/list 生效，<c>jcc gh api user -q .login</c> 报「多余的位置参数: .login」。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_ShortOption_q_Api_ShouldMapToJq() {
+        var parameters = new List<GhParam> {
+            new("path", IsRequired: true, IsBoolean: false),
+            new("jq", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "user", "-q", ".login" }, parameters, "gh_api", out var error);
+
+        error.Should().BeNull();
+        bound!["path"].Should().Be("user");
+        bound!["jq"].Should().Be(".login");
+    }
+
     /// <summary>-q 短选项映射到 jq（gh repo view -q '.name'）— 系统 gh CLI 兼容，复现 bug: 原报"多余的位置参数: -q"</summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]

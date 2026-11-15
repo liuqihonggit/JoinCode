@@ -103,14 +103,50 @@ public sealed class SimpleJqEvaluatorTests {
         result.Should().NotContain("\"name\":\"build\"");
     }
 
-    /// <summary>不支持的阶段(如 + 拼接)应宽容跳过,保留前一阶段结果</summary>
+    /// <summary>
+    /// 不支持的阶段（如 <c>+ " suffix"</c> 拼接）不再「宽容跳过、保留前一阶段结果」——
+    /// 旧行为等于把用户写错的表达式当成没写，会让人误判 jq 生效了。现在返回 null 并给出原因。
+    /// </summary>
     [Fact]
-    public void Evaluate_UnsupportedStage_ShouldSkipAndKeepPreviousResult() {
+    public void Evaluate_UnsupportedStage_ShouldReturnNullWithReason() {
         var json = """[{"name":"a","conclusion":"failure"},{"name":"b","conclusion":"success"}]""";
-        var result = SimpleJqEvaluator.Evaluate(json, """select(.conclusion=="failure") | .name + " suffix" """);
+        var result = SimpleJqEvaluator.TryEvaluate(json, """select(.conclusion=="failure") | .name + " suffix" """, out var error);
 
-        result.Should().Contain("\"name\":\"a\"");
-        result.Should().NotContain("\"name\":\"b\"");
+        result.Should().BeNull();
+        error.Should().Contain("不支持的 jq 语法");
+        error.Should().Contain(".name +");
+    }
+
+    /// <summary>
+    /// 整条表达式漏写前导点号（<c>--jq login</c>）必须报错，不能静默回退成整份 JSON。
+    /// 真机复现：<c>jcc gh api user --jq login</c> 曾原样打印整个用户对象。
+    /// </summary>
+    [Fact]
+    public void TryEvaluate_MissingLeadingDot_ShouldError() {
+        var json = """{"login":"octocat","id":1}""";
+        var result = SimpleJqEvaluator.TryEvaluate(json, "login", out var error);
+
+        result.Should().BeNull();
+        error.Should().Contain("不支持的 jq 语法: 'login'");
+        error.Should().Contain("--jq .login");
+    }
+
+    /// <summary>合法表达式仍走原路径：<c>.login</c> 取值不带引号。</summary>
+    [Fact]
+    public void TryEvaluate_ValidPath_ShouldReturnScalarWithoutError() {
+        var result = SimpleJqEvaluator.TryEvaluate("""{"login":"octocat"}""", ".login", out var error);
+
+        result.Should().Be("octocat");
+        error.Should().BeNull();
+    }
+
+    /// <summary>上游不是 JSON 时给出可读原因，而不是抛 JsonException 打死调用方。</summary>
+    [Fact]
+    public void TryEvaluate_InvalidJson_ShouldErrorInsteadOfThrow() {
+        var result = SimpleJqEvaluator.TryEvaluate("not json", ".login", out var error);
+
+        result.Should().BeNull();
+        error.Should().Contain("无法解析上游 JSON");
     }
 
     /// <summary>.field[N][M] 嵌套数组索引访问 — 修复前静默丢失第二索引</summary>

@@ -8,19 +8,43 @@ namespace McpToolDispatch;
 internal static class SimpleJqEvaluator {
     /// <summary>
     /// 对 JSON 字符串执行 jq 表达式筛选，返回结果 JSON 字符串。
-    /// 解析失败返回 null，调用方回退原始 JSON。
+    /// <para>解析失败或不支持的语法返回 null（调用方回退原始 JSON）。</para>
+    /// <para>会给用户看错的路径请用 <see cref="TryEvaluate"/> —— 本重载无法区分「表达式写错」与「字段不存在」，
+    /// 静默回退整份 JSON 会让人以为 jq 生效了（实测 <c>--jq login</c> 漏写点号就这样）。</para>
     /// </summary>
-    internal static string? Evaluate(string json, string jqExpr) {
-        var node = JsonNode.Parse(json);
-        if (node is null) return null;
+    internal static string? Evaluate(string json, string jqExpr)
+        => TryEvaluate(json, jqExpr, out _);
+
+    /// <summary>
+    /// 严格求值 — 失败时给出可读原因，供 <see cref="ApplyExplicitFilters"/> 抛 <see cref="JqSyntaxException"/>。
+    /// </summary>
+    /// <param name="json">待筛选的 JSON 文本。</param>
+    /// <param name="jqExpr">jq 表达式（仅支持子集）。</param>
+    /// <param name="error">失败原因；成功为 null。</param>
+    /// <returns>结果文本；失败返回 null。</returns>
+    internal static string? TryEvaluate(string json, string jqExpr, out string? error) {
+        error = null;
+        JsonNode? node;
+        try {
+            node = JsonNode.Parse(json);
+        } catch (JsonException ex) {
+            error = $"jq 无法解析上游 JSON: {ex.Message}";
+            return null;
+        }
+        if (node is null) {
+            error = "jq 无法解析上游 JSON（内容为空）";
+            return null;
+        }
 
         var stages = SplitPipeline(jqExpr);
         foreach (var stage in stages) {
-            var next = ApplyStage(node, stage);
-            if (next is null) {
-                if (IsSupportedStage(stage)) return "null";
-                continue;
+            if (!IsSupportedStage(stage)) {
+                error = $"不支持的 jq 语法: '{stage}'。支持 .field / .a.b / .a[] / [N] / select(.f==\"v\") / {{k: .f}} / length / 管道 |"
+                    + "（注意整条表达式要以 . 开头，例如 --jq .login）";
+                return null;
             }
+            var next = ApplyStage(node, stage);
+            if (next is null) return "null";
             node = next;
         }
 

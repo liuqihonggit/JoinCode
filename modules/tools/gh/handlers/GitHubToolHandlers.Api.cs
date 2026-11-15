@@ -52,7 +52,7 @@ public partial class GitHubToolHandlers {
 
         var output = string.IsNullOrWhiteSpace(jq)
             ? result.Body
-            : SimpleJqEvaluator.Evaluate(result.Body, jq) ?? result.Body;
+            : EvaluateJqOrThrow(result.Body, jq);
         var maxLines = max_lines ?? 500;
         var truncated = TruncateLines(output, maxLines);
         return Ok(truncated);

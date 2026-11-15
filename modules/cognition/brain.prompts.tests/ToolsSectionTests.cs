@@ -11,10 +11,10 @@ public sealed class ToolsSectionTests {
         var content = ToolsSection.GetContent();
 
         content.Should().NotBeNull();
-        // base.yaml 里真实存在的 3 个文件工具必须被推荐
-        content.Should().Contain("file_read");
-        content.Should().Contain("file_edit");
-        content.Should().Contain("file_write");
+        // base.yaml 里真实存在的 3 个文件工具必须被推荐；名字用运行时注册名（read/write/edit）
+        content.Should().Contain("使用 read 读取文件");
+        content.Should().Contain("使用 edit 做局部修改");
+        content.Should().Contain("使用 write 创建或整体覆写文件");
     }
 
     [Fact]

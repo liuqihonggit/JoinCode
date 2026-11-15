@@ -149,15 +149,22 @@ public partial class GitHubToolHandlers {
 
     /// <summary>应用显式过滤 — jq/json_fields 非空时返回过滤结果，均为空时返回 null 交回 verbosity 决策
     /// <para>当 json_fields 和 jq 同时存在时,先应用 json_fields 过滤再应用 jq（支持 --json headRefOid --jq '.headRefOid' 模式）</para>
+    /// <para>jq 写错时抛 <see cref="JqSyntaxException"/>，不再静默回退整份 JSON —— 否则「漏写点号」这类错误
+    /// 会被看成 jq 生效、只是字段很多（实测 <c>jcc gh api user --jq login</c>）。</para>
     /// </summary>
     private static string? ApplyExplicitFilters(string body, string? jq, string? json_fields) {
         if (!string.IsNullOrEmpty(json_fields)) {
             var filtered = FilterJsonFields(body, json_fields);
-            if (!string.IsNullOrEmpty(jq)) return SimpleJqEvaluator.Evaluate(filtered, jq) ?? filtered;
-            return filtered;
+            return string.IsNullOrEmpty(jq) ? filtered : EvaluateJqOrThrow(filtered, jq);
         }
-        if (!string.IsNullOrEmpty(jq)) return SimpleJqEvaluator.Evaluate(body, jq) ?? body;
-        return null;
+        return string.IsNullOrEmpty(jq) ? null : EvaluateJqOrThrow(body, jq);
+    }
+
+    /// <summary>求值 jq，失败抛出带原因的 <see cref="JqSyntaxException"/>。</summary>
+    private static string EvaluateJqOrThrow(string json, string jq) {
+        var result = SimpleJqEvaluator.TryEvaluate(json, jq, out var error);
+        if (result is null) throw new JqSyntaxException($"jq 表达式无法执行: {jq}\n原因: {error}");
+        return result;
     }
 
     /// <summary>

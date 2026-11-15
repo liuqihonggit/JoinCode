@@ -45,10 +45,17 @@ public sealed class EngineApplicationBuilder {
                 // 视角1 #3: 注册 CommandLineOptions 为单例，供 PermissionConfig 后配置读取
                 services.AddSingleton(options);
 
-                // SkipChatServices=true 且未 SkipToolFilter 时只注册 gh_* 工具 — jcc gh/mcp_call 等元命令不需要 file/shell/search 等工具
+                // SkipChatServices=true 且未 SkipToolFilter 时默认只注册 gh_* 工具 — jcc gh 等元命令不需要 file/shell/search 等工具；
+                // 但 mcp_call 要执行「任意一个」工具，由调用方经 ToolNameFilter 指定放行的工具名（只构造那一个 handler）。
                 // mcp serve 需要暴露所有工具给外部客户端，设 SkipToolFilter=true 跳过过滤
-                if (options.SkipChatServices && !options.SkipToolFilter)
-                    services.AddSingleton<Func<string, bool>>(static name => name.StartsWith("gh_", StringComparison.OrdinalIgnoreCase));
+                if (options.SkipChatServices && !options.SkipToolFilter) {
+                    if (options.ToolNameFilter is { } requested) {
+                        services.AddSingleton<Func<string, bool>>(name =>
+                            name.StartsWith("gh_", StringComparison.OrdinalIgnoreCase) || requested(name));
+                    } else {
+                        services.AddSingleton<Func<string, bool>>(static name => name.StartsWith("gh_", StringComparison.OrdinalIgnoreCase));
+                    }
+                }
 
                 foreach (var module in ordered) {
                     var sw = PerfTimer.Start($"  ConfigureServices {module.GetType().Name}");
@@ -130,6 +137,13 @@ public sealed class EngineApplicationBuilder {
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
         using var configLoggerFactory = LoggerFactory.Create(b => b.AddProvider(new Core.Configuration.StderrLoggerProvider(configLogLevel)));
 
+        // 工具元命令（mcp_call/mcp_list/mcp_schema/mcp_serve）不碰 LLM：构 ProviderDefinitionRegistry + 读模型目录
+        // 实测占单次调用 2.5s 里的 1.3s，且没有任何消费者读这份 Provider。
+        if (options.SkipProviderConfig) {
+            Diag.WriteLine("[CONFIG] 工具元命令 — 跳过供应商/模型配置加载");
+            return await BuildToolCommandConfigAsync(fs).ConfigureAwait(false);
+        }
+
         if (await IsHubServerAvailableAsync().ConfigureAwait(false)) {
             Diag.WriteLine("[HUB] Hub 服务可用，使用 Hub 协议 — 跳过 Provider 配置加载");
             var hubConfig = await LoadHubConfigAsync(fs, options, modelConfigLoader).ConfigureAwait(false);
@@ -159,6 +173,27 @@ public sealed class EngineApplicationBuilder {
         return value.Equals("1", StringComparison.Ordinal)
             || value.Equals("true", StringComparison.OrdinalIgnoreCase)
             || value.Equals("yes", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 工具元命令的最小配置 — 只取 <c>settings.json</c> 的 current 段（UI 偏好/行为开关），
+    /// 不构 <c>ProviderDefinitionRegistry</c>、不读模型目录、不探测 Hub。
+    /// <para>Provider 留 <see cref="ProviderConfig"/> 的默认空值：这些命令不会发起模型请求，
+    /// 需要模型的服务在 <c>SkipChatServices</c> 模式下本就未被启用。</para>
+    /// </summary>
+    private static async Task<WorkflowConfig> BuildToolCommandConfigAsync(IFileSystem fs) {
+        var settings = await Core.Configuration.ConfigLoader.LoadSettingsJsonAsync(fs).ConfigureAwait(false);
+        var config = new WorkflowConfig();
+        if (settings?.Current is not { } current) return config;
+        return config with {
+            FastMode = current.FastMode ?? false,
+            Language = current.Language,
+            OutputStyle = current.OutputStyle,
+            AutoMemoryEnabled = current.AutoMemoryEnabled ?? true,
+            AutoDreamEnabled = current.AutoDreamEnabled ?? true,
+            CleanupPeriodDays = current.CleanupPeriodDays ?? 30,
+            ShowTurnDuration = current.ShowTurnDuration ?? true,
+        };
     }
 
     /// <summary>

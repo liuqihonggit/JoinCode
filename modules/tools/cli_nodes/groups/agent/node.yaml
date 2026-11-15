@@ -31,7 +31,7 @@ tools:
     mode: host
   - id: get_plan_history
     mode: host
-  - id: sub_agent_control
+  - id: subagent_control
     mode: host
   - id: plan_agent
     mode: host

@@ -297,5 +297,10 @@ C:\Users\54076\bin\
   用户以为筛选生效。改成 `TryEvaluate` 返回原因，`FormatGhOutput` / `gh_api` / `gh_run_list` 统一抛
   `JqSyntaxException`，`GhSubCommand` 转成 stderr + 退出码 2。现有「不支持语法宽容跳过」测试已按新语义改写。
 
+**纠错**：曾据「`mcp_list` 只有 368 个」推断还有 171 个工具不可达。实为假 id 造成的统计假象：
+目录写 `code_index_*`，运行时叫 `search_*`。按 `[EnumValue]` 对齐后，非 gh 工具与注册表一一对应，
+`test_tool` 是唯一无 `[McpTool]` 声明的本地诊断工具。411 个 host 工具现在都能调用，未消除的只是
+「是否在本 exe 内零依赖实现」这一隔离度问题。
+
 **测试**：gh.tests 787/787、契约层 33/33、llm.tests 613/613、prompt ToolsSection 4/4、host.tests CLI 相关 216/216。
 **编译**：改动项目逐个 0 警告 0 错误；未跑全仓编译（用户明确要求只编改动项目）。

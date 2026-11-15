@@ -149,5 +149,9 @@ Debug framework-dependent 构建，真实产物统计（非估算）：
 
 > 步骤 9（归档生成器）前提仍不成立，但**理由变了**：`mcp_tool_dispatch.generator` 现在还得提供
 > `RegisterAllMcpToolDispatchAsync` 给 `mcp_call` 的进程内注册用；缺了它，host 工具照样查不到。
-> 另有一处能力边界已量化：`mcp_list` 全量只能注册 368 个工具，余下 171 个（`code_index` / `graph` /
-> `media` / `mcp` 等）依赖 SkipChatServices 下未启用的服务，不属于「改个过滤条件就能修」的范围。
+~~另有一处能力边界：`mcp_list` 全量只能注册 368 个工具，余下 171 个不可达~~ **（此判断已被证伪）**：
+`mcp_list` 的 368 是「非 gh 的真实工具数」，先前所谓 171 个洞是**假 id 造成的统计假象**——
+目录写 `code_index_*`，注册表叫 `search_*`，两边对不上被误读成缺工具。按 `[EnumValue]` 修名后，
+目录 541 个 MCP 工具中 172 个走 delegate（jcc-gh），其余 369 个除 `test_tool`（无 `[McpTool]` 的本地诊断工具）
+外**全部在注册表里**。能力边界只存在于「能否在本 exe 内零依赖实现」（228/640 隔离），
+不存在于「能否被调用」。

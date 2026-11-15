@@ -29,6 +29,14 @@ internal sealed class ArgBag {
         Positional = positional.ToArray();
     }
 
+    /// <summary>
+    /// 复用 CliNodeRunner 已解析好的参数表 —— 入口解析只做一次，避免 exe 里存在两套 --key 规则。
+    /// </summary>
+    public ArgBag(IReadOnlyDictionary<string, string> options) {
+        foreach (var pair in options) _options[pair.Key] = pair.Value;
+        Positional = [];
+    }
+
     public string? Get(string key) => _options.TryGetValue(key, out var value) ? value : null;
 
     public string Get(string key, string fallback) => Get(key) ?? fallback;

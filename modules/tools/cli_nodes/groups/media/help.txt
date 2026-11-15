@@ -332,6 +332,7 @@ jcc-tool-media — media 工具分组（60 个工具）
 
   quadtree_neighbor — 查询格子的八方位邻居编码（同层）。方向: N/S/W/E/NW/NE/SW/SE，边界外返回null
     --cellCode                   string    必填   源格子编码（如 L0.2.1）
+    --direction                  string    必填   方位方向
     --imageWidth                 integer   必填   原图宽度（像素）
     --imageHeight                integer   必填   原图高度（像素）
     --depth                      integer   必填   四叉树层数

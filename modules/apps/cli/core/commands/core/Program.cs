@@ -434,31 +434,15 @@ class Program {
     /// 恢复 MSYS2/Git Bash 路径展开 — 将被展开的斜杠命令参数恢复为原始 /命令名 格式。
     /// <para>Git Bash 会将以 / 开头的参数视为 Unix 路径并展开为 Windows 路径</para>
     /// <para>例: /compact → C:/Program Files/Git/compact → 恢复为 /compact</para>
+    /// <para>还原规则本身定义在契约层 <see cref="CliArgNormalizer"/>：
+    /// jcc 主程序、<c>jcc tool call</c> 执行器、各分组 exe 共用同一份实现，禁止在此重写。</para>
     /// </summary>
     private static string[] RestoreMsysPathExpansion(string[] args) {
+        // 参数数量上限是 CLI 边界的拒绝服务防护，属于本层职责；
+        // 逐参数还原逻辑属于契约层，委托过去保证三处消费方行为一致。
         if (args.Length == 0 || args.Length > CliGuardConfig.MaxArgCount)
             return args;
-        var restored = new string[args.Length];
-        for (var i = 0; i < args.Length; i++) {
-            restored[i] = TryRestoreMsysPath(args[i]) ?? args[i];
-        }
-        return restored;
-    }
-
-    private static string? TryRestoreMsysPath(string arg) {
-        if (arg.Length < CliGuardConfig.MinMsysPathLength || arg.Length > CliGuardConfig.MaxArgLength || arg[1] != ':')
-            return null;
-        var gitIdx = arg.IndexOf("/Git/", StringComparison.OrdinalIgnoreCase);
-        if (gitIdx < 0)
-            gitIdx = arg.IndexOf("\\Git\\", StringComparison.OrdinalIgnoreCase);
-        if (gitIdx < 0)
-            return null;
-        var rest = arg.AsSpan(gitIdx + 4);
-        while (!rest.IsEmpty && (rest[0] == '/' || rest[0] == '\\'))
-            rest = rest[1..];
-        if (rest.IsEmpty || rest.Contains('.') || rest.Contains('/') || rest.Contains('\\'))
-            return null;
-        return "/" + rest.ToString();
+        return CliArgNormalizer.RestoreMsysPathExpansion(args);
     }
 
     /// <summary>

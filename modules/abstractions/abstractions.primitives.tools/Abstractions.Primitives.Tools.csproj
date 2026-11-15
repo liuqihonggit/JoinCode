@@ -14,4 +14,9 @@
     <EmbeddedResource Include="$(RepoRoot)resources/tools/base.yaml" LogicalName="JoinCode.CliNodes.base.yaml" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 帮助文本解析与近似名建议是 internal 实现细节，但要由单测锁住行为。 -->
+    <InternalsVisibleTo Include="JoinCode.CliNodes.Tests" />
+  </ItemGroup>
+
 </Project>

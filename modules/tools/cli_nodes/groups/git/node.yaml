@@ -1,4 +1,5 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
 id: git
 name: jcc-tool-git
 summary: "Check Git repository status; Add files to staging area; Commit staged changes"
@@ -6,4 +7,26 @@ category: git
 exe: jcc-tool-git.exe
 tags: [git]
 tool_count: 10
+local_tool_count: 10
 parameters: []
+tools:
+  - id: git_status
+    mode: local
+  - id: git_add
+    mode: local
+  - id: git_commit
+    mode: local
+  - id: git_push
+    mode: local
+  - id: git_pull
+    mode: local
+  - id: git_log
+    mode: local
+  - id: git_diff
+    mode: local
+  - id: git_branch
+    mode: local
+  - id: git_clone
+    mode: local
+  - id: git_submodule_update
+    mode: local

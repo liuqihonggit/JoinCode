@@ -149,7 +149,35 @@
 
 真机验收：`jcc tool call slash -h`（99 命令总览，退出码 0）、`jcc tool call slash agents -h`（单命令参数，退出码 0）、`jcc tool call slash /agents -h`（经 Git Bash 展开后仍正确恢复，退出码 0）、`file` / `git` 组回归通过。
 
-**诚实边界**：jcc 进程隔离执行已打通，但被启动的 exe 分两类——`git`/`file`/`shell`/`tools` 组是本地实现（真隔离，离开宿主可跑）；`slash` 组与其余 8 个分组仍是转发实现，exe 会再转发宿主（`jcc → exe → jcc` 进程链，工具逻辑仍落在宿主进程）。要做成完全隔离，需把这些组也逐组做实本地实现。首轮 `tools` 字段仍由 `BuildToolsFromKernel` 全量构建（步骤 8 未拨），但那条链路不影响本执行器的进程隔离语义。
+**诚实边界**：jcc 进程隔离执行已打通，但被启动的 exe 分两类——`git`/`file`/`shell`/`tools` 组是本地实现（真隔离，离开宿主可跑）；`slash` 组与其余 8 个分组仍是转发实现，exe 会再转发宿主（`jcc → exe → jcc` 进程链，工具逻辑仍落在宿主进程）。要做成完全隔离，需把这些组也逐组做实本地实现。
+
+### 3.2.6 主请求链路切换 — 首轮 `tools` 从 506 降到 4（步骤 9）
+
+前面把工具拆成 exe，只是把能力物理外置；**真正决定首提示词体积的开关在这里**：只要 `tools` 字段还是全量 schema，拆多少 exe 都不影响请求大小。
+
+| 项 | 改动 |
+|----|------|
+| 数据源 | 三个 provider（OpenAI / Responses / Anthropic）的 `BuildToolsFromKernel` 全部删除，改为 `BuildBaseTools`：只保留 `resources/tools/base.yaml` 里登记的 id，其余 540+ 工具不再进入协议原生 `tools` 字段 |
+| `tool_groups` | 退役——`request.ToolGroups` 不再写入（三个 Type 上的字段保留仅作兼容，恒为空） |
+| 两阶段加载 | `CreateSecond*RequestWithDescriptions` 已无调用方，随 `tool_groups` 一起失效 |
+| 提示词 | `ToolsSection` 重写：只推荐 `base.yaml` 里真实声明的工具，并给出 `jcc tool tree / find / help / call` 四步发现通道；删除 `Glob` / `Grep` / `TodoWrite`（已不在首轮清单）与 `tool_search` `list_groups` `map[...]` 三级下钻文案 |
+| schema 来源 | 参数 schema 取内核元数据、描述取 `base.yaml`。理由：handler 就在内核里，用它的参数定义能保证 LLM 看到的必填项与执行期校验完全一致；而给模型看的文案仍以 YAML 为单一数据源 |
+| 回归守卫 | `BuildBaseTools_*`（9 个单测，三个 provider 各 3 个）锁定「非基础工具一律不进 tools 字段、描述来自 YAML」 |
+
+**同时修正了一个假工具**：`base.yaml` 原先登记的第 3 项 `code_execution` 在 546 个内核工具里**并不存在**（是凭空命名的）。步骤 9 一旦接上，LLM 会拿到一个永远「工具不存在」的槽位。编译/构建本就由 `bash` 覆盖，故改为真实高频的 `file_edit`（局部查找替换，与 `file_write` 的整体覆写互补）。`BaseToolRegistryTests` 7/7 通过，`jcc tool base` 真机输出已变为 `file_read / file_write / file_edit / bash`，`file_edit` 走进程隔离实跑成功（写→改→读回验证）。
+
+### 3.2.7 自包含装配目录 — jcc 离开仓库开发布局也能启动子进程
+
+进程隔离执行器有一处隐含前提：分组 exe 得能被找到。开发态靠仓库里的 `artifacts/bin/jcc_tool_<组>/`，发布态没有这个路径，等于「拆了 exe 但部署后调不到」。
+
+| 项 | 实现 |
+|----|------|
+| 脚本 | `non_deliverables_tools/scripts/Pack-ToolNodes.ps1` → `<Target>/tools/<组>/`，每组装 apphost + 程序集 + `deps.json`/`runtimeconfig.json` + `node.yaml` + `help.txt` |
+| 按需编译 | 只在缺 exe 时编该组；`obj` 被清过时先按需 restore 一次；单组失败不影响其余组，末尾汇总并返回非 0 |
+| jcc 消费 | 目录发现与 exe 定位都认 `JCC_CLI_TOOLS_DIR`（`jcc tool tree` 首行会打印实际解析到的目录），或直接放到 `<jcc>/tools/` |
+| 实测 | 13 组 / 9045 KB / 装配 23.6 秒；`jcc tool tree` 首行指向装配目录，`jcc tool call file file_read` 退出码 0，装配后的 exe 自带 `-h` |
+
+**诚实边界**：装配产物是框架依赖构建（每组约 680 KB，含契约层 DLL），不是单文件；AOT 单文件本机不可测（缺 `advapi32.lib`，`reg.exe` 被安全策略拦截）。
 
 ### 3.3 对 ADR 0149 的显式收窄
 
@@ -221,8 +249,8 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 | 8 | 逐组做实本地实现（混合模式）：`git`(10/10)、`file`(11/13)、`shell`(6/27)、`tools`(2/18)；剩余 8 组待推进 | 进行中（4/12 组） |
 | 8b | **进程隔离执行器** `jcc tool call <组> <工具>`：jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码，不初始化引擎 DI | ✅ 已完成（七连真机验收，退出码 0/2/3 全覆盖） |
 | 8c | **斜杠命令独立 exe** `jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>` 进程隔离调用 | ✅ 已完成（生成器 + 真机验收，含 Git Bash 命令名归一化） |
-| 9 | 切换主请求链路：首轮 `tools` 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | 待办 |
-| 10 | 目录节点化重组 + 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 | 待办 |
+| 9 | 切换主请求链路：首轮 `tools` 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | ✅ 已完成（三个 provider 的 `BuildBaseTools`；`BuildToolsFromKernel` / `BuildAnthropicToolsFromKernel` 已删除；`request.ToolGroups` 不再写入；9 个单测改写为「只发基础工具」契约） |
+| 10 | 目录节点化重组 + 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 | 部分完成：自包含装配目录已落地（`Pack-ToolNodes.ps1` → `tools/<组>/`，13 组 9045 KB，jcc 经 `JCC_CLI_TOOLS_DIR` 真机消费通过）；生成器归档与目录重组待办 |
 | 11 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 部分完成：全仓编译通过（6m7s）、真机 exe 验收通过；全量测试待步骤 8-10 |
 
 ---

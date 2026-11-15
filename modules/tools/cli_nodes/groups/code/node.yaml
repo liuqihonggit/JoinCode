@@ -1,4 +1,5 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
 id: code
 name: jcc-tool-code
 summary: "Add a cell to a notebook; Delete a cell from a notebook; Edit a notebook cell's content"
@@ -6,4 +7,70 @@ category: code
 exe: jcc-tool-code.exe
 tags: [analyze, find, generate, lsp, mcp, notebook, optimize, recall]
 tool_count: 32
+local_tool_count: 10
 parameters: []
+tools:
+  - id: notebook_add_cell
+    mode: local
+  - id: notebook_delete_cell
+    mode: local
+  - id: notebook_edit_cell
+    mode: local
+  - id: notebook_move_cell
+    mode: local
+  - id: notebook_change_cell_type
+    mode: local
+  - id: notebook_clear_outputs
+    mode: local
+  - id: notebook_get_cell
+    mode: local
+  - id: notebook_edit
+    mode: local
+  - id: notebook_create
+    mode: local
+  - id: notebook_read
+    mode: local
+  - id: mcp_ai_workflow_workflow_generate_code
+    mode: host
+  - id: mcp_ai_workflow_workflow_analyze_code
+    mode: host
+  - id: recall_list
+    mode: host
+  - id: recall_read
+    mode: host
+  - id: recall_search
+    mode: host
+  - id: analyze_csharp_code
+    mode: host
+  - id: find_bugs
+    mode: host
+  - id: optimize_code
+    mode: host
+  - id: security_audit
+    mode: host
+  - id: generate_csharp_code
+    mode: host
+  - id: generate_unit_test
+    mode: host
+  - id: generate_api_controller
+    mode: host
+  - id: lsp_goto_definition
+    mode: host
+  - id: lsp_find_references
+    mode: host
+  - id: lsp_hover
+    mode: host
+  - id: lsp_completion
+    mode: host
+  - id: lsp_document_symbols
+    mode: host
+  - id: lsp_workspace_symbol
+    mode: host
+  - id: lsp_goto_implementation
+    mode: host
+  - id: lsp_prepare_call_hierarchy
+    mode: host
+  - id: lsp_incoming_calls
+    mode: host
+  - id: lsp_outgoing_calls
+    mode: host

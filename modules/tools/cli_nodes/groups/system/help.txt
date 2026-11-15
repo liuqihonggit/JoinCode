@@ -91,7 +91,16 @@ jcc-tool-system — system 工具分组（71 个工具）
     (无参数)
 
   agent — Create and launch a sub-agent to handle a task
-    (无参数)
+    --description                string    必填   Agent description (3-5 words)
+    --prompt                     string    必填   Task prompt/instructions
+    --subagent_type              string    可选   Agent type (optional)
+    --model                      string    可选   Model override: sonnet/opus/haiku (optional)
+    --name                       string    可选   Agent name for SendMessage addressing (optional)
+    --run_in_background          boolean   可选   Run in background
+    --isolation                  string    可选   Isolation mode: none/worktree (optional)
+    --cwd                        string    可选   Working directory override (optional)
+    --memory                     string    可选   Memory scope: user/project/local (optional, enables agent memory)
+    --dry_run                    boolean   可选   Dry run mode: skip LLM, create mock agent for testing (optional)
 
   agent_send_message — Send a message to another agent
     --to                         string    必填   Recipient: teammate name, agent ID, or '*' for broadcast

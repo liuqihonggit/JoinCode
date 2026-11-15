@@ -52,20 +52,52 @@ internal static class NodeYamlParser {
         if (string.IsNullOrWhiteSpace(summary))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 节点 '{id}' 缺少 summary");
 
+        var exe = ReadScalar(map, "exe");
         return new CliToolDescriptor {
             Id = id,
             Name = name,
             Summary = summary,
             Category = ReadScalar(map, "category") ?? "general",
-            Exe = ReadScalar(map, "exe"),
+            Exe = exe,
             Tags = ReadStringArray(map, "tags"),
             Examples = ReadStringArray(map, "examples"),
             Parameters = ReadSequence(map, "parameters")
                 .OfType<YamlMappingNode>()
                 .Select(param => ParseParameter(param, source, id))
-                .ToArray()
+                .ToArray(),
+            // 子工具清单只对分组节点（声明了 exe）解析：
+            // base.yaml 的 tools 是完整工具描述，形状不同，靠 exe 为空这条既有不变量天然区分。
+            Tools = exe is null
+                ? []
+                : ReadSequence(map, "tools")
+                    .OfType<YamlMappingNode>()
+                    .Select(entry => ParseToolEntry(entry, source, id))
+                    .ToArray()
         };
     }
+
+    private static CliToolEntry ParseToolEntry(YamlMappingNode map, string source, string nodeId) {
+        var toolId = ReadScalar(map, "id");
+        if (string.IsNullOrWhiteSpace(toolId))
+            throw new InvalidOperationException($"CLI 节点清单 '{source}' 节点 '{nodeId}' 存在缺少 id 的子工具条目");
+        var rawMode = ReadScalar(map, "mode");
+        if (string.IsNullOrWhiteSpace(rawMode))
+            throw new InvalidOperationException(
+                $"CLI 节点清单 '{source}' 子工具 '{toolId}' 缺少 mode（local/host）——" +
+                "没有执行方式就无法判断该工具是否真正进程隔离，禁止省略");
+        return new CliToolEntry {
+            Id = toolId,
+            Mode = ParseMode(rawMode, source, toolId),
+            Aliases = ReadStringArray(map, "aliases")
+        };
+    }
+
+    private static CliExecutionMode ParseMode(string raw, string source, string toolId) => raw.Trim().ToLowerInvariant() switch {
+        "local" => CliExecutionMode.Local,
+        "host" => CliExecutionMode.Host,
+        _ => throw new InvalidOperationException(
+            $"CLI 节点清单 '{source}' 子工具 '{toolId}' 的 mode 只能是 local 或 host，实际为 '{raw}'")
+    };
 
     private static CliToolParameter ParseParameter(YamlMappingNode map, string source, string nodeId) {
         var paramName = ReadScalar(map, "name");

@@ -303,13 +303,10 @@ public class OpenAIQueryService : QueryServiceBase {
         }
 
         if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null) {
-            var (tools, toolGroups) = BuildToolsFromKernel(kernel);
+            var tools = BuildBaseTools(kernel);
             if (tools.Count > 0) {
                 request.Tools = ToolDiscoveryOrdering.PutToolSearchFirst(tools, t => t.Function?.Name);
                 request.ToolChoice = "auto";
-            }
-            if (toolGroups.Count > 0) {
-                request.ToolGroups = toolGroups;
             }
         }
 
@@ -371,35 +368,36 @@ public class OpenAIQueryService : QueryServiceBase {
     }
 
     /// <summary>
-    /// 构建工具列表 — 两阶段加载：core_tools 发完整 schema，mcp_tools 发分组+名称
-    /// 其他 group name 向后兼容，发完整 schema
+    /// 构建首轮 tools 字段 —— 唯一来源是 <c>resources/tools/base.yaml</c>（ADR 0157 步骤 8）。
+    /// <para>其余 540+ 工具不再进入协议原生 tools 字段：它们各自是独立 CLI.exe，由 LLM 用 bash 调
+    /// <c>jcc tool tree/find/help/call</c> 逐层发现。这是把 466KB 巨型请求压到 4 个工具的关键开关。</para>
+    /// <para>参数 schema 取内核元数据、描述取 base.yaml：前者保证 LLM 看到的必填项与执行期校验一致
+    /// （handler 就在内核里，用它的定义不会漂移），后者保证给模型看的文案仍是 YAML 单一数据源。</para>
     /// </summary>
-    internal static (List<OpenAITool> Tools, List<OpenAIToolGroup> ToolGroups) BuildToolsFromKernel(IChatClient kernel) {
+    internal static List<OpenAITool> BuildBaseTools(IChatClient kernel) {
+        var registry = BaseToolRegistry.LoadDefault();
         var tools = new List<OpenAITool>();
-        var toolGroups = new List<OpenAIToolGroup>();
-
         foreach (var pluginName in kernel.Plugins.GetPluginNames()) {
-            var plugin = kernel.Plugins.GetPlugin(pluginName);
-            if (plugin is not IToolGroup group)
-                continue;
-
-            if (group.Name == ToolGroupNameConstants.McpTools) {
-                toolGroups.Add(new OpenAIToolGroup {
-                    Name = group.Name,
-                    Tools = group.Functions.Select(f => f.Name).ToList()
-                });
-            } else {
-                tools.AddRange(group.Functions.Select(function => new OpenAITool {
-                    Function = new OpenAIFunctionDefinition {
-                        Name = function.Name,
-                        Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
-                        Parameters = BuildParameters(function.Parameters)
-                    }
-                }));
-            }
+            if (kernel.Plugins.GetPlugin(pluginName) is IToolGroup group)
+                tools.AddRange(CollectBaseTools(group, registry));
         }
+        return tools;
+    }
 
-        return (tools, toolGroups);
+    private static List<OpenAITool> CollectBaseTools(IToolGroup group, BaseToolRegistry registry) {
+        var tools = new List<OpenAITool>();
+        foreach (var function in group.Functions) {
+            var descriptor = registry.Get(function.Name);
+            if (descriptor is null) continue;   // 非基础工具：不进 tools 字段，留给 CLI 目录树
+            tools.Add(new OpenAITool {
+                Function = new OpenAIFunctionDefinition {
+                    Name = function.Name,
+                    Description = descriptor.Summary,
+                    Parameters = BuildParameters(function.Parameters)
+                }
+            });
+        }
+        return tools;
     }
 
     /// <summary>

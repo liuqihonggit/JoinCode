@@ -1,0 +1,235 @@
+# 由 generate_slash_cli_node.py 从现有 [ChatCommand] / [ChatCommandArg] 特性生成
+id: slash
+name: jcc-tool-slash
+summary: "斜杠命令节点 — 99 个命令，15 个分类；配置顾问模型; 查看和管理代理; 长期助手模式"
+category: slash
+exe: jcc-tool-slash.exe
+tags: [Agent, Auth, Bridge, Code, Config, Info, Law, Model]
+tool_count: 99
+local_tool_count: 0
+parameters: []
+tools:
+  - id: "??"
+    mode: host
+    aliases: [ask]
+  - id: add-dir
+    mode: host
+  - id: advisor
+    mode: host
+  - id: agents
+    mode: host
+  - id: analyze
+    mode: host
+  - id: assistant
+    mode: host
+  - id: branch
+    mode: host
+    aliases: [branches]
+  - id: bridge
+    mode: host
+    aliases: [rc]
+  - id: bridge-kick
+    mode: host
+  - id: brief
+    mode: host
+  - id: btw
+    mode: host
+  - id: buddy
+    mode: host
+  - id: chrome
+    mode: host
+  - id: clear
+    mode: host
+    aliases: [reset, new, cls]
+  - id: code-index
+    mode: host
+  - id: color
+    mode: host
+  - id: commit
+    mode: host
+  - id: compact
+    mode: host
+    aliases: [comp]
+  - id: config
+    mode: host
+  - id: context
+    mode: host
+  - id: copy
+    mode: host
+  - id: cost
+    mode: host
+  - id: debuglog
+    mode: host
+  - id: desktop
+    mode: host
+    aliases: [app]
+  - id: diag
+    mode: host
+  - id: diff
+    mode: host
+  - id: doctor
+    mode: host
+    aliases: [dr]
+  - id: effort
+    mode: host
+  - id: env
+    mode: host
+  - id: execute
+    mode: host
+  - id: exit
+    mode: host
+    aliases: [x]
+  - id: export
+    mode: host
+  - id: extra-usage
+    mode: host
+  - id: falv
+    mode: host
+  - id: fast
+    mode: host
+  - id: feedback
+    mode: host
+    aliases: [bug]
+  - id: files
+    mode: host
+  - id: fork
+    mode: host
+    aliases: [branch]
+  - id: generate
+    mode: host
+  - id: goal
+    mode: host
+  - id: heapdump
+    mode: host
+  - id: help
+    mode: host
+    aliases: ["?"]
+  - id: history
+    mode: host
+    aliases: [hist]
+  - id: hooks
+    mode: host
+  - id: ide
+    mode: host
+  - id: init
+    mode: host
+  - id: insights
+    mode: host
+  - id: install
+    mode: host
+  - id: install-github-app
+    mode: host
+  - id: login
+    mode: host
+  - id: logout
+    mode: host
+  - id: mcp
+    mode: host
+  - id: memory
+    mode: host
+    aliases: [mem]
+  - id: mobile
+    mode: host
+    aliases: [ios, android]
+  - id: model
+    mode: host
+  - id: oauth-refresh
+    mode: host
+  - id: peers
+    mode: host
+    aliases: [remote]
+  - id: permissions
+    mode: host
+    aliases: [perm]
+  - id: plan
+    mode: host
+  - id: plugin
+    mode: host
+    aliases: [plugins, marketplace]
+  - id: privacy-settings
+    mode: host
+  - id: proactive
+    mode: host
+  - id: profile
+    mode: host
+  - id: quit
+    mode: host
+    aliases: [q]
+  - id: rate-limit-options
+    mode: host
+  - id: release-notes
+    mode: host
+  - id: rename
+    mode: host
+  - id: reset-config
+    mode: host
+  - id: resume
+    mode: host
+    aliases: [continue]
+  - id: review
+    mode: host
+  - id: rewind
+    mode: host
+    aliases: [checkpoint]
+  - id: sampling
+    mode: host
+  - id: sandbox-toggle
+    mode: host
+    aliases: [sandbox]
+  - id: security-review
+    mode: host
+  - id: session
+    mode: host
+    aliases: [sessions]
+  - id: share
+    mode: host
+  - id: simple
+    mode: host
+  - id: skills
+    mode: host
+  - id: stats
+    mode: host
+    aliases: [stat]
+  - id: status
+    mode: host
+  - id: statusline
+    mode: host
+  - id: stickers
+    mode: host
+  - id: summary
+    mode: host
+  - id: switch
+    mode: host
+  - id: tag
+    mode: host
+  - id: tasks
+    mode: host
+    aliases: [task, bashes]
+  - id: theme
+    mode: host
+  - id: thinkback
+    mode: host
+  - id: tools
+    mode: host
+  - id: trust
+    mode: host
+  - id: ultraplan
+    mode: host
+    aliases: [up]
+  - id: upgrade
+    mode: host
+  - id: usage
+    mode: host
+    aliases: [rate-limit]
+  - id: vendor
+    mode: host
+  - id: version
+    mode: host
+  - id: vim
+    mode: host
+  - id: voice
+    mode: host
+  - id: workflows
+    mode: host
+  - id: worktree
+    mode: host

@@ -10,7 +10,9 @@ public sealed class BaseToolRegistryTests {
         var registry = BaseToolRegistry.LoadDefault();
 
         Assert.Equal(4, registry.Count);
-        Assert.Equal(new[] { "file_read", "file_write", "code_execution", "bash" },
+        // file_edit 取代了最初的 code_execution —— 后者在 546 个内核工具中并不存在，
+        // 若进入协议 tools 字段，LLM 会拿到一个永远「工具不存在」的槽位。
+        Assert.Equal(new[] { "file_read", "file_write", "file_edit", "bash" },
             registry.All.Select(tool => tool.Id).ToArray());
     }
 

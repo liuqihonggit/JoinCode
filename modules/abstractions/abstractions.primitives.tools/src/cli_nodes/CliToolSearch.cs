@@ -22,7 +22,7 @@ public static class CliToolSearch {
             .ToArray();
     }
 
-    /// <summary>渲染目录树 — 分类即目录，节点即叶子。</summary>
+    /// <summary>渲染目录树 — 分类即目录，节点即叶子；分组节点附带本地实现覆盖率。</summary>
     public static string RenderTree(IEnumerable<CliToolDescriptor> nodes) {
         var sb = new StringBuilder();
         var groups = nodes
@@ -31,23 +31,53 @@ public static class CliToolSearch {
         foreach (var group in groups) {
             sb.AppendLine($"{group.Key}/");
             foreach (var node in group.OrderBy(item => item.Id, StringComparer.Ordinal))
-                sb.AppendLine($"  {node.Id}/ — {node.Summary}");
+                sb.AppendLine($"  {node.Id}/ — {node.Summary}{Coverage(node)}");
         }
         return sb.ToString().TrimEnd();
     }
 
     /// <summary>渲染搜索结果 — 给出 -h 命令，引导 LLM 按需阅读而非一次性吞下全部描述。</summary>
-    public static string RenderResults(IReadOnlyList<CliToolDescriptor> nodes) {
+    public static string RenderResults(IReadOnlyList<CliToolDescriptor> nodes, string? query = null) {
         if (nodes.Count == 0) return "未找到匹配的 CLI 工具节点。";
         var sb = new StringBuilder();
         sb.AppendLine($"命中 {nodes.Count} 个节点（用 <exe> -h 查看完整参数）:");
-        foreach (var node in nodes)
-            sb.AppendLine($"  {node.Id,-24} [{node.Category}] {node.Summary}  →  {node.Exe ?? node.Id} -h");
+        foreach (var node in nodes) {
+            sb.AppendLine($"  {node.Id,-14} [{node.Category}] {node.Summary}{Coverage(node)}");
+            // 写出真实 exe 名：LLM 只看「<exe>」占位符时仍要去猜节点对应的可执行文件。
+            if (!string.IsNullOrWhiteSpace(node.Exe)) sb.AppendLine($"       {node.Exe} -h");
+            AppendMatchedTools(sb, node, query);
+        }
+        sb.AppendLine("调用方式: jcc tool call <节点ID> <工具名> [--参数 值]；阅读参数: jcc tool help <节点ID> 或 <exe> -h");
         return sb.ToString().TrimEnd();
     }
 
+    /// <summary>本地实现覆盖率 — 只有分组节点才有意义。</summary>
+    private static string Coverage(CliToolDescriptor node) =>
+        node.HasToolEntries ? $"  (本地实现 {node.LocalToolCount}/{node.Tools.Length})" : string.Empty;
+
+    /// <summary>
+    /// 查询命中分组内某个子工具时，列出命中的子工具及其执行方式 —
+    /// 让 LLM 一次就知道「工具在哪个组、是否真进程隔离」，不必再猜或再搜一轮。
+    /// </summary>
+    private static void AppendMatchedTools(StringBuilder sb, CliToolDescriptor node, string? query) {
+        if (!node.HasToolEntries || string.IsNullOrWhiteSpace(query)) return;
+        var terms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var matched = node.Tools
+            .Where(entry => terms.Any(term => Contains(entry.Id, term)
+                                              || entry.Aliases.Any(alias => Contains(alias, term))))
+            .OrderBy(entry => entry.Id, StringComparer.Ordinal)
+            .ToArray();
+        foreach (var entry in matched)
+            sb.AppendLine($"      · {entry.Id,-30} {(entry.IsLocal ? "本地进程隔离" : "转发宿主执行")}{Aliases(entry)}");
+    }
+
+    private static string Aliases(CliToolEntry entry) =>
+        entry.Aliases.Length == 0 ? string.Empty : $"  别名: {string.Join(", ", entry.Aliases)}";
+
     private static int ScoreTerm(CliToolDescriptor node, string term) =>
-        (Contains(node.Id, term) ? 100 : 0)
+        (node.Tools.Any(entry => Contains(entry.Id, term)
+                                 || entry.Aliases.Any(alias => Contains(alias, term))) ? 120 : 0)
+        + (Contains(node.Id, term) ? 100 : 0)
         + (Contains(node.Name, term) ? 50 : 0)
         + (Contains(node.Summary, term) ? 20 : 0)
         + (node.Tags.Any(tag => Contains(tag, term)) ? 10 : 0)

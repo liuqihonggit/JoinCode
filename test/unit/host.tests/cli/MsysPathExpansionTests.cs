@@ -11,26 +11,19 @@ namespace Host.Tests.Cli;
 /// 例: /compact → C:/Program Files/Git/compact → 恢复为 /compact</para>
 /// </summary>
 public sealed class MsysPathExpansionTests {
-    private static readonly Type ProgramType = typeof(JoinCode.Program);
-    private const BindingFlags PrivateStatic = BindingFlags.NonPublic | BindingFlags.Static;
-
     /// <summary>
-    /// 调用 private static TryRestoreMsysPath(string) → string?
+    /// 调用 CliArgNormalizer.TryRestoreMsysPath(string) → string?
     /// </summary>
     private static string? TryRestoreMsysPath(string arg) {
-        var method = ProgramType.GetMethod("TryRestoreMsysPath", PrivateStatic)
-            ?? throw new InvalidOperationException("TryRestoreMsysPath 方法未找到");
-        return (string?)method.Invoke(null, [arg]);
+        return CliArgNormalizer.TryRestoreMsysPath(arg);
     }
 
     /// <summary>
-    /// 调用 private static RestoreMsysPathExpansion(string[]) → string[]
+    /// 调用 CliArgNormalizer.RestoreMsysPathExpansion(string[]) → string[]
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static string[] RestoreMsysPathExpansion(string[] args) {
-        var method = ProgramType.GetMethod("RestoreMsysPathExpansion", PrivateStatic)
-            ?? throw new InvalidOperationException("RestoreMsysPathExpansion 方法未找到");
-        return (string[])method.Invoke(null, [args])!;
+        return CliArgNormalizer.RestoreMsysPathExpansion(args);
     }
 
     // ===== TryRestoreMsysPath 单参数恢复测试 =====

@@ -1,4 +1,5 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
 id: system
 name: jcc-tool-system
 summary: "Get a configuration setting value; Set a configuration setting value; List all configurable settings"
@@ -6,4 +7,148 @@ category: system
 exe: jcc-tool-system.exe
 tags: [agent, analytics, ask, brief, config, confirm, continue, ctx]
 tool_count: 71
+local_tool_count: 0
 parameters: []
+tools:
+  - id: config_get
+    mode: host
+  - id: config_set
+    mode: host
+  - id: config_list
+    mode: host
+  - id: agent
+    mode: host
+  - id: agent_send_message
+    mode: host
+  - id: forward_user_input
+    mode: host
+  - id: agent_list
+    mode: host
+  - id: agent_status
+    mode: host
+  - id: agent_stop
+    mode: host
+  - id: agent_running
+    mode: host
+  - id: agent_get_messages
+    mode: host
+  - id: diagnose_error
+    mode: host
+  - id: fix_shell_error
+    mode: host
+  - id: fix_file_error
+    mode: host
+  - id: fix_merge_conflict
+    mode: host
+  - id: resume_timed_out_task
+    mode: host
+  - id: continue_long_running_task
+    mode: host
+  - id: stop_long_running_task
+    mode: host
+  - id: permission_add_rule
+    mode: host
+  - id: permission_remove_rule
+    mode: host
+  - id: permission_list_rules
+    mode: host
+  - id: permission_check_tool
+    mode: host
+  - id: permission_check_path
+    mode: host
+  - id: permission_get_agent_rule
+    mode: host
+  - id: permission_clear_rules
+    mode: host
+  - id: policy_check
+    mode: host
+  - id: policy_list
+    mode: host
+  - id: model_search
+    mode: host
+  - id: tool_search
+    mode: host
+  - id: mcp_ai_workflow_workflow_chat
+    mode: host
+  - id: mcp_ai_workflow_workflow_clear_history
+    mode: host
+  - id: mcp_ai_workflow_workflow_get_history
+    mode: host
+  - id: push_notification
+    mode: host
+  - id: remote_trigger
+    mode: host
+  - id: shake_window
+    mode: host
+  - id: flash_taskbar
+    mode: host
+  - id: get_process_info
+    mode: host
+  - id: analytics_report
+    mode: host
+  - id: analytics_tools
+    mode: host
+  - id: analytics_events
+    mode: host
+  - id: analytics_export
+    mode: host
+  - id: analytics_clear
+    mode: host
+  - id: brief_mode
+    mode: host
+  - id: brief_status
+    mode: host
+  - id: send_user_message
+    mode: host
+  - id: ctx_inspect
+    mode: host
+  - id: snip
+    mode: host
+  - id: sleep
+    mode: host
+  - id: sleep_until
+    mode: host
+  - id: ask_user_question
+    mode: host
+  - id: confirm_action
+    mode: host
+  - id: agent_system_stats
+    mode: host
+  - id: agent_list_stats
+    mode: host
+  - id: agent_stats
+    mode: host
+  - id: agent_history
+    mode: host
+  - id: agent_running_stats
+    mode: host
+  - id: agent_execution_detail
+    mode: host
+  - id: agent_clear_history
+    mode: host
+  - id: memory_daily_log_append
+    mode: host
+  - id: memory_daily_log_get
+    mode: host
+  - id: memory_search_history
+    mode: host
+  - id: memory_team_sync
+    mode: host
+  - id: memory_team_status
+    mode: host
+  - id: memory_scan
+    mode: host
+  - id: memory_age
+    mode: host
+  - id: memory_cleanup
+    mode: host
+  - id: memory_health
+    mode: host
+  - id: memory_add_team_path
+    mode: host
+  - id: memory_list_team_paths
+    mode: host
+  - id: memory_remove_team_path
+    mode: host
+  - id: memory_scan_team
+    mode: host

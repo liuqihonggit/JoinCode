@@ -132,6 +132,7 @@ jcc-tool-shell — shell 工具分组（27 个工具）
     --max_lines                  integer   可选   Max lines (optional, default: 50)  默认=50
 
   sandbox_enter — Enter a sandbox with the specified isolation type. If the requested type is unavailable, automatically falls back to a lower isolation level. Available types: soft (path redirection), process (OS-level process isolation), docker (container isolation), bubblewrap (Linux namespace isolation).
+    --sandboxType                string    必填   Sandbox type: soft, process, docker, or bubblewrap
     --restrictFileSystem         string    可选   Restrict file system access
     --restrictNetwork            string    可选   Restrict network access
     --sandboxRoot                string    可选   Custom sandbox root path
@@ -143,16 +144,18 @@ jcc-tool-shell — shell 工具分组（27 个工具）
     (无参数)
 
   sandbox_switch — Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back.
-    (无参数)
+    --sandboxType                string    必填   Target sandbox type: soft, process, docker, or bubblewrap
 
   sandbox_status — Get the current sandbox status including type, isolation level, available types, and health state.
     (无参数)
 
   sandbox_exec — Execute a command inside the sandbox with anti-stuck timeout protection. When timeout is reached, the command is NOT interrupted - instead you (LLM) are asked to decide: continue waiting or force stop. Default timeout is 2 minutes.
     --command                    string    必填   Command to execute in the sandbox
+    --timeout                    string    可选   Timeout preset: 2min (default), 4min, 8min, or custom
     --customTimeoutSeconds       string    可选   Custom timeout in seconds (only used when timeout=custom)
 
   sandbox_exec_continue — Continue a timed-out sandbox execution. Choose to wait longer or force stop the command.
     --executionId                string    必填   Execution ID from sandbox_exec timeout response
+    --action                     string    必填   Action: wait (continue waiting for another timeout period) or stop (force kill the process)
 
 描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

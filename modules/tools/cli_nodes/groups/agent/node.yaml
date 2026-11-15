@@ -1,4 +1,5 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
 id: agent
 name: jcc-tool-agent
 summary: "Enter plan mode for complex tasks requiring exploration and design; Exit plan mode and present plan for approval; Get current plan status"
@@ -6,4 +7,124 @@ category: agent
 exe: jcc-tool-agent.exe
 tags: [add, approve, complete, cron, enter, execute, exit, explore]
 tool_count: 59
+local_tool_count: 0
 parameters: []
+tools:
+  - id: enter_plan_mode
+    mode: host
+  - id: exit_plan_mode
+    mode: host
+  - id: get_plan_status
+    mode: host
+  - id: add_plan_step
+    mode: host
+  - id: approve_plan_step
+    mode: host
+  - id: reject_plan_step
+    mode: host
+  - id: execute_plan_steps
+    mode: host
+  - id: modify_plan_step
+    mode: host
+  - id: remove_plan_step
+    mode: host
+  - id: get_plan_history
+    mode: host
+  - id: sub_agent_control
+    mode: host
+  - id: plan_agent
+    mode: host
+  - id: explore_agent
+    mode: host
+  - id: verification_agent
+    mode: host
+  - id: general_agent
+    mode: host
+  - id: guide_agent
+    mode: host
+  - id: list_agents
+    mode: host
+  - id: team_create
+    mode: host
+  - id: team_delete
+    mode: host
+  - id: team_get
+    mode: host
+  - id: team_list
+    mode: host
+  - id: team_add_member
+    mode: host
+  - id: team_remove_member
+    mode: host
+  - id: team_send_message
+    mode: host
+  - id: team_send_direct_message
+    mode: host
+  - id: team_broadcast
+    mode: host
+  - id: team_get_messages
+    mode: host
+  - id: worktree_create
+    mode: host
+  - id: worktree_remove
+    mode: host
+  - id: worktree_list
+    mode: host
+  - id: worktree_status
+    mode: host
+  - id: worktree_cleanup
+    mode: host
+  - id: worktree_find_git
+    mode: host
+  - id: worktree_list_all
+    mode: host
+  - id: worktree_merge
+    mode: host
+  - id: task_output
+    mode: host
+  - id: task_stop
+    mode: host
+  - id: task_stop_batch
+    mode: host
+  - id: task_list_running
+    mode: host
+  - id: verify_plan_execution
+    mode: host
+  - id: cron_create
+    mode: host
+  - id: cron_list
+    mode: host
+  - id: cron_delete
+    mode: host
+  - id: cron_validate
+    mode: host
+  - id: goal_get
+    mode: host
+  - id: goal_update
+    mode: host
+  - id: goal_graph_define
+    mode: host
+  - id: complete_step
+    mode: host
+  - id: task_create
+    mode: host
+  - id: task_list
+    mode: host
+  - id: task_update
+    mode: host
+  - id: task_get
+    mode: host
+  - id: task_set_dependency
+    mode: host
+  - id: task_remove_dependency
+    mode: host
+  - id: task_get_dependencies
+    mode: host
+  - id: task_can_execute
+    mode: host
+  - id: todo_write
+    mode: host
+  - id: todo_list
+    mode: host
+  - id: todo_update
+    mode: host

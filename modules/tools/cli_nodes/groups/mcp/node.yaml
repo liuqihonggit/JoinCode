@@ -1,4 +1,5 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
 id: mcp
 name: jcc-tool-mcp
 summary: "Get authentication status for a config or all configs; Refresh authentication token; Logout and revoke authentication session"
@@ -6,4 +7,56 @@ category: mcp
 exe: jcc-tool-mcp.exe
 tags: [auth, mcp, monitor]
 tool_count: 25
+local_tool_count: 0
 parameters: []
+tools:
+  - id: auth_get_status
+    mode: host
+  - id: auth_refresh
+    mode: host
+  - id: auth_logout
+    mode: host
+  - id: mcp_auth_api_key
+    mode: host
+  - id: mcp_auth_bearer
+    mode: host
+  - id: mcp_auth_basic
+    mode: host
+  - id: mcp_auth_o_auth2
+    mode: host
+  - id: mcp_auth_refresh
+    mode: host
+  - id: mcp_auth_status
+    mode: host
+  - id: mcp_auth_remove
+    mode: host
+  - id: mcp_connect
+    mode: host
+  - id: mcp_disconnect
+    mode: host
+  - id: mcp_disable_server
+    mode: host
+  - id: mcp_enable_server
+    mode: host
+  - id: mcp_list_tools
+    mode: host
+  - id: mcp_call_tool
+    mode: host
+  - id: mcp_list_resources
+    mode: host
+  - id: mcp_read_resource
+    mode: host
+  - id: mcp_list_prompts
+    mode: host
+  - id: mcp_remote_list_resources
+    mode: host
+  - id: mcp_remote_read_resource
+    mode: host
+  - id: mcp_remote_list_prompts
+    mode: host
+  - id: mcp_get_prompt
+    mode: host
+  - id: mcp_list_clients
+    mode: host
+  - id: monitor
+    mode: host

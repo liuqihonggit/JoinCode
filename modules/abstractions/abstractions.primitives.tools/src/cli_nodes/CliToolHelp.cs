@@ -11,6 +11,7 @@ public static class CliToolHelp {
         var sb = new StringBuilder();
         AppendHeader(sb, descriptor);
         AppendUsage(sb, descriptor);
+        AppendTools(sb, descriptor);
         AppendParameters(sb, descriptor);
         AppendExamples(sb, descriptor);
         AppendTags(sb, descriptor);
@@ -24,6 +25,22 @@ public static class CliToolHelp {
         sb.AppendLine($"分类: {descriptor.Category}");
         if (descriptor.Exe is not null)
             sb.AppendLine($"可执行文件: {descriptor.Exe}");
+        if (descriptor.HasToolEntries)
+            sb.AppendLine($"进程隔离覆盖: 本地实现 {descriptor.LocalToolCount}/{descriptor.Tools.Length}（其余转发宿主执行）");
+    }
+
+    /// <summary>
+    /// 列出分组内的子工具及执行方式 — 让「哪些工具真跑在独立进程里」成为可读事实，
+    /// 而不是交付说明里的一句口头承诺。
+    /// </summary>
+    private static void AppendTools(StringBuilder sb, CliToolDescriptor descriptor) {
+        if (!descriptor.HasToolEntries) return;
+        sb.AppendLine();
+        sb.AppendLine("子工具（local=独立进程内实现，host=转发宿主执行）:");
+        foreach (var entry in descriptor.Tools.OrderBy(item => item.Id, StringComparer.Ordinal)) {
+            var aliases = entry.Aliases.Length == 0 ? string.Empty : $"  别名: {string.Join(", ", entry.Aliases)}";
+            sb.AppendLine($"  {entry.Id,-32} {(entry.IsLocal ? "local" : "host")}{aliases}");
+        }
     }
 
     private static void AppendUsage(StringBuilder sb, CliToolDescriptor descriptor) {

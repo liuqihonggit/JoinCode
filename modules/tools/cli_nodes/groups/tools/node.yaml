@@ -1,4 +1,5 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
 id: tools
 name: jcc-tool-tools
 summary: "Simplify code and provide refactoring suggestions; Verify code correctness, run tests; Debug assistance, problem diagnosis"
@@ -6,4 +7,42 @@ category: tools
 exe: jcc-tool-tools.exe
 tags: [discover, skill, test, tool]
 tool_count: 18
+local_tool_count: 2
 parameters: []
+tools:
+  - id: skill_simplify
+    mode: host
+  - id: skill_verify
+    mode: host
+  - id: skill_debug
+    mode: host
+  - id: skill_batch
+    mode: local
+  - id: skill_stuck
+    mode: host
+  - id: tool_create
+    mode: host
+  - id: tool_list_templates
+    mode: host
+  - id: tool_show_template
+    mode: host
+  - id: test_tool
+    mode: local
+  - id: skill_search
+    mode: host
+  - id: skill_recommend
+    mode: host
+  - id: discover_skills
+    mode: host
+  - id: skill
+    mode: host
+  - id: skill_execute
+    mode: host
+  - id: skill_list
+    mode: host
+  - id: tool_score
+    mode: host
+  - id: tool_hypergraph
+    mode: host
+  - id: tool_score_reset
+    mode: host

@@ -26,7 +26,8 @@ GROUP_MAP_PATH = REPO_ROOT / "resources/tools/group_map.yaml"
 
 DISPATCH_RE = re.compile(r"\[McpToolDispatch\(ToolCategory\.(?P<cat>\w+)")
 TOOL_RE = re.compile(
-    r"\[McpTool\(\s*(?P<name>\"(?:\\.|[^\"\\])*\"|[A-Za-z0-9_.]+)\s*,\s*\"(?P<summary>(?:\\.|[^\"\\])*)\"\s*"
+    r"\[McpTool\(\s*(?P<name>\"(?:\\.|[^\"\\])*\"|[A-Za-z0-9_.]+)\s*,\s*"
+    r"(?P<summary>\"(?:\\.|[^\"\\])*\"|[A-Za-z0-9_.]+)\s*"
     r"(?:,\s*\"(?P<category>(?:\\.|[^\"\\])*)\")?[^\[\]]*\)\]",
     re.S,
 )
@@ -48,6 +49,13 @@ PROPERTY_PARAM_RE = re.compile(
     re.S,
 )
 ALIASES_RE = re.compile(r"Aliases\s*=\s*\[(?P<items>[^\]]*)\]")
+
+
+def is_source_file(path: Path) -> bool:
+    """生产源文件 — 测试项目里的 [McpTool] 桩（如 test_tool）不能进 CLI 目录。"""
+    if ".g.cs" in path.name:
+        return False
+    return not any(part.endswith(".tests") or part in {"test", "tests"} for part in path.parts)
 
 
 def load_group_map() -> tuple[dict[str, str], str]:
@@ -158,7 +166,7 @@ def collect_enum_values(root: Path) -> tuple[dict[str, dict[str, str]], dict[str
     by_type: dict[str, dict[str, str]] = {}
     candidates: dict[str, set[str]] = {}
     for path in sorted(root.rglob("*.cs")):
-        if ".g.cs" in path.name:
+        if not is_source_file(path):
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         if "[EnumValue(" not in text:
@@ -174,6 +182,28 @@ def collect_enum_values(root: Path) -> tuple[dict[str, dict[str, str]], dict[str
             for member, value in members.items():
                 candidates.setdefault(member, set()).add(value)
     return by_type, {member: next(iter(values)) for member, values in candidates.items() if len(values) == 1}
+
+
+# 少数 [McpTool] 的描述不是字符串字面量，而是本地化键（StringKey.ListPeersDesc）。
+# 只认字面量会让这些工具从目录里整个消失（实测 list_peers / subscribe_pr）。
+STRING_KEY_RE = re.compile(
+    r'defaultEntries\[StringKey\.(?P<key>\w+)\]\s*=\s*"(?P<value>(?:\\.|[^"\\])*)"',
+    re.S,
+)
+
+
+def collect_string_keys(root: Path) -> dict[str, str]:
+    """扫描本地化初始化器 — StringKey 成员 → 英文默认文案。"""
+    result: dict[str, str] = {}
+    for path in sorted(root.rglob("*.cs")):
+        if not is_source_file(path):
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if "defaultEntries[StringKey." not in text:
+            continue
+        for m in STRING_KEY_RE.finditer(text):
+            result.setdefault(m.group("key"), unescape_csharp(m.group("value")))
+    return result
 
 
 def resolve_tool_id(raw_name: str, enums: tuple[dict[str, dict[str, str]], dict[str, str]]) -> str:
@@ -201,6 +231,16 @@ def resolve_tool_id(raw_name: str, enums: tuple[dict[str, dict[str, str]], dict[
         f"无法解析工具名 {cleaned} 的 [EnumValue]：会让 node.yaml 出现运行时不存在的假 id。"
         f"请补 [EnumValue(\"...\")] 或确认扫描目录包含该枚举定义。"
     )
+
+
+def resolve_summary(raw: str, string_keys: dict[str, str]) -> str:
+    """摘要可能是字符串字面量，也可能是本地化键（StringKey.X）。"""
+    if raw.startswith('"'):
+        return unescape_csharp(raw.strip('"')).strip()
+    key = raw.rsplit(".", 1)[-1]
+    if key not in string_keys:
+        raise SystemExit(f"工具描述 {raw!r} 未能解析为本地化文案；请检查 LocalizerInitializer 的 defaultEntries")
+    return string_keys[key].strip()
 
 
 def normalize_type(raw_type: str) -> str:
@@ -242,7 +282,7 @@ def collect_options_records(root: Path) -> dict[str, list[dict]]:
     """
     registry: dict[str, list[dict]] = {}
     for path in sorted(root.rglob("*.cs")):
-        if ".g.cs" in path.name:
+        if not is_source_file(path):
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         if "[McpToolParameter" not in text:
@@ -294,8 +334,12 @@ def extract_braced_block(text: str, start: int) -> str:
 
 def parse_file(path: Path, group_map: dict[str, str], default_group: str,
                options_records: dict[str, list[dict]] | None = None,
-               enums: tuple[dict[str, dict[str, str]], dict[str, str]] | None = None) -> list[dict]:
+               enums: tuple[dict[str, dict[str, str]], dict[str, str]] | None = None,
+               string_keys: dict[str, str] | None = None) -> list[dict]:
     text = path.read_text(encoding="utf-8", errors="replace")
+    # 注释里的示例（/// [McpTool("gh_run_view", ...)]）不是声明，抹掉整行注释。
+    # 不能用正则删 /* */ 块：字符串里的 glob（"**/*.cs"）会被当成注释起点，吞掉整段真代码。
+    text = "\n".join("" if line.lstrip().startswith("//") else line for line in text.splitlines())
     dispatch = DISPATCH_RE.search(text)
     dispatch_category = dispatch.group("cat").lower() if dispatch else "general"
     matches = list(TOOL_RE.finditer(text))
@@ -321,7 +365,7 @@ def parse_file(path: Path, group_map: dict[str, str], default_group: str,
         tools.append({
             "raw_name": raw_name,
             "id": resolve_tool_id(raw_name, enums or ({}, {})),
-            "summary": unescape_csharp(match.group("summary").strip()),
+            "summary": resolve_summary(match.group("summary").strip(), string_keys or {}),
             "category": canonical_group(match.group("category") or dispatch_category, group_map, default_group),
             "source": f"{path.as_posix()}:{text.count(chr(10), 0, match.start()) + 1}",
             "parameters": params,
@@ -533,6 +577,19 @@ def prune_stale_groups(out_root: Path, keep: set[str]) -> list[str]:
     return moved
 
 
+# 生产代码里确实实现了、但没有 [McpTool] 特性的诊断工具 —— 供 CLI 链路自测的确定性回显。
+# 必须显式登记，否则「私有实现 id 未在声明里」的守卫会拒绝生成，或把它当拼写漂移。
+LOCAL_ONLY_TOOLS: tuple[dict, ...] = ({
+    "raw_name": "test_tool", "id": "test_tool",
+    "summary": "Deterministic echo for CLI plumbing self-test (--arg)",
+    "category": "tools", "source": "cli_nodes/groups/tools/private/ToolCommands.cs",
+    "parameters": [{
+        "name": "arg", "type": "string", "description": "Value to echo back",
+        "required": True, "default": "", "aliases": ""
+    }],
+},)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--scan", required=True, help="要扫描的源目录")
@@ -548,14 +605,15 @@ def main() -> int:
         print(f"scan dir not found: {scan_root}", file=sys.stderr)
         return 2
 
-    candidates = sorted(p for p in scan_root.rglob("*.cs") if ".g.cs" not in p.name)
+    candidates = sorted(p for p in scan_root.rglob("*.cs") if is_source_file(p))
     group_map, default_group = load_group_map()
     delegates = load_delegates()
     options_records = collect_options_records(scan_root)
     enums = collect_enum_values(scan_root)
-    found: list[dict] = []
+    string_keys = collect_string_keys(scan_root)
+    found: list[dict] = [dict(tool) for tool in LOCAL_ONLY_TOOLS]
     for path in candidates:
-        found.extend(parse_file(path, group_map, default_group, options_records, enums))
+        found.extend(parse_file(path, group_map, default_group, options_records, enums, string_keys))
 
     groups: dict[str, list[dict]] = {}
     for tool in found:

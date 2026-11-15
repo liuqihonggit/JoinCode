@@ -3,7 +3,7 @@
 # delegate=委托另一个独立 exe（不经宿主），host=转发宿主执行。
 id: tools
 name: jcc-tool-tools
-summary: "Simplify code and provide refactoring suggestions; Verify code correctness, run tests; Debug assistance, problem diagnosis"
+summary: "Deterministic echo for CLI plumbing self-test (--arg); Simplify code and provide refactoring suggestions; Verify code correctness, run tests"
 category: tools
 exe: jcc-tool-tools.exe
 tags: [discover, skill, test, tool]
@@ -11,6 +11,8 @@ tool_count: 18
 local_tool_count: 2
 parameters: []
 tools:
+  - id: test_tool
+    mode: local
   - id: skill_simplify
     mode: host
   - id: skill_verify
@@ -27,8 +29,6 @@ tools:
     mode: host
   - id: tool_show_template
     mode: host
-  - id: test_tool
-    mode: local
   - id: skill_search
     mode: host
   - id: skill_recommend

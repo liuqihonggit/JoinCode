@@ -33,7 +33,7 @@ pwsh non_deliverables_tools/scripts/Deploy-JccDev.ps1 -SkipBuild
 2. **先**拷贝 `artifacts/bin/gh/Debug/net10.0/` 与 `artifacts/bin/rg/Debug/net10.0/` 的产物到 `C:/Users/54076/bin/jcc.d/dev/`
 3. **后**拷贝 `artifacts/bin/JoinCode/Debug/net10.0/` 的所有文件（dll/exe/json/pdb/xml）覆盖上去
 4. 装配工具节点：13 个分组 exe 到 `dev/tools/<组>/`，委托执行器 `jcc-gh.exe` 到 `dev/tools/` 根（复用 `Pack-ToolNodes.ps1`）
-5. 验证：`jcc.exe`/`jcc-gh.dll`/`jcc-rg.exe`/`jcc.deps.json` 存在；主项目 219 个文件与产物**逐项比大小**；委托链路自报路径必须落在 `dev/tools/`；`file_read` 实跑退出 0；`jcc tool tree` 零环境变量列出 13 组 / 638 工具
+5. 验证：`jcc.exe`/`jcc-gh.dll`/`jcc-rg.exe`/`jcc.deps.json` 存在；主项目 219 个文件与产物**逐项比大小**；委托链路自报路径必须落在 `dev/tools/`；`file_read` 实跑退出 0；`jcc tool tree` 零环境变量列出 13 组 / 640 工具
 
 ⚠️ **顺序不能反（2026-11-16 实测事故）**：gh/rg 是卫星项目，它们的输出目录里带着整套引擎 DLL（gh 179 个文件，含 `Abstractions.*`）。三个 exe 装进同一目录，**谁后拷谁的同名 DLL 生效**。主项目先拷、插件后拷时，插件里那份更旧的 `Abstractions.Primitives.Tools.dll`（04:33）会盖掉主项目刚编的（05:08），症状是「部署完行为没变、还拒绝 `mode: delegate`」，且全程无报错。所以：插件先铺、主项目最后覆盖，并在部署后用逐项比大小兜底。
 
@@ -288,7 +288,7 @@ C:\Users\54076\bin\
 修复：生成器按枚举类型 + `[EnumValue]` 解析真名（处理 `XxxEnumConstants` 包装类与同名成员歧义），解析不到即 fail-fast；
 `file` 组本地实现键与 `base.yaml` / `ToolsSection` / 相关测试同步改为 `read` / `write` / `edit` / `apply_patch`。
 真机复核：`jcc tool base` 4 条齐；`mcp_schema read` 有 schema；`read → write → edit → read` 闭环退出 0；
-`jcc tool call search search_stats` 退出 0。工具总数仍是 638（改名不是增补）。
+`jcc tool call search search_stats` 退出 0。改名不改变总数；同轮补收 `list_peers` / `subscribe_pr` 两个真实工具后，目录总数由 638 调整为 **640**（541 MCP + 99 slash）。
 
 ### gh 的 jq 两个缺陷
 

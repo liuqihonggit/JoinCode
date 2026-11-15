@@ -1,4 +1,4 @@
-jcc-tool-github — github 工具分组（172 个工具）
+jcc-tool-github — github 工具分组（173 个工具）
 
 用法:
   jcc-tool-github.exe <工具名> [参数...]
@@ -6,6 +6,7 @@ jcc-tool-github — github 工具分组（172 个工具）
   jcc-tool-github.exe <工具名> -h
 
 工具列表（说明复用自 [McpTool] 特性）:
+  subscribe_pr                       Subscribe to GitHub Pull Request change notifications
   gh_api                             通用 GitHub REST API 调用(直调 api.github.com,输出完整 JSON)
   gh_auth_status                     查看 GitHub Auth 状态
   gh_auth_login                      登录 GitHub(PAT token 验证后保存到 hosts.yml)
@@ -180,6 +181,9 @@ jcc-tool-github — github 工具分组（172 个工具）
   gh_workflow_disable                禁用 Workflow
 
 单个工具的参数说明:
+
+  subscribe_pr — Subscribe to GitHub Pull Request change notifications
+    (无参数)
 
   gh_api — 通用 GitHub REST API 调用(直调 api.github.com,输出完整 JSON)
     --path                       string    必填   API 路径(如 repos/owner/repo/issues)

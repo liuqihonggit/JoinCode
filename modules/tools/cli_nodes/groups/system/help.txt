@@ -1,4 +1,4 @@
-jcc-tool-system — system 工具分组（71 个工具）
+jcc-tool-system — system 工具分组（72 个工具）
 
 用法:
   jcc-tool-system.exe <工具名> [参数...]
@@ -55,6 +55,7 @@ jcc-tool-system — system 工具分组（71 个工具）
   snip                               Snip old messages from conversation history to free context window space
   sleep                              Sleep/delay for a specified duration
   sleep_until                        Wait until a specific time point
+  list_peers                         List connected peer sessions
   ask_user_question                  Ask the user multiple choice questions to gather information, clarify ambiguity, or make decisions
   confirm_action                     Ask the user to confirm an action with yes/no
   agent_system_stats                 Get overall agent execution statistics
@@ -275,6 +276,9 @@ jcc-tool-system — system 工具分组（71 个工具）
   sleep_until — Wait until a specific time point
     --target_time                string    必填   Target time (format: HH:mm or yyyy-MM-dd HH:mm:ss)
     --timezone_offset_hours      integer   可选   Timezone offset (hours, optional, default local time)
+
+  list_peers — List connected peer sessions
+    (无参数)
 
   ask_user_question — Ask the user multiple choice questions to gather information, clarify ambiguity, or make decisions
     --questions                  string    必填   Questions to ask the user (JSON array, 1-4 questions). Each: {question, header, options:[{label,description,preview?}], multiSelect?}

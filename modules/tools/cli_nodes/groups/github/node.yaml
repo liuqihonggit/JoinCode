@@ -3,14 +3,16 @@
 # delegate=委托另一个独立 exe（不经宿主），host=转发宿主执行。
 id: github
 name: jcc-tool-github
-summary: "通用 GitHub REST API 调用(直调 api.github.com,输出完整 JSON); 查看 GitHub Auth 状态; 登录 GitHub(PAT token 验证后保存到 hosts.yml)"
+summary: "Subscribe to GitHub Pull Request change notifications; 通用 GitHub REST API 调用(直调 api.github.com,输出完整 JSON); 查看 GitHub Auth 状态"
 category: github
 exe: jcc-tool-github.exe
-tags: [gh]
-tool_count: 172
+tags: [gh, subscribe]
+tool_count: 173
 local_tool_count: 0
 parameters: []
 tools:
+  - id: subscribe_pr
+    mode: delegate
   - id: gh_api
     mode: delegate
   - id: gh_auth_status

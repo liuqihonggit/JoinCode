@@ -8,15 +8,15 @@ category: shell
 exe: jcc-tool-shell.exe
 tags: [bash, build, evaluate, execute, mcp, powershell, repl, sandbox]
 tool_count: 27
-local_tool_count: 6
+local_tool_count: 11
 parameters: []
 tools:
   - id: execute_csharp_code
-    mode: host
+    mode: local
   - id: evaluate_expression
-    mode: host
+    mode: local
   - id: test_code_snippet
-    mode: host
+    mode: local
   - id: build_output
     mode: host
   - id: build_queue_status
@@ -50,9 +50,9 @@ tools:
   - id: mcp_ai_workflow_plan_create_and_execute
     mode: host
   - id: repl
-    mode: host
+    mode: local
   - id: terminal_capture
-    mode: host
+    mode: local
   - id: sandbox_enter
     mode: host
   - id: sandbox_exit

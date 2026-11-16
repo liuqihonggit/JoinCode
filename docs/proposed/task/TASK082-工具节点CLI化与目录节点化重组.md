@@ -329,3 +329,20 @@ B 类 5 个（screenshot/render/zoom/measure_depth 等）仍 host；契约层 33
 **验证**：exe `--list-local` 报 60；真机 screenshot(3.5MB PNG)/measure_depth(纯色图 std=0)/quadtree_render/undo↔click↔history 闭环/recording 闭环/VCR 闭环/菜单/环境状态全对；
 LLM 链路（配置解析→profile 切换→HTTP→错误提示）全通；jcc 全链路 tool tree 显示「全部 60 个独立 exe 实现」，代表工具全 exit=0；
 契约层 33/33、声明对账 60/60、编译 0 警告 0 错误。settings.json 测试期间临时切换已恢复。
+
+### 2026-11-16 第十一轮起：全组 host 清零计划（TODO 表驱动）
+
+用户要求：持续推进，每组做完一个 commit，不停下问。目标：把 352 个 host 工具按组逐个甄别下沉，
+按「jcc 轻」优先——工具进 exe、exe 只用 BCL、状态文件化。当前分布（640 工具，独立 exe 288）：
+slash 99 / system 69 / agent 57 / search 39 / mcp 25 / code 22 / shell 21 / tools 16 / web 3 / file 1。
+
+| # | 组 | host 数 | 状态 |
+|---|---|---|---|
+| 28 | shell | 21 | 进行中 |
+| 29 | code | 22 | 待办 |
+| 30 | tools | 16 | 待办 |
+| 31 | system | 69 | 待办 |
+| 32 | agent | 57 | 待办 |
+| 33 | search | 39 | 待办 |
+| 34 | mcp/web/file | 29 | 待办 |
+| 35 | slash | 99 | 待办 |

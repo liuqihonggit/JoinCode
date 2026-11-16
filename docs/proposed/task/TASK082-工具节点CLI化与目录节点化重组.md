@@ -217,3 +217,27 @@ media 组 60 个工具当前全为 `host`（Program.cs 纯转发器，无 privat
 **结论**：SkiaSharp 那批里 **4 个（A 类）值得下沉**——代价只是移植 149 行纯 C# 算法 + 换一行尺寸读取，不引原生库；**5 个（B 类）不该下沉**——12MB 原生库的体积税远超收益。「能不能独立」的答案是能，「该不该独立」的答案是分情况——这正是依赖墙存在的意义：它逼我们区分能力与代价。
 
 **后续（未执行）**：若采纳，下一步是下沉 A 类 4 个 + 补 show_desktop_pulse（共 +5，独立 exe 248→253），B 类 5 个永久留 jcc 内并在 node.yaml 注明 SkiaSharp 硬边界理由。
+
+### 2026-11-16 第七轮进行中：下沉 A 类 4 个 quadtree 纯计算 + show_desktop_pulse
+
+用户采纳评估结论。目标：独立 exe 248→253。quadtree_neighbor/paint/to_screen_rects/build 移植 QuadtreeEncoder 纯 C# 算法（149 行）+ QuadtreeModels，用 PngHeaderParser 换掉 build 唯一的 SKBitmap.Decode；show_desktop_pulse 移植 PulseNativeMethods + DesktopPulseOverlay（纯 user32+GDI）。B 类 5 个渲染工具保持 host。做完真机验证。
+
+#### 第七轮完成记录（四叉树纯计算下沉）
+
+**做了**：quadtree_build / quadtree_paint / quadtree_to_screen_rects / quadtree_neighbor 4 个下沉独立 exe。
+`private/QuadtreeCodec.cs` 移植 QuadtreeEncoder 149 行纯 C# 网格算法（剔除 [Register] DI 与 SkiaSharp），
+`quadtree_build` 的 SKBitmap.Decode 用纯 BCL PngDimensions（读 PNG IHDR 16-23 字节）替换。
+JSON 用 System.Text.Json 源生成上下文（RectJsonContext，DTO 双向转换，ADR 0133）+ JsonPropertyName 保持小写 key 与引擎一致。
+独立 exe 248→252（media 20→24）。
+
+**show_desktop_pulse 暂缓**（评估说可做，实际未做，如实记录）：它是纯 user32+GDI，但实现是
+DesktopPulseOverlay（184 行）+ PulseNativeMethods（203 行）的透明分层窗口 + 后台消息循环 + 跨线程 WM_CLOSE，
+属于 AGENTS.md 明确警告的 timing/flaky 高风险区。为单个动画工具引入跨线程消息循环不划算，
+本轮先不做；若后续要做，须按 flaky 规范做 16 次重试 + 确定性拆分。
+
+**边界 bug 修复**：quadtree_build 非法 base64 原抛未捕获 FormatException（堆栈 + exit 127），
+已改为 Rust 风格参数错误（exit 2 + 原因 + 正确写法）——测试抓到的真实缺陷。
+
+**验证**：独立 exe 实跑 quadtree_build(8x8 PNG depth=1→4格)/neighbor(L0.0 E→L0.1)/paint(alpha=0.50)/
+to_screen_rects(4 矩形小写 JSON key) 全对；错误路径 exit=2 无堆栈；jcc 全链路 tool call + tool tree 显示 24/60；
+B 类 5 个（screenshot/render/zoom/measure_depth 等）仍 host；契约层 33/33；0 警告 0 错误。

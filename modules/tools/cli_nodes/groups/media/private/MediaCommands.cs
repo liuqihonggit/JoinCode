@@ -6,11 +6,13 @@ using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.CliNode.Media;
 
-internal static class MediaCommands {
+internal static partial class MediaCommands {
     private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
         new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             // 进程干预（纯 BCL）
@@ -37,7 +39,12 @@ internal static class MediaCommands {
             ["list_macros"] = ListMacrosAsync,
             // 测量纯数学
             ["measure_length"] = MeasureLengthAsync,
-            ["measure_ratio"] = MeasureRatioAsync
+            ["measure_ratio"] = MeasureRatioAsync,
+            // 四叉树纯网格计算（无需 SkiaSharp / LLM，尺寸读 PNG IHDR）
+            ["quadtree_build"] = QuadtreeBuildAsync,
+            ["quadtree_paint"] = QuadtreePaintAsync,
+            ["quadtree_to_screen_rects"] = QuadtreeToScreenRectsAsync,
+            ["quadtree_neighbor"] = QuadtreeNeighborAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;
@@ -397,6 +404,82 @@ internal static class MediaCommands {
         Console.Out.WriteLine($"宽高比: {ratio}（{decimalRatio:F4}）");
         return Task.FromResult(0);
     }
+
+    // ==================== 四叉树纯网格计算 ====================
+
+    private static Task<int> QuadtreeBuildAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var base64 = Required(o, "imageBase64", "quadtree_build");
+        var depth = GetInt(o, "depth", 2);
+        if (depth < 0) throw new ArgumentException("quadtree_build 的 --depth 不能为负。正确写法: --depth 2");
+        var (w, h) = QuadtreeCodec.PngDimensions(base64);
+        var grid = QuadtreeCodec.BuildGrid(w, h, depth);
+        Console.Out.WriteLine(QuadtreeCodec.FormatGrid(grid, "四叉树网格构建完成"));
+        return Task.FromResult(0);
+    }
+
+    private static Task<int> QuadtreePaintAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var w = RequiredInt(o, "imageWidth", "quadtree_paint");
+        var h = RequiredInt(o, "imageHeight", "quadtree_paint");
+        var depth = RequiredInt(o, "depth", "quadtree_paint");
+        var paintsJson = Required(o, "paintsJson", "quadtree_paint");
+        var paints = ParsePaints(paintsJson);
+        var grid = QuadtreeCodec.PaintCells(QuadtreeCodec.BuildGrid(w, h, depth), paints);
+        Console.Out.WriteLine(QuadtreeCodec.FormatGrid(grid, "染色完成"));
+        return Task.FromResult(0);
+    }
+
+    private static Task<int> QuadtreeToScreenRectsAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var w = RequiredInt(o, "imageWidth", "quadtree_to_screen_rects");
+        var h = RequiredInt(o, "imageHeight", "quadtree_to_screen_rects");
+        var depth = RequiredInt(o, "depth", "quadtree_to_screen_rects");
+        var ox = RequiredInt(o, "originScreenX", "quadtree_to_screen_rects");
+        var oy = RequiredInt(o, "originScreenY", "quadtree_to_screen_rects");
+        var paintsJson = Get(o, "paintsJson", "");
+        QuadtreeGrid grid;
+        if (paintsJson.Length > 0) {
+            grid = QuadtreeCodec.PaintCells(QuadtreeCodec.BuildGrid(w, h, depth), ParsePaints(paintsJson));
+        } else {
+            var all = new Dictionary<string, double>(StringComparer.Ordinal);
+            var baseGrid = QuadtreeCodec.BuildGrid(w, h, depth);
+            foreach (var cell in baseGrid.Cells) all[cell.Code] = 0.3;
+            grid = QuadtreeCodec.PaintCells(baseGrid, all);
+        }
+        var rects = QuadtreeCodec.MapToScreen(grid, ox, oy);
+        Console.Out.WriteLine(JsonSerializer.Serialize(rects, RectJsonContext.Default.IReadOnlyListQuadtreeDesktopRect));
+        return Task.FromResult(0);
+    }
+
+    private static Task<int> QuadtreeNeighborAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var cellCode = Required(o, "cellCode", "quadtree_neighbor");
+        var dirText = Required(o, "direction", "quadtree_neighbor");
+        var w = RequiredInt(o, "imageWidth", "quadtree_neighbor");
+        var h = RequiredInt(o, "imageHeight", "quadtree_neighbor");
+        var depth = RequiredInt(o, "depth", "quadtree_neighbor");
+        var dir = QuadtreeCodec.ParseDirection(dirText)
+            ?? throw new ArgumentException($"quadtree_neighbor 的 --direction 无效: '{dirText}'。可选: N/S/W/E/NW/NE/SW/SE");
+        var neighbor = QuadtreeCodec.GetNeighbor(cellCode, dir, w, h, depth);
+        Console.Out.WriteLine(neighbor is null
+            ? $"格子 {cellCode} 的 {dirText} 方向邻居: 越界（不存在）"
+            : $"格子 {cellCode} 的 {dirText} 方向邻居: {neighbor}");
+        return Task.FromResult(0);
+    }
+
+    private static Dictionary<string, double> ParsePaints(string json) {
+        try {
+            var result = JsonSerializer.Deserialize(json, RectJsonContext.Default.DictionaryStringDouble);
+            if (result is null || result.Count == 0)
+                throw new ArgumentException("paintsJson 解析为空。正确写法: --paintsJson \"{\\\"L0.0\\\":0.5,\\\"L0.1\\\":0.8}\"");
+            return result;
+        } catch (JsonException ex) {
+            throw new ArgumentException($"paintsJson 不是合法 JSON: {ex.Message}。正确写法: --paintsJson \"{{\\\"L0.0\\\":0.5}}\"");
+        }
+    }
+
+    // System.Text.Json 源生成上下文 — quadtree_to_screen_rects 输出 DTO（ADR 0133 DTO 双向转换）。
+    [JsonSerializable(typeof(Dictionary<string, double>))]
+    [JsonSerializable(typeof(IReadOnlyList<QuadtreeDesktopRect>))]
+    [JsonSourceGenerationOptions(WriteIndented = false)]
+    private sealed partial class RectJsonContext : JsonSerializerContext;
 
     // ==================== 纯逻辑辅助（可打点验证） ====================
 

@@ -8,7 +8,7 @@ category: media
 exe: jcc-tool-media.exe
 tags: [close, desktop, detect, drag, find, focus, get, image]
 tool_count: 60
-local_tool_count: 20
+local_tool_count: 24
 parameters: []
 tools:
   - id: right_click_menu
@@ -114,17 +114,17 @@ tools:
   - id: measure_ratio
     mode: local
   - id: quadtree_to_screen_rects
-    mode: host
+    mode: local
   - id: quadtree_build
-    mode: host
+    mode: local
   - id: quadtree_zoom
     mode: host
   - id: quadtree_paint
-    mode: host
+    mode: local
   - id: quadtree_render
     mode: host
   - id: quadtree_neighbor
-    mode: host
+    mode: local
   - id: screen_indicate
     mode: host
   - id: temporal_aggregate

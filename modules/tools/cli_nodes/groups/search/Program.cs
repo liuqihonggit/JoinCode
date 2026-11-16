@@ -5,8 +5,9 @@ namespace JoinCode.CliNode.Search;
 
 /// <summary>
 /// search 分组独立 CLI.exe — 第 7 个「逐组做实」样板。
-/// <para>本地实现 8 个: glob / search_files 用内置 glob 匹配器；grep / search_text / search_code /
-/// code_search / search_codebase / symbol_search 优先调用 ripgrep，缺失时退回内置扫描。</para>
+/// <para>本地实现 14 个: glob / search_files 用内置 glob 匹配器；grep / search_text / search_code /
+/// code_search / search_codebase / symbol_search 优先调用 ripgrep，缺失时退回内置扫描；
+/// 另有 project_graph 系列直接解析 csproj/sln。</para>
 /// -h 文本来自现有 [McpTool] 特性；入口逻辑统一在 CliNodeRunner。
 /// </summary>
 internal static class Program {

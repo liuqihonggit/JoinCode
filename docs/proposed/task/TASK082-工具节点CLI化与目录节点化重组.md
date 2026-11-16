@@ -522,3 +522,41 @@ cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 
 - 经 `jcc tool call web web_fetch` 路由复验一遍。
 
 **总账**：web 组 local 2 → 3（web_search / web_browser 留 host），host 251 → 250。
+
+### 2026-11-17 第十六轮：收口验收（契约对账 + 全量自描述 + 路由抽查）
+
+**先纠一个数字错误**：此前多轮写的「local 388/640（61%）」把 `local` 和 `delegate` 混算了。
+真实分布：**local 217 + delegate 173 + host 250 = 640**；「不经过宿主的工具」= 390/640（61%）。
+后面一律用三分法表述，不再用笼统的"已下沉"。
+
+**新增两个脚本**（都可直接进 CI）：
+- `scripts/check_cli_node_coverage.py` —— 把 `node.yaml` 的**声明**和分组 exe 的**真实注册表**（`--list-local`）对账：
+  ① local 集合一致 ② `local_tool_count` 一致 ③ `tool_count` 与条目数一致 ④ 每个 local 在 `help.txt` 里有详情段。
+  `--check-help` 再逐个跑 `<tool> -h`。斜杠组的 id 口径冲突（node.yaml 是 `version`、handler 是 `/version`）按
+  「归一化后 id」判定，与 `CliNodeRunner.CanonicalToolId` 同口径。
+- `scripts/deploy_cli_nodes.py` —— 把构建产物 + `node.yaml` + `help.txt` 部署到 `artifacts/pack/tool-nodes/tools/<组>/`。
+  **存在理由**：`jcc tool call` 判断走 exe 还是宿主，读的是**部署目录**里的 node.yaml。本轮就踩到过：
+  media 组的部署清单停在 quadtree_* 还是 host 的旧版本，于是 `jcc tool call media quadtree_neighbor -h`
+  错走宿主 mcp_call 报「缺少 '=' 分隔符」——源码没问题，是只编不部署。
+
+**验收结果**：
+
+| 项 | 结果 |
+|---|---|
+| 13 组契约对账（声明 vs 注册表 vs help.txt） | 全通过（217 local / 250 host / 173 delegate） |
+| 217 个 local 工具 `<tool> -h` 自描述 | 0 失败 |
+| 每组抽 2 个 local 工具经 `jcc tool call` 路由 | 24/24 命中 exe（github 组无 local，跳过） |
+| 各组入口注释与实际分布一致 | 已修 6 处过时说明（agent/code/system/web/search/shell） |
+
+**仍未端到端验证的部分**（如实列出，别当成已验）：
+1. 写类/交互类工具的**语义正确性**只做过点验证：`permission_*`（四条命令往返）、`worktree_*`（六条全跑，含冲突回滚）、
+   `web_fetch`（降级 + 跨主机跳转 + 404）。其余写类（`media` 桌面操作、`file` 写/补丁、`system` 通知与闪烁、
+   `shell` 命令执行）只到"能跑通、输出合理"，没有回归用例。
+2. **LLM 链路**只验证到 API 层：请求构造/端点解析/错误上抛已确认，`DEEPSEEK_API_KEY` 无效、`SENSENOVA_API_KEY` 未设置，
+   所以没有任何一次真实模型返回被检查过内容质量。
+3. `search` 组 14 个 local 工具（grep/glob/project_graph 等）本轮只做 `-h` 与路由抽查，未逐个跑真实查询。
+4. `media` 组 60 个 local 已经过前面轮次的真机验证，但本轮未复跑（桌面操作会动到本机窗口，不适合无人值守批量跑）。
+
+**建议的 CI 接线**：全仓编译 + 测试之后追加两步 ——
+`python scripts/check_cli_node_coverage.py --check-help || exit 1`、`python scripts/deploy_cli_nodes.py`。
+前者守住"声明与实现不许漂移"，后者保证部署目录不落后于源码。

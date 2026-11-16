@@ -441,3 +441,30 @@ incoming_calls（Use() → Twice()）、outgoing_calls（Use() → Widget(), Twi
 再经 `jcc tool call code lsp_document_symbols` 路由复验一遍，`-h` 自描述正常。
 
 **总账**：code 组 local 22 → 32（32/32 全 local），host 267 → 257。
+
+### 2026-11-17 第十四轮：agent 组 worktree 六件套下沉（git 就是真相源）
+
+原先 6 个 `worktree_*` 留宿主的理由是"绑定 `IAgentWorktreeService` 的进程内 session 注册表"。
+但 worktree 的真相源从来不是那个注册表，而是 **git 自己**：`git worktree list --porcelain` 随时能列出全部工作树。
+用注册表反而会漂移（宿主重启后列表就空了，磁盘上的 worktree 还在）。
+
+**新增 `groups/agent/private/WorktreeCommands.cs`**，全部走 git 原生命令：
+- `worktree_create`：路径 `{gitRoot}/.jcc/worktrees/{safeId}`、分支 `worktree-{safeId}`（与
+  `AgentWorktreeSession.GenerateBranchName/GenerateWorktreePath` 同一套命名，已有 worktree 仍可被识别）；
+  分支已存在则复用，不因重复创建失败。
+- `worktree_list`：`git worktree list --porcelain`，标出 `[jcc]` 与 `[主仓/其他]`。
+- `worktree_status`：分支/HEAD/未提交文件数/未推送提交数 + 变更文件清单。
+- `worktree_remove`：**无 force 时先查 `git status --porcelain`，脏工作树拒绝移除**并给出下一步；force 才 `--force` 并删分支。
+- `worktree_cleanup`：按目录 mtime 找陈旧项；**默认 dry-run 只列候选，`--confirm yes` 才删**；脏的一律跳过；末尾 `worktree prune`。
+- `worktree_merge`：`git merge --no-edit` + `-X ours/-X theirs` 映射四档策略；冲突时列出 `--diff-filter=U` 文件并
+  **`git merge --abort` 回滚 target**，不让调用方接手一个半合并状态。
+
+**踩到的坑**：第一版用 `rev-parse --show-toplevel` 定位仓库根 —— 在 worktree 内执行时它返回 worktree 自己，
+再拼 `.jcc/worktrees/{id}` 直接套娃（实测报 `...alpha\.jcc\worktrees\alpha`）。改用 `rev-parse --git-common-dir`
+（worktree 与主仓共享同一 .git）后正常。
+
+**真机验证**（`%TEMP%\wtdemo` 临时仓库）：create → list（2 工作树，1 个 [jcc]）→ 在 worktree 内提交并留脏文件 →
+status（1 未提交/2 未推送）→ merge 快进成功 → 无 force 移除被拒 → force 移除并删分支 →
+cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 回滚到合并前 commit 且工作区干净。
+
+**总账**：agent 组 local 23 → 29，host 257 → 251。

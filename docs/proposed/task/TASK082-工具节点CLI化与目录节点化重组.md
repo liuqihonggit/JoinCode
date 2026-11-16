@@ -492,3 +492,34 @@ cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 
    且 fetch 的 HTML→Markdown/PDF 抽取与 search 的 provider 选择要和宿主保持一致，分叉风险不小。
 2. `graph_register/unregister/repos`（3 个）：多仓注册表若为 JSON 文件可下沉，但同样需要宿主侧按内容戳感知。
 3. `tools` 组 skill 系列（9 个）：扫描磁盘技能目录，但宿主注入系统提示词时仍要走同一套技能引擎，拿不掉依赖。
+
+### 2026-11-17 第十五轮：web_fetch 下沉（web_search 判为不该下沉）
+
+**web_fetch**（`groups/web/private/WebCommands.cs` + 新增 `WebLlm.cs`）：
+- 抓取 → HTML 转 Markdown（复用已有 `HtmlMarkdown`）→ 二级模型按 prompt 加工，模型调用走
+  `WebLlm`（HttpClient 直调 OpenAI-compatible `/chat/completions`，与 CodeLlm/MediaLlm 同一套做法，
+  重复是依赖墙的代价，已在文件头注明三处需同步）。
+- 对齐宿主三条关键行为：**①不自动跟随跨主机跳转**（同主机最多 5 跳手动跟随，跨主机把新 URL 回给调用方 ——
+  自动跟随会把"允许的域名"变成"允许它跳到任何地方"，这是 SSRF 防护的一环）；
+  **②HTML 先转 Markdown 再进模型**，超长按 100k 截断；**③模型不可用时降级返回正文前 5000 字**并附失败原因，
+  不让整个抓取失败。
+- 一处**刻意不复刻**：宿主的"预批准域名"白名单（`PreapprovedDomains`）。那份清单在 guard 层是安全资产，
+  复制到 exe 必然漂移；代价只是官方文档站点也走一次模型加工（多几百毫秒），换来清单只有一处。
+- 顺带修正配置路径：settings.json 现在按 `JCC_APP_DATA_FOLDER` / `JCC_SETTINGS_FILE_NAME` 解析，
+  与宿主 `AppDataPaths.FromEnvironment` 同一套环境变量语义（原先硬编码 `~/.jcc`，指向别处的多配置环境会读错文件）。
+
+**web_search 不下沉**（保留 host）：宿主侧是 7 家 provider 的选择矩阵
+（anthropic / brave / deepseek / searxng / serper / subagent / tavily，各有优先级与 availability 判定）。
+在 exe 里再写一份选择逻辑，等于把"用哪家搜索"变成两处决策，配置了 tavily 的用户会突然发现 exe 路径报错。
+这不是能力问题，是**同一决策不该有两个实现**。
+
+**真机验证**：
+- 降级路径：`https://example.com` → 正文 + `[LLM processing failed: 未设置环境变量 SENSENOVA_API_KEY…]`；
+- 模型链路：临时配置指向 deepseek（`JCC_APP_DATA_FOLDER` 指向临时目录）→ 请求打到 API、返回
+  `Authentication Fails, Your api key: ****5856 is invalid` —— 链路通、密钥无效，与上一轮 LLM 链路结论一致；
+- 跨主机跳转：`httpbingo.org/redirect-to?url=example.com` → 输出 `REDIRECT DETECTED` + 新 URL + 重试参数（与宿主文案一致）；
+- 同主机多跳：`httpbingo.org/redirect/2` → 跟随后取到最终响应；
+- 404：`example.com/not-exist-xyz` → 明确失败与排查提示；
+- 经 `jcc tool call web web_fetch` 路由复验一遍。
+
+**总账**：web 组 local 2 → 3（web_search / web_browser 留 host），host 251 → 250。

@@ -24,7 +24,41 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         if (string.IsNullOrWhiteSpace(command))
             return DangerClassificationResult.SafeResult;
 
-        return Classify(ShellCommand.Parse(command));
+        // 复合命令必须逐段判定再取最严：本分类器按「首词查表」工作，
+        // 若不拆段，`echo hi; rm -rf ./build` 会因首词是 echo 被判 Safe —— 而 Safe 是所有权限模式下
+        // 直接放行的级别，等于给危险子命令加一个无害前缀就绕过了拦截（Auto 模式下单跑 `rm -rf ./build`
+        // 是 Execution，会被拒；加了前缀反而放行，这是明确的等级降级）。
+        var segments = ShellCommand.SplitSubcommands(command);
+        if (segments.Count <= 1)
+            return Classify(ShellCommand.Parse(command));
+
+        var worst = DangerClassificationResult.SafeResult;
+        foreach (var segment in segments) {
+            worst = PickStricter(worst, Classify(ShellCommand.Parse(segment)));
+        }
+
+        return worst;
+    }
+
+    /// <summary>
+    /// 取两条分类结果里更严的一条；同级别时合并风险类型与详情，便于诊断消息指明是哪一段触发的。
+    /// </summary>
+    private static DangerClassificationResult PickStricter(
+        DangerClassificationResult left,
+        DangerClassificationResult right) {
+        if ((int)right.Level > (int)left.Level)
+            return right;
+        if ((int)right.Level < (int)left.Level)
+            return left;
+        if (left.Level == CommandDangerLevel.Safe)
+            return left;
+
+        var risk = left.RiskType != CommandRisk.None ? left.RiskType : right.RiskType;
+        var details = string.Join("；",
+            new[] { left.Details, right.Details }
+                .Where(d => !string.IsNullOrEmpty(d))
+                .Distinct(StringComparer.Ordinal));
+        return new DangerClassificationResult(left.Level, risk, details.Length == 0 ? null : details);
     }
 
     /// <inheritdoc />

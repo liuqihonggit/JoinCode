@@ -8,7 +8,7 @@ category: media
 exe: jcc-tool-media.exe
 tags: [close, desktop, detect, drag, find, focus, get, image]
 tool_count: 60
-local_tool_count: 26
+local_tool_count: 60
 parameters: []
 tools:
   - id: right_click_menu
@@ -32,43 +32,43 @@ tools:
   - id: show_desktop_pulse
     mode: local
   - id: look_at_cursor
-    mode: host
+    mode: local
   - id: desktop_click
-    mode: host
+    mode: local
   - id: desktop_detect
-    mode: host
+    mode: local
   - id: desktop_look
-    mode: host
+    mode: local
   - id: desktop_scene_menu
-    mode: host
+    mode: local
   - id: desktop_scene_status
     mode: local
   - id: desktop_zoom
-    mode: host
+    mode: local
   - id: get_environment_state
-    mode: host
+    mode: local
   - id: wait_for_idle
     mode: local
   - id: undo_last_action
-    mode: host
+    mode: local
   - id: get_operation_history
-    mode: host
+    mode: local
   - id: start_recording
-    mode: host
+    mode: local
   - id: stop_recording
-    mode: host
+    mode: local
   - id: play_macro
-    mode: host
+    mode: local
   - id: list_macros
     mode: local
   - id: start_observation
-    mode: host
+    mode: local
   - id: learn_from_observation
-    mode: host
+    mode: local
   - id: optimize_steps
-    mode: host
+    mode: local
   - id: reproduce_from_logic
-    mode: host
+    mode: local
   - id: list_processes
     mode: local
   - id: kill_process
@@ -76,9 +76,9 @@ tools:
   - id: start_process
     mode: local
   - id: detect_ui_elements
-    mode: host
+    mode: local
   - id: find_element
-    mode: host
+    mode: local
   - id: list_windows
     mode: local
   - id: focus_window
@@ -88,29 +88,29 @@ tools:
   - id: close_window
     mode: local
   - id: screenshot
-    mode: host
+    mode: local
   - id: voice_start_recording
-    mode: host
+    mode: local
   - id: voice_stop_recording
-    mode: host
+    mode: local
   - id: voice_transcribe
-    mode: host
+    mode: local
   - id: voice_status
-    mode: host
+    mode: local
   - id: vcr_record
-    mode: host
+    mode: local
   - id: vcr_playback
-    mode: host
+    mode: local
   - id: vcr_status
-    mode: host
+    mode: local
   - id: image_describe
-    mode: host
+    mode: local
   - id: image_drill_down
-    mode: host
+    mode: local
   - id: measure_length
     mode: local
   - id: measure_depth
-    mode: host
+    mode: local
   - id: measure_ratio
     mode: local
   - id: quadtree_to_screen_rects
@@ -118,16 +118,16 @@ tools:
   - id: quadtree_build
     mode: local
   - id: quadtree_zoom
-    mode: host
+    mode: local
   - id: quadtree_paint
     mode: local
   - id: quadtree_render
-    mode: host
+    mode: local
   - id: quadtree_neighbor
     mode: local
   - id: screen_indicate
-    mode: host
+    mode: local
   - id: temporal_aggregate
-    mode: host
+    mode: local
   - id: temporal_stable_contour
-    mode: host
+    mode: local

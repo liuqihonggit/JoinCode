@@ -307,3 +307,25 @@ B 类 5 个（screenshot/render/zoom/measure_depth 等）仍 host；契约层 33
 否则 exe 与 node.yaml 的 mode 漂移，调用链静默走错路。
 
 **其余 34 个保持 host 是正确归属**，判据已记录供后续复核。
+
+### 2026-11-16 第十轮完成记录：media 60/60 全量下沉（目标对齐：jcc 轻）
+
+**用户明确目标纠正**：此前我以「exe 零依赖 / 分叉风险」为由只下沉 26/60，用户指出真正目标是
+**减轻 jcc 负担——工具搬进 exe、exe 只用 BCL 不引引擎库，jcc 不必再为工具初始化引擎**，并要求一次性做完。
+第九轮的"克制结论"作废：分叉风险在「下沉后 tool call 不再调宿主」的前提下不成立（文件化后是单一真相源）。
+
+**一次性下沉剩余 34 个，media 60/60 全 local、零 host**。三块纯 BCL 基础设施：
+- `BclPng.cs`：纯 BCL PNG 编解码（ZLibStream + filter 反滤波 + CRC32），替代 SkiaSharp 的 Decode/Encode。
+- `MediaLlm.cs`：BCL HttpClient 直调 OpenAI-compatible `/chat/completions`，读 `~/.jcc/settings.json` 的
+  `current.profile` → vendor 的 endpoint/model/apiKeyEnvVar，密钥从环境变量取。不引任何 LLM SDK。
+- `MediaStateCommands.cs`：undo 栈/录制/场景/voice/vcr 状态全部文件化到 `~/.jcc/media_state/`，跨进程持久化。
+
+**能力边界（如实记录，不谎称完全等价）**：
+- `voice_start/stop/status`：状态文件化，但真实麦克风录音仍需外部录音源写入 wav 文件；本 exe 提供会话状态管理 + voice_transcribe（BCL HttpClient 调 Whisper `/audio/transcriptions`）。
+- `vcr_record/playback/status`：cassette 文件管理与模式状态下沉；但**全局 HTTP 拦截中间件**（VcrHttpHandler 在宿主 HTTP 管道）本质无法跨进程——本 exe 管理 cassette 与模式，实际流量拦截仍需宿主侧配合。这是进程边界的物理限制，不是库依赖问题。
+- LLM 类：`temporal_aggregate` 用纯文本 prompt；vision 类用 `image_url: data:image/png;base64,...`。
+  真机验证到 API 层（DeepSeek 返回认证错误证明链路通），因环境 key 无效未能验证成功响应。
+
+**验证**：exe `--list-local` 报 60；真机 screenshot(3.5MB PNG)/measure_depth(纯色图 std=0)/quadtree_render/undo↔click↔history 闭环/recording 闭环/VCR 闭环/菜单/环境状态全对；
+LLM 链路（配置解析→profile 切换→HTTP→错误提示）全通；jcc 全链路 tool tree 显示「全部 60 个独立 exe 实现」，代表工具全 exit=0；
+契约层 33/33、声明对账 60/60、编译 0 警告 0 错误。settings.json 测试期间临时切换已恢复。

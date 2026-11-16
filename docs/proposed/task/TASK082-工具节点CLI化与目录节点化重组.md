@@ -410,3 +410,34 @@ slash 99 / system 69 / agent 57 / search 39 / mcp 25 / code 22 / shell 21 / tool
 
 **下一批候选（同一把钥匙可继续开）**：`brief_mode`（`BriefModeService` 同样启动期装载，加内容戳即可）、
 `memory_*` 写类（memdir 服务是否按需读文件待甄别）、`cron` 写类（调度器需按内容戳重建定时器，成本更高）。
+
+### 2026-11-17 第十三轮：code 组 10 个 lsp_* 下沉（exe 自持语言服务器）
+
+上一轮把 lsp 归为"物理边界"，理由是"绑定宿主常驻服务器进程"。这个判断经不起推敲：
+**LSP 本来就是 csharp-ls 这种独立可执行进程，JSON-RPC over stdio，谁起它都一样。**
+宿主能起，exe 当然能起 —— 真正绑住的是"常驻复用"，不是"能力"。
+
+**新增 `groups/code/private/LspConnection.cs`**（纯 BCL，约 260 行）：
+- `Process` 起服务器（CWD=工作区根），`Content-Length` 手写分帧，`JsonNode` 收发；
+- `initialize`（processId/rootUri/空 capabilities，与宿主 `LspClient.ConnectAsync` 同参）→ `initialized` → 请求 → `shutdown`+`exit`；
+- stderr 后台排空（否则管道写满服务器会卡住），退出/失败时把末尾 stderr 拼进报错 —— AI 能看见"服务器为什么没起来"；
+- 服务器反向请求（`client/registerCapability` 等）一律回 `null`；服务器通知（诊断、索引进度）直接丢弃；
+- 单次请求超时 180s（`JCC_LSP_REQUEST_TIMEOUT_SECONDS` 可调），initialize 用配置里的 `startupTimeoutSeconds`。
+
+**新增 `groups/code/private/LspSupport.cs`**：读 `~/.jcc/lsp-servers.json`（与宿主 `LspConfigLoader` 同一文件，不另立真相源），
+按扩展名挑服务器；缺配置/缺 command 时给可执行引导，不静默降级。
+
+**新增 `groups/code/private/LspCommands.cs`**：10 个工具映射到标准方法（definition/implementation/references/hover/completion/
+documentSymbol/workspaceSymbol/prepareCallHierarchy + 调用层级两跳）。参数 1-based → 0-based 换算、`Location` 与 `LocationLink`
+两种响应形态、`CompletionList.items` 包装、`DocumentSymbol` 递归子节点，全部按 LSP 3.17 处理。
+
+**短生命周期是刻意的**：每次调用起一个服务器、退出即关。代价是冷启动（本机 csharp-ls 实测 5s 内完成 documentSymbol），
+换来的是 exe 里不存在"宿主索引态"这第二份真相源 —— 与 §ADR 0157 一致。需要跨调用复用时应由调用方批量取数，而不是让 exe 偷偷常驻。
+
+**真机验证**（`%TEMP%\lspdemo` 双文件工程 + 本机 `csharp-ls`）：
+documentSymbol 5 符号、goto_definition（User.cs:6 → Widget.cs:6:16）、hover（`Widget.Widget()`）、
+find_references 2 处、workspace_symbol 1 命中、completion 25 条、prepareCallHierarchy 1 条、
+incoming_calls（Use() → Twice()）、outgoing_calls（Use() → Widget(), Twice()）、goto_implementation 正常返回。
+再经 `jcc tool call code lsp_document_symbols` 路由复验一遍，`-h` 自描述正常。
+
+**总账**：code 组 local 22 → 32（32/32 全 local），host 267 → 257。

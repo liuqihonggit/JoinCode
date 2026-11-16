@@ -710,3 +710,71 @@ rust、php、agda…）**从未被任何代码请求**。`TreeSitter.DotNet` 按
 「数字是快照，现行口径见修正注」的指针，避免它被当成现状引用。
 另把 `390/640` 的比例统一写成 `60.9%（脚本 Floor 后打印 60%）`——
 之前 ADR 写 61%、脚本打印 60%，同一个事实两个数，迟早有人当成矛盾再「纠」一次。
+
+### 2026-11-17 第二十一轮：追掉第十八轮那条「bash 安全检查链没接线」的遗留，并修掉一个真实降级
+
+第十八轮裁剪 tree-sitter 语法时顺带发现：`IBashSecurityValidator` → `BashPermissionChecker`
+（`guard.security/services/bash_validation`）在 `modules/**` 下除自身与测试外**零消费者**。
+本轮把它查清并修掉了真正有害的那一半。
+
+**一、那条链为什么没接线（不是漏接，是被替代了）**
+
+bash 执行链上的真实防线是 `ShellCommandInterceptionMiddleware` →
+`BashDefenseService`（6 个 node：危险命令 / 严格解析 / 保留设备名 / 重定向白名单 / git push CI 守卫 /
+argv hash），已在 `DataDrivenPipelineComposition` 注册。权限层还有
+`DangerousCommandProtectionMiddleware` 再拦一道。`guard.security/services/bash_validation`
+那套是 TS `bashPermissions.ts` / `bashSecurity.ts` 的移植，被上面两条取代后留在原地。
+DI 容器里**确实注册了**它（生成器自动生成 `ServiceDescriptor`），所以「搜接口没找到消费者」
+不等于「没注册」——这也是它一直没被发现的原因。
+
+**二、对照实验（`BashCommandCoverageTests`，只做静态判定不执行）**
+
+同一批命令跑「当前生效的分类器」与「未接线的 AST 校验器」，结果推翻了我原先的两个假设：
+
+| 命令 | 分类器 | AST 校验器 | 说明 |
+|---|---|---|---|
+| `rm -rf ./build` | Execution | safe | **Execution 不是 Dangerous**：Dangerous 只留给整盘/系统级 |
+| `rm -rf /` | Dangerous | safe | 基线正确 |
+| `r''m -rf ./build` | Execution | safe | 分类器**能**剥引号噪声，比 AST 还稳 |
+| `echo hi; rm -rf ./build` | ~~Safe~~ → **Execution** | safe | **真缺口**（已修） |
+| `true && rm -rf ./build` | ~~Unknown~~ → **Execution** | safe | 同上 |
+| `echo hi\nrm -rf ./build` | ~~Safe~~ → **Execution** | safe | 同上 |
+| `echo hi \| xargs rm -rf` | Safe | safe | 未修：管道不拆的已知取舍，见下 |
+| `jq -n 'system("id")'` | Unknown | JqSystemFunction | 仅 AST 能识别 |
+| `cat > x.sh <<EOF…EOF` | Safe | Newlines | 仅 AST 能识别 |
+| `eval "$(… base64 -d)"` | Unknown | DangerousVariables | 仅 AST 能识别 |
+
+两个假设被推翻：① 以为「复合命令是缺口」方向对，但以为 `rm -rf ./build` 是 Dangerous（实际 Execution）；
+② 以为 AST 校验器是更强的防线（实际对引号混淆、普通删除它都判 safe，它管的是「注入/可解析性」，
+不是「破坏性」）。**两套是不同维度，不是新旧替代关系。**
+
+**三、修的是哪一半（commit `d03e33584`）**
+
+分类器按「首词查表」工作，`echo hi; rm -rf ./build` 首词是 `echo` → `Safe`。
+而 `Safe` 是**所有权限模式下直接放行**的级别（`RequiresIntervention = Level != Safe`），
+`Execution` 在 Auto 模式会被「拒绝并引导切 Ask」—— 也就是说：
+
+> 单跑 `rm -rf ./build` 会被拒，加个 `echo hi;` 前缀反而放行。
+
+这是明确的等级降级，且 Auto 模式（默认安全档）下生效。修法：
+
+1. `ShellCommand.SplitSubcommands`（新增，contracts 层）：引号 / 反引号 / `$(...)` 感知地按
+   `;`、`&&`、`||`、换行 拆分。**单管道不拆**（两侧是同一命令的数据流，上游已有「管道目标是解释器」的专门检查，
+   拆开会把 `git log | sh` 绕过去）；**含 heredoc 时不拆换行**（正文里的 `rm -rf` 只是写进文件的内容）。
+2. `CommandDangerClassifier.Classify(string)`：拆段后逐段分类，取最严的一条；同级别时合并 risks/Details。
+   单段命令完全走原路径，行为不变。
+
+**验证**：`guard.security.tests` 1149 通过 / 0 失败（含新增的复合命令回归锁与中间件 Auto 模式断言）、
+`abs.guard.tests` 14 个拆分器边界用例、`hands.shell.tests` 526 通过。
+`guard.hooks.tests` 有 1 个环境相关失败（`VpnRouteGuard_CanHandle_NoVpnActive_ReturnsFalse`，
+本机有代理进程；该 guard 不经过任何本次改动的代码路径）。
+
+**未修、需要决策的两项**（都是「补强」不是「修 bug」，会改变用户体验，所以没替用户决定）：
+
+1. **接线 AST 校验器**补 `jq system()` / `eval` / 命令替换 / heredoc 换行。它的语义是
+   「无法静态分析 → 交给用户确认」（`BashPermissionChecker` 把 IsSafe=false 映射为 `Ask`，不是硬拒），
+   所以不会拦死命令，但**每条 bash 多一次 tree-sitter 解析、写脚本类命令会多一次确认弹窗**。
+2. **管道后接执行器**（`| xargs rm -rf`、`| sh` 已覆盖、`find -exec` 未覆盖）。需要先定义「执行器清单」，
+   而 `IsInterpreter` 目前只覆盖解释器。属新规则，不是拆段能解决的。
+
+原始问题记录在第十八轮末尾，此处闭合它的调查部分。

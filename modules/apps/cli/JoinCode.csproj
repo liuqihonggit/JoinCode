@@ -43,11 +43,29 @@
 
   <!-- === 原生 DLL 嵌入资源（Release/AOT 模式） === -->
   <!-- NativeAOT 无法静态链接 C/C++ 原生库，嵌入为 EmbeddedResource，运行时由 NativeDllBootstrapper 释放 -->
+  <!-- tree-sitter 只嵌入实际用到的语法：全量 30 个语法共 68 MB，其中 28 个从未被加载（61.7 MB 死重）。
+       生产代码里 new Language(...) 的全部调用点只有两处：
+         · c-sharp —— CodeIndex 解析 *.cs（CodeIndexer 只扫 .cs/.md，见 CollectCsFilesRecursive）
+         · bash    —— guard.security 的 BashAstSecurityWalker（FAIL-CLOSED 命令检查）
+       TreeSitter.DotNet 按 "tree-sitter-" + languageId 拼名加载，不枚举目录，因此删掉其余语法不影响任何调用点。
+       新增语言时必须同时改这里和 Debug 输出裁剪目标（TrimUnusedTreeSitterGrammars）。 -->
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <EmbeddedResource Include="$(NuGetPackageRoot)\skiasharp.nativeassets.win32\4.151.1\runtimes\win-x64\native\libSkiaSharp.dll" LogicalName="JoinCode.NativeDlls.libSkiaSharp.dll" />
     <EmbeddedResource Include="$(NuGetPackageRoot)\docnet.core\$(DocnetCoreVersion)\runtimes\win-x64\native\pdfium.dll" LogicalName="JoinCode.NativeDlls.pdfium.dll" />
-    <EmbeddedResource Include="$(NuGetPackageRoot)\treesitter.dotnet\1.3.0\runtimes\win-x64\native\*.dll" LogicalName="JoinCode.NativeDlls.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(NuGetPackageRoot)\treesitter.dotnet\1.3.0\runtimes\win-x64\native\tree-sitter.dll" LogicalName="JoinCode.NativeDlls.tree-sitter.dll" />
+    <EmbeddedResource Include="$(NuGetPackageRoot)\treesitter.dotnet\1.3.0\runtimes\win-x64\native\tree-sitter-c-sharp.dll" LogicalName="JoinCode.NativeDlls.tree-sitter-c-sharp.dll" />
+    <EmbeddedResource Include="$(NuGetPackageRoot)\treesitter.dotnet\1.3.0\runtimes\win-x64\native\tree-sitter-bash.dll" LogicalName="JoinCode.NativeDlls.tree-sitter-bash.dll" />
   </ItemGroup>
+
+  <!-- Debug/非嵌入模式下语法 DLL 直接躺在输出目录，同样只需要两个；其余 28 个删掉省 61.7 MB。
+       NuGet 每次都按 PreserveNewest 重新拷贝，所以目标必须挂在每次 Build 之后执行。 -->
+  <Target Name="TrimUnusedTreeSitterGrammars" AfterTargets="Build" Condition="'$(Configuration)' != 'Release'">
+    <ItemGroup>
+      <UnusedTreeSitterGrammar Include="$(TargetDir)tree-sitter-*.dll"
+                               Exclude="$(TargetDir)tree-sitter-c-sharp.dll;$(TargetDir)tree-sitter-bash.dll" />
+    </ItemGroup>
+    <Delete Files="@(UnusedTreeSitterGrammar)" Condition="'@(UnusedTreeSitterGrammar)' != ''" />
+  </Target>
 
   <!-- publish 后清理原生 DLL — 已嵌入资源，无需外部 DLL -->
   <Target Name="RemoveNativeDllsFromPublish" AfterTargets="Publish" Condition="'$(Configuration)' == 'Release'">

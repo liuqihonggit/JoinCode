@@ -554,12 +554,15 @@ delegate 173 也不是遗留问题：github 组的 173 个全部转发到已有�
 真实分布：**local 217 + delegate 173 + host 250 = 640**；「不经过宿主的工具」= 390/640（61%）。
 后面一律用三分法表述，不再用笼统的"已下沉"。
 
-**新增两个脚本**（都可直接进 CI）：
-- `scripts/check_cli_node_coverage.py` —— 把 `node.yaml` 的**声明**和分组 exe 的**真实注册表**（`--list-local`）对账：
-  ① local 集合一致 ② `local_tool_count` 一致 ③ `tool_count` 与条目数一致 ④ 每个 local 在 `help.txt` 里有详情段。
-  `--check-help` 再逐个跑 `<tool> -h`。斜杠组的 id 口径冲突（node.yaml 是 `version`、handler 是 `/version`）按
-  「归一化后 id」判定，与 `CliNodeRunner.CanonicalToolId` 同口径。
-- `scripts/deploy_cli_nodes.py` —— 把构建产物 + `node.yaml` + `help.txt` 部署到 `artifacts/pack/tool-nodes/tools/<组>/`。
+**对账与部署**（⚠️ 第十九轮已纠正：本轮原本新写了 `scripts/check_cli_node_coverage.py` 和
+`scripts/deploy_cli_nodes.py`，后来发现仓库里早有 `Verify-ToolNodes.ps1` 与 `Pack-ToolNodes.ps1`，
+能力都是超集且已在 CI 里 —— 两个 Python 脚本属重复实现，已归档到 `.xxx/`。下面是**现有**两个 canonical 脚本：
+
+- `non_deliverables_tools/scripts/Verify-ToolNodes.ps1` —— 声明 vs 现实对账：
+  ① exe 自报 local 数与 node.yaml 一致 ② **local 工具 id 集合一致**（见第十九轮补的检查）
+  ③ `tool_count` / 条目数 / `-h` 索引三者一致 ④ `-h` 体积上限 ⑤ 单工具 `-h` 能定位执行方式。
+  `-DeclarationsOnly` 只验声明侧（不编译不跑 exe），CI 用这个；`-Sample` 抽无副作用工具真跑。
+- `non_deliverables_tools/scripts/Pack-ToolNodes.ps1` —— 装配到 `artifacts/pack/tool-nodes/tools/<组>/`。
   **存在理由**：`jcc tool call` 判断走 exe 还是宿主，读的是**部署目录**里的 node.yaml。本轮就踩到过：
   media 组的部署清单停在 quadtree_* 还是 host 的旧版本，于是 `jcc tool call media quadtree_neighbor -h`
   错走宿主 mcp_call 报「缺少 '=' 分隔符」——源码没问题，是只编不部署。
@@ -582,9 +585,11 @@ delegate 173 也不是遗留问题：github 组的 173 个全部转发到已有�
 3. `search` 组 14 个 local 工具（grep/glob/project_graph 等）本轮只做 `-h` 与路由抽查，未逐个跑真实查询。
 4. `media` 组 60 个 local 已经过前面轮次的真机验证，但本轮未复跑（桌面操作会动到本机窗口，不适合无人值守批量跑）。
 
-**建议的 CI 接线**：全仓编译 + 测试之后追加两步 ——
-`python scripts/check_cli_node_coverage.py --check-help || exit 1`、`python scripts/deploy_cli_nodes.py`。
-前者守住"声明与实现不许漂移"，后者保证部署目录不落后于源码。
+**CI 接线**：`ci-unit-tests.yml` 里已有 `tool-node-declarations` job 跑
+`Verify-ToolNodes.ps1 -DeclarationsOnly`（几秒、不编译）。要做「声明 vs 现实」的全量对账需先编译 13 个 exe，
+那是本地步骤：`Verify-ToolNodes.ps1`（不加 `-DeclarationsOnly`），部署则用 `Pack-ToolNodes.ps1`。
+本轮原本建议"CI 追加两步 Python 脚本"，已被第十九轮否掉 —— 那两步等价于调用上面两个 canonical 脚本，
+等价物本就在仓库里，不该再造一份。
 
 ### 2026-11-17 第十七轮：最后 12 个候选验伪，host 边界闭合
 
@@ -645,3 +650,26 @@ rust、php、agda…）**从未被任何代码请求**。`TreeSitter.DotNet` 按
 在 `modules/**` 里除 guard.security 自己与测试外**没有任何消费者**（`grep -rn "IBashSecurityValidator"`）。
 即 FAIL-CLOSED 的 bash 检查目前可能根本没接线，与 CLI 化无关、也不是本轮引入的。这条留给人判断，
 不适合顺手改 —— 要么是历史未接线，要么是有反射/配置装配路径没被我读到。
+
+### 2026-11-17 第十九轮：撤掉我自己造的重复脚本，把唯一增量并进 canonical 版本
+
+上一轮（第十六轮）收口时我新写了 `scripts/check_cli_node_coverage.py` 和 `scripts/deploy_cli_nodes.py`，
+当时以为仓库里没有等价物。这一轮做 CI 接线时才发现：
+
+| 我新写的 | 仓库已有的 | 差距 |
+|---|---|---|
+| `check_cli_node_coverage.py` | `non_deliverables_tools/scripts/Verify-ToolNodes.ps1` | 已有版本多了：`-DeclarationsOnly`、`-Sample` 无副作用抽样、`-h` 体积上限、单工具 `-h` 定位、`group_map.yaml` 双向校验 |
+| `deploy_cli_nodes.py` | `non_deliverables_tools/scripts/Pack-ToolNodes.ps1` | 已有版本多了：按需编译、单组失败不影响其余、`tools/<组>/` 布局 |
+
+而且 `Verify-ToolNodes.ps1` **早就在 `ci-unit-tests.yml` 的 `tool-node-declarations` job 里跑**（`-DeclarationsOnly`）。
+也就是说我不仅造了重复，还写了一版「CI 接线建议」去接一个已经接好的东西。
+
+**处置**：
+1. 我的脚本里**唯一更强**的一点是比 local 工具的 **id 集合**（已有版本只比数量）。把这条并进 `Verify-ToolNodes.ps1`：
+   数量相等但换了人（A 从 local→host、B 从 host→local）计数完全一样，`-h` 也不会报错，但工具实际跑在哪已经变了。
+   比对前按 `CliNodeRunner.CanonicalToolId` 同口径 `TrimStart('/')` 归一化，否则 slash 组会假报。
+2. 两个 Python 脚本按项目规范归档到 `.xxx/*.del`（不删除）。
+3. 全量跑一遍 `Verify-ToolNodes.ps1 -SkipBuild`：13 组 / 640 工具 / 隔离 390（60%），新增集合检查零假报。
+
+**教训**：收口阶段最该先做的是「搜一遍有没有现成的」，而不是「先写一个能跑的」。
+判断标准本来就是我自己反复用的那条 —— 同一决策不该有两个实现 —— 结果自己踩了。

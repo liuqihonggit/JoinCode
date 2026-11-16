@@ -70,6 +70,10 @@ $groups = Get-ChildItem -Path $groupsRoot -Directory |
     Where-Object { Test-Path (Join-Path $_.FullName ("jcc_tool_" + $_.Name + ".csproj")) } |
     Sort-Object Name
 
+# 工具 id 归一化：slash 组的 node.yaml 登记名与 exe 自报名在前导斜杠上不一致（/version vs version），
+# 与 CliNodeRunner.CanonicalToolId 同口径处理，否则集合比对会对 slash 组假报漂移。
+function Normalize-ToolId([string]$id) { if ($id) { $id.TrimStart('/') } else { $id } }
+
 if (-not $groups) {
     Write-Host "找不到任何分组工程: $groupsRoot" -ForegroundColor Red
     exit 2
@@ -193,6 +197,28 @@ foreach ($group in $groups) {
     if ($reportedLocal -ne $declaredLocal) {
         $problems += "[$name] 自报 local=$reportedLocal 与 node.yaml 声明 $declaredLocal 不一致（实现与登记漂移）"
     }
+
+    # 只比数量不够：把 A 从 local 改成 host、同时把 B 从 host 改成 local，计数一模一样，
+    # -h 也不会报错，但「工具实际跑在哪」已经换了地方。所以还要逐 id 比一遍集合。
+    # slash 组的登记名带前导斜杠（/version），exe 自报不带，按 CliNodeRunner.CanonicalToolId 同口径归一化。
+    $reportedLocalIds = @()
+    $idMatch = [regex]::Match($selfReport, 'local=(\S*)')
+    if ($idMatch.Success -and $idMatch.Groups[1].Value) {
+        $reportedLocalIds = @($idMatch.Groups[1].Value -split ',' |
+            Where-Object { $_ } | ForEach-Object { Normalize-ToolId $_ })
+    }
+    $declaredLocalIds = @([regex]::Matches($yaml, '(?ms)^\s+- id:\s*(\S+)\s*\r?\n\s+mode:\s*local\b') |
+        ForEach-Object { Normalize-ToolId $_.Groups[1].Value })
+
+    if ($reportedLocalIds.Count -gt 0) {
+        $onlyDeclared = @($declaredLocalIds | Where-Object { $reportedLocalIds -notcontains $_ })
+        $onlyReported = @($reportedLocalIds | Where-Object { $declaredLocalIds -notcontains $_ })
+        if ($onlyDeclared.Count -gt 0 -or $onlyReported.Count -gt 0) {
+            $problems += "[$name] local 工具集合不一致：声明为 local 但 exe 未实现 [$($onlyDeclared -join ', ')]；" +
+                "exe 实现了但 node.yaml 登记成别的 mode [$($onlyReported -join ', ')]"
+        }
+    }
+
     if ($declaredDelegate -gt 0 -and -not $reportedDelegate) {
         $problems += "[$name] node.yaml 声明了 delegate，但 exe 未自报 delegated_to"
     }

@@ -213,8 +213,8 @@ public sealed class CliToolNodeTests {
 
         var tree = CliToolSearch.RenderTree([node]);
 
-        // 「进程隔离 0/2」会被读成「这组不能用」；它其实 2 个都能用，只是都走宿主。
-        Assert.Contains("全部 2 个转发宿主", tree);
+        // 「独立 exe 实现 0/2」会被读成「这组不能用」；它其实 2 个都能用，只是 Agent 功能留在 jcc 内。
+        Assert.Contains("全部 2 个由 jcc 内执行", tree);
     }
 
     // 目录树下钻 LoadNodesFromDirectory 涉及真实磁盘 IO，按 JCC9001「测试 0 磁盘读写」

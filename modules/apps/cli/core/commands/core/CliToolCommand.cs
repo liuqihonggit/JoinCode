@@ -92,10 +92,41 @@ internal static class CliToolCommand {
         var target = TryResolveTarget(call, nodes, out var failureExitCode);
         if (target is null) return failureExitCode;
 
+        // 用户口径（2026-11-16）：工具能不能独立跑是 exe 的事；「Agent 自己的功能」（配置、记忆、
+        // 权限、会话等依赖宿主状态的 host 工具）就该留在 jcc 内。原先给这类工具也先起一个分组 exe、
+        // 再由它起 jcc mcp_call，白白多两层进程；mode: host 时直接在当前 jcc 进程执行同一条 mcp_call 路径。
+        // local / delegate 不变 —— 它们本来就是「独立 exe 就是工具」。
+        var groupNode = nodes.FirstOrDefault(node => string.Equals(node.Id, target.Group, StringComparison.OrdinalIgnoreCase));
+        if (call.ExplicitExe is null && groupNode?.FindTool(target.Tool)?.Mode == CliExecutionMode.Host)
+            return await RunHostToolInProcessAsync(target.Tool, call, ct).ConfigureAwait(false);
+
         var exe = call.ExplicitExe ?? ResolveGroupExe(target.Group);
         if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe)) return WriteExeMissing(target.Group, exe);
 
         return await LaunchAsync(exe, target, call, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 在 jcc 进程内执行 host 工具 — 复用 <see cref="McpCallCommand"/> 的完整参数绑定、权限管道与输出格式，
+    /// 不启动分组 exe（它对该工具只有转发职责）。保留 <c>--timeout</c> 语义：超时返回 124。
+    /// </summary>
+    private static async Task<int> RunHostToolInProcessAsync(string toolId, CallArguments call, CancellationToken ct) {
+        if (call.TimeoutSeconds <= 0) {
+            var argv = new List<string> { "mcp_call", toolId };
+            argv.AddRange(call.PassThrough);
+            return await McpCallCommand.ExecuteAsync(argv.ToArray(), ct).ConfigureAwait(false) ?? 1;
+        }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(call.TimeoutSeconds));
+        try {
+            var argv = new List<string> { "mcp_call", toolId };
+            argv.AddRange(call.PassThrough);
+            return await McpCallCommand.ExecuteAsync(argv.ToArray(), timeoutCts.Token).ConfigureAwait(false) ?? 1;
+        } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested) {
+            Console.Error.WriteLine($"工具 '{toolId}' 执行超时（--timeout {call.TimeoutSeconds} 秒）。");
+            return 124;
+        }
     }
 
     /// <summary>call 动作的解析结果 — 名称、执行器自有选项、透传给工具的其余参数。</summary>

@@ -155,3 +155,65 @@ Debug framework-dependent 构建，真实产物统计（非估算）：
 目录 541 个 MCP 工具中 172 个走 delegate（jcc-gh），其余 369 个除 `test_tool`（无 `[McpTool]` 的本地诊断工具）
 外**全部在注册表里**。能力边界只存在于「能否在本 exe 内零依赖实现」（228/640 隔离），
 不存在于「能否被调用」。
+
+### 2026-11-16 第四轮补记（架构归属：Agent 功能留 jcc 内）
+
+| # | 任务 | 关键文件 | 编译 | 测试 | commit |
+|---|------|---------|------|------|--------|
+| 7b10 | **纠正隔离框架**：按用户心智模型，Agent 功能（config/memory/permission/session/slash）留 jcc 内，`mode: host` 直接在当前进程执行 mcp_call，不再起分组 exe + jcc 两层；外部工具（gh/rg 等）才是独立 exe | `CliToolCommand.cs`、`CliToolSearch.cs`、`CliToolHelp.cs`、`CliToolNodeTests.cs` | ✅ | ✅ 契约层 33/33 + 真机三路径 | 本轮 |
+
+> 分界从「隔离 vs 转发（35% 没做完）」改为「独立 exe 工具（228）vs Agent 功能（412）」。
+> 数字不变，语义变了：后者是正确归属而非未完成的隔离。总数仍 640。
+
+### 2026-11-16 第五轮进行中：media 组可外部调用工具独立 exe
+
+用户要求：「要继续独立成 exe，不然我的调用隔离岂不是打破了吗？并且做完隔离之后要测试」。
+media 组 60 个工具当前全为 `host`（Program.cs 纯转发器，无 private/）。目标：甄别其中纯 Windows API / BCL
+可零依赖落地的工具（鼠标/键盘/窗口/进程/截图），做成独立 exe 本地实现；依赖引擎共享状态的（录制/宏/观察/视觉）
+继续留 jcc 内。做完必须真机测试。
+
+| # | 任务 | 状态 |
+|---|------|------|
+| 7b11 | 甄别 60 工具引擎依赖，产出可独立候选清单 | 进行中 |
+| 7b12 | private/ 本地 handler + Program.cs HANDCRAFTED + node.yaml/help.txt 同步（红测试先行） | 待办 |
+| 7b13 | 编译 + 部署 + 真机测试 + 对账 + commit | 待办 |
+
+#### 第五轮完成记录（media 下沉）
+
+| # | 任务 | 关键文件 | 编译 | 测试 | commit |
+|---|------|---------|------|------|--------|
+| 7b11 | 甄别 60 工具依赖：23+ 纯 P/Invoke/BCL 可下沉；vision LLM / 场景撤销栈 / voice-vcr 单例 / SkiaSharp 原生库必须留 jcc 内 | （分析，无代码） | — | — | 本轮 |
+| 7b12 | `private/MediaNative.cs`（user32/gdi32 P/Invoke 独立声明，x64 INPUT=40B）+ `private/MediaCommands.cs`（20 个本地 handler）+ Program.cs HANDCRAFTED；生成器反推 mode/local_tool_count | `groups/media/private/*`、`Program.cs`、`node.yaml`、`help.txt` | ✅ 0 警告 | ✅ 见下 | 本轮 |
+| 7b13 | 部署 + 真机测试 + 对账 | — | ✅ | ✅ | 本轮 |
+
+**下沉的 20 个**：进程 3（list/kill/start_process）+ 输入注入 8（mouse_click/move/drag, key_press, type_text, right_click_menu, drag_with_hover, multi_click）+ 窗口 4（list/focus/move/close_window）+ 感知覆盖 5（wait_for_idle, show_desktop_overlay, list_macros, measure_length, measure_ratio）。
+
+**留 jcc 内的 40 个**：vision LLM 9（image_*, desktop_detect, detect_ui_elements, find_element, temporal_aggregate, optimize_steps...）、跨调用状态 6（场景 look/zoom/status/click + undo/history）、宏录制 4、voice 4、vcr 3、SkiaSharp 截图/四叉树 9、失配的 measure_depth 等。
+
+**真机验证**（独立 exe，不经 jcc）：measure_length 3-4-5→5.00px、measure_ratio 1920x1080→16:9、list_processes/list_windows 返回真实系统数据、mouse_move 光标移动成功、错误路径退出码 2 带 Rust 风格提示。**完整链路**（jcc tool call media）：measure_length→10.00px、list_windows 真实数据、tool tree 显示「独立 exe 实现 20/60」。契约层 33/33、声明对账通过（248/640，38%）。依赖墙未破：exe 只引契约层 + 自带最小 P/Invoke，不引引擎。
+
+### 2026-11-16 第六轮进行中：SkiaSharp 工具下沉可行性评估（只评估不改码）
+
+用户要求评估 media 组剩余约 9 个 SkiaSharp 依赖工具（screenshot / measure_depth / quadtree_build/paint/render/zoom/neighbor/to_screen_rects / screen_indicate / temporal_stable_contour / look_at_cursor）
+是否值得下沉独立 exe。核心问题：引入 SkiaSharp 原生库的体积/依赖墙代价，是否小于「留在 jcc 内」的收益。
+产出：依赖清单 + 体积实测 + 纯 BCL 替代路径 + 明确结论。不改动生产代码。
+
+#### 第六轮完成记录：SkiaSharp 工具下沉评估（只评估，未改生产代码）
+
+**体积实测**（决定性的数字）：
+- 当前 media 独立 exe：`jcc-tool-media.dll` 70KB / apphost 159KB，整个输出目录 **873KB / 11 文件**
+- `libSkiaSharp.dll` 单个 **12MB**（+ 516KB 托管 `SkiaSharp.dll`），即引入后体积 **涨约 15 倍**
+- 依赖墙：`cli_node.props` 只允许引契约层；SkiaSharp 是原生库，违反「工具 exe 只引 contracts」硬约束
+
+**按真实源码把 9 个 SkiaSharp 工具再切两类**（关键发现：不是铁板一块）：
+
+| 类别 | 工具 | SkiaSharp 用到什么 | 结论 |
+|---|---|---|---|
+| **A 纯计算（4）** | quadtree_neighbor / quadtree_paint / quadtree_to_screen_rects / quadtree_build | `quadtree_build` 仅 1 处 `SKBitmap.Decode` 取宽高；其余 3 个完全不碰图像（neighbor 只做网格邻居计算） | **可下沉**，用仓库现成 `PngHeaderParser.ParseDimensions`（纯 BCL 读 PNG IHDR 16-23 字节）替换那一行；需移植 QuadtreeEncoder 149 行纯 C# + QuadtreeModels |
+| **B 真渲染（5）** | quadtree_render / screen_indicate / quadtree_zoom / measure_depth / screenshot / look_at_cursor | `SKSurface`/`SKPaint` 画格子、`SKBitmap.GetPixel` 逐像素分析、`SKImage.Encode` 编 PNG | **不下沉**：功能上能离线，但必须带 12MB 原生库；为一个截图工具把 exe 从 873KB 撑到 13MB 不划算，留 jcc 内复用已有 SkiaSharp |
+
+**另一个发现**：`show_desktop_pulse`（透明窗口脉冲动画，纯 user32 RegisterClassEx/CreateWindowEx + GDI，无 SkiaSharp 无状态）本轮甄别时被漏掉，是第 21 个可下沉工具，与已下沉的 show_desktop_overlay 同类。
+
+**结论**：SkiaSharp 那批里 **4 个（A 类）值得下沉**——代价只是移植 149 行纯 C# 算法 + 换一行尺寸读取，不引原生库；**5 个（B 类）不该下沉**——12MB 原生库的体积税远超收益。「能不能独立」的答案是能，「该不该独立」的答案是分情况——这正是依赖墙存在的意义：它逼我们区分能力与代价。
+
+**后续（未执行）**：若采纳，下一步是下沉 A 类 4 个 + 补 show_desktop_pulse（共 +5，独立 exe 248→253），B 类 5 个永久留 jcc 内并在 node.yaml 注明 SkiaSharp 硬边界理由。

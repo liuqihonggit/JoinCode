@@ -29,7 +29,7 @@ public static class CliToolHelp {
         if (descriptor.Exe is not null)
             sb.AppendLine($"可执行文件: {descriptor.Exe}");
         if (descriptor.HasToolEntries)
-            sb.AppendLine($"进程隔离覆盖: {descriptor.LocalToolCount}/{descriptor.Tools.Length}（local=本 exe 内实现，delegate=委托独立 exe，其余转发宿主）");
+            sb.AppendLine($"独立 exe 实现: {descriptor.LocalToolCount}/{descriptor.Tools.Length}（local=本 exe 内实现，delegate=委托独立 exe，其余为 Agent 功能由 jcc 内执行）");
     }
 
     /// <summary>

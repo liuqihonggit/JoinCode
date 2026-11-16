@@ -1,11 +1,14 @@
-// system 组下沉 handler — config/错误诊断/permission 读/model_search/policy_list/通知交互/brief。
+// system 组下沉 handler — config/错误诊断/permission 读写/model_search/policy_list/通知交互/brief。
 // 全部只用 BCL + Win32 + HttpClient。注意分界：
-// - 写类（config_set/permission 写/brief_mode/memory 写）需宿主监听文件重载才生效，本批不动，避免"改了宿主不认"。
+// - permission 写类已下沉：规则文件 {gitRoot}/.jcc/permission/rules.json 是唯一真相源，
+//   宿主 AgentPermissionManager 按内容戳感知外部改写（见 AgentPermissionManagerExternalWriteTests）。
+// - 其余写类（config_set/brief_mode/memory 写/cron 写）宿主读的是进程内快照或只在启动装载，仍需宿主配套改造，留宿主。
 // - agent_*/analytics_*/TUI(ask_user/confirm)/watcher(memory_team_sync) 绑定宿主进程内状态，物理边界，留宿主。
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using JoinCode.Abstractions.Tools;
 
 namespace JoinCode.CliNode.System;
@@ -140,47 +143,168 @@ internal static partial class SystemCommands {
         return 0;
     }
 
-    // ==================== permission（读） ====================
+    // ==================== permission（读写 rule 文件，文件是唯一真相源） ====================
 
-    private static string RulesPath {
-        get {
-            var repoRules = Path.Combine(Directory.GetCurrentDirectory(), ".jcc", "permission", "rules.json");
-            if (File.Exists(repoRules)) return repoRules;
-            return Path.Combine(Jcc, "permission", "rules.json");
+    /// <summary>PermissionMode 声明序 — 数值与宿主 PermissionJsonContext 落盘结果一致。</summary>
+    private static readonly string[] PermissionModeNames = ["plan", "auto", "ask", "bypass", "unattended"];
+
+    /// <summary>PermissionLevel 声明序 — 数值与宿主 PermissionJsonContext 落盘结果一致。</summary>
+    private static readonly string[] PermissionLevelNames = ["none", "read", "write", "execute", "admin"];
+
+    /// <summary>向上找 .git 得工作区根 — 与宿主 GitWorkspaceResolver.FindGitWorkspaceDir 同语义。</summary>
+    private static string? FindWorkspaceRoot() {
+        for (var dir = new DirectoryInfo(Directory.GetCurrentDirectory()); dir is not null; dir = dir.Parent) {
+            var git = Path.Combine(dir.FullName, ".git");
+            if (Directory.Exists(git) || File.Exists(git)) return dir.FullName;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 宿主与 exe 共用的规则文件位置：{gitRoot}/.jcc/permission/rules.json。
+    /// 不在 git 工作区内返回 null — 宿主此时同样不加载任何规则，这里保持同一语义。
+    /// </summary>
+    private static string? RulesPathOrNull() => FindWorkspaceRoot() is { } root
+        ? Path.Combine(root, ".jcc", "permission", "rules.json")
+        : null;
+
+    private static JsonArray LoadRuleNodes() {
+        var path = RulesPathOrNull();
+        if (path is null || !File.Exists(path)) return [];
+        try {
+            return JsonNode.Parse(File.ReadAllText(path).TrimStart('\uFEFF')) as JsonArray ?? [];
+        } catch (JsonException) {
+            return [];
         }
     }
-    private sealed class PermRule {
-        public string? AgentPattern { get; set; }
-        public string? Level { get; set; }
-        public List<string>? DeniedTools { get; set; }
-        public List<string>? AllowedTools { get; set; }
+
+    private static void SaveRuleNodes(JsonArray rules) {
+        var path = RulesPathOrNull()
+            ?? throw new InvalidOperationException("当前目录不在 git 工作区内，规则文件无处落脚（宿主此时也不会加载规则）。请先 git init 或在仓库内执行。");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, rules.ToJsonString());
     }
-    private static List<PermRule> LoadRules() {
-        if (!File.Exists(RulesPath)) return [];
-        try { return JsonSerializer.Deserialize(File.ReadAllText(RulesPath), SystemJsonContext.Default.ListPermRule) ?? []; }
-        catch (JsonException) { return []; }
+
+    private static string Str(JsonNode? node) {
+        if (node is not JsonValue value) return "";
+        return value.TryGetValue<string>(out var s) ? s : value.ToJsonString();
     }
+
+    /// <summary>模式/级别读数：宿主落盘是枚举数值，手写文件可能是字符串，两种都认。</summary>
+    private static string EnumName(JsonNode? node, string[] names, string fallback) {
+        if (node is not JsonValue value) return fallback;
+        if (value.TryGetValue<int>(out var index)) return index >= 0 && index < names.Length ? names[index] : index.ToString();
+        return value.TryGetValue<string>(out var s) ? s : fallback;
+    }
+
+    private static string[] StringArray(JsonNode? node) => node is JsonArray array
+        ? [.. array.Select(Str).Where(s => s.Length > 0)]
+        : [];
+
+    private sealed record PermRuleView(string AgentPattern, string Mode, string Level, string[] Allowed, string[] Denied);
+
+    private static List<PermRuleView> LoadRules() => [.. LoadRuleNodes().OfType<JsonObject>().Select(o => new PermRuleView(
+        Str(o["agentPattern"]),
+        EnumName(o["mode"], PermissionModeNames, "auto"),
+        EnumName(o["level"], PermissionLevelNames, "read"),
+        StringArray(o["allowedTools"]),
+        StringArray(o["deniedTools"])))];
+
 
     private static Task<int> PermissionListRulesAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var rules = LoadRules();
         var sb = new StringBuilder();
         sb.AppendLine("ℹ 权限规则列表");
         sb.AppendLine($"共 {rules.Count} 条规则");
+        sb.AppendLine($"文件: {RulesPathOrNull() ?? "(当前目录不在 git 工作区内)"}");
         sb.AppendLine();
         if (rules.Count == 0) sb.AppendLine("暂无权限规则");
-        foreach (var r in rules) sb.AppendLine($"  Agent: {r.AgentPattern} Level: {r.Level} Denied: {string.Join(",", r.DeniedTools ?? [])} Allowed: {string.Join(",", r.AllowedTools ?? [])}");
+        foreach (var r in rules) sb.AppendLine($"  Agent: {r.AgentPattern} Mode: {r.Mode} Level: {r.Level} Denied: {string.Join(",", r.Denied)} Allowed: {string.Join(",", r.Allowed)}");
         Console.Out.Write(sb.ToString());
         return Task.FromResult(0);
     }
 
+    private static Task<int> PermissionAddRuleAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var pattern = Required(o, "agent_pattern", "permission_add_rule");
+        var mode = Required(o, "mode", "permission_add_rule").Trim().ToLowerInvariant();
+        var modeIndex = Array.IndexOf(PermissionModeNames, mode);
+        if (modeIndex < 0) throw new ArgumentException($"mode 必须是 {string.Join("/", PermissionModeNames)} 之一，当前 '{mode}'。");
+        var level = Get(o, "level", "read").Trim().ToLowerInvariant();
+        var levelIndex = Array.IndexOf(PermissionLevelNames, level);
+        if (levelIndex < 0) throw new ArgumentException($"level 必须是 {string.Join("/", PermissionLevelNames)} 之一，当前 '{level}'。");
+
+        var rule = new JsonObject {
+            ["agentPattern"] = pattern,
+            ["mode"] = modeIndex,
+            ["level"] = levelIndex
+        };
+        var allowed = SplitCsv(Nullable(o, "allowed_tools"));
+        if (allowed.Length > 0) rule["allowedTools"] = new JsonArray([.. allowed.Select(t => JsonValue.Create(t))]);
+        var denied = SplitCsv(Nullable(o, "denied_tools"));
+        if (denied.Length > 0) rule["deniedTools"] = new JsonArray([.. denied.Select(t => JsonValue.Create(t))]);
+        var description = Nullable(o, "description");
+        if (!string.IsNullOrWhiteSpace(description)) rule["description"] = description;
+        if (GetInt(o, "priority", 0) is var priority && priority != 0) rule["priority"] = priority;
+
+        var rules = LoadRuleNodes();
+        var replaced = false;
+        for (var i = 0; i < rules.Count; i++) {
+            if (rules[i] is JsonObject existing && Str(existing["agentPattern"]) == pattern) {
+                rules[i] = rule;
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) rules.Add((JsonNode?)rule);
+        SaveRuleNodes(rules);
+
+        Console.Out.WriteLine($"{(replaced ? "权限规则已更新" : "权限规则已添加")}: {pattern} mode={mode} level={level}");
+        Console.Out.WriteLine($"文件: {RulesPathOrNull()}");
+        if (allowed.Length > 0) Console.Out.WriteLine($"  允许工具: {string.Join(", ", allowed)}");
+        if (denied.Length > 0) Console.Out.WriteLine($"  拒绝工具: {string.Join(", ", denied)}");
+        return Task.FromResult(0);
+    }
+
+    private static Task<int> PermissionRemoveRuleAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var pattern = Required(o, "agent_pattern", "permission_remove_rule");
+        var rules = LoadRuleNodes();
+        var removed = false;
+        for (var i = rules.Count - 1; i >= 0; i--) {
+            if (rules[i] is JsonObject existing && Str(existing["agentPattern"]) == pattern) {
+                rules.RemoveAt(i);
+                removed = true;
+            }
+        }
+        if (!removed) {
+            Console.Out.WriteLine($"未找到匹配 '{pattern}' 的权限规则（共 {rules.Count} 条）。先 permission_list_rules 看看现有模式。");
+            return Task.FromResult(1);
+        }
+        SaveRuleNodes(rules);
+        Console.Out.WriteLine($"权限规则已移除: {pattern}（剩余 {rules.Count} 条）");
+        return Task.FromResult(0);
+    }
+
+    private static Task<int> PermissionClearRulesAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var confirm = Get(o, "confirm", "");
+        if (confirm != "yes")
+            throw new ArgumentException("permission_clear_rules 会清空全部权限规则，必须传 confirm=yes 确认。");
+        var before = LoadRuleNodes().Count;
+        SaveRuleNodes([]);
+        Console.Out.WriteLine($"权限规则已清空（原有 {before} 条）");
+        return Task.FromResult(0);
+    }
+
+    private static string[] SplitCsv(string? raw) => string.IsNullOrWhiteSpace(raw)
+        ? []
+        : [.. raw.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(t => t.Trim()).Where(t => t.Length > 0)];
+
     private static Task<int> PermissionCheckToolAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var tool = Required(o, "tool_name", "permission_check_tool");
         var agent = Get(o, "agent_id", "default");
-        var rules = LoadRules();
-        var rule = rules.FirstOrDefault(r => r.AgentPattern is not null && (r.AgentPattern == "*" || agent.Contains(r.AgentPattern.TrimStart('*'), StringComparison.OrdinalIgnoreCase)));
-        var allowed = rule is null || (rule.AllowedTools?.Contains(tool, StringComparer.OrdinalIgnoreCase) ?? false) || !(rule.DeniedTools?.Contains(tool, StringComparer.OrdinalIgnoreCase) ?? false);
-        var denied = rule?.DeniedTools?.Contains(tool, StringComparer.OrdinalIgnoreCase) ?? false;
-        Console.Out.WriteLine($"工具 '{tool}' (agent={agent}): {(denied ? "DENIED" : allowed ? "ALLOWED" : "DENIED")}  规则级别: {rule?.Level ?? "default"}");
+        var rule = LoadRules().FirstOrDefault(r => r.AgentPattern == "*" || agent.Contains(r.AgentPattern.TrimStart('*'), StringComparison.OrdinalIgnoreCase));
+        var denied = rule?.Denied.Contains(tool, StringComparer.OrdinalIgnoreCase) ?? false;
+        var allowed = rule is null || (!denied && (rule.Allowed.Length == 0 || rule.Allowed.Contains(tool, StringComparer.OrdinalIgnoreCase)));
+        Console.Out.WriteLine($"工具 '{tool}' (agent={agent}): {(allowed ? "ALLOWED" : "DENIED")}  规则: {rule?.AgentPattern ?? "(无匹配规则，默认允许)"} Level: {rule?.Level ?? "default"}");
         return Task.FromResult(0);
     }
 
@@ -195,8 +319,10 @@ internal static partial class SystemCommands {
 
     private static Task<int> PermissionGetAgentRuleAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var agent = Required(o, "agent_name", "permission_get_agent_rule");
-        var rule = LoadRules().FirstOrDefault(r => r.AgentPattern is not null && (r.AgentPattern == "*" || agent.Contains(r.AgentPattern.TrimStart('*'), StringComparison.OrdinalIgnoreCase)));
-        Console.Out.WriteLine(rule is null ? $"Agent '{agent}' 无专属规则（使用默认规则）" : $"Agent: {rule.AgentPattern} Level: {rule.Level} Denied: {string.Join(",", rule.DeniedTools ?? [])}");
+        var rule = LoadRules().FirstOrDefault(r => r.AgentPattern == "*" || agent.Contains(r.AgentPattern.TrimStart('*'), StringComparison.OrdinalIgnoreCase));
+        Console.Out.WriteLine(rule is null
+            ? $"Agent '{agent}' 无专属规则（使用默认规则）"
+            : $"Agent: {rule.AgentPattern} Mode: {rule.Mode} Level: {rule.Level} Denied: {string.Join(",", rule.Denied)} Allowed: {string.Join(",", rule.Allowed)}");
         return Task.FromResult(0);
     }
 
@@ -325,9 +451,4 @@ internal static partial class SystemCommands {
     private static bool Has(string s, params string[] keys) => keys.Any(k => s.Contains(k, StringComparison.OrdinalIgnoreCase));
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "...";
     private static string Get(IReadOnlyDictionary<string, string> o, string key, string fallback) => o.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v : fallback;
-
-    private sealed class PermRuleList : List<PermRule> { }
-    [global::System.Text.Json.Serialization.JsonSerializable(typeof(List<PermRule>))]
-    [global::System.Text.Json.Serialization.JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
-    private sealed partial class SystemJsonContext : global::System.Text.Json.Serialization.JsonSerializerContext;
 }

@@ -7,9 +7,10 @@ namespace JoinCode.CliNode.System;
 
 /// <summary>
 /// system 分组的本地命令表。
-/// <para>本地实现 3 个「无宿主状态」的工具: sleep / sleep_until（纯等待）、get_process_info（读本进程信息）。</para>
-/// <para>其余 68 个（config_* / permission_* / agent_* / memory_* / analytics_* / notification_* …）
-/// 都读写宿主持有的存储与服务，零依赖 exe 复制一份只会分叉出第二个真相源，因此继续转发宿主。</para>
+/// <para>本地实现 26 个「无宿主状态」或「文件即真相源」的工具: sleep / sleep_until / get_process_info、
+/// config 读、错误诊断、permission 读写、model_search / policy_list、通知交互、brief_status。</para>
+/// <para>其余（config_set / agent_* / analytics_* / memory_* / cron 写 …）读写宿主持有的进程内状态或启动期快照，
+/// 零依赖 exe 复制一份只会分叉出第二个真相源，因此继续转发宿主。</para>
 /// </summary>
 internal static partial class SystemCommands {
     private const int MaxSleepSeconds = 1800;
@@ -27,6 +28,9 @@ internal static partial class SystemCommands {
             ["fix_file_error"] = FixFileErrorAsync,
             ["fix_merge_conflict"] = FixMergeConflictAsync,
             ["permission_list_rules"] = PermissionListRulesAsync,
+            ["permission_add_rule"] = PermissionAddRuleAsync,
+            ["permission_remove_rule"] = PermissionRemoveRuleAsync,
+            ["permission_clear_rules"] = PermissionClearRulesAsync,
             ["permission_check_tool"] = PermissionCheckToolAsync,
             ["permission_check_path"] = PermissionCheckPathAsync,
             ["permission_get_agent_rule"] = PermissionGetAgentRuleAsync,

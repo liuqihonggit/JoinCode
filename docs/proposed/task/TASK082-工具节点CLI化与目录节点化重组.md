@@ -377,3 +377,36 @@ slash 99 / system 69 / agent 57 / search 39 / mcp 25 / code 22 / shell 21 / tool
 另加 `CliNodeDefinition.HostNameNormalizer`（转发宿主时去前导 '/'）。
 
 **slash 生成器改造**：原 generate_slash_cli_node.py 硬编码 local_tool_count=0/全 host；改为扫描 private/*.cs 反推 local。
+
+### 2026-11-17 第十二轮：拆掉「写类必须留宿主」的前置条件（permission 写类下沉）
+
+第十一轮把 `config_set/permission 写/brief_mode` 归入 backlog，理由是「写类改了宿主内存不认」。
+本轮把这条前置条件拆掉一个：**宿主按内容戳感知外部改写**，于是 permission 写类可以进 exe。
+
+**宿主改造**（`AgentPermissionMode.cs`）：
+- 原来 `EnsureRulesLoadedAsync` 用 `Interlocked` 只装载一次，之后规则只活在内置字典里 —— exe 改写 `rules.json` 后宿主看不见，
+  「AI 通过 exe 收回权限」在宿主里仍然生效，这是安全问题不是体验问题。
+- 改为**内容戳比对**：每次权限判定前读一次 `{gitRoot}/.jcc/permission/rules.json`（文件仅数百字节，页缓存级），
+  内容与上次装载的原文不同才整体重载；`SaveRulesAsync` 落盘后把内容戳同步成刚写下的 JSON，避免自写自读白重载。
+- 无持久化管道（`_persistencePipeline is null`）时**不重载** —— 那种模式下规则只活在内存，文件不是真相源，重载会误清空。
+- 顺带修一致性问题：`SaveRulesAsync` 原来把相对目录 `.jcc/permission` 交给持久化管道（落到进程 CWD），
+  而读取端用 `{gitRoot}/.jcc/permission`。CWD ≠ 工作区根时读写不在同一文件。新增 `ResolveRulesLocation(fs)` 读写共用。
+
+**exe 侧**（`groups/system/private/SystemConfigCommands.cs`）：
+- `permission_add_rule` / `permission_remove_rule` / `permission_clear_rules` 变 local，直写同一文件。
+- schema 与宿主 `PermissionJsonContext` 逐字段对齐：camelCase、枚举**数值**（`PermissionMode` 声明序 plan/auto/ask/bypass/unattended，
+  `PermissionLevel` 声明序 none/read/write/execute/admin），null 字段不落盘。
+- 读写都用 `JsonNode`：读侧容忍「数值或字符串」两种历史写法，写侧只动 `agentPattern` 命中的那条，其余规则原样保留。
+- `RulesPath` 原来「CWD/.jcc 优先，否则 ~/.jcc」是自造的第二真相源，改为向上找 `.git` 得工作区根，
+  与宿主 `GitWorkspaceResolver.FindGitWorkspaceDir` 同语义；不在 git 工作区则明确报错而不是偷偷写到别处。
+
+**验证**：
+- `AgentPermissionManagerExternalWriteTests` 3 例（外部改写、未变不清空、外部清空）——红转绿；
+  `Guard.Security.Tests` 全量 1139 通过。
+- 真机：`jcc-tool-system.exe permission_add_rule` → 文件内容 `[{"agentPattern":"demo-agent","mode":2,"level":1,...}]`；
+  经 `jcc tool call system permission_add_rule` 路由再写一条，既有规则原样保留；list/remove/clear 四条全部往返正确（ask/read、auto/write 名称解析无偏差）。
+
+**总账**：system 组 local 21 → 24，host 270 → 267。
+
+**下一批候选（同一把钥匙可继续开）**：`brief_mode`（`BriefModeService` 同样启动期装载，加内容戳即可）、
+`memory_*` 写类（memdir 服务是否按需读文件待甄别）、`cron` 写类（调度器需按内容戳重建定时器，成本更高）。

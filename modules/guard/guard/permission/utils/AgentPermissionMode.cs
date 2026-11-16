@@ -13,7 +13,8 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     private readonly IPersistencePipeline? _persistencePipeline;
     private readonly IFileSystem? _fs;
     private readonly ILogger<AgentPermissionManager>? _logger;
-    private int _rulesLoaded;
+    /// <summary>上次装载的 rules.json 原文内容 — 内容变了就重载（外部进程改写感知）</summary>
+    private string _rulesStamp = string.Empty;
     private static readonly string RulesSubDir = Path.Combine(AppDataConstants.AppDataFolder, "permission");
     private const string RulesFileName = "rules.json";
     private int _disposed;
@@ -161,35 +162,55 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     }
 
     /// <summary>
-    /// 持久化权限规则到 .jcc/permission/rules.json(通过统一持久化管道)。
+    /// 解析规则文件的绝对目录与路径 — 读写两侧共用，保证"写哪儿就读哪儿"。
+    /// <para>返回 null 表示当前目录不在 git 工作区内，规则无处落脚。</para>
+    /// </summary>
+    private (string Directory, string Path)? ResolveRulesLocation(IFileSystem fs) {
+        var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, fs);
+        if (root is null) return null;
+        var directory = Path.Combine(root, RulesSubDir);
+        return (directory, Path.Combine(directory, RulesFileName));
+    }
+
+    /// <summary>
+    /// 持久化权限规则到 {gitRoot}/.jcc/permission/rules.json(通过统一持久化管道)。
     /// </summary>
     private async Task SaveRulesAsync(CancellationToken ct) {
-        if (_persistencePipeline is null) return;
+        if (_persistencePipeline is null || _fs is not { } fs) return;
+        if (ResolveRulesLocation(fs) is not { } loc) return;
 
         var snapshot = _rules.Values.ToList();
         var json = RelaxedJsonSerializer.Serialize(snapshot, PermissionJsonContext.Default);
         var request = new PersistRequest {
             Category = "permission",
-            Directory = RulesSubDir,
+            Directory = loc.Directory,
             FileName = RulesFileName,
             Content = json,
         };
         await _persistencePipeline.EnqueueAndWaitAsync(request, ct).ConfigureAwait(false);
+        // 自己刚写下的内容就是内存态的镜像，记下内容戳避免下一次 Ensure 白读重载一遍
+        _rulesStamp = json;
     }
 
     /// <summary>
-    /// 从 .jcc/permission/rules.json 加载权限规则(若存在且尚未加载)。Interlocked 保证只执行一次。
+    /// 从 {gitRoot}/.jcc/permission/rules.json 装载权限规则。
+    /// <para>按内容戳比对：文件内容变了（本进程写入或外部进程 <c>jcc-tool-system.exe</c> 改写）就整体重载，
+    /// 内容没变直接返回 — 保证文件是唯一真相源，不出现"exe 改了宿主不认"的第二份状态。</para>
+    /// <para>无持久化管道时不做重载：那种模式下规则只活在内存，文件不是真相源。</para>
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task EnsureRulesLoadedAsync(CancellationToken ct) {
-        if (_fs is null || Interlocked.CompareExchange(ref _rulesLoaded, 1, 0) != 0) return;
+        if (_persistencePipeline is null || _fs is not { } fs) return;
+        if (ResolveRulesLocation(fs) is not { } loc) return;
 
         try {
-            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs!);
-            if (root is null) return;
-            var path = Path.Combine(Path.Combine(root, RulesSubDir), RulesFileName);
-            if (!_fs.FileExists(path)) return;
-            var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var json = fs.FileExists(loc.Path)
+                ? await fs.ReadAllTextAsync(loc.Path, ct).ConfigureAwait(false)
+                : string.Empty;
+            if (string.Equals(json, _rulesStamp, StringComparison.Ordinal)) return;
+            _rulesStamp = json;
+
+            _rules.Clear();
+            if (string.IsNullOrWhiteSpace(json)) return;
             var list = RelaxedJsonSerializer.Deserialize<List<AgentPermissionRule>>(json, PermissionJsonContext.Default);
             if (list is null) return;
             foreach (var r in list) {

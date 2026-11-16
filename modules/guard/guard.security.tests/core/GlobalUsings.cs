@@ -24,6 +24,7 @@ global using Core.Security.Services;
 global using Core.Utils;
 global using FluentAssertions;
 global using System.Collections.Immutable;
+global using Infrastructure.IO;
 global using Infrastructure.Localization;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Shell;

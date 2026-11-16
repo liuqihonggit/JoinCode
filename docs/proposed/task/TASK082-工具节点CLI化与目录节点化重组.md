@@ -491,7 +491,7 @@ cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 
 | tools | 9 | 9 | skill 发现/执行 + tool_create + 评分（宿主技能注册表与打分器状态） |
 | web | 2 | 3 | web_browser 需浏览器实例；web_search 是 7 家 provider 的选择矩阵（第十五轮结论：不该下沉） |
 
-合计 **local 217 + delegate 173 + host 250 = 640**；不经过宿主的 390/640（61%）。
+合计 **local 217 + delegate 173 + host 250 = 640**；不经过宿主的 390/640 = 60.9%（脚本 `Floor` 后打印 `60%`）。
 （口径说明：早期版本这里写「local 388 / 640」，是把 local 与 delegate 混算了，以三分法为准。）
 
 **曾列为「仍可推进但收益有限」的 12 个候选 —— 第十七轮逐个验伪，全部有实证绑定：**
@@ -702,3 +702,11 @@ rust、php、agda…）**从未被任何代码请求**。`TreeSitter.DotNet` 按
 - `-FromScratch -Sample` 全量跑：13 组 / 640 工具 / 隔离 390（60%），8 次抽样真跑全通过，退出码 0；
 - `-DeclarationsOnly` 复跑仍通过（改动没有破坏声明侧）；
 - 两个 workflow yml 用 js-yaml 解析通过，job 结构完整（`runs-on` + steps 齐全）。
+
+**顺带订正 ADR 0157**：那份 ADR 的「逐组做实清单」还是 2026-11-16 的快照（`github 172/172`、`code 10/32`、
+`media 0/60`、`slash 0/99`…），与现状差得远，而且「剩下 411 个不硬做」的六类依赖清单里
+`lsp_*`、`permission_*`、`web_fetch` 都已经下沉了。按 `--list-local` 实测重写成三列
+（local / delegate / host），依据也换成现在的理由；给 11-16 那次决策的当日记录加了
+「数字是快照，现行口径见修正注」的指针，避免它被当成现状引用。
+另把 `390/640` 的比例统一写成 `60.9%（脚本 Floor 后打印 60%）`——
+之前 ADR 写 61%、脚本打印 60%，同一个事实两个数，迟早有人当成矛盾再「纠」一次。

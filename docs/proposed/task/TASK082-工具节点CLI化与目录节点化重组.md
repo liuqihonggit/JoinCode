@@ -217,3 +217,93 @@ media 组 60 个工具当前全为 `host`（Program.cs 纯转发器，无 privat
 **结论**：SkiaSharp 那批里 **4 个（A 类）值得下沉**——代价只是移植 149 行纯 C# 算法 + 换一行尺寸读取，不引原生库；**5 个（B 类）不该下沉**——12MB 原生库的体积税远超收益。「能不能独立」的答案是能，「该不该独立」的答案是分情况——这正是依赖墙存在的意义：它逼我们区分能力与代价。
 
 **后续（未执行）**：若采纳，下一步是下沉 A 类 4 个 + 补 show_desktop_pulse（共 +5，独立 exe 248→253），B 类 5 个永久留 jcc 内并在 node.yaml 注明 SkiaSharp 硬边界理由。
+
+### 2026-11-16 第七轮进行中：下沉 A 类 4 个 quadtree 纯计算 + show_desktop_pulse
+
+用户采纳评估结论。目标：独立 exe 248→253。quadtree_neighbor/paint/to_screen_rects/build 移植 QuadtreeEncoder 纯 C# 算法（149 行）+ QuadtreeModels，用 PngHeaderParser 换掉 build 唯一的 SKBitmap.Decode；show_desktop_pulse 移植 PulseNativeMethods + DesktopPulseOverlay（纯 user32+GDI）。B 类 5 个渲染工具保持 host。做完真机验证。
+
+#### 第七轮完成记录（四叉树纯计算下沉）
+
+**做了**：quadtree_build / quadtree_paint / quadtree_to_screen_rects / quadtree_neighbor 4 个下沉独立 exe。
+`private/QuadtreeCodec.cs` 移植 QuadtreeEncoder 149 行纯 C# 网格算法（剔除 [Register] DI 与 SkiaSharp），
+`quadtree_build` 的 SKBitmap.Decode 用纯 BCL PngDimensions（读 PNG IHDR 16-23 字节）替换。
+JSON 用 System.Text.Json 源生成上下文（RectJsonContext，DTO 双向转换，ADR 0133）+ JsonPropertyName 保持小写 key 与引擎一致。
+独立 exe 248→252（media 20→24）。
+
+**show_desktop_pulse 暂缓**（评估说可做，实际未做，如实记录）：它是纯 user32+GDI，但实现是
+DesktopPulseOverlay（184 行）+ PulseNativeMethods（203 行）的透明分层窗口 + 后台消息循环 + 跨线程 WM_CLOSE，
+属于 AGENTS.md 明确警告的 timing/flaky 高风险区。为单个动画工具引入跨线程消息循环不划算，
+本轮先不做；若后续要做，须按 flaky 规范做 16 次重试 + 确定性拆分。
+
+**边界 bug 修复**：quadtree_build 非法 base64 原抛未捕获 FormatException（堆栈 + exit 127），
+已改为 Rust 风格参数错误（exit 2 + 原因 + 正确写法）——测试抓到的真实缺陷。
+
+**验证**：独立 exe 实跑 quadtree_build(8x8 PNG depth=1→4格)/neighbor(L0.0 E→L0.1)/paint(alpha=0.50)/
+to_screen_rects(4 矩形小写 JSON key) 全对；错误路径 exit=2 无堆栈；jcc 全链路 tool call + tool tree 显示 24/60；
+B 类 5 个（screenshot/render/zoom/measure_depth 等）仍 host；契约层 33/33；0 警告 0 错误。
+
+### 2026-11-16 第八轮进行中：攻坚 show_desktop_pulse（flaky 高风险工具下沉）
+
+用户要求处理第七轮暂缓的 show_desktop_pulse。它是透明分层窗口 + 后台消息循环 + 跨线程 WM_CLOSE 的动画工具。
+按 AGENTS.md flaky 规范：**确定性验证 + 时序验证拆分**——把半径插值/颜色解析/生命周期状态等纯逻辑
+拆成 internal static 方法做确定性测试；窗口消息循环单独隔离；重试 16 次验证时序稳定性。目标独立 exe 252→253。
+
+#### 第八轮完成记录（show_desktop_pulse 攻坚，flaky 工具下沉）
+
+**做了**：show_desktop_pulse（透明分层窗口脉冲动画）下沉独立 exe，独立 exe 252→253（media 24→25）。
+
+**flaky 根因与对策**（AGENTS.md 时序 bug 规范）：
+- 引擎原版用 `Task.Run(消息循环) + await Task.Delay(duration) + 外部 PostMessage(WM_CLOSE)`，
+  竞态在于 Close() 时 `_hwnd` 可能还没赋值（duration 极短/取消），PostMessage 发不出而 GetMessage 无退路→线程永久卡死。
+- 对策：**主线程直接跑消息循环**，WM_TIMER 到期自动 `WM_CLOSE→WM_DESTROY→PostQuitMessage`，循环自己终止。
+  没有后台线程、没有跨线程 PostMessage，从根上消除竞态。
+- 确定性拆分：`PulseLogic.ComputeRadius/Validate/Geometry/ParseColor` 是 internal static 纯函数，与窗口解耦。
+
+**测试抓到的两个真实缺陷**：
+1. `FillRect` 误标 gdi32.dll → EntryPointNotFoundException（它其实在 user32.dll）。修正后动画正常。
+2. （第七轮）非法 base64 抛未捕获 FormatException → 已修。
+
+**验证（确定性 + 时序两层）**：
+- 半径公式边界：t=0→max(120)、t=0.5→min(30)、t=1→max、超界钳制，Python 复算 C# 同公式全 OK。
+- 参数校验错误路径（min>=max / duration=0）exit=2 带 Rust 风格提示。
+- **时序稳定性 16 次重复**：duration=100ms × 16，全部 exit=0 无卡死（0 失败/16）。
+- 短动画真跑 exit=0 耗时 400~600ms；jcc 全链路 tool call + tool tree 显示 25/60，3 次重复全 exit=0。
+- 契约层 33/33、声明对账全局 253/640（39%）、编译 0 警告 0 错误。
+
+### 2026-11-16 第九轮进行中：再凿 media 剩余 35 个 host 工具
+
+用户要求用「看似必须留宿主其实能下沉」的思路复核剩余 host 工具。方法：逐个读引擎实现，
+挑战之前的 HOST-ONLY 判定——重点看三类误判可能：①依赖可替换为纯 BCL；②"跨调用状态"其实可文件化；
+③LLM 类里有本地算法可剥离。先列清单，逐个判定，能零依赖/低依赖下沉的做掉，做完真机验证。
+
+#### 第九轮完成记录：再凿 35 个 host —— 克制结论（只评估，几乎未下沉）
+
+**Explore 深挖 + 主代理逐条复核，得到三个反直觉发现**：
+1. `screenshot`/`look_at_cursor` 的 Skia 只做 `SKImage.Encode`（底层 GDI BitBlt 已拿裸 BGRA）——理论上可用纯 BCL PNG writer 替换，不必带 12MB 原生库。
+2. `measure_depth`/`temporal_stable_contour` 是纯 `GetPixel` 数值计算，所在类虽注入 IQueryService 但方法体内一次没用——不是 LLM 类。
+3. `IUndoStack.Push` / `IMacroRecorder.RecordOperation` 在 desktop 生产代码里无调用方（注：`EffectScope._undo.Push` 是插件系统的另一个栈，非 desktop）——undo/录制工具当前恒返回"空"。
+
+**主代理没有照单全收，逐条挑战后做了克制决策**——因为"能下沉"≠"该下沉"，判断标准是**会不会制造第二份真相源**：
+
+| 判定 | 工具 | 理由 |
+|---|---|---|
+| **不下沉（伪状态降级有分叉风险）** | undo_last_action / get_operation_history / start/stop_recording / start_observation | 当前恒空是事实，但一旦宿主接上 Push/RecordOperation 写入方，exe 里的固定结果就与宿主分叉。为 +5 个隔离率埋下数据不一致的雷，违背 ADR 0157「第二份真相源」铁律 |
+| **不下沉（静态数据快照分叉）** | desktop_scene_menu | 数据来自 `[Scenario]` 源码生成器生成的静态注册表；exe 内硬编码快照后，宿主改特性就不同步。违背「硬编码变委托/唯一数据源」架构规范 |
+| **不下沉（真 Skia 矢量渲染）** | quadtree_render / screen_indicate / desktop_look | `SKSurface+SKPaint+CreateDash+IsAntialias` 抗锯齿虚线，GDI 重写有像素级差异；12MB 换渲染质量，此场景合理 |
+| **不下沉（硬依赖）** | LLM 9 + voice 4 + vcr 3 | vision LLM / Actor 单例含 API Key / 全局 HTTP DelegatingHandler 中间件，契约层无法提供，无解 |
+| **唯一真有价值的候选** | desktop_scene_status | 纯读 `~/.jcc/scenarios/{id}.json` + JSON 拼装，只读不写无写冲突，DTO 协议清楚，下沉零分叉 |
+
+**结论**：这轮没有为了数字强行下沉。35 个里 34 个有真实的分叉风险或硬依赖，只有 desktop_scene_status 是干净候选。
+隔离率的边界在这里不是技术问题，而是**架构诚实问题**——把有状态/有分叉风险的工具硬塞进 exe，数字好看但系统变坏。
+
+**实际做了**：desktop_scene_status（+1，253→254）下沉。它只读 `~/.jcc/scenarios/{sceneId}.json`
+（宿主 desktop_look/zoom 写），零写冲突；DTO PascalCase 与宿主 DesktopSceneStateJsonContext 一致，
+输出 raw string 逐字照抄宿主。用真实场景文件对比：`jcc tool call`（独立 exe）与 `jcc mcp_call`（宿主）
+逐字段语义一致 —— 零分叉的硬证据。
+
+**踩到的坑（重要）**：加完 handler 忘记重跑生成器 → node.yaml 的 mode 仍是 host、local_tool_count 没涨，
+`jcc tool call` 按 node.yaml 路由到宿主，参数格式报错「未知选项 --sceneId」。exe 本身 `--list-local` 已有该工具，
+但主链路路由表没同步。**铁律：加/删本地 handler 后必须重跑 migrate_mcp_tools_to_cli_nodes.py**，
+否则 exe 与 node.yaml 的 mode 漂移，调用链静默走错路。
+
+**其余 34 个保持 host 是正确归属**，判据已记录供后续复核。

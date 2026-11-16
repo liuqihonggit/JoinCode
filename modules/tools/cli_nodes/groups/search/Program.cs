@@ -14,9 +14,9 @@ internal static class Program {
         GroupId = "search",
         Title = "search 分组",
         HelpResource = "JoinCode.CliNodes.Groups.search.help.txt",
-        Resolve = SearchCommands.Find,
-        LocalToolIds = () => SearchCommands.LocalToolIds,
-        HostReason = "code_index_* 需持久化 AST 索引库、graph_* 需调用图存储、semantic/document 需向量嵌入模型，"
-            + "这些都是宿主持有的状态与模型，不是本 exe 内能重建的。"
+        Resolve = SearchRouter.Find,
+        LocalToolIds = () => SearchRouter.LocalToolIds,
+        HostReason = "符号/graph 分析类需宿主 create_index 建的索引快照（LSM-Tree SSTable，exe 读不了）；"
+            + "create_index/update_index 需 Tree-sitter native；semantic/document 需 ONNX 向量模型——留宿主执行。"
     }, args);
 }

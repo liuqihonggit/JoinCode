@@ -8,7 +8,7 @@ category: agent
 exe: jcc-tool-agent.exe
 tags: [add, approve, complete, cron, enter, execute, exit, explore]
 tool_count: 59
-local_tool_count: 2
+local_tool_count: 23
 parameters: []
 tools:
   - id: enter_plan_mode
@@ -16,19 +16,19 @@ tools:
   - id: exit_plan_mode
     mode: host
   - id: get_plan_status
-    mode: host
+    mode: local
   - id: add_plan_step
-    mode: host
+    mode: local
   - id: approve_plan_step
-    mode: host
+    mode: local
   - id: reject_plan_step
-    mode: host
+    mode: local
   - id: execute_plan_steps
-    mode: host
+    mode: local
   - id: modify_plan_step
-    mode: host
+    mode: local
   - id: remove_plan_step
-    mode: host
+    mode: local
   - id: get_plan_history
     mode: host
   - id: subagent_control
@@ -82,7 +82,7 @@ tools:
   - id: worktree_merge
     mode: host
   - id: task_output
-    mode: host
+    mode: local
   - id: task_stop
     mode: host
   - id: task_stop_batch
@@ -98,7 +98,7 @@ tools:
   - id: cron_delete
     mode: host
   - id: cron_validate
-    mode: host
+    mode: local
   - id: goal_get
     mode: host
   - id: goal_update
@@ -106,26 +106,26 @@ tools:
   - id: goal_graph_define
     mode: host
   - id: complete_step
-    mode: host
+    mode: local
   - id: task_create
-    mode: host
+    mode: local
   - id: task_list
-    mode: host
+    mode: local
   - id: task_update
-    mode: host
+    mode: local
   - id: task_get
-    mode: host
+    mode: local
   - id: task_set_dependency
-    mode: host
+    mode: local
   - id: task_remove_dependency
-    mode: host
+    mode: local
   - id: task_get_dependencies
-    mode: host
+    mode: local
   - id: task_can_execute
-    mode: host
+    mode: local
   - id: todo_write
-    mode: host
+    mode: local
   - id: todo_list
-    mode: host
+    mode: local
   - id: todo_update
-    mode: host
+    mode: local

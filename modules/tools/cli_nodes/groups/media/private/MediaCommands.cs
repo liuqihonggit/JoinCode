@@ -37,6 +37,7 @@ internal static partial class MediaCommands {
             ["wait_for_idle"] = WaitForIdleAsync,
             ["show_desktop_overlay"] = ShowDesktopOverlayAsync,
             ["show_desktop_pulse"] = ShowDesktopPulseAsync,
+            ["desktop_scene_status"] = DesktopSceneStatusAsync,
             ["list_macros"] = ListMacrosAsync,
             // 测量纯数学
             ["measure_length"] = MeasureLengthAsync,
@@ -403,6 +404,46 @@ internal static partial class MediaCommands {
         var ratio = $"{width / gcd}:{height / gcd}";
         var decimalRatio = (double)width / height;
         Console.Out.WriteLine($"宽高比: {ratio}（{decimalRatio:F4}）");
+        return Task.FromResult(0);
+    }
+
+    // ==================== 桌面场景状态（只读文件，零写冲突） ====================
+
+    private static Task<int> DesktopSceneStatusAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var sceneId = Required(o, "sceneId", "desktop_scene_status");
+        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "scenarios");
+        var path = Path.Combine(dir, sceneId + ".json");
+        if (!File.Exists(path)) {
+            Console.Out.WriteLine($"场景 {sceneId} 不存在，请先调 desktop_look 创建场景。");
+            return Task.FromResult(0);
+        }
+        SceneState? state;
+        try {
+            state = JsonSerializer.Deserialize(File.ReadAllText(path), SceneStateJsonContext.Default.SceneState);
+        } catch (JsonException ex) {
+            throw new ArgumentException($"场景文件 {path} 解析失败: {ex.Message}。正确写法: --sceneId 传入 desktop_look 创建的场景 ID");
+        }
+        if (state is null) {
+            Console.Out.WriteLine($"场景 {sceneId} 不存在，请先调 desktop_look 创建场景。");
+            return Task.FromResult(0);
+        }
+
+        // 输出格式严格对齐宿主 DesktopSceneStatusToolHandlers.StatusAsync（字节级一致）。
+        var history = string.Join(", ", state.ZoomHistory.Select(h =>
+            "{ \"depth\": " + h.Depth + ", \"cell\": \"" + h.CellCode + "\", \"quadrant\": " + h.Quadrant + " }"));
+        Console.Out.WriteLine($$"""
+            {
+              "scene_id": "{{state.SceneId}}",
+              "current_depth": {{state.CurrentDepth}},
+              "current_cell": "{{state.CurrentCellCode}}",
+              "last_action": "{{state.LastAction ?? ""}}",
+              "zoom_history": [{{history}}],
+              "suggested_next": [{
+                "tool": "desktop_zoom",
+                "reason": "继续夹逼或退层重新选象限"
+              }]
+            }
+            """);
         return Task.FromResult(0);
     }
 

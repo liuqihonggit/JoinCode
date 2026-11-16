@@ -269,3 +269,41 @@ B 类 5 个（screenshot/render/zoom/measure_depth 等）仍 host；契约层 33
 - **时序稳定性 16 次重复**：duration=100ms × 16，全部 exit=0 无卡死（0 失败/16）。
 - 短动画真跑 exit=0 耗时 400~600ms；jcc 全链路 tool call + tool tree 显示 25/60，3 次重复全 exit=0。
 - 契约层 33/33、声明对账全局 253/640（39%）、编译 0 警告 0 错误。
+
+### 2026-11-16 第九轮进行中：再凿 media 剩余 35 个 host 工具
+
+用户要求用「看似必须留宿主其实能下沉」的思路复核剩余 host 工具。方法：逐个读引擎实现，
+挑战之前的 HOST-ONLY 判定——重点看三类误判可能：①依赖可替换为纯 BCL；②"跨调用状态"其实可文件化；
+③LLM 类里有本地算法可剥离。先列清单，逐个判定，能零依赖/低依赖下沉的做掉，做完真机验证。
+
+#### 第九轮完成记录：再凿 35 个 host —— 克制结论（只评估，几乎未下沉）
+
+**Explore 深挖 + 主代理逐条复核，得到三个反直觉发现**：
+1. `screenshot`/`look_at_cursor` 的 Skia 只做 `SKImage.Encode`（底层 GDI BitBlt 已拿裸 BGRA）——理论上可用纯 BCL PNG writer 替换，不必带 12MB 原生库。
+2. `measure_depth`/`temporal_stable_contour` 是纯 `GetPixel` 数值计算，所在类虽注入 IQueryService 但方法体内一次没用——不是 LLM 类。
+3. `IUndoStack.Push` / `IMacroRecorder.RecordOperation` 在 desktop 生产代码里无调用方（注：`EffectScope._undo.Push` 是插件系统的另一个栈，非 desktop）——undo/录制工具当前恒返回"空"。
+
+**主代理没有照单全收，逐条挑战后做了克制决策**——因为"能下沉"≠"该下沉"，判断标准是**会不会制造第二份真相源**：
+
+| 判定 | 工具 | 理由 |
+|---|---|---|
+| **不下沉（伪状态降级有分叉风险）** | undo_last_action / get_operation_history / start/stop_recording / start_observation | 当前恒空是事实，但一旦宿主接上 Push/RecordOperation 写入方，exe 里的固定结果就与宿主分叉。为 +5 个隔离率埋下数据不一致的雷，违背 ADR 0157「第二份真相源」铁律 |
+| **不下沉（静态数据快照分叉）** | desktop_scene_menu | 数据来自 `[Scenario]` 源码生成器生成的静态注册表；exe 内硬编码快照后，宿主改特性就不同步。违背「硬编码变委托/唯一数据源」架构规范 |
+| **不下沉（真 Skia 矢量渲染）** | quadtree_render / screen_indicate / desktop_look | `SKSurface+SKPaint+CreateDash+IsAntialias` 抗锯齿虚线，GDI 重写有像素级差异；12MB 换渲染质量，此场景合理 |
+| **不下沉（硬依赖）** | LLM 9 + voice 4 + vcr 3 | vision LLM / Actor 单例含 API Key / 全局 HTTP DelegatingHandler 中间件，契约层无法提供，无解 |
+| **唯一真有价值的候选** | desktop_scene_status | 纯读 `~/.jcc/scenarios/{id}.json` + JSON 拼装，只读不写无写冲突，DTO 协议清楚，下沉零分叉 |
+
+**结论**：这轮没有为了数字强行下沉。35 个里 34 个有真实的分叉风险或硬依赖，只有 desktop_scene_status 是干净候选。
+隔离率的边界在这里不是技术问题，而是**架构诚实问题**——把有状态/有分叉风险的工具硬塞进 exe，数字好看但系统变坏。
+
+**实际做了**：desktop_scene_status（+1，253→254）下沉。它只读 `~/.jcc/scenarios/{sceneId}.json`
+（宿主 desktop_look/zoom 写），零写冲突；DTO PascalCase 与宿主 DesktopSceneStateJsonContext 一致，
+输出 raw string 逐字照抄宿主。用真实场景文件对比：`jcc tool call`（独立 exe）与 `jcc mcp_call`（宿主）
+逐字段语义一致 —— 零分叉的硬证据。
+
+**踩到的坑（重要）**：加完 handler 忘记重跑生成器 → node.yaml 的 mode 仍是 host、local_tool_count 没涨，
+`jcc tool call` 按 node.yaml 路由到宿主，参数格式报错「未知选项 --sceneId」。exe 本身 `--list-local` 已有该工具，
+但主链路路由表没同步。**铁律：加/删本地 handler 后必须重跑 migrate_mcp_tools_to_cli_nodes.py**，
+否则 exe 与 node.yaml 的 mode 漂移，调用链静默走错路。
+
+**其余 34 个保持 host 是正确归属**，判据已记录供后续复核。

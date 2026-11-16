@@ -8,7 +8,7 @@ category: media
 exe: jcc-tool-media.exe
 tags: [close, desktop, detect, drag, find, focus, get, image]
 tool_count: 60
-local_tool_count: 25
+local_tool_count: 26
 parameters: []
 tools:
   - id: right_click_menu
@@ -42,7 +42,7 @@ tools:
   - id: desktop_scene_menu
     mode: host
   - id: desktop_scene_status
-    mode: host
+    mode: local
   - id: desktop_zoom
     mode: host
   - id: get_environment_state

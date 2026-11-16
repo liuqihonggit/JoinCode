@@ -6,14 +6,14 @@ namespace JoinCode.CliNode.Shell;
 
 /// <summary>
 /// shell 分组的本地命令表 — 只用 BCL 启动子进程，不引用引擎 / DI / 沙箱子系统。
-/// 27 个工具中仅 6 个命令执行类能诚实零依赖落地；C# 求值、后台任务注册表、构建队列、
-/// sandbox_*、repl、terminal_capture、mcp_ai_workflow_* 依赖引擎运行态，一律转发宿主。
+/// 27 个工具中 10 个零依赖落地（6 命令 + 代码执行三件套 + repl.execute + terminal_capture 元数据）；
+/// 构建队列、后台任务注册表、sandbox_*、workflow_* 绑定宿主进程内单例/安全语义，转发宿主。
 /// 参数名与 help.txt 的 [McpToolParameter] 逐一对应，说明不在此重复。
 ///
 /// 安全边界：本独立 exe 不经宿主的 Shell 中间件链与 DangerousCommandCatalog，
 /// 调用方需自行负责命令内容；生产场景建议仍通过宿主执行以保留完整守卫。
 /// </summary>
-internal static class ShellCommands {
+internal static partial class ShellCommands {
     private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
         new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             ["bash"] = BashAsync,
@@ -21,7 +21,13 @@ internal static class ShellCommands {
             ["powershell_script"] = PowerShellScriptAsync,
             ["powershell_version"] = PowerShellVersionAsync,
             ["powershell_execution_policy"] = PowerShellExecutionPolicyAsync,
-            ["powershell_set_execution_policy"] = PowerShellSetExecutionPolicyAsync
+            ["powershell_set_execution_policy"] = PowerShellSetExecutionPolicyAsync,
+            // 代码执行三件套（dotnet build/run，非 Roslyn）+ repl.execute + terminal_capture 元数据
+            ["execute_csharp_code"] = ExecuteCsharpCodeAsync,
+            ["evaluate_expression"] = EvaluateExpressionAsync,
+            ["test_code_snippet"] = TestCodeSnippetAsync,
+            ["repl"] = ReplAsync,
+            ["terminal_capture"] = TerminalCaptureAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;

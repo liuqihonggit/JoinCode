@@ -51,6 +51,13 @@ public sealed class CliNodeDefinition {
     public Func<string, string> NameNormalizer { get; init; } = static name => name;
 
     /// <summary>
+    /// 转发宿主时工具名的归一化 — 与 <see cref="NameNormalizer"/> 分开：
+    /// 前者改的是传给宿主的命令名（如斜杠命令 /agents → agents），后者改的是调用方给的输入名。
+    /// 默认不变；斜杠组设为去掉前导 '/'。
+    /// </summary>
+    public Func<string, string> HostNameNormalizer { get; init; } = static name => name;
+
+    /// <summary>
     /// 工具由另一个独立 exe 执行时的目标名（如 <c>jcc-gh</c>）；为空表示转发宿主。
     /// <para>存在理由：github 组 172 个工具的实现已经在 <c>modules/tools/gh</c> 里，
     /// 且那本身就是一个独立 exe。把这 18K 行搬进分组 exe 只会得到两份会漂移的实现；
@@ -215,7 +222,7 @@ public static class CliNodeRunner {
             CreateNoWindow = true
         };
         psi.ArgumentList.Add(definition.HostVerb);
-        psi.ArgumentList.Add(toolId);
+        psi.ArgumentList.Add(definition.HostNameNormalizer(toolId));
         psi.ArgumentList.Add(payload);
 
         try {

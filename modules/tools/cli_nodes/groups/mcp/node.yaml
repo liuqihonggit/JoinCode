@@ -8,29 +8,29 @@ category: mcp
 exe: jcc-tool-mcp.exe
 tags: [auth, list, mcp, monitor, read]
 tool_count: 25
-local_tool_count: 0
+local_tool_count: 7
 parameters: []
 tools:
   - id: auth_get_status
-    mode: host
+    mode: local
   - id: auth_refresh
     mode: host
   - id: auth_logout
     mode: host
   - id: mcp_auth_apikey
-    mode: host
+    mode: local
   - id: mcp_auth_bearer
-    mode: host
+    mode: local
   - id: mcp_auth_basic
-    mode: host
+    mode: local
   - id: mcp_auth_oauth2
-    mode: host
+    mode: local
   - id: mcp_auth_refresh
     mode: host
   - id: mcp_auth_status
-    mode: host
+    mode: local
   - id: mcp_auth_remove
-    mode: host
+    mode: local
   - id: mcp_connect
     mode: host
   - id: mcp_disconnect

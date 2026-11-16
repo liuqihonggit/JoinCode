@@ -5,7 +5,8 @@ namespace JoinCode.CliNode.Code;
 
 /// <summary>
 /// code 分组独立 CLI.exe — 第 8 个「逐组做实」样板。
-/// <para>本地实现 10 个 notebook_* 工具：.ipynb 是纯 JSON，BCL 直读直写即可。</para>
+/// <para>本地实现 22 个：10 个 notebook_*（.ipynb 纯 JSON）、9 个 C# LLM 分析/生成（HttpClient 直调）、
+/// 3 个 recall_*（读 ~/.jcc/notebook 文件）。10 个 lsp_* 绑定宿主常驻语言服务器与跨调用语义索引，保留 host。</para>
 /// -h 文本来自现有 [McpTool] 特性；入口逻辑统一在 CliNodeRunner。
 /// </summary>
 internal static class Program {
@@ -13,9 +14,9 @@ internal static class Program {
         GroupId = "code",
         Title = "code 分组",
         HelpResource = "JoinCode.CliNodes.Groups.code.help.txt",
-        Resolve = NotebookCommands.Find,
-        LocalToolIds = () => NotebookCommands.LocalToolIds,
-        HostReason = "lsp_* 需语言服务器进程、generate_*/analyze_* 需模型调用、recall_* 需宿主召回库，"
-            + "这些都不是零依赖 exe 内能重建的能力。"
+        Resolve = CodeCommands.Find,
+        LocalToolIds = () => CodeCommands.LocalToolIds,
+        HostReason = "lsp_* 需宿主常驻的语言服务器进程与跨调用语义索引（didOpen/didChange），"
+            + "短生命周期 exe 冷启动无法等价，保留宿主执行。"
     }, args);
 }

@@ -11,14 +11,33 @@ namespace JoinCode.CliNode.System;
 /// <para>其余 68 个（config_* / permission_* / agent_* / memory_* / analytics_* / notification_* …）
 /// 都读写宿主持有的存储与服务，零依赖 exe 复制一份只会分叉出第二个真相源，因此继续转发宿主。</para>
 /// </summary>
-internal static class SystemCommands {
+internal static partial class SystemCommands {
     private const int MaxSleepSeconds = 1800;
 
     private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
         new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             ["sleep"] = SleepAsync,
             ["sleep_until"] = SleepUntilAsync,
-            ["get_process_info"] = ProcessInfoAsync
+            ["get_process_info"] = ProcessInfoAsync,
+            // 纯 BCL 配置/诊断/权限读/通知交互工具
+            ["config_get"] = ConfigGetAsync,
+            ["config_list"] = ConfigListAsync,
+            ["diagnose_error"] = DiagnoseErrorAsync,
+            ["fix_shell_error"] = FixShellErrorAsync,
+            ["fix_file_error"] = FixFileErrorAsync,
+            ["fix_merge_conflict"] = FixMergeConflictAsync,
+            ["permission_list_rules"] = PermissionListRulesAsync,
+            ["permission_check_tool"] = PermissionCheckToolAsync,
+            ["permission_check_path"] = PermissionCheckPathAsync,
+            ["permission_get_agent_rule"] = PermissionGetAgentRuleAsync,
+            ["model_search"] = ModelSearchAsync,
+            ["policy_list"] = PolicyListAsync,
+            ["push_notification"] = PushNotificationAsync,
+            ["remote_trigger"] = RemoteTriggerAsync,
+            ["shake_window"] = ShakeWindowAsync,
+            ["flash_taskbar"] = FlashTaskbarAsync,
+            ["send_user_message"] = SendUserMessageAsync,
+            ["brief_status"] = BriefStatusAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;

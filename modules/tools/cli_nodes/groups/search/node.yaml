@@ -8,7 +8,7 @@ category: search
 exe: jcc-tool-search.exe
 tags: [code, create, glob, graph, grep, search, symbol, update]
 tool_count: 47
-local_tool_count: 8
+local_tool_count: 14
 parameters: []
 tools:
   - id: glob
@@ -60,17 +60,17 @@ tools:
   - id: search_semantic
     mode: host
   - id: search_project_deps
-    mode: host
+    mode: local
   - id: search_project_dependents
-    mode: host
+    mode: local
   - id: search_affected_projects
-    mode: host
+    mode: local
   - id: search_project_nugets
-    mode: host
+    mode: local
   - id: search_nuget_projects
-    mode: host
+    mode: local
   - id: search_all_projects
-    mode: host
+    mode: local
   - id: search_document
     mode: host
   - id: graph_detect_communities

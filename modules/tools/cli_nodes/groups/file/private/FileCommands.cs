@@ -6,10 +6,10 @@ namespace JoinCode.CliNode.File;
 
 /// <summary>
 /// file 分组的本地命令表 — 只用 BCL，不引用引擎 / DI / IFileSystem。
-/// file_apply_patch 的实现在 FilePatchCommands（同目录）；未登记的 send_user_file 需要宿主 UI 通道，转发宿主。
+/// file_apply_patch 的实现在 FilePatchCommands（同目录）；send_user_file 是纯文件读取+摘要，本地实现。
 /// 参数名与 [McpToolParameter] 特性逐一对应，说明不在此重复。
 /// </summary>
-internal static class FileCommands {
+internal static partial class FileCommands {
     private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
         new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             ["read"] = ReadAsync,
@@ -23,7 +23,8 @@ internal static class FileCommands {
             ["directory_list"] = DirectoryListAsync,
             ["file_snip_lines"] = SnipLinesAsync,
             ["file_snip_preview"] = SnipPreviewAsync,
-            ["apply_patch"] = FilePatchCommands.ApplyPatchAsync
+            ["apply_patch"] = FilePatchCommands.ApplyPatchAsync,
+            ["send_user_file"] = SendUserFileAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;

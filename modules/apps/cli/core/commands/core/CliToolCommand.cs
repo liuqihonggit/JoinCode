@@ -96,8 +96,12 @@ internal static class CliToolCommand {
         // 权限、会话等依赖宿主状态的 host 工具）就该留在 jcc 内。原先给这类工具也先起一个分组 exe、
         // 再由它起 jcc mcp_call，白白多两层进程；mode: host 时直接在当前 jcc 进程执行同一条 mcp_call 路径。
         // local / delegate 不变 —— 它们本来就是「独立 exe 就是工具」。
+        // 例外：斜杠命令组的 host 工具走宿主 slash_call 而非 mcp_call（它们不是 MCP 工具），
+        // 不能走进程内 mcp_call 快路径，必须让分组 exe 用 HostVerb=slash_call 转发。
         var groupNode = nodes.FirstOrDefault(node => string.Equals(node.Id, target.Group, StringComparison.OrdinalIgnoreCase));
-        if (call.ExplicitExe is null && groupNode?.FindTool(target.Tool)?.Mode == CliExecutionMode.Host)
+        var isSlashGroup = groupNode?.Exe?.Contains("slash", StringComparison.OrdinalIgnoreCase) == true
+            || target.Group.Equals("slash", StringComparison.OrdinalIgnoreCase);
+        if (call.ExplicitExe is null && !isSlashGroup && groupNode?.FindTool(target.Tool)?.Mode == CliExecutionMode.Host)
             return await RunHostToolInProcessAsync(target.Tool, call, ct).ConfigureAwait(false);
 
         var exe = call.ExplicitExe ?? ResolveGroupExe(target.Group);

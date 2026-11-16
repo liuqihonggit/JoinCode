@@ -10,11 +10,33 @@ namespace JoinCode.CliNode.Agent;
 /// 在 exe 内另建一份会让宿主的 status 看不到本 exe 建的 worktree（两份真相源），故仍然转发。
 /// find_git / list_all 是纯 git 查询，没有任何宿主状态，可零依赖等价实现。</para>
 /// </summary>
-internal static class AgentCommands {
+internal static partial class AgentCommands {
     private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
         new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             ["worktree_find_git"] = FindGitAsync,
-            ["worktree_list_all"] = ListAllAsync
+            ["worktree_list_all"] = ListAllAsync,
+            // 状态文件化工具（~/.jcc/tasks、todo、plans 等，单一真相源）
+            ["task_create"] = TaskCreateAsync,
+            ["task_list"] = TaskListAsync,
+            ["task_get"] = TaskGetAsync,
+            ["task_update"] = TaskUpdateAsync,
+            ["task_output"] = TaskOutputAsync,
+            ["task_set_dependency"] = TaskSetDependencyAsync,
+            ["task_remove_dependency"] = TaskRemoveDependencyAsync,
+            ["task_get_dependencies"] = TaskGetDependenciesAsync,
+            ["task_can_execute"] = TaskCanExecuteAsync,
+            ["todo_write"] = TodoWriteAsync,
+            ["todo_list"] = TodoListAsync,
+            ["todo_update"] = TodoUpdateAsync,
+            ["get_plan_status"] = GetPlanStatusAsync,
+            ["add_plan_step"] = AddPlanStepAsync,
+            ["approve_plan_step"] = ApprovePlanStepAsync,
+            ["reject_plan_step"] = RejectPlanStepAsync,
+            ["modify_plan_step"] = ModifyPlanStepAsync,
+            ["remove_plan_step"] = RemovePlanStepAsync,
+            ["execute_plan_steps"] = ExecutePlanStepsAsync,
+            ["cron_validate"] = CronValidateAsync,
+            ["complete_step"] = CompleteStepAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;

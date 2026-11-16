@@ -8,27 +8,27 @@ category: tools
 exe: jcc-tool-tools.exe
 tags: [discover, skill, test, tool]
 tool_count: 18
-local_tool_count: 2
+local_tool_count: 9
 parameters: []
 tools:
   - id: test_tool
     mode: local
   - id: skill_simplify
-    mode: host
+    mode: local
   - id: skill_verify
-    mode: host
+    mode: local
   - id: skill_debug
-    mode: host
+    mode: local
   - id: skill_batch
     mode: local
   - id: skill_stuck
-    mode: host
+    mode: local
   - id: tool_create
     mode: host
   - id: tool_list_templates
-    mode: host
+    mode: local
   - id: tool_show_template
-    mode: host
+    mode: local
   - id: skill_search
     mode: host
   - id: skill_recommend
@@ -40,7 +40,7 @@ tools:
   - id: skill_execute
     mode: host
   - id: skill_list
-    mode: host
+    mode: local
   - id: tool_score
     mode: host
   - id: tool_hypergraph

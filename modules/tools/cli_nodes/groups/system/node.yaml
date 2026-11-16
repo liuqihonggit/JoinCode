@@ -8,15 +8,15 @@ category: system
 exe: jcc-tool-system.exe
 tags: [agent, analytics, ask, brief, config, confirm, continue, ctx]
 tool_count: 72
-local_tool_count: 3
+local_tool_count: 21
 parameters: []
 tools:
   - id: config_get
-    mode: host
+    mode: local
   - id: config_set
     mode: host
   - id: config_list
-    mode: host
+    mode: local
   - id: agent
     mode: host
   - id: agent_send_message
@@ -34,13 +34,13 @@ tools:
   - id: agent_get_messages
     mode: host
   - id: diagnose_error
-    mode: host
+    mode: local
   - id: fix_shell_error
-    mode: host
+    mode: local
   - id: fix_file_error
-    mode: host
+    mode: local
   - id: fix_merge_conflict
-    mode: host
+    mode: local
   - id: resume_timed_out_task
     mode: host
   - id: continue_long_running_task
@@ -52,21 +52,21 @@ tools:
   - id: permission_remove_rule
     mode: host
   - id: permission_list_rules
-    mode: host
+    mode: local
   - id: permission_check_tool
-    mode: host
+    mode: local
   - id: permission_check_path
-    mode: host
+    mode: local
   - id: permission_get_agent_rule
-    mode: host
+    mode: local
   - id: permission_clear_rules
     mode: host
   - id: policy_check
     mode: host
   - id: policy_list
-    mode: host
+    mode: local
   - id: model_search
-    mode: host
+    mode: local
   - id: tool_search
     mode: host
   - id: mcp_ai_workflow_workflow_chat
@@ -76,13 +76,13 @@ tools:
   - id: mcp_ai_workflow_workflow_get_history
     mode: host
   - id: push_notification
-    mode: host
+    mode: local
   - id: remote_trigger
-    mode: host
+    mode: local
   - id: shake_window
-    mode: host
+    mode: local
   - id: flash_taskbar
-    mode: host
+    mode: local
   - id: get_process_info
     mode: local
   - id: analytics_report
@@ -98,9 +98,9 @@ tools:
   - id: brief_mode
     mode: host
   - id: brief_status
-    mode: host
+    mode: local
   - id: send_user_message
-    mode: host
+    mode: local
   - id: ctx_inspect
     mode: host
   - id: snip

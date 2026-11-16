@@ -36,6 +36,7 @@ internal static partial class MediaCommands {
             // 感知与覆盖层（纯 user32/GDI/BCL）
             ["wait_for_idle"] = WaitForIdleAsync,
             ["show_desktop_overlay"] = ShowDesktopOverlayAsync,
+            ["show_desktop_pulse"] = ShowDesktopPulseAsync,
             ["list_macros"] = ListMacrosAsync,
             // 测量纯数学
             ["measure_length"] = MeasureLengthAsync,
@@ -402,6 +403,30 @@ internal static partial class MediaCommands {
         var ratio = $"{width / gcd}:{height / gcd}";
         var decimalRatio = (double)width / height;
         Console.Out.WriteLine($"宽高比: {ratio}（{decimalRatio:F4}）");
+        return Task.FromResult(0);
+    }
+
+    // ==================== 桌面脉冲动画（主线程消息循环，无跨线程竞态） ====================
+
+    private static Task<int> ShowDesktopPulseAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var cx = RequiredInt(o, "centerX", "show_desktop_pulse");
+        var cy = RequiredInt(o, "centerY", "show_desktop_pulse");
+        var maxR = GetInt(o, "maxRadius", 120);
+        var minR = GetInt(o, "minRadius", 30);
+        var duration = GetInt(o, "durationMs", 5000);
+        var frame = GetInt(o, "frameMs", 33);
+        var color = Get(o, "color", "yellow");
+        var error = PulseLogic.Validate(maxR, minR, duration, frame);
+        if (error is not null)
+            throw new ArgumentException($"show_desktop_pulse 参数错误: {error}。正确写法: --centerX 500 --centerY 400 --maxRadius 120 --minRadius 30 --durationMs 2000");
+        CheckInteractive();
+        ct.ThrowIfCancellationRequested();
+        var colorRef = PulseLogic.ParseColor(color);
+        // 主线程直接跑消息循环：WM_TIMER 在 duration 到期自动关闭窗口并退出循环。
+        // 极短 duration（测试/取消）也不会卡死——循环由窗口自己终止，不依赖外部 PostMessage 时序。
+        using var overlay = new PulseOverlayWindow();
+        overlay.Run(cx, cy, maxR, minR, duration, frame, colorRef);
+        Console.Out.WriteLine($"桌面脉冲圆已完成: 中心({cx},{cy}) 半径{minR}-{maxR} 时长{duration}ms");
         return Task.FromResult(0);
     }
 

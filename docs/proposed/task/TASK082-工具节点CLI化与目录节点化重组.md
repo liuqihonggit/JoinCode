@@ -241,3 +241,31 @@ DesktopPulseOverlay（184 行）+ PulseNativeMethods（203 行）的透明分层
 **验证**：独立 exe 实跑 quadtree_build(8x8 PNG depth=1→4格)/neighbor(L0.0 E→L0.1)/paint(alpha=0.50)/
 to_screen_rects(4 矩形小写 JSON key) 全对；错误路径 exit=2 无堆栈；jcc 全链路 tool call + tool tree 显示 24/60；
 B 类 5 个（screenshot/render/zoom/measure_depth 等）仍 host；契约层 33/33；0 警告 0 错误。
+
+### 2026-11-16 第八轮进行中：攻坚 show_desktop_pulse（flaky 高风险工具下沉）
+
+用户要求处理第七轮暂缓的 show_desktop_pulse。它是透明分层窗口 + 后台消息循环 + 跨线程 WM_CLOSE 的动画工具。
+按 AGENTS.md flaky 规范：**确定性验证 + 时序验证拆分**——把半径插值/颜色解析/生命周期状态等纯逻辑
+拆成 internal static 方法做确定性测试；窗口消息循环单独隔离；重试 16 次验证时序稳定性。目标独立 exe 252→253。
+
+#### 第八轮完成记录（show_desktop_pulse 攻坚，flaky 工具下沉）
+
+**做了**：show_desktop_pulse（透明分层窗口脉冲动画）下沉独立 exe，独立 exe 252→253（media 24→25）。
+
+**flaky 根因与对策**（AGENTS.md 时序 bug 规范）：
+- 引擎原版用 `Task.Run(消息循环) + await Task.Delay(duration) + 外部 PostMessage(WM_CLOSE)`，
+  竞态在于 Close() 时 `_hwnd` 可能还没赋值（duration 极短/取消），PostMessage 发不出而 GetMessage 无退路→线程永久卡死。
+- 对策：**主线程直接跑消息循环**，WM_TIMER 到期自动 `WM_CLOSE→WM_DESTROY→PostQuitMessage`，循环自己终止。
+  没有后台线程、没有跨线程 PostMessage，从根上消除竞态。
+- 确定性拆分：`PulseLogic.ComputeRadius/Validate/Geometry/ParseColor` 是 internal static 纯函数，与窗口解耦。
+
+**测试抓到的两个真实缺陷**：
+1. `FillRect` 误标 gdi32.dll → EntryPointNotFoundException（它其实在 user32.dll）。修正后动画正常。
+2. （第七轮）非法 base64 抛未捕获 FormatException → 已修。
+
+**验证（确定性 + 时序两层）**：
+- 半径公式边界：t=0→max(120)、t=0.5→min(30)、t=1→max、超界钳制，Python 复算 C# 同公式全 OK。
+- 参数校验错误路径（min>=max / duration=0）exit=2 带 Rust 风格提示。
+- **时序稳定性 16 次重复**：duration=100ms × 16，全部 exit=0 无卡死（0 失败/16）。
+- 短动画真跑 exit=0 耗时 400~600ms；jcc 全链路 tool call + tool tree 显示 25/60，3 次重复全 exit=0。
+- 契约层 33/33、声明对账全局 253/640（39%）、编译 0 警告 0 错误。

@@ -8,7 +8,7 @@ category: media
 exe: jcc-tool-media.exe
 tags: [close, desktop, detect, drag, find, focus, get, image]
 tool_count: 60
-local_tool_count: 24
+local_tool_count: 25
 parameters: []
 tools:
   - id: right_click_menu
@@ -30,7 +30,7 @@ tools:
   - id: show_desktop_overlay
     mode: local
   - id: show_desktop_pulse
-    mode: host
+    mode: local
   - id: look_at_cursor
     mode: host
   - id: desktop_click

@@ -304,3 +304,27 @@ C:\Users\54076\bin\
 
 **测试**：gh.tests 787/787、契约层 33/33、llm.tests 613/613、prompt ToolsSection 4/4、host.tests CLI 相关 216/216。
 **编译**：改动项目逐个 0 警告 0 错误；未跑全仓编译（用户明确要求只编改动项目）。
+
+---
+
+## 2026-11-16 补记：media 组下沉——依赖墙下的「能外部调用才算独立 exe」
+
+延续架构归属决策（Agent 功能留 jcc 内、外部工具才是独立 exe），media 组 60 个工具从全 host
+下沉 20 个到独立 exe（local_tool_count 0→20，全局独立 exe 228→248）。判定轴不是「能不能写成 C#」，
+而是「实现是否依赖宿主独占资源」：
+
+| 可下沉（20，纯 BCL/Win32） | 留在 jcc 内（40，宿主独占） |
+|---|---|
+| 进程 list/kill/start、输入注入 8、窗口 list/focus/move/close、wait_for_idle、show_desktop_overlay、list_macros、measure_length/ratio | vision LLM（image_*/detect_ui_elements/find_element）、场景撤销栈（desktop_look/zoom/undo_*）、宏录制、voice/vcr 单例、**SkiaSharp 截图与四叉树** |
+
+**SkiaSharp 是硬边界**：`screenshot` / `quadtree_*` / `measure_depth` 等 9 个功能上能离线跑，
+但要引入原生库、撑大体积、违反 `cli_node.props` 的依赖墙（只读契约层）。「能独立」和「该独立」是两回事——
+为一个截图工具把 exe 从 800KB 撑到含原生依赖，不如留在 jcc 内复用已有 SkiaSharp。
+
+**实现要点**：`private/MediaNative.cs` 独立声明 user32/gdi32 P/Invoke（照搬引擎已验证的 64 位 INPUT 布局，
+但不引引擎程序集）；`private/MediaCommands.cs` 用 `FrozenDictionary<string, CliNodeHandler>` 注册表，
+生成器自动反推为 local。Program.cs 标 HANDCRAFTED 防覆盖。错误走 Rust 风格（原因+参数+正确写法），退出码 2。
+
+**验证**：独立 exe `--list-local` 报 20；真机 measure_length(3-4-5→5.00)、measure_ratio(1920x1080→16:9)、
+list_processes/list_windows 真实数据、mouse_move 成功、错误路径 exit=2；jcc 全链路 tool call 与
+tool tree 均显示「独立 exe 实现 20/60」；契约层 33/33、声明对账 248/640（38%）；0 警告 0 错误。

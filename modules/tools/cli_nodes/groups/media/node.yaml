@@ -8,27 +8,27 @@ category: media
 exe: jcc-tool-media.exe
 tags: [close, desktop, detect, drag, find, focus, get, image]
 tool_count: 60
-local_tool_count: 0
+local_tool_count: 20
 parameters: []
 tools:
   - id: right_click_menu
-    mode: host
+    mode: local
   - id: drag_with_hover
-    mode: host
+    mode: local
   - id: multi_click
-    mode: host
+    mode: local
   - id: mouse_click
-    mode: host
+    mode: local
   - id: mouse_move
-    mode: host
+    mode: local
   - id: mouse_drag
-    mode: host
+    mode: local
   - id: key_press
-    mode: host
+    mode: local
   - id: type_text
-    mode: host
+    mode: local
   - id: show_desktop_overlay
-    mode: host
+    mode: local
   - id: show_desktop_pulse
     mode: host
   - id: look_at_cursor
@@ -48,7 +48,7 @@ tools:
   - id: get_environment_state
     mode: host
   - id: wait_for_idle
-    mode: host
+    mode: local
   - id: undo_last_action
     mode: host
   - id: get_operation_history
@@ -60,7 +60,7 @@ tools:
   - id: play_macro
     mode: host
   - id: list_macros
-    mode: host
+    mode: local
   - id: start_observation
     mode: host
   - id: learn_from_observation
@@ -70,23 +70,23 @@ tools:
   - id: reproduce_from_logic
     mode: host
   - id: list_processes
-    mode: host
+    mode: local
   - id: kill_process
-    mode: host
+    mode: local
   - id: start_process
-    mode: host
+    mode: local
   - id: detect_ui_elements
     mode: host
   - id: find_element
     mode: host
   - id: list_windows
-    mode: host
+    mode: local
   - id: focus_window
-    mode: host
+    mode: local
   - id: move_window
-    mode: host
+    mode: local
   - id: close_window
-    mode: host
+    mode: local
   - id: screenshot
     mode: host
   - id: voice_start_recording
@@ -108,11 +108,11 @@ tools:
   - id: image_drill_down
     mode: host
   - id: measure_length
-    mode: host
+    mode: local
   - id: measure_depth
     mode: host
   - id: measure_ratio
-    mode: host
+    mode: local
   - id: quadtree_to_screen_rects
     mode: host
   - id: quadtree_build

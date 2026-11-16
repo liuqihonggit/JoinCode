@@ -44,10 +44,16 @@
 | 7c | **进程隔离执行器**：`jcc tool call <组> <工具> [参数]` 由 jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码；不初始化引擎 DI | `CliToolCommand.cs`（`RunCallAsync` / `ResolveGroupExe`） | ✅ | ✅ 真实 exe 七连验 + 反查/别名/超时补充验证 | ✅ |
 | 7d | **斜杠命令独立 exe**：`jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>`；`-h` 来自 `[ChatCommand]`/`[ChatCommandArg]` | `scripts/generate_slash_cli_node.py`、`groups/slash/` | ✅ | ✅ 真实 exe（含 Git Bash 命令名归一化） | ✅ |
 | 8 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildBaseTools`（3 个 QueryService）、`resources/tools/base.yaml` | ✅ | ✅ 9 个单测（锁定「非基础工具不进 tools」）+ 契约层 7/7 | ✅ |
-| 9 | 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ | ⬜ | ⬜ |
+| 9 | 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ 前提已失效 | ⬜ | ⬜ |
 
 > **2026-11-16 阻断说明（步骤 9 前提不成立）**：`McpToolDispatch` 生成器产出的进程内 handler 注册表**正是转发兜底的依赖**。实测无 Hub 时 `jcc mcp_call` 直接报「Hub 服务不可达」，`JCC_ALLOW_DIRECT_FALLBACK=1` 下 `jcc mcp_list` 返回 `total_count: 0`。因此该生成器在「转发路径退役」之前不能归档；步骤 9 拆成两步：先逐组做实到不再需要转发，再归档生成器。
 | 10 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | `Build-AllDomains.ps1`、ADR 0080 | ✅ 部分 | ⬜ | ⬜ |
+
+> **2026-11-17 第十七轮补记（步骤 9 目标需改写）**：步骤 9 的前提是「逐组做实到不再需要转发」，
+> 即 host 数量能降到 0。第十七轮验伪后 host 250 已是**闭合边界**（全部有代码证据，不是没做完），
+> 转发路径因此**不会退役**。推论：`McpToolDispatch` 生成器产出的进程内 handler 注册表是**持久组件**，
+> 不是过渡产物 —— 步骤 9 的「归档生成器」应改写为「长期保留 + 只读扫描器与它保持同一份特性来源」，
+> 否则下一轮还会有人重开这个"未完成任务"。
 
 ---
 
@@ -485,12 +491,31 @@ cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 
 | tools | 9 | 9 | skill 发现/执行 + tool_create + 评分（宿主技能注册表与打分器状态） |
 | web | 2 | 3 | web_browser 需浏览器实例；web_search 是 7 家 provider 的选择矩阵（第十五轮结论：不该下沉） |
 
-合计 **local 388 / 640（61%）**，host 250（web_fetch 下沉后）。
+合计 **local 217 + delegate 173 + host 250 = 640**；不经过宿主的 390/640（61%）。
+（口径说明：早期版本这里写「local 388 / 640」，是把 local 与 delegate 混算了，以三分法为准。）
 
-**仍可推进但收益有限的候选**（按性价比排序，供下一轮挑）：
-1. `graph_register/unregister/repos`（3 个）：多仓注册表若为 JSON 文件可下沉，但同样需要宿主侧按内容戳感知。
-2. `tools` 组 skill 系列（9 个）：扫描磁盘技能目录，但宿主注入系统提示词时仍要走同一套技能引擎，拿不掉依赖。
-（`web_fetch` 已于第十五轮下沉；`web_search` 判定为不该下沉 —— 同一 provider 选择决策不该有两个实现。）
+**曾列为「仍可推进但收益有限」的 12 个候选 —— 第十七轮逐个验伪，全部有实证绑定：**
+
+1. `graph_register` / `graph_unregister` / `graph_repos`（search 组 3 个）
+   —— `CodeIndexerRegistry` 是**纯内存** `MapRegistry<string, RegisteredRepo>`（`modules/perception/code_index/indexing/CodeIndexerRegistry.cs`）：
+   `RegisterAsync` 现场 new 一个 `CodeIndexer` + `InMemoryIndexStore`，**没有任何落盘**。
+   这些条目唯一的用途是让 `graph_query/explain/path` 从**同一个** `_registry` 实例取 indexer。
+   exe 写一份 JSON 也没有任何代码会读它 —— 典型的第二真相源。
+2. `tool_score` / `tool_hypergraph` / `tool_score_reset`（3 个）
+   —— `ToolHypergraphScorer` 的超边共享评分由**宿主定时器**每小时 sync、每 2 小时从 transitions 重建；
+   健康记录虽经 `IFileSystem` 落到 `_configPath`，但宿主 Actor 里另有内存副本。
+   exe 直接读文件只能给出**过期、且与路由实际用值不一致**的分数 —— 一个会撒谎的诊断工具比没有更糟。
+3. `skill` / `skill_execute`（2 个）—— 走 `ISkillService` 执行，`fork` 模式还要拿 `IAgentService` 起 subagent 跑 LLM 循环。
+   在 exe 里做等于把技能执行引擎重写一遍。
+4. `skill_search` / `skill_recommend` / `discover_skills`（3 个）
+   —— `SkillSearchService` 维护的 tag/name 内存索引覆盖「宿主发现的全部技能」（磁盘目录 + 插件/市场技能）。
+   exe 自建扫描 = 第二份「有哪些技能」的答案，与 `web_search` 同理：同一决策不该有两个实现。
+5. `tool_create`（1 个）—— 把模板注册进**当前会话**的工具表，没有会话就没有对象。
+
+**结论：host 250 是闭合边界，不再有「待评估」项。**
+delegate 173 也不是遗留问题：github 组的 173 个全部转发到已有的专用 `jcc-gh.exe`（`DelegateExecutable`/`DelegateVerb` 在
+`groups/github/Program.cs` 里声明），只多一次进程跳转，实现本身早已独立，没有重复逻辑。
+后续若要继续减负，方向不在「再拆工具」，而在宿主侧瘦身（引擎/渲染依赖是否还能从主 CLI 移出）。
 
 ### 2026-11-17 第十五轮：web_fetch 下沉（web_search 判为不该下沉）
 
@@ -560,3 +585,20 @@ cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 
 **建议的 CI 接线**：全仓编译 + 测试之后追加两步 ——
 `python scripts/check_cli_node_coverage.py --check-help || exit 1`、`python scripts/deploy_cli_nodes.py`。
 前者守住"声明与实现不许漂移"，后者保证部署目录不落后于源码。
+
+### 2026-11-17 第十七轮：最后 12 个候选验伪，host 边界闭合
+
+第十六轮虽然建了验收体系，但文档里还挂着两条**凭印象的猜测**（"graph 多仓注册表若为 JSON 文件可下沉"、
+"skill 系列扫磁盘目录但拿不掉依赖"）。本轮把这 12 个逐个读实现验伪，证据写进上面的边界表，不再留"待评估"。
+
+三处推翻了原有猜测：
+1. **`graph_*` 没有文件**。`CodeIndexerRegistry` 是内存 `MapRegistry`，注册即 new 索引器实例，
+   `graph_query` 等下游工具靠同一实例取 indexer。原猜测"若是 JSON 文件可下沉"前提不成立。
+2. **`tool_score` 有落盘，但落盘不是真相源**。落盘的是健康记录镜像，真正参与路由的是
+   `ToolHypergraphScorer` 里由宿主定时器维护的共享评分。exe 读文件会得到与路由行为不一致的数字。
+   ——这条比"读不到"更值得记：**能读到 ≠ 读得对**，诊断类工具的错报比缺报更有害。
+3. **`skill_search` 的索引覆盖「宿主发现的全部技能」**（磁盘 + 插件/市场），不是单纯扫目录。
+   exe 自建扫描会得到一份不同的技能清单。
+
+**边界至此闭合**：host 250 / 640 全部有代码证据；delegate 173 是一次转发到已有的 `jcc-gh.exe`。
+下一轮若继续减负，对象不再是工具，而是主 CLI 自身的重依赖（引擎/渲染/状态服务）。

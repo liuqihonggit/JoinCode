@@ -468,3 +468,27 @@ status（1 未提交/2 未推送）→ merge 快进成功 → 无 force 移除�
 cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 回滚到合并前 commit 且工作区干净。
 
 **总账**：agent 组 local 23 → 29，host 257 → 251。
+
+### 2026-11-17 现状总账（修正版，替代第十一轮的边界清单）
+
+第十一轮把 270 个 host 归成"物理边界"，其中"LSP 绑定宿主进程""permission 写需宿主内存"两条都被推翻。
+下面这版按**证据**分类，每类都注明为什么 exe 做不了，避免再出现"想当然的边界"。
+
+| 组 | host | local | 归类 |
+|---|---|---|---|
+| slash | 94 | 5 | 会话内命令（`/clear`、`/compact`、`/agents`…），操作的是当前 LLM 会话的上下文与 TUI —— 没有会话就没有对象 |
+| system | 48 | 24 | 活 agent 查询（agent_*）、analytics 内存事件流、memory 服务写、cron 调度、`ask_user_question`/`confirm_action`（TUI 回调） |
+| search | 33 | 14 | 符号索引在宿主 LSM-Tree SSTable + native 解析器；graph_* 全部派生自 `ICodeIndexer`，没有索引就没有图 |
+| agent | 30 | 29 | 活 agent 控制（subagent_*/team_*/task_stop）、plan 模式切换、goal 推进、cron 写 —— 都是进程内状态机 |
+| mcp | 18 | 7 | MCP 客户端连接生命周期（connect/disconnect/auth/资源读取），连接对象在宿主进程里 |
+| shell | 16 | 11 | 后台进程注册表（shell_background_*）、构建队列、sandbox 会话 —— 进程句柄不可跨进程 |
+| tools | 9 | 9 | skill 发现/执行 + tool_create + 评分（宿主技能注册表与打分器状态） |
+| web | 3 | 2 | web_browser 需浏览器实例；web_fetch/web_search 待评估（见下） |
+
+合计 **local 386 / 640（60%）**，host 251。
+
+**仍可推进但收益有限的候选**（按性价比排序，供下一轮挑）：
+1. `web_fetch` + `web_search`（2 个）：纯 HttpClient 可做，但 `web_browser` 仍在 `hands_web`，拿不掉整个模块；
+   且 fetch 的 HTML→Markdown/PDF 抽取与 search 的 provider 选择要和宿主保持一致，分叉风险不小。
+2. `graph_register/unregister/repos`（3 个）：多仓注册表若为 JSON 文件可下沉，但同样需要宿主侧按内容戳感知。
+3. `tools` 组 skill 系列（9 个）：扫描磁盘技能目录，但宿主注入系统提示词时仍要走同一套技能引擎，拿不掉依赖。

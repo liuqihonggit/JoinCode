@@ -283,13 +283,31 @@ def render_csproj() -> str:
 """
 
 
-def render_node_yaml(commands: list[dict]) -> str:
+def collect_local_ids(out_dir: Path) -> set[str]:
+    """从 private/*.cs 的 FrozenDictionary 注册项反推本地命令 id。
+
+    斜杠命令在 exe 内部带前导 '/'（Resolve 收到的是规范名 /version），
+    而 node.yaml 的命令 id 不带斜杠，故反推时去掉前导 '/'。
+    """
+    private_dir = out_dir / "private"
+    if not private_dir.exists():
+        return set()
+    ids: set[str] = set()
+    pattern = re.compile(r'["\']/?([A-Za-z_][A-Za-z0-9_-]*)["\']\]?\s*=\s*\w+')
+    for cs in sorted(private_dir.glob("*.cs")):
+        body = cs.read_text(encoding="utf-8", errors="replace")
+        for m in pattern.finditer(body):
+            ids.add(m.group(1))
+    return ids
+
+
+def render_node_yaml(commands: list[dict], local_ids: set[str] | None = None) -> str:
     """节点自描述 — 让 jcc tool tree/find/help 能发现斜杠命令 exe，并记录执行方式。
 
-    斜杠命令依赖会话状态（聊天上下文 / 服务容器）与 LLM，无法零依赖实现，
-    因此全部标记为 host（转发宿主执行）。这里的 mode 不是"待办占位"，
-    而是如实声明：它们是会话绑定命令，进程隔离只能做到"命令名解析与 -h 在独立进程内"。
+    默认全部 host（会话绑定命令）；private/*.cs 里注册了本地实现的命令标 local。
+    本地实现表以 private/*.cs 的字典 key 为准（反推），不在此硬编码。
     """
+    local_ids = local_ids or set()
     categories = sorted({c["category"] for c in commands})
     summaries = "; ".join(yaml_scalar(c["description"]) for c in commands[:3])
     header = (
@@ -301,13 +319,17 @@ def render_node_yaml(commands: list[dict]) -> str:
         f"exe: jcc-tool-slash.exe\n"
         f"tags: [{', '.join(categories[:8])}]\n"
         f"tool_count: {len(commands)}\n"
-        f"local_tool_count: 0\n"
+        f"local_tool_count: {len(local_ids)}\n"
         f"parameters: []\n"
         f"tools:\n"
     )
+    known_names = {c["name"] for c in commands}
+    unknown = local_ids - known_names
+    if unknown:
+        raise SystemExit(f"slash 私有实现注册了未声明的命令 id: {sorted(unknown)}")
     body = "".join(
         f"  - id: {yaml_id(c['name'])}\n"
-        f"    mode: host\n"
+        f"    mode: {'local' if c['name'] in local_ids else 'host'}\n"
         + (f"    aliases: [{', '.join(yaml_id(a) for a in c['aliases'])}]\n" if c.get("aliases") else "")
         for c in sorted(commands, key=lambda item: item["name"])
     )
@@ -341,9 +363,11 @@ def main() -> int:
 
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "help.txt").write_text(render_help(commands), encoding="utf-8")
-    (out_dir / "node.yaml").write_text(render_node_yaml(commands), encoding="utf-8")
+    local_ids = collect_local_ids(out_dir)
+    (out_dir / "node.yaml").write_text(render_node_yaml(commands, local_ids), encoding="utf-8")
     (out_dir / "jcc_tool_slash.csproj").write_text(render_csproj(), encoding="utf-8")
 
+    local_ids = local_ids or set()
     categories = sorted({c["category"] for c in commands})
     report = {
         "commands": len(commands),

@@ -6,7 +6,7 @@ category: slash
 exe: jcc-tool-slash.exe
 tags: [Agent, Auth, Bridge, Code, Config, Info, Law, Model]
 tool_count: 99
-local_tool_count: 0
+local_tool_count: 5
 parameters: []
 tools:
   - id: "??"
@@ -44,7 +44,7 @@ tools:
   - id: code-index
     mode: host
   - id: color
-    mode: host
+    mode: local
   - id: commit
     mode: host
   - id: compact
@@ -73,7 +73,7 @@ tools:
   - id: effort
     mode: host
   - id: env
-    mode: host
+    mode: local
   - id: execute
     mode: host
   - id: exit
@@ -100,9 +100,9 @@ tools:
   - id: goal
     mode: host
   - id: heapdump
-    mode: host
+    mode: local
   - id: help
-    mode: host
+    mode: local
     aliases: ["?"]
   - id: history
     mode: host
@@ -224,7 +224,7 @@ tools:
   - id: vendor
     mode: host
   - id: version
-    mode: host
+    mode: local
   - id: vim
     mode: host
   - id: voice

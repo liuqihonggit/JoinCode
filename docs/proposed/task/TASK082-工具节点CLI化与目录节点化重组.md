@@ -346,3 +346,34 @@ slash 99 / system 69 / agent 57 / search 39 / mcp 25 / code 22 / shell 21 / tool
 | 33 | search | 39 | 待办 |
 | 34 | mcp/web/file | 29 | 待办 |
 | 35 | slash | 99 | 待办 |
+
+### 2026-11-16 第十一轮收官：全组下沉总账
+
+用户要求 TODO 表驱动、每组做完 commit 不停下。本轮完成 #28~#35 共 8 组，加之前 media 全量，合计：
+
+| 组 | 下沉前 local | 下沉后 local | 总数 | 本轮提交 |
+|---|---|---|---|---|
+| shell | 6 | 11 | 27 | 31233f87c |
+| code | 10 | 22 | 32 | bcc613cfe |
+| tools | 2 | 9 | 18 | fd0ea6916 |
+| system | 3 | 21 | 72 | c67463dd4 |
+| agent | 2 | 23 | 59 | 879d4437e |
+| search | 8 | 14 | 47 | 41023d8b0 |
+| mcp | 0 | 7 | 25 | c9f2f50b4 |
+| file | 12 | 13 | 13 | c9f2f50b4 |
+| slash | 0 | 5 | 99 | 本轮 |
+| media | 26 | 60 | 60 | 0855a78f0 |
+
+**总账**：独立 exe **288 → 370/640（58%）**，host 352 → 270。git：全 173 delegate（本就不在注册表）。
+
+**剩余 270 host 的物理/架构边界（已逐组甄别，不是遗漏）**：
+- 活进程/会话态：agent 系 36、slash 会话命令 94、mcp 连接类 18、task_stop 类
+- 需宿主索引模型：search 符号/graph 33（索引在 LSM-Tree SSTable，exe 读不了；create_index 需 native 解析器、semantic 需向量模型）
+- 需宿主配套改造（写类改了宿主内存不认）：config_set/permission 写/brief_mode/memory 写/cron 写等，已列入 backlog
+- SkiaSharp 像素渲染 / LLM 会话流 / TUI 回调
+
+**顺带修复的既有回归**：`jcc tool call slash <cmd>` 对 host 命令错走 mcp_call（应走 slash_call），
+根因是 CliToolCommand 的「host 进程内快路径」把 slash 也包含了。改为 slash 组跳过快路径、走 exe 的 HostVerb。
+另加 `CliNodeDefinition.HostNameNormalizer`（转发宿主时去前导 '/'）。
+
+**slash 生成器改造**：原 generate_slash_cli_node.py 硬编码 local_tool_count=0/全 host；改为扫描 private/*.cs 反推 local。

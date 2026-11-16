@@ -602,3 +602,46 @@ delegate 173 也不是遗留问题：github 组的 173 个全部转发到已有�
 
 **边界至此闭合**：host 250 / 640 全部有代码证据；delegate 173 是一次转发到已有的 `jcc-gh.exe`。
 下一轮若继续减负，对象不再是工具，而是主 CLI 自身的重依赖（引擎/渲染/状态服务）。
+
+### 2026-11-17 第十八轮：把 jcc 自身从 154.5 MB 降到 92.8 MB（tree-sitter 语法包裁剪）
+
+工具侧闭合后，负担只剩主 CLI 自己。先量一遍 `artifacts/bin/JoinCode/Debug/net10.0`（排除 98 MB 的 pdb）：
+
+| 组成 | 体积 | 是否活依赖 |
+|---|---|---|
+| tree-sitter 语法 30 个 | **68.0 MB** | 只有 2 个在用 |
+| JoinCode.\* 自有程序集 136 个 | 25.3 MB | 是 |
+| SkiaSharp | 12.2 MB | 是（ShellImageOutputDetector / GDI 截图 / Vision） |
+| onnxruntime | 11.9 MB | 是（实测 Phase E2 嵌入真跑了） |
+| pdfium (Docnet) | 4.7 MB | 是（`read` 基础工具走 FileSpecialFormatReader 读 PDF） |
+| PuppeteerSharp + WebDriverBiDi | 6.2 MB | 是（web_browser 留宿主） |
+| MCP 相关 | 3.1 MB | 是 |
+
+**结论：唯一的死重是 tree-sitter 语法包。** 生产代码里 `new Language(...)` 的全部调用点只有两处
+（`grep -rn "new \(TreeSitter\.\)\?Language(\""` 全仓只有 2 条 + `new TreeSitterParser("c-sharp")` 3 条）：
+
+- `c-sharp` —— CodeIndex 解析 `*.cs`；`CodeIndexer.CollectCsFilesRecursive` 只扫 `*.cs` / `*.md`
+- `bash` —— guard.security 的 `BashAstSecurityWalker`（FAIL-CLOSED 命令检查）
+
+其余 28 个语法（verilog 17.8 MB、razor 10.8 MB、cpp、scala、haskell、julia、ocaml、ruby、tsx、typescript、
+rust、php、agda…）**从未被任何代码请求**。`TreeSitter.DotNet` 按 `"tree-sitter-" + languageId` 拼名加载，
+不枚举目录，所以删掉不影响任何调用点。
+
+**改动**（`modules/apps/cli/JoinCode.csproj`）：
+1. Release 的 `EmbeddedResource` 从 `tree-sitter*.dll` 全量 glob 改成显式 3 个文件（core + c-sharp + bash）；
+2. 新增 `TrimUnusedTreeSitterGrammars`（`AfterTargets="Build"`，非 Release）删掉输出目录里其余语法 —— NuGet 每次
+   按 `PreserveNewest` 重新拷贝，所以必须挂在每次 Build 之后，不能只删一次。
+
+**结果**：`154.5 MB / 343 files` → `92.8 MB / 315 files`，净减 **61.7 MB（-40%）**，编译 32 秒 0 警告 0 错误。
+
+**验证**：
+- 真机解析：临时工作区放一个 `probe.cs` → `jcc mcp_call create_index` 输出 Phase D 提取成功、符号数 76367 → 76371
+  （+4 个符号来自 probe.cs），证明 `tree-sitter-c-sharp` 真的在工作，不是"文件在但加载不了"；
+- 同一次调用里 Phase E2 嵌入也用上了 onnx，说明 onnx 不是死重；
+- bash 语法只做**静态**验证（保留文件 + 唯一调用点），未在 jcc 内触发实际解析 —— 宿主 bash 工具需要
+  `SystemActuatorRegistry.RegisterFactories()` 完整启动，`mcp_call` 直调路径起不来。
+
+**顺带发现（未改，待定）**：`IBashSecurityValidator` → `BashPermissionChecker` 这条 bash AST 安全检查链
+在 `modules/**` 里除 guard.security 自己与测试外**没有任何消费者**（`grep -rn "IBashSecurityValidator"`）。
+即 FAIL-CLOSED 的 bash 检查目前可能根本没接线，与 CLI 化无关、也不是本轮引入的。这条留给人判断，
+不适合顺手改 —— 要么是历史未接线，要么是有反射/配置装配路径没被我读到。

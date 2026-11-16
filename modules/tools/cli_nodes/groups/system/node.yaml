@@ -8,7 +8,7 @@ category: system
 exe: jcc-tool-system.exe
 tags: [agent, analytics, ask, brief, config, confirm, continue, ctx]
 tool_count: 72
-local_tool_count: 21
+local_tool_count: 24
 parameters: []
 tools:
   - id: config_get
@@ -48,9 +48,9 @@ tools:
   - id: stop_long_running_task
     mode: host
   - id: permission_add_rule
-    mode: host
+    mode: local
   - id: permission_remove_rule
-    mode: host
+    mode: local
   - id: permission_list_rules
     mode: local
   - id: permission_check_tool
@@ -60,7 +60,7 @@ tools:
   - id: permission_get_agent_rule
     mode: local
   - id: permission_clear_rules
-    mode: host
+    mode: local
   - id: policy_check
     mode: host
   - id: policy_list

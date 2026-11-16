@@ -377,3 +377,118 @@ slash 99 / system 69 / agent 57 / search 39 / mcp 25 / code 22 / shell 21 / tool
 另加 `CliNodeDefinition.HostNameNormalizer`（转发宿主时去前导 '/'）。
 
 **slash 生成器改造**：原 generate_slash_cli_node.py 硬编码 local_tool_count=0/全 host；改为扫描 private/*.cs 反推 local。
+
+### 2026-11-17 第十二轮：拆掉「写类必须留宿主」的前置条件（permission 写类下沉）
+
+第十一轮把 `config_set/permission 写/brief_mode` 归入 backlog，理由是「写类改了宿主内存不认」。
+本轮把这条前置条件拆掉一个：**宿主按内容戳感知外部改写**，于是 permission 写类可以进 exe。
+
+**宿主改造**（`AgentPermissionMode.cs`）：
+- 原来 `EnsureRulesLoadedAsync` 用 `Interlocked` 只装载一次，之后规则只活在内置字典里 —— exe 改写 `rules.json` 后宿主看不见，
+  「AI 通过 exe 收回权限」在宿主里仍然生效，这是安全问题不是体验问题。
+- 改为**内容戳比对**：每次权限判定前读一次 `{gitRoot}/.jcc/permission/rules.json`（文件仅数百字节，页缓存级），
+  内容与上次装载的原文不同才整体重载；`SaveRulesAsync` 落盘后把内容戳同步成刚写下的 JSON，避免自写自读白重载。
+- 无持久化管道（`_persistencePipeline is null`）时**不重载** —— 那种模式下规则只活在内存，文件不是真相源，重载会误清空。
+- 顺带修一致性问题：`SaveRulesAsync` 原来把相对目录 `.jcc/permission` 交给持久化管道（落到进程 CWD），
+  而读取端用 `{gitRoot}/.jcc/permission`。CWD ≠ 工作区根时读写不在同一文件。新增 `ResolveRulesLocation(fs)` 读写共用。
+
+**exe 侧**（`groups/system/private/SystemConfigCommands.cs`）：
+- `permission_add_rule` / `permission_remove_rule` / `permission_clear_rules` 变 local，直写同一文件。
+- schema 与宿主 `PermissionJsonContext` 逐字段对齐：camelCase、枚举**数值**（`PermissionMode` 声明序 plan/auto/ask/bypass/unattended，
+  `PermissionLevel` 声明序 none/read/write/execute/admin），null 字段不落盘。
+- 读写都用 `JsonNode`：读侧容忍「数值或字符串」两种历史写法，写侧只动 `agentPattern` 命中的那条，其余规则原样保留。
+- `RulesPath` 原来「CWD/.jcc 优先，否则 ~/.jcc」是自造的第二真相源，改为向上找 `.git` 得工作区根，
+  与宿主 `GitWorkspaceResolver.FindGitWorkspaceDir` 同语义；不在 git 工作区则明确报错而不是偷偷写到别处。
+
+**验证**：
+- `AgentPermissionManagerExternalWriteTests` 3 例（外部改写、未变不清空、外部清空）——红转绿；
+  `Guard.Security.Tests` 全量 1139 通过。
+- 真机：`jcc-tool-system.exe permission_add_rule` → 文件内容 `[{"agentPattern":"demo-agent","mode":2,"level":1,...}]`；
+  经 `jcc tool call system permission_add_rule` 路由再写一条，既有规则原样保留；list/remove/clear 四条全部往返正确（ask/read、auto/write 名称解析无偏差）。
+
+**总账**：system 组 local 21 → 24，host 270 → 267。
+
+**下一批候选（同一把钥匙可继续开）**：`brief_mode`（`BriefModeService` 同样启动期装载，加内容戳即可）、
+`memory_*` 写类（memdir 服务是否按需读文件待甄别）、`cron` 写类（调度器需按内容戳重建定时器，成本更高）。
+
+### 2026-11-17 第十三轮：code 组 10 个 lsp_* 下沉（exe 自持语言服务器）
+
+上一轮把 lsp 归为"物理边界"，理由是"绑定宿主常驻服务器进程"。这个判断经不起推敲：
+**LSP 本来就是 csharp-ls 这种独立可执行进程，JSON-RPC over stdio，谁起它都一样。**
+宿主能起，exe 当然能起 —— 真正绑住的是"常驻复用"，不是"能力"。
+
+**新增 `groups/code/private/LspConnection.cs`**（纯 BCL，约 260 行）：
+- `Process` 起服务器（CWD=工作区根），`Content-Length` 手写分帧，`JsonNode` 收发；
+- `initialize`（processId/rootUri/空 capabilities，与宿主 `LspClient.ConnectAsync` 同参）→ `initialized` → 请求 → `shutdown`+`exit`；
+- stderr 后台排空（否则管道写满服务器会卡住），退出/失败时把末尾 stderr 拼进报错 —— AI 能看见"服务器为什么没起来"；
+- 服务器反向请求（`client/registerCapability` 等）一律回 `null`；服务器通知（诊断、索引进度）直接丢弃；
+- 单次请求超时 180s（`JCC_LSP_REQUEST_TIMEOUT_SECONDS` 可调），initialize 用配置里的 `startupTimeoutSeconds`。
+
+**新增 `groups/code/private/LspSupport.cs`**：读 `~/.jcc/lsp-servers.json`（与宿主 `LspConfigLoader` 同一文件，不另立真相源），
+按扩展名挑服务器；缺配置/缺 command 时给可执行引导，不静默降级。
+
+**新增 `groups/code/private/LspCommands.cs`**：10 个工具映射到标准方法（definition/implementation/references/hover/completion/
+documentSymbol/workspaceSymbol/prepareCallHierarchy + 调用层级两跳）。参数 1-based → 0-based 换算、`Location` 与 `LocationLink`
+两种响应形态、`CompletionList.items` 包装、`DocumentSymbol` 递归子节点，全部按 LSP 3.17 处理。
+
+**短生命周期是刻意的**：每次调用起一个服务器、退出即关。代价是冷启动（本机 csharp-ls 实测 5s 内完成 documentSymbol），
+换来的是 exe 里不存在"宿主索引态"这第二份真相源 —— 与 §ADR 0157 一致。需要跨调用复用时应由调用方批量取数，而不是让 exe 偷偷常驻。
+
+**真机验证**（`%TEMP%\lspdemo` 双文件工程 + 本机 `csharp-ls`）：
+documentSymbol 5 符号、goto_definition（User.cs:6 → Widget.cs:6:16）、hover（`Widget.Widget()`）、
+find_references 2 处、workspace_symbol 1 命中、completion 25 条、prepareCallHierarchy 1 条、
+incoming_calls（Use() → Twice()）、outgoing_calls（Use() → Widget(), Twice()）、goto_implementation 正常返回。
+再经 `jcc tool call code lsp_document_symbols` 路由复验一遍，`-h` 自描述正常。
+
+**总账**：code 组 local 22 → 32（32/32 全 local），host 267 → 257。
+
+### 2026-11-17 第十四轮：agent 组 worktree 六件套下沉（git 就是真相源）
+
+原先 6 个 `worktree_*` 留宿主的理由是"绑定 `IAgentWorktreeService` 的进程内 session 注册表"。
+但 worktree 的真相源从来不是那个注册表，而是 **git 自己**：`git worktree list --porcelain` 随时能列出全部工作树。
+用注册表反而会漂移（宿主重启后列表就空了，磁盘上的 worktree 还在）。
+
+**新增 `groups/agent/private/WorktreeCommands.cs`**，全部走 git 原生命令：
+- `worktree_create`：路径 `{gitRoot}/.jcc/worktrees/{safeId}`、分支 `worktree-{safeId}`（与
+  `AgentWorktreeSession.GenerateBranchName/GenerateWorktreePath` 同一套命名，已有 worktree 仍可被识别）；
+  分支已存在则复用，不因重复创建失败。
+- `worktree_list`：`git worktree list --porcelain`，标出 `[jcc]` 与 `[主仓/其他]`。
+- `worktree_status`：分支/HEAD/未提交文件数/未推送提交数 + 变更文件清单。
+- `worktree_remove`：**无 force 时先查 `git status --porcelain`，脏工作树拒绝移除**并给出下一步；force 才 `--force` 并删分支。
+- `worktree_cleanup`：按目录 mtime 找陈旧项；**默认 dry-run 只列候选，`--confirm yes` 才删**；脏的一律跳过；末尾 `worktree prune`。
+- `worktree_merge`：`git merge --no-edit` + `-X ours/-X theirs` 映射四档策略；冲突时列出 `--diff-filter=U` 文件并
+  **`git merge --abort` 回滚 target**，不让调用方接手一个半合并状态。
+
+**踩到的坑**：第一版用 `rev-parse --show-toplevel` 定位仓库根 —— 在 worktree 内执行时它返回 worktree 自己，
+再拼 `.jcc/worktrees/{id}` 直接套娃（实测报 `...alpha\.jcc\worktrees\alpha`）。改用 `rev-parse --git-common-dir`
+（worktree 与主仓共享同一 .git）后正常。
+
+**真机验证**（`%TEMP%\wtdemo` 临时仓库）：create → list（2 工作树，1 个 [jcc]）→ 在 worktree 内提交并留脏文件 →
+status（1 未提交/2 未推送）→ merge 快进成功 → 无 force 移除被拒 → force 移除并删分支 →
+cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 回滚到合并前 commit 且工作区干净。
+
+**总账**：agent 组 local 23 → 29，host 257 → 251。
+
+### 2026-11-17 现状总账（修正版，替代第十一轮的边界清单）
+
+第十一轮把 270 个 host 归成"物理边界"，其中"LSP 绑定宿主进程""permission 写需宿主内存"两条都被推翻。
+下面这版按**证据**分类，每类都注明为什么 exe 做不了，避免再出现"想当然的边界"。
+
+| 组 | host | local | 归类 |
+|---|---|---|---|
+| slash | 94 | 5 | 会话内命令（`/clear`、`/compact`、`/agents`…），操作的是当前 LLM 会话的上下文与 TUI —— 没有会话就没有对象 |
+| system | 48 | 24 | 活 agent 查询（agent_*）、analytics 内存事件流、memory 服务写、cron 调度、`ask_user_question`/`confirm_action`（TUI 回调） |
+| search | 33 | 14 | 符号索引在宿主 LSM-Tree SSTable + native 解析器；graph_* 全部派生自 `ICodeIndexer`，没有索引就没有图 |
+| agent | 30 | 29 | 活 agent 控制（subagent_*/team_*/task_stop）、plan 模式切换、goal 推进、cron 写 —— 都是进程内状态机 |
+| mcp | 18 | 7 | MCP 客户端连接生命周期（connect/disconnect/auth/资源读取），连接对象在宿主进程里 |
+| shell | 16 | 11 | 后台进程注册表（shell_background_*）、构建队列、sandbox 会话 —— 进程句柄不可跨进程 |
+| tools | 9 | 9 | skill 发现/执行 + tool_create + 评分（宿主技能注册表与打分器状态） |
+| web | 3 | 2 | web_browser 需浏览器实例；web_fetch/web_search 待评估（见下） |
+
+合计 **local 386 / 640（60%）**，host 251。
+
+**仍可推进但收益有限的候选**（按性价比排序，供下一轮挑）：
+1. `web_fetch` + `web_search`（2 个）：纯 HttpClient 可做，但 `web_browser` 仍在 `hands_web`，拿不掉整个模块；
+   且 fetch 的 HTML→Markdown/PDF 抽取与 search 的 provider 选择要和宿主保持一致，分叉风险不小。
+2. `graph_register/unregister/repos`（3 个）：多仓注册表若为 JSON 文件可下沉，但同样需要宿主侧按内容戳感知。
+3. `tools` 组 skill 系列（9 个）：扫描磁盘技能目录，但宿主注入系统提示词时仍要走同一套技能引擎，拿不掉依赖。

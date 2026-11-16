@@ -15,6 +15,13 @@ internal static partial class AgentCommands {
         new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             ["worktree_find_git"] = FindGitAsync,
             ["worktree_list_all"] = ListAllAsync,
+            // worktree 全生命周期（git 原生命令，git 自己就是真相源）
+            ["worktree_create"] = WorktreeCreateAsync,
+            ["worktree_list"] = WorktreeListAsync,
+            ["worktree_status"] = WorktreeStatusAsync,
+            ["worktree_remove"] = WorktreeRemoveAsync,
+            ["worktree_cleanup"] = WorktreeCleanupAsync,
+            ["worktree_merge"] = WorktreeMergeAsync,
             // 状态文件化工具（~/.jcc/tasks、todo、plans 等，单一真相源）
             ["task_create"] = TaskCreateAsync,
             ["task_list"] = TaskListAsync,

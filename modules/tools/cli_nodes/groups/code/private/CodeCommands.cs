@@ -1,6 +1,6 @@
-// code 组下沉 handler — 9 个 C# LLM 分析/生成 + 3 个 recall 文件读取。
-// 全部只用 BCL：LLM 用 HttpClient 直调（CodeLlm，不引 SDK）；recall 读 ~/.jcc/notebook/default/*.json。
-// 10 个 lsp_* 绑定宿主常驻语言服务器进程与跨调用语义索引，物理上无法在短生命周期 exe 等价，保留 host。
+// code 组下沉 handler — 9 个 C# LLM 分析/生成 + 3 个 recall 文件读取 + 10 个 lsp_*。
+// 全部只用 BCL：LLM 用 HttpClient 直调（CodeLlm，不引 SDK）；recall 读 ~/.jcc/notebook/default/*.json；
+// lsp_* 由 exe 自己起语言服务器进程（LspConnection，JSON-RPC over stdio），不再依赖宿主常驻实例。
 using System.Collections.Frozen;
 using System.Text;
 using System.Text.Json;
@@ -25,10 +25,21 @@ internal static partial class CodeCommands {
             // recall（BCL 读文件，单一真相源）
             ["recall_list"] = RecallListAsync,
             ["recall_read"] = RecallReadAsync,
-            ["recall_search"] = RecallSearchAsync
+            ["recall_search"] = RecallSearchAsync,
+            // LSP（exe 自持语言服务器进程）
+            ["lsp_goto_definition"] = LspGotoDefinitionAsync,
+            ["lsp_goto_implementation"] = LspGotoImplementationAsync,
+            ["lsp_find_references"] = LspFindReferencesAsync,
+            ["lsp_hover"] = LspHoverAsync,
+            ["lsp_completion"] = LspCompletionAsync,
+            ["lsp_document_symbols"] = LspDocumentSymbolsAsync,
+            ["lsp_workspace_symbol"] = LspWorkspaceSymbolAsync,
+            ["lsp_prepare_call_hierarchy"] = LspPrepareCallHierarchyAsync,
+            ["lsp_incoming_calls"] = LspIncomingCallsAsync,
+            ["lsp_outgoing_calls"] = LspOutgoingCallsAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    /// <summary>合并路由：先查 notebook（10），再查本表（12）。</summary>
+    /// <summary>合并路由：先查 notebook（10），再查本表（12 + 10 个 lsp）。</summary>
     public static CliNodeHandler? Find(string toolId) => NotebookCommands.Find(toolId) ?? (Handlers.TryGetValue(toolId, out var h) ? h : null);
 
     public static IEnumerable<string> LocalToolIds => NotebookCommands.LocalToolIds.Concat(Handlers.Keys).OrderBy(id => id, StringComparer.Ordinal);
@@ -251,6 +262,8 @@ internal static partial class CodeCommands {
         o.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v : throw new ArgumentException($"{tool} 缺少必填参数 --{key}。正确写法: jcc tool call code {tool} --{key} <值>");
     private static string Get(IReadOnlyDictionary<string, string> o, string key, string fallback) =>
         o.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v : fallback;
+    private static string? Nullable(IReadOnlyDictionary<string, string> o, string key) =>
+        o.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v : null;
     private static int GetInt(IReadOnlyDictionary<string, string> o, string key, int fallback) => int.TryParse(Get(o, key, ""), out var v) ? v : fallback;
     private static bool GetBool(IReadOnlyDictionary<string, string> o, string key, bool fallback) => o.TryGetValue(key, out var v) && bool.TryParse(v, out var b) ? b : fallback;
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "...";

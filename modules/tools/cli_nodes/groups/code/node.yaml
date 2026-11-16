@@ -8,7 +8,7 @@ category: code
 exe: jcc-tool-code.exe
 tags: [analyze, find, generate, lsp, mcp, notebook, optimize, recall]
 tool_count: 32
-local_tool_count: 22
+local_tool_count: 32
 parameters: []
 tools:
   - id: notebook_add_cell
@@ -56,22 +56,22 @@ tools:
   - id: generate_api_controller
     mode: local
   - id: lsp_goto_definition
-    mode: host
+    mode: local
   - id: lsp_find_references
-    mode: host
+    mode: local
   - id: lsp_hover
-    mode: host
+    mode: local
   - id: lsp_completion
-    mode: host
+    mode: local
   - id: lsp_document_symbols
-    mode: host
+    mode: local
   - id: lsp_workspace_symbol
-    mode: host
+    mode: local
   - id: lsp_goto_implementation
-    mode: host
+    mode: local
   - id: lsp_prepare_call_hierarchy
-    mode: host
+    mode: local
   - id: lsp_incoming_calls
-    mode: host
+    mode: local
   - id: lsp_outgoing_calls
-    mode: host
+    mode: local

@@ -483,15 +483,14 @@ cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 
 | mcp | 18 | 7 | MCP 客户端连接生命周期（connect/disconnect/auth/资源读取），连接对象在宿主进程里 |
 | shell | 16 | 11 | 后台进程注册表（shell_background_*）、构建队列、sandbox 会话 —— 进程句柄不可跨进程 |
 | tools | 9 | 9 | skill 发现/执行 + tool_create + 评分（宿主技能注册表与打分器状态） |
-| web | 3 | 2 | web_browser 需浏览器实例；web_fetch/web_search 待评估（见下） |
+| web | 2 | 3 | web_browser 需浏览器实例；web_search 是 7 家 provider 的选择矩阵（第十五轮结论：不该下沉） |
 
-合计 **local 386 / 640（60%）**，host 251。
+合计 **local 388 / 640（61%）**，host 250（web_fetch 下沉后）。
 
 **仍可推进但收益有限的候选**（按性价比排序，供下一轮挑）：
-1. `web_fetch` + `web_search`（2 个）：纯 HttpClient 可做，但 `web_browser` 仍在 `hands_web`，拿不掉整个模块；
-   且 fetch 的 HTML→Markdown/PDF 抽取与 search 的 provider 选择要和宿主保持一致，分叉风险不小。
-2. `graph_register/unregister/repos`（3 个）：多仓注册表若为 JSON 文件可下沉，但同样需要宿主侧按内容戳感知。
-3. `tools` 组 skill 系列（9 个）：扫描磁盘技能目录，但宿主注入系统提示词时仍要走同一套技能引擎，拿不掉依赖。
+1. `graph_register/unregister/repos`（3 个）：多仓注册表若为 JSON 文件可下沉，但同样需要宿主侧按内容戳感知。
+2. `tools` 组 skill 系列（9 个）：扫描磁盘技能目录，但宿主注入系统提示词时仍要走同一套技能引擎，拿不掉依赖。
+（`web_fetch` 已于第十五轮下沉；`web_search` 判定为不该下沉 —— 同一 provider 选择决策不该有两个实现。）
 
 ### 2026-11-17 第十五轮：web_fetch 下沉（web_search 判为不该下沉）
 

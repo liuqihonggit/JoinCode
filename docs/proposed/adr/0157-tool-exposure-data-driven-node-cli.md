@@ -227,13 +227,20 @@
 - 开发布局：`jcc_tool_github.csproj` 在 `AfterBuild` 把 `artifacts/bin/gh/<cfg>/net10.0/` 的产物拷进本工程输出目录的 **`delegate/` 子目录**。不能平铺到输出目录——gh 是卫星项目，输出里带整套引擎（85 个文件），平铺会 ① 破坏工具节点的依赖墙（本组只该有 5 个 DLL）；② 用 gh 侧那份更旧的 `Abstractions.Primitives.Tools.dll` 覆盖本组刚编的，症状是「重新编译了但行为没变」（实测踩过）。
 - 装配/部署布局：`tools/<组>/jcc-tool-<组>.exe`，委托执行器 `tools/jcc-gh.exe` 由上级目录规则命中，20 MB 只放一份。
 
-**对账脚本**：`non_deliverables_tools/scripts/Verify-ToolNodes.ps1` 做三件事——① `--list-local` 的 local 数与 `node.yaml` 的 `mode: local` 条数必须相等（实现与登记漂移即失败）；② `tool_count` / `tools` 条目数 / `-h` 索引里的工具名个数三者一致；③ `-h` 体积不超阈（大组必须走索引）。加 `-Sample` 才真跑，且只用无副作用工具（读文件 / git 状态 / glob / worktree 列表 / sleep 1 秒 / 临时目录里建一个 notebook 再读回），校验脚本不改仓库。当前实测输出：`共 13 组 / 640 个工具，进程隔离 227（35%），其中 1 组走 delegate`。
+**对账脚本**：`non_deliverables_tools/scripts/Verify-ToolNodes.ps1` 做三件事——① `--list-local` 的 local 数与 `node.yaml` 的 `mode: local` 条数必须相等（实现与登记漂移即失败）；② `tool_count` / `tools` 条目数 / `-h` 索引里的工具名个数三者一致；③ `-h` 体积不超阈（大组必须走索引）。加 `-Sample` 才真跑，且只用无副作用工具（读文件 / git 状态 / glob / worktree 列表 / sleep 1 秒 / 临时目录里建一个 notebook 再读回），校验脚本不改仓库。当前实测输出：`共 13 组 / 640 个工具，独立 exe 实现 228（35%），其余 412 个是 Agent 功能，由 jcc 内执行`，其中 1 组走 delegate。
+
+> 2026-11-16 口径修正：不再说「其余 411 个转发宿主 / 进程隔离 35%」。
+> 按用户明确的心智模型——**Agent 自身功能（配置/记忆/权限/会话等依赖宿主状态的）保留在 jcc 内；
+> 能被外部调用的工具（gh/rg 等）才做独立 exe**——`jcc tool call` 对 `mode: host` 的工具直接在当前
+> jcc 进程执行 `mcp_call`，不再先起分组 exe 再起 jcc 子进程（那白白多两层进程）。
+> 因此分界从「隔离 vs 转发」改为「独立 exe 实现的工具 vs 留在 jcc 内的 Agent 功能」，
+> 数字不变（228 独立 exe / 412 Agent 功能），但不再暗示后者是「没做完的隔离」。
 
 另设 `-DeclarationsOnly`：只验声明侧自洽（`tool_count` / `local_tool_count` 与条目数对得上、`mode` 只有 local/delegate/host、工具 id 不重复、`exe` 名与组名一致、`delegates` 段与 `group_map.yaml` 双向一致、13 个分组工程与 `groups:` 段双向一致），不编译、不跑 exe，几秒完成。这部分已进 CI 单测矩阵（job `Tool Nodes - declarations`），因为不需要 13 个 exe 就能拦住「登记与实现漂移」；完整对账仍由本地全量跑。`slash` 组不在 `groups:` 段是设计如此——它由 `[ChatCommand]` 经 `generate_slash_cli_node.py` 生成，没有 MCP 分类可映射，脚本里以显式例外登记并注明原因。
 
 **为什么剩下 411 个不硬做**：它们依赖的东西可归为 6 类——① 模型调用（`web_fetch`/`generate_*`/`analyze_*`）；② 会话与代理状态（`slash` 99、计划 / 子代理 / 任务队列）；③ Roslyn AST + SQLite 索引（`code_index_*`、`lsp_*`）；④ 桌面 UI 与浏览器（`media` 60、`web_browser`）；⑤ MCP 连接与认证（`mcp` 25）；⑥ 宿主存储（`config_*`/`permission_*`/`memory_*`/`analytics_*`/`skill_*`）。在零依赖 exe 内等价实现任何一类，要么引入整套引擎（81 DLL / 16 MB，违反依赖墙），要么分叉出第二份真相源。这是**能力边界，不是遗漏**。
 
-**判定原则（重要）**：只有「宿主无状态依赖」才本地实现。像 `memory_*`、`permission_*`、任务/计划类工具，其数据落在宿主持有的存储里——在 exe 内重写一份会分叉出第二个真相源（LLM 在 A 处写、宿主在 B 处读），比不隔离更糟。这类工具继续转发，并在 `node.yaml` 里标 `mode: host`，同时 `-h` 会打印「执行方式: host（转发宿主）」让调用方可审计。
+**判定原则（重要）**：只有「宿主无状态依赖」才本地实现。像 `memory_*`、`permission_*`、任务/计划类工具，其数据落在宿主持有的存储里——在 exe 内重写一份会分叉出第二个真相源（LLM 在 A 处写、宿主在 B 处读），比不隔离更糟。这类工具标 `mode: host`，**直接在 jcc 进程内执行**（2026-11-16 起）——它们本就是 Agent 功能，留在 jcc 内是正确归属而非退让。分组 exe 对它们没有实现职责，只有 local/delegate 工具才需要独立 exe。`-h` 会打印「执行方式: Agent 功能，jcc 内执行」让调用方可审计。
 
 **安全边界**：本地化的 `bash` / `powershell` 直连操作系统，绕过宿主 Shell 中间件栈与 `DangerousCommandCatalog`。生产环境命令执行仍应走宿主；该组本地实现只用于进程隔离验证与离线可用性，已在组入口注释中标注。
 
@@ -373,3 +380,31 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 `Verify-ToolNodes.ps1 -DeclarationsOnly` 声明自洽；`jcc tool base` 4 条；`jcc tool call file read/write/edit` 与
 `search_stats` 真机退出 0。`BaseToolRegistryTests` / `ToolsSectionTests` / 三个 provider 的
 `BuildBaseTools` 测试均改为断言运行时名。
+
+---
+
+## 10. 2026-11-16 架构归属决策：Agent 功能留 jcc 内，外部工具才是独立 exe
+
+用户原话：「我感觉是不是做错了？如果是 Agent 的功能，应该保留在 jcc 内；如果是可以外部调用的，
+例如 gh、rg，还有其他，就应该另外独立的 exe，这个 exe 就是一些工具。」
+
+这纠正了此前「所有工具都要进程隔离、35% 是没做完」的错误框架。正确的判定轴不是「隔离程度」，
+而是「这个能力属于谁」：
+
+| 归属 | 例子 | 执行位置 | mode |
+|---|---|---|---|
+| **外部可调用工具** | gh / rg / file_* / git_* / shell / search_* | 独立 exe（local 本 exe 内实现，delegate 委托 jcc-gh） | `local` / `delegate` |
+| **Agent 自身功能** | config_* / memory_* / permission_* / session / slash / task 队列 | 留在 jcc 进程内（`mcp_call`） | `host` |
+
+**代码落地**：
+- `CliToolCommand.RunCallAsync`：`mode: host` 且未显式指定 exe 时，直接调
+  `RunHostToolInProcessAsync` → `McpCallCommand.ExecuteAsync`，跳过分组 exe。保留 `--timeout` 语义（超时 124）。
+  local/delegate 仍走 `ResolveGroupExe` + `LaunchAsync`，不变。
+- 文案统一：`jcc tool tree` / `tool help` / `--list-local` 从「进程隔离 227（35%）／转发宿主」
+  改为「独立 exe 实现 228（35%）／Agent 功能，jcc 内执行」，避免把后者读成「不可用／没做完」。
+- `CliToolNodeTests` 断言同步。
+
+**收益**：host 工具原先 `jcc → 分组 exe → jcc mcp_call` 三层进程，现在 `jcc → mcp_call` 一层；
+少两次进程启动。真机验证三条路径：`host config_list` / `search_stats` / local `read` / delegate `gh` 均退出 0。
+
+**未变**：工具总数 640，独立 exe 228（35%），Agent 功能 412；依赖墙、delegate 定位顺序、名称对齐等前序决策全部保留。

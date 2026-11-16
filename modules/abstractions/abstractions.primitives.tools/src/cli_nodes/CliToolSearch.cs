@@ -60,7 +60,8 @@ public static class CliToolSearch {
         var isolated = withTools.Sum(node => node.LocalToolCount);
         var percent = total == 0 ? 0 : isolated * 100 / total;
         sb.AppendLine(
-            $"共 {withTools.Count} 组 / {total} 个工具，进程隔离 {isolated}（{percent}%：local 本 exe 内实现 + delegate 独立 exe）");
+            $"共 {withTools.Count} 组 / {total} 个工具，独立 exe 实现 {isolated}（{percent}%：local 本 exe 内实现 + delegate 独立 exe），"
+            + $"其余 {total - isolated} 个是 Agent 功能，由 jcc 内执行");
     }
 
     /// <summary>
@@ -93,10 +94,10 @@ public static class CliToolSearch {
         if (!node.HasToolEntries) return string.Empty;
         var total = node.Tools.Length;
         var isolated = node.LocalToolCount;
-        // 「进程隔离 0/60」会被读成「这组不能用」；它其实 60 个都能用，只是都走宿主。
-        if (isolated == 0) return $"  (全部 {total} 个转发宿主)";
-        if (isolated == total) return $"  (全部 {total} 个进程隔离)";
-        return $"  (进程隔离 {isolated}/{total}，其余转发宿主)";
+        // 「独立 exe 实现 0/60」会被读成「这组不能用」；它其实 60 个都能用，只是 Agent 功能留在 jcc 内。
+        if (isolated == 0) return $"  (全部 {total} 个由 jcc 内执行)";
+        if (isolated == total) return $"  (全部 {total} 个独立 exe 实现)";
+        return $"  (独立 exe 实现 {isolated}/{total}，其余由 jcc 内执行)";
     }
 
     /// <summary>
@@ -116,9 +117,9 @@ public static class CliToolSearch {
     }
 
     private static string ModeText(CliToolEntry entry) => entry.Mode switch {
-        CliExecutionMode.Local => "本地进程隔离",
+        CliExecutionMode.Local => "独立 exe 内实现",
         CliExecutionMode.Delegate => "委托独立 exe（不经宿主）",
-        _ => "转发宿主执行"
+        _ => "Agent 功能，jcc 内执行"
     };
 
     private static string Aliases(CliToolEntry entry) =>

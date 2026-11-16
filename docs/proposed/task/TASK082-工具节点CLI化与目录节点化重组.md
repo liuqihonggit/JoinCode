@@ -155,3 +155,12 @@ Debug framework-dependent 构建，真实产物统计（非估算）：
 目录 541 个 MCP 工具中 172 个走 delegate（jcc-gh），其余 369 个除 `test_tool`（无 `[McpTool]` 的本地诊断工具）
 外**全部在注册表里**。能力边界只存在于「能否在本 exe 内零依赖实现」（228/640 隔离），
 不存在于「能否被调用」。
+
+### 2026-11-16 第四轮补记（架构归属：Agent 功能留 jcc 内）
+
+| # | 任务 | 关键文件 | 编译 | 测试 | commit |
+|---|------|---------|------|------|--------|
+| 7b10 | **纠正隔离框架**：按用户心智模型，Agent 功能（config/memory/permission/session/slash）留 jcc 内，`mode: host` 直接在当前进程执行 mcp_call，不再起分组 exe + jcc 两层；外部工具（gh/rg 等）才是独立 exe | `CliToolCommand.cs`、`CliToolSearch.cs`、`CliToolHelp.cs`、`CliToolNodeTests.cs` | ✅ | ✅ 契约层 33/33 + 真机三路径 | 本轮 |
+
+> 分界从「隔离 vs 转发（35% 没做完）」改为「独立 exe 工具（228）vs Agent 功能（412）」。
+> 数字不变，语义变了：后者是正确归属而非未完成的隔离。总数仍 640。

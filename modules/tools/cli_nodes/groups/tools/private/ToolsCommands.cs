@@ -9,11 +9,19 @@ namespace JoinCode.CliNode.Tools;
 /// 其余依赖引擎 DI / 运行时工具创建 / 调试会话 / LLM 的工具由 Program 转发宿主，exe 始终可用。
 /// 参数名与 help.txt 的 [McpToolParameter] 逐一对应，说明不在此重复。
 /// </summary>
-internal static class ToolsCommands {
+internal static partial class ToolsCommands {
     private static readonly FrozenDictionary<string, CliNodeHandler> Handlers =
         new Dictionary<string, CliNodeHandler>(StringComparer.Ordinal) {
             ["skill_batch"] = BatchProcessAsync,
-            ["test_tool"] = TestToolAsync
+            ["test_tool"] = TestToolAsync,
+            // 纯 BCL 技能/模板工具
+            ["skill_stuck"] = SkillStuckAsync,
+            ["skill_simplify"] = SkillSimplifyAsync,
+            ["skill_debug"] = SkillDebugAsync,
+            ["skill_verify"] = SkillVerifyAsync,
+            ["tool_list_templates"] = ToolListTemplatesAsync,
+            ["tool_show_template"] = ToolShowTemplateAsync,
+            ["skill_list"] = SkillListAsync
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     public static CliNodeHandler? Find(string toolId) => Handlers.TryGetValue(toolId, out var handler) ? handler : null;

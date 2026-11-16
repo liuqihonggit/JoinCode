@@ -20,9 +20,15 @@
 .PARAMETER SkipBuild
   不编译，直接用已有产物。
 
+.PARAMETER FromScratch
+  CI 冷启动用：分组工程自己完成还原与依赖构建（去掉 --no-restore 与 -p:BuildProjectReferences=false）。
+  本地增量编译不要加它 —— 那两个开关是为「依赖产物已就绪」的快路径准备的，
+  在干净容器里会让 MSBuild 找不到 assets 文件与契约层 DLL。
+
 .PARAMETER DeclarationsOnly
   只验声明侧：13 份 node.yaml 自洽 + 与 group_map.yaml 交叉一致。
-  不编译、不跑 exe，几秒完成 —— CI 用这个模式，本地全量校验不要加它。
+  不编译、不跑 exe，几秒完成 —— CI 的 tool-node-declarations job 用这个模式，
+  好在等 13 个 exe 编完之前就把「yaml 自己写错了」拦下来。
 
 .PARAMETER Sample
   抽样真跑每组一个无副作用工具。
@@ -34,6 +40,7 @@
 param(
     [switch]$SkipBuild,
     [switch]$DeclarationsOnly,
+    [switch]$FromScratch,
     [switch]$Sample,
     [int]$MaxHelpBytes = 8192,
     [string]$Configuration = "Debug"
@@ -170,10 +177,16 @@ foreach ($group in $groups) {
 
     # ── 现实侧：先编译，再自报 ────────────────────────────────────────
     if (-not $SkipBuild) {
-        $build = Invoke-Probe -Exe "dotnet" -Arguments @(
+        # 快路径（默认）：依赖产物已就绪，跳过还原与依赖项目重建，单组 20~40 秒。
+        # 冷启动（-FromScratch）：干净容器里没有 assets 文件、也没有契约层 DLL，
+        # 必须让 MSBuild 自己还原并构建 Abstractions.Primitives.Tools，否则单组直接失败。
+        $buildArgs = @(
             "build", (Join-Path $group.FullName ("jcc_tool_" + $name + ".csproj")),
-            "-c", $Configuration, "--no-restore", "--nologo", "-v", "minimal",
-            "-p:BuildProjectReferences=false", "-p:EmitCompilerGeneratedFiles=false")
+            "-c", $Configuration, "--nologo", "-v", "minimal")
+        if (-not $FromScratch) {
+            $buildArgs += @("--no-restore", "-p:BuildProjectReferences=false", "-p:EmitCompilerGeneratedFiles=false")
+        }
+        $build = Invoke-Probe -Exe "dotnet" -Arguments $buildArgs
         if ($build.Code -ne 0) {
             $problems += "[$name] 编译失败"
             $build.Output -split "`r?`n" | Select-Object -Last 6 |

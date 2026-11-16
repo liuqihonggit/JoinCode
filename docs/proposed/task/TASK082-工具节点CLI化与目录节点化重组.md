@@ -673,3 +673,32 @@ rust、php、agda…）**从未被任何代码请求**。`TreeSitter.DotNet` 按
 
 **教训**：收口阶段最该先做的是「搜一遍有没有现成的」，而不是「先写一个能跑的」。
 判断标准本来就是我自己反复用的那条 —— 同一决策不该有两个实现 —— 结果自己踩了。
+
+### 2026-11-17 第二十轮：把「声明 vs 现实」对账接进 CI
+
+上一轮的教训是「先搜有没有现成的」。这一轮把那份现成的用起来：`Verify-ToolNodes.ps1` 之前只有
+`-DeclarationsOnly` 进了 CI，真正的完整对账一直靠人记得在本地跑。**人记得跑的东西等于不存在**，
+所以加了一个 `tool-node-reality` job（`ci-unit-tests.yml`，windows-latest，15 分钟超时）。
+
+它在 PR 上多拦两类声明侧看不见的漂移：
+
+1. **等量互换**：A 从 local 改成 host、同时 B 从 host 改成 local，`tool_count` / `local_tool_count` 全对，
+   `-h` 也不报错，但「工具实际跑在哪」已经变了。只有逐 id 比 local 集合才发现。
+2. **分组 exe 编译不过**：声明侧只读 yaml，源码写崩了它照样绿。
+
+**关键改动是 `-FromScratch` 开关**。脚本默认走 `--no-restore` + `-p:BuildProjectReferences=false`
+的快路径 —— 那是为「依赖产物已就绪」的本地增量场景准备的（单组 5 秒）。干净容器里没有
+`project.assets.json`，也没有 `Abstractions.Primitives.Tools.dll`，同样的参数会直接失败。
+所以 `-FromScratch` 去掉这两个开关，让 MSBuild 自己还原并构建契约层；
+本地增量**不要加它**，否则白丢 5 秒/组的优势。
+
+契约层只依赖 YamlDotNet、`ExcludeStructura=true`，所以冷启动还原成本很低 ——
+实测本地 13 组冷启动 + 抽样真跑全流程 **36 秒**（CI 首次还原会慢一些，15 分钟余量充足）。
+
+与 `tool-node-declarations` 分成两个 job 而不是合并：声明侧几秒就失败，
+定位比「等 13 个 exe 编完再说 yaml 写错了」快得多。
+
+**验证**：
+- `-FromScratch -Sample` 全量跑：13 组 / 640 工具 / 隔离 390（60%），8 次抽样真跑全通过，退出码 0；
+- `-DeclarationsOnly` 复跑仍通过（改动没有破坏声明侧）；
+- 两个 workflow yml 用 js-yaml 解析通过，job 结构完整（`runs-on` + steps 齐全）。

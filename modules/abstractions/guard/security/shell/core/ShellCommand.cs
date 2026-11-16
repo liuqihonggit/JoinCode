@@ -91,6 +91,127 @@ public sealed record ShellCommand {
             hasRedirection);
     }
 
+    /// <summary>
+    /// 按 shell 子命令分隔符拆分命令：分号、<c>&amp;&amp;</c>、<c>||</c>、换行。
+    /// <para>
+    /// 引号内、反引号内、<c>$(...)</c> 内的分隔符不拆 —— 它们属于同一个词。
+    /// <b>单管道不拆</b>：管道两侧是同一命令的数据流，且上游已有「管道目标是解释器」的专门检查
+    /// （<c>git log | sh</c>），拆开会把该检查绕过去。
+    /// 含 heredoc（<c>&lt;&lt;</c>）时也不把换行当分隔符：heredoc 正文里出现的 <c>rm -rf</c>
+    /// 只是被写入文件的内容，不是被执行的命令，按行硬拆会把「写脚本」误判成危险操作。
+    /// </para>
+    /// <para>
+    /// 返回的每段已 Trim，空段被丢弃；无分隔符时返回单元素（即原命令）。
+    /// 供需要「逐子命令判定再取最严」的调用方使用（如危险分级）。
+    /// </para>
+    /// </summary>
+    /// <param name="command">原始命令字符串</param>
+    public static IReadOnlyList<string> SplitSubcommands(string command) {
+        if (string.IsNullOrWhiteSpace(command)) {
+            return Array.Empty<string>();
+        }
+
+        var allowsNewlineSplit = command.IndexOf("<<", StringComparison.Ordinal) < 0;
+        var segments = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var quoteChar = '\0';
+        var parenDepth = 0;
+        var inBacktick = false;
+
+        for (var i = 0; i < command.Length; i++) {
+            var c = command[i];
+
+            if (quoteChar != '\0') {
+                current.Append(c);
+                // 双引号内的反斜杠转义不结束字符串
+                if (c == '\\' && quoteChar == '"' && i + 1 < command.Length) {
+                    current.Append(command[++i]);
+                    continue;
+                }
+                if (c == quoteChar) {
+                    quoteChar = '\0';
+                }
+                continue;
+            }
+
+            if (inBacktick) {
+                current.Append(c);
+                if (c == '`') {
+                    inBacktick = false;
+                }
+                continue;
+            }
+
+            if (c is '\'' or '"') {
+                quoteChar = c;
+                current.Append(c);
+                continue;
+            }
+
+            if (c == '`') {
+                inBacktick = true;
+                current.Append(c);
+                continue;
+            }
+
+            if (c == '$' && i + 1 < command.Length && command[i + 1] == '(') {
+                parenDepth++;
+                current.Append(c).Append(command[++i]);
+                continue;
+            }
+
+            if (parenDepth > 0) {
+                if (c == '(') {
+                    parenDepth++;
+                } else if (c == ')') {
+                    parenDepth--;
+                }
+                current.Append(c);
+                continue;
+            }
+
+            if (c == ';') {
+                FlushSegment(segments, current);
+                continue;
+            }
+
+            if (c == '&' && i + 1 < command.Length && command[i + 1] == '&') {
+                FlushSegment(segments, current);
+                i++;
+                continue;
+            }
+
+            if (c == '|') {
+                if (i + 1 < command.Length && command[i + 1] == '|') {
+                    FlushSegment(segments, current);
+                    i++;
+                    continue;
+                }
+                // 单管道不拆：两侧是同一条命令的数据流
+                current.Append(c);
+                continue;
+            }
+
+            if (c == '\n' && allowsNewlineSplit) {
+                FlushSegment(segments, current);
+                continue;
+            }
+
+            current.Append(c);
+        }
+
+        FlushSegment(segments, current);
+        return segments;
+    }
+
+    private static void FlushSegment(List<string> segments, System.Text.StringBuilder current) {
+        var text = current.ToString().Trim();
+        if (text.Length > 0) {
+            segments.Add(text);
+        }
+        current.Clear();
+    }
+
     private static bool DetectPowerShell(string command) {
         var powerShellIndicators = new[]
         {

@@ -185,4 +185,29 @@ public class DangerousCommandProtectionMiddlewareTests {
     }
 
     #endregion
+
+    #region 复合命令不得靠前缀降级
+
+    // 回归锁：分类器按「首词查表」工作，若不做子命令拆分，
+    // `echo hi; rm -rf ./build` 会因首词 echo 被判 Safe —— Safe 是所有权限模式下**直接放行**的级别，
+    // 而单跑 `rm -rf ./build` 是 Execution（Auto 模式会被拒）。加个无害前缀就能绕过，属明确降级。
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Theory]
+    [InlineData("echo hi; rm -rf ./build")]
+    [InlineData("true && rm -rf ./build")]
+    [InlineData("false || rm -rf ./build")]
+    [InlineData("echo hi\nrm -rf ./build")]
+    public async Task Auto_Mode_Rejects_CompoundCommand_LikeItsWorstSegment(string command) {
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        var context = CreateContext(PermissionMode.Auto, command);
+        var nextCalled = false;
+
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeFalse("复合命令里的危险子命令不得被前缀放行");
+        context.Result.Should().NotBeNull("应给出拒绝或待确认结果");
+        context.Result!.IsApproved.Should().BeFalse();
+    }
+
+    #endregion
 }

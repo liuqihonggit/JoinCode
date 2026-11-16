@@ -64,6 +64,7 @@ global using System.Runtime.CompilerServices;
 global using System.Text.Json;
 global using Testing.Common;
 global using Xunit;
+global using Xunit.Abstractions;
 global using PermissionResult = JoinCode.Abstractions.Security.PermissionResult;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using ToolPermissionCheckResult = JoinCode.Abstractions.Security.Permission.ToolPermissionCheckResult;

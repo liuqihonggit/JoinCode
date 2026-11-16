@@ -1,6 +1,6 @@
 # TASK082: 去生成器 + YAML 基础工具 + 全量独立 CLI.exe + CLI 搜索下钻
 
-> 📍 状态: proposed（v3 重排）｜ 创建: 2026-11-15 ｜ 关联: [ADR 0157 v3](../adr/0157-tool-exposure-data-driven-node-cli.md)、[DSG048](../design/DSG048-node-plugin-inheritance-architecture.md)、ADR 0149
+> 📍 状态: **completed**（2026-11-17 验收通过，PR #682）｜ 创建: 2026-11-15 ｜ 关联: [ADR 0157 v3](../adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)、[DSG048](../../proposed/design/DSG048-node-plugin-inheritance-architecture.md)、ADR 0149
 > 2026-11-15 后续指令（v3，取代 v2 的「540 个独立 exe + 描述搬到新 YAML」）: ① 大部分 mcp 特性不需要改 ② 按每个分组单独一个 CLI.exe，bash 可调用 ③ 复用现有 mcp 说明制造 -h
 > 更早四点指令: ① 扔掉工具源码生成器 ② yml 注册基础工具 ③ 其余转独立 CLI.exe 各自 -h ④ MCP 分组是错误层、CLI 搜索下钻才正确
 
@@ -44,10 +44,10 @@
 | 7c | **进程隔离执行器**：`jcc tool call <组> <工具> [参数]` 由 jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码；不初始化引擎 DI | `CliToolCommand.cs`（`RunCallAsync` / `ResolveGroupExe`） | ✅ | ✅ 真实 exe 七连验 + 反查/别名/超时补充验证 | ✅ |
 | 7d | **斜杠命令独立 exe**：`jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>`；`-h` 来自 `[ChatCommand]`/`[ChatCommandArg]` | `scripts/generate_slash_cli_node.py`、`groups/slash/` | ✅ | ✅ 真实 exe（含 Git Bash 命令名归一化） | ✅ |
 | 8 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildBaseTools`（3 个 QueryService）、`resources/tools/base.yaml` | ✅ | ✅ 9 个单测（锁定「非基础工具不进 tools」）+ 契约层 7/7 | ✅ |
-| 9 | 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ 前提已失效 | ⬜ | ⬜ |
+| 9 | ~~全部消费方切换后归档生成器项目~~ → **改为长期保留**；目录节点化（`tool find/tree/help/base`）已在步骤 4/7d 落地 | `modules/generators/mcp_tool_dispatch.generator/`（保留）、`CliToolCommand.cs` | — | — | ✅ 目标改写（第十七轮证据） |
 
 > **2026-11-16 阻断说明（步骤 9 前提不成立）**：`McpToolDispatch` 生成器产出的进程内 handler 注册表**正是转发兜底的依赖**。实测无 Hub 时 `jcc mcp_call` 直接报「Hub 服务不可达」，`JCC_ALLOW_DIRECT_FALLBACK=1` 下 `jcc mcp_list` 返回 `total_count: 0`。因此该生成器在「转发路径退役」之前不能归档；步骤 9 拆成两步：先逐组做实到不再需要转发，再归档生成器。
-| 10 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | `Build-AllDomains.ps1`、ADR 0080 | ✅ 部分 | ⬜ | ⬜ |
+| 10 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | `Build-AllDomains.ps1`、ADR 0157 | ✅ CI 绿（PR #682） | ✅ CI 绿（PR #682） | ✅ ADR 转 accepted |
 
 > **2026-11-17 第十七轮补记（步骤 9 目标需改写）**：步骤 9 的前提是「逐组做实到不再需要转发」，
 > 即 host 数量能降到 0。第十七轮验伪后 host 250 已是**闭合边界**（全部有代码证据，不是没做完），
@@ -710,3 +710,71 @@ rust、php、agda…）**从未被任何代码请求**。`TreeSitter.DotNet` 按
 「数字是快照，现行口径见修正注」的指针，避免它被当成现状引用。
 另把 `390/640` 的比例统一写成 `60.9%（脚本 Floor 后打印 60%）`——
 之前 ADR 写 61%、脚本打印 60%，同一个事实两个数，迟早有人当成矛盾再「纠」一次。
+
+### 2026-11-17 第二十一轮：追掉第十八轮那条「bash 安全检查链没接线」的遗留，并修掉一个真实降级
+
+第十八轮裁剪 tree-sitter 语法时顺带发现：`IBashSecurityValidator` → `BashPermissionChecker`
+（`guard.security/services/bash_validation`）在 `modules/**` 下除自身与测试外**零消费者**。
+本轮把它查清并修掉了真正有害的那一半。
+
+**一、那条链为什么没接线（不是漏接，是被替代了）**
+
+bash 执行链上的真实防线是 `ShellCommandInterceptionMiddleware` →
+`BashDefenseService`（6 个 node：危险命令 / 严格解析 / 保留设备名 / 重定向白名单 / git push CI 守卫 /
+argv hash），已在 `DataDrivenPipelineComposition` 注册。权限层还有
+`DangerousCommandProtectionMiddleware` 再拦一道。`guard.security/services/bash_validation`
+那套是 TS `bashPermissions.ts` / `bashSecurity.ts` 的移植，被上面两条取代后留在原地。
+DI 容器里**确实注册了**它（生成器自动生成 `ServiceDescriptor`），所以「搜接口没找到消费者」
+不等于「没注册」——这也是它一直没被发现的原因。
+
+**二、对照实验（`BashCommandCoverageTests`，只做静态判定不执行）**
+
+同一批命令跑「当前生效的分类器」与「未接线的 AST 校验器」，结果推翻了我原先的两个假设：
+
+| 命令 | 分类器 | AST 校验器 | 说明 |
+|---|---|---|---|
+| `rm -rf ./build` | Execution | safe | **Execution 不是 Dangerous**：Dangerous 只留给整盘/系统级 |
+| `rm -rf /` | Dangerous | safe | 基线正确 |
+| `r''m -rf ./build` | Execution | safe | 分类器**能**剥引号噪声，比 AST 还稳 |
+| `echo hi; rm -rf ./build` | ~~Safe~~ → **Execution** | safe | **真缺口**（已修） |
+| `true && rm -rf ./build` | ~~Unknown~~ → **Execution** | safe | 同上 |
+| `echo hi\nrm -rf ./build` | ~~Safe~~ → **Execution** | safe | 同上 |
+| `echo hi \| xargs rm -rf` | Safe | safe | 未修：管道不拆的已知取舍，见下 |
+| `jq -n 'system("id")'` | Unknown | JqSystemFunction | 仅 AST 能识别 |
+| `cat > x.sh <<EOF…EOF` | Safe | Newlines | 仅 AST 能识别 |
+| `eval "$(… base64 -d)"` | Unknown | DangerousVariables | 仅 AST 能识别 |
+
+两个假设被推翻：① 以为「复合命令是缺口」方向对，但以为 `rm -rf ./build` 是 Dangerous（实际 Execution）；
+② 以为 AST 校验器是更强的防线（实际对引号混淆、普通删除它都判 safe，它管的是「注入/可解析性」，
+不是「破坏性」）。**两套是不同维度，不是新旧替代关系。**
+
+**三、修的是哪一半（commit `d03e33584`）**
+
+分类器按「首词查表」工作，`echo hi; rm -rf ./build` 首词是 `echo` → `Safe`。
+而 `Safe` 是**所有权限模式下直接放行**的级别（`RequiresIntervention = Level != Safe`），
+`Execution` 在 Auto 模式会被「拒绝并引导切 Ask」—— 也就是说：
+
+> 单跑 `rm -rf ./build` 会被拒，加个 `echo hi;` 前缀反而放行。
+
+这是明确的等级降级，且 Auto 模式（默认安全档）下生效。修法：
+
+1. `ShellCommand.SplitSubcommands`（新增，contracts 层）：引号 / 反引号 / `$(...)` 感知地按
+   `;`、`&&`、`||`、换行 拆分。**单管道不拆**（两侧是同一命令的数据流，上游已有「管道目标是解释器」的专门检查，
+   拆开会把 `git log | sh` 绕过去）；**含 heredoc 时不拆换行**（正文里的 `rm -rf` 只是写进文件的内容）。
+2. `CommandDangerClassifier.Classify(string)`：拆段后逐段分类，取最严的一条；同级别时合并 risks/Details。
+   单段命令完全走原路径，行为不变。
+
+**验证**：`guard.security.tests` 1149 通过 / 0 失败（含新增的复合命令回归锁与中间件 Auto 模式断言）、
+`abs.guard.tests` 14 个拆分器边界用例、`hands.shell.tests` 526 通过。
+`guard.hooks.tests` 有 1 个环境相关失败（`VpnRouteGuard_CanHandle_NoVpnActive_ReturnsFalse`，
+本机有代理进程；该 guard 不经过任何本次改动的代码路径）。
+
+**未修、需要决策的两项**（都是「补强」不是「修 bug」，会改变用户体验，所以没替用户决定）：
+
+1. **接线 AST 校验器**补 `jq system()` / `eval` / 命令替换 / heredoc 换行。它的语义是
+   「无法静态分析 → 交给用户确认」（`BashPermissionChecker` 把 IsSafe=false 映射为 `Ask`，不是硬拒），
+   所以不会拦死命令，但**每条 bash 多一次 tree-sitter 解析、写脚本类命令会多一次确认弹窗**。
+2. **管道后接执行器**（`| xargs rm -rf`、`| sh` 已覆盖、`find -exec` 未覆盖）。需要先定义「执行器清单」，
+   而 `IsInterpreter` 目前只覆盖解释器。属新规则，不是拆段能解决的。
+
+原始问题记录在第十八轮末尾，此处闭合它的调查部分。

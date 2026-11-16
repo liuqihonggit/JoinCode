@@ -99,8 +99,7 @@ jobs:
 
   # ADR 0157 工具节点的声明侧对账：13 份 node.yaml 各自自洽 + 与 group_map.yaml 双向一致。
   # 不需要编译、不跑 exe，几秒结束，所以够格进 PR 门禁 —— 此前这类漂移只有人工会看。
-  # 「声明 vs 现实」的完整对账（--list-local 自报、-h 体积、抽样真跑）要 13 个 exe，
-  # 仍由本地 `Verify-ToolNodes.ps1`（不加 -DeclarationsOnly）全量跑。
+  # 与下面的 tool-node-reality 分成两个 job：声明侧秒级失败，定位比等 13 个 exe 编完快得多。
   tool-node-declarations:
     name: Tool Nodes - declarations
     runs-on: windows-latest
@@ -111,3 +110,25 @@ jobs:
       - name: Verify node.yaml and group_map.yaml consistency
         shell: pwsh
         run: pwsh -ExecutionPolicy Bypass -File non_deliverables_tools/scripts/Verify-ToolNodes.ps1 -DeclarationsOnly
+
+  # 「声明 vs 现实」完整对账：编译 13 个分组 exe，逐个比 --list-local 自报数量与 local id 集合、
+  # -h 体积上限、单工具 -h 能否定位到参数表，并抽样真跑 6 个无副作用工具。
+  #
+  # 不接这一步的两个盲区（都是声明侧看不见的）：
+  #   ① node.yaml 写着 mode: local，exe 里却根本没实现（或反之）——数量对不上能发现，
+  #      A 从 local 换到 host、B 从 host 换到 local 这种「等量互换」只有比 id 集合才发现；
+  #   ② 分组 exe 编译不过。声明侧只读 yaml，源码写崩了它照样绿。
+  #
+  # -FromScratch 是给干净容器准备的：脚本默认走 --no-restore + BuildProjectReferences=false
+  # 的快路径，那是为「依赖产物已就绪」的本地增量场景，CI 里没有 assets 文件也没有契约层 DLL。
+  tool-node-reality:
+    name: Tool Nodes - reality
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-test-env
+      - name: Verify each group exe against its declaration
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File non_deliverables_tools/scripts/Verify-ToolNodes.ps1 -FromScratch -Sample

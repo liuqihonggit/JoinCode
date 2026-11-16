@@ -44,10 +44,16 @@
 | 7c | **进程隔离执行器**：`jcc tool call <组> <工具> [参数]` 由 jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码；不初始化引擎 DI | `CliToolCommand.cs`（`RunCallAsync` / `ResolveGroupExe`） | ✅ | ✅ 真实 exe 七连验 + 反查/别名/超时补充验证 | ✅ |
 | 7d | **斜杠命令独立 exe**：`jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>`；`-h` 来自 `[ChatCommand]`/`[ChatCommandArg]` | `scripts/generate_slash_cli_node.py`、`groups/slash/` | ✅ | ✅ 真实 exe（含 Git Bash 命令名归一化） | ✅ |
 | 8 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildBaseTools`（3 个 QueryService）、`resources/tools/base.yaml` | ✅ | ✅ 9 个单测（锁定「非基础工具不进 tools」）+ 契约层 7/7 | ✅ |
-| 9 | 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ | ⬜ | ⬜ |
+| 9 | 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ 前提已失效 | ⬜ | ⬜ |
 
 > **2026-11-16 阻断说明（步骤 9 前提不成立）**：`McpToolDispatch` 生成器产出的进程内 handler 注册表**正是转发兜底的依赖**。实测无 Hub 时 `jcc mcp_call` 直接报「Hub 服务不可达」，`JCC_ALLOW_DIRECT_FALLBACK=1` 下 `jcc mcp_list` 返回 `total_count: 0`。因此该生成器在「转发路径退役」之前不能归档；步骤 9 拆成两步：先逐组做实到不再需要转发，再归档生成器。
 | 10 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | `Build-AllDomains.ps1`、ADR 0080 | ✅ 部分 | ⬜ | ⬜ |
+
+> **2026-11-17 第十七轮补记（步骤 9 目标需改写）**：步骤 9 的前提是「逐组做实到不再需要转发」，
+> 即 host 数量能降到 0。第十七轮验伪后 host 250 已是**闭合边界**（全部有代码证据，不是没做完），
+> 转发路径因此**不会退役**。推论：`McpToolDispatch` 生成器产出的进程内 handler 注册表是**持久组件**，
+> 不是过渡产物 —— 步骤 9 的「归档生成器」应改写为「长期保留 + 只读扫描器与它保持同一份特性来源」，
+> 否则下一轮还会有人重开这个"未完成任务"。
 
 ---
 
@@ -483,12 +489,224 @@ cleanup dry-run（2 候选）→ confirm 删除 2 个 → 冲突场景：target 
 | mcp | 18 | 7 | MCP 客户端连接生命周期（connect/disconnect/auth/资源读取），连接对象在宿主进程里 |
 | shell | 16 | 11 | 后台进程注册表（shell_background_*）、构建队列、sandbox 会话 —— 进程句柄不可跨进程 |
 | tools | 9 | 9 | skill 发现/执行 + tool_create + 评分（宿主技能注册表与打分器状态） |
-| web | 3 | 2 | web_browser 需浏览器实例；web_fetch/web_search 待评估（见下） |
+| web | 2 | 3 | web_browser 需浏览器实例；web_search 是 7 家 provider 的选择矩阵（第十五轮结论：不该下沉） |
 
-合计 **local 386 / 640（60%）**，host 251。
+合计 **local 217 + delegate 173 + host 250 = 640**；不经过宿主的 390/640 = 60.9%（脚本 `Floor` 后打印 `60%`）。
+（口径说明：早期版本这里写「local 388 / 640」，是把 local 与 delegate 混算了，以三分法为准。）
 
-**仍可推进但收益有限的候选**（按性价比排序，供下一轮挑）：
-1. `web_fetch` + `web_search`（2 个）：纯 HttpClient 可做，但 `web_browser` 仍在 `hands_web`，拿不掉整个模块；
-   且 fetch 的 HTML→Markdown/PDF 抽取与 search 的 provider 选择要和宿主保持一致，分叉风险不小。
-2. `graph_register/unregister/repos`（3 个）：多仓注册表若为 JSON 文件可下沉，但同样需要宿主侧按内容戳感知。
-3. `tools` 组 skill 系列（9 个）：扫描磁盘技能目录，但宿主注入系统提示词时仍要走同一套技能引擎，拿不掉依赖。
+**曾列为「仍可推进但收益有限」的 12 个候选 —— 第十七轮逐个验伪，全部有实证绑定：**
+
+1. `graph_register` / `graph_unregister` / `graph_repos`（search 组 3 个）
+   —— `CodeIndexerRegistry` 是**纯内存** `MapRegistry<string, RegisteredRepo>`（`modules/perception/code_index/indexing/CodeIndexerRegistry.cs`）：
+   `RegisterAsync` 现场 new 一个 `CodeIndexer` + `InMemoryIndexStore`，**没有任何落盘**。
+   这些条目唯一的用途是让 `graph_query/explain/path` 从**同一个** `_registry` 实例取 indexer。
+   exe 写一份 JSON 也没有任何代码会读它 —— 典型的第二真相源。
+2. `tool_score` / `tool_hypergraph` / `tool_score_reset`（3 个）
+   —— `ToolHypergraphScorer` 的超边共享评分由**宿主定时器**每小时 sync、每 2 小时从 transitions 重建；
+   健康记录虽经 `IFileSystem` 落到 `_configPath`，但宿主 Actor 里另有内存副本。
+   exe 直接读文件只能给出**过期、且与路由实际用值不一致**的分数 —— 一个会撒谎的诊断工具比没有更糟。
+3. `skill` / `skill_execute`（2 个）—— 走 `ISkillService` 执行，`fork` 模式还要拿 `IAgentService` 起 subagent 跑 LLM 循环。
+   在 exe 里做等于把技能执行引擎重写一遍。
+4. `skill_search` / `skill_recommend` / `discover_skills`（3 个）
+   —— `SkillSearchService` 维护的 tag/name 内存索引覆盖「宿主发现的全部技能」（磁盘目录 + 插件/市场技能）。
+   exe 自建扫描 = 第二份「有哪些技能」的答案，与 `web_search` 同理：同一决策不该有两个实现。
+5. `tool_create`（1 个）—— 把模板注册进**当前会话**的工具表，没有会话就没有对象。
+
+**结论：host 250 是闭合边界，不再有「待评估」项。**
+delegate 173 也不是遗留问题：github 组的 173 个全部转发到已有的专用 `jcc-gh.exe`（`DelegateExecutable`/`DelegateVerb` 在
+`groups/github/Program.cs` 里声明），只多一次进程跳转，实现本身早已独立，没有重复逻辑。
+后续若要继续减负，方向不在「再拆工具」，而在宿主侧瘦身（引擎/渲染依赖是否还能从主 CLI 移出）。
+
+### 2026-11-17 第十五轮：web_fetch 下沉（web_search 判为不该下沉）
+
+**web_fetch**（`groups/web/private/WebCommands.cs` + 新增 `WebLlm.cs`）：
+- 抓取 → HTML 转 Markdown（复用已有 `HtmlMarkdown`）→ 二级模型按 prompt 加工，模型调用走
+  `WebLlm`（HttpClient 直调 OpenAI-compatible `/chat/completions`，与 CodeLlm/MediaLlm 同一套做法，
+  重复是依赖墙的代价，已在文件头注明三处需同步）。
+- 对齐宿主三条关键行为：**①不自动跟随跨主机跳转**（同主机最多 5 跳手动跟随，跨主机把新 URL 回给调用方 ——
+  自动跟随会把"允许的域名"变成"允许它跳到任何地方"，这是 SSRF 防护的一环）；
+  **②HTML 先转 Markdown 再进模型**，超长按 100k 截断；**③模型不可用时降级返回正文前 5000 字**并附失败原因，
+  不让整个抓取失败。
+- 一处**刻意不复刻**：宿主的"预批准域名"白名单（`PreapprovedDomains`）。那份清单在 guard 层是安全资产，
+  复制到 exe 必然漂移；代价只是官方文档站点也走一次模型加工（多几百毫秒），换来清单只有一处。
+- 顺带修正配置路径：settings.json 现在按 `JCC_APP_DATA_FOLDER` / `JCC_SETTINGS_FILE_NAME` 解析，
+  与宿主 `AppDataPaths.FromEnvironment` 同一套环境变量语义（原先硬编码 `~/.jcc`，指向别处的多配置环境会读错文件）。
+
+**web_search 不下沉**（保留 host）：宿主侧是 7 家 provider 的选择矩阵
+（anthropic / brave / deepseek / searxng / serper / subagent / tavily，各有优先级与 availability 判定）。
+在 exe 里再写一份选择逻辑，等于把"用哪家搜索"变成两处决策，配置了 tavily 的用户会突然发现 exe 路径报错。
+这不是能力问题，是**同一决策不该有两个实现**。
+
+**真机验证**：
+- 降级路径：`https://example.com` → 正文 + `[LLM processing failed: 未设置环境变量 SENSENOVA_API_KEY…]`；
+- 模型链路：临时配置指向 deepseek（`JCC_APP_DATA_FOLDER` 指向临时目录）→ 请求打到 API、返回
+  `Authentication Fails, Your api key: ****5856 is invalid` —— 链路通、密钥无效，与上一轮 LLM 链路结论一致；
+- 跨主机跳转：`httpbingo.org/redirect-to?url=example.com` → 输出 `REDIRECT DETECTED` + 新 URL + 重试参数（与宿主文案一致）；
+- 同主机多跳：`httpbingo.org/redirect/2` → 跟随后取到最终响应；
+- 404：`example.com/not-exist-xyz` → 明确失败与排查提示；
+- 经 `jcc tool call web web_fetch` 路由复验一遍。
+
+**总账**：web 组 local 2 → 3（web_search / web_browser 留 host），host 251 → 250。
+
+### 2026-11-17 第十六轮：收口验收（契约对账 + 全量自描述 + 路由抽查）
+
+**先纠一个数字错误**：此前多轮写的「local 388/640（61%）」把 `local` 和 `delegate` 混算了。
+真实分布：**local 217 + delegate 173 + host 250 = 640**；「不经过宿主的工具」= 390/640（61%）。
+后面一律用三分法表述，不再用笼统的"已下沉"。
+
+**对账与部署**（⚠️ 第十九轮已纠正：本轮原本新写了 `scripts/check_cli_node_coverage.py` 和
+`scripts/deploy_cli_nodes.py`，后来发现仓库里早有 `Verify-ToolNodes.ps1` 与 `Pack-ToolNodes.ps1`，
+能力都是超集且已在 CI 里 —— 两个 Python 脚本属重复实现，已归档到 `.xxx/`。下面是**现有**两个 canonical 脚本：
+
+- `non_deliverables_tools/scripts/Verify-ToolNodes.ps1` —— 声明 vs 现实对账：
+  ① exe 自报 local 数与 node.yaml 一致 ② **local 工具 id 集合一致**（见第十九轮补的检查）
+  ③ `tool_count` / 条目数 / `-h` 索引三者一致 ④ `-h` 体积上限 ⑤ 单工具 `-h` 能定位执行方式。
+  `-DeclarationsOnly` 只验声明侧（不编译不跑 exe），CI 用这个；`-Sample` 抽无副作用工具真跑。
+- `non_deliverables_tools/scripts/Pack-ToolNodes.ps1` —— 装配到 `artifacts/pack/tool-nodes/tools/<组>/`。
+  **存在理由**：`jcc tool call` 判断走 exe 还是宿主，读的是**部署目录**里的 node.yaml。本轮就踩到过：
+  media 组的部署清单停在 quadtree_* 还是 host 的旧版本，于是 `jcc tool call media quadtree_neighbor -h`
+  错走宿主 mcp_call 报「缺少 '=' 分隔符」——源码没问题，是只编不部署。
+
+**验收结果**：
+
+| 项 | 结果 |
+|---|---|
+| 13 组契约对账（声明 vs 注册表 vs help.txt） | 全通过（217 local / 250 host / 173 delegate） |
+| 217 个 local 工具 `<tool> -h` 自描述 | 0 失败 |
+| 每组抽 2 个 local 工具经 `jcc tool call` 路由 | 24/24 命中 exe（github 组无 local，跳过） |
+| 各组入口注释与实际分布一致 | 已修 6 处过时说明（agent/code/system/web/search/shell） |
+
+**仍未端到端验证的部分**（如实列出，别当成已验）：
+1. 写类/交互类工具的**语义正确性**只做过点验证：`permission_*`（四条命令往返）、`worktree_*`（六条全跑，含冲突回滚）、
+   `web_fetch`（降级 + 跨主机跳转 + 404）。其余写类（`media` 桌面操作、`file` 写/补丁、`system` 通知与闪烁、
+   `shell` 命令执行）只到"能跑通、输出合理"，没有回归用例。
+2. **LLM 链路**只验证到 API 层：请求构造/端点解析/错误上抛已确认，`DEEPSEEK_API_KEY` 无效、`SENSENOVA_API_KEY` 未设置，
+   所以没有任何一次真实模型返回被检查过内容质量。
+3. `search` 组 14 个 local 工具（grep/glob/project_graph 等）本轮只做 `-h` 与路由抽查，未逐个跑真实查询。
+4. `media` 组 60 个 local 已经过前面轮次的真机验证，但本轮未复跑（桌面操作会动到本机窗口，不适合无人值守批量跑）。
+
+**CI 接线**：`ci-unit-tests.yml` 里已有 `tool-node-declarations` job 跑
+`Verify-ToolNodes.ps1 -DeclarationsOnly`（几秒、不编译）。要做「声明 vs 现实」的全量对账需先编译 13 个 exe，
+那是本地步骤：`Verify-ToolNodes.ps1`（不加 `-DeclarationsOnly`），部署则用 `Pack-ToolNodes.ps1`。
+本轮原本建议"CI 追加两步 Python 脚本"，已被第十九轮否掉 —— 那两步等价于调用上面两个 canonical 脚本，
+等价物本就在仓库里，不该再造一份。
+
+### 2026-11-17 第十七轮：最后 12 个候选验伪，host 边界闭合
+
+第十六轮虽然建了验收体系，但文档里还挂着两条**凭印象的猜测**（"graph 多仓注册表若为 JSON 文件可下沉"、
+"skill 系列扫磁盘目录但拿不掉依赖"）。本轮把这 12 个逐个读实现验伪，证据写进上面的边界表，不再留"待评估"。
+
+三处推翻了原有猜测：
+1. **`graph_*` 没有文件**。`CodeIndexerRegistry` 是内存 `MapRegistry`，注册即 new 索引器实例，
+   `graph_query` 等下游工具靠同一实例取 indexer。原猜测"若是 JSON 文件可下沉"前提不成立。
+2. **`tool_score` 有落盘，但落盘不是真相源**。落盘的是健康记录镜像，真正参与路由的是
+   `ToolHypergraphScorer` 里由宿主定时器维护的共享评分。exe 读文件会得到与路由行为不一致的数字。
+   ——这条比"读不到"更值得记：**能读到 ≠ 读得对**，诊断类工具的错报比缺报更有害。
+3. **`skill_search` 的索引覆盖「宿主发现的全部技能」**（磁盘 + 插件/市场），不是单纯扫目录。
+   exe 自建扫描会得到一份不同的技能清单。
+
+**边界至此闭合**：host 250 / 640 全部有代码证据；delegate 173 是一次转发到已有的 `jcc-gh.exe`。
+下一轮若继续减负，对象不再是工具，而是主 CLI 自身的重依赖（引擎/渲染/状态服务）。
+
+### 2026-11-17 第十八轮：把 jcc 自身从 154.5 MB 降到 92.8 MB（tree-sitter 语法包裁剪）
+
+工具侧闭合后，负担只剩主 CLI 自己。先量一遍 `artifacts/bin/JoinCode/Debug/net10.0`（排除 98 MB 的 pdb）：
+
+| 组成 | 体积 | 是否活依赖 |
+|---|---|---|
+| tree-sitter 语法 30 个 | **68.0 MB** | 只有 2 个在用 |
+| JoinCode.\* 自有程序集 136 个 | 25.3 MB | 是 |
+| SkiaSharp | 12.2 MB | 是（ShellImageOutputDetector / GDI 截图 / Vision） |
+| onnxruntime | 11.9 MB | 是（实测 Phase E2 嵌入真跑了） |
+| pdfium (Docnet) | 4.7 MB | 是（`read` 基础工具走 FileSpecialFormatReader 读 PDF） |
+| PuppeteerSharp + WebDriverBiDi | 6.2 MB | 是（web_browser 留宿主） |
+| MCP 相关 | 3.1 MB | 是 |
+
+**结论：唯一的死重是 tree-sitter 语法包。** 生产代码里 `new Language(...)` 的全部调用点只有两处
+（`grep -rn "new \(TreeSitter\.\)\?Language(\""` 全仓只有 2 条 + `new TreeSitterParser("c-sharp")` 3 条）：
+
+- `c-sharp` —— CodeIndex 解析 `*.cs`；`CodeIndexer.CollectCsFilesRecursive` 只扫 `*.cs` / `*.md`
+- `bash` —— guard.security 的 `BashAstSecurityWalker`（FAIL-CLOSED 命令检查）
+
+其余 28 个语法（verilog 17.8 MB、razor 10.8 MB、cpp、scala、haskell、julia、ocaml、ruby、tsx、typescript、
+rust、php、agda…）**从未被任何代码请求**。`TreeSitter.DotNet` 按 `"tree-sitter-" + languageId` 拼名加载，
+不枚举目录，所以删掉不影响任何调用点。
+
+**改动**（`modules/apps/cli/JoinCode.csproj`）：
+1. Release 的 `EmbeddedResource` 从 `tree-sitter*.dll` 全量 glob 改成显式 3 个文件（core + c-sharp + bash）；
+2. 新增 `TrimUnusedTreeSitterGrammars`（`AfterTargets="Build"`，非 Release）删掉输出目录里其余语法 —— NuGet 每次
+   按 `PreserveNewest` 重新拷贝，所以必须挂在每次 Build 之后，不能只删一次。
+
+**结果**：`154.5 MB / 343 files` → `92.8 MB / 315 files`，净减 **61.7 MB（-40%）**，编译 32 秒 0 警告 0 错误。
+
+**验证**：
+- 真机解析：临时工作区放一个 `probe.cs` → `jcc mcp_call create_index` 输出 Phase D 提取成功、符号数 76367 → 76371
+  （+4 个符号来自 probe.cs），证明 `tree-sitter-c-sharp` 真的在工作，不是"文件在但加载不了"；
+- 同一次调用里 Phase E2 嵌入也用上了 onnx，说明 onnx 不是死重；
+- bash 语法只做**静态**验证（保留文件 + 唯一调用点），未在 jcc 内触发实际解析 —— 宿主 bash 工具需要
+  `SystemActuatorRegistry.RegisterFactories()` 完整启动，`mcp_call` 直调路径起不来。
+
+**顺带发现（未改，待定）**：`IBashSecurityValidator` → `BashPermissionChecker` 这条 bash AST 安全检查链
+在 `modules/**` 里除 guard.security 自己与测试外**没有任何消费者**（`grep -rn "IBashSecurityValidator"`）。
+即 FAIL-CLOSED 的 bash 检查目前可能根本没接线，与 CLI 化无关、也不是本轮引入的。这条留给人判断，
+不适合顺手改 —— 要么是历史未接线，要么是有反射/配置装配路径没被我读到。
+
+### 2026-11-17 第十九轮：撤掉我自己造的重复脚本，把唯一增量并进 canonical 版本
+
+上一轮（第十六轮）收口时我新写了 `scripts/check_cli_node_coverage.py` 和 `scripts/deploy_cli_nodes.py`，
+当时以为仓库里没有等价物。这一轮做 CI 接线时才发现：
+
+| 我新写的 | 仓库已有的 | 差距 |
+|---|---|---|
+| `check_cli_node_coverage.py` | `non_deliverables_tools/scripts/Verify-ToolNodes.ps1` | 已有版本多了：`-DeclarationsOnly`、`-Sample` 无副作用抽样、`-h` 体积上限、单工具 `-h` 定位、`group_map.yaml` 双向校验 |
+| `deploy_cli_nodes.py` | `non_deliverables_tools/scripts/Pack-ToolNodes.ps1` | 已有版本多了：按需编译、单组失败不影响其余、`tools/<组>/` 布局 |
+
+而且 `Verify-ToolNodes.ps1` **早就在 `ci-unit-tests.yml` 的 `tool-node-declarations` job 里跑**（`-DeclarationsOnly`）。
+也就是说我不仅造了重复，还写了一版「CI 接线建议」去接一个已经接好的东西。
+
+**处置**：
+1. 我的脚本里**唯一更强**的一点是比 local 工具的 **id 集合**（已有版本只比数量）。把这条并进 `Verify-ToolNodes.ps1`：
+   数量相等但换了人（A 从 local→host、B 从 host→local）计数完全一样，`-h` 也不会报错，但工具实际跑在哪已经变了。
+   比对前按 `CliNodeRunner.CanonicalToolId` 同口径 `TrimStart('/')` 归一化，否则 slash 组会假报。
+2. 两个 Python 脚本按项目规范归档到 `.xxx/*.del`（不删除）。
+3. 全量跑一遍 `Verify-ToolNodes.ps1 -SkipBuild`：13 组 / 640 工具 / 隔离 390（60%），新增集合检查零假报。
+
+**教训**：收口阶段最该先做的是「搜一遍有没有现成的」，而不是「先写一个能跑的」。
+判断标准本来就是我自己反复用的那条 —— 同一决策不该有两个实现 —— 结果自己踩了。
+
+### 2026-11-17 第二十轮：把「声明 vs 现实」对账接进 CI
+
+上一轮的教训是「先搜有没有现成的」。这一轮把那份现成的用起来：`Verify-ToolNodes.ps1` 之前只有
+`-DeclarationsOnly` 进了 CI，真正的完整对账一直靠人记得在本地跑。**人记得跑的东西等于不存在**，
+所以加了一个 `tool-node-reality` job（`ci-unit-tests.yml`，windows-latest，15 分钟超时）。
+
+它在 PR 上多拦两类声明侧看不见的漂移：
+
+1. **等量互换**：A 从 local 改成 host、同时 B 从 host 改成 local，`tool_count` / `local_tool_count` 全对，
+   `-h` 也不报错，但「工具实际跑在哪」已经变了。只有逐 id 比 local 集合才发现。
+2. **分组 exe 编译不过**：声明侧只读 yaml，源码写崩了它照样绿。
+
+**关键改动是 `-FromScratch` 开关**。脚本默认走 `--no-restore` + `-p:BuildProjectReferences=false`
+的快路径 —— 那是为「依赖产物已就绪」的本地增量场景准备的（单组 5 秒）。干净容器里没有
+`project.assets.json`，也没有 `Abstractions.Primitives.Tools.dll`，同样的参数会直接失败。
+所以 `-FromScratch` 去掉这两个开关，让 MSBuild 自己还原并构建契约层；
+本地增量**不要加它**，否则白丢 5 秒/组的优势。
+
+契约层只依赖 YamlDotNet、`ExcludeStructura=true`，所以冷启动还原成本很低 ——
+实测本地 13 组冷启动 + 抽样真跑全流程 **36 秒**（CI 首次还原会慢一些，15 分钟余量充足）。
+
+与 `tool-node-declarations` 分成两个 job 而不是合并：声明侧几秒就失败，
+定位比「等 13 个 exe 编完再说 yaml 写错了」快得多。
+
+**验证**：
+- `-FromScratch -Sample` 全量跑：13 组 / 640 工具 / 隔离 390（60%），8 次抽样真跑全通过，退出码 0；
+- `-DeclarationsOnly` 复跑仍通过（改动没有破坏声明侧）；
+- 两个 workflow yml 用 js-yaml 解析通过，job 结构完整（`runs-on` + steps 齐全）。
+
+**顺带订正 ADR 0157**：那份 ADR 的「逐组做实清单」还是 2026-11-16 的快照（`github 172/172`、`code 10/32`、
+`media 0/60`、`slash 0/99`…），与现状差得远，而且「剩下 411 个不硬做」的六类依赖清单里
+`lsp_*`、`permission_*`、`web_fetch` 都已经下沉了。按 `--list-local` 实测重写成三列
+（local / delegate / host），依据也换成现在的理由；给 11-16 那次决策的当日记录加了
+「数字是快照，现行口径见修正注」的指针，避免它被当成现状引用。
+另把 `390/640` 的比例统一写成 `60.9%（脚本 Floor 后打印 60%）`——
+之前 ADR 写 61%、脚本打印 60%，同一个事实两个数，迟早有人当成矛盾再「纠」一次。

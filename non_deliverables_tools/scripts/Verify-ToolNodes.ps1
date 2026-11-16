@@ -20,9 +20,15 @@
 .PARAMETER SkipBuild
   不编译，直接用已有产物。
 
+.PARAMETER FromScratch
+  CI 冷启动用：分组工程自己完成还原与依赖构建（去掉 --no-restore 与 -p:BuildProjectReferences=false）。
+  本地增量编译不要加它 —— 那两个开关是为「依赖产物已就绪」的快路径准备的，
+  在干净容器里会让 MSBuild 找不到 assets 文件与契约层 DLL。
+
 .PARAMETER DeclarationsOnly
   只验声明侧：13 份 node.yaml 自洽 + 与 group_map.yaml 交叉一致。
-  不编译、不跑 exe，几秒完成 —— CI 用这个模式，本地全量校验不要加它。
+  不编译、不跑 exe，几秒完成 —— CI 的 tool-node-declarations job 用这个模式，
+  好在等 13 个 exe 编完之前就把「yaml 自己写错了」拦下来。
 
 .PARAMETER Sample
   抽样真跑每组一个无副作用工具。
@@ -34,6 +40,7 @@
 param(
     [switch]$SkipBuild,
     [switch]$DeclarationsOnly,
+    [switch]$FromScratch,
     [switch]$Sample,
     [int]$MaxHelpBytes = 8192,
     [string]$Configuration = "Debug"
@@ -69,6 +76,10 @@ function Invoke-Probe {
 $groups = Get-ChildItem -Path $groupsRoot -Directory |
     Where-Object { Test-Path (Join-Path $_.FullName ("jcc_tool_" + $_.Name + ".csproj")) } |
     Sort-Object Name
+
+# 工具 id 归一化：slash 组的 node.yaml 登记名与 exe 自报名在前导斜杠上不一致（/version vs version），
+# 与 CliNodeRunner.CanonicalToolId 同口径处理，否则集合比对会对 slash 组假报漂移。
+function Normalize-ToolId([string]$id) { if ($id) { $id.TrimStart('/') } else { $id } }
 
 if (-not $groups) {
     Write-Host "找不到任何分组工程: $groupsRoot" -ForegroundColor Red
@@ -166,10 +177,16 @@ foreach ($group in $groups) {
 
     # ── 现实侧：先编译，再自报 ────────────────────────────────────────
     if (-not $SkipBuild) {
-        $build = Invoke-Probe -Exe "dotnet" -Arguments @(
+        # 快路径（默认）：依赖产物已就绪，跳过还原与依赖项目重建，单组 20~40 秒。
+        # 冷启动（-FromScratch）：干净容器里没有 assets 文件、也没有契约层 DLL，
+        # 必须让 MSBuild 自己还原并构建 Abstractions.Primitives.Tools，否则单组直接失败。
+        $buildArgs = @(
             "build", (Join-Path $group.FullName ("jcc_tool_" + $name + ".csproj")),
-            "-c", $Configuration, "--no-restore", "--nologo", "-v", "minimal",
-            "-p:BuildProjectReferences=false", "-p:EmitCompilerGeneratedFiles=false")
+            "-c", $Configuration, "--nologo", "-v", "minimal")
+        if (-not $FromScratch) {
+            $buildArgs += @("--no-restore", "-p:BuildProjectReferences=false", "-p:EmitCompilerGeneratedFiles=false")
+        }
+        $build = Invoke-Probe -Exe "dotnet" -Arguments $buildArgs
         if ($build.Code -ne 0) {
             $problems += "[$name] 编译失败"
             $build.Output -split "`r?`n" | Select-Object -Last 6 |
@@ -193,6 +210,28 @@ foreach ($group in $groups) {
     if ($reportedLocal -ne $declaredLocal) {
         $problems += "[$name] 自报 local=$reportedLocal 与 node.yaml 声明 $declaredLocal 不一致（实现与登记漂移）"
     }
+
+    # 只比数量不够：把 A 从 local 改成 host、同时把 B 从 host 改成 local，计数一模一样，
+    # -h 也不会报错，但「工具实际跑在哪」已经换了地方。所以还要逐 id 比一遍集合。
+    # slash 组的登记名带前导斜杠（/version），exe 自报不带，按 CliNodeRunner.CanonicalToolId 同口径归一化。
+    $reportedLocalIds = @()
+    $idMatch = [regex]::Match($selfReport, 'local=(\S*)')
+    if ($idMatch.Success -and $idMatch.Groups[1].Value) {
+        $reportedLocalIds = @($idMatch.Groups[1].Value -split ',' |
+            Where-Object { $_ } | ForEach-Object { Normalize-ToolId $_ })
+    }
+    $declaredLocalIds = @([regex]::Matches($yaml, '(?ms)^\s+- id:\s*(\S+)\s*\r?\n\s+mode:\s*local\b') |
+        ForEach-Object { Normalize-ToolId $_.Groups[1].Value })
+
+    if ($reportedLocalIds.Count -gt 0) {
+        $onlyDeclared = @($declaredLocalIds | Where-Object { $reportedLocalIds -notcontains $_ })
+        $onlyReported = @($reportedLocalIds | Where-Object { $declaredLocalIds -notcontains $_ })
+        if ($onlyDeclared.Count -gt 0 -or $onlyReported.Count -gt 0) {
+            $problems += "[$name] local 工具集合不一致：声明为 local 但 exe 未实现 [$($onlyDeclared -join ', ')]；" +
+                "exe 实现了但 node.yaml 登记成别的 mode [$($onlyReported -join ', ')]"
+        }
+    }
+
     if ($declaredDelegate -gt 0 -and -not $reportedDelegate) {
         $problems += "[$name] node.yaml 声明了 delegate，但 exe 未自报 delegated_to"
     }

@@ -47,3 +47,9 @@ items:
     status: done
     evidence: "真机 JCC_DEBUGLOG=1 jcc mcp_call bash 打出 [ORDER] command_guards: GitCommitGuard > ... > VpnRouteGuard，与 YAML 及迁移前基线逐项一致；Verify-RegistrationOrder.py 双向对账通过"
     next: 无需动作
+
+  - id: gui_profile_unification
+    title: gui profile 装配归一到生成器（手写 YAML 解析 + switch 已删除），gui 路径首次真机启动
+    status: done
+    evidence: "真机探针 artifacts/bin/GuiSessionProbe 建会话成功，[MODULE] 顺序 CoreModule > SlashCommandModule > ClockModule > BrowserModule > HousekeepingModule > McpInitModule 与 gui profile 逐项一致；已进 CI module-order job"
+    next: 无需动作

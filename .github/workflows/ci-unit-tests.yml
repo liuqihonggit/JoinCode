@@ -129,6 +129,37 @@ jobs:
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-RegistrationOrder.py
 
+  # 显式模块顺序 — 真机核对 CLI 与 GUI 两套装配：
+  #   ① CLI：启动 jcc，比对实际模块启动顺序 == resources/app/modules.yaml 的 cli profile；
+  #   ② GUI：启动探针真建一次引擎会话，比对 [MODULE] 顺序 == gui profile。
+  # gui 这条路径此前是「手写 YAML 解析 + 手写 switch」，与 CLI 走的生成器是两套实现，
+  # 而且从未被真机启动过 —— 拼错模块名只会在运行时炸，而 GUI 宿主（native_gui / native_tui）
+  # 日常 CI 根本碰不到。这里把它变成一道常规门禁。
+  module-order:
+    name: Module order (CLI + GUI)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-test-env
+      - name: Build jcc and the GUI session probe
+        shell: pwsh
+        run: |
+          dotnet build modules/apps/cli/JoinCode.csproj -c Debug --nologo
+          dotnet build non_deliverables_tools/gui_session_probe/GuiSessionProbe.csproj -c Debug --nologo
+      - name: Verify CLI module order against modules.yaml
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-ExplicitOrder.py
+      - name: Verify GUI session boots with the declared order
+        shell: pwsh
+        run: |
+          $env:JCC_DEBUGLOG = "1"
+          $env:JCC_ALLOW_DIRECT_FALLBACK = "1"
+          $env:OPENAI_API_KEY = "sk-dummy-probe"
+          & "artifacts/bin/GuiSessionProbe/Debug/net10.0/GuiSessionProbe.exe"
+          if ($LASTEXITCODE -ne 0) { throw "GUI 会话探针失败 — gui profile 的装配路径走不通" }
+
   # 「声明 vs 现实」完整对账：编译 13 个分组 exe，逐个比 --list-local 自报数量与 local id 集合、
   # -h 体积上限、单工具 -h 能否定位到参数表，并抽样真跑 6 个无副作用工具。
   #

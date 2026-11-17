@@ -26,6 +26,8 @@
   - 边界：`/debuglog` 每段仍截断到 500 字符，看全文用 `jcc prompt`。
 - [x] **接口层位次改为注册顺序表派生**：6 个接口的 `Priority` / `Order` 全部改为由 `resources/orders.yaml` 派生，代码里不再有手写数字。
   - 证据：真机 `JCC_DEBUGLOG=1 jcc mcp_call bash` 打出 `[ORDER] command_guards: GitCommitGuard > DriveProtectionGuard > CmdIndirectCallGuard > RobocopyMirrorGuard > HeredocGuard > GhPrBodyGuard > GhTimeoutGuard > VpnRouteGuard`，与 YAML 及迁移前基线逐项一致；`Verify-RegistrationOrder.py` 双向对账通过并已进 CI 门禁。
+- [x] **gui profile 装配归一**：手写 YAML 解析 + switch 已删除，改为生成器产出的 `GuiModuleCatalog`；gui 会话首次真机启动。
+  - 证据：真机探针 `artifacts/bin/GuiSessionProbe` 建会话成功（退出码 0），`[MODULE]` 顺序 `CoreModule > SlashCommandModule > ClockModule > BrowserModule > HousekeepingModule > McpInitModule` 与 gui profile 逐项一致；已进 CI `module-order` job。
 
 ## 用户决策记录
 

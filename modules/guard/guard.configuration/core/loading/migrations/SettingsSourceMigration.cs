@@ -1,95 +1,90 @@
 namespace Core.Configuration;
 
 /// <summary>
-/// 配置存储源迁移 — 把历史误写在 <c>settings.json</c> 里的 global 键搬到 <c>global.json</c>。
+/// v1 — 配置存储源迁移：把历史误写在 <c>settings.json</c> 里的 global 键搬到 <c>global.json</c>。
 /// <para><b>为什么需要</b>：TASK089 之前，<c>/theme</c>、GUI 把主题等 10 个键写进 <c>settings.json</c> 的
-/// <c>current</c> 分支，而 <see cref="JoinCode.Abstractions.Configuration.Settings.SettingSourceMap"/>
+/// <c>current</c> 分支，而 <see cref="JoinCode.Abstractions.Configuration.Settings.ConfigKeyRegistry"/>
 /// 声明它们属于 <c>global.json</c>（对齐 TS <c>~/.claude.json</c>）。
 /// 收敛存储源之后，旧位置的值会「消失」—— 用户会以为主题被重置了。所以必须搬一次。</para>
-/// <para><b>幂等性靠结构而非版本号</b>：搬完 <c>settings.json</c> 里就没有这些键了，
+/// <para><b>幂等性有两层</b>：外层是版本标记（<see cref="ConfigMigrationRunner"/> 记在
+/// <c>config-migrations.json</c>，标记丢了才重跑）；内层是结构 —— 搬完 <c>settings.json</c> 里就没有这些键了，
 /// 下次运行没有可搬项，自然不写盘。中途崩溃（写完 global、没删 settings）也只会让下一轮
 /// 走「两边都有 → 保留 global、删掉 settings」的分支，仍然收敛到同一状态。</para>
 /// <para><b>为什么用 JsonNode 而不是强类型 SettingsJson</b>：强类型往返会丢掉本类不认识的字段
 /// （例如 <c>autoFetchModels</c>、<c>update</c>），迁移只应该动被搬的那几个键。</para>
 /// </summary>
-public static class SettingsSourceMigration {
+public sealed class SettingsSourceMigration : IConfigMigration {
+    /// <inheritdoc/>
+    public int Version => 1;
+
+    /// <inheritdoc/>
+    public string Name => "settings-source";
+
     /// <summary>
     /// 写盘选项 —— 继承 <see cref="ConfigIndentedJsonContext"/> 的缩进与源码生成 resolver，
     /// 只额外换成允许真实中文的 Encoder（默认编码器会把用户手写的中文转成转义序列）。
     /// </summary>
     private static JsonSerializerOptions WriteOptions => ConfigIndentedJsonContext.Default.RelaxedOptions();
 
-    /// <summary>迁移当前的配置文件。</summary>
-    /// <param name="fs">文件系统抽象（生产用 PhysicalFileSystem，探针可注入）</param>
-    /// <param name="logger">日志记录器（可选）</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>迁移结果 — 无搬动项时两个列表都为空</returns>
-    public static async Task<SettingsMigrationOutcome> RunAsync(
-        IFileSystem fs,
-        ILogger? logger = null,
-        CancellationToken cancellationToken = default) {
+    /// <inheritdoc/>
+    public async Task<ConfigMigrationOutcome> ApplyAsync(
+        IFileSystem fs, ILogger? logger, CancellationToken cancellationToken) {
         var settingsPath = AppDataConstants.Paths.SettingsFilePath;
         var globalPath = AppDataConstants.Paths.GlobalConfigFilePath;
 
         if (!fs.FileExists(settingsPath))
-            return SettingsMigrationOutcome.None;
+            return ConfigMigrationOutcome.None;
 
         var moved = new List<string>();
         var conflicted = new List<string>();
 
-        try {
-            // 1. 先读 settings.json 找出待搬的键（global 源 + current 分支里有值）
-            var pending = await ReadPendingMovesAsync(settingsPath, fs, cancellationToken).ConfigureAwait(false);
-            if (pending.Count == 0)
-                return SettingsMigrationOutcome.None;
+        // 1. 先读 settings.json 找出待搬的键（global 源 + current 分支里有值）
+        var pending = await ReadPendingMovesAsync(settingsPath, fs, cancellationToken).ConfigureAwait(false);
+        if (pending.Count == 0)
+            return ConfigMigrationOutcome.None;
 
-            // 2. 先写 global.json —— 万一后续删 settings 失败，值也不会丢；
-            //    下一轮会走「两边都有」分支收敛。
-            var globalNode = await ReadJsonObjectAsync(globalPath, fs, cancellationToken).ConfigureAwait(false)
-                ?? new JsonObject();
+        // 2. 先写 global.json —— 万一后续删 settings 失败，值也不会丢；
+        //    下一轮会走「两边都有」分支收敛。
+        var globalNode = await ReadJsonObjectAsync(globalPath, fs, cancellationToken).ConfigureAwait(false)
+            ?? new JsonObject();
 
-            var globalChanged = false;
-            var toRemove = new List<string>(pending.Count);
-            foreach (var (key, value) in pending) {
-                if (globalNode[key] is not null) {
-                    // 两边都有值 —— global 是今后唯一权威源，保留它。
-                    // 这里只记日志不静默：用户若发现主题不对，能查到原因。
-                    conflicted.Add(key);
-                } else {
-                    globalNode[key] = JsonNode.Parse(value);
-                    globalChanged = true;
-                    moved.Add(key);
-                }
-                toRemove.Add(key);
+        var globalChanged = false;
+        var toRemove = new List<string>(pending.Count);
+        foreach (var (key, value) in pending) {
+            if (globalNode[key] is not null) {
+                // 两边都有值 —— global 是今后唯一权威源，保留它。
+                // 这里只记日志不静默：用户若发现主题不对，能查到原因。
+                conflicted.Add(key);
+            } else {
+                globalNode[key] = JsonNode.Parse(value);
+                globalChanged = true;
+                moved.Add(key);
             }
-
-            if (globalChanged) {
-                await WriteJsonObjectAsync(globalPath, globalNode, fs, cancellationToken).ConfigureAwait(false);
-            }
-
-            // 3. 再清 settings.json 里的同一批键
-            await RemoveKeysAsync(settingsPath, toRemove, fs, cancellationToken).ConfigureAwait(false);
-
-            if (moved.Count > 0) {
-                logger?.LogInformation(
-                    "配置迁移：{Count} 个键从 settings.json 移到 global.json（{Keys}）",
-                    moved.Count,
-                    string.Join(", ", moved));
-            }
-
-            if (conflicted.Count > 0) {
-                logger?.LogWarning(
-                    "配置迁移：{Count} 个键在 global.json 已有值，保留 global 并删除 settings.json 的旧值（{Keys}）",
-                    conflicted.Count,
-                    string.Join(", ", conflicted));
-            }
-        } catch (Exception ex) {
-            // 迁移失败不能让配置读写整体不可用 —— 退回到「按唯一表读、读不到就是没设置」。
-            logger?.LogWarning(ex, "配置存储源迁移失败，跳过迁移");
-            return SettingsMigrationOutcome.None;
+            toRemove.Add(key);
         }
 
-        return new SettingsMigrationOutcome(moved, conflicted);
+        if (globalChanged) {
+            await WriteJsonObjectAsync(globalPath, globalNode, fs, cancellationToken).ConfigureAwait(false);
+        }
+
+        // 3. 再清 settings.json 里的同一批键
+        await RemoveKeysAsync(settingsPath, toRemove, fs, cancellationToken).ConfigureAwait(false);
+
+        if (moved.Count > 0) {
+            logger?.LogInformation(
+                "配置迁移：{Count} 个键从 settings.json 移到 global.json（{Keys}）",
+                moved.Count,
+                string.Join(", ", moved));
+        }
+
+        if (conflicted.Count > 0) {
+            logger?.LogWarning(
+                "配置迁移：{Count} 个键在 global.json 已有值，保留 global 并删除 settings.json 的旧值（{Keys}）",
+                conflicted.Count,
+                string.Join(", ", conflicted));
+        }
+
+        return new ConfigMigrationOutcome(moved, conflicted);
     }
 
     /// <summary>读出 settings.json 里「该在 global 源、却还在新位置有值」的键及其原始 JSON 文本。</summary>
@@ -100,8 +95,8 @@ public static class SettingsSourceMigration {
         if (root?["current"] is not JsonObject current)
             return result;
 
-        foreach (var (key, source) in JoinCode.Abstractions.Configuration.Settings.SettingSourceMap.All) {
-            if (source != SettingSource.GlobalConfig)
+        foreach (var (key, setting) in JoinCode.Abstractions.Configuration.Settings.ConfigKeyRegistry.All) {
+            if (setting.Source != SettingSource.GlobalConfig)
                 continue;
 
             var node = current[key];
@@ -173,15 +168,4 @@ public static class SettingsSourceMigration {
 
         await fs.WriteAllTextAsync(path, root.ToJsonString(WriteOptions), cancellationToken).ConfigureAwait(false);
     }
-}
-
-/// <summary>迁移结果 — 搬动了哪些键、哪些键因 global 已有值而保留 global。</summary>
-/// <param name="MovedKeys">从 settings.json 搬到 global.json 的键</param>
-/// <param name="ConflictedKeys">两边都有值、最终保留 global 的键</param>
-public readonly record struct SettingsMigrationOutcome(IReadOnlyList<string> MovedKeys, IReadOnlyList<string> ConflictedKeys) {
-    /// <summary>没有需要迁移的内容。</summary>
-    public static SettingsMigrationOutcome None { get; } = new([], []);
-
-    /// <summary>本次是否真的改了磁盘。</summary>
-    public bool Changed => MovedKeys.Count > 0 || ConflictedKeys.Count > 0;
 }

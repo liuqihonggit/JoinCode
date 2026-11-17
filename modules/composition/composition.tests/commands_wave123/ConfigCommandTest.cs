@@ -66,7 +66,7 @@ public sealed class ConfigCommandTest {
 
         result.ShouldContinue.Should().BeTrue();
         output.Should().Contain("已设置: theme = dark");
-        output.Should().Contain("theme: UI 主题 (dark/light/auto)", "已知配置项应展示元数据描述");
+        output.Should().Contain("theme: UI 颜色主题", "已知配置项应展示唯一清单里的描述");
         config.Verify(c => c.SetAsync("theme", "dark", It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -175,7 +175,7 @@ public sealed class ConfigCommandTest {
         output.Should().Contain("custom.key = custom-value");
         output.Should().Contain("language = zh");
         output.Should().Contain("theme = dark");
-        output.Should().Contain("(UI 主题 (dark/light/auto))", "已知键应附带括号内描述");
+        output.Should().Contain("(UI 颜色主题)", "已知键应附带唯一清单里的描述");
         output.Should().Contain("使用 /config set <key> <value> 设置配置");
     }
 

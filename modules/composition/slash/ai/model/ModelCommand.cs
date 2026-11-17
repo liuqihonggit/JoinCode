@@ -138,7 +138,7 @@ public sealed class ModelCommand : ChatCommandBase {
     private static async Task PersistPickerEffortAsync(ChatCommandContext context, EffortLevel effortLevel) {
         var pickerConfigService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
         if (pickerConfigService is not null)
-            await pickerConfigService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effortLevel.ToValue(), context.CancellationToken).ConfigureAwait(false);
+            await pickerConfigService.SetAsync(ConfigKeys.EffortLevel, effortLevel.ToValue(), context.CancellationToken).ConfigureAwait(false);
     }
 
     private Task<ChatCommandResult> ShowModelInfoAsync(ChatCommandContext context) {

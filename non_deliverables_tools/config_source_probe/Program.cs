@@ -1,8 +1,9 @@
 // 配置存储源一致性探针（TASK089 验收）
 //
-// 修前形状：/theme、GUI 读写 settings.json，而 config_get/config_set 按 SupportedSettings 的
+// 修前形状：/theme、GUI 读写 settings.json，而 config_get/config_set 按另一张表的
 // source 读写 global.json —— 同一键两处答案，用户与 LLM 互相看不见对方的设置。
-// 修后形状：存储源由契约层 SettingSourceMap 唯一决定，且旧 settings.json 里的 global 键会一次性搬走。
+// 修后形状：存储源由契约层 ConfigKeyRegistry（唯一清单）决定，且旧 settings.json 里的 global 键会一次性搬走
+//（TASK091 起这一步叫「迁移 v1」，跑过一次就记在 ~/.jcc/config-migrations.json，不再每轮重跑）。
 //
 // 三个场景都必须过：
 //   1) 旧布局（只有 settings.json 有 theme）→ 读得到 + 搬到 global.json + settings 里删掉 + 可重复执行

@@ -33,13 +33,13 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     }
 
     /// <summary>
-    /// 读取配置项（存储源由 <see cref="SettingSourceMap"/> 决定）。
+    /// 读取配置项（存储源由 <see cref="ConfigKeyRegistry"/> 决定）。
     /// <para><b>为什么不在这里固定 UserSettings</b>：曾经「无 source 重载」硬编码 settings.json，
     /// 于是 <c>/theme</c>、GUI 读 settings 而 <c>config_get</c> 读 global，同一个键两处答案（TASK089）。
     /// 决策只在服务内部做一次，任何调用方用无 source 重载都不会读错文件。</para>
     /// </summary>
     public Task<string?> GetAsync(string key, CancellationToken cancellationToken = default)
-        => GetAsync(key, SettingSourceMap.SourceOf(key), cancellationToken);
+        => GetAsync(key, ConfigKeyRegistry.SourceOf(key), cancellationToken);
 
     /// <summary>迁移闸门（普通 object 即可，不用可释放类型，避免单例被迫实现 IDisposable）</summary>
     private readonly object _migrationLock = new();
@@ -65,13 +65,17 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         }
     }
 
-    /// <summary>真正的迁移动作 —— 不接收调用方取消令牌，避免一次提前取消把半成品状态留给下一位调用方。</summary>
+    /// <summary>
+    /// 真正的迁移动作 —— 不接收调用方取消令牌，避免一次提前取消把半成品状态留给下一位调用方。
+    /// <para>逐版本执行由 <see cref="ConfigMigrationRunner"/> 负责：读 <c>config-migrations.json</c>
+    /// 的已应用版本，只跑落后的那几步，每步成功就落盘。服务只负责「加锁只跑一次」与「标记内部写」。</para>
+    /// </summary>
     private async Task RunMigrationOnceAsync() {
         // 迁移自己改文件，先标记内部写，避免 FileSystemWatcher 把它当成外部修改而回灌
         _configChangeNotifier?.MarkInternalWrite(AppDataConstants.Paths.SettingsFilePath);
         _configChangeNotifier?.MarkInternalWrite(AppDataConstants.Paths.GlobalConfigFilePath);
 
-        await SettingsSourceMigration.RunAsync(_fs, _logger, CancellationToken.None).ConfigureAwait(false);
+        await ConfigMigrationRunner.RunAsync(_fs, _logger, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -118,7 +122,7 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
 
     /// <inheritdoc/>
     public Task<bool> SetAsync(string key, string value, CancellationToken cancellationToken = default)
-        => SetAsync(key, value, SettingSourceMap.SourceOf(key), null, cancellationToken);
+        => SetAsync(key, value, ConfigKeyRegistry.SourceOf(key), null, cancellationToken);
 
     /// <inheritdoc/>
     public Task<bool> SetAsync(string key, string value, SettingSource source, CancellationToken cancellationToken = default)
@@ -168,7 +172,7 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
 
     /// <inheritdoc/>
     public Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default)
-        => RemoveAsync(key, SettingSourceMap.SourceOf(key), cancellationToken);
+        => RemoveAsync(key, ConfigKeyRegistry.SourceOf(key), cancellationToken);
 
     /// <summary>
     /// 删除配置项（指定存储源）— 对齐 TS「写到哪个源就删哪个源」。
@@ -215,14 +219,14 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     /// 列出「已声明且有值」的配置项。
     /// <para><b>为什么逐键读盘而不是回内存缓存</b>：缓存只装本进程读过的键，新启动一个进程
     /// <c>/config list</c> 永远是空的（磁盘上明明有值）。旧实现只回缓存，用户看到「当前没有配置项」
-    /// 会以为配置丢了。逐键按 <see cref="SettingSourceMap"/> 声明的源去读，与
+    /// 会以为配置丢了。逐键按 <see cref="ConfigKeyRegistry"/> 声明的源去读，与
     /// <c>config_get</c>/<c>/config get</c> 走同一条路径，三处答案自然一致。</para>
     /// </summary>
     public async Task<Dictionary<string, string>> GetAllAsync(CancellationToken cancellationToken = default) {
         await EnsureMigratedAsync().ConfigureAwait(false);
 
         var localConfigurations = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var (key, source) in SettingSourceMap.All) {
+        foreach (var (key, source) in ConfigKeyRegistry.All.Select(kv => (kv.Key, kv.Value.Source))) {
             var value = await GetAsync(key, source, cancellationToken).ConfigureAwait(false);
             if (value is not null)
                 localConfigurations[key] = value;

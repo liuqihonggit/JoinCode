@@ -399,7 +399,7 @@ public class ConfigLoader {
     private static string? TryGetSettingFromJson(string json, string key) {
         // 嵌套键（model / permissions.defaultMode）走路径读取 —— 它们不在 current.<key> 上，
         // 用扁平键读恒为 null，于是 config_get 显示「未设置」而磁盘上明明有值（TASK090）
-        if (SettingPathMap.PathOf(key) is { } path)
+        if (ConfigKeyRegistry.PathOf(key) is { } path)
             return TryGetNestedSetting(json, path);
 
         var settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
@@ -482,7 +482,7 @@ public class ConfigLoader {
     /// 占位存在但拿不到 profile 时返回 null（此时「写到哪」没有答案，不能退回扁平键糊过去）。
     /// </summary>
     private static string[]? ResolvePathSegments(JsonObject root, string[] path) {
-        if (!path.Contains(SettingPathMap.ProfilePlaceholder))
+        if (!path.Contains(ConfigKeyRegistry.ProfilePlaceholder))
             return path;
 
         var profile = root["current"]?["profile"]?.GetValue<string>();
@@ -491,7 +491,7 @@ public class ConfigLoader {
 
         var resolved = new string[path.Length];
         for (var i = 0; i < path.Length; i++)
-            resolved[i] = path[i] == SettingPathMap.ProfilePlaceholder ? profile : path[i];
+            resolved[i] = path[i] == ConfigKeyRegistry.ProfilePlaceholder ? profile : path[i];
         return resolved;
     }
 
@@ -508,7 +508,7 @@ public class ConfigLoader {
 
         // 嵌套键（model / permissions.defaultMode）按路径写 —— 与读侧同一张表，
         // 写进去的字段就是运行时读的那个字段（TASK090）
-        var nestedPath = SettingPathMap.PathOf(key);
+        var nestedPath = ConfigKeyRegistry.PathOf(key);
         if (nestedPath is not null) {
             await SaveNestedSettingAsync(settingsPath, nestedPath, value, fs, cancellationToken, logger).ConfigureAwait(false);
             return;
@@ -526,6 +526,9 @@ public class ConfigLoader {
                 existingSettings ??= new SettingsJson();
                 var updatedSettings = UpdateSettingByKey(existingSettings, key, value);
                 var outputJson = RelaxedJsonSerializer.SerializeIndented(updatedSettings, ConfigIndentedJsonContext.Default);
+                // 强类型只用来决定「这个值该是什么类型」，落盘只取回 current.<key> 这一个字段 ——
+                // 整份强类型往返会把 autoFetchModels 之类的原有字段改成默认值，还会塞进一堆空字典
+                outputJson = MergeCurrentScalar(content, outputJson, key) ?? outputJson;
                 var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
                 return (newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
@@ -535,6 +538,39 @@ public class ConfigLoader {
             var outputJson = RelaxedJsonSerializer.SerializeIndented(updatedSettings, ConfigIndentedJsonContext.Default);
             await fs.WriteAllTextAsync(settingsPath, outputJson, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// 把强类型写入结果的 <c>current.&lt;key&gt;</c> 合并回原文件，其余字段一律保持原样。
+    /// <para><b>为什么不能直接写强类型结果</b>：<see cref="SettingsJson"/> 的往返会把它不认识的顶层字段
+    /// 按默认值重写（用户的 <c>autoFetchModels:false</c> 会变回 <c>true</c>，等于悄悄打开联网拉模型），
+    /// 并把 <c>env</c>/<c>mcpServers</c>/<c>enabledPlugins</c> 等空字典写进用户文件。
+    /// 与嵌套键（TASK090）同一个病根：<b>只想改一个字段，就不要重写整份文件</b>。</para>
+    /// </summary>
+    /// <returns>合并后的 JSON；原文件无法解析时返回 <c>null</c>（调用方退回整份写入）。</returns>
+    private static string? MergeCurrentScalar(string originalJson, string updatedJson, string key) {
+        JsonObject root;
+        try {
+            root = (JsonNode.Parse(originalJson) as JsonObject) ?? new JsonObject();
+        } catch (JsonException) {
+            return null;
+        }
+
+        if (JsonNode.Parse(updatedJson)?["current"] is not JsonObject updatedCurrent)
+            return null;
+
+        if (root["current"] is not JsonObject current) {
+            current = new JsonObject();
+            root["current"] = current;
+        }
+
+        var newValue = updatedCurrent[key];
+        if (newValue is null)
+            current.Remove(key);
+        else
+            current[key] = newValue.DeepClone();
+
+        return root.ToJsonString(ConfigIndentedJsonContext.Default.RelaxedOptions());
     }
 
     /// <summary>

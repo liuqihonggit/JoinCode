@@ -13,7 +13,7 @@ public sealed class ThemeCommandTest {
         string? currentTheme = null) {
         var config = configOverride ?? new Mock<IConfigurationService>();
         if (currentTheme is not null) {
-            config.Setup(c => c.GetAsync(ConfigKeyEnumConstants.Theme, It.IsAny<CancellationToken>()))
+            config.Setup(c => c.GetAsync(ConfigKeys.Theme, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(currentTheme);
         }
         var services = CommandTestHarness.CreateServices(
@@ -31,7 +31,7 @@ public sealed class ThemeCommandTest {
         result.ShouldContinue.Should().BeTrue();
         result.IsHandled.Should().BeTrue();
         output.Should().Contain("主题已设置为：深色模式");
-        config.Verify(c => c.SetAsync(ConfigKeyEnumConstants.Theme, "dark", It.IsAny<CancellationToken>()), Times.Once,
+        config.Verify(c => c.SetAsync(ConfigKeys.Theme, "dark", It.IsAny<CancellationToken>()), Times.Once,
             "dark 主题应写入 theme 配置键");
     }
 
@@ -49,7 +49,7 @@ public sealed class ThemeCommandTest {
 
         result.ShouldContinue.Should().BeTrue();
         output.Should().Contain($"主题已设置为：{expectedLabel}", "主题名应命中 [ChatCommandArg] 声明的枚举值域");
-        config.Verify(c => c.SetAsync(ConfigKeyEnumConstants.Theme, theme, It.IsAny<CancellationToken>()), Times.Once);
+        config.Verify(c => c.SetAsync(ConfigKeys.Theme, theme, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class ThemeCommandTest {
         var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         output.Should().Contain("主题已设置为：深色模式", "主题名应 ToLowerInvariant 归一匹配");
-        config.Verify(c => c.SetAsync(ConfigKeyEnumConstants.Theme, "dark", It.IsAny<CancellationToken>()), Times.Once);
+        config.Verify(c => c.SetAsync(ConfigKeys.Theme, "dark", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

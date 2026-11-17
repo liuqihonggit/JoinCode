@@ -34,7 +34,7 @@ public sealed partial class ConfigToolHandlers {
         CancellationToken cancellationToken = default) {
         try {
             // 对齐 TS: isSupported — 未知 key 拒绝
-            if (!SupportedSettings.IsSupported(setting)) {
+            if (!ConfigKeyRegistry.IsSupported(setting)) {
                 var diagnostic = BuildUnknownSettingDiagnostic(setting);
                 return ToolResultBuilder.Error()
                     .WithText(diagnostic.FormattedMessage)
@@ -42,9 +42,9 @@ public sealed partial class ConfigToolHandlers {
                     .Build();
             }
 
-            var config = SupportedSettings.GetConfig(setting)!;
-            // 存储源取自唯一数据源 SettingSourceMap（对齐 TS supportedSettings.ts 的 source 字段）
-            var source = SupportedSettings.SourceOf(setting);
+            var config = ConfigKeyRegistry.Get(setting)!;
+            // 存储源取自唯一清单 ConfigKeyRegistry（对齐 TS supportedSettings.ts 的 source 字段）
+            var source = ConfigKeyRegistry.SourceOf(setting);
             var currentValue = await _configService.GetAsync(setting, source, cancellationToken).ConfigureAwait(false);
 
             // 对齐 TS: formatOnRead — 读取时格式化
@@ -73,7 +73,7 @@ public sealed partial class ConfigToolHandlers {
         CancellationToken cancellationToken = default) {
         try {
             // 对齐 TS: isSupported — 未知 key 拒绝
-            if (!SupportedSettings.IsSupported(setting)) {
+            if (!ConfigKeyRegistry.IsSupported(setting)) {
                 var diagnostic = BuildUnknownSettingDiagnostic(setting);
                 return ToolResultBuilder.Error()
                     .WithText(diagnostic.FormattedMessage)
@@ -81,7 +81,7 @@ public sealed partial class ConfigToolHandlers {
                     .Build();
             }
 
-            var config = SupportedSettings.GetConfig(setting)!;
+            var config = ConfigKeyRegistry.Get(setting)!;
             var finalValue = value;
 
             // 对齐 TS: boolean 强转
@@ -101,7 +101,7 @@ public sealed partial class ConfigToolHandlers {
             }
 
             // 对齐 TS: options 校验
-            var options = SupportedSettings.GetOptionsForSetting(setting);
+            var options = ConfigKeyRegistry.OptionsOf(setting);
             if (options is not null && !options.Contains(finalValue)) {
                 var optionsDiag = BuildInvalidOptionValueDiagnostic(setting, value, options);
                 return ToolResultBuilder.Error()
@@ -123,7 +123,7 @@ public sealed partial class ConfigToolHandlers {
             }
 
             // 写入 — 对齐 TS: global → saveGlobalConfig, settings → updateSettingsForSource
-            var source = SupportedSettings.SourceOf(setting);
+            var source = ConfigKeyRegistry.SourceOf(setting);
             var previousValue = await _configService.GetAsync(setting, source, cancellationToken).ConfigureAwait(false);
 
             var success = await _configService.SetAsync(setting, finalValue, source, config.AppStateKey, cancellationToken).ConfigureAwait(false);
@@ -163,8 +163,8 @@ public sealed partial class ConfigToolHandlers {
             var globalSettings = new List<(string Key, ConfigSetting Config)>();
             var projectSettings = new List<(string Key, ConfigSetting Config)>();
 
-            foreach (var (key, config) in SupportedSettings.All) {
-                if (SupportedSettings.SourceOf(key) == SettingSource.GlobalConfig)
+            foreach (var (key, config) in ConfigKeyRegistry.All) {
+                if (ConfigKeyRegistry.SourceOf(key) == SettingSource.GlobalConfig)
                     globalSettings.Add((key, config));
                 else
                     projectSettings.Add((key, config));
@@ -235,22 +235,17 @@ public sealed partial class ConfigToolHandlers {
         var details = new List<DiagnosticDetail>(2) { new("setting", setting) };
         var suggestions = new List<string>(1);
 
-        var candidates = new List<string>();
-        foreach (var key in SupportedSettings.All.Keys) {
-            if (key.Contains(setting, StringComparison.OrdinalIgnoreCase) ||
-                setting.Contains(key, StringComparison.OrdinalIgnoreCase)) {
-                candidates.Add(key);
-            }
-        }
-
-        if (candidates.Count > 0) {
+        // 候选由唯一清单推荐（与 /config set 的提示同一份算法）——
+        // 只做「互相包含」判断会漏掉 permissions.mode → permissions.defaultMode 这类错法
+        var candidates = ConfigKeyRegistry.Suggest(setting);
+        if (candidates.Length > 0) {
             sb.Append($"\n[诊断] 你是不是想用: {string.Join(", ", candidates)}");
             details.Add(new DiagnosticDetail("candidates", string.Join(", ", candidates)));
             suggestions.Add($"你是不是想用: {string.Join(", ", candidates)}");
         }
 
-        sb.Append($"\n[诊断] 支持的设置项 ({SupportedSettings.All.Count} 个):");
-        foreach (var key in SupportedSettings.All.Keys) {
+        sb.Append($"\n[诊断] 支持的设置项 ({ConfigKeyRegistry.All.Count} 个):");
+        foreach (var key in ConfigKeyRegistry.All.Keys) {
             sb.Append($"\n  - {key}");
         }
 
@@ -323,7 +318,7 @@ public sealed partial class ConfigToolHandlers {
     /// 配置写入失败的诊断 — SetAsync 返回 false。
     /// <para>把「这个键实际住哪」写进诊断：<c>model</c> 这类嵌套键失败时最常见的原因是
     /// <c>settings.json</c> 里没有 <c>current.profile</c>，只报「检查配置文件权限」会把人带偏。
-    /// 位置信息来自 <see cref="SettingPathMap"/>（同一张唯一表，不另写一份规则）。</para>
+    /// 位置信息来自 <see cref="ConfigKeyRegistry"/>（同一张唯一表，不另写一份规则）。</para>
     /// </summary>
     internal static ToolDiagnostic BuildSetFailedDiagnostic(string setting, string value) {
         var sb = new StringBuilder(160);
@@ -331,10 +326,10 @@ public sealed partial class ConfigToolHandlers {
         sb.Append($"\n[诊断] 设置项: {setting}");
         sb.Append($"\n[诊断] 尝试写入的值: \"{value}\"");
 
-        var nestedPath = SettingPathMap.PathOf(setting);
+        var nestedPath = ConfigKeyRegistry.PathOf(setting);
         if (nestedPath is not null) {
             sb.Append($"\n[诊断] 目标位置: settings.json → {string.Join('.', nestedPath)}");
-            if (nestedPath.Contains(SettingPathMap.ProfilePlaceholder))
+            if (nestedPath.Contains(ConfigKeyRegistry.ProfilePlaceholder))
                 sb.Append("（{profile} 取自 current.profile）");
         }
 
@@ -345,7 +340,7 @@ public sealed partial class ConfigToolHandlers {
         };
 
         var suggestions = new List<string>(2) { "检查配置文件权限" };
-        suggestions.Add(nestedPath is { Length: > 0 } && nestedPath.Contains(SettingPathMap.ProfilePlaceholder)
+        suggestions.Add(nestedPath is { Length: > 0 } && nestedPath.Contains(ConfigKeyRegistry.ProfilePlaceholder)
             ? "先选择供应商（/config set profile <名称> 或 /init）再写该字段"
             : "确认设置项的来源（global/user）是否可写");
 

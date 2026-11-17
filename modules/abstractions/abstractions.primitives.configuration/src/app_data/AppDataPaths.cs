@@ -109,6 +109,12 @@ public sealed record AppDataPaths(
     public string TrustedFoldersFilePath => Path.Combine(JccDirectory, TrustedFoldersFileName);
 
     /// <summary>
+    /// 用户级配置迁移版本标记: <c>~/.jcc/config-migrations.json</c>
+    /// — 记录已应用到第几版，迁移只在版本落后时跑一次（见 <c>ConfigMigrationRunner</c>）。
+    /// </summary>
+    public string ConfigMigrationsFilePath => Path.Combine(JccDirectory, "config-migrations.json");
+
+    /// <summary>
     /// 获取 tokens 目录的完整路径
     /// </summary>
     public string TokensDirectory => Path.Combine(JccDirectory, "tokens");

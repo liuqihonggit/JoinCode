@@ -14,7 +14,7 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
     /// <summary>
     /// AppStateKey 到 AppState 字段的映射
     /// 对齐 TS 版 ConfigTool supportedSettings 中的 appStateKey 定义
-    /// P3-19: 键统一为小写驼峰,与 SupportedSettings.cs 中 AppStateKey 值一致,用 OrdinalIgnoreCase 容错
+    /// P3-19: 键统一为小写驼峰,与 ConfigKeyRegistry 中 AppStateKey 值一致,用 OrdinalIgnoreCase 容错
     /// </summary>
     private static readonly FrozenDictionary<string, Func<AppState, string?, AppState>> s_appStateKeyMappers = new Dictionary<string, Func<AppState, string?, AppState>>(StringComparer.OrdinalIgnoreCase) {
         ["debuglog"] = (state, value) => state with { Config = state.Config with { DebugLog = value == "true" } },

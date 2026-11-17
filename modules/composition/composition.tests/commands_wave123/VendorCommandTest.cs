@@ -107,7 +107,7 @@ public sealed class VendorCommandTest {
         effectiveConfig.Provider.Vendor.Should().Be("deepseek", "切换应更新 WorkflowConfig 供应商");
         effectiveConfig.Provider.ModelId.Should().Be("test-model", "默认模型应跟随供应商切换(对齐 GUI SetVendorAsync 语义)");
         fastMode.Verify(f => f.SetPrimaryModel("test-model"), Times.Once);
-        config.Verify(c => c.SetAsync(ConfigKeyEnumConstants.Profile, "deepseek", It.IsAny<CancellationToken>()), Times.Once,
+        config.Verify(c => c.SetAsync(ConfigKeys.Profile, "deepseek", It.IsAny<CancellationToken>()), Times.Once,
             "切换应持久化 profile");
     }
 
@@ -126,7 +126,7 @@ public sealed class VendorCommandTest {
         effectiveConfig.Provider.ModelId.Should().Be("test-model", "供应商无默认模型时应保持原模型 ID");
         fastMode.Verify(f => f.SetPrimaryModel(It.IsAny<string>()), Times.Never,
             "无默认模型时不应同步 FastModeService 主模型");
-        config.Verify(c => c.SetAsync(ConfigKeyEnumConstants.Profile, "deepseek", It.IsAny<CancellationToken>()), Times.Once,
+        config.Verify(c => c.SetAsync(ConfigKeys.Profile, "deepseek", It.IsAny<CancellationToken>()), Times.Once,
             "profile 持久化不受默认模型影响,始终执行");
     }
 

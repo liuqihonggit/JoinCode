@@ -8,14 +8,14 @@ namespace Core.Tests.Configuration;
 /// <para>与其它配置测试共享 <c>AppDataConstants</c> 全局状态，必须串行。</para>
 /// </summary>
 [Collection("AppDataConstantsCollection")]
-public class SettingPathMapTests : IDisposable {
+public class ConfigKeyPathsTests : IDisposable {
     private readonly string? _originalAppDataFolder;
     private readonly string _tempAppDataDir;
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private bool _disposed;
 
     /// <summary>准备隔离的 AppData 目录 — 不碰用户真实 ~/.jcc。</summary>
-    public SettingPathMapTests() {
+    public ConfigKeyPathsTests() {
         _originalAppDataFolder = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder);
 
         _tempAppDataDir = $"/test/jcc-test-pathmap-{Guid.NewGuid():N}";
@@ -43,10 +43,10 @@ public class SettingPathMapTests : IDisposable {
         """;
 
     [Fact]
-    public void PathMap_DeclaresModelAndNestedPermission() {
-        SettingPathMap.PathOf("model").Should().Equal("vendor", "{profile}", "model");
-        SettingPathMap.PathOf("permissions.defaultMode").Should().Equal("current", "permissions", "defaultMode");
-        SettingPathMap.PathOf("theme").Should().BeNull("扁平键不声明路径");
+    public void NestedPaths_DeclaredForModelAndPermission() {
+        ConfigKeyRegistry.PathOf("model").Should().Equal("vendor", "{profile}", "model");
+        ConfigKeyRegistry.PathOf("permissions.defaultMode").Should().Equal("current", "permissions", "defaultMode");
+        ConfigKeyRegistry.PathOf("theme").Should().BeNull("扁平键不声明路径");
     }
 
     [Fact]
@@ -116,5 +116,42 @@ public class SettingPathMapTests : IDisposable {
         var value = await ConfigLoader.LoadSettingFromSettingsJsonAsync("model", _fs);
 
         value.Should().BeNull("没有当前供应商就没有「生效模型」，读侧不猜");
+    }
+
+    [Fact]
+    public async Task Save_FlatKey_PreservesFieldsTheDtoDoesNotKnow() {
+        WriteSettings("""{"current":{"profile":"p1","language":"zh"},"autoFetchModels":false,"vendor":{}}""");
+
+        await ConfigLoader.SaveSettingToSettingsJsonAsync("effortLevel", "high", _fs);
+
+        var json = ReadSettings();
+        json.Should().Contain("\"effortLevel\": \"high\"");
+        json.Should().Contain("\"autoFetchModels\": false",
+            "整份强类型往返会把用户关掉的联网拉模型改回默认 true —— 只想改一个字段就别重写整份文件");
+        json.Should().Contain("\"language\": \"zh\"");
+    }
+
+    [Fact]
+    public async Task Save_FlatKey_DoesNotInjectEmptyCollections() {
+        WriteSettings("""{"current":{"profile":"p1"},"vendor":{}}""");
+
+        await ConfigLoader.SaveSettingToSettingsJsonAsync("fastMode", "true", _fs);
+
+        var json = ReadSettings();
+        json.Should().NotContain("\"mcpServers\"", "没配过的东西不该因为改了一个开关就出现在用户文件里");
+        json.Should().NotContain("\"env\"");
+        json.Should().NotContain("\"enabledPlugins\"");
+    }
+
+    [Fact]
+    public async Task Save_FlatKeyNull_RemovesOnlyThatKey() {
+        WriteSettings("""{"current":{"profile":"p1","theme":"dark","language":"zh"},"vendor":{}}""");
+
+        await ConfigLoader.SaveSettingToSettingsJsonAsync("theme", null, _fs);
+
+        var json = ReadSettings();
+        json.Should().NotContain("theme");
+        json.Should().Contain("\"language\": \"zh\"", "删一个键不能顺带清掉别的");
+        json.Should().Contain("\"profile\": \"p1\"");
     }
 }

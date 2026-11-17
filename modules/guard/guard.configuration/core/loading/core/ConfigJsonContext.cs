@@ -58,4 +58,6 @@ public partial class ConfigJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(ModelModalityKind))]
 [JsonSerializable(typeof(ModelPricingConfig))]
 [JsonSerializable(typeof(UpdateSourceConfig))]
+[JsonSerializable(typeof(ConfigMigrationState))]
+[JsonSerializable(typeof(ConfigMigrationRecord))]
 public partial class ConfigIndentedJsonContext : JsonSerializerContext;

@@ -86,11 +86,43 @@ public sealed class CommandGuardTests {
 
     [Fact]
     public void VpnRouteGuard_CanHandle_NoVpnActive_ReturnsFalse() {
-        // 默认测试环境无 VPN 进程/代理,CanHandle 应返回 false
-        var guard = new VpnRouteGuard();
+        // 显式注入「VPN 未激活」——不能依赖本机无 VPN 进程/无代理环境变量，
+        // 开发机跑着 clash/v2ray 或设了 HTTP_PROXY 时，靠 fallback 检测的断言会恒失败。
+        var guard = new VpnRouteGuard(networkService: new StubNetworkConnectivityService(vpnActive: false));
         var ctx = new GuardContext(SystemActuatorKind.Bash, "") { ProxyUrl = "http://proxy:8080" };
 
         guard.CanHandle("git fetch", ctx).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("git fetch")]
+    [InlineData("gh pr list")]
+    [InlineData("curl https://example.com")]
+    public void VpnRouteGuard_CanHandle_VpnActive_NetworkCommand_ReturnsTrue(string command) {
+        var guard = new VpnRouteGuard(networkService: new StubNetworkConnectivityService(vpnActive: true));
+        var ctx = new GuardContext(SystemActuatorKind.Bash, "") { ProxyUrl = "http://proxy:8080" };
+
+        guard.CanHandle(command, ctx).Should().BeTrue();
+    }
+
+    [Fact]
+    public void VpnRouteGuard_CanHandle_VpnActive_NonNetworkCommand_ReturnsFalse() {
+        var guard = new VpnRouteGuard(networkService: new StubNetworkConnectivityService(vpnActive: true));
+        var ctx = new GuardContext(SystemActuatorKind.Bash, "") { ProxyUrl = "http://proxy:8080" };
+
+        guard.CanHandle("ls -la", ctx).Should().BeFalse();
+    }
+
+    [Fact]
+    public void VpnRouteGuard_Evaluate_GitCommand_RewritesWithProxy() {
+        var guard = new VpnRouteGuard(networkService: new StubNetworkConnectivityService(vpnActive: true));
+        var ctx = new GuardContext(SystemActuatorKind.Bash, "") { ProxyUrl = "http://proxy:8080" };
+
+        var decision = guard.Evaluate("git fetch origin", ctx);
+
+        var rewrite = decision.Should().BeOfType<CommandDecision.Rewrite>().Subject;
+        rewrite.NewCommand.Should().Contain("http.proxy=http://proxy:8080");
+        rewrite.NewCommand.Should().EndWith("fetch origin");
     }
 
     // === HeredocGuard ===

@@ -1,0 +1,85 @@
+# 由 migrate_mcp_tools_to_cli_nodes.py 从各分组 node.yaml 生成 —— 不要手改
+#
+# 消费方: ToolsSection（首轮系统提示词）用它告诉模型「有哪些独立 exe、各自干什么」，
+#         模型再用 `<exe> -h` 按需读说明书。工具数与隔离数现算，避免与 node.yaml 漂移。
+# 重新生成: python scripts/migrate_mcp_tools_to_cli_nodes.py --out modules/tools/cli_nodes/groups --index-only
+version: 1
+groups:
+  - id: agent
+    exe: jcc-tool-agent
+    tools: 59
+    local: 29
+    delegate: 0
+    blurb: "plan 模式与步骤编排、子代理控制、worktree 管理"
+  - id: code
+    exe: jcc-tool-code
+    tools: 32
+    local: 32
+    delegate: 0
+    blurb: "notebook 单元格读写/移动/执行、AI 代码工作流"
+  - id: file
+    exe: jcc-tool-file
+    tools: 13
+    local: 13
+    delegate: 0
+    blurb: "读写删文件、行级与正则编辑、apply_patch、目录列举、发送文件给用户"
+  - id: git
+    exe: jcc-tool-git
+    tools: 10
+    local: 10
+    delegate: 0
+    blurb: "status/add/commit/push/pull/log/diff/branch/clone/submodule"
+  - id: github
+    exe: jcc-tool-github
+    tools: 173
+    local: 0
+    delegate: 173
+    blurb: "PR、issue、review、workflow 等 GitHub 全量操作与 REST 直调"
+  - id: mcp
+    exe: jcc-tool-mcp
+    tools: 25
+    local: 7
+    delegate: 0
+    blurb: "MCP 连接与认证状态、配置读写、工具列举"
+  - id: media
+    exe: jcc-tool-media
+    tools: 60
+    local: 60
+    delegate: 0
+    blurb: "鼠标键盘与桌面自动化、截图、图像处理"
+  - id: search
+    exe: jcc-tool-search
+    tools: 47
+    local: 14
+    delegate: 0
+    blurb: "glob、grep、全文与符号搜索、代码库索引查询"
+  - id: shell
+    exe: jcc-tool-shell
+    tools: 27
+    local: 11
+    delegate: 0
+    blurb: "bash、powershell、C# 代码沙箱、构建队列"
+  - id: slash
+    exe: jcc-tool-slash
+    tools: 99
+    local: 5
+    delegate: 0
+    blurb: "斜杠命令（会话、代理、配置、助手模式）"
+  - id: system
+    exe: jcc-tool-system
+    tools: 72
+    local: 24
+    delegate: 0
+    blurb: "配置读写、代理消息与生命周期、诊断、cron 与遥测"
+  - id: tools
+    exe: jcc-tool-tools
+    tools: 18
+    local: 9
+    delegate: 0
+    blurb: "技能搜索与加载、工具创建、代码简评与验证"
+  - id: web
+    exe: jcc-tool-web
+    tools: 5
+    local: 3
+    delegate: 0
+    blurb: "网页抓取与转 Markdown、文件下载、浏览器、网页搜索"

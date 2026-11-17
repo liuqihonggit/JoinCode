@@ -99,4 +99,11 @@ public enum CliSubCommand {
     [EnumValue("tool")]
     [SubCommandInfo("CLI 工具节点目录树与搜索下钻 — 按需阅读 -h", "CLI 节点", Example = "jcc tool find pr check", SelfHelp = true)]
     Tool,
+
+    /// <summary>系统提示词自省 — jcc prompt [--section &lt;名字&gt;]，打印各段实际内容</summary>
+    /// <para>存在理由：提示词是行为的第一因，却长期只能靠「跑一轮看模型回什么」间接判断。
+    /// 改完 ToolsSection 这类段落必须能当场核对，否则「提示词里到底有没有这段」永远是个猜测。</para>
+    [EnumValue("prompt")]
+    [SubCommandInfo("打印系统提示词各段内容 — 改完提示词当场核对", "自省", Example = "jcc prompt --section tools")]
+    Prompt,
 }

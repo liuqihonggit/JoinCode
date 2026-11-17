@@ -7,6 +7,7 @@ namespace Abs.Tests.Shell;
 /// 必须改道闸门环形缓冲，不得触碰终端画布 — /?? 需求澄清曾直写画布与 inline 渲染器双写互踩。
 /// Console.SetOut 是进程全局态 — 本类测试串行（xUnit 同类内串行）。
 /// </summary>
+[Collection("ConsoleOutput")]
 public sealed class CommandTerminalGateRoutingTests {
     [Fact]
     public void WriteLine_DuringGate_RoutesToRingNotOriginalWriter() {

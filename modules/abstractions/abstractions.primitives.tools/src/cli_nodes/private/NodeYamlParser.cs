@@ -27,6 +27,46 @@ internal static class NodeYamlParser {
     internal static CliToolDescriptor ParseNode(string yaml, string source) =>
         ParseDescriptor(ParseRoot(yaml, source), source);
 
+    /// <summary>
+    /// 解析 cli_groups.yaml —— 首轮提示词的分组索引。
+    /// <para>每个条目缺 id/exe/blurb 都直接失败：提示词里出现一个没有说明的 exe，
+    /// 等于让模型对着一个不知道用途的命令行猜。</para>
+    /// </summary>
+    internal static IReadOnlyList<CliGroupEntry> ParseGroupIndex(string yaml, string source) {
+        var root = ParseRoot(yaml, source);
+        var entries = ReadSequence(root, "groups").OfType<YamlMappingNode>().Select(map => {
+            var id = ReadScalar(map, "id");
+            var exe = ReadScalar(map, "exe");
+            var blurb = ReadScalar(map, "blurb");
+            if (string.IsNullOrWhiteSpace(id))
+                throw new InvalidOperationException($"分组索引 '{source}' 存在缺少 id 的条目");
+            if (string.IsNullOrWhiteSpace(exe))
+                throw new InvalidOperationException($"分组索引 '{source}' 分组 '{id}' 缺少 exe");
+            if (string.IsNullOrWhiteSpace(blurb))
+                throw new InvalidOperationException($"分组索引 '{source}' 分组 '{id}' 缺少 blurb（提示词里会出现无名 exe）");
+            return new CliGroupEntry {
+                Id = id,
+                Exe = exe,
+                Blurb = blurb,
+                ToolCount = ReadInt(map, "tools", source, id),
+                LocalCount = ReadInt(map, "local", source, id),
+                DelegateCount = ReadInt(map, "delegate", source, id)
+            };
+        }).ToArray();
+
+        if (entries.Length == 0)
+            throw new InvalidOperationException($"分组索引 '{source}' 未定义任何分组");
+        return entries;
+    }
+
+    private static int ReadInt(YamlMappingNode map, string key, string source, string id) {
+        var raw = ReadScalar(map, key);
+        if (string.IsNullOrWhiteSpace(raw)) return 0;
+        return int.TryParse(raw, out var parsed)
+            ? parsed
+            : throw new InvalidOperationException($"分组索引 '{source}' 分组 '{id}' 的 {key} 必须是整数，实际为 '{raw}'");
+    }
+
     private static YamlMappingNode ParseRoot(string yaml, string source) {
         var stream = new YamlStream();
         try {

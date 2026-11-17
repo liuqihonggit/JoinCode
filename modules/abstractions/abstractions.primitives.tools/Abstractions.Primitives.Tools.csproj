@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="YamlDotNet" Version="$(YamlDotNetVersion)" />
     <EmbeddedResource Include="$(RepoRoot)resources/tools/base.yaml" LogicalName="JoinCode.CliNodes.base.yaml" />
+    <EmbeddedResource Include="$(RepoRoot)resources/tools/cli_groups.yaml" LogicalName="JoinCode.CliNodes.cli_groups.yaml" />
   </ItemGroup>
 
   <ItemGroup>

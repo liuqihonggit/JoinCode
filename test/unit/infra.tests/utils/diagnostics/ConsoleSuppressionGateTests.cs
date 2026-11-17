@@ -6,6 +6,7 @@ namespace Infra.Tests.Utils.Diagnostics;
 /// 诊断行溢出底行滚屏会打垮相对光标模型，TASK077）；最外层退出时冲刷回原 stderr（CI/E2E 捕获不受损）；
 /// 嵌套引用计数；环形上限丢旧。Console.SetOut/SetError 是进程全局态 — 本类测试串行（xUnit 同类内串行）。
 /// </summary>
+[Collection("ConsoleOutput")]
 public sealed class ConsoleSuppressionGateTests {
     [Fact]
     public void Suppressed_ConsoleErrorAndOut_CapturedInRingNotOriginalWriters() {

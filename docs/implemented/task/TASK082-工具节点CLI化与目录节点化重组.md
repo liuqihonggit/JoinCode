@@ -1161,3 +1161,88 @@ dotnet build … --no-restore         0.021 ms/次
   —— PS 5.1 构造环境字典时大小写不敏感，环境里同时存在两种写法就崩。脚本因此改成
   「服务由调用方起，脚本只负责打矩阵」，不猜路径也不抢端口。
 
+### 2026-11-17 第二十九轮：节点化现状核实 + 13 个 exe 真启动 + 首轮提示词列出 exe 清单
+
+本轮由五个问题驱动：还有什么没完成、节点化是否完成、是否全部独立 exe、
+首轮提示词有没有告诉模型这些 exe、以及「不许拿单测当挡箭牌」的真实校验。
+
+**一、核实结果：节点化完成，但「全部独立」不是 100%**
+
+| 口径 | 数字 | 判据 |
+|---|---|---|
+| 分组 / 工具总数 | 13 组 / 640 | 13 份 `node.yaml` 的 `tool_count` 之和 |
+| 本 exe 内实现（local） | 217 | 各组 `private/*.cs` 实际注册表，exe 自报 id 集合逐一对账 |
+| 委托独立 exe（delegate） | 173 | github 组全部走 `jcc-gh --call-tool`，不经宿主 |
+| 宿主执行（host） | 250 | 会话命令 94 / system 48 / 内存索引 33 / agent 控制 30 / 连接 18 / 进程表 16 / tools 9 / web 2 |
+| 进程隔离合计 | **390 / 640 = 60.9%** | 217 + 173；`Verify-ToolNodes.ps1` 声明侧与现实侧均为这个数 |
+
+250 个 host 不是「没做完」。第十七轮已逐组给出代码证据：它们依赖活会话、内存
+`CodeIndexerRegistry`、MCP 连接与进程注册表，抽成零依赖 exe 做不到等价语义。
+所以转发路径是持久组件，不能为了凑 100% 把状态搬进进程再接受两份漂移实现。
+
+**二、本机此前并没有 exe —— 已补齐真机证据**
+
+`artifacts/bin` 下原本一个工具 exe 都没有，说明「独立」只到声明层。跑
+`Pack-ToolNodes.ps1` 装配后逐个真启动：
+
+- 13 个 exe 全部 `-h` 退出 0，最大 6.7 KB（`tools` 组），在 8 KB 上限内；
+- `jcc tool tree` 真实列出 13 组 / 640 工具；
+- `Verify-ToolNodes.ps1 -Sample`：自报 local 数与 id 集合均与 `node.yaml` 一致，8 次无副作用抽样真跑通过；
+- 跨组 `jcc tool call` 矩阵 15/15 退出 0（含 `github gh_auth_status` 真登录态、`web web_to_markdown` 真抓 example.com、`shell bash` 真输出）；
+- 补掉第十六轮留下的验证缺口：`search` 组 14 个 local 工具**逐个真跑 14/14**（`code_search`/`symbol_search`/`search_project_deps` 等），不再只是 `-h` 抽查。
+
+顺带修掉一个会骗模型的文案 bug：slash 组 `help.txt` 首行写 `jcc-slash.exe`，
+而真实 exe 叫 `jcc-tool-slash.exe`；按帮助抄命令会敲一个不存在的程序。
+
+**三、首轮提示词：从「540+ 工具自己猜」改成「13 个 exe 带定位的清单」**
+
+原提示词只有一句「其余 540+ 工具是独立可执行文件，用 bash 逐层发现」，
+模型既不知道 exe 叫什么，也不知道该找哪一组。本轮改为数据驱动：
+
+1. `scripts/migrate_mcp_tools_to_cli_nodes.py --index-only` 从 13 份 `node.yaml`
+   生成 `resources/tools/cli_groups.yaml`：exe 名、工具数、local/delegate 数现算，
+   一句话定位是唯一人工维护点（漏登记直接失败，不静默写空）；
+2. 契约层新增 `CliGroupIndex` 内嵌加载器，`ToolsSection` 不再硬写任何组名/数量；
+3. 提示词按 `组（exe，工具数）定位` 列 13 行，并说明四步用法：
+   `<exe> -h` 看索引 → `<exe> -h <关键词>` 组内检索 → `<exe> <工具> -h` 看参数 → `jcc tool call` 执行；
+4. `Verify-ToolNodes.ps1` 增加索引与 `node.yaml` 双向对账：加组忘记重新生成会在 CI 直接失败
+   （这种漂移不报错、不崩，只是新组对模型永久不存在）。
+
+**四、提示词可观测性：新增 `jcc prompt`**
+
+改完提示词后，原有观测口都不可用：`JCC_DUMP_MESSAGES` 在 `-p` 链路因
+`QueryLoopServices` 未装配 `FileContextService` 从不落盘；`/debuglog` 的 flags 经
+`slash_call` 转发后没生效。两者本轮均未改动，新增可靠正门：
+
+```
+jcc prompt                       # 列出 40+ 段名称与字符数（合计 13243 字符）
+jcc prompt --section tools       # 打印该段全文
+jcc prompt --section all         # 打印全部
+```
+
+真机输出确认 `tools` 段列出 13 行 `jcc-tool-*`，并包含 `640 个工具 / 390 个不经过宿主`
+与四步用法。**这是装配后的真实提示词**，不是 `GetContent()` 的单测返回值。
+
+**五、仍未覆盖的边界（如实记录）**
+
+- 模型侧答复本轮未复核：供应商密钥来自环境变量，本机 shell 中 sensenova/deepseek
+  不可复现（前者未配置、后者 401），一次成功回答之后无法重复；提示词内容改由
+  `jcc prompt` 真机核对，不依赖模型在线。
+- 写类/交互类工具（media 桌面操作、system 通知、file 写补丁）仍只到「能跑通」，本轮未做语义回归。
+
+**六、提交与验证**
+
+| 项 | 结果 |
+|---|---|
+| `Verify-ToolNodes.ps1 -DeclarationsOnly` | 13 组 / 640 / 390 自洽，含新增索引对账 |
+| `Verify-ToolNodes.ps1 -Sample` | 声明与现实一致，8 次抽样真跑 |
+| 13 个 exe `-h` | 13/13 退出 0 |
+| `search` 组逐工具真跑 | 14/14 |
+| 跨组 `jcc tool call` | 15/15 |
+| `jcc prompt --section tools` | 13 行 exe 清单，真实装配结果 |
+| `Abstractions.Primitives.Tools.Tests` | 39 通过 / 0 失败 |
+| `Brain.Prompts.Tests` | 215 通过 / 0 失败 |
+| `Host.Tests` | 1281 通过 / 0 失败 |
+
+提交：`3f99d2228`（提示词索引）、`bc1b26ea6`（jcc prompt）、`f613d926f`（slash 帮助文案）。
+

@@ -1,9 +1,9 @@
-jcc-slash — 斜杠命令节点（99 个命令）
+jcc-tool-slash — 斜杠命令节点（99 个命令）
 
 用法:
-  jcc-slash.exe <命令名> [--参数 值 ...]
-  jcc-slash.exe -h
-  jcc-slash.exe <命令名> -h
+  jcc-tool-slash.exe <命令名> [--参数 值 ...]
+  jcc-tool-slash.exe -h
+  jcc-tool-slash.exe <命令名> -h
 
 命令列表（说明复用自 [ChatCommand] 特性，按分类分组）:
 

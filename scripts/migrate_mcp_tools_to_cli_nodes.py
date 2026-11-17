@@ -590,15 +590,94 @@ LOCAL_ONLY_TOOLS: tuple[dict, ...] = ({
 },)
 
 
+PROMPT_INDEX_PATH = REPO_ROOT / "resources/tools/cli_groups.yaml"
+
+# 首轮提示词里每个分组的一句话定位。这里是**唯一**的人工维护点：
+# 分组增删由 node.yaml 自动反映，但「这个 exe 是干什么的」没法从特性里猜出人话。
+# 漏登记的组会让生成直接失败，而不是静默写一个空简介进提示词。
+GROUP_BLURBS: dict[str, str] = {
+    "agent": "plan 模式与步骤编排、子代理控制、worktree 管理",
+    "code": "notebook 单元格读写/移动/执行、AI 代码工作流",
+    "file": "读写删文件、行级与正则编辑、apply_patch、目录列举、发送文件给用户",
+    "git": "status/add/commit/push/pull/log/diff/branch/clone/submodule",
+    "github": "PR、issue、review、workflow 等 GitHub 全量操作与 REST 直调",
+    "mcp": "MCP 连接与认证状态、配置读写、工具列举",
+    "media": "鼠标键盘与桌面自动化、截图、图像处理",
+    "search": "glob、grep、全文与符号搜索、代码库索引查询",
+    "shell": "bash、powershell、C# 代码沙箱、构建队列",
+    "slash": "斜杠命令（会话、代理、配置、助手模式）",
+    "system": "配置读写、代理消息与生命周期、诊断、cron 与遥测",
+    "tools": "技能搜索与加载、工具创建、代码简评与验证",
+    "web": "网页抓取与转 Markdown、文件下载、浏览器、网页搜索",
+}
+
+
+def render_prompt_index(out_root: Path) -> tuple[str, list[str], list[str]]:
+    """从各分组 node.yaml 生成首轮提示词用的分组索引。
+
+    数据源只有 node.yaml：exe 名、工具数、隔离数全部现算，不在这里写第二份。
+    返回 (yaml 文本, 缺简介的分组, 参与生成的分组)。
+    """
+    blocks: list[str] = [
+        "# 由 migrate_mcp_tools_to_cli_nodes.py 从各分组 node.yaml 生成 —— 不要手改",
+        "#",
+        "# 消费方: ToolsSection（首轮系统提示词）用它告诉模型「有哪些独立 exe、各自干什么」，",
+        "#         模型再用 `<exe> -h` 按需读说明书。工具数与隔离数现算，避免与 node.yaml 漂移。",
+        "# 重新生成: python scripts/migrate_mcp_tools_to_cli_nodes.py --out modules/tools/cli_nodes/groups --index-only",
+        "version: 1",
+        "groups:",
+    ]
+    missing: list[str] = []
+    seen: list[str] = []
+
+    for child in sorted(p for p in out_root.iterdir() if p.is_dir() and (p / "node.yaml").is_file()):
+        text = (child / "node.yaml").read_text(encoding="utf-8", errors="replace")
+
+        def scalar(key: str) -> str:
+            found = re.search(rf"^{key}:\s*(.+)$", text, re.M)
+            return found.group(1).strip().strip('"') if found else ""
+
+        gid = scalar("id") or child.name
+        exe = scalar("exe") or f"jcc-tool-{gid}.exe"
+        blurb = GROUP_BLURBS.get(gid)
+        if not blurb:
+            missing.append(gid)
+            blurb = ""
+        blocks.extend([
+            f"  - id: {gid}",
+            f"    exe: {exe.removesuffix('.exe')}",
+            f"    tools: {scalar('tool_count') or 0}",
+            f"    local: {len(re.findall(r'^    mode: local$', text, re.M))}",
+            f"    delegate: {len(re.findall(r'^    mode: delegate$', text, re.M))}",
+            f"    blurb: \"{blurb.replace(chr(34), chr(92) + chr(34))}\"",
+        ])
+        seen.append(gid)
+
+    return "\n".join(blocks) + "\n", missing, seen
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--scan", required=True, help="要扫描的源目录")
+    ap.add_argument("--scan", default="", help="要扫描的源目录（--index-only 时可省略）")
     ap.add_argument("--out", required=True, help="分组输出根目录")
     ap.add_argument("--category", default="", help="只生成指定分组（如 git）")
     ap.add_argument("--limit", type=int, default=0, help="最多生成多少个分组（0 表示不限）")
     ap.add_argument("--emit-exe", action="store_true",
                     help="为每个分组生成通用 exe 骨架 csproj + Program.cs（已有手工实现的分组跳过）")
+    ap.add_argument("--index-only", action="store_true",
+                    help="不扫描源码，只从已有 node.yaml 重新生成 resources/tools/cli_groups.yaml")
     args = ap.parse_args()
+
+    if args.index_only:
+        index_text, missing, groups = render_prompt_index(Path(args.out))
+        if missing:
+            raise SystemExit(f"以下分组缺少首轮提示词简介，请补 GROUP_BLURBS: {missing}")
+        PROMPT_INDEX_PATH.write_text(index_text, encoding="utf-8")
+        print(json.dumps({"index": PROMPT_INDEX_PATH.as_posix(), "groups": groups}, ensure_ascii=False, indent=2))
+        return 0
+
+    if not args.scan:
+        ap.error("--scan 是必填参数（除非用 --index-only）")
 
     scan_root, out_root = Path(args.scan), Path(args.out)
     if not scan_root.is_dir():
@@ -653,6 +732,14 @@ def main() -> int:
         report["groups_written"] += 1
     # 仅在全量生成时清理陈旧产物；指定 --category 的试跑不得动其他分组。
     report["pruned"] = [] if args.category else prune_stale_groups(out_root, set(groups.keys()))
+    # 首轮提示词索引：全量生成时同步刷新，保证「提示词里列出的 exe」永远等于「真实存在的 exe」。
+    if not args.category and not args.limit:
+        index_text, missing, indexed = render_prompt_index(out_root)
+        if missing:
+            raise SystemExit(f"以下分组缺少首轮提示词简介，请补 GROUP_BLURBS: {missing}")
+        PROMPT_INDEX_PATH.write_text(index_text, encoding="utf-8")
+        report["prompt_index"] = PROMPT_INDEX_PATH.as_posix()
+        report["prompt_index_groups"] = indexed
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
 

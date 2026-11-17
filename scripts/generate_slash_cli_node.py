@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成 jcc-slash 独立 CLI 节点 — ADR 0157「mcp 和斜杠命令都拆成 exe」。
+"""生成 jcc-tool-slash 独立 CLI 节点 — ADR 0157「mcp 和斜杠命令都拆成 exe」。
 
 只读扫描现有 [ChatCommand] / [ChatCommandArg] 特性，生成：
   modules/tools/cli_nodes/groups/slash/help.txt            编译期内嵌的 -h 文本（按分类分组）
@@ -226,8 +226,8 @@ def scan_modules(scan_root: Path, name_map: dict[str, str]) -> list[dict]:
 
 
 def render_help(commands: list[dict]) -> str:
-    lines = [f"jcc-slash — 斜杠命令节点（{len(commands)} 个命令）", "",
-             "用法:", "  jcc-slash.exe <命令名> [--参数 值 ...]", "  jcc-slash.exe -h", "  jcc-slash.exe <命令名> -h", "",
+    lines = [f"jcc-tool-slash — 斜杠命令节点（{len(commands)} 个命令）", "",
+             "用法:", "  jcc-tool-slash.exe <命令名> [--参数 值 ...]", "  jcc-tool-slash.exe -h", "  jcc-tool-slash.exe <命令名> -h", "",
              "命令列表（说明复用自 [ChatCommand] 特性，按分类分组）:"]
     by_cat: dict[str, list[dict]] = {}
     for cmd in commands:
@@ -350,7 +350,7 @@ def yaml_scalar(text: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="生成 jcc-slash 独立 CLI 节点")
+    parser = argparse.ArgumentParser(description="生成 jcc-tool-slash 独立 CLI 节点")
     parser.add_argument("--scan", default="modules", help="扫描根目录（默认 modules）")
     parser.add_argument("--out", default=str(OUT_DIR), help="输出目录")
     parser.add_argument("--dump", action="store_true", help="把解析结果以 JSON 打到 stdout")

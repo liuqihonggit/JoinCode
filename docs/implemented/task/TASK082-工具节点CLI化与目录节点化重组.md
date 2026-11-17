@@ -1134,13 +1134,28 @@ dotnet build … --no-restore         0.021 ms/次
 
 1. **serve 模式的权限管道缺工具白名单中间件**。默认白名单里的 `glob` 在 serve 模式下也是
    「待确认 → 拒绝」。所以这套端到端只能验「有没有判出风险」；要验「放行后真的执行」必须交互确认。
-2. **`jcc mcp_call bash` 起不来是缺陷，不是环境问题**。`mcp_serve` 在 `BuildHostAsync` 之后
-   显式补了 `ShellCapabilityInitializer.Initialize`，`mcp_call` 没有（`SkipChatServices=true`），
+2. **`jcc mcp_call bash` 起不来是缺陷，已在同轮修掉（`0c2b987a9`）**。`mcp_serve` 在 `BuildHostAsync`
+   之后显式补了 `ShellCapabilityInitializer.Initialize`，`mcp_call` 没有（`SkipChatServices=true`），
    于是 shell 类工具在 `mcp_call` 路径下必然报 `SystemActuatorRegistry not initialized`。
-   修法很明确（补一行初始化，或用 `mcp_serve` 那条路径），但会改变工具元命令的启动成本，
-   本轮不动，**记为已知缺陷**。
+   修法是执行前按工具名（`bash` / `powershell` / `powershell_script`）补同一步初始化 ——
+   `Initialize` 内部有一次性闸门，非 shell 工具不受影响。
 
-**四、踩坑**
+**四、补上「真的执行」这一层（`mcp_call` 修好之后才可能）**
+
+前面 18 条矩阵只能证明「判出了/没判出风险」。把 `mcp_call` 的执行器初始化补上之后，
+才第一次拿到**真实执行**的证据（`artifacts/bin/JoinCode/Debug/net10.0/jcc.exe`）：
+
+| 命令 | 结果 |
+|---|---|
+| `mcp_call bash command="echo hi_from_mcp_call"` | 执行，输出 `hi_from_mcp_call`，exit 0 / 517ms |
+| `mcp_call bash command="git log --oneline -3 \| head -3"` | 执行，输出真实三条提交 |
+| `mcp_call bash command="ls -R modules/guard/guard.security/shell \| head -5"` | 执行，输出真实文件清单 |
+| `mcp_call bash command="echo test > nul"` | 被 BashDefense 链拦下：保留设备名 `nul` |
+
+两条链路到这一刻才算闭合：**判定层**（serve 的 18 条：有风险就带原因拒绝、没风险就放行到待确认）
+和**执行层**（mcp_call 的真跑：良性命令出真实结果、保留设备名在落盘前被拦）。
+
+**五、踩坑**
 
 - `Start-Process` 在本机直接抛 `Item has already been added. Key: 'HTTP_PROXY' / 'http_proxy'`
   —— PS 5.1 构造环境字典时大小写不敏感，环境里同时存在两种写法就崩。脚本因此改成

@@ -65,3 +65,9 @@ items:
     status: done
     evidence: "真机 jcc-tool-file.exe read --filePath 成功（修复前报「缺少必填参数 --file_path」）；Verify-ToolParamNames.py 117 项抽查全通（30+ 工具真正验证 camelCase 归一化）；契约层 JoinCode.CliNodes.Tests 48 通过（新增 9 条）；已进 CI tool-node-reality job"
     next: 无需动作
+
+  - id: api_key_redline_by_value
+    title: 密钥红线按值判定 — 不再按参数名拦 --key/--token/--secret，改为按密钥语义与值形态
+    status: done
+    evidence: "真机 jcc tool call search search_symbol --key theme 不再被阻断（进入工具层并给精确引导）；--api-key sk-xxx、--token ghp_xxx、--api-key=sk-xxx 三种形态仍被拦（后者修复前漏检）；host.tests 1329 通过（新增 21 条）"
+    next: 无需动作

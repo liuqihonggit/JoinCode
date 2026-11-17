@@ -24,6 +24,16 @@
 - [x] **JCC_DUMP_MESSAGES 在 `-p` 链路落盘**：`MessageDumpMiddleware` 挂在 QueryEngine 管道；假 key 真机跑出 19KB `chat_*.txt`（含 `[System]` 与工具提示词）。
 - [x] **`/debuglog -p` 经 `slash_call` 生效**：`GetSplitArgs` 解析 JSON 字段；真机 `slash_call /debuglog '{"flags":"-p"}'` 输出「═══ 系统提示词 ═══」。
   - 边界：`/debuglog` 每段仍截断到 500 字符，看全文用 `jcc prompt`。
+- [x] **接口层位次改为注册顺序表派生**：6 个接口的 `Priority` / `Order` 全部改为由 `resources/orders.yaml` 派生，代码里不再有手写数字。
+  - 证据：真机 `JCC_DEBUGLOG=1 jcc mcp_call bash` 打出 `[ORDER] command_guards: GitCommitGuard > DriveProtectionGuard > CmdIndirectCallGuard > RobocopyMirrorGuard > HeredocGuard > GhPrBodyGuard > GhTimeoutGuard > VpnRouteGuard`，与 YAML 及迁移前基线逐项一致；`Verify-RegistrationOrder.py` 双向对账通过并已进 CI 门禁。
+- [x] **gui profile 装配归一**：手写 YAML 解析 + switch 已删除，改为生成器产出的 `GuiModuleCatalog`；gui 会话首次真机启动。
+  - 证据：真机探针 `artifacts/bin/GuiSessionProbe` 建会话成功（退出码 0），`[MODULE]` 顺序 `CoreModule > SlashCommandModule > ClockModule > BrowserModule > HousekeepingModule > McpInitModule` 与 gui profile 逐项一致；已进 CI `module-order` job。
+- [x] **工具参数契约统一**：`--参数 值` 打通 245 个 host 工具（此前 100% 报「未知选项」），未知参数名按工具参数表给精确引导。
+  - 证据：真机 `jcc tool call search search_symbol --query "TaskUpdate"` 成功执行；`jcc mcp_call glob --pattern '*.md'` 与旧形式 `key=value` 均通；`--patern` 报「可用参数: --pattern, --path; 是不是想写 --pattern?」；`host.tests` 1308 通过。详见 [TASK086](TASK086-工具参数契约统一.md)。
+- [x] **参数名归一化两条路径统一**：规则下沉契约层，exe 与宿主对 camelCase/snake_case 给出同一答案。
+  - 证据：真机 `jcc-tool-file.exe read --filePath "AGENTS.md"` 成功（修复前报「缺少必填参数 --file_path」）；`Verify-ToolParamNames.py` 117 项抽查全通；契约层 `JoinCode.CliNodes.Tests` 48 通过。详见 [TASK087](TASK087-参数名归一化两条路径统一.md)。
+- [x] **密钥红线按值判定**：不再按参数名拦 `--key`/`--token`/`--secret`，改为按密钥语义 + 值形态判定。
+  - 证据：真机 `jcc tool call search search_symbol --key theme` 不再被阻断；`--api-key sk-xxx`、`--token ghp_xxx`、`--api-key=sk-xxx` 仍被拦（等号形式修复前漏检）；`host.tests` 1329 通过（新增 21 条）。详见 [TASK088](TASK088-密钥红线按值判定.md)。
 
 ## 用户决策记录
 

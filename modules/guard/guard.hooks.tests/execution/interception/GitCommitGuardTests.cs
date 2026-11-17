@@ -82,10 +82,12 @@ public sealed class GitCommitGuardTests {
     // === 优先级 ===
 
     [Fact]
-    public void Priority_IsHighest() {
+    public void Priority_IsHighestAmongGuards() {
         var guard = new GitCommitGuard();
 
-        guard.Priority.Should().Be(1000);
+        // 位次由 resources/orders.yaml 的 command_guards 列表派生 —— GitCommitGuard 排第一位
+        guard.Priority.Should().Be(OrderIndex.Default.PriorityOf("command_guards", nameof(GitCommitGuard)));
+        guard.Priority.Should().BeGreaterThan(OrderIndex.Default.PriorityOf("command_guards", "DriveProtectionGuard"));
     }
 
     // === 名称 ===

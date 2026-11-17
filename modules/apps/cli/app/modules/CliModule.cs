@@ -5,8 +5,6 @@ namespace JoinCode.App.Modules;
 /// </summary>
 [AppModule]
 public sealed class CliModule : IAppModule {
-    /// <summary>模块排序权重（80，CLI 专属服务在基础设施之后注册）</summary>
-
     /// <summary>注册 CLI 专属服务（交互服务、斜杠命令注册表、命令门面、命令服务聚合）</summary>
     /// <param name="services">服务集合</param>
     /// <param name="context">模块上下文（含命令行选项和配置）</param>

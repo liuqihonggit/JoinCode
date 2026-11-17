@@ -32,21 +32,50 @@ def yaml_names(path: pathlib.Path) -> list[str]:
     return names
 
 
-def yaml_profiles(path: pathlib.Path) -> dict[str, list[str]]:
-    profiles: dict[str, list[str]] = {}
+def yaml_profiles(path: pathlib.Path) -> dict[str, tuple[str, list[str]]]:
+    """解析 modules.yaml —— profiles: → <profile>: → assembly: / modules: → - 名称。"""
+    profiles: dict[str, tuple[str, list[str]]] = {}
     profile: str | None = None
+    assembly = ""
+    modules: list[str] = []
+    in_modules = False
+
+    def flush() -> None:
+        if profile is not None:
+            profiles[profile] = (assembly, list(modules))
+
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
-        if not line or line.startswith("#") or line.startswith("profiles:"):
+        if not line or line.startswith("#"):
             continue
         if not line.startswith("- "):
-            profile = line.rstrip(":").strip()
-            profiles[profile] = []
+            if line.endswith(":"):
+                key = line[:-1].strip()
+                if key == "modules":
+                    in_modules = True
+                    continue
+                if key == "assembly":
+                    continue
+                flush()
+                profile = key
+                assembly = ""
+                modules = []
+                in_modules = False
+                continue
+            key, _, value = line.partition(":")
+            key = key.strip()
+            if key == "assembly":
+                assembly = value.strip().strip('"')
+                continue
+            if key == "modules":
+                in_modules = True
+                continue
             continue
-        if profile:
+        if profile is not None and in_modules:
             name = line[2:].strip().strip('"')
-            if name and name not in profiles[profile]:
-                profiles[profile].append(name)
+            if name and name not in modules:
+                modules.append(name)
+    flush()
     return profiles
 
 
@@ -70,7 +99,8 @@ def main() -> int:
 
     expected_sections = yaml_names(REPO / "resources/prompts/sections.yaml")
     profiles = yaml_profiles(REPO / "resources/app/modules.yaml")
-    expected_modules = profiles.get("cli", [])
+    cli_assembly, expected_modules = profiles.get("cli", ("", []))
+    gui_assembly, gui_modules = profiles.get("gui", ("", []))
 
     prompt_out = run(["prompt"])
     actual_sections = re.findall(r"^\s+([A-Za-z_][\w]*)\s+(?:缓存|动态)\s+\d+", prompt_out, re.M)
@@ -79,6 +109,15 @@ def main() -> int:
     actual_modules = re.findall(r"\[MODULE\] (\w+) start", debug_out)
 
     problems: list[str] = []
+    # 每个 profile 必须声明归属程序集 —— 没有归属就分不清「名字属于另一个程序集」与「名字打错了」
+    if not cli_assembly:
+        problems.append("modules.yaml 的 cli profile 缺少 assembly 声明")
+    if not gui_assembly:
+        problems.append("modules.yaml 的 gui profile 缺少 assembly 声明")
+    if cli_assembly == gui_assembly and cli_assembly:
+        problems.append(f"cli 与 gui profile 归属同一程序集（{cli_assembly}）：两者会生成同名类型（CS0436）")
+    if not gui_modules:
+        problems.append("modules.yaml 的 gui profile 为空")
     # 条件注入段落（关键词/AgentMode）不在无输入的首轮列表里，所以只验相对顺序，
     # 不要求 67 个段全部出现在 `jcc prompt` 的第一页。
     if not actual_sections or not is_subsequence(actual_sections, expected_sections):
@@ -96,7 +135,8 @@ def main() -> int:
     if leftovers:
         problems.append(f"仍有特性 Order 数字: {leftovers}")
 
-    print(f"段落 {len(actual_sections)}/{len(expected_sections)} 个（条件段按需注入），模块 {len(actual_modules)}/{len(expected_modules)} 个")
+    print(f"段落 {len(actual_sections)}/{len(expected_sections)} 个（条件段按需注入），"
+          f"模块 {len(actual_modules)}/{len(expected_modules)} 个（cli←{cli_assembly}，gui←{gui_assembly} {len(gui_modules)} 个）")
     if problems:
         for problem in problems:
             print("  -", problem)

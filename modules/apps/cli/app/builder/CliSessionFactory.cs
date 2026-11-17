@@ -19,6 +19,6 @@ public static class CliSessionFactory {
             : null;
 
         return EngineSessionFactory.CreateSessionAsync(
-            options, fs, AppModuleCatalog.Create("cli"), loggerProvider, cancellationToken);
+            options, fs, CliModuleCatalog.Create(), loggerProvider, cancellationToken);
     }
 }

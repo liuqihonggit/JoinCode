@@ -41,3 +41,33 @@ items:
     status: done
     evidence: "GetSplitArgs 解析 JSON 字段；真机 slash_call /debuglog {\"flags\":\"-p\"} 输出 ═══ 系统提示词 ═══"
     next: 无需动作
+
+  - id: interface_order_cleanup
+    title: 接口层 Priority/Order 数字排序改为注册顺序表派生（resources/orders.yaml）
+    status: done
+    evidence: "真机 JCC_DEBUGLOG=1 jcc mcp_call bash 打出 [ORDER] command_guards: GitCommitGuard > ... > VpnRouteGuard，与 YAML 及迁移前基线逐项一致；Verify-RegistrationOrder.py 双向对账通过"
+    next: 无需动作
+
+  - id: gui_profile_unification
+    title: gui profile 装配归一到生成器（手写 YAML 解析 + switch 已删除），gui 路径首次真机启动
+    status: done
+    evidence: "真机探针 artifacts/bin/GuiSessionProbe 建会话成功，[MODULE] 顺序 CoreModule > SlashCommandModule > ClockModule > BrowserModule > HousekeepingModule > McpInitModule 与 gui profile 逐项一致；已进 CI module-order job"
+    next: 无需动作
+
+  - id: tool_argument_contract
+    title: 工具参数契约统一 — `--参数 值` 打通 245 个 host 工具，未知参数名按参数表给精确引导
+    status: done
+    evidence: "真机 jcc tool call search search_symbol --query X 成功（修复前必报「未知选项 --query」）；jcc mcp_call glob --pattern '*.md' 与 key=value 旧形式均通；--patern 报「可用参数: --pattern, --path; 是不是想写 --pattern?」；host.tests 1308 通过"
+    next: 无需动作
+
+  - id: param_name_normalization
+    title: 参数名归一化两条路径统一 — 规则下沉契约层，exe 与宿主对 camelCase/snake_case 给出同一答案
+    status: done
+    evidence: "真机 jcc-tool-file.exe read --filePath 成功（修复前报「缺少必填参数 --file_path」）；Verify-ToolParamNames.py 117 项抽查全通（30+ 工具真正验证 camelCase 归一化）；契约层 JoinCode.CliNodes.Tests 48 通过（新增 9 条）；已进 CI tool-node-reality job"
+    next: 无需动作
+
+  - id: api_key_redline_by_value
+    title: 密钥红线按值判定 — 不再按参数名拦 --key/--token/--secret，改为按密钥语义与值形态
+    status: done
+    evidence: "真机 jcc tool call search search_symbol --key theme 不再被阻断（进入工具层并给精确引导）；--api-key sk-xxx、--token ghp_xxx、--api-key=sk-xxx 三种形态仍被拦（后者修复前漏检）；host.tests 1329 通过（新增 21 条）"
+    next: 无需动作

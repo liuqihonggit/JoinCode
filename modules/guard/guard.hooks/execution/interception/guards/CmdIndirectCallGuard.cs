@@ -29,7 +29,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard {
     public string Name => "CmdIndirectCallGuard";
 
     /// <inheritdoc/>
-    public int Priority => 800;
+    public int Priority => OrderIndex.Default.PriorityOf("command_guards", nameof(CmdIndirectCallGuard));
 
     /// <inheritdoc/>
     public bool CanHandle(string command, GuardContext context) {

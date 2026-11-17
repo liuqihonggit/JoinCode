@@ -39,7 +39,7 @@ public sealed partial class HeredocGuard : ICommandGuard {
     public string Name => "HeredocGuard";
 
     /// <inheritdoc/>
-    public int Priority => 200;
+    public int Priority => OrderIndex.Default.PriorityOf("command_guards", nameof(HeredocGuard));
 
     /// <inheritdoc/>
     public bool CanHandle(string command, GuardContext context) {

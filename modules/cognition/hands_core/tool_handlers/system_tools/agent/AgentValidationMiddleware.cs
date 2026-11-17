@@ -5,10 +5,9 @@ namespace Tools.Handlers;
 /// </summary>
 [Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentValidationMiddleware : ServiceEntity, IAgentToolMiddleware {
-    /// <inheritdoc />
-    public int Order => 100;
 
     /// <inheritdoc />
+    public int Order => OrderIndex.Default.OrderOf("agent_tool_middlewares", nameof(AgentValidationMiddleware));
 
     /// <summary>
     /// 创建 AgentValidationMiddleware

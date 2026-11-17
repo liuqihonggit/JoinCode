@@ -18,7 +18,7 @@ public sealed class GhPrBodyFixHook : IToolFixHook {
     public string Name => "GhPrBodyFixHook";
 
     /// <inheritdoc/>
-    public int Priority => 100;
+    public int Priority => OrderIndex.Default.PriorityOf("tool_fix_hooks", nameof(GhPrBodyFixHook));
 
     /// <inheritdoc/>
     public bool CanFix(string toolName, Exception error) {
@@ -56,7 +56,7 @@ public sealed class JsonFixHook : IToolFixHook {
     public string Name => "JsonFixHook";
 
     /// <inheritdoc/>
-    public int Priority => 80;
+    public int Priority => OrderIndex.Default.PriorityOf("tool_fix_hooks", nameof(JsonFixHook));
 
     /// <inheritdoc/>
     public bool CanFix(string toolName, Exception error) {
@@ -94,7 +94,7 @@ public sealed class GhTimeoutFixHook : IToolFixHook {
     public string Name => "GhTimeoutFixHook";
 
     /// <inheritdoc/>
-    public int Priority => 60;
+    public int Priority => OrderIndex.Default.PriorityOf("tool_fix_hooks", nameof(GhTimeoutFixHook));
 
     /// <inheritdoc/>
     public bool CanFix(string toolName, Exception error) {

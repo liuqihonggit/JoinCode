@@ -111,26 +111,38 @@ internal static class CliToolCommand {
     }
 
     /// <summary>
-    /// 在 jcc 进程内执行 host 工具 — 复用 <see cref="McpCallCommand"/> 的完整参数绑定、权限管道与输出格式，
+    /// 在 jcc 进程内执行 host 工具 — 复用 <see cref="McpCliCommand"/> 的权限管道与输出格式，
     /// 不启动分组 exe（它对该工具只有转发职责）。保留 <c>--timeout</c> 语义：超时返回 124。
+    /// <para>参数以字典直传，不走 argv 往返：工具参数名不会被元命令选项（--json/--model 等）
+    /// 抢走，值也不会因 shell 转义而变形。</para>
     /// </summary>
     private static async Task<int> RunHostToolInProcessAsync(string toolId, CallArguments call, CancellationToken ct) {
-        if (call.TimeoutSeconds <= 0) {
-            var argv = new List<string> { "mcp_call", toolId };
-            argv.AddRange(call.PassThrough);
-            return await McpCallCommand.ExecuteAsync(argv.ToArray(), ct).ConfigureAwait(false) ?? 1;
-        }
+        var arguments = ExtractToolArguments(call.PassThrough);
+        if (call.TimeoutSeconds <= 0)
+            return await McpCliCommand.ExecuteCallWithArgumentsAsync(toolId, arguments, json: true, ct).ConfigureAwait(false);
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(call.TimeoutSeconds));
         try {
-            var argv = new List<string> { "mcp_call", toolId };
-            argv.AddRange(call.PassThrough);
-            return await McpCallCommand.ExecuteAsync(argv.ToArray(), timeoutCts.Token).ConfigureAwait(false) ?? 1;
+            return await McpCliCommand.ExecuteCallWithArgumentsAsync(toolId, arguments, json: true, timeoutCts.Token).ConfigureAwait(false);
         } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested) {
             Console.Error.WriteLine($"工具 '{toolId}' 执行超时（--timeout {call.TimeoutSeconds} 秒）。");
             return 124;
         }
+    }
+
+    /// <summary>
+    /// 把透传的 <c>--参数 值</c> 片段解析成工具参数表。
+    /// <para>此处没有元命令选项要保留，透传片段里的 <c>--xxx</c> 全是工具参数；
+    /// 裸值不是工具参数（工具参数一律带 <c>--</c>），直接忽略。</para>
+    /// </summary>
+    private static Dictionary<string, string> ExtractToolArguments(IReadOnlyList<string> passThrough) {
+        if (passThrough.Count == 0) return new Dictionary<string, string>(StringComparer.Ordinal);
+        var (flagArgs, _) = McpToolArgumentBinder.ExtractFlagArguments(
+            passThrough.ToArray(), startIndex: 0,
+            reservedOptions: FrozenSet<string>.Empty,
+            reservedBooleanFlags: FrozenSet<string>.Empty);
+        return flagArgs;
     }
 
     /// <summary>call 动作的解析结果 — 名称、执行器自有选项、透传给工具的其余参数。</summary>

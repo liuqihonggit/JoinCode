@@ -26,10 +26,9 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
     private readonly ITelemetryService? _telemetryService;
     private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
 
-    /// <inheritdoc />
-    public int Order => 400;
 
     /// <inheritdoc />
+    public int Order => OrderIndex.Default.OrderOf("agent_tool_middlewares", nameof(AgentStreamExecutionMiddleware));
 
     /// <inheritdoc />
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

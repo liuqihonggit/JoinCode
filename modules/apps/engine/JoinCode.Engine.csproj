@@ -28,6 +28,12 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)modules/generators/aot_handler.generator/AotHandler.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <!-- 模块装配目录 — 与 CLI 共用 resources/app/modules.yaml，gui profile 归属本程序集 -->
+    <ProjectReference Include="$(RepoRoot)modules/generators/app_module.generator/AppModule.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="$(RepoRoot)resources/app/modules.yaml" />
   </ItemGroup>
 
   <ItemGroup>

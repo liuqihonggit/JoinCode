@@ -24,7 +24,7 @@ public sealed class DriveProtectionGuard : ICommandGuard {
     public string Name => "DriveProtectionGuard";
 
     /// <inheritdoc/>
-    public int Priority => 900;
+    public int Priority => OrderIndex.Default.PriorityOf("command_guards", nameof(DriveProtectionGuard));
 
     /// <inheritdoc/>
     public bool CanHandle(string command, GuardContext context) {

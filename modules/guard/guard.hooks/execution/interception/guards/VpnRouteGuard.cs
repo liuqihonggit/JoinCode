@@ -29,7 +29,7 @@ public sealed partial class VpnRouteGuard : ICommandGuard {
     public string Name => "VpnRouteGuard";
 
     /// <inheritdoc/>
-    public int Priority => 30;
+    public int Priority => OrderIndex.Default.PriorityOf("command_guards", nameof(VpnRouteGuard));
 
     /// <inheritdoc/>
     public bool CanHandle(string command, GuardContext context) {

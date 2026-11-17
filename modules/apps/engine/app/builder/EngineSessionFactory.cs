@@ -84,9 +84,10 @@ public sealed class EngineSessionFactory {
             TrustWorkspace = true,
         };
 
-        // GUI/TUI 宿主与 CLI 分属不同程序集：CLI 的模块由生成的 AppModuleCatalog 装配，
-        // 这里按同一份 resources/app/modules.yaml 的 gui profile 解析顺序，再映射到本程序集的实现类型。
-        var modules = new List<IAppModule>(await LoadGuiModulesAsync(fs, cancellationToken).ConfigureAwait(false));
+        // GUI/TUI 宿主与 CLI 分属不同程序集，但装配顺序来自同一份 resources/app/modules.yaml：
+        // 本程序集（JoinCode.Engine）负责 gui profile，由 AppModule.Generator 生成 AppModuleCatalog。
+        // 顺序与内容都不再由代码手写 —— 加模块改 YAML，加错名字编译期就报错。
+        var modules = new List<IAppModule>(GuiModuleCatalog.Create());
         if (extraModules is not null)
             modules.AddRange(extraModules);
 
@@ -208,48 +209,5 @@ public sealed class EngineSessionFactory {
                 services.GetService<ILogger<EngineSessionFactory>>()?.LogWarning(ex, "[EngineSessionFactory] 模型列表后台拉取失败，不影响启动");
             }
         }, "model-fetch");
-    }
-
-    /// <summary>
-    /// 按 resources/app/modules.yaml 的 gui profile 装配模块 — 顺序来自 YAML，
-    /// 这里的 switch 只是「注册名 → 本程序集实现类型」的映射（CLI 的同名模块在另一个程序集里）。
-    /// </summary>
-    private static async Task<IReadOnlyList<IAppModule>> LoadGuiModulesAsync(IFileSystem fs, CancellationToken ct) {
-        string? yamlPath = null;
-        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent) {
-            var candidate = fs.CombinePath(dir.FullName, "resources", "app", "modules.yaml");
-            if (fs.FileExists(candidate)) {
-                yamlPath = candidate;
-                break;
-            }
-        }
-        if (yamlPath is null)
-            throw new InvalidOperationException("未找到 resources/app/modules.yaml（EngineSessionFactory 模块装配层拦截）：GUI 模块顺序无显式设计，禁止按代码里的书写顺序猜测。");
-
-        var yaml = await fs.ReadAllTextAsync(yamlPath, ct).ConfigureAwait(false);
-        var modules = new List<IAppModule>();
-        var inGui = false;
-        foreach (var raw in yaml.Split('\n')) {
-            var line = raw.Trim();
-            if (line.Length == 0 || line.StartsWith('#')) continue;
-            if (!line.StartsWith("- ", StringComparison.Ordinal)) {
-                inGui = string.Equals(line, "gui:", StringComparison.OrdinalIgnoreCase);
-                continue;
-            }
-            if (!inGui) continue;
-            var name = line.Substring(2).Trim().Trim('"');
-            modules.Add(name switch {
-                "CoreModule" => new Modules.CoreModule(),
-                "SlashCommandModule" => new Modules.SlashCommandModule(),
-                "ClockModule" => new Modules.ClockModule(),
-                "BrowserModule" => new Modules.BrowserModule(),
-                "HousekeepingModule" => new Modules.HousekeepingModule(),
-                "McpInitModule" => new Modules.McpInitModule(),
-                _ => throw new InvalidOperationException($"modules.yaml 的 gui profile 登记了未知模块 '{name}'（EngineSessionFactory 模块装配层拦截）。")
-            });
-        }
-        if (modules.Count == 0)
-            throw new InvalidOperationException("modules.yaml 的 gui profile 为空（EngineSessionFactory 模块装配层拦截）。");
-        return modules;
     }
 }

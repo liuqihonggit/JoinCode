@@ -19,10 +19,9 @@ public sealed partial class AgentBackgroundSpawnMiddleware : ServiceEntity, IAge
     private readonly IAgentService _agentService;
     private readonly ITelemetryService? _telemetryService;
 
-    /// <inheritdoc />
-    public int Order => 300;
 
     /// <inheritdoc />
+    public int Order => OrderIndex.Default.OrderOf("agent_tool_middlewares", nameof(AgentBackgroundSpawnMiddleware));
 
     /// <inheritdoc />
     public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct) {

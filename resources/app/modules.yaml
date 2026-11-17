@@ -1,24 +1,40 @@
 # 应用模块顺序 — 按注册类名显式声明，特性不再持有 Order 数字
 #
 # 消费方: AppModule.Generator（AdditionalFiles）生成 AppModuleCatalog；
-#         CLI / GUI 会话工厂只按 profile 取模块，不再手写 new XxxModule() 列表。
+#         每个程序集只校验并生成「归属自己」的那份 profile。
+#
+# 为什么多一层 assembly:
+#   CLI（程序集 jcc）与引擎（程序集 JoinCode.Engine）各装一套模块，
+#   而 CLI 引用引擎 —— 同一个编译单元里既有本程序集的模块，也有引用来的模块。
+#   不声明归属的话，生成器无法区分「这个模块名属于另一个程序集」与「这个模块名打错了」，
+#   拼错的 gui 模块名会被当成「归别人管」而静默漏掉。
+#   声明 assembly 之后，每个 profile 只在它的归属程序集里被校验：
+#     · 名字拼错 → 编译期 JCCGEN002；
+#     · 本程序集新增模块却没登记 → 同样编译期报错。
 #
 # 新增模块必须同时登记到使用它的 profile，否则生成期报错（JCCGEN002）。
 version: 1
 profiles:
   cli:
-    - CoreModule
-    - CliRegistrationModule
-    - ClockModule
-    - BrowserModule
-    - PipeModule
-    - CliModule
-    - HousekeepingModule
-    - McpInitModule
+    # 归属程序集: CLI（JoinCode.csproj，AssemblyName=jcc）
+    assembly: jcc
+    modules:
+      - CoreModule
+      - CliRegistrationModule
+      - ClockModule
+      - BrowserModule
+      - PipeModule
+      - CliModule
+      - HousekeepingModule
+      - McpInitModule
+
   gui:
-    - CoreModule
-    - SlashCommandModule
-    - ClockModule
-    - BrowserModule
-    - HousekeepingModule
-    - McpInitModule
+    # 归属程序集: 引擎（JoinCode.Engine.csproj）；CLI 与 native_gui / native_tui 共用这条装配路径
+    assembly: JoinCode.Engine
+    modules:
+      - CoreModule
+      - SlashCommandModule
+      - ClockModule
+      - BrowserModule
+      - HousekeepingModule
+      - McpInitModule

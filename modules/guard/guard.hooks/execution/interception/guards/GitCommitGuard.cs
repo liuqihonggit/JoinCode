@@ -25,7 +25,7 @@ public sealed partial class GitCommitGuard : ICommandGuard {
     public string Name => "GitCommitGuard";
 
     /// <inheritdoc/>
-    public int Priority => 1000;
+    public int Priority => OrderIndex.Default.PriorityOf("command_guards", nameof(GitCommitGuard));
 
     /// <inheritdoc/>
     public bool CanHandle(string command, GuardContext context) {

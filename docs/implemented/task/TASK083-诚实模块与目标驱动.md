@@ -17,8 +17,8 @@
 - [x] **诚实模块**：模型切换时打印本清单，明示可能遗漏项，不自动执行。
   - 证据：真机 `jcc slash_call /model model_id=probe-honesty` 打印 1 个 `[x]`、3 个 `[ ]` 及「确认前不会动手」；
     测试后已还原 `settings.json`。
-- [ ] **目标驱动提示词**：先问目标、无目标不执行、逐条确认、模糊目标说明利弊。
-  - 待验证：`jcc prompt --section goal_driven` 真机核对。
+- [x] **目标驱动提示词**：先问目标、无目标不执行、逐条确认、模糊目标说明利弊。
+  - 证据：真机 `jcc prompt --section goal_driven` 输出四条硬规则，并接线 `goal_get` / `goal_graph_define` / `goal_update`。
 - [ ] **清理特性排序**：`AppModule` / `PromptSection` 的 `Order` 数字排序改为注册名 + YAML。
   - 待验证：生成器编译、模块顺序与段落顺序真机核对。
 

@@ -841,3 +841,122 @@ DI 容器里**确实注册了**它（生成器自动生成 `ServiceDescriptor`�
 单跑 `find . -name "*.cs"` 是 `Unknown` → Auto 模式会被拒。这是「未知即询问」策略与覆盖面的摩擦，
 不是本轮引入，改它等于调整安全姿态，需要单独决策。
 
+---
+
+### 2026-11-17 第二十三轮：`-r` 在 `sort` 上是逆序、在 `rm` 上是递归删除 —— 参数作用域与只读登记
+
+上一轮结尾那条「顺带发现」被用户要求一并处理，动手量的时候发现它和另一件同源的事必须一起改。
+
+**一、被拦的不是「未知命令」，而是「带短 flag 的已知命令」**
+
+Auto 模式下实测（全部被拒，Auto 拒绝一切非 Safe）：
+
+| 命令 | 修前 | 修后 | 说明 |
+|---|---|---|---|
+| `ls -R` | Execution | Safe | `-R` 是「递归列目录」，只读 |
+| `tail -f app.log` | Execution | Safe | `-f` 是「跟随文件」 |
+| `sort -r list.txt` | Execution | Safe | `-r` 是「逆序」 |
+| `grep -r TODO src` | Execution | Safe | `-r` 是「递归搜索」 |
+| `rm -r ./build` | Execution | Execution ✓ | 仍是递归删除 |
+| `rm -f x` | Execution | Execution ✓ | 仍是强制删除 |
+| `mv -f a b` | Execution | Execution ✓ | 仍是覆盖不提示 |
+
+根因：`Flags` 表是「纯 flag → 风险」的**扁平**映射，判定时只看 flag、不看命令名。
+`-r` / `-R` / `-s` / `-f` 这些短 flag 在不同命令上语义完全无关，
+扁平表只能取「最危险的那个含义」，于是所有带 `-r` 的命令都被当成删除。
+
+**二、改法：给 flag 加作用域，而不是给命令加白名单**
+
+1. `DangerousCommandCatalog.FlagEntry` 新增 `IReadOnlySet<string>? AppliesTo`（`null` = 原来的通用语义）。
+2. `-r`、`-R`、`-recurse`、`-Recurse`、`-f`、`-force`（以及 Windows 风格 `-F/` `/s/` `/S/` `/f/` `/F/`
+   `/q/` `/Q/` `/*/` `/*.*/`）全部挂到 `BuildDestructiveFlagCommands()` 派生出的四个集合上
+   （FileDeletion / DirectoryDeletion / DataModification / SystemModification）——
+   该方法因静态字段初始化顺序必须是私有方法，不能直接引用公共集合。
+3. 统一入口 `DangerousCommandCatalog.MatchFlag(commandName, flag)`，
+   `CommandDangerClassifier.CheckArgumentRisk` 改为委托它。判定链上只有一个 flag 判定点。
+
+**三、登记常用只读命令**（`DangerCommandDefinitions`）
+
+`Safe` 组新增「文本与数据处理工具」24 个：`find` `rg` `sort` `uniq` `cut` `tr` `column` `tree` `diff` `file`
+`stat` `basename` `dirname` `realpath` `readlink` `seq` `xxd` `base64` `md5sum` `sha1sum` `sha256sum`
+`true` `false` `test` `sleep` `env` `jq` `awk` `sed`；`LightValidation` 新增 `mkdir`、`touch`。
+
+**这不是放宽判定，是收窄 `Unknown`**：`Unknown` 的语义是「不认识 → 询问用户」，
+把常用只读命令登记成 `Safe` 只是承认事实。真正的破坏性形式在同一张表里单独登记并被升级：
+
+| 组合 | 级别 | 为什么 |
+|---|---|---|
+| `find -delete` | Execution | 删除，不是只看 |
+| `awk system(` | Execution | 在 awk 里开 shell |
+| `jq system(` | Execution | 同上 |
+| `sed -i` | LightValidation | 原地改文件 |
+
+**验证**：`BashCommandCatalogCoverageTests`（新增，125 行）做**双向**断言 ——
+只读命令的同名 flag 必须保持 Safe、删除类命令的同名 flag 必须仍为 Execution、
+24 个常用命令必须已登记、登记成 Safe 的危险形式必须被升级、包装器（`sudo`/`env`）必须透明。
+`DangerousCommandCatalogIntegrityTests` 新增 `Flags_RecursiveAndForce_Should_Be_ScopedToDestructiveCommands`
+与 `MatchFlag_Should_RespectCommandScope`，防止后来把 `AppliesTo = null` 手滑加回去。
+
+---
+
+### 2026-11-17 第二十四轮：AST 校验器接线，但只升级「构造/混淆」类命令
+
+「`guard.security/services/bash_validation` 没接线」这条从第二十一轮挂到现在。上一轮我给的判断是
+「它不是更强的防线」，这一轮要把它接进执行链，先得把「接哪一部分」量清楚。
+
+**一、它和分类器不是新旧替代，是两个维度**
+
+实测它对破坏性完全无感：`rm -rf ./build`、`r''m -rf`、`"rm" -rf` 全判 `safe`；
+它管的是**注入 / 可解析性**（`jq system()`、`eval`、命令替换、heredoc、IFS 注入…）。
+所以接线方式不是「替换分类器」，而是「分类器判 Safe 之后再补一刀」。
+
+**二、关键是不能把噪声一起接进来**
+
+这套校验器的口径来自「这条命令能否免确认自动执行」。拿本仓库日常场景实测 25 条命令，
+下列 7 个检查项在**完全良性**的写法上就会触发：
+
+| 检查项 | 触发举例 | 这是坏事吗 |
+|---|---|---|
+| `Newlines` | `cat > x.sh <<EOF … EOF` | 否，写脚本 |
+| `MalformedTokenInjection` | `if [ -d x ]; then …`、`[ -d x ] && …` | 否，正常条件 |
+| `OutputRedirection` | `cmd 2>&1 \| tee log`、`exec 3>&1` | 否，正常重定向 |
+| `DangerousVariables` | `source ~/.bashrc` | 否 |
+| `BackslashEscapedWhitespace` | `echo a\ b` | 否 |
+| `ObfuscatedFlags` | `IFS=$'\n'` | 否，改分隔符 |
+| `BraceExpansion` | `echo {a,b}` | 否 |
+
+一并升级的后果是：用户每次写 heredoc 脚本、写 `if` 语句、写 `2>&1` 都要多一次确认弹窗 ——
+防护会被当成噪音，最后被整开关掉，比不接更糟。所以**只升级 8 个「被构造/混淆」检查项**：
+`JqSystemFunction`、`IfsInjection`、`ControlCharacters`、`UnicodeWhitespace`、`MidWordHash`、
+`BackslashEscapedOperators`、`ProcEnvironAccess`、`CommentQuoteDesync`。
+共同特征：正常写法不会命中，命中即说明**命令真实内容与字面不同**，静态判定不可信。
+
+**三、接线方式**
+
+- 新增 `IBashAstRiskEscalator` / `BashAstRiskEscalator`（`guard.security/services/bash_validation`），
+  `[Register]` 单例；升级结果为 `Unknown` + `CommandRisk.RemoteExecution`，消息里直接给等价写法建议。
+- `DangerousCommandProtectionMiddleware` 构造函数末尾追加**可选**参数 `IBashAstRiskEscalator? astEscalator = null`
+  （不破坏既有测试与手工构造点），`DetectRisks` 里 `Classify(command)` → `ClassifyWithAstBackstop(...)`：
+  分类器已判需要干预就直接返回，只有判 Safe 时才补跑 AST。
+- 开关 `JCC_BASH_AST_ESCALATE=0`，排障时不必改代码。
+
+**四、性能取舍（如实说）**
+
+`BashAstSecurityWalker` 构造器里就 `new TreeSitter.Language("bash")` + `new TreeSitter.Parser(_language)`，
+即立刻加载原生库建 parser，**不是零成本**。中间件只在分类器判 Safe 时调用 —— 但「判 Safe」恰好是
+放行路径上的常态，所以实际代价是**每条要放行的 bash 多一次 tree-sitter 解析**，省掉的只是本就判危险的那一小撮。
+这是本方案明确的代价，不是意外；若要消掉，得把解析结果缓存到命令指纹上，属另一件事。
+
+**五、与原计划的偏离**
+
+原本打算把「heredoc 换行」「命令替换」也纳入升级。实测 heredoc 换行（`Newlines`）是写脚本的正常形式，
+升级即误伤创作行为，故**未纳入**；命令替换与 `eval` 已由分类器侧的解释器识别覆盖，不需要 AST 重复判一遍。
+结论：接线范围比原计划小，理由是噪声实测，不是漏做。
+
+**验证**：`BashAstEscalationTests`（新增，20 例）—— 8 条构造命令必须升级、7 条 authoring pattern 与
+良性命令必须不升级、环境变量开关生效、中间件层两端断言（Safe 命令被升级 / 已判 Execution 的不受影响）。
+`guard.security.tests` 1209 通过 / 0 失败。
+
+**仍然没做到的验证**：真机 `jcc mcp_call bash` 依旧跑不起来（`SystemActuatorRegistry not initialized`，
+需 `jcchub.exe` 完整启动），端到端仍只在中间件层锁。
+

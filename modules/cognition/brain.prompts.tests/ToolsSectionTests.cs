@@ -54,6 +54,20 @@ public sealed class ToolsSectionTests {
     }
 
     [Fact]
+    public void GetContent_ListsEveryAlwaysRegisteredTool() {
+        var content = ToolsSection.GetContent();
+        var registry = BaseToolRegistry.LoadDefault();
+
+        content.Should().NotBeNull();
+        // 首轮 tools 字段里的工具必须在提示词里逐个点名。少一个，模型就把它当不存在；
+        // 尤其是 Agent 内部的规划/目标工具——它们不在 CLI 目录树里，没有第二条发现通道。
+        foreach (var tool in registry.All) {
+            content.Should().Contain(tool.Id, $"基础工具 {tool.Id} 未出现在首轮提示词");
+        }
+        content.Should().Contain($"始终注册的工具（共 {registry.Count} 个");
+    }
+
+    [Fact]
     public void GetContent_TeachesOnDemandHelpInsteadOfDumpingIt() {
         var content = ToolsSection.GetContent();
 

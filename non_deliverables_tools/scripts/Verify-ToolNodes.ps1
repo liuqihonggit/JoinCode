@@ -355,6 +355,39 @@ if (-not (Test-Path $indexPath)) {
     }
 }
 
+# ── Agent 内部基础工具对账 ──────────────────────────────────────────
+# group_map.yaml 的 internal_tools 是「只由 jcc 内核注册」的单一数据源：
+# 它们必须出现在 base.yaml（首轮 tools 字段来源），且不能留在任何分组 exe 的 node.yaml 里。
+# 少了前者模型永远看不到，多了后者就同时存在「exe 子命令」和「协议工具」两条实现入口。
+$groupMapPath = Join-Path $repoRoot "resources/tools/group_map.yaml"
+$basePath = Join-Path $repoRoot "resources/tools/base.yaml"
+if (-not (Test-Path $groupMapPath) -or -not (Test-Path $basePath)) {
+    $problems += "group_map.yaml 或 base.yaml 缺失，无法对账 Agent 内部基础工具"
+} else {
+    $mapText = Get-Content -Path $groupMapPath -Raw -Encoding UTF8
+    $baseText = Get-Content -Path $basePath -Raw -Encoding UTF8
+    $inInternalSection = $false
+    $internalIds = @()
+    foreach ($line in ($mapText -split "`r?`n")) {
+        if ($line -match '^\S') { $inInternalSection = $line -match '^internal_tools:' }
+        if ($inInternalSection -and $line -match '^\s+-\s+(\S+)') { $internalIds += $Matches[1].ToLowerInvariant() }
+    }
+    if ($internalIds.Count -eq 0) {
+        $problems += "group_map.yaml 的 internal_tools 段为空（Agent 内部工具无处登记）"
+    }
+    foreach ($id in $internalIds) {
+        if ($baseText -notmatch "(?m)^\s+-\s+id:\s+$([regex]::Escape($id))\s*$") {
+            $problems += "[$id] 登记为 jcc 内部工具，但 base.yaml 没有它（首轮 tools 字段会漏）"
+        }
+        foreach ($node in (Get-ChildItem -Path (Join-Path $repoRoot "modules/tools/cli_nodes/groups") -Recurse -Filter node.yaml -File)) {
+            if ((Get-Content -Path $node.FullName -Raw -Encoding UTF8) -match "(?m)^\s+-\s+id:\s+$([regex]::Escape($id))\s*$") {
+                $problems += "[$id] 登记为 jcc 内部工具，却仍出现在分组 exe $($node.Directory.Name)/node.yaml（双入口漂移）"
+                break
+            }
+        }
+    }
+}
+
 # 报告体一律走 Write-Output 一次输出：Write-Host 对含换行的多行字符串在部分终端/ConPTY
 # 下会吞掉行尾换行，把表格和汇总行粘成一行（「2.6共 13 组」就是这么来的）。
 $report = @()

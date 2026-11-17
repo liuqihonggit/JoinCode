@@ -110,3 +110,82 @@ tools:
         required: false
         default: "120"
         aliases: -t,--timeout
+
+  # Agent 内部基础工具 — 依赖活会话/目标状态，必须每次注册并出现在首轮提示词。
+  # 这些 id 同时登记在 group_map.yaml 的 internal_tools 段，生成器会把它们从 agent 独立 exe 中剔除。
+  - id: enter_plan_mode
+    name: EnterPlanMode
+    summary: 进入规划模式 — 先写清目标与步骤，等用户确认后再执行
+    category: agent
+    examples:
+      - enter_plan_mode --description "先确认目标，再列出实现步骤"
+    parameters:
+      - name: description
+        type: string
+        description: 规划说明（可选）
+        required: false
+
+  - id: exit_plan_mode
+    name: ExitPlanMode
+    summary: 退出规划模式 — 可按用户确认结果执行剩余已批准步骤
+    category: agent
+    examples:
+      - exit_plan_mode --execute_remaining_steps true
+    parameters:
+      - name: execute_remaining_steps
+        type: boolean
+        description: 是否执行剩余已批准步骤
+        required: false
+      - name: allowed_prompts
+        type: array
+        description: 执行所需的一次性授权列表（tool + prompt）
+        required: false
+
+  - id: goal_get
+    name: GoalGet
+    summary: 读取当前目标状态（目标、进度、约束、评估结果）；无目标时返回 No active goal
+    category: agent
+    examples:
+      - goal_get
+    parameters: []
+
+  - id: goal_update
+    name: GoalUpdate
+    summary: 更新当前目标状态为 achieved 或 unmet，并写明理由
+    category: agent
+    examples:
+      - goal_update --status achieved --reason "用户确认的目标已全部达成"
+    parameters:
+      - name: status
+        type: string
+        description: 目标新状态，只能是 achieved 或 unmet
+        required: true
+        enum: achieved,unmet
+      - name: reason
+        type: string
+        description: 状态变更原因
+        required: true
+
+  - id: goal_graph_define
+    name: GoalGraphDefine
+    summary: 定义目标图（节点与边），用于多阶段目标拆分与路由
+    category: agent
+    examples:
+      - goal_graph_define --nodes "[...]" --edges "[]" --start_node_id "start" --end_node_ids "done"
+    parameters:
+      - name: nodes
+        type: string
+        description: 节点 JSON 数组（id/kind/name/systemPrompt/instruction/freshContext）
+        required: true
+      - name: edges
+        type: string
+        description: 边 JSON 数组（fromId/toId/label）
+        required: true
+      - name: start_node_id
+        type: string
+        description: 起始节点 id
+        required: true
+      - name: end_node_ids
+        type: string
+        description: 结束节点 id，逗号分隔
+        required: true

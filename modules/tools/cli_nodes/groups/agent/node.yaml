@@ -3,18 +3,14 @@
 # delegate=委托另一个独立 exe（不经宿主），host=转发宿主执行。
 id: agent
 name: jcc-tool-agent
-summary: "Enter plan mode for complex tasks requiring exploration and design; Exit plan mode and present plan for approval; Get current plan status"
+summary: "Get current plan status; Add a plan step; Approve a plan step"
 category: agent
 exe: jcc-tool-agent.exe
-tags: [add, approve, complete, cron, enter, execute, exit, explore]
-tool_count: 59
+tags: [add, approve, complete, cron, execute, explore, general, get]
+tool_count: 54
 local_tool_count: 29
 parameters: []
 tools:
-  - id: enter_plan_mode
-    mode: host
-  - id: exit_plan_mode
-    mode: host
   - id: get_plan_status
     mode: local
   - id: add_plan_step
@@ -99,12 +95,6 @@ tools:
     mode: host
   - id: cron_validate
     mode: local
-  - id: goal_get
-    mode: host
-  - id: goal_update
-    mode: host
-  - id: goal_graph_define
-    mode: host
   - id: complete_step
     mode: local
   - id: task_create

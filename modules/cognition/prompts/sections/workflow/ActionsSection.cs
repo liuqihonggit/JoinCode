@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 谨慎执行操作部分
 /// </summary>
-[PromptSection(Name = "actions", Order = 10)]
+[PromptSection(Name = "actions")]
 public static class ActionsSection {
     /// <summary>
     /// 创建谨慎执行操作 Section 实例（内容缓存）。

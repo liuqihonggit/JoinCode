@@ -123,6 +123,28 @@ def load_delegates() -> dict[str, dict[str, str]]:
     return delegates
 
 
+def load_internal_tools() -> frozenset[str]:
+    """读取 group_map.yaml 的 internal_tools 段 — jcc 内部基础工具 id。
+
+    这些工具由宿主内核直接注册并进入首轮 tools 字段，不再作为独立 exe 的子命令出现。
+    不在这里登记、却想在 node.yaml 里隐藏工具的做法会造成「声明 vs 现实」漂移。
+    """
+    if not GROUP_MAP_PATH.is_file():
+        return frozenset()
+    tools: set[str] = set()
+    section = "groups"
+    for line in GROUP_MAP_PATH.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if len(line) - len(line.lstrip()) == 0:
+            section = "internal_tools" if stripped.startswith("internal_tools:") else "groups"
+            continue
+        if section == "internal_tools" and stripped.startswith("- "):
+            tools.add(stripped[2:].strip().lower())
+    return frozenset(tools)
+
+
 def canonical_group(raw: str, mapping: dict[str, str], default: str) -> str:
     return mapping.get(raw.strip().lower(), default)
 
@@ -687,6 +709,7 @@ def main() -> int:
     candidates = sorted(p for p in scan_root.rglob("*.cs") if is_source_file(p))
     group_map, default_group = load_group_map()
     delegates = load_delegates()
+    internal_tools = load_internal_tools()
     options_records = collect_options_records(scan_root)
     enums = collect_enum_values(scan_root)
     string_keys = collect_string_keys(scan_root)
@@ -701,11 +724,14 @@ def main() -> int:
         groups = {k: v for k, v in groups.items() if k == args.category.lower()}
 
     report = {"scanned_files": len(candidates), "tools_found": len(found),
-              "groups_found": len(groups), "groups_written": 0, "outputs": []}
+              "groups_found": len(groups), "groups_written": 0,
+              "internal_tools_excluded": sorted(internal_tools), "outputs": []}
     for category, tools in sorted(groups.items()):
         if args.limit and report["groups_written"] >= args.limit:
             break
-        unique = dedupe_tools(tools)
+        # 内部基础工具只由 jcc 内核注册（base.yaml + 首轮 tools），不作为 exe 子命令出现。
+        unique = [tool for tool in dedupe_tools(tools)
+                  if tool["id"].lower() not in internal_tools]
         exe = f"jcc-tool-{category}.exe"
         target_dir = out_root / category
         target_dir.mkdir(parents=True, exist_ok=True)

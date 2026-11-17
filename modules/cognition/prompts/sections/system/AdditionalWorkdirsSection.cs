@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 额外工作目录部分 - 关于多个工作目录的说明
 /// </summary>
-[PromptSection(Name = "additional_workdirs", Order = 73, IsDynamic = true)]
+[PromptSection(Name = "additional_workdirs", IsDynamic = true)]
 public static class AdditionalWorkdirsSection {
     /// <summary>
     /// 获取额外工作目录部分的内容。

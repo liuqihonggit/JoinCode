@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 网络安全风险部分 - 安全相关请求的处理指导
 /// </summary>
-[PromptSection(Name = "cyber_risk", Order = 2)]
+[PromptSection(Name = "cyber_risk")]
 public static class CyberRiskSection {
     /// <summary>
     /// 创建 cyber_risk 提示词部分。

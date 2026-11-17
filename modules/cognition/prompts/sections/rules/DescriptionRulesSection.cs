@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 基于描述关键词匹配的场景相关规则的提示词部分。
 /// </summary>
-[PromptSection(Name = "description_rules", Order = 79, IsDynamic = true)]
+[PromptSection(Name = "description_rules", IsDynamic = true)]
 public static class DescriptionRulesSection {
     private static readonly char[] DescriptionSeparators = [' ', ',', '，', '、', ';', '；', '|', '\t', '\n', '\r'];
 

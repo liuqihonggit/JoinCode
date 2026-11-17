@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 工具结果总结部分 - 关于工具结果处理的说明
 /// </summary>
-[PromptSection(Name = "summarize_tool_results", Order = 20)]
+[PromptSection(Name = "summarize_tool_results")]
 public static class SummarizeToolResultsSection {
     /// <summary>
     /// 创建工具结果总结 Section 实例（内容缓存）。

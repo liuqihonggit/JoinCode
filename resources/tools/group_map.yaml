@@ -26,6 +26,17 @@ delegates:
     project: gh
     reason: github 组 172 个工具由独立 jcc-gh.exe 实现（自带 REST 调用与 hosts.yml 凭据），分组 exe 只做转发。
 
+# jcc 内部基础工具 — 每次都注册进内核，并出现在首轮 tools 字段与提示词里。
+# 这些能力必须读活会话/目标状态（规划模式、目标图），塞进零依赖 exe 只能转发回宿主，
+# 多一层进程跳转却拿不到任何隔离收益。这里登记 id，生成器从各组 node.yaml/help.txt 中剔除，
+# 由 resources/tools/base.yaml 负责它们对模型的描述（单一数据源）。
+internal_tools:
+  - enter_plan_mode
+  - exit_plan_mode
+  - goal_get
+  - goal_update
+  - goal_graph_define
+
 groups:
   file:
     - file

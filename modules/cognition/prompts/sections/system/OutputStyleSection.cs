@@ -9,7 +9,7 @@ namespace Core.Prompts.Sections;
 /// 双目录路径与 FileSystem 经 <see cref="SystemPromptProviderOptions"/> 注入
 ///（PromptConfigSnapshot.Current — EnvironmentSection 同先例）。</para>
 /// </summary>
-[PromptSection(Name = "output_style", Order = 82, IsDynamic = true)]
+[PromptSection(Name = "output_style", IsDynamic = true)]
 public static class OutputStyleSection {
     /// <summary>内建风格名 — explanatory（对齐 TS 内建）。</summary>
     public const string BuiltinExplanatory = "explanatory";

@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 与用户沟通部分 - 如何编写用户-facing文本
 /// </summary>
-[PromptSection(Name = "communicating", Order = 18)]
+[PromptSection(Name = "communicating")]
 public static class CommunicatingSection {
     /// <summary>
     /// 创建与用户沟通 Section 实例（内容缓存）。

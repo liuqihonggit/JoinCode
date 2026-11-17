@@ -13,9 +13,4 @@ public interface IAppModule {
     /// 启动后初始化 — 在 Host 构建完成后调用（如 MCP 初始化、事件桥接）
     /// </summary>
     Task ConfigureAsync(IServiceProvider services, CancellationToken ct);
-
-    /// <summary>
-    /// 模块执行优先级 — 数值越小越先执行（ConfigureServices 和 ConfigureAsync 均按此排序）
-    /// </summary>
-    int Order => 100;
 }

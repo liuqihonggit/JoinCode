@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 默认Agent提示词部分 - 用于Subagent的默认提示词
 /// </summary>
-[PromptSection(Name = "default_agent_prompt", Order = 30, InjectOn = PromptSectionInject.AgentMode)]
+[PromptSection(Name = "default_agent_prompt", InjectOn = PromptSectionInject.AgentMode)]
 public static class DefaultAgentPromptSection {
     /// <summary>
     /// 创建 default_agent_prompt 提示词部分。

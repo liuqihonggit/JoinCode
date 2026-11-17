@@ -29,6 +29,11 @@
     <ProjectReference Include="$(RepoRoot)modules/generators/app_module.generator/AppModule.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <!-- AppModule.Generator 的显式顺序表：模块启动顺序按注册类名在这里声明 -->
+  <ItemGroup>
+    <AdditionalFiles Include="$(RepoRoot)resources/app/modules.yaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
     <InternalsVisibleTo Include="JoinCode.Clock.Tests" />

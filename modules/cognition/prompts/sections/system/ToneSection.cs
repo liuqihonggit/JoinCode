@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 语气和风格部分
 /// </summary>
-[PromptSection(Name = "tone", Order = 16)]
+[PromptSection(Name = "tone")]
 public static class ToneSection {
     /// <summary>
     /// 创建语气和风格提示词部分。

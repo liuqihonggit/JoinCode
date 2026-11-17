@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 团队成员提示词附加部分
 /// </summary>
-[PromptSection(Name = "teammate_communication", InjectOn = PromptSectionInject.CoordinatorMode, Order = 14)]
+[PromptSection(Name = "teammate_communication", InjectOn = PromptSectionInject.CoordinatorMode)]
 public static class TeammateSection {
     /// <summary>
     /// 团队成员系统提示词附加内容

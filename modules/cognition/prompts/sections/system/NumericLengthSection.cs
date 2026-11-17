@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 数字长度限制部分 - 具体的字数限制
 /// </summary>
-[PromptSection(Name = "numeric_length", Order = 29)]
+[PromptSection(Name = "numeric_length")]
 public static class NumericLengthSection {
     /// <summary>
     /// 获取数字长度限制部分的内容。

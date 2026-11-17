@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 发现技能部分 - 关于技能发现的指导
 /// </summary>
-[PromptSection(Name = "discover_skills", Order = 15)]
+[PromptSection(Name = "discover_skills")]
 public static class DiscoverSkillsSection {
     /// <summary>
     /// 创建 discover_skills 提示词部分。

@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// Git Worktree部分 - 关于Git工作树的说明
 /// </summary>
-[PromptSection(Name = "git_worktree", Order = 72)]
+[PromptSection(Name = "git_worktree")]
 public static class GitWorktreeSection {
     /// <summary>
     /// 获取 git_worktree 部分内容；工作树隔离说明，非 worktree 时返回 null。

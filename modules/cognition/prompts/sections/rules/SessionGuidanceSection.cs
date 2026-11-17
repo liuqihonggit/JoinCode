@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 会话指导部分 - 会话特定的指导
 /// </summary>
-[PromptSection(Name = "session_guidance", Order = 74, IsDynamic = true)]
+[PromptSection(Name = "session_guidance", IsDynamic = true)]
 public static class SessionGuidanceSection {
     /// <summary>
     /// 获取 session_guidance 部分内容；根据已启用工具动态拼接的会话指导，无内容时返回 null。

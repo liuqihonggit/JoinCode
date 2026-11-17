@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 项目规则部分 - 从项目配置文件加载的规则
 /// </summary>
-[PromptSection(Name = "project_rules", Order = 7)]
+[PromptSection(Name = "project_rules")]
 public static class ProjectRulesSection {
     /// <summary>
     /// 获取 project_rules 部分内容；项目配置文件加载的规则，未配置时返回 null。

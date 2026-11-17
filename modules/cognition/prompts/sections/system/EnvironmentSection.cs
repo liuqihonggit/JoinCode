@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 环境信息部分 - 动态获取当前开发环境信息
 /// </summary>
-[PromptSection(Name = "environment", Order = 70, IsDynamic = true)]
+[PromptSection(Name = "environment", IsDynamic = true)]
 public static class EnvironmentSection {
     /// <summary>
     /// 获取环境信息部分的内容。

@@ -3,11 +3,9 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 替换方法论的提示词部分；关键词触发注入。
 /// </summary>
-[PromptSection(
-    Name = "replacement_methodology",
+[PromptSection(Name = "replacement_methodology",
     Keywords = new[] { "替换", "批量替换", "全局命名空间", "using迁移", "AST替换", "机械化替换", "全局替换", "replace", "batch replace" },
-    InjectOn = PromptSectionInject.Keyword,
-    Order = 62)]
+    InjectOn = PromptSectionInject.Keyword)]
 public static class ReplacementMethodologySection {
     /// <summary>
     /// 获取 replacement_methodology 部分内容；替换方法论文本。

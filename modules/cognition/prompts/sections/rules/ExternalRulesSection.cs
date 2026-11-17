@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 始终应用的外部规则的提示词部分。
 /// </summary>
-[PromptSection(Name = "external_rules", Order = 8)]
+[PromptSection(Name = "external_rules")]
 public static class ExternalRulesSection {
     /// <summary>
     /// 获取 external_rules 部分内容；始终应用的外部规则，无规则时返回 null。

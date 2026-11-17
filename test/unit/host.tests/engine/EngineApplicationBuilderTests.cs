@@ -2,29 +2,29 @@ namespace Host.Tests.Engine;
 
 /// <summary>
 /// EngineApplicationBuilder 引擎构建器测试 — ADR 0143 引擎库（从 cli ApplicationBuilder 拆分引擎部分）。
-/// 契约：① 模块按 Order 升序执行 ConfigureServices/ConfigureAsync，config+options 注册为单例；
+/// 契约：① 模块按注册顺序（UseModule 调用顺序，由 YAML 显式声明）执行 ConfigureServices/ConfigureAsync；
 /// ② 宿主注入的 ILoggerProvider 生效（ClearProviders 后仅保留注入 provider）。
 /// </summary>
 public sealed class EngineApplicationBuilderTests {
     [Fact]
-    public async Task BuildHost_ModulesExecuteInOrder_AndRegistersConfigAndOptionsSingletons() {
+    public async Task BuildHost_ModulesExecuteInRegistrationOrder_AndRegistersConfigAndOptionsSingletons() {
         var calls = new List<string>();
         var options = new CommandLineOptions { Prompt = "engine-test" };
         var config = new WorkflowConfig();
 
         var builder = new EngineApplicationBuilder()
-            .UseModule(new RecordingModule("late", 80, calls))
-            .UseModule(new RecordingModule("early", 20, calls))
+            .UseModule(new RecordingModule("late", calls))
+            .UseModule(new RecordingModule("early", calls))
             .UseModule<MarkerServiceModule>();
 
         using var host = builder.BuildHost(config, options);
         await builder.ConfigureModulesAsync(host.Services);
 
-        // MarkerServiceModule(泛型重载, Order=100) 不写 calls，经 MarkerService 单例断言覆盖
+        // MarkerServiceModule（泛型重载）不写 calls，经 MarkerService 单例断言覆盖
         Assert.Equal(
             new[] {
-                "early-services", "late-services",
-                "early-configure", "late-configure",
+                "late-services", "early-services",
+                "late-configure", "early-configure",
             }, calls);
         Assert.Same(config, host.Services.GetRequiredService<WorkflowConfig>());
         Assert.Same(options, host.Services.GetRequiredService<CommandLineOptions>());
@@ -46,8 +46,7 @@ public sealed class EngineApplicationBuilderTests {
         Assert.Equal("hello-from-engine", entry.Message);
     }
 
-    private sealed class RecordingModule(string name, int order, List<string> calls) : IAppModule {
-        public int Order => order;
+    private sealed class RecordingModule(string name, List<string> calls) : IAppModule {
 
         public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
             Assert.NotNull(context.Options);

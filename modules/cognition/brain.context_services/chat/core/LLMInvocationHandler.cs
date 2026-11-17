@@ -33,6 +33,7 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
     private readonly IChatStreamChunkProcessor _chunkProcessor;
     private readonly IChatContextManager _contextManager;
     private readonly QueryLoopServices? _services;
+    private readonly IChatFileContextService? _fileContextService;
     private readonly ILogger<LLMInvocationHandler>? _logger;
 
     /// <summary>
@@ -42,17 +43,20 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
     /// <param name="chunkProcessor">流式块处理器</param>
     /// <param name="contextManager">聊天上下文管理器</param>
     /// <param name="services">查询循环可选服务聚合</param>
+    /// <param name="fileContextService">消息转储服务 — 直接注入而不依赖 QueryLoopServices 聚合；该聚合在未装配可选服务时整个为 null，实测导致 JCC_DUMP_MESSAGES 从不落盘</param>
     /// <param name="logger">可选日志记录器</param>
     public LLMInvocationHandler(
         IChatClient kernel,
         IChatStreamChunkProcessor chunkProcessor,
         IChatContextManager contextManager,
         QueryLoopServices? services = null,
+        IChatFileContextService? fileContextService = null,
         ILogger<LLMInvocationHandler>? logger = null) {
         _kernel = kernel;
         _chunkProcessor = chunkProcessor;
         _contextManager = contextManager;
         _services = services;
+        _fileContextService = fileContextService;
         _logger = logger;
     }
 
@@ -72,7 +76,12 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
         var chatCompletionService = _kernel.GetChatCompletionService();
 
         var dumpSessionId = (_contextManager is ChatContextManager c) ? c.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
-        _ = _services?.FileContextService?.DumpMessageListAsync(historySnapshot, dumpSessionId, context.ConversationTurn, iterationIndex);
+        // 必须 await：`_ = ...` 在一次性 -p 会话里会被进程退出打断，实测整轮跑完一个 dump 文件都没有。
+        // 优先用直接注入的服务；QueryLoopServices 聚合在轻量宿主里可能为 null 或没装配 FileContextService。
+        // 方法内部有 JCC_DUMP_MESSAGES 开关，关闭时只是一次 if 判断。
+        var dumper = _fileContextService ?? _services?.FileContextService;
+        if (dumper is not null)
+            await dumper.DumpMessageListAsync(historySnapshot, dumpSessionId, context.ConversationTurn, iterationIndex).ConfigureAwait(false);
 
         context.Timing.StartLlmCall();
         var isFirstChunk = true;

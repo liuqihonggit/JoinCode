@@ -43,6 +43,11 @@
     <ProjectReference Include="$(RepoRoot)modules/generators/aot_handler.generator/AotHandler.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <!-- PromptSection.Generator 的显式顺序表：段落先后由注册名在这里声明，不再从特性数字收集 -->
+  <ItemGroup>
+    <AdditionalFiles Include="$(RepoRoot)resources/prompts/sections.yaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/composition/Abstractions.Composition.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Composition" Version="$(JccComponentPackageVersion)" />

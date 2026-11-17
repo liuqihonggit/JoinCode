@@ -1,0 +1,43 @@
+# 诚实清单 — 模型切换时必须复述的能力状态
+#
+# 消费方: HonestyNotice（/model 切换后打印）。
+# 纪律: 只允许写「已验证的事实」，状态必须与 commit / 真机校验对应；
+#       pending 项不会自动执行，必须由用户选择方向后才动手。
+version: 1
+doc: docs/implemented/task/TASK083-诚实模块与目标驱动.md
+items:
+  - id: agent_internal_tools
+    title: Agent 内部基础工具（规划模式 + 目标读写）每轮注册并进首轮提示词
+    status: done
+    evidence: "a466cdd69; jcc tool base=9, jcc prompt --section tools 逐行列出"
+    next: 无需动作
+
+  - id: honesty_module
+    title: 模型切换时诚实提示遗漏与已完成项，由用户决定方向
+    status: done
+    evidence: "真机 /model model_id=probe-honesty 打印 [x]/[ ] 清单并等待用户决定；settings.json 已还原"
+    next: 无需动作
+
+  - id: goal_driven_prompt
+    title: 目标驱动提示词（先问目标，无目标不执行，逐条确认，模糊目标说明利弊）
+    status: done
+    evidence: "真机 jcc prompt --section goal_driven 输出四条硬规则 + goal_* 工具接线"
+    next: 无需动作
+
+  - id: attribute_order_cleanup
+    title: 清除特性 Order 数字排序，改为注册名 + YAML 显式顺序
+    status: done
+    evidence: "jcc 真机：段落顺序与 resources/prompts/sections.yaml 一致、模块顺序与 resources/app/modules.yaml 一致；特性里无 Order"
+    next: 无需动作
+
+  - id: dump_messages
+    title: JCC_DUMP_MESSAGES 在 -p 链路真正落盘
+    status: done
+    evidence: "MessageDumpMiddleware 挂在 QueryEngine 管道；假 key 真机跑出 chat_*.txt（19KB，含 [System] 与工具提示词）"
+    next: 无需动作
+
+  - id: debuglog_prompt
+    title: /debuglog -p 经 slash_call 转发后输出系统提示词
+    status: done
+    evidence: "GetSplitArgs 解析 JSON 字段；真机 slash_call /debuglog {\"flags\":\"-p\"} 输出 ═══ 系统提示词 ═══"
+    next: 无需动作

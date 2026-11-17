@@ -6,10 +6,9 @@ namespace JoinCode.App.Modules;
 /// <para>telemetry hooks/TrustFolderManager/user_experience 5 件已搬 engine（Step 3c），由引擎侧 EngineRegistrationModule(29) 注册；</para>
 /// <para>gui/tui 会话经 extraModules 传入本模块，保持拆分后行为零变化。</para>
 /// </summary>
-[AppModule(Order = 31)]
+[AppModule]
 public sealed class CliRegistrationModule : IAppModule {
     /// <summary>模块加载顺序 — 31，紧随引擎 CoreModule(30) 之后</summary>
-    public int Order => 31;
 
     /// <summary>
     /// 注册 cli 程序集自动注册服务 — 源码生成器按程序集名生成方法（"jcc"→"Jcc"）

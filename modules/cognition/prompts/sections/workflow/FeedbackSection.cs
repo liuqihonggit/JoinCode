@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 反馈部分 - 如何向用户提供反馈渠道
 /// </summary>
-[PromptSection(Name = "feedback", Order = 26)]
+[PromptSection(Name = "feedback")]
 public static class FeedbackSection {
     /// <summary>
     /// 获取反馈部分的提示词内容。根据配置拼接反馈渠道与默认指导。

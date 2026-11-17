@@ -3,9 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 编码推荐配置部分 - 架构选型/效率/编译详细配置（按关键词触发注入，不进首次提示词）
 /// </summary>
-[PromptSection(
-    Name = "coding_config",
-    Order = 6,
+[PromptSection(Name = "coding_config",
     InjectOn = PromptSectionInject.Keyword,
     Keywords = new[] {
         "性能", "架构", "效率", "编译", "队列", "缓存",

@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// Todo/Task工具部分 - 关于任务管理的说明
 /// </summary>
-[PromptSection(Name = "todo_task", Order = 28)]
+[PromptSection(Name = "todo_task")]
 public static class TodoTaskSection {
     /// <summary>
     /// 获取任务管理部分的提示词内容。当未启用 Todo/Task 工具时返回 null。

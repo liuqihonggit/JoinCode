@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 系统部分 - 核心系统规则
 /// </summary>
-[PromptSection(Name = "system", Order = 3)]
+[PromptSection(Name = "system")]
 public static class SystemSection {
     /// <summary>
     /// 创建核心系统规则提示词部分。

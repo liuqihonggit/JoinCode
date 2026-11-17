@@ -5,10 +5,9 @@ namespace JoinCode.App.Modules;
 /// 对齐 TS startBackgroundHousekeeping: 延迟10分钟+24小时循环清理
 /// EntityReaper: 延迟30秒+60秒循环扫描可回收/超时/泄漏 Entity
 /// </summary>
-[AppModule(Order = 75)]
+[AppModule]
 public sealed class HousekeepingModule : IAppModule {
     /// <summary>模块加载顺序，值越大越靠后</summary>
-    public int Order => 75;
 
     /// <summary>注册家政清理与实体回收 HostedService</summary>
     /// <param name="services">服务集合</param>

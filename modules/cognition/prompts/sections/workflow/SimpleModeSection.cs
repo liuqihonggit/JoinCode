@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 简化模式部分 - 极简系统提示词
 /// </summary>
-[PromptSection(Name = "simple_mode", Order = 24, IsDynamic = true)]
+[PromptSection(Name = "simple_mode", IsDynamic = true)]
 public static class SimpleModeSection {
     /// <summary>
     /// 获取简化模式的提示词内容。当文件系统不可用时返回 null。

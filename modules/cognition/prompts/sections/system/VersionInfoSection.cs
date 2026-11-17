@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 版本信息部分 - 应用版本和构建信息
 /// </summary>
-[PromptSection(Name = "version_info", Order = 68, IsDynamic = true)]
+[PromptSection(Name = "version_info", IsDynamic = true)]
 public static class VersionInfoSection {
     /// <summary>
     /// 获取版本信息部分的内容。

@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// Agent笔记部分 - Subagent/Agent的注意事项
 /// </summary>
-[PromptSection(Name = "agent_notes", Order = 31, InjectOn = PromptSectionInject.AgentMode)]
+[PromptSection(Name = "agent_notes", InjectOn = PromptSectionInject.AgentMode)]
 public static class AgentNotesSection {
     /// <summary>
     /// 创建 agent_notes 提示词部分。

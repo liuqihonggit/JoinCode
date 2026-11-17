@@ -7,7 +7,7 @@ version: 1
 groups:
   - id: agent
     exe: jcc-tool-agent
-    tools: 59
+    tools: 54
     local: 29
     delegate: 0
     blurb: "plan 模式与步骤编排、子代理控制、worktree 管理"

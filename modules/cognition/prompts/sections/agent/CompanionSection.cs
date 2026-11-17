@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// Companion (Buddy) 提示词部分
 /// </summary>
-[PromptSection(Name = "companion", Order = 15)]
+[PromptSection(Name = "companion")]
 public static class CompanionSection {
     /// <summary>
     /// 获取伙伴介绍文本

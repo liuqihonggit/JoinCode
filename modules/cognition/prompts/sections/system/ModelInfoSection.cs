@@ -5,7 +5,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 模型信息部分 - 关于当前使用的AI模型
 /// </summary>
-[PromptSection(Name = "model_info", Order = 67, IsDynamic = true)]
+[PromptSection(Name = "model_info", IsDynamic = true)]
 public sealed class ModelInfoSection {
     private readonly IModelConfigLoader _modelConfigLoader;
 

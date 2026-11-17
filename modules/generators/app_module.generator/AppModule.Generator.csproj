@@ -4,4 +4,8 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisVersion)" PrivateAssets="all" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\shared\OrderYaml.cs" Link="shared\OrderYaml.cs" />
+  </ItemGroup>
+
 </Project>

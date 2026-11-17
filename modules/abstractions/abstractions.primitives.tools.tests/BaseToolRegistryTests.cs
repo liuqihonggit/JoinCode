@@ -6,15 +6,16 @@ namespace CliNodes.Tests;
 /// </summary>
 public sealed class BaseToolRegistryTests {
     [Fact]
-    public void LoadDefault_FromEmbeddedResource_ReturnsExactlyFourBaseTools() {
+    public void LoadDefault_FromEmbeddedResource_RegistersBaseAndAgentInternalTools() {
         var registry = BaseToolRegistry.LoadDefault();
 
-        Assert.Equal(4, registry.Count);
-        // id 必须是内核注册表的运行时名（[EnumValue] 的字符串）：BuildBaseTools 用 function.Name 查表，
-        // 写成 file_read/file_write/file_edit 一条都匹配不上，实测首轮 tools 只剩 bash。
-        // edit 取代了最初的 code_execution —— 后者在 546 个内核工具中并不存在。
+        // 前 4 个是文件/bash 基础工具；后 5 个是 Agent 内部工具，依赖活会话与目标状态，
+        // 必须每轮注册进 tools 字段。id 用内核运行时的 [EnumValue] 名，写成驼峰会一条都匹配不上。
+        Assert.Equal(9, registry.Count);
         Assert.Equal(new[] { "read", "write", "edit", "bash" },
-            registry.All.Select(tool => tool.Id).ToArray());
+            registry.All.Take(4).Select(tool => tool.Id).ToArray());
+        Assert.Equal(new[] { "enter_plan_mode", "exit_plan_mode", "goal_get", "goal_update", "goal_graph_define" },
+            registry.All.Skip(4).Select(tool => tool.Id).ToArray());
     }
 
     [Fact]
@@ -31,7 +32,7 @@ public sealed class BaseToolRegistryTests {
 
         var definitions = registry.ToToolDefinitions();
 
-        Assert.Equal(4, definitions.Count);
+        Assert.Equal(9, definitions.Count);
         var read = Assert.Single(definitions, d => d.Name == "FileRead");
         Assert.Equal("读取指定路径的文件内容，可按行偏移与行数限制截取", read.Description);
         Assert.Contains("file_path", read.Schema.Required);

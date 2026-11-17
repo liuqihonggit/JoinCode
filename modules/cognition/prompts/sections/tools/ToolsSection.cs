@@ -7,14 +7,15 @@ namespace Core.Prompts.Sections;
 /// 首轮工具，后者决定列出哪些 exe。两者都是生成物，提示词里不手写任何工具名或组名 ——
 /// 手写清单必然漂移成「提示词让你用一个根本不存在的命令」或「新加的组模型永远发现不了」。</para>
 /// </summary>
-[PromptSection(Name = "tools", Order = 11)]
+[PromptSection(Name = "tools")]
 public static class ToolsSection {
     /// <summary>
     /// 获取工具使用部分的提示词内容。根据 base.yaml 的实际声明拼接工具使用指导。
     /// </summary>
     /// <returns>工具使用指导文本。</returns>
     public static string? GetContent() {
-        var declared = BaseToolRegistry.LoadDefault().All
+        var registry = BaseToolRegistry.LoadDefault();
+        var declared = registry.All
             .Select(tool => tool.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -32,6 +33,8 @@ public static class ToolsSection {
             items.Add("首轮直接可用的文件工具（本清单外不要再假设同名工具存在）：" + Environment.NewLine
                 + string.Join(Environment.NewLine, direct.Select(line => "   - " + line)));
         }
+
+        AddAlwaysRegisteredTools(items, registry.All);
 
         if (declared.Contains("bash")) {
             items.Add("bash 是本轮唯一的通用执行入口：既用于系统命令，也用于探索和调用其余全部 CLI 工具节点。这不是退而求其次，而是设计上的唯一通道 —— 该用就用。");
@@ -52,6 +55,17 @@ public static class ToolsSection {
         }
 
         return result.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// 追加「本轮 tools 字段里到底有哪些工具」的清单 —— 必须逐个列出，不能只举几个例子。
+    /// <para>Agent 内部基础工具（规划模式、目标读写等）依赖活会话，既不能放进独立 exe，
+    /// 也不能只在别处提到一句；它们必须每轮注册并出现在首轮提示词，否则模型不会调用。</para>
+    /// </summary>
+    private static void AddAlwaysRegisteredTools(List<string> items, IReadOnlyList<CliToolDescriptor> tools) {
+        var lines = tools.Select(tool => $"   - {tool.Id}（{tool.Name}）— {tool.Summary}");
+        items.Add($"本轮 tools 字段中始终注册的工具（共 {tools.Count} 个，无需再发现）：" + Environment.NewLine
+            + string.Join(Environment.NewLine, lines));
     }
 
     /// <summary>

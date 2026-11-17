@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 团队工具提示词部分 — 注入 TeamCreate/TeamDelete/SendMessage 的完整使用指南
 /// </summary>
-[PromptSection(Name = "team_tools", Order = 13)]
+[PromptSection(Name = "team_tools")]
 public static class TeamToolsSection {
     /// <summary>
     /// 获取 team_tools 部分内容；拼接团队创建/删除与消息发送工具的使用指南。

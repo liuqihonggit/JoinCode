@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 协调器模式提示词部分
 /// </summary>
-[PromptSection(Name = "coordinator", InjectOn = PromptSectionInject.CoordinatorMode, IsDynamic = true, Order = 13)]
+[PromptSection(Name = "coordinator", InjectOn = PromptSectionInject.CoordinatorMode, IsDynamic = true)]
 public static class CoordinatorSection {
     /// <summary>
     /// 获取内容（从枚举常量读取工具名称）

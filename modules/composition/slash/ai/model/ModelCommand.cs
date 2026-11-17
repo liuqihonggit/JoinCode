@@ -261,6 +261,10 @@ public sealed class ModelCommand : ChatCommandBase {
         if (configService is not null) {
             await RecordModelHistoryAsync(configService, modelId, context.CancellationToken).ConfigureAwait(false);
         }
+
+        // 6. 诚实提示 — 换模型后必须复述哪些能力已完成/可能遗漏，由用户决定下一步。
+        //    只读清单、不执行任何后续动作：方向未确认前不得自作主张推进任务。
+        await HonestyNotice.PrintAfterModelSwitchAsync(context, modelId).ConfigureAwait(false);
     }
 
     private static async Task RecordModelHistoryAsync(IConfigurationService configService, string modelId, CancellationToken ct) {

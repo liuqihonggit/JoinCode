@@ -1067,3 +1067,82 @@ dotnet build … --no-restore         0.021 ms/次
 `hands.shell.tests` 的 `BashDefenseManualVerificationTests` 锁 `BashDefenseService` 节点，
 `guard.security.tests` 锁权限中间件（决定放行/拦截的位置）。**不要声称端到端已验证。**
 
+### 2026-11-17 第二十八轮：把「另一件事」做完，并且这次是启动 jcc 真机验的
+
+上一轮我把两件事写成「另一件事」就收手了：一是归档后变成死代码的 `PathConstraintValidator`，
+二是「端到端锁不住」。用户的两个反馈都成立：留着死代码等于没做完；只跑单元测试等于没验证。
+这一轮两件都补上。
+
+**一、归档路径约束判定链（`f2fd15e3c`）**
+
+上一轮归档 `BashPermissionChecker` 后，`IPathConstraintValidator` 的唯一消费者就消失了，
+整条 TS `pathValidation.ts` 移植成了死代码。一并归档（`Move-Item` 到 `.xxx/*.del`，不删除）：
+
+| 文件 | 内容 |
+|---|---|
+| `PathConstraintValidator.cs` | 34 命令路径提取 + 操作类型映射 + 危险路径检查 |
+| `PathExpansionDetector.cs` | 路径提取 / 命令解析 / 安全包装剥离 |
+| `PathRedirectionValidator.cs` | 重定向提取与验证 |
+| `PathRemovalChecker.cs` | 危险删除路径 |
+| `shell/PathConstraintValidator.cs` | `IPathConstraintValidator` + `PathConstraintResult` |
+| `PathConstraintValidatorRetainedDeviceTests.cs` | 33 例 |
+
+合计 1170 行。**刻意保留**：`PathValidator`（`CommandClassifier` 在用）、`SearchScopeValidator`
+（同上）、`RealPathResolver`（权限中间件在用）。保留设备名这条真实能力在生产链路上是
+`RetainedDeviceNode`，`hands.shell.tests` 有独立用例 —— 归档不丢覆盖。
+`guard.security.tests` 1196 通过 / 0 失败（比归档前少的 33 例就是被归档的那批）。
+
+**二、真机验证（这次不是单元测试）**
+
+先得把 jcc 编出来 —— 之前从没编过，`artifacts/bin` 下只有测试程序集：
+
+```
+首次    dotnet build modules/apps/cli/JoinCode.csproj -c Debug --no-restore   6m37s  0 警告 0 错误
+增量（改 6 个 guard 文件后重编）                                                1m29s
+```
+
+然后 `jcc.exe mcp_serve --transport http --port 9917 --token verify`。选这条路是因为
+`tools/call` 走 `IToolExecutionGateway`（13 层权限管道，ADR 0138），是**非交互能触达的最真实路径**。
+
+**判读口径（关键）**：headless 没有确认处理器，权限管道里任何「待确认」都会走
+`CliPermissionConfirmationHandler` 的非交互分支被自动拒绝，返回 `PD002 用户拒绝工具执行`。所以：
+
+- 命中风险 → 返回**带具体原因**的 `permission_denied`（「已被阻止」「此操作被禁止」）；
+- 未命中风险 → 落到 `DefaultResultMiddleware` 的「待确认」→ `PD002`。
+
+也就是说 PD002 在这里等价于「权限链没判出风险」，**不等于「放行后执行成功」**。这个区分必须写清楚，
+否则会把「没判出风险」误读成「执行通过」。
+
+**18 条矩阵，真机全过**（脚本 `non_deliverables_tools/scripts/Verify-BashGuard.ps1`，退出码可进 CI）：
+
+| 类别 | 命令 | 实测 |
+|---|---|---|
+| flag 作用域 | `ls -R` / `sort -r` / `tail -f` / `grep -rn` | NO-RISK |
+| git 只读管道 | `git log --oneline -5 \| head -5` / `git diff \| cat` / `git log \| grep fix` | NO-RISK |
+| 误报回归 | `cat notes.sh \| head -3` | NO-RISK |
+| 间接执行 | `echo hi \| xargs rm -rf ./build` | BLOCKED（文件删除） |
+| 间接执行 | `find . -name "*.cs" -exec rm -rf {} +` | BLOCKED（文件删除） |
+| 间接执行 | `git log \| sh` | BLOCKED（远程执行） |
+| 破坏性 | `rm -rf ./build` / `rm -rf /` / `chmod +x run.sh` | BLOCKED |
+| AST 升级 | `cat /proc/self/environ` | BLOCKED（ProcEnvironAccess） |
+| AST 不误伤 | `cat > /tmp/x.sh <<'EOF' … EOF` | NO-RISK |
+
+其中 `cat /proc/self/environ` 是 AST 接线的最强证据：`cat` 本身是 Safe，分类器判不出风险，
+只有 `BashAstRiskEscalator` 能拦下它 —— 真机确认这条链真的接上了，不是只接了 DI。
+
+**三、途中查清的两个既有事实（都记下来，避免下次再猜）**
+
+1. **serve 模式的权限管道缺工具白名单中间件**。默认白名单里的 `glob` 在 serve 模式下也是
+   「待确认 → 拒绝」。所以这套端到端只能验「有没有判出风险」；要验「放行后真的执行」必须交互确认。
+2. **`jcc mcp_call bash` 起不来是缺陷，不是环境问题**。`mcp_serve` 在 `BuildHostAsync` 之后
+   显式补了 `ShellCapabilityInitializer.Initialize`，`mcp_call` 没有（`SkipChatServices=true`），
+   于是 shell 类工具在 `mcp_call` 路径下必然报 `SystemActuatorRegistry not initialized`。
+   修法很明确（补一行初始化，或用 `mcp_serve` 那条路径），但会改变工具元命令的启动成本，
+   本轮不动，**记为已知缺陷**。
+
+**四、踩坑**
+
+- `Start-Process` 在本机直接抛 `Item has already been added. Key: 'HTTP_PROXY' / 'http_proxy'`
+  —— PS 5.1 构造环境字典时大小写不敏感，环境里同时存在两种写法就崩。脚本因此改成
+  「服务由调用方起，脚本只负责打矩阵」，不猜路径也不抢端口。
+

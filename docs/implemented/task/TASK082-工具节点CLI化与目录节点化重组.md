@@ -960,3 +960,110 @@ Auto 模式下实测（全部被拒，Auto 拒绝一切非 Safe）：
 **仍然没做到的验证**：真机 `jcc mcp_call bash` 依旧跑不起来（`SystemActuatorRegistry not initialized`，
 需 `jcchub.exe` 完整启动），端到端仍只在中间件层锁。
 
+### 2026-11-17 第二十五至二十七轮：把已知遗留清干净（按影响面排序，不另开新方向）
+
+这一轮只做已经记录在案的遗留项，按「用户每天会撞上 → 测试可信度 → 成本 → 架构卫生」排序。
+清单与动作：
+
+| # | 已知问题 | 影响 | 处置 |
+|---|---|---|---|
+| 1 | `git log \| head` 等在 Auto 模式被拒 | 高频误拒 | 修判定（第二十五轮） |
+| 2 | VPN 守卫测试依赖本机代理状态 | 测试噪声 | 与环境解耦（第二十六轮） |
+| 3 | AST 每条命令多一次解析 | 性能未知量 | 实测后关闭（第二十七轮） |
+| 4 | `BashPermissionChecker` 双份实现 | 架构卫生 | 归档（第二十七轮） |
+| 5 | 真机 `mcp_call bash` 端到端 | 验证缺口 | 环境所限，见下 |
+
+---
+
+### 2026-11-17 第二十五轮：git 只读命令接只读管道不再需确认
+
+第二十二轮我在测试里把 `git log | head` 从「良性管道放行」的断言中移除了，理由写成「既有口径」。
+这一轮回头看，那个理由站不住 —— 它和「已登记只读命令直接放行」是自相矛盾的：
+
+```
+git log --oneline -5       → Safe              （Auto 放行）
+git log --oneline -5|head  → LightValidation   （Auto 拒绝）  ← 两侧都只读，反而更严
+```
+
+根因在 `ClassifyGitPipeRedirect`：只要 git 只读子命令**出现**管道或重定向，就一律
+`LightValidation`（「需确认」）。而 Auto 模式拒绝一切非 Safe，于是最常用的查看命令全被拦。
+
+**改法**：不再「见管道就抬级」，而是看管道右侧**实际是什么**：
+
+| 情形 | 级别 | 依据 |
+|---|---|---|
+| 无管道无重定向（`git status`） | Safe | 不变 |
+| 管道进解释器（`git log \| sh`） | Execution | 不变，命令位口径 |
+| 含重定向（`git diff > f`） | LightValidation | 会写文件 |
+| 管道右侧全是已登记只读命令（`\| head` / `\| cat` / `\| grep` / `\| sort`） | **Safe** | 整体只读 |
+| 管道右侧未登记（`\| tee out.txt` / `\| unknown-tool`） | LightValidation | 不知道会不会写 |
+
+右侧的参数级风险（`| sed -i`）不在这个方法里重复判 —— `ClassifyIndirectExecution` 会取最严兜底，
+这是第二十二轮就定下的分工。
+
+**放宽的边界被单独锁住**：新增 `Auto_Mode_Rejects_GitPipeToUnknownTarget`（`| tee`、未知命令仍拒），
+`ClassifyGitPipeRedirect_PipeToUnknownCommand_Should_Return_LightValidation`、
+`ClassifyGitPipeRedirect_RedirectWithPipe_Should_Return_LightValidation`。
+原来的 `Git_PipeToSafeCommand_Should_Return_LightValidation` 改名为 `Git_PipeToReadOnlyCommand_Should_Return_Safe`。
+
+**验证**：`guard.security.tests` 1243 通过 / 0 失败、`hands.shell.tests` 526 通过（分类器的下游消费者）。
+
+**一个录制过程的坑**：`dotnet test -p:BuildProjectReferences=false` 不会重编被引用的库工程，
+改了 `Guard.DangerClassification` 后直接跑测试，跑的是**旧 DLL** —— 我因此看到过一次
+「明明改了却仍返回旧结论」。顺序必须是「先编改动的库，再跑测试」。
+
+---
+
+### 2026-11-17 第二十六轮：VPN 守卫测试与环境解耦，本机有代理时不再恒红
+
+`VpnRouteGuard_CanHandle_NoVpnActive_ReturnsFalse` 用 `new VpnRouteGuard()`，走 fallback 检测
+（进程名 `clash`/`v2ray`… + `HTTP_PROXY`/`HTTPS_PROXY`）。开发机跑着代理时这条恒失败：
+**断言的是机器状态，不是代码行为**。连续多轮报告里的「1 个环境相关失败」就是它 ——
+一条永远红的噪音会稀释真实回归信号，这次按「测试可信度」排第二处理掉。
+
+改法：注入 `INetworkConnectivityService` 假实现（`StubNetworkConnectivityService`，构造参数给
+`vpnActive`），断言只依赖显式状态。顺手补了三条此前没有的正向用例：VPN 激活时 `git`/`gh`/`curl`
+命中、`ls -la` 不命中、`Evaluate` 为 git 加上 `http.proxy` 的重写内容。
+
+`guard.hooks.tests` **597 通过 / 0 失败**（此前 596/1）。
+
+---
+
+### 2026-11-17 第二十七轮：AST 代价实测（不加缓存）+ 归档双份实现
+
+**一、先测再决定要不要缓存**
+
+第二十四轮把「每条要放行的 bash 多一次 tree-sitter 解析」记为代价，当时写「要消掉得缓存命令指纹」。
+这轮直接量（200 次/条，探针跑的是真实 `BashSecurityValidator.Validate`）：
+
+```
+walker 构造（进程内一次，单例）      26.1 ms
+git log --oneline -5                0.014 ms/次
+cat file.txt | grep foo | wc -l     0.062 ms/次
+ls -la | sort -k5 -n | head -20     0.106 ms/次
+dotnet build … --no-restore         0.021 ms/次
+```
+
+对一条要几十毫秒到几秒的 bash 来说，0.01~0.1 ms 是噪声；而 agent 的 bash 命令几乎不重复，
+按整串缓存的命中率接近 0。**结论：不加缓存**，把「需要缓存」这条待办用数据关掉，
+而不是加一层没有收益的共享可变状态。
+
+**二、归档 `BashPermissionChecker`**
+
+第二十四轮把 `IBashSecurityValidator` 接进权限链后，`BashPermissionChecker`（TS `bashPermissions.ts`
+整条移植：安全校验 + 路径约束 + 只读约束 + 建议规则）就成了**同一决策的第二套实现**，
+且它零生产消费者却仍被 `[Register]` 注册。按规范归档到 `.xxx/*.del`（不删除）：
+实现、接口（含 `BashPermissionResult`）、14 例边界测试。
+
+保留：`BashSecurityValidator` / `BashAstRiskEscalator`（已接线）、`CommandClassifier`（`CodeSecurityValidator` 在用）。
+**遗留候选**：`PathConstraintValidator` 的唯一消费者就是被归档的 Checker，现在也是死代码；
+它是独立组件且有独立测试，是否一起归档另判，本轮不动。
+
+**三、端到端仍然锁不住（这次给了确证）**
+
+之前只有报错 `SystemActuatorRegistry not initialized`。这轮查了本机产物：`artifacts/bin` 下
+**根本没有 `jcc` / `jcchub` / host 可执行文件**（只有测试程序集），说明 host 从未在本机编译产出，
+`mcp_call bash` 的端到端不可能在本机跑通。现有覆盖是两层，不是一层：
+`hands.shell.tests` 的 `BashDefenseManualVerificationTests` 锁 `BashDefenseService` 节点，
+`guard.security.tests` 锁权限中间件（决定放行/拦截的位置）。**不要声称端到端已验证。**
+

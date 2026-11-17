@@ -383,8 +383,31 @@ public class CommandDangerClassifierInternalTests {
     [InlineData("git log | head")]
     [InlineData("git diff | grep pattern")]
     [InlineData("git log | sort")]
-    public void ClassifyGitPipeRedirect_PipeToSafeCommand_Should_Return_LightValidation(string command) {
+    [InlineData("git log | head -20")]
+    [InlineData("git diff | cat")]
+    [InlineData("git log --oneline | grep fix | head")]
+    public void ClassifyGitPipeRedirect_PipeToReadOnlyCommand_Should_Return_Safe(string command) {
+        // 两侧都只读的管道不该因为「有管道」就抬到需确认 —— Auto 模式会直接拒掉 `git log | head`
         var cmd = ShellCommand.Parse(command);
+        var result = CommandDangerClassifier.ClassifyGitPipeRedirect(cmd);
+        result.Level.Should().Be(CommandDangerLevel.Safe);
+    }
+
+    [Theory]
+    [InlineData("git log | tee out.txt")]
+    [InlineData("git log | unknown-tool -x")]
+    [InlineData("git log | head | tee out.txt")]
+    public void ClassifyGitPipeRedirect_PipeToUnknownCommand_Should_Return_LightValidation(string command) {
+        // 右侧没登记 = 不知道它会不会写文件,保持需确认
+        var cmd = ShellCommand.Parse(command);
+        var result = CommandDangerClassifier.ClassifyGitPipeRedirect(cmd);
+        result.Level.Should().Be(CommandDangerLevel.LightValidation);
+    }
+
+    [Fact]
+    public void ClassifyGitPipeRedirect_RedirectWithPipe_Should_Return_LightValidation() {
+        // 有重定向就一定会写文件,即使管道右侧只读
+        var cmd = ShellCommand.Parse("git log | head > out.txt");
         var result = CommandDangerClassifier.ClassifyGitPipeRedirect(cmd);
         result.Level.Should().Be(CommandDangerLevel.LightValidation);
     }

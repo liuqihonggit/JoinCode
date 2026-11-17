@@ -214,12 +214,14 @@ public class DangerousCommandProtectionMiddlewareTests {
 
     // 反向锁：判定收严不能变成「见管道就拒」——良性管道在 Auto 模式下必须照常放行，
     // 否则最常见的 `| head` / `| jq` 都会被拦，用户会因为噪音关掉整个防护。
-    // 注意 `git log | head` 不在本例：git 只读 + 管道历来是 LightValidation（Auto 模式会 ask），
-    // 这是既有口径，不是本次改动引入的。
+    // git 只读 + 只读管道同样属于此列（`git log | head` 曾按「有管道就需确认」被拒，已修）。
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("ls -la | sort -k5 -n | head -20")]
     [InlineData("cat notes.sh | head -3")]
+    [InlineData("git log | head -20")]
+    [InlineData("git diff | cat")]
+    [InlineData("git log --oneline | grep fix")]
     public async Task Auto_Mode_Allows_BenignPipeline(string command) {
         await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var context = CreateContext(PermissionMode.Auto, command);
@@ -228,6 +230,24 @@ public class DangerousCommandProtectionMiddlewareTests {
         await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
 
         nextCalled.Should().BeTrue($"良性管道必须放行：'{command}'");
+    }
+
+    // 放宽的边界：git 只读命令接「未登记」的管道目标仍要确认 —— 我们只是承认
+    // 「右侧是已登记的只读命令」，不是承认「有管道就安全」。
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Theory]
+    [InlineData("git log | tee out.txt")]
+    [InlineData("git log | unknown-tool --flag")]
+    public async Task Auto_Mode_Rejects_GitPipeToUnknownTarget(string command) {
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        var context = CreateContext(PermissionMode.Auto, command);
+        var nextCalled = false;
+
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeFalse($"git 管道右侧未登记命令应需确认：'{command}'");
+        context.Result.Should().NotBeNull();
+        context.Result!.IsApproved.Should().BeFalse();
     }
 
     #endregion

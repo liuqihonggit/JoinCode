@@ -284,7 +284,19 @@ public class CommandDangerClassifierTests {
     [InlineData("git diff | grep pattern")]
     [InlineData("git log | cat")]
     [InlineData("git log | sort")]
-    public void Git_PipeToSafeCommand_Should_Return_LightValidation(string command) {
+    public void Git_PipeToReadOnlyCommand_Should_Return_Safe(string command) {
+        // 两侧都只读 → 整体只读。原先「git + 任何管道 = 需确认」会把 `git log | head`
+        // 在 Auto 模式下直接拒掉，属高频误拒。
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.Safe);
+        result.RequiresIntervention.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("git log | tee out.txt")]
+    [InlineData("git log | unknown-tool --flag")]
+    public void Git_PipeToUnknownCommand_Should_Return_LightValidation(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.LightValidation);

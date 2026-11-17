@@ -53,7 +53,7 @@ public class BashIndirectExecutionTests {
     [InlineData("cat data.json | jq .items", CommandDangerLevel.Safe)]
     [InlineData("ls -la | grep foo", CommandDangerLevel.Safe)]
     [InlineData("ls -la | sort -k5 -n | head -20", CommandDangerLevel.Safe)]
-    [InlineData("git log --oneline -5 | head -5", CommandDangerLevel.LightValidation)]
+    [InlineData("git log --oneline -5 | head -5", CommandDangerLevel.Safe)]
     // 文件名/搜索词里带 "sh" 不能被当成管道进解释器 —— 这是旧子串口径的典型误报。
     [InlineData("cat notes.sh | head -3", CommandDangerLevel.Safe)]
     [InlineData("ls -la | grep shared", CommandDangerLevel.Safe)]

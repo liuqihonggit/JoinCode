@@ -106,8 +106,30 @@ public abstract class ChatCommandBase : IChatCommand {
         => context.Arguments.Trim();
 
     /// <summary>
-    /// 获取拆分后的参数数组
+    /// 获取拆分后的参数数组。
+    /// <para><c>slash_call</c> 把 key=value / JSON 都规范化成 JSON 字符串放进 <see cref="ChatCommandContext.Arguments"/>，
+    /// 只按空格 Split 会把 <c>{"flags":"-p"}</c> 当成一个整体参数，命令里的 ParseFlags 永远匹配不到。
+    /// 这里对「以 { 开头的动态参数对象」提取各字段值（ADR 0133 允许 JsonDocument 做动态字段提取），
+    /// 其他形态仍走原来的空格拆分，避免影响既有位置参数命令。</para>
     /// </summary>
-    internal static string[] GetSplitArgs(ChatCommandContext context)
-        => context.Arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    internal static string[] GetSplitArgs(ChatCommandContext context) {
+        var raw = context.Arguments.Trim();
+        if (raw.StartsWith('{') && raw.EndsWith('}')) {
+            try {
+                using var doc = JsonDocument.Parse(raw);
+                var values = new List<string>();
+                foreach (var property in doc.RootElement.EnumerateObject()) {
+                    var value = property.Value.ValueKind == JsonValueKind.String
+                        ? property.Value.GetString()
+                        : property.Value.ToString();
+                    if (!string.IsNullOrEmpty(value)) values.Add(value);
+                }
+                if (values.Count > 0) return values.ToArray();
+            } catch (JsonException ex) {
+                // 非标准 JSON 交给原来的拆分路径，由命令自己报错并给出正确写法。
+                Diag.WriteLine($"[SLASH-ARGS] 参数不是合法 JSON，回退空格拆分: {ex.Message}");
+            }
+        }
+        return raw.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    }
 }

@@ -21,6 +21,9 @@
   - 证据：真机 `jcc prompt --section goal_driven` 输出四条硬规则，并接线 `goal_get` / `goal_graph_define` / `goal_update`。
 - [x] **清理特性排序**：`AppModule` / `PromptSection` 的 `Order` 数字排序改为注册名 + YAML。
   - 证据：`Verify-ExplicitOrder.py` 真机核对 jcc 段落顺序与 `sections.yaml`、模块顺序与 `modules.yaml` 一致，特性里无 `Order`。
+- [x] **JCC_DUMP_MESSAGES 在 `-p` 链路落盘**：`MessageDumpMiddleware` 挂在 QueryEngine 管道；假 key 真机跑出 19KB `chat_*.txt`（含 `[System]` 与工具提示词）。
+- [x] **`/debuglog -p` 经 `slash_call` 生效**：`GetSplitArgs` 解析 JSON 字段；真机 `slash_call /debuglog '{"flags":"-p"}'` 输出「═══ 系统提示词 ═══」。
+  - 边界：`/debuglog` 每段仍截断到 500 字符，看全文用 `jcc prompt`。
 
 ## 用户决策记录
 

@@ -29,3 +29,15 @@ items:
     status: done
     evidence: "jcc 真机：段落顺序与 resources/prompts/sections.yaml 一致、模块顺序与 resources/app/modules.yaml 一致；特性里无 Order"
     next: 无需动作
+
+  - id: dump_messages
+    title: JCC_DUMP_MESSAGES 在 -p 链路真正落盘
+    status: done
+    evidence: "MessageDumpMiddleware 挂在 QueryEngine 管道；假 key 真机跑出 chat_*.txt（19KB，含 [System] 与工具提示词）"
+    next: 无需动作
+
+  - id: debuglog_prompt
+    title: /debuglog -p 经 slash_call 转发后输出系统提示词
+    status: done
+    evidence: "GetSplitArgs 解析 JSON 字段；真机 slash_call /debuglog {\"flags\":\"-p\"} 输出 ═══ 系统提示词 ═══"
+    next: 无需动作

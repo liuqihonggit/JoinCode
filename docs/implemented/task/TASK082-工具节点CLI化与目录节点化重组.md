@@ -1303,3 +1303,34 @@ jcc prompt --section all         # 打印全部
 **提交**：`a466cdd69`（Agent 内化）、`9fdc81c55`（诚实模块）、
 `19f0a5342`（目标驱动）、`d971e46c3`（显式顺序，98 文件）。
 
+### 2026-11-17 第三十一轮：修好两条旧观测口（用户在诚实清单后指定的方向）
+
+**一、`JCC_DUMP_MESSAGES` 在 `-p` 链路从不落盘**
+
+打点分流后确认两个根因，都不是「await 写法」这么简单：
+
+1. `LLMInvocationHandler` 只从 `QueryLoopServices` 聚合里取 FileContextService，该聚合在轻量宿主里为空；
+   改为直接注入 `IChatFileContextService`，并在发请求前 `await` 落盘（原 fire-and-forget 会被进程退出丢掉）。
+2. **更关键**：打点显示 `-p` 根本不走 `LLMInvocationHandler`；而且无 API Key 时 `ApiKeyCheck`
+   会在管道第 2 步直接中止，压根没有 LLM 调用可观察。于是新增 `MessageDumpMiddleware`
+   （Brain.ContextServices 可引用 Brain.Query，方向正好），注册到 `QueryEngine` 的
+   `BeforeIterationHooks`，在每轮请求前写盘。
+
+真机：用**假 key**（`SENSENOVA_API_KEY=dummy-not-a-real-key`，不是真实凭据）让 ApiKeyCheck 通过，
+`jcc -p hi` 产出 `chat_*.txt` **19686 字节**，含 `[System]` 与 `# 使用您的工具`；
+打点 `[DUMP] 转储 3 条消息`。请求随后因假 key 失败（exit 10）属预期，全程未用真实 API Key 对话。
+
+**二、`/debuglog -p` 经 `slash_call` 转发不生效**
+
+`SlashCallExecutor` 把参数规范化成 JSON 字符串放进 `ChatCommandContext.Arguments`，
+而 `ChatCommandBase.GetSplitArgs` 只按空格 Split，于是 `{"flags":"-p"}` 被当成一个整体参数，
+`DebugLogCommand.ParseFlags` 永远匹配不到，结果总是默认错误段。改为对以 `{` 开头的动态参数对象
+提取各字段值（ADR 0133 允许的 JsonDocument 动态字段提取），其他形态仍走原拆分路径。
+
+真机 `jcc slash_call /debuglog '{"flags":"-p"}'` 输出「═══ 系统提示词 ═══」与各段落预览。
+边界：`/debuglog` 每段仍按既有设计截断 500 字符，全文用 `jcc prompt --section <名字>`。
+
+**验证**：`ChatFileContextServiceDumpTests` 2/2（开/关两态）、`SlashCallArgumentTests` 4/4、
+`Host.Tests` 全量、`Brain.Context.Tests` 全量；jcc 构建 0 警告 0 错误。
+两条观测口已加入 TASK083 诚实清单并打勾，以后切模型会如实显示「已修」。
+

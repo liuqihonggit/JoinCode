@@ -26,8 +26,9 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
     private readonly ITelemetryService? _telemetryService;
     private readonly ILogger<AgentHandoffMiddleware>? _logger;
 
+
     /// <inheritdoc />
-    public int Order => 500;
+    public int Order => OrderIndex.Default.OrderOf("agent_tool_middlewares", nameof(AgentHandoffMiddleware));
 
     /// <inheritdoc />
     public ErrorBehavior OnError => ErrorBehavior.Continue;

@@ -36,7 +36,8 @@ public interface IQueryStopHook {
     string Name { get; }
 
     /// <summary>
-    /// 优先级（数值越小越先执行）
+    /// 执行位次 — 数值越小越先执行。值由注册顺序表派生
+    /// (<c>OrderIndex.Default.OrderOf("query_stop_hooks", ...)</c>),实现类不得写死数字。
     /// </summary>
     int Priority { get; }
 
@@ -185,7 +186,7 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
             var updated = current.SetItem(hook.Name, hook);
             if (Interlocked.CompareExchange(ref _hooks, updated, current) == current) break;
         }
-        _logger?.LogDebug("[QueryStopHookManager] Registered stop hook: {HookName} (Priority: {Priority})", hook.Name, hook.Priority);
+        _logger?.LogDebug("[QueryStopHookManager] Registered stop hook: {HookName} (位次: {Priority})", hook.Name, hook.Priority);
     }
 
     /// <summary>

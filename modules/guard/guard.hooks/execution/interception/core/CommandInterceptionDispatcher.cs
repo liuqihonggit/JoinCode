@@ -34,7 +34,10 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity {
     private readonly ILogger<CommandInterceptionDispatcher>? _logger;
 
     /// <summary>
-    /// 构造调度器 — DI 注入所有守卫和拦截器,按优先级降序预排序
+    /// 构造调度器 — DI 注入所有守卫和拦截器,按位次降序预排序
+    /// <para>位次由注册顺序表派生(resources/orders.yaml 的 command_guards / command_interceptors 列表),
+    /// 实现类里不再有作者手写的数字。未登记的实现会在构造时直接抛异常,
+    /// 不允许守卫链按未知顺序执行。</para>
     /// </summary>
     /// <param name="guards">守卫集合(DI 自动收集所有 <see cref="ICommandGuard"/> 实现)</param>
     /// <param name="interceptors">拦截器集合(DI 自动收集所有 <see cref="ICommandInterceptor"/> 实现)</param>
@@ -46,6 +49,10 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity {
         _guards = guards.OrderByDescending(static g => g.Priority).ToArray();
         _interceptors = interceptors.OrderByDescending(static i => i.Priority).ToArray();
         _logger = logger;
+        // 打点：把实际装配顺序打出来 —— 守卫链的先后直接决定谁能先拒绝命令，
+        // 顺序只存在于 resources/orders.yaml 里，日志是唯一的现实核对口。
+        Diag.WriteLine($"[ORDER] command_guards: {string.Join(" > ", _guards.Select(static g => g.Name))}");
+        Diag.WriteLine($"[ORDER] command_interceptors: {string.Join(" > ", _interceptors.Select(static i => i.Name))}");
     }
 
     /// <summary>

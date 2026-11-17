@@ -26,7 +26,7 @@ public sealed partial class GhPrBodyGuard : ICommandGuard {
     public string Name => "GhPrBodyGuard";
 
     /// <inheritdoc/>
-    public int Priority => 100;
+    public int Priority => OrderIndex.Default.PriorityOf("command_guards", nameof(GhPrBodyGuard));
 
     /// <inheritdoc/>
     public bool CanHandle(string command, GuardContext context) {

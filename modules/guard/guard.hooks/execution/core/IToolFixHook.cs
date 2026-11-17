@@ -21,14 +21,15 @@ public interface IToolFixHook {
     Task<ToolFixResult> FixAsync(string toolName, Exception error, CancellationToken ct = default);
 
     /// <summary>
-    /// 修正器优先级（数值越大优先级越高）
-    /// </summary>
-    int Priority { get; }
-
-    /// <summary>
-    /// 修正器名称（用于日志和调试）
+    /// 修正器名称（用于日志和调试，同时作为注册顺序表里的注册名）
     /// </summary>
     string Name { get; }
+
+    /// <summary>
+    /// 执行位次 — 数值越大越先尝试。值由注册顺序表派生
+    /// (<c>OrderIndex.Default.PriorityOf("tool_fix_hooks", ...)</c>),实现类不得写死数字。
+    /// </summary>
+    int Priority { get; }
 }
 
 /// <summary>

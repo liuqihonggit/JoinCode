@@ -22,7 +22,7 @@ public sealed partial class GhTimeoutGuard : ICommandGuard {
     public string Name => "GhTimeoutGuard";
 
     /// <inheritdoc/>
-    public int Priority => 50;
+    public int Priority => OrderIndex.Default.PriorityOf("command_guards", nameof(GhTimeoutGuard));
 
     /// <inheritdoc/>
     public bool CanHandle(string command, GuardContext context) {

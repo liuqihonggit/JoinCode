@@ -60,7 +60,7 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity {
     public void Register(IToolFixHook hook) {
         ArgumentNullException.ThrowIfNull(hook);
         _hooks.Add(hook);
-        _logger?.LogDebug("注册工具修正器: {Name} (优先级: {Priority})", hook.Name, hook.Priority);
+        _logger?.LogDebug("注册工具修正器: {Name} (位次: {Priority})", hook.Name, hook.Priority);
     }
 
     /// <summary>
@@ -79,8 +79,9 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity {
             return new ToolFixResult { Success = false, Description = "错误次数未达阈值" };
         }
 
-        // 按优先级从高到低尝试修正
+        // 按注册顺序表依次尝试修正（resources/orders.yaml 的 tool_fix_hooks 列表）
         foreach (var hook in _hooks.OrderByDescending(static h => h.Priority)) {
+            Diag.WriteLine($"[ORDER] tool_fix_hooks: {hook.Name} (位次 {hook.Priority})");
             if (!hook.CanFix(toolName, error)) continue;
 
             try {

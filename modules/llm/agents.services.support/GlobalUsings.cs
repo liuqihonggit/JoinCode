@@ -22,6 +22,7 @@ global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Utils;
+global using JoinCode.Abstractions.Utils.Diagnostics;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;

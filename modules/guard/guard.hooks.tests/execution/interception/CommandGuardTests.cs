@@ -179,10 +179,31 @@ public sealed class CommandGuardTests {
     // === 优先级 ===
 
     [Fact]
-    public void Guards_HaveExpectedPriorities() {
-        new HeredocGuard().Priority.Should().Be(200);
-        new GhPrBodyGuard().Priority.Should().Be(100);
-        new GhTimeoutGuard().Priority.Should().Be(50);
-        new VpnRouteGuard().Priority.Should().Be(30);
+    public void Guards_PriorityComesFromRegistrationOrderTable() {
+        // 位次不再是手写常量，而是由 resources/orders.yaml 的 command_guards 列表派生
+        new HeredocGuard().Priority.Should().Be(OrderIndex.Default.PriorityOf("command_guards", nameof(HeredocGuard)));
+        new GhPrBodyGuard().Priority.Should().Be(OrderIndex.Default.PriorityOf("command_guards", nameof(GhPrBodyGuard)));
+        new GhTimeoutGuard().Priority.Should().Be(OrderIndex.Default.PriorityOf("command_guards", nameof(GhTimeoutGuard)));
+        new VpnRouteGuard().Priority.Should().Be(OrderIndex.Default.PriorityOf("command_guards", nameof(VpnRouteGuard)));
+    }
+
+    [Fact]
+    public void Guards_RelativeOrderUnchanged() {
+        // 顺序表首位 = 最先评估；迁移前是 Priority 1000 的 GitCommitGuard
+        var index = OrderIndex.Default;
+        index.PriorityOf("command_guards", "GitCommitGuard")
+            .Should().BeGreaterThan(index.PriorityOf("command_guards", "DriveProtectionGuard"));
+        index.PriorityOf("command_guards", "DriveProtectionGuard")
+            .Should().BeGreaterThan(index.PriorityOf("command_guards", "CmdIndirectCallGuard"));
+        index.PriorityOf("command_guards", "CmdIndirectCallGuard")
+            .Should().BeGreaterThan(index.PriorityOf("command_guards", "RobocopyMirrorGuard"));
+        index.PriorityOf("command_guards", "RobocopyMirrorGuard")
+            .Should().BeGreaterThan(index.PriorityOf("command_guards", "HeredocGuard"));
+        index.PriorityOf("command_guards", "HeredocGuard")
+            .Should().BeGreaterThan(index.PriorityOf("command_guards", "GhPrBodyGuard"));
+        index.PriorityOf("command_guards", "GhPrBodyGuard")
+            .Should().BeGreaterThan(index.PriorityOf("command_guards", "GhTimeoutGuard"));
+        index.PriorityOf("command_guards", "GhTimeoutGuard")
+            .Should().BeGreaterThan(index.PriorityOf("command_guards", "VpnRouteGuard"));
     }
 }

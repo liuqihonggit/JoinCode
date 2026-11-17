@@ -15,8 +15,6 @@ public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurity
         "git_add"
     );
 
-    /// <inheritdoc />
-    public int Priority => 100;
 
     /// <summary>
     /// 构造函数 — 注入差异提供者、密钥扫描器与日志记录器

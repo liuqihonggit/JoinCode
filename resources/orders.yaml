@@ -1,0 +1,49 @@
+# 注册顺序表 — 「谁先执行」的唯一数据源。
+#
+# 消费方: OrderIndex（modules/abstractions/abstractions.primitives.utils/src/order/OrderIndex.cs）
+#         → CommandInterceptionDispatcher / ToolFixHookRegistry / AgentWorktreeService /
+#           QueryStopHookManager 按本表顺序装配。
+#
+# 纪律:
+#   1. 实现类里不再有 Priority / Order 数字 —— 数字只能表达相对大小，
+#      想知道谁先执行必须把所有实现的数字横向比对一遍；而且数字与注册名是两套标识，
+#      改类名要同步改数字，改数字要重新确认全序。八个命令守卫用了
+#      30/50/100/200/500/800/900/1000 八个离散值，中间的差值毫无语义。
+#   2. 新增实现必须在本表登记；未登记的实现会在启动期直接抛异常，
+#      不允许静默按未知顺序执行 —— 命令守卫链尤其不能靠猜。
+#   3. 列表内顺序 = 执行顺序（第一条先执行）。
+#
+# 范围: 只收「注册 / 装配顺序」。provider 选择优先级、策略权重、规则优先级属于
+#       领域数据语义，由各自的数据源决定，不在本表范围内。
+version: 1
+lists:
+  # 命令守卫链 — CommandInterceptionDispatcher 依次询问，先给出结论的赢
+  command_guards:
+    - GitCommitGuard
+    - DriveProtectionGuard
+    - CmdIndirectCallGuard
+    - RobocopyMirrorGuard
+    - HeredocGuard
+    - GhPrBodyGuard
+    - GhTimeoutGuard
+    - VpnRouteGuard
+
+  # 命令拦截器链 — ICommandInterceptor 目前没有实现，保留空列表
+  command_interceptors: []
+
+  # 工具修正 hook — ToolFixHookRegistry 按顺序依次尝试修正
+  tool_fix_hooks:
+    - GhPrBodyFixHook
+    - JsonFixHook
+    - GhTimeoutFixHook
+
+  # Agent 工具中间件 — worktree 创建管线的执行顺序
+  agent_tool_middlewares:
+    - AgentValidationMiddleware
+    - AgentForkMiddleware
+    - AgentBackgroundSpawnMiddleware
+    - AgentStreamExecutionMiddleware
+    - AgentHandoffMiddleware
+
+  # 查询停止 hook — 目前没有实现
+  query_stop_hooks: []

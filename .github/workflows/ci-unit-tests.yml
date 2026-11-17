@@ -111,6 +111,24 @@ jobs:
         shell: pwsh
         run: pwsh -ExecutionPolicy Bypass -File non_deliverables_tools/scripts/Verify-ToolNodes.ps1 -DeclarationsOnly
 
+  # 「谁先执行」只能由 resources/orders.yaml 说了算 —— 门禁守住这条纪律。
+  # 以前每个实现类里写一个 Priority 数字（守卫链有 30/50/100/200/500/800/900/1000 八个离散值），
+  # 想知道谁先评估必须横向比对全部数字；数字与注册名还是两套标识，改类名要同步改数字。
+  # 这个 job 三件事：
+  #   ① 每个接口的实现类都必须在 orders.yaml 对应列表里登记（漏登记 → 启动期直接抛异常）；
+  #   ② 登记的每个名字都必须有真实实现（登记了不存在的名字 → 顺序表在骗人）；
+  #   ③ 实现类里不许再出现字面量位次数字，且列表顺序必须与迁移前基线一致（迁移只改表达方式）。
+  registration-order:
+    name: Registration order table
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Verify orders.yaml against source implementations
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-RegistrationOrder.py
+
   # 「声明 vs 现实」完整对账：编译 13 个分组 exe，逐个比 --list-local 自报数量与 local id 集合、
   # -h 体积上限、单工具 -h 能否定位到参数表，并抽样真跑 6 个无副作用工具。
   #

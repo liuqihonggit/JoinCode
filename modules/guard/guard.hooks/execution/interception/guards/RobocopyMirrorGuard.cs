@@ -19,7 +19,7 @@ public sealed class RobocopyMirrorGuard : ICommandGuard {
     public string Name => "RobocopyMirrorGuard";
 
     /// <inheritdoc/>
-    public int Priority => 500;
+    public int Priority => OrderIndex.Default.PriorityOf("command_guards", nameof(RobocopyMirrorGuard));
 
     /// <inheritdoc/>
     public bool CanHandle(string command, GuardContext context) {

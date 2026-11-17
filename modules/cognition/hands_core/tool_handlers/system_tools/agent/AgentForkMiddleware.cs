@@ -38,10 +38,9 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
     private readonly IWorktreeDecisionPolicy? _worktreeDecisionPolicy;
     private readonly IAgentWorktreeManager? _worktreeManager;
 
-    /// <inheritdoc />
-    public int Order => 200;
 
     /// <inheritdoc />
+    public int Order => OrderIndex.Default.OrderOf("agent_tool_middlewares", nameof(AgentForkMiddleware));
 
     /// <inheritdoc />
     public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct) {

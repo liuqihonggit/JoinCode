@@ -4,7 +4,8 @@ namespace Core.Hooks.Execution.Interception;
 /// 命令守卫 — 无状态瞬时决策器,对命令做放行/改写/拒绝/转交决策
 /// <para>
 /// 特征:纯函数、无副作用、可同步。适合拒绝、改写、转交、放行等瞬时决策。
-/// 由 <see cref="CommandInterceptionDispatcher"/> 按优先级统一调度。
+/// 由 <see cref="CommandInterceptionDispatcher"/> 按注册顺序表统一调度
+/// (顺序来自 resources/orders.yaml 的 command_guards 列表)。
 /// </para>
 /// <para>
 /// 实现示例:
@@ -17,14 +18,17 @@ namespace Core.Hooks.Execution.Interception;
 /// </summary>
 public interface ICommandGuard {
     /// <summary>
-    /// 优先级 — 数值越大越先评估(对齐旧 ICommandRewriter.Priority 语义)
-    /// </summary>
-    int Priority { get; }
-
-    /// <summary>
-    /// 守卫名称 — 用于日志和调试
+    /// 守卫名称 — 用于日志和调试,同时作为注册顺序表里的注册名
     /// </summary>
     string Name { get; }
+
+    /// <summary>
+    /// 执行位次 — 数值越大越先评估。
+    /// <para>值必须由注册顺序表派生（<c>OrderIndex.Default.PriorityOf("command_guards", ...)</c>）,
+    /// 实现类不得写死数字：数字只能表达相对大小,想知道谁先执行必须横向比对所有实现,
+    /// 而且数字与注册名是两套标识,改类名要同步改数字。</para>
+    /// </summary>
+    int Priority { get; }
 
     /// <summary>
     /// 是否处理该命令 — 快速过滤,避免对无关命令调用 <see cref="Evaluate"/>

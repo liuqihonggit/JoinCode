@@ -4,7 +4,8 @@ namespace Core.Hooks.Execution.Interception;
 /// 命令拦截器 — 有状态异步处理器,处理需交互/状态的命令拦截
 /// <para>
 /// 特征:可有状态、可异步、可短路。适合两阶段确认、队列等待、交互对话等场景。
-/// 由 <see cref="CommandInterceptionDispatcher"/> 在守卫链之后按优先级统一调度。
+/// 由 <see cref="CommandInterceptionDispatcher"/> 在守卫链之后按注册顺序表统一调度
+/// (顺序来自 resources/orders.yaml 的 command_interceptors 列表)。
 /// </para>
 /// <para>
 /// 实现示例:
@@ -20,7 +21,8 @@ namespace Core.Hooks.Execution.Interception;
 /// </summary>
 public interface ICommandInterceptor {
     /// <summary>
-    /// 优先级 — 数值越大越先评估
+    /// 执行位次 — 数值越大越先评估。值由注册顺序表派生
+    /// (<c>OrderIndex.Default.PriorityOf("command_interceptors", ...)</c>),实现类不得写死数字。
     /// </summary>
     int Priority { get; }
 

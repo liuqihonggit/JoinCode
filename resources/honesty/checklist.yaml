@@ -41,3 +41,9 @@ items:
     status: done
     evidence: "GetSplitArgs 解析 JSON 字段；真机 slash_call /debuglog {\"flags\":\"-p\"} 输出 ═══ 系统提示词 ═══"
     next: 无需动作
+
+  - id: interface_order_cleanup
+    title: 接口层 Priority/Order 数字排序改为注册顺序表派生（resources/orders.yaml）
+    status: done
+    evidence: "真机 JCC_DEBUGLOG=1 jcc mcp_call bash 打出 [ORDER] command_guards: GitCommitGuard > ... > VpnRouteGuard，与 YAML 及迁移前基线逐项一致；Verify-RegistrationOrder.py 双向对账通过"
+    next: 无需动作

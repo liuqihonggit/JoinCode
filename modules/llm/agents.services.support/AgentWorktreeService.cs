@@ -56,6 +56,8 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         } else if (createMiddlewares != null) {
             _createPipeline = new MiddlewarePipeline<WorktreeCreateContext>(createMiddlewares.OrderBy(m => m.Order));
         }
+        // 打点：中间件管线的先后由 resources/orders.yaml 决定，日志是现实核对口
+        Diag.WriteLine($"[ORDER] agent_tool_middlewares: {string.Join(" > ", createMiddlewares?.OrderBy(m => m.Order).Select(m => m.GetType().Name) ?? [])}");
 
         _sessionActor = new WorktreeSessionActor(this, _logger);
     }

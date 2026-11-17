@@ -24,6 +24,8 @@
 - [x] **JCC_DUMP_MESSAGES 在 `-p` 链路落盘**：`MessageDumpMiddleware` 挂在 QueryEngine 管道；假 key 真机跑出 19KB `chat_*.txt`（含 `[System]` 与工具提示词）。
 - [x] **`/debuglog -p` 经 `slash_call` 生效**：`GetSplitArgs` 解析 JSON 字段；真机 `slash_call /debuglog '{"flags":"-p"}'` 输出「═══ 系统提示词 ═══」。
   - 边界：`/debuglog` 每段仍截断到 500 字符，看全文用 `jcc prompt`。
+- [x] **接口层位次改为注册顺序表派生**：6 个接口的 `Priority` / `Order` 全部改为由 `resources/orders.yaml` 派生，代码里不再有手写数字。
+  - 证据：真机 `JCC_DEBUGLOG=1 jcc mcp_call bash` 打出 `[ORDER] command_guards: GitCommitGuard > DriveProtectionGuard > CmdIndirectCallGuard > RobocopyMirrorGuard > HeredocGuard > GhPrBodyGuard > GhTimeoutGuard > VpnRouteGuard`，与 YAML 及迁移前基线逐项一致；`Verify-RegistrationOrder.py` 双向对账通过并已进 CI 门禁。
 
 ## 用户决策记录
 

@@ -28,6 +28,8 @@
   - 证据：真机 `JCC_DEBUGLOG=1 jcc mcp_call bash` 打出 `[ORDER] command_guards: GitCommitGuard > DriveProtectionGuard > CmdIndirectCallGuard > RobocopyMirrorGuard > HeredocGuard > GhPrBodyGuard > GhTimeoutGuard > VpnRouteGuard`，与 YAML 及迁移前基线逐项一致；`Verify-RegistrationOrder.py` 双向对账通过并已进 CI 门禁。
 - [x] **gui profile 装配归一**：手写 YAML 解析 + switch 已删除，改为生成器产出的 `GuiModuleCatalog`；gui 会话首次真机启动。
   - 证据：真机探针 `artifacts/bin/GuiSessionProbe` 建会话成功（退出码 0），`[MODULE]` 顺序 `CoreModule > SlashCommandModule > ClockModule > BrowserModule > HousekeepingModule > McpInitModule` 与 gui profile 逐项一致；已进 CI `module-order` job。
+- [x] **工具参数契约统一**：`--参数 值` 打通 245 个 host 工具（此前 100% 报「未知选项」），未知参数名按工具参数表给精确引导。
+  - 证据：真机 `jcc tool call search search_symbol --query "TaskUpdate"` 成功执行；`jcc mcp_call glob --pattern '*.md'` 与旧形式 `key=value` 均通；`--patern` 报「可用参数: --pattern, --path; 是不是想写 --pattern?」；`host.tests` 1308 通过。详见 [TASK086](TASK086-工具参数契约统一.md)。
 
 ## 用户决策记录
 

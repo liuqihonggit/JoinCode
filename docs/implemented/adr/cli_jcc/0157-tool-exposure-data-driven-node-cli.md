@@ -86,9 +86,15 @@
 | 能力 | 实现 |
 |------|------|
 | `-h` / `<工具名> -h` | 内嵌 `help.txt`（现有特性渲染），零引擎依赖 |
-| 工具执行 | 转发宿主 `jcc mcp_call <工具名> <argsJson>`，用 `ArgumentList` 传参不手工拼转义 |
+| 工具执行 | `mode: host` 的工具由 jcc 进程内直连执行（参数以字典直传，不走 argv 往返，工具参数名不会被元命令选项抢走）；其余组 exe 用 `ArgumentList` 传参不手工拼转义 |
 | JSON 构造 | `JsonSerializerContext` 源生成（避免 AOT 的 IL3050），不手写字符串拼接 |
 | 宿主缺失 | 退出码 3 + 四要素错误引导（原因/触发/拦截层/修复方式） |
+
+**参数契约（2026-11-18 补）**：`jcc tool call <组> <工具> --参数 值` 是对**全部**工具统一的调用约定。
+`mode: local/delegate` 由分组 exe 解析 `--参数`；`mode: host` 由 jcc 进程内解析。
+两层共用同一个解析器（`McpToolArgumentBinder`），CLI 层只做语法解析，参数名与必填项一律对着
+工具注册表的 `ToolSchema` 判定 —— 参数表的真相只有一处。详见
+[TASK086](../../implemented/task/TASK086-工具参数契约统一.md)。
 
 **诚实边界**：exe 的控制流是独立的（自带 `-h`、可 bash 调用、零引擎引用），但执行能力按组分布——`mode: local` 在该组 exe 内实现，`mode: delegate` 转发到另一个专用 exe（如 `jcc-gh.exe`），两者都不经过宿主；`mode: host` 由 exe 转发回宿主 `jcc mcp_call`。各占用多少**不写死在这里**（会随逐组下沉漂移），以 `Verify-ToolNodes.ps1` 的实测输出为准；当前快照见 3.2.8 的口径修正注。哪些工具真进程隔离由 `--list-local` 自报（见 3.2.8）。
 

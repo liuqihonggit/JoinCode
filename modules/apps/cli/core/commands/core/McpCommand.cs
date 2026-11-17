@@ -9,12 +9,39 @@ public sealed class McpCliCommand {
     private static readonly Cli.Output.CliOutputJsonContext JsonCtx = Cli.Output.CliOutputJsonContext.Default;
 
     internal static async Task<int> ExecuteCallAsync(
-        string toolName, string? args, string[]? kvArgs, string? argsFile, bool argsStdin, bool json,
+        string toolName, string? args, string[]? kvArgs, Dictionary<string, string>? flagArgs,
+        string? argsFile, bool argsStdin, bool json,
         string? vendor = null, string? model = null, CancellationToken ct = default) {
-        var argDict = await ParseArgsAsync(args, kvArgs, argsFile, argsStdin).ConfigureAwait(false);
+        var argDict = await ParseArgsAsync(args, kvArgs, flagArgs, argsFile, argsStdin).ConfigureAwait(false);
         if (argDict is null)
             return OutputError("参数解析失败", json);
 
+        return await ExecuteAgainstRegistryAsync(toolName, argDict, json, vendor, model, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 以已解析好的参数执行工具 — 供 <c>jcc tool call</c> 的 host 路径直连。
+    /// <para>不经过 argv 往返：既不会因 shell 转义丢参数，也不会让工具参数名与
+    /// 元命令选项（--json / --model 等）撞名 —— 那条路径的参数本来就归工具所有。</para>
+    /// </summary>
+    /// <param name="toolName">工具名。</param>
+    /// <param name="arguments">工具参数（原始字符串值，按类型推断）。</param>
+    /// <param name="json">是否输出 JSON。</param>
+    /// <param name="ct">取消令牌。</param>
+    internal static async Task<int> ExecuteCallWithArgumentsAsync(
+        string toolName, IReadOnlyDictionary<string, string> arguments, bool json, CancellationToken ct = default) {
+        var argDict = await BuildArgumentDictionaryAsync(arguments).ConfigureAwait(false);
+        return await ExecuteAgainstRegistryAsync(toolName, argDict, json, null, null, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 执行工具的核心路径 — 工具存在性检查 → 参数表校验 → 交给注册表执行。
+    /// <para>参数校验放在这里（而不是 CLI 层）是因为参数表只有宿主起来之后才拿得到，
+    /// 而参数表的真相在注册表里，是唯一数据源。</para>
+    /// </summary>
+    private static async Task<int> ExecuteAgainstRegistryAsync(
+        string toolName, Dictionary<string, JsonElement> argDict, bool json,
+        string? vendor, string? model, CancellationToken ct) {
         return await WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             if (!await registry.ContainsToolAsync(toolName, ct).ConfigureAwait(false)) {
@@ -25,6 +52,8 @@ public sealed class McpCliCommand {
                     : $"未找到工具: {toolName}（用 jcc mcp_list 查看已注册工具）";
                 return OutputError(msg, json);
             }
+            var schemaError = await ValidateArgumentsAsync(registry, toolName, argDict, ct).ConfigureAwait(false);
+            if (schemaError is not null) return OutputError(schemaError, json);
             EnsureShellCapabilityInitialized(services, toolName);
             var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
             return OutputResult(result, json);
@@ -32,6 +61,27 @@ public sealed class McpCliCommand {
             skipToolFilter: RequiresWholeRegistry(toolName),
             toolFilter: name => string.Equals(name, toolName, StringComparison.Ordinal),
             requiredTool: toolName).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 对照工具参数表校验参数名与必填项 — 未知参数给出真实参数名与相近建议。
+    /// <para>取不到参数表时放行（不因 schema 缺失而拦住调用，工具自己会报缺参）。</para>
+    /// </summary>
+    private static async Task<string?> ValidateArgumentsAsync(
+        IMcpToolRegistry registry, string toolName, Dictionary<string, JsonElement> argDict, CancellationToken ct) {
+        var info = await registry.GetToolInfoAsync(toolName, ct).ConfigureAwait(false);
+        if (info?.InputSchema is null) return null;
+        return McpToolArgumentBinder.ValidateAgainstSchema(argDict, info.InputSchema, toolName);
+    }
+
+    /// <summary>把原始字符串参数转成 JsonElement 字典（按值形态推断类型）。</summary>
+    private static async Task<Dictionary<string, JsonElement>> BuildArgumentDictionaryAsync(
+        IReadOnlyDictionary<string, string> arguments) {
+        var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        foreach (var (key, value) in arguments) {
+            dict[key] = await ParseValueToJsonElementAsync(value, key).ConfigureAwait(false);
+        }
+        return dict;
     }
 
     /// <summary>
@@ -333,11 +383,14 @@ public sealed class McpCliCommand {
         }
     }
 
-    private static async Task<Dictionary<string, JsonElement>?> ParseArgsAsync(string? args, string[]? kvArgs, string? argsFile, bool argsStdin) {
-        // 优先级: kvArgs (key=value) > argsJson (JSON) > argsFile > argsStdin
-        if (kvArgs is { Length: > 0 }) {
+    private static async Task<Dictionary<string, JsonElement>?> ParseArgsAsync(
+        string? args, string[]? kvArgs, Dictionary<string, string>? flagArgs, string? argsFile, bool argsStdin) {
+        // 优先级: flagArgs (--参数 值) > kvArgs (key=value) > argsJson (JSON) > argsFile > argsStdin
+        if (flagArgs is { Count: > 0 } || kvArgs is { Length: > 0 }) {
             var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (var kv in kvArgs) {
+            foreach (var (key, value) in flagArgs ?? new Dictionary<string, string>())
+                dict[key] = await ParseValueToJsonElementAsync(value, key).ConfigureAwait(false);
+            foreach (var kv in kvArgs ?? []) {
                 var eqIdx = kv.IndexOf('=');
                 if (eqIdx <= 0 || eqIdx == kv.Length - 1) {
                     var detail = eqIdx <= 0 ? "缺少 '=' 分隔符" : "'=' 后面不能为空";

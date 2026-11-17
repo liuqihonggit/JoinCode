@@ -53,3 +53,9 @@ items:
     status: done
     evidence: "真机探针 artifacts/bin/GuiSessionProbe 建会话成功，[MODULE] 顺序 CoreModule > SlashCommandModule > ClockModule > BrowserModule > HousekeepingModule > McpInitModule 与 gui profile 逐项一致；已进 CI module-order job"
     next: 无需动作
+
+  - id: tool_argument_contract
+    title: 工具参数契约统一 — `--参数 值` 打通 245 个 host 工具，未知参数名按参数表给精确引导
+    status: done
+    evidence: "真机 jcc tool call search search_symbol --query X 成功（修复前必报「未知选项 --query」）；jcc mcp_call glob --pattern '*.md' 与 key=value 旧形式均通；--patern 报「可用参数: --pattern, --path; 是不是想写 --pattern?」；host.tests 1308 通过"
+    next: 无需动作

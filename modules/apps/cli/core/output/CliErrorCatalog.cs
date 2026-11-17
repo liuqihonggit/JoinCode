@@ -152,6 +152,23 @@ public static class CliErrorCatalog {
             "参数支持两种格式: key=value (如 pr_number=201) 或 JSON (如 {\"pr_number\":201})",
             retryable: false);
 
+    /// <summary>
+    /// 工具参数名不存在 — 提示里带该工具的真实参数名与相近建议，
+    /// 让调用方知道正确写法，而不是换个命令瞎试。
+    /// </summary>
+    public static CliStructuredError ArgUnknownToolParameter(string toolName, string paramName, string availableHint) =>
+        new("ARG_UNKNOWN_TOOL_PARAMETER",
+            $"工具 '{toolName}' 没有参数 '{paramName}'",
+            availableHint,
+            retryable: false);
+
+    /// <summary>工具缺少必填参数</summary>
+    public static CliStructuredError ArgMissingToolParameter(string toolName, string paramNames) =>
+        new("ARG_MISSING_TOOL_PARAMETER",
+            $"工具 '{toolName}' 缺少必填参数: {paramNames}",
+            $"用 jcc mcp_schema {toolName} 查看参数表",
+            retryable: false);
+
     // ── 工具类 (TOOL_) ──
 
     /// <summary>工具执行失败</summary>

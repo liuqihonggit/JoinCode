@@ -156,9 +156,43 @@ public static class CliNodeRunner {
 
         var options = ParseOptions(args.AsSpan(1));
         var handler = definition.Resolve(toolId);
-        if (handler is not null) return await RunLocalAsync(definition, toolId, handler, options, ct).ConfigureAwait(false);
+        if (handler is not null) return await RunLocalAsync(definition, toolId, handler, NormalizeOptionNames(options, help, toolId), ct).ConfigureAwait(false);
 
-        return await ForwardAsync(definition, toolId, options, ct).ConfigureAwait(false);
+        return await ForwardAsync(definition, toolId, NormalizeOptionNames(options, help, toolId), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 把命令行里的参数名归一化到该工具声明的规范名。
+    /// <para>例：工具声明 <c>file_path</c>，调用方写 <c>--filePath</c>，归一化后命中同一个参数。
+    /// 这条链路必须与宿主侧（中间件 <c>ArgumentRepairMiddleware</c>）给出同一个答案 ——
+    /// 否则同一次调用在 host 路径被自动修复、在 local 路径被拒，调用方只能逐个试错。</para>
+    /// <para>规则来自契约层的 <see cref="ToolParameterNameRepairer"/>（唯一真相）；
+    /// 帮助文本里解析不到参数名时保持原样，由工具自己报「缺少必填参数」并给出正确写法。</para>
+    /// </summary>
+    internal static Dictionary<string, string> NormalizeOptionNames(
+        Dictionary<string, string> options, string help, string toolId) {
+        if (options.Count == 0) return options;
+        var declared = DeclaredParameterNames(help, toolId);
+        return declared.Count == 0 ? options : ToolParameterNameRepairer.RepairNames(options, declared);
+    }
+
+    /// <summary>
+    /// 从帮助文本里解析该工具声明的参数名集合 — 详情段里形如 <c>    --参数名  类型  必填  说明</c> 的行。
+    /// <para>解析不到就返回空集合（不伪造参数名）：宁可让工具报缺参，也不要把参数映射到错的参数上。</para>
+    /// </summary>
+    internal static List<string> DeclaredParameterNames(string help, string toolId) {
+        var names = new List<string>();
+        var section = DetailSectionOf(help.Replace("\r\n", "\n"), toolId);
+        if (section.Length == 0) return names;
+        foreach (var line in section.Split('\n')) {
+            var trimmed = line.TrimStart();
+            if (!trimmed.StartsWith("--", StringComparison.Ordinal)) continue;
+            var name = trimmed[2..];
+            var space = name.IndexOfAny([' ', '\t', '=']);
+            if (space > 0) name = name[..space];
+            if (name.Length > 0) names.Add(name);
+        }
+        return names;
     }
 
     /// <summary>

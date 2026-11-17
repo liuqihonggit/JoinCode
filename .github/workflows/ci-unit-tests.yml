@@ -181,3 +181,8 @@ jobs:
       - name: Verify each group exe against its declaration
         shell: pwsh
         run: pwsh -ExecutionPolicy Bypass -File non_deliverables_tools/scripts/Verify-ToolNodes.ps1 -FromScratch -Sample
+      # 参数名归一化必须两条路径一致：同一个 --filePath，宿主路径被自动修复、exe 路径也应被修复。
+      # 分叉的后果是调用方（尤其是模型）无从判断该用哪种写法，只能逐个试错。
+      - name: Verify parameter name normalization is identical on host and exe paths
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-ToolParamNames.py --per-group 6

@@ -59,3 +59,9 @@ items:
     status: done
     evidence: "真机 jcc tool call search search_symbol --query X 成功（修复前必报「未知选项 --query」）；jcc mcp_call glob --pattern '*.md' 与 key=value 旧形式均通；--patern 报「可用参数: --pattern, --path; 是不是想写 --pattern?」；host.tests 1308 通过"
     next: 无需动作
+
+  - id: param_name_normalization
+    title: 参数名归一化两条路径统一 — 规则下沉契约层，exe 与宿主对 camelCase/snake_case 给出同一答案
+    status: done
+    evidence: "真机 jcc-tool-file.exe read --filePath 成功（修复前报「缺少必填参数 --file_path」）；Verify-ToolParamNames.py 117 项抽查全通（30+ 工具真正验证 camelCase 归一化）；契约层 JoinCode.CliNodes.Tests 48 通过（新增 9 条）；已进 CI tool-node-reality job"
+    next: 无需动作

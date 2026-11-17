@@ -30,6 +30,8 @@
   - 证据：真机探针 `artifacts/bin/GuiSessionProbe` 建会话成功（退出码 0），`[MODULE]` 顺序 `CoreModule > SlashCommandModule > ClockModule > BrowserModule > HousekeepingModule > McpInitModule` 与 gui profile 逐项一致；已进 CI `module-order` job。
 - [x] **工具参数契约统一**：`--参数 值` 打通 245 个 host 工具（此前 100% 报「未知选项」），未知参数名按工具参数表给精确引导。
   - 证据：真机 `jcc tool call search search_symbol --query "TaskUpdate"` 成功执行；`jcc mcp_call glob --pattern '*.md'` 与旧形式 `key=value` 均通；`--patern` 报「可用参数: --pattern, --path; 是不是想写 --pattern?」；`host.tests` 1308 通过。详见 [TASK086](TASK086-工具参数契约统一.md)。
+- [x] **参数名归一化两条路径统一**：规则下沉契约层，exe 与宿主对 camelCase/snake_case 给出同一答案。
+  - 证据：真机 `jcc-tool-file.exe read --filePath "AGENTS.md"` 成功（修复前报「缺少必填参数 --file_path」）；`Verify-ToolParamNames.py` 117 项抽查全通；契约层 `JoinCode.CliNodes.Tests` 48 通过。详见 [TASK087](TASK087-参数名归一化两条路径统一.md)。
 
 ## 用户决策记录
 

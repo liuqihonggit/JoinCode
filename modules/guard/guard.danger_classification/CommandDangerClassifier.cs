@@ -66,9 +66,181 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         if (string.IsNullOrWhiteSpace(command.RawCommand))
             return DangerClassificationResult.SafeResult;
 
-        return ClassifyGitEarlyReturn(command)
-            ?? CollectSignals(command)
-                .Aggregate(new SignalAccumulator([], [], []), AccumulateSignal, BuildResult);
+        var direct = ClassifyGitEarlyReturn(command)
+            ?? CollectSignals(command).Aggregate(new SignalAccumulator([], [], []), AccumulateSignal, BuildResult);
+
+        // 首词定的等级只是「这一条命令」的等级；真正动手的可能在管道右侧或参数里，
+        // 那条路径单独判一次再取最严。
+        return PickStricter(direct, ClassifyIndirectExecution(command));
+    }
+
+    /// <summary>
+    /// 间接执行识别 — 真正执行破坏动作的命令可能不在首位。
+    /// <para>
+    /// 分类器按「首词查表」工作，前缀会盖住后面的真实动作：<c>echo hi | xargs rm -rf</c> 的首词是
+    /// <c>echo</c>（Safe），而 Safe 是所有权限模式**直接放行**的级别 —— 加个良性前缀就让拦截失效，
+    /// 与 <c>echo hi; rm -rf ./build</c> 是同一类降级。同理 <c>find ... -exec rm -rf {} +</c>
+    /// 的命令名是 <c>find</c>，命令藏在参数里。
+    /// </para>
+    /// <para>
+    /// 判定只做**正向**识别（解释器 / 已登记命令 / 危险参数 / 递归强制组合），
+    /// 未登记命令**不**产生 Unknown 信号 —— 否则 <c>| jq</c>、<c>| sort</c>、<c>| tee</c>
+    /// 这些常见良性管道会在 Auto 模式下被一并拒绝，用户会因为噪音而关掉防护。
+    /// </para>
+    /// </summary>
+    internal static DangerClassificationResult ClassifyIndirectExecution(ShellCommand command)
+        => EnumerateIndirectCommands(command)
+            .Select(ClassifyIndirectTarget)
+            .Aggregate(DangerClassificationResult.SafeResult, PickStricter);
+
+    /// <summary>
+    /// 枚举所有「被外层命令带着执行」的内层命令 — 管道右侧 + 参数内嵌（<c>xargs</c> / <c>find -exec</c>）。
+    /// <para>
+    /// 递归展开是因为间接可以套两层：<c>echo hi | xargs rm -rf</c> 里管道右侧解析出的是 <c>xargs</c>，
+    /// 真正执行的是它的参数 <c>rm -rf</c>。层数上限防构造 <c>xargs xargs xargs …</c> 时无限展开。
+    /// </para>
+    /// </summary>
+    internal static IEnumerable<ShellCommand> EnumerateIndirectCommands(ShellCommand command)
+        => ExpandIndirect(DirectIndirectTargets(command), depth: 0);
+
+    private const int MaxIndirectDepth = 4;
+
+    private static IEnumerable<ShellCommand> ExpandIndirect(IEnumerable<ShellCommand> targets, int depth) {
+        if (depth >= MaxIndirectDepth)
+            yield break;
+
+        foreach (var target in targets) {
+            yield return target;
+            foreach (var nested in ExpandIndirect(DirectIndirectTargets(target), depth + 1)) {
+                yield return nested;
+            }
+        }
+    }
+
+    /// <summary>单层的间接目标 — 管道右侧 + 参数内嵌。</summary>
+    private static IEnumerable<ShellCommand> DirectIndirectTargets(ShellCommand command)
+        => PipelineTargets(command).Concat(EmbeddedCommands(command));
+
+    /// <summary>
+    /// 管道右侧的执行单元 — 只取首段之后的，首条命令由调用方按完整口径判定。
+    /// </summary>
+    private static IEnumerable<ShellCommand> PipelineTargets(ShellCommand command) {
+        if (!command.HasPipe) {
+            yield break;
+        }
+
+        foreach (var stage in ShellCommand.SplitPipelineStages(command.RawCommand).Skip(1)) {
+            yield return ResolveExecutedCommand(ShellCommand.Parse(stage));
+        }
+    }
+
+    /// <summary>
+    /// 参数内嵌的执行单元 — <c>xargs &lt;命令&gt;</c> 与 <c>find ... -exec &lt;命令&gt; ... ;</c>。
+    /// </summary>
+    private static IEnumerable<ShellCommand> EmbeddedCommands(ShellCommand command) {
+        if (DangerousCommandCatalog.CommandExecutorCommands.Contains(command.CommandName)) {
+            // xargs 的参数才是命令：`xargs -0 -n1 rm -rf` 里 -0/-n1 是 xargs 自己的选项
+            if (ResolveCommandPosition(command.Arguments) is { } start) {
+                yield return ShellCommand.Parse(string.Join(' ', command.Arguments.Skip(start)));
+            }
+            yield break;
+        }
+
+        foreach (var parts in InlineExecCommandParts(command.Arguments)) {
+            yield return ShellCommand.Parse(string.Join(' ', parts));
+        }
+    }
+
+    /// <summary>
+    /// 从参数中取出 <c>-exec</c> / <c>-execdir</c> / <c>-ok</c> / <c>-okdir</c> 后面内嵌的命令词。
+    /// <para>终止符是 <c>;</c>（常写作 <c>\;</c>）或 <c>+</c>；<c>{}</c> 是占位符不是命令名，丢掉。</para>
+    /// </summary>
+    private static IEnumerable<IReadOnlyList<string>> InlineExecCommandParts(IReadOnlyList<string> arguments)
+        => Enumerable.Range(0, arguments.Count)
+            .Where(i => DangerousCommandCatalog.InlineExecFlags.Contains(arguments[i]))
+            .Select(i => arguments.Skip(i + 1)
+                .TakeWhile(static token => token is not ";" and not "\\;" and not "+")
+                .Where(static token => token != "{}")
+                .ToList())
+            .Where(static parts => parts.Count > 0);
+
+    /// <summary>
+    /// 解析命令位 — 跳过包装器（<c>sudo</c> / <c>env</c> / <c>nohup</c>…）、选项（<c>-E</c>）
+    /// 与环境变量赋值（<c>FOO=bar</c>），返回真正被执行的那条命令在参数表中的下标。
+    /// <para>
+    /// 不跳过包装器就会漏掉 <c>| sudo -E bash</c>（真实命令是 bash 而不是 sudo）；
+    /// 但也不能「整段扫一遍找解释器」——那会把 <c>| grep bash file</c> 误判成执行解释器。
+    /// </para>
+    /// </summary>
+    internal static int? ResolveCommandPosition(IReadOnlyList<string> tokens) {
+        for (var i = 0; i < tokens.Count; i++) {
+            var token = tokens[i];
+            if (token.Length == 0 || token.StartsWith('-') || IsEnvAssignment(token))
+                continue;
+            if (DangerousCommandCatalog.CommandWrapperCommands.Contains(token))
+                continue;
+            return i;
+        }
+        return null;
+    }
+
+    /// <summary>是否为 <c>NAME=VALUE</c> 形式的环境变量赋值（<c>env</c> 的参数）</summary>
+    private static bool IsEnvAssignment(string token) {
+        var eq = token.IndexOf('=', StringComparison.Ordinal);
+        if (eq <= 0)
+            return false;
+
+        for (var i = 0; i < eq; i++) {
+            if (!char.IsLetterOrDigit(token[i]) && token[i] != '_')
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 剥掉包装器，返回真正会被执行的那条命令（<c>sudo -E bash</c> → <c>bash</c>）。
+    /// </summary>
+    internal static ShellCommand ResolveExecutedCommand(ShellCommand command) {
+        var current = command;
+        for (var depth = 0; depth < 3; depth++) {
+            if (!DangerousCommandCatalog.CommandWrapperCommands.Contains(current.CommandName))
+                return current;
+            if (ResolveCommandPosition(current.Arguments) is not { } index)
+                return current;
+            current = ShellCommand.Parse(string.Join(' ', current.Arguments.Skip(index)));
+        }
+        return current;
+    }
+
+    /// <summary>
+    /// 判定一条内层命令 — 解释器直接升到 Execution，其余按「无 Unknown」口径分类。
+    /// </summary>
+    internal static DangerClassificationResult ClassifyIndirectTarget(ShellCommand target) {
+        if (target.CommandName.Length == 0)
+            return DangerClassificationResult.SafeResult;
+
+        if (IsInterpreter(target.CommandName)) {
+            return new DangerClassificationResult(
+                CommandDangerLevel.Execution,
+                CommandRisk.RemoteExecution,
+                $"'{target.CommandName}' 在管道/参数位置接收内容并解释执行 — 内容可任意，等价于执行任意代码");
+        }
+
+        return CollectSignals(target, unknownCommandIsRisk: false)
+            .Aggregate(new SignalAccumulator([], [], []), AccumulateSignal, BuildResult);
+    }
+
+    /// <summary>
+    /// 判定命令是否把内容送进解释器（管道右侧命令位上是解释器）。
+    /// </summary>
+    internal static bool HasInterpreterPipelineTarget(string rawCommand) {
+        if (!rawCommand.Contains('|', StringComparison.Ordinal))
+            return false;
+
+        return ShellCommand.SplitPipelineStages(rawCommand)
+            .Skip(1)
+            .Select(static stage => ResolveExecutedCommand(ShellCommand.Parse(stage)))
+            .Any(static stage => IsInterpreter(stage.CommandName));
     }
 
     /// <summary>
@@ -94,8 +266,14 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 收集所有分类信号 — 命令名 → 参数 → 组合 → 递归强制,链式拼接
     /// </summary>
-    internal static IEnumerable<Signal> CollectSignals(ShellCommand command)
-        => ClassifyByCommandName(command)
+    /// <param name="command">待判定命令</param>
+    /// <param name="unknownCommandIsRisk">
+    /// 未登记命令是否产出 Unknown（黄灯 ask）。管道右侧 / 参数内嵌的内层命令传 <c>false</c>：
+    /// <c>| jq</c>、<c>| sort</c>、<c>| tee</c> 未登记但完全良性，一起判 Unknown 会在 Auto 模式下
+    /// 把常见管道全部拒掉。
+    /// </param>
+    internal static IEnumerable<Signal> CollectSignals(ShellCommand command, bool unknownCommandIsRisk = true)
+        => ClassifyByCommandName(command, unknownCommandIsRisk)
             .Concat(ClassifyByArguments(command))
             .Concat(ClassifyByCombinations(command))
             .Concat(ClassifyByRecurseForce(command));
@@ -103,12 +281,13 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <summary>
     /// 命令名查表 — 已登记命令返回条目信号,未登记返回 Unknown(黄灯)
     /// </summary>
-    internal static IEnumerable<Signal> ClassifyByCommandName(ShellCommand command) {
+    internal static IEnumerable<Signal> ClassifyByCommandName(ShellCommand command, bool unknownCommandIsRisk = true) {
         var entry = MatchCommandEntry(command.CommandName);
-        if (entry is not null)
+        if (entry is not null) {
             yield return new(entry.Level, entry.RiskType, $"命令 '{command.CommandName}': {entry.Description}");
-        else
+        } else if (unknownCommandIsRisk) {
             yield return new(CommandDangerLevel.Unknown, CommandRisk.None, $"未知命令 '{command.CommandName}' — 未在 catalog 中登记");
+        }
     }
 
     /// <summary>
@@ -133,7 +312,12 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// 危险组合匹配 — 分位置检查：命令名匹配首个模式，参数匹配剩余模式。
     /// <para>
     /// MTP 扰动纵深防御约束第4条：AC 分位置作用，argv[0] 匹配命令名，argv[1..n] 匹配参数。
-    /// 管道组合（首模式为 "|"）仍用 AC 扫描原始串，因为管道是 shell 语法结构。
+    /// 首模式为 "|" 的组合按子串扫描原始串（管道是 shell 语法结构，不是参数）。
+    /// </para>
+    /// <para>
+    /// 注意：当前 catalog **没有**登记任何 "|" 组合 —— 「管道到解释器」已改由
+    /// <see cref="ClassifyIndirectExecution"/> 按命令位判定（子串口径会误报 <c>cat notes.sh | head</c>、
+    /// 漏报 <c>| xargs rm -rf</c>）。这里保留该分支是为了 catalog 的数据格式完整，不是当前生效的路径。
     /// </para>
     /// </summary>
     internal static IEnumerable<Signal> ClassifyByCombinations(ShellCommand command) {
@@ -401,7 +585,8 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         if (!command.HasPipe && !command.HasRedirection)
             return DangerClassificationResult.SafeResult;
 
-        if (command.HasPipe && GetPipeTargetCommands(command.Arguments).Any(IsInterpreter)) {
+        // 用命令位口径而不是「管道后第一个词」：`git log | sudo -E bash` 的目标是 bash 不是 sudo。
+        if (command.HasPipe && HasInterpreterPipelineTarget(command.RawCommand)) {
             return new DangerClassificationResult(
                 CommandDangerLevel.Execution,
                 CommandRisk.RemoteExecution,
@@ -413,14 +598,6 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
             CommandRisk.None,
             "git 命令含管道/重定向 — 需确认后方可执行");
     }
-
-    /// <summary>
-    /// 从参数列表中提取所有管道目标命令名(| 后面的第一个参数)
-    /// </summary>
-    internal static IEnumerable<string> GetPipeTargetCommands(IReadOnlyList<string> arguments)
-        => Enumerable.Range(0, Math.Max(0, arguments.Count - 1))
-            .Where(i => arguments[i] == "|")
-            .Select(i => arguments[i + 1]);
 
     /// <summary>
     /// 判断命令名是否为解释器(可执行任意代码) — 引用 DangerousCommandCatalog.InterpreterCommands 唯一数据源

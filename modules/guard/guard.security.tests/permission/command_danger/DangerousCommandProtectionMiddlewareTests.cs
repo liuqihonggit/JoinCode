@@ -197,6 +197,9 @@ public class DangerousCommandProtectionMiddlewareTests {
     [InlineData("true && rm -rf ./build")]
     [InlineData("false || rm -rf ./build")]
     [InlineData("echo hi\nrm -rf ./build")]
+    // 管道与分号是同一类降级：首词 echo 无害，真正删文件的是右侧
+    [InlineData("echo hi | xargs rm -rf ./build")]
+    [InlineData("echo hi | sh")]
     public async Task Auto_Mode_Rejects_CompoundCommand_LikeItsWorstSegment(string command) {
         await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var context = CreateContext(PermissionMode.Auto, command);
@@ -207,6 +210,24 @@ public class DangerousCommandProtectionMiddlewareTests {
         nextCalled.Should().BeFalse("复合命令里的危险子命令不得被前缀放行");
         context.Result.Should().NotBeNull("应给出拒绝或待确认结果");
         context.Result!.IsApproved.Should().BeFalse();
+    }
+
+    // 反向锁：判定收严不能变成「见管道就拒」——良性管道在 Auto 模式下必须照常放行，
+    // 否则最常见的 `| head` / `| jq` 都会被拦，用户会因为噪音关掉整个防护。
+    // 注意 `git log | head` 不在本例：git 只读 + 管道历来是 LightValidation（Auto 模式会 ask），
+    // 这是既有口径，不是本次改动引入的。
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Theory]
+    [InlineData("ls -la | sort -k5 -n | head -20")]
+    [InlineData("cat notes.sh | head -3")]
+    public async Task Auto_Mode_Allows_BenignPipeline(string command) {
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        var context = CreateContext(PermissionMode.Auto, command);
+        var nextCalled = false;
+
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeTrue($"良性管道必须放行：'{command}'");
     }
 
     #endregion

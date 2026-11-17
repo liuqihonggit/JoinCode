@@ -761,6 +761,9 @@ DI 容器里**确实注册了**它（生成器自动生成 `ServiceDescriptor`�
 1. `ShellCommand.SplitSubcommands`（新增，contracts 层）：引号 / 反引号 / `$(...)` 感知地按
    `;`、`&&`、`||`、换行 拆分。**单管道不拆**（两侧是同一命令的数据流，上游已有「管道目标是解释器」的专门检查，
    拆开会把 `git log | sh` 绕过去）；**含 heredoc 时不拆换行**（正文里的 `rm -rf` 只是写进文件的内容）。
+   > 2026-11-17 修正：「上游已有专门检查」这个理由当时是错的 —— 那条检查是子串匹配，
+   > 既误报 `cat notes.sh | head` 又漏报 `| xargs rm -rf`。管道右侧的判定已在第二十二轮改为
+   > `SplitPipelineStages` + 命令位解析；`SplitSubcommands` 依旧不拆单管道，但理由变成「拆了会丢数据流语义」。
 2. `CommandDangerClassifier.Classify(string)`：拆段后逐段分类，取最严的一条；同级别时合并 risks/Details。
    单段命令完全走原路径，行为不变。
 
@@ -774,7 +777,67 @@ DI 容器里**确实注册了**它（生成器自动生成 `ServiceDescriptor`�
 1. **接线 AST 校验器**补 `jq system()` / `eval` / 命令替换 / heredoc 换行。它的语义是
    「无法静态分析 → 交给用户确认」（`BashPermissionChecker` 把 IsSafe=false 映射为 `Ask`，不是硬拒），
    所以不会拦死命令，但**每条 bash 多一次 tree-sitter 解析、写脚本类命令会多一次确认弹窗**。
-2. **管道后接执行器**（`| xargs rm -rf`、`| sh` 已覆盖、`find -exec` 未覆盖）。需要先定义「执行器清单」，
-   而 `IsInterpreter` 目前只覆盖解释器。属新规则，不是拆段能解决的。
+2. ~~**管道后接执行器**（`| xargs rm -rf`、`find -exec` 未覆盖）~~ → **已在第二十二轮修复**：
+   当时的判断是「属新规则，不是拆段能解决的」，这个判断对，但结论错了 —— 它和分号前缀是**同一类降级**，
+   不是可选补强。见下。
 
 原始问题记录在第十八轮末尾，此处闭合它的调查部分。
+
+### 2026-11-17 第二十二轮：管道前缀与分号前缀是同一个降级，`| xargs rm -rf` 原来判 Safe
+
+上一轮修完 `echo hi; rm -rf ./build` 后，我把「管道后接执行器」留在待决策清单里，理由是「接近 AST 分析范畴」。
+这一轮先量了一下，发现它的实际行为不是「覆盖不足」，而是**和刚修的那条一模一样**：
+
+```
+单跑  rm -rf ./build          → Execution（Auto 拒绝）
+前缀  echo hi; rm -rf ./build → Execution（上一轮已修）
+管道  echo hi | xargs rm -rf  → Safe      ← 所有权限模式直接放行
+```
+
+首词是 `echo`，分类器按首词查表 → Safe。**同一个 bug，只是分隔符换了**。所以这不是「要不要补强」的选择题。
+
+**为什么原来没被发现**：`Combinations` 里确实有一组 `["|", "sh"]` 形式的「管道到解释器」组合，
+但它的匹配口径是「原始字符串同时包含 `|` 和 `sh`」这类**子串**判断 —— 两个方向都不准：
+
+| 写法 | 旧口径 | 真实语义 |
+|---|---|---|
+| `| sh` / `| bash` | 命中（靠子串） | 命中 ✓ |
+| `echo hi \| xargs rm -rf` | 未命中 | 应 Execution ✗ |
+| `find . -exec rm -rf {} +` | 未命中（无管道） | 应 Execution ✗ |
+| `cat notes.sh \| head` | **误报 Execution**（文件名带 sh） | 良性 ✗ |
+| `ls \| grep shared` | **误报 Execution**（搜索词带 sh） | 良性 ✗ |
+
+**改法**（不在数据表里加规则，而是把「谁在执行」算对）：
+
+1. `ShellCommand.SplitPipelineStages`（契约层）：与 `SplitSubcommands` 共用同一套引号 / 反引号 /
+   `$(...)` 感知的扫描器，只是额外按单管道拆。heredoc 正文里的 `|` 不拆（正文总在换行之后，只拆起始行）。
+2. `CommandDangerClassifier.ClassifyIndirectExecution`：枚举「被外层带着执行的内层命令」再逐条判，
+   取最严。来源两处 —— 管道右侧、参数内嵌（`xargs` 的参数、`find -exec/-execdir/-ok`）。
+   支持递归展开（`| xargs rm -rf` 的右侧解析出 `xargs`，真实命令在它的参数里），层数上限 4。
+3. **命令位解析** `ResolveCommandPosition`：跳过包装器（`sudo` / `env` / `nohup` / `time` /
+   `command` / `builtin` / `exec`）、选项（`-E`）、环境变量赋值（`FOO=bar`），返回真正被执行的那个词。
+   `curl x | sudo -E bash` 的执行者是 `bash`；不跳包装器就会漏，而「整段扫一遍找解释器」会把
+   `| grep bash file` 误判成执行解释器。
+4. **内层命令不产出 Unknown 信号**（`CollectSignals(unknownCommandIsRisk: false)`）。这条是成败关键：
+   `| jq`、`| sort`、`| tee` 都没在 catalog 里登记，一起判 Unknown 会让**最常见的良性管道在 Auto 模式下全被拒**，
+   用户会因为噪音直接关掉防护。只做正向识别（解释器 / 已登记命令 / 危险参数 / 递归强制组合）。
+5. 删掉 `Combinations` 里的 `["|", …]` 子串组合 —— 判定改为命令位后它就是双份实现加双份误报；
+   `DangerousCommandCatalogIntegrityTests` 换成「不许再把子串口径加回来」的断言。
+
+**验证**：
+- `BashIndirectExecutionTests`（新增，23 例）：8 条内层危险命令必须判 Execution（含 `find -exec`、
+  `xargs`、`| sudo bash`、`| env FOO=1 bash`、`| nohup sh -s`），6 条良性管道必须保持原级别
+  （`| jq` / `| sort` / `| head` / 文件名带 sh），拆分器引号与 heredoc 边界。
+- `DangerousCommandProtectionMiddleware` 层加锁：`echo hi | xargs rm -rf ./build`、`echo hi | sh`
+  在 Auto 模式下必须被拒；`ls -la | sort | head`、`cat notes.sh | head -3` 必须放行。
+- `guard.security.tests` 1169 通过 / 0 失败、`abs.guard.tests` 107 通过、`hands.shell.tests` 526 通过、
+  `guard.config.tests` 1305 通过。`guard.hooks.tests` 仍是那 1 个环境相关失败（本机有代理，与改动无关）。
+
+**没做到的验证**：真机 `jcc mcp_call bash` 跑不了 —— `SystemActuatorRegistry not initialized`，
+需要 `jcchub.exe` 完整启动，本机没有。所以端到端只在中间件层锁住（那正是决定放行/拦截的地方），
+没有走「真实执行被拦」这一层。
+
+**顺带发现（未改）**：catalog 里没有登记 `find`、`sort`、`jq`、`xargs` 等常用命令，
+单跑 `find . -name "*.cs"` 是 `Unknown` → Auto 模式会被拒。这是「未知即询问」策略与覆盖面的摩擦，
+不是本轮引入，改它等于调整安全姿态，需要单独决策。
+

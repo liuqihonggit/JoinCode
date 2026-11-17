@@ -95,8 +95,8 @@ public sealed record ShellCommand {
     /// 按 shell 子命令分隔符拆分命令：分号、<c>&amp;&amp;</c>、<c>||</c>、换行。
     /// <para>
     /// 引号内、反引号内、<c>$(...)</c> 内的分隔符不拆 —— 它们属于同一个词。
-    /// <b>单管道不拆</b>：管道两侧是同一命令的数据流，且上游已有「管道目标是解释器」的专门检查
-    /// （<c>git log | sh</c>），拆开会把该检查绕过去。
+    /// <b>单管道不拆</b>：管道两侧是同一条命令的数据流，拆成两条独立命令会丢掉「右侧消费左侧输出」
+    /// 这个语义。管道右侧要单独判定时用 <see cref="SplitPipelineStages"/>。
     /// 含 heredoc（<c>&lt;&lt;</c>）时也不把换行当分隔符：heredoc 正文里出现的 <c>rm -rf</c>
     /// 只是被写入文件的内容，不是被执行的命令，按行硬拆会把「写脚本」误判成危险操作。
     /// </para>
@@ -106,12 +106,35 @@ public sealed record ShellCommand {
     /// </para>
     /// </summary>
     /// <param name="command">原始命令字符串</param>
-    public static IReadOnlyList<string> SplitSubcommands(string command) {
+    public static IReadOnlyList<string> SplitSubcommands(string command)
+        => Scan(command, splitPipes: false);
+
+    /// <summary>
+    /// 按 shell 分隔符拆分到**最小执行单元**：在 <see cref="SplitSubcommands"/> 的基础上，
+    /// 把单管道两侧也拆开（<c>a | b | c</c> → <c>a</c> / <c>b</c> / <c>c</c>）。
+    /// <para>
+    /// 存在理由：管道左侧只负责产出数据，真正动手的是右侧。而按首词查表的分类逻辑只看得到左侧，
+    /// <c>echo hi | xargs rm -rf</c> 的首词是 <c>echo</c>，于是「给危险命令加一个良性前缀」
+    /// 就能让拦截失效 —— 与 <c>echo hi; rm -rf ./build</c> 同一类降级，只是分隔符不同。
+    /// </para>
+    /// <para>
+    /// 引号 / 反引号 / <c>$(...)</c> / heredoc 的取舍与 <see cref="SplitSubcommands"/> 完全一致。
+    /// 返回的第一段是首条命令，其后每段都是某个管道的右侧。
+    /// </para>
+    /// </summary>
+    /// <param name="command">原始命令字符串</param>
+    public static IReadOnlyList<string> SplitPipelineStages(string command)
+        => Scan(command, splitPipes: true);
+
+    private static IReadOnlyList<string> Scan(string command, bool splitPipes) {
         if (string.IsNullOrWhiteSpace(command)) {
             return Array.Empty<string>();
         }
 
         var allowsNewlineSplit = command.IndexOf("<<", StringComparison.Ordinal) < 0;
+        // heredoc 正文总在换行之后开始：正文里的 `rm -rf` / `| sh` 都是被写入文件的内容，
+        // 不是被执行的命令。所以含 heredoc 时，起始行之后不再按管道拆。
+        var heredocBodyStart = allowsNewlineSplit ? -1 : command.IndexOf('\n');
         var segments = new List<string>();
         var current = new System.Text.StringBuilder();
         var quoteChar = '\0';
@@ -185,6 +208,10 @@ public sealed record ShellCommand {
                 if (i + 1 < command.Length && command[i + 1] == '|') {
                     FlushSegment(segments, current);
                     i++;
+                    continue;
+                }
+                if (splitPipes && (heredocBodyStart < 0 || i < heredocBodyStart)) {
+                    FlushSegment(segments, current);
                     continue;
                 }
                 // 单管道不拆：两侧是同一条命令的数据流

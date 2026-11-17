@@ -13,6 +13,7 @@ namespace Core.Permission;
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity, IPermissionMiddleware {
     private readonly ICommandDangerClassifier? _dangerClassifier;
+    private readonly IBashAstRiskEscalator? _astEscalator;
     private readonly FrozenDictionary<CommandRisk, ICommandRiskHandler> _riskHandlers;
     private readonly IReadOnlyList<IDeleteOperationDetector> _deleteDetectors;
     private readonly IRealPathResolver? _realPathResolver;
@@ -33,13 +34,15 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         ICommandDangerClassifier? dangerClassifier = null,
         IRealPathResolver? realPathResolver = null,
         ICommandExecutionAuditor? auditor = null,
-        ILogger<DangerousCommandProtectionMiddleware>? logger = null) {
+        ILogger<DangerousCommandProtectionMiddleware>? logger = null,
+        IBashAstRiskEscalator? astEscalator = null) {
         _dangerClassifier = dangerClassifier;
         _riskHandlers = (riskHandlers ?? []).ToFrozenDictionary(h => h.RiskType);
         _deleteDetectors = (deleteDetectors ?? []).ToList();
         _realPathResolver = realPathResolver;
         _auditor = auditor;
         _logger = logger;
+        _astEscalator = astEscalator;
     }
 
     /// <inheritdoc />
@@ -230,12 +233,29 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     }
 
     /// <summary>
+    /// 分类器判定 + AST 兜底：分类器按词法判 Safe 时，再看一眼命令是不是被构造过。
+    /// <para>
+    /// 只在分类器认为安全时补这一层 —— 已经判成 Execution/Dangerous 的命令不需要更严的结论，
+    /// 而每条命令都跑一次 tree-sitter 解析没必要（判危险的成本早就付过了）。
+    /// </para>
+    /// </summary>
+    private DangerClassificationResult ClassifyWithAstBackstop(ICommandDangerClassifier classifier, string command) {
+        var dangerResult = classifier.Classify(command);
+        if (dangerResult.RequiresIntervention || _astEscalator is null)
+            return dangerResult;
+
+        return _astEscalator.TryEscalate(command, out var escalated) && escalated is not null
+            ? escalated
+            : dangerResult;
+    }
+
+    /// <summary>
     /// 检测 Shell 命令的风险 — 优先使用 ICommandDangerClassifier（统一分级），回退到 IDestructiveCommandDetector
     /// </summary>
     private (CommandRiskContext? Context, DangerClassificationResult? DangerResult) DetectRisks(string toolName, string command) {
         // 优先使用统一危险分类器
         if (_dangerClassifier is not null) {
-            var dangerResult = _dangerClassifier.Classify(command);
+            var dangerResult = ClassifyWithAstBackstop(_dangerClassifier, command);
             if (dangerResult.RequiresIntervention) {
                 var shellCommand = ShellCommand.Parse(command);
                 var riskContext = new CommandRiskContext {

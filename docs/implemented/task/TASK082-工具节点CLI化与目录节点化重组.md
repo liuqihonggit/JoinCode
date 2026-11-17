@@ -841,3 +841,323 @@ DI 容器里**确实注册了**它（生成器自动生成 `ServiceDescriptor`�
 单跑 `find . -name "*.cs"` 是 `Unknown` → Auto 模式会被拒。这是「未知即询问」策略与覆盖面的摩擦，
 不是本轮引入，改它等于调整安全姿态，需要单独决策。
 
+---
+
+### 2026-11-17 第二十三轮：`-r` 在 `sort` 上是逆序、在 `rm` 上是递归删除 —— 参数作用域与只读登记
+
+上一轮结尾那条「顺带发现」被用户要求一并处理，动手量的时候发现它和另一件同源的事必须一起改。
+
+**一、被拦的不是「未知命令」，而是「带短 flag 的已知命令」**
+
+Auto 模式下实测（全部被拒，Auto 拒绝一切非 Safe）：
+
+| 命令 | 修前 | 修后 | 说明 |
+|---|---|---|---|
+| `ls -R` | Execution | Safe | `-R` 是「递归列目录」，只读 |
+| `tail -f app.log` | Execution | Safe | `-f` 是「跟随文件」 |
+| `sort -r list.txt` | Execution | Safe | `-r` 是「逆序」 |
+| `grep -r TODO src` | Execution | Safe | `-r` 是「递归搜索」 |
+| `rm -r ./build` | Execution | Execution ✓ | 仍是递归删除 |
+| `rm -f x` | Execution | Execution ✓ | 仍是强制删除 |
+| `mv -f a b` | Execution | Execution ✓ | 仍是覆盖不提示 |
+
+根因：`Flags` 表是「纯 flag → 风险」的**扁平**映射，判定时只看 flag、不看命令名。
+`-r` / `-R` / `-s` / `-f` 这些短 flag 在不同命令上语义完全无关，
+扁平表只能取「最危险的那个含义」，于是所有带 `-r` 的命令都被当成删除。
+
+**二、改法：给 flag 加作用域，而不是给命令加白名单**
+
+1. `DangerousCommandCatalog.FlagEntry` 新增 `IReadOnlySet<string>? AppliesTo`（`null` = 原来的通用语义）。
+2. `-r`、`-R`、`-recurse`、`-Recurse`、`-f`、`-force`（以及 Windows 风格 `-F/` `/s/` `/S/` `/f/` `/F/`
+   `/q/` `/Q/` `/*/` `/*.*/`）全部挂到 `BuildDestructiveFlagCommands()` 派生出的四个集合上
+   （FileDeletion / DirectoryDeletion / DataModification / SystemModification）——
+   该方法因静态字段初始化顺序必须是私有方法，不能直接引用公共集合。
+3. 统一入口 `DangerousCommandCatalog.MatchFlag(commandName, flag)`，
+   `CommandDangerClassifier.CheckArgumentRisk` 改为委托它。判定链上只有一个 flag 判定点。
+
+**三、登记常用只读命令**（`DangerCommandDefinitions`）
+
+`Safe` 组新增「文本与数据处理工具」24 个：`find` `rg` `sort` `uniq` `cut` `tr` `column` `tree` `diff` `file`
+`stat` `basename` `dirname` `realpath` `readlink` `seq` `xxd` `base64` `md5sum` `sha1sum` `sha256sum`
+`true` `false` `test` `sleep` `env` `jq` `awk` `sed`；`LightValidation` 新增 `mkdir`、`touch`。
+
+**这不是放宽判定，是收窄 `Unknown`**：`Unknown` 的语义是「不认识 → 询问用户」，
+把常用只读命令登记成 `Safe` 只是承认事实。真正的破坏性形式在同一张表里单独登记并被升级：
+
+| 组合 | 级别 | 为什么 |
+|---|---|---|
+| `find -delete` | Execution | 删除，不是只看 |
+| `awk system(` | Execution | 在 awk 里开 shell |
+| `jq system(` | Execution | 同上 |
+| `sed -i` | LightValidation | 原地改文件 |
+
+**验证**：`BashCommandCatalogCoverageTests`（新增，125 行）做**双向**断言 ——
+只读命令的同名 flag 必须保持 Safe、删除类命令的同名 flag 必须仍为 Execution、
+24 个常用命令必须已登记、登记成 Safe 的危险形式必须被升级、包装器（`sudo`/`env`）必须透明。
+`DangerousCommandCatalogIntegrityTests` 新增 `Flags_RecursiveAndForce_Should_Be_ScopedToDestructiveCommands`
+与 `MatchFlag_Should_RespectCommandScope`，防止后来把 `AppliesTo = null` 手滑加回去。
+
+---
+
+### 2026-11-17 第二十四轮：AST 校验器接线，但只升级「构造/混淆」类命令
+
+「`guard.security/services/bash_validation` 没接线」这条从第二十一轮挂到现在。上一轮我给的判断是
+「它不是更强的防线」，这一轮要把它接进执行链，先得把「接哪一部分」量清楚。
+
+**一、它和分类器不是新旧替代，是两个维度**
+
+实测它对破坏性完全无感：`rm -rf ./build`、`r''m -rf`、`"rm" -rf` 全判 `safe`；
+它管的是**注入 / 可解析性**（`jq system()`、`eval`、命令替换、heredoc、IFS 注入…）。
+所以接线方式不是「替换分类器」，而是「分类器判 Safe 之后再补一刀」。
+
+**二、关键是不能把噪声一起接进来**
+
+这套校验器的口径来自「这条命令能否免确认自动执行」。拿本仓库日常场景实测 25 条命令，
+下列 7 个检查项在**完全良性**的写法上就会触发：
+
+| 检查项 | 触发举例 | 这是坏事吗 |
+|---|---|---|
+| `Newlines` | `cat > x.sh <<EOF … EOF` | 否，写脚本 |
+| `MalformedTokenInjection` | `if [ -d x ]; then …`、`[ -d x ] && …` | 否，正常条件 |
+| `OutputRedirection` | `cmd 2>&1 \| tee log`、`exec 3>&1` | 否，正常重定向 |
+| `DangerousVariables` | `source ~/.bashrc` | 否 |
+| `BackslashEscapedWhitespace` | `echo a\ b` | 否 |
+| `ObfuscatedFlags` | `IFS=$'\n'` | 否，改分隔符 |
+| `BraceExpansion` | `echo {a,b}` | 否 |
+
+一并升级的后果是：用户每次写 heredoc 脚本、写 `if` 语句、写 `2>&1` 都要多一次确认弹窗 ——
+防护会被当成噪音，最后被整开关掉，比不接更糟。所以**只升级 8 个「被构造/混淆」检查项**：
+`JqSystemFunction`、`IfsInjection`、`ControlCharacters`、`UnicodeWhitespace`、`MidWordHash`、
+`BackslashEscapedOperators`、`ProcEnvironAccess`、`CommentQuoteDesync`。
+共同特征：正常写法不会命中，命中即说明**命令真实内容与字面不同**，静态判定不可信。
+
+**三、接线方式**
+
+- 新增 `IBashAstRiskEscalator` / `BashAstRiskEscalator`（`guard.security/services/bash_validation`），
+  `[Register]` 单例；升级结果为 `Unknown` + `CommandRisk.RemoteExecution`，消息里直接给等价写法建议。
+- `DangerousCommandProtectionMiddleware` 构造函数末尾追加**可选**参数 `IBashAstRiskEscalator? astEscalator = null`
+  （不破坏既有测试与手工构造点），`DetectRisks` 里 `Classify(command)` → `ClassifyWithAstBackstop(...)`：
+  分类器已判需要干预就直接返回，只有判 Safe 时才补跑 AST。
+- 开关 `JCC_BASH_AST_ESCALATE=0`，排障时不必改代码。
+
+**四、性能取舍（如实说）**
+
+`BashAstSecurityWalker` 构造器里就 `new TreeSitter.Language("bash")` + `new TreeSitter.Parser(_language)`，
+即立刻加载原生库建 parser，**不是零成本**。中间件只在分类器判 Safe 时调用 —— 但「判 Safe」恰好是
+放行路径上的常态，所以实际代价是**每条要放行的 bash 多一次 tree-sitter 解析**，省掉的只是本就判危险的那一小撮。
+这是本方案明确的代价，不是意外；若要消掉，得把解析结果缓存到命令指纹上，属另一件事。
+
+**五、与原计划的偏离**
+
+原本打算把「heredoc 换行」「命令替换」也纳入升级。实测 heredoc 换行（`Newlines`）是写脚本的正常形式，
+升级即误伤创作行为，故**未纳入**；命令替换与 `eval` 已由分类器侧的解释器识别覆盖，不需要 AST 重复判一遍。
+结论：接线范围比原计划小，理由是噪声实测，不是漏做。
+
+**验证**：`BashAstEscalationTests`（新增，20 例）—— 8 条构造命令必须升级、7 条 authoring pattern 与
+良性命令必须不升级、环境变量开关生效、中间件层两端断言（Safe 命令被升级 / 已判 Execution 的不受影响）。
+`guard.security.tests` 1209 通过 / 0 失败。
+
+**仍然没做到的验证**：真机 `jcc mcp_call bash` 依旧跑不起来（`SystemActuatorRegistry not initialized`，
+需 `jcchub.exe` 完整启动），端到端仍只在中间件层锁。
+
+### 2026-11-17 第二十五至二十七轮：把已知遗留清干净（按影响面排序，不另开新方向）
+
+这一轮只做已经记录在案的遗留项，按「用户每天会撞上 → 测试可信度 → 成本 → 架构卫生」排序。
+清单与动作：
+
+| # | 已知问题 | 影响 | 处置 |
+|---|---|---|---|
+| 1 | `git log \| head` 等在 Auto 模式被拒 | 高频误拒 | 修判定（第二十五轮） |
+| 2 | VPN 守卫测试依赖本机代理状态 | 测试噪声 | 与环境解耦（第二十六轮） |
+| 3 | AST 每条命令多一次解析 | 性能未知量 | 实测后关闭（第二十七轮） |
+| 4 | `BashPermissionChecker` 双份实现 | 架构卫生 | 归档（第二十七轮） |
+| 5 | 真机 `mcp_call bash` 端到端 | 验证缺口 | 环境所限，见下 |
+
+---
+
+### 2026-11-17 第二十五轮：git 只读命令接只读管道不再需确认
+
+第二十二轮我在测试里把 `git log | head` 从「良性管道放行」的断言中移除了，理由写成「既有口径」。
+这一轮回头看，那个理由站不住 —— 它和「已登记只读命令直接放行」是自相矛盾的：
+
+```
+git log --oneline -5       → Safe              （Auto 放行）
+git log --oneline -5|head  → LightValidation   （Auto 拒绝）  ← 两侧都只读，反而更严
+```
+
+根因在 `ClassifyGitPipeRedirect`：只要 git 只读子命令**出现**管道或重定向，就一律
+`LightValidation`（「需确认」）。而 Auto 模式拒绝一切非 Safe，于是最常用的查看命令全被拦。
+
+**改法**：不再「见管道就抬级」，而是看管道右侧**实际是什么**：
+
+| 情形 | 级别 | 依据 |
+|---|---|---|
+| 无管道无重定向（`git status`） | Safe | 不变 |
+| 管道进解释器（`git log \| sh`） | Execution | 不变，命令位口径 |
+| 含重定向（`git diff > f`） | LightValidation | 会写文件 |
+| 管道右侧全是已登记只读命令（`\| head` / `\| cat` / `\| grep` / `\| sort`） | **Safe** | 整体只读 |
+| 管道右侧未登记（`\| tee out.txt` / `\| unknown-tool`） | LightValidation | 不知道会不会写 |
+
+右侧的参数级风险（`| sed -i`）不在这个方法里重复判 —— `ClassifyIndirectExecution` 会取最严兜底，
+这是第二十二轮就定下的分工。
+
+**放宽的边界被单独锁住**：新增 `Auto_Mode_Rejects_GitPipeToUnknownTarget`（`| tee`、未知命令仍拒），
+`ClassifyGitPipeRedirect_PipeToUnknownCommand_Should_Return_LightValidation`、
+`ClassifyGitPipeRedirect_RedirectWithPipe_Should_Return_LightValidation`。
+原来的 `Git_PipeToSafeCommand_Should_Return_LightValidation` 改名为 `Git_PipeToReadOnlyCommand_Should_Return_Safe`。
+
+**验证**：`guard.security.tests` 1243 通过 / 0 失败、`hands.shell.tests` 526 通过（分类器的下游消费者）。
+
+**一个录制过程的坑**：`dotnet test -p:BuildProjectReferences=false` 不会重编被引用的库工程，
+改了 `Guard.DangerClassification` 后直接跑测试，跑的是**旧 DLL** —— 我因此看到过一次
+「明明改了却仍返回旧结论」。顺序必须是「先编改动的库，再跑测试」。
+
+---
+
+### 2026-11-17 第二十六轮：VPN 守卫测试与环境解耦，本机有代理时不再恒红
+
+`VpnRouteGuard_CanHandle_NoVpnActive_ReturnsFalse` 用 `new VpnRouteGuard()`，走 fallback 检测
+（进程名 `clash`/`v2ray`… + `HTTP_PROXY`/`HTTPS_PROXY`）。开发机跑着代理时这条恒失败：
+**断言的是机器状态，不是代码行为**。连续多轮报告里的「1 个环境相关失败」就是它 ——
+一条永远红的噪音会稀释真实回归信号，这次按「测试可信度」排第二处理掉。
+
+改法：注入 `INetworkConnectivityService` 假实现（`StubNetworkConnectivityService`，构造参数给
+`vpnActive`），断言只依赖显式状态。顺手补了三条此前没有的正向用例：VPN 激活时 `git`/`gh`/`curl`
+命中、`ls -la` 不命中、`Evaluate` 为 git 加上 `http.proxy` 的重写内容。
+
+`guard.hooks.tests` **597 通过 / 0 失败**（此前 596/1）。
+
+---
+
+### 2026-11-17 第二十七轮：AST 代价实测（不加缓存）+ 归档双份实现
+
+**一、先测再决定要不要缓存**
+
+第二十四轮把「每条要放行的 bash 多一次 tree-sitter 解析」记为代价，当时写「要消掉得缓存命令指纹」。
+这轮直接量（200 次/条，探针跑的是真实 `BashSecurityValidator.Validate`）：
+
+```
+walker 构造（进程内一次，单例）      26.1 ms
+git log --oneline -5                0.014 ms/次
+cat file.txt | grep foo | wc -l     0.062 ms/次
+ls -la | sort -k5 -n | head -20     0.106 ms/次
+dotnet build … --no-restore         0.021 ms/次
+```
+
+对一条要几十毫秒到几秒的 bash 来说，0.01~0.1 ms 是噪声；而 agent 的 bash 命令几乎不重复，
+按整串缓存的命中率接近 0。**结论：不加缓存**，把「需要缓存」这条待办用数据关掉，
+而不是加一层没有收益的共享可变状态。
+
+**二、归档 `BashPermissionChecker`**
+
+第二十四轮把 `IBashSecurityValidator` 接进权限链后，`BashPermissionChecker`（TS `bashPermissions.ts`
+整条移植：安全校验 + 路径约束 + 只读约束 + 建议规则）就成了**同一决策的第二套实现**，
+且它零生产消费者却仍被 `[Register]` 注册。按规范归档到 `.xxx/*.del`（不删除）：
+实现、接口（含 `BashPermissionResult`）、14 例边界测试。
+
+保留：`BashSecurityValidator` / `BashAstRiskEscalator`（已接线）、`CommandClassifier`（`CodeSecurityValidator` 在用）。
+**遗留候选**：`PathConstraintValidator` 的唯一消费者就是被归档的 Checker，现在也是死代码；
+它是独立组件且有独立测试，是否一起归档另判，本轮不动。
+
+**三、端到端仍然锁不住（这次给了确证）**
+
+之前只有报错 `SystemActuatorRegistry not initialized`。这轮查了本机产物：`artifacts/bin` 下
+**根本没有 `jcc` / `jcchub` / host 可执行文件**（只有测试程序集），说明 host 从未在本机编译产出，
+`mcp_call bash` 的端到端不可能在本机跑通。现有覆盖是两层，不是一层：
+`hands.shell.tests` 的 `BashDefenseManualVerificationTests` 锁 `BashDefenseService` 节点，
+`guard.security.tests` 锁权限中间件（决定放行/拦截的位置）。**不要声称端到端已验证。**
+
+### 2026-11-17 第二十八轮：把「另一件事」做完，并且这次是启动 jcc 真机验的
+
+上一轮我把两件事写成「另一件事」就收手了：一是归档后变成死代码的 `PathConstraintValidator`，
+二是「端到端锁不住」。用户的两个反馈都成立：留着死代码等于没做完；只跑单元测试等于没验证。
+这一轮两件都补上。
+
+**一、归档路径约束判定链（`f2fd15e3c`）**
+
+上一轮归档 `BashPermissionChecker` 后，`IPathConstraintValidator` 的唯一消费者就消失了，
+整条 TS `pathValidation.ts` 移植成了死代码。一并归档（`Move-Item` 到 `.xxx/*.del`，不删除）：
+
+| 文件 | 内容 |
+|---|---|
+| `PathConstraintValidator.cs` | 34 命令路径提取 + 操作类型映射 + 危险路径检查 |
+| `PathExpansionDetector.cs` | 路径提取 / 命令解析 / 安全包装剥离 |
+| `PathRedirectionValidator.cs` | 重定向提取与验证 |
+| `PathRemovalChecker.cs` | 危险删除路径 |
+| `shell/PathConstraintValidator.cs` | `IPathConstraintValidator` + `PathConstraintResult` |
+| `PathConstraintValidatorRetainedDeviceTests.cs` | 33 例 |
+
+合计 1170 行。**刻意保留**：`PathValidator`（`CommandClassifier` 在用）、`SearchScopeValidator`
+（同上）、`RealPathResolver`（权限中间件在用）。保留设备名这条真实能力在生产链路上是
+`RetainedDeviceNode`，`hands.shell.tests` 有独立用例 —— 归档不丢覆盖。
+`guard.security.tests` 1196 通过 / 0 失败（比归档前少的 33 例就是被归档的那批）。
+
+**二、真机验证（这次不是单元测试）**
+
+先得把 jcc 编出来 —— 之前从没编过，`artifacts/bin` 下只有测试程序集：
+
+```
+首次    dotnet build modules/apps/cli/JoinCode.csproj -c Debug --no-restore   6m37s  0 警告 0 错误
+增量（改 6 个 guard 文件后重编）                                                1m29s
+```
+
+然后 `jcc.exe mcp_serve --transport http --port 9917 --token verify`。选这条路是因为
+`tools/call` 走 `IToolExecutionGateway`（13 层权限管道，ADR 0138），是**非交互能触达的最真实路径**。
+
+**判读口径（关键）**：headless 没有确认处理器，权限管道里任何「待确认」都会走
+`CliPermissionConfirmationHandler` 的非交互分支被自动拒绝，返回 `PD002 用户拒绝工具执行`。所以：
+
+- 命中风险 → 返回**带具体原因**的 `permission_denied`（「已被阻止」「此操作被禁止」）；
+- 未命中风险 → 落到 `DefaultResultMiddleware` 的「待确认」→ `PD002`。
+
+也就是说 PD002 在这里等价于「权限链没判出风险」，**不等于「放行后执行成功」**。这个区分必须写清楚，
+否则会把「没判出风险」误读成「执行通过」。
+
+**18 条矩阵，真机全过**（脚本 `non_deliverables_tools/scripts/Verify-BashGuard.ps1`，退出码可进 CI）：
+
+| 类别 | 命令 | 实测 |
+|---|---|---|
+| flag 作用域 | `ls -R` / `sort -r` / `tail -f` / `grep -rn` | NO-RISK |
+| git 只读管道 | `git log --oneline -5 \| head -5` / `git diff \| cat` / `git log \| grep fix` | NO-RISK |
+| 误报回归 | `cat notes.sh \| head -3` | NO-RISK |
+| 间接执行 | `echo hi \| xargs rm -rf ./build` | BLOCKED（文件删除） |
+| 间接执行 | `find . -name "*.cs" -exec rm -rf {} +` | BLOCKED（文件删除） |
+| 间接执行 | `git log \| sh` | BLOCKED（远程执行） |
+| 破坏性 | `rm -rf ./build` / `rm -rf /` / `chmod +x run.sh` | BLOCKED |
+| AST 升级 | `cat /proc/self/environ` | BLOCKED（ProcEnvironAccess） |
+| AST 不误伤 | `cat > /tmp/x.sh <<'EOF' … EOF` | NO-RISK |
+
+其中 `cat /proc/self/environ` 是 AST 接线的最强证据：`cat` 本身是 Safe，分类器判不出风险，
+只有 `BashAstRiskEscalator` 能拦下它 —— 真机确认这条链真的接上了，不是只接了 DI。
+
+**三、途中查清的两个既有事实（都记下来，避免下次再猜）**
+
+1. **serve 模式的权限管道缺工具白名单中间件**。默认白名单里的 `glob` 在 serve 模式下也是
+   「待确认 → 拒绝」。所以这套端到端只能验「有没有判出风险」；要验「放行后真的执行」必须交互确认。
+2. **`jcc mcp_call bash` 起不来是缺陷，已在同轮修掉（`0c2b987a9`）**。`mcp_serve` 在 `BuildHostAsync`
+   之后显式补了 `ShellCapabilityInitializer.Initialize`，`mcp_call` 没有（`SkipChatServices=true`），
+   于是 shell 类工具在 `mcp_call` 路径下必然报 `SystemActuatorRegistry not initialized`。
+   修法是执行前按工具名（`bash` / `powershell` / `powershell_script`）补同一步初始化 ——
+   `Initialize` 内部有一次性闸门，非 shell 工具不受影响。
+
+**四、补上「真的执行」这一层（`mcp_call` 修好之后才可能）**
+
+前面 18 条矩阵只能证明「判出了/没判出风险」。把 `mcp_call` 的执行器初始化补上之后，
+才第一次拿到**真实执行**的证据（`artifacts/bin/JoinCode/Debug/net10.0/jcc.exe`）：
+
+| 命令 | 结果 |
+|---|---|
+| `mcp_call bash command="echo hi_from_mcp_call"` | 执行，输出 `hi_from_mcp_call`，exit 0 / 517ms |
+| `mcp_call bash command="git log --oneline -3 \| head -3"` | 执行，输出真实三条提交 |
+| `mcp_call bash command="ls -R modules/guard/guard.security/shell \| head -5"` | 执行，输出真实文件清单 |
+| `mcp_call bash command="echo test > nul"` | 被 BashDefense 链拦下：保留设备名 `nul` |
+
+两条链路到这一刻才算闭合：**判定层**（serve 的 18 条：有风险就带原因拒绝、没风险就放行到待确认）
+和**执行层**（mcp_call 的真跑：良性命令出真实结果、保留设备名在落盘前被拦）。
+
+**五、踩坑**
+
+- `Start-Process` 在本机直接抛 `Item has already been added. Key: 'HTTP_PROXY' / 'http_proxy'`
+  —— PS 5.1 构造环境字典时大小写不敏感，环境里同时存在两种写法就崩。脚本因此改成
+  「服务由调用方起，脚本只负责打矩阵」，不猜路径也不抢端口。
+

@@ -6,23 +6,28 @@ namespace Core.Security.DangerClassification;
 /// </summary>
 public static partial class DangerousCommandCatalog {
     private static FrozenDictionary<string, FlagEntry> BuildFlags() {
+        // 递归 / 强制 / 通配符参数只在「会因其产生破坏性后果」的命令上有此含义。
+        // 不区分命令就会误伤：`tail -f`（跟随文件）、`sort -r`（逆序）、`ls -R`（递归列目录）、
+        // `grep -r`（递归搜索）、`Get-ChildItem -Recurse` 全被判 Execution —— 而 Auto 模式会拒掉 Execution。
+        var destructive = BuildDestructiveFlagCommands();
+
         var entries = new Dictionary<string, FlagEntry>(StringComparer.OrdinalIgnoreCase) {
             // 递归操作 — Execution（不可撤回）
-            ["-r"] = new("-r", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回"),
-            ["-R"] = new("-R", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回"),
-            ["/s"] = new("/s", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回"),
-            ["/S"] = new("/S", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回"),
-            ["-recurse"] = new("-recurse", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回"),
-            ["-Recurse"] = new("-Recurse", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回"),
+            ["-r"] = new("-r", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回", destructive),
+            ["-R"] = new("-R", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回", destructive),
+            ["/s"] = new("/s", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回", destructive),
+            ["/S"] = new("/S", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回", destructive),
+            ["-recurse"] = new("-recurse", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回", destructive),
+            ["-Recurse"] = new("-Recurse", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回", destructive),
 
             // 强制操作 — Execution（不可撤回）
-            ["-f"] = new("-f", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回"),
-            ["-force"] = new("-force", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回"),
-            ["-Force"] = new("-Force", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回"),
-            ["/f"] = new("/f", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回"),
-            ["/F"] = new("/F", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回"),
-            ["/q"] = new("/q", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "静默模式 — 不可撤回"),
-            ["/Q"] = new("/Q", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "静默模式 — 不可撤回"),
+            ["-f"] = new("-f", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回", destructive),
+            ["-force"] = new("-force", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回", destructive),
+            ["-Force"] = new("-Force", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回", destructive),
+            ["/f"] = new("/f", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回", destructive),
+            ["/F"] = new("/F", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "强制操作 — 不可撤回", destructive),
+            ["/q"] = new("/q", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "静默模式 — 不可撤回", destructive),
+            ["/Q"] = new("/Q", CommandRisk.ForceOperation, CommandDangerLevel.Execution, "静默模式 — 不可撤回", destructive),
 
             // 根目录/系统盘 — Dangerous（直接拒绝）
             ["/"] = new("/", CommandRisk.PathEscape, CommandDangerLevel.Dangerous, "根目录目标 — 直接拒绝"),
@@ -30,9 +35,9 @@ public static partial class DangerousCommandCatalog {
             ["C:/"] = new("C:/", CommandRisk.PathEscape, CommandDangerLevel.Dangerous, "系统盘目标 — 直接拒绝"),
 
             // 通配符删除 — Execution（不可撤回）
-            ["*"] = new("*", CommandRisk.FileDeletion, CommandDangerLevel.Execution, "通配符删除 — 不可撤回"),
-            ["*."] = new("*.", CommandRisk.FileDeletion, CommandDangerLevel.Execution, "通配符删除 — 不可撤回"),
-            ["*.*"] = new("*.*", CommandRisk.FileDeletion, CommandDangerLevel.Execution, "通配符删除 — 不可撤回"),
+            ["*"] = new("*", CommandRisk.FileDeletion, CommandDangerLevel.Execution, "通配符删除 — 不可撤回", destructive),
+            ["*."] = new("*.", CommandRisk.FileDeletion, CommandDangerLevel.Execution, "通配符删除 — 不可撤回", destructive),
+            ["*.*"] = new("*.*", CommandRisk.FileDeletion, CommandDangerLevel.Execution, "通配符删除 — 不可撤回", destructive),
 
             // robocopy 镜像/清除参数 — Dangerous（直接拒绝）— ADR 0012
             // /MIR = /E + /PURGE 镜像覆盖, /PURGE 删除目标中多余文件, 等价批量 rm -rf, 不可逆
@@ -75,6 +80,14 @@ public static partial class DangerousCommandCatalog {
             // === Dangerous（直接拒绝）— 长路径前缀绕过 Win32 解析 — ADR 0012 ===
             new(["del", "\\?\\"], CommandRisk.FileDeletion, CommandDangerLevel.Dangerous, "长路径前缀+del，绕过Win32路径解析删除保留名文件"),
             new(["remove-item", "\\?\\"], CommandRisk.FileDeletion, CommandDangerLevel.Dangerous, "长路径前缀+Remove-Item，绕过Win32路径解析删除保留名文件"),
+
+            // === 数据处理工具的可执行/可写形式 ===
+            // 这几个命令本身按「开发工具」登记为 Safe（与 node/python 同口径），
+            // 但它们的这些参数会执行命令或原地写文件，必须单独升级 —— 否则「登记 Safe」等于开一个洞。
+            new(["find", "-delete"], CommandRisk.FileDeletion, CommandDangerLevel.Execution, "find -delete 批量删除文件 — 不可撤回"),
+            new(["awk", "system("], CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "awk system() 执行任意命令"),
+            new(["jq", "system("], CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "jq system() 执行任意命令"),
+            new(["sed", "-i"], CommandRisk.DataModification, CommandDangerLevel.LightValidation, "sed -i 原地修改文件 — 可撤回"),
 
             // === Dangerous（直接拒绝）— git 全局参数注入 — MTP 扰动防御 ===
             // git -c/--exec-path/--config-env 可改变 git 执行语义，注入任意命令

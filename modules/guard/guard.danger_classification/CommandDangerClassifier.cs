@@ -66,13 +66,30 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         if (string.IsNullOrWhiteSpace(command.RawCommand))
             return DangerClassificationResult.SafeResult;
 
-        var direct = ClassifyGitEarlyReturn(command)
-            ?? CollectSignals(command).Aggregate(new SignalAccumulator([], [], []), AccumulateSignal, BuildResult);
+        // 包装器（sudo/env/nohup/time/command/exec）本身不改语义，命令在它的参数里。
+        // 不剥掉就会把 `env rm -rf /` 判成「env 未登记」或「env 只读」。
+        var executed = ResolveExecutedCommand(command);
+
+        var direct = ClassifyGitEarlyReturn(executed)
+            ?? CollectSignals(executed).Aggregate(new SignalAccumulator([], [], []), AccumulateSignal, BuildResult);
+
+        // 包装器自身的等级也要保留：`sudo apt update` 的真实命令是 apt（未登记），
+        // 但 sudo 的提权风险不能因为剥掉包装器就消失。
+        if (!ReferenceEquals(executed, command))
+            direct = PickStricter(direct, ClassifyByName(command));
 
         // 首词定的等级只是「这一条命令」的等级；真正动手的可能在管道右侧或参数里，
         // 那条路径单独判一次再取最严。
         return PickStricter(direct, ClassifyIndirectExecution(command));
     }
+
+    /// <summary>
+    /// 只按命令名查表的判定 — 用于保留包装器自身的等级（不重复跑参数/组合检查）。
+    /// </summary>
+    private static DangerClassificationResult ClassifyByName(ShellCommand command)
+        => MatchCommandEntry(command.CommandName) is { } entry
+            ? new DangerClassificationResult(entry.Level, entry.RiskType, $"命令 '{command.CommandName}': {entry.Description}")
+            : DangerClassificationResult.SafeResult;
 
     /// <summary>
     /// 间接执行识别 — 真正执行破坏动作的命令可能不在首位。
@@ -244,6 +261,31 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     }
 
     /// <summary>
+    /// 判定管道右侧每一段是否都是「已登记的只读命令」。
+    /// <para>
+    /// 用于 git 只读子命令：`git log | head` 两侧都只读，不该因为「有管道」就抬到需确认；
+    /// 而 `git log | tee out.txt` 的右侧没登记（可能写文件），仍应保持需确认。
+    /// 参数级风险（如 `| sed -i`）由后续的间接执行判定补齐，不在本方法里重复。
+    /// </para>
+    /// </summary>
+    private static bool AllPipelineTargetsAreReadOnly(string rawCommand) {
+        if (!rawCommand.Contains('|', StringComparison.Ordinal))
+            return false;
+
+        var stages = ShellCommand.SplitPipelineStages(rawCommand).Skip(1).ToList();
+        if (stages.Count == 0)
+            return false;
+
+        foreach (var stage in stages) {
+            var executed = ResolveExecutedCommand(ShellCommand.Parse(stage));
+            if (MatchCommandEntry(executed.CommandName) is not { Level: CommandDangerLevel.Safe })
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// git 子命令前置短路 — 只读子命令检查管道/重定向,不可撤回子命令升级为 Execution
     /// </summary>
     internal static DangerClassificationResult? ClassifyGitEarlyReturn(ShellCommand command) {
@@ -294,13 +336,17 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// 参数检查 — 遍历每个参数,检查危险标志和危险路径
     /// </summary>
     internal static IEnumerable<Signal> ClassifyByArguments(ShellCommand command)
-        => command.Arguments.SelectMany(CheckArgumentRisk);
+        => command.Arguments.SelectMany(arg => CheckArgumentRisk(command.CommandName, arg));
 
     /// <summary>
     /// 单个参数的风险检查 — 危险标志 + 危险路径
+    /// <para>
+    /// 参数按「命令 + 参数」查表：<c>-f</c> 在 <c>tail</c> 上是跟随文件、在 <c>rm</c> 上是强制删除。
+    /// 全局查表会把只读命令误判成 Execution。
+    /// </para>
     /// </summary>
-    internal static IEnumerable<Signal> CheckArgumentRisk(string arg) {
-        if (DangerousCommandCatalog.Flags.TryGetValue(arg, out var flagEntry))
+    internal static IEnumerable<Signal> CheckArgumentRisk(string commandName, string arg) {
+        if (DangerousCommandCatalog.MatchFlag(commandName, arg) is { } flagEntry)
             yield return new(flagEntry.Level, flagEntry.RiskType, $"危险参数 '{arg}': {flagEntry.Description}");
 
         var pathLevel = ClassifyPath(arg);
@@ -579,7 +625,8 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         => DangerousCommandCatalog.SelectPrimaryRisk(risks);
 
     /// <summary>
-    /// 检查 git 只读命令的管道/重定向 — 管道传入解释器可执行任意代码(Execution),其他管道/重定向需确认(LightValidation)
+    /// 检查 git 只读命令的管道/重定向 — 管道传入解释器可执行任意代码(Execution)，
+    /// 重定向或管道右侧非只读命令需确认(LightValidation)，两侧都只读则放行。
     /// </summary>
     internal static DangerClassificationResult ClassifyGitPipeRedirect(ShellCommand command) {
         if (!command.HasPipe && !command.HasRedirection)
@@ -593,10 +640,22 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
                 "git 只读命令通过管道传入解释器 — 管道目标可执行任意代码,禁止自动放行");
         }
 
+        // 重定向会写文件,保持需确认。
+        if (command.HasRedirection)
+            return new DangerClassificationResult(
+                CommandDangerLevel.LightValidation,
+                CommandRisk.None,
+                "git 命令含重定向 — 会写入文件,需确认后方可执行");
+
+        // 管道右侧全为已登记只读命令（`git log | head` / `git diff | cat`）→ 整体只读。
+        // 右侧参数级风险仍由 ClassifyIndirectExecution 兜底取最严。
+        if (AllPipelineTargetsAreReadOnly(command.RawCommand))
+            return DangerClassificationResult.SafeResult;
+
         return new DangerClassificationResult(
             CommandDangerLevel.LightValidation,
             CommandRisk.None,
-            "git 命令含管道/重定向 — 需确认后方可执行");
+            "git 命令管道右侧不是已登记的只读命令 — 需确认后方可执行");
     }
 
     /// <summary>

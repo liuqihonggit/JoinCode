@@ -58,11 +58,24 @@ public static partial class DangerousCommandCatalog {
     /// <summary>
     /// 危险参数条目 — 描述单个参数的风险类型和危险等级
     /// </summary>
+    /// <param name="Flag">参数原文</param>
+    /// <param name="RiskType">风险类型</param>
+    /// <param name="Level">危险等级</param>
+    /// <param name="Description">说明</param>
+    /// <param name="AppliesTo">
+    /// 该参数只在哪些命令上有此含义；<c>null</c> = 所有命令通用（如 <c>/</c> 这类路径参数）。
+    /// <para>
+    /// 参数含义依赖命令：<c>tail -f</c> 是跟随文件、<c>sort -r</c> 是逆序、<c>ls -R</c> 是递归列目录，
+    /// 全是只读；只有 <c>rm -f</c> / <c>rm -r</c> 才是强制/递归删除。不按命令区分就会把只读命令
+    /// 一并判成 Execution，而 Execution 在 Auto 模式下会被拒。
+    /// </para>
+    /// </param>
     public sealed record FlagEntry(
         string Flag,
         CommandRisk RiskType,
         CommandDangerLevel Level,
-        string Description);
+        string Description,
+        IReadOnlySet<string>? AppliesTo = null);
 
     /// <summary>
     /// 危险组合条目 — 描述命令+参数组合的风险类型和危险等级
@@ -157,6 +170,36 @@ public static partial class DangerousCommandCatalog {
         .Where(static c => c.RiskType == CommandRisk.FileDeletion || c.RiskType == CommandRisk.DirectoryDeletion)
         .Select(static c => c.CommandName)
         .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 递归 / 强制 / 通配符类参数「有破坏性含义」的命令集合 — 从 <see cref="Commands"/> 按风险类型派生
+    /// <para>
+    /// 只有这些命令上，<c>-r</c> / <c>-f</c> / <c>/s</c> / <c>*</c> 才表示递归/强制/批量删除。
+    /// 派生而非硬编码，新增删除/写类命令时自动纳入。方法是私有的：它只在
+    /// <see cref="BuildFlags"/> 里用，而静态字段初始化顺序早于下面这些字段（用字段会拿到 null）。
+    /// </para>
+    /// </summary>
+    private static FrozenSet<string> BuildDestructiveFlagCommands() => Commands.Values
+        .Where(static c => c.RiskType is CommandRisk.FileDeletion
+            or CommandRisk.DirectoryDeletion
+            or CommandRisk.DataModification
+            or CommandRisk.SystemModification)
+        .Select(static c => c.CommandName)
+        .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 按「命令名 + 参数」查参数风险 — 带 <see cref="FlagEntry.AppliesTo"/> 的条目只在命令匹配时生效
+    /// <para>唯一查表入口，供 CommandDangerClassifier.CheckArgumentRisk 委托消费，禁止直接读 <see cref="Flags"/> 后自己判作用域。</para>
+    /// </summary>
+    /// <param name="commandName">命令名（argv[0]）</param>
+    /// <param name="flag">待查参数</param>
+    /// <returns>命中的条目；不命中或作用域不匹配返回 <c>null</c></returns>
+    public static FlagEntry? MatchFlag(string commandName, string flag) {
+        if (!Flags.TryGetValue(flag, out var entry))
+            return null;
+
+        return entry.AppliesTo is null || entry.AppliesTo.Contains(commandName) ? entry : null;
+    }
 
     /// <summary>
     /// 选择最高优先级的风险类型 — 唯一逻辑,消费方委托此方法,禁止重复实现。

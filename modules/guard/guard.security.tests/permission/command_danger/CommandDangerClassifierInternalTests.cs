@@ -383,8 +383,31 @@ public class CommandDangerClassifierInternalTests {
     [InlineData("git log | head")]
     [InlineData("git diff | grep pattern")]
     [InlineData("git log | sort")]
-    public void ClassifyGitPipeRedirect_PipeToSafeCommand_Should_Return_LightValidation(string command) {
+    [InlineData("git log | head -20")]
+    [InlineData("git diff | cat")]
+    [InlineData("git log --oneline | grep fix | head")]
+    public void ClassifyGitPipeRedirect_PipeToReadOnlyCommand_Should_Return_Safe(string command) {
+        // 两侧都只读的管道不该因为「有管道」就抬到需确认 —— Auto 模式会直接拒掉 `git log | head`
         var cmd = ShellCommand.Parse(command);
+        var result = CommandDangerClassifier.ClassifyGitPipeRedirect(cmd);
+        result.Level.Should().Be(CommandDangerLevel.Safe);
+    }
+
+    [Theory]
+    [InlineData("git log | tee out.txt")]
+    [InlineData("git log | unknown-tool -x")]
+    [InlineData("git log | head | tee out.txt")]
+    public void ClassifyGitPipeRedirect_PipeToUnknownCommand_Should_Return_LightValidation(string command) {
+        // 右侧没登记 = 不知道它会不会写文件,保持需确认
+        var cmd = ShellCommand.Parse(command);
+        var result = CommandDangerClassifier.ClassifyGitPipeRedirect(cmd);
+        result.Level.Should().Be(CommandDangerLevel.LightValidation);
+    }
+
+    [Fact]
+    public void ClassifyGitPipeRedirect_RedirectWithPipe_Should_Return_LightValidation() {
+        // 有重定向就一定会写文件,即使管道右侧只读
+        var cmd = ShellCommand.Parse("git log | head > out.txt");
         var result = CommandDangerClassifier.ClassifyGitPipeRedirect(cmd);
         result.Level.Should().Be(CommandDangerLevel.LightValidation);
     }
@@ -544,41 +567,42 @@ public class CommandDangerClassifierInternalTests {
 
     #region CheckArgumentRisk
 
+    // 参数按「命令 + 参数」查表：同一个 -r 在 rm 上是递归删除，在 sort 上是逆序。
     [Fact]
-    public void CheckArgumentRisk_DangerousFlag_Should_Produce_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("-rf").ToList();
-        // -rf 不是精确 flag,但 -r 和 -f 是;实际 -rf 不在 Flags 字典中
-        // 但路径分类可能不触发;验证至少不崩溃
-        signals.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void CheckArgumentRisk_RecursiveFlag_Should_Produce_Execution_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("-r").ToList();
+    public void CheckArgumentRisk_RecursiveFlag_OnDeletionCommand_Should_Be_Execution() {
+        var signals = CommandDangerClassifier.CheckArgumentRisk("rm", "-r").ToList();
         signals.Should().ContainSingle(s => s.Level == CommandDangerLevel.Execution && s.Risk == CommandRisk.RecursiveOperation);
     }
 
     [Fact]
-    public void CheckArgumentRisk_ForceFlag_Should_Produce_Execution_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("-f").ToList();
+    public void CheckArgumentRisk_ForceFlag_OnDeletionCommand_Should_Be_Execution() {
+        var signals = CommandDangerClassifier.CheckArgumentRisk("rm", "-f").ToList();
         signals.Should().ContainSingle(s => s.Level == CommandDangerLevel.Execution && s.Risk == CommandRisk.ForceOperation);
     }
 
     [Fact]
+    public void CheckArgumentRisk_RecursiveFlag_OnReadOnlyCommand_Should_Produce_NoFlagSignal() {
+        // sort -r 是逆序、ls -R 是递归列目录 —— 只读，不该当递归删除
+        CommandDangerClassifier.CheckArgumentRisk("sort", "-r").Should().BeEmpty();
+        CommandDangerClassifier.CheckArgumentRisk("ls", "-R").Should().BeEmpty();
+        CommandDangerClassifier.CheckArgumentRisk("grep", "-f").Should().BeEmpty();
+    }
+
+    [Fact]
     public void CheckArgumentRisk_DangerousPath_Should_Produce_Path_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("/").ToList();
+        var signals = CommandDangerClassifier.CheckArgumentRisk("rm", "/").ToList();
         signals.Should().Contain(s => s.Level == CommandDangerLevel.Dangerous && s.Risk == CommandRisk.PathEscape);
     }
 
     [Fact]
     public void CheckArgumentRisk_SafeArg_Should_Produce_No_Signals() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("normalfile.txt").ToList();
+        var signals = CommandDangerClassifier.CheckArgumentRisk("rm", "normalfile.txt").ToList();
         signals.Should().BeEmpty();
     }
 
     [Fact]
     public void CheckArgumentRisk_MirFlag_Should_Produce_Dangerous_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("/MIR").ToList();
+        var signals = CommandDangerClassifier.CheckArgumentRisk("robocopy", "/MIR").ToList();
         signals.Should().Contain(s => s.Level == CommandDangerLevel.Dangerous);
     }
 

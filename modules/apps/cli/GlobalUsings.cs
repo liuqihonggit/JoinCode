@@ -82,6 +82,7 @@ global using JoinCode.Abstractions.Models.Todo;
 global using JoinCode.Abstractions.Onboarding;
 // 管道中间件
 global using JoinCode.Abstractions.Pipeline;
+global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;

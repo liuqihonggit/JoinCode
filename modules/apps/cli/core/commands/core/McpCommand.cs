@@ -25,12 +25,38 @@ public sealed class McpCliCommand {
                     : $"未找到工具: {toolName}（用 jcc mcp_list 查看已注册工具）";
                 return OutputError(msg, json);
             }
+            EnsureShellCapabilityInitialized(services, toolName);
             var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
             return OutputResult(result, json);
         }, vendor, model, ct,
             skipToolFilter: RequiresWholeRegistry(toolName),
             toolFilter: name => string.Equals(name, toolName, StringComparison.Ordinal),
             requiredTool: toolName).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// shell 执行族工具名 — 与工具注册表一致（bash / powershell / powershell_script 需要系统执行器工厂）
+    /// </summary>
+    private static readonly FrozenSet<string> ShellExecToolNames = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "bash", "powershell", "powershell_script");
+
+    /// <summary>
+    /// 执行 shell 类工具前确保系统执行器工厂已注册。
+    /// <para>
+    /// mcp_call 走 <c>SkipChatServices=true</c> 的宿主，不经过会话启动路径，因此
+    /// <c>SystemActuatorRegistry</c> 一直是未初始化状态 —— 直接调 <c>jcc mcp_call bash ...</c>
+    /// 会报 “SystemActuatorRegistry not initialized”。mcp_serve 在 BuildHostAsync 后补了这一步，
+    /// 这里补上同样的初始化，使工具元命令对 shell 工具可用（Initialize 内部有一次性闸门，重复调用无成本）。
+    /// </para>
+    /// </summary>
+    private static void EnsureShellCapabilityInitialized(IServiceProvider services, string toolName) {
+        if (!ShellExecToolNames.Contains(toolName))
+            return;
+
+        Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
+            services.GetRequiredService<IFileSystem>(),
+            services.GetService<ILogger<McpCliCommand>>());
     }
 
     /// <summary>

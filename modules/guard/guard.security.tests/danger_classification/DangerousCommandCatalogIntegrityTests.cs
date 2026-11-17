@@ -83,6 +83,32 @@ public class DangerousCommandCatalogIntegrityTests {
         DangerousCommandCatalog.Flags["C:\\"].Level.Should().Be(CommandDangerLevel.Dangerous);
     }
 
+    /// <summary>
+    /// 递归/强制/通配符参数必须带命令作用域 —— 否则 <c>sort -r</c>（逆序）、<c>tail -f</c>（跟随文件）、
+    /// <c>ls -R</c>（递归列目录）都会被判成 Execution，Auto 模式直接拒掉这些只读命令。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Flags_RecursiveAndForce_Should_Be_ScopedToDestructiveCommands() {
+        foreach (var flag in new[] { "-r", "-R", "-f", "-force", "/s", "/q", "*", "*.*" }) {
+            var entry = DangerousCommandCatalog.Flags[flag];
+            entry.AppliesTo.Should().NotBeNull($"'{flag}' 只对删除/写类命令有破坏性含义，必须声明作用域");
+            entry.AppliesTo!.Should().Contain("rm", $"'{flag}' 在 rm 上仍是递归/强制删除");
+            entry.AppliesTo!.Should().NotContain("sort", $"'{flag}' 在 sort 上是逆序，不是递归删除");
+            entry.AppliesTo!.Should().NotContain("ls", $"'{flag}' 在 ls 上是列目录选项，不是递归删除");
+        }
+    }
+
+    [Fact]
+    public void MatchFlag_Should_RespectCommandScope() {
+        DangerousCommandCatalog.MatchFlag("rm", "-r").Should().NotBeNull("rm -r 是递归删除");
+        DangerousCommandCatalog.MatchFlag("sort", "-r").Should().BeNull("sort -r 是逆序");
+        DangerousCommandCatalog.MatchFlag("tail", "-f").Should().BeNull("tail -f 是跟随文件");
+        DangerousCommandCatalog.MatchFlag("rm", "-f").Should().NotBeNull("rm -f 是强制删除");
+        // 路径类参数不分命令
+        DangerousCommandCatalog.MatchFlag("ls", "/").Should().NotBeNull("根目录目标与命令无关");
+    }
+
     #endregion
 
     #region Combinations 完整性

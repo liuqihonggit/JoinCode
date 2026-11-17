@@ -72,7 +72,7 @@ public static class DangerCommandDefinitions {
     /// <summary>文本搜索 — 只读</summary>
     [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "文本搜索 — 只读")] public const string SelectString = "Select-String";
 
-    // === Safe（白灯 / 自动通过）— 常见开发工具命令 ===
+    // === Safe（白灯 / 自动通过）— 常见开发工具命令 ==="
     /// <summary>.NET CLI — 开发工具(build/run/test 等)</summary>
     [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, ".NET CLI — 开发工具（build/run/test 等）")] public const string Dotnet = "dotnet";
     /// <summary>Node.js — 开发工具</summary>
@@ -93,6 +93,76 @@ public static class DangerCommandDefinitions {
     [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "Maven — 开发工具")] public const string Mvn = "mvn";
     /// <summary>Gradle — 开发工具</summary>
     [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "Gradle — 开发工具")] public const string Gradle = "gradle";
+
+    // === Safe（白灯 / 自动通过）— 文本与数据处理工具 ===
+    // 这几个都能间接执行命令（sed 的 e 命令、awk/jq 的 system()），
+    // 但 catalog 里 node/python 早就是 Safe 了，口径必须一致 —— 否则「python 一键执行任意代码放行、
+    // jq 同样能力却判未登记」才是真正的不一致。可执行的形式用组合检测单独升级（见 BuildCombinations）。
+    /// <summary>文件查找 — 只读（-exec/-delete 单独升级）</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "文件查找 — 只读（-exec / -delete 在组合检测中升级）")] public const string Find = "find";
+    /// <summary>ripgrep — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "ripgrep — 只读")] public const string Rg = "rg";
+    /// <summary>排序 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "排序 — 只读")] public const string Sort = "sort";
+    /// <summary>去重 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "去重 — 只读")] public const string Uniq = "uniq";
+    /// <summary>按列截取 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "按列截取 — 只读")] public const string Cut = "cut";
+    /// <summary>字符替换 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "字符替换 — 只读")] public const string Tr = "tr";
+    /// <summary>列对齐 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "列对齐 — 只读")] public const string Column = "column";
+    /// <summary>目录树 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "目录树 — 只读")] public const string Tree = "tree";
+    /// <summary>文件比较 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "文件比较 — 只读")] public const string Diff = "diff";
+    /// <summary>文件类型 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "文件类型 — 只读")] public const string File = "file";
+    /// <summary>文件元信息 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "文件元信息 — 只读")] public const string Stat = "stat";
+    /// <summary>取文件名 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "取文件名 — 只读")] public const string Basename = "basename";
+    /// <summary>取目录名 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "取目录名 — 只读")] public const string Dirname = "dirname";
+    /// <summary>解析真实路径 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "解析真实路径 — 只读")] public const string Realpath = "realpath";
+    /// <summary>解析符号链接 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "解析符号链接 — 只读")] public const string Readlink = "readlink";
+    /// <summary>序列 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "序列 — 只读")] public const string Seq = "seq";
+    /// <summary>十六进制转储 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "十六进制转储 — 只读")] public const string Xxd = "xxd";
+    /// <summary>Base64 编解码 — 只读（写文件由重定向与文件权限检查处理）</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "Base64 编解码 — 只读")] public const string Base64 = "base64";
+    /// <summary>MD5 校验 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "MD5 校验 — 只读")] public const string Md5sum = "md5sum";
+    /// <summary>SHA1 校验 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "SHA1 校验 — 只读")] public const string Sha1sum = "sha1sum";
+    /// <summary>SHA256 校验 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "SHA256 校验 — 只读")] public const string Sha256sum = "sha256sum";
+    /// <summary>空操作 — 无副作用</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "空操作 — 无副作用")] public const string True = "true";
+    /// <summary>空操作 — 无副作用</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "空操作 — 无副作用")] public const string False = "false";
+    /// <summary>条件判断 — 只读</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "条件判断 — 只读")] public const string Test = "test";
+    /// <summary>等待 — 无副作用</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "等待 — 无副作用")] public const string Sleep = "sleep";
+    /// <summary>环境变量 — 包装器，真实命令由命令位解析取出</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "环境变量 — 包装器（真实命令由命令位解析取出）")] public const string Env = "env";
+    /// <summary>JSON 处理 — 数据处理工具（system() 在组合检测中升级）</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "JSON 处理 — 数据处理工具（system() 在组合检测中升级）")] public const string Jq = "jq";
+    /// <summary>awk 文本处理 — 数据处理工具（system() 在组合检测中升级）</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "awk 文本处理 — 数据处理工具（system() 在组合检测中升级）")] public const string Awk = "awk";
+    /// <summary>sed 文本处理 — 数据处理工具（e 命令执行 / -i 原地写在组合检测中升级）</summary>
+    [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "sed 文本处理 — 数据处理工具（-i 原地写在组合检测中升级）")] public const string Sed = "sed";
+
+    // === LightValidation（绿灯ask / 可撤回）— 新增文件类操作 ===
+    /// <summary>创建目录 — 可撤回(删掉空目录即可)</summary>
+    [DangerCommand(CommandRisk.DataModification, CommandDangerLevel.LightValidation, "创建目录 — 可撤回")] public const string Mkdir = "mkdir";
+    /// <summary>创建/更新时间戳 — 可撤回</summary>
+    [DangerCommand(CommandRisk.DataModification, CommandDangerLevel.LightValidation, "创建/更新时间戳 — 可撤回")] public const string Touch = "touch";
+
 
     // === Dangerous（直接拒绝不提示）— 整盘/系统级不可逆操作 ===
     /// <summary>格式化文件系统 — 不可逆整盘操作</summary>

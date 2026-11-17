@@ -66,13 +66,30 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         if (string.IsNullOrWhiteSpace(command.RawCommand))
             return DangerClassificationResult.SafeResult;
 
-        var direct = ClassifyGitEarlyReturn(command)
-            ?? CollectSignals(command).Aggregate(new SignalAccumulator([], [], []), AccumulateSignal, BuildResult);
+        // 包装器（sudo/env/nohup/time/command/exec）本身不改语义，命令在它的参数里。
+        // 不剥掉就会把 `env rm -rf /` 判成「env 未登记」或「env 只读」。
+        var executed = ResolveExecutedCommand(command);
+
+        var direct = ClassifyGitEarlyReturn(executed)
+            ?? CollectSignals(executed).Aggregate(new SignalAccumulator([], [], []), AccumulateSignal, BuildResult);
+
+        // 包装器自身的等级也要保留：`sudo apt update` 的真实命令是 apt（未登记），
+        // 但 sudo 的提权风险不能因为剥掉包装器就消失。
+        if (!ReferenceEquals(executed, command))
+            direct = PickStricter(direct, ClassifyByName(command));
 
         // 首词定的等级只是「这一条命令」的等级；真正动手的可能在管道右侧或参数里，
         // 那条路径单独判一次再取最严。
         return PickStricter(direct, ClassifyIndirectExecution(command));
     }
+
+    /// <summary>
+    /// 只按命令名查表的判定 — 用于保留包装器自身的等级（不重复跑参数/组合检查）。
+    /// </summary>
+    private static DangerClassificationResult ClassifyByName(ShellCommand command)
+        => MatchCommandEntry(command.CommandName) is { } entry
+            ? new DangerClassificationResult(entry.Level, entry.RiskType, $"命令 '{command.CommandName}': {entry.Description}")
+            : DangerClassificationResult.SafeResult;
 
     /// <summary>
     /// 间接执行识别 — 真正执行破坏动作的命令可能不在首位。
@@ -294,13 +311,17 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// 参数检查 — 遍历每个参数,检查危险标志和危险路径
     /// </summary>
     internal static IEnumerable<Signal> ClassifyByArguments(ShellCommand command)
-        => command.Arguments.SelectMany(CheckArgumentRisk);
+        => command.Arguments.SelectMany(arg => CheckArgumentRisk(command.CommandName, arg));
 
     /// <summary>
     /// 单个参数的风险检查 — 危险标志 + 危险路径
+    /// <para>
+    /// 参数按「命令 + 参数」查表：<c>-f</c> 在 <c>tail</c> 上是跟随文件、在 <c>rm</c> 上是强制删除。
+    /// 全局查表会把只读命令误判成 Execution。
+    /// </para>
     /// </summary>
-    internal static IEnumerable<Signal> CheckArgumentRisk(string arg) {
-        if (DangerousCommandCatalog.Flags.TryGetValue(arg, out var flagEntry))
+    internal static IEnumerable<Signal> CheckArgumentRisk(string commandName, string arg) {
+        if (DangerousCommandCatalog.MatchFlag(commandName, arg) is { } flagEntry)
             yield return new(flagEntry.Level, flagEntry.RiskType, $"危险参数 '{arg}': {flagEntry.Description}");
 
         var pathLevel = ClassifyPath(arg);

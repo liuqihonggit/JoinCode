@@ -544,41 +544,42 @@ public class CommandDangerClassifierInternalTests {
 
     #region CheckArgumentRisk
 
+    // 参数按「命令 + 参数」查表：同一个 -r 在 rm 上是递归删除，在 sort 上是逆序。
     [Fact]
-    public void CheckArgumentRisk_DangerousFlag_Should_Produce_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("-rf").ToList();
-        // -rf 不是精确 flag,但 -r 和 -f 是;实际 -rf 不在 Flags 字典中
-        // 但路径分类可能不触发;验证至少不崩溃
-        signals.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void CheckArgumentRisk_RecursiveFlag_Should_Produce_Execution_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("-r").ToList();
+    public void CheckArgumentRisk_RecursiveFlag_OnDeletionCommand_Should_Be_Execution() {
+        var signals = CommandDangerClassifier.CheckArgumentRisk("rm", "-r").ToList();
         signals.Should().ContainSingle(s => s.Level == CommandDangerLevel.Execution && s.Risk == CommandRisk.RecursiveOperation);
     }
 
     [Fact]
-    public void CheckArgumentRisk_ForceFlag_Should_Produce_Execution_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("-f").ToList();
+    public void CheckArgumentRisk_ForceFlag_OnDeletionCommand_Should_Be_Execution() {
+        var signals = CommandDangerClassifier.CheckArgumentRisk("rm", "-f").ToList();
         signals.Should().ContainSingle(s => s.Level == CommandDangerLevel.Execution && s.Risk == CommandRisk.ForceOperation);
     }
 
     [Fact]
+    public void CheckArgumentRisk_RecursiveFlag_OnReadOnlyCommand_Should_Produce_NoFlagSignal() {
+        // sort -r 是逆序、ls -R 是递归列目录 —— 只读，不该当递归删除
+        CommandDangerClassifier.CheckArgumentRisk("sort", "-r").Should().BeEmpty();
+        CommandDangerClassifier.CheckArgumentRisk("ls", "-R").Should().BeEmpty();
+        CommandDangerClassifier.CheckArgumentRisk("grep", "-f").Should().BeEmpty();
+    }
+
+    [Fact]
     public void CheckArgumentRisk_DangerousPath_Should_Produce_Path_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("/").ToList();
+        var signals = CommandDangerClassifier.CheckArgumentRisk("rm", "/").ToList();
         signals.Should().Contain(s => s.Level == CommandDangerLevel.Dangerous && s.Risk == CommandRisk.PathEscape);
     }
 
     [Fact]
     public void CheckArgumentRisk_SafeArg_Should_Produce_No_Signals() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("normalfile.txt").ToList();
+        var signals = CommandDangerClassifier.CheckArgumentRisk("rm", "normalfile.txt").ToList();
         signals.Should().BeEmpty();
     }
 
     [Fact]
     public void CheckArgumentRisk_MirFlag_Should_Produce_Dangerous_Signal() {
-        var signals = CommandDangerClassifier.CheckArgumentRisk("/MIR").ToList();
+        var signals = CommandDangerClassifier.CheckArgumentRisk("robocopy", "/MIR").ToList();
         signals.Should().Contain(s => s.Level == CommandDangerLevel.Dangerous);
     }
 

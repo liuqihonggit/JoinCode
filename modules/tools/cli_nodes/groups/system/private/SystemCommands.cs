@@ -13,9 +13,9 @@ namespace JoinCode.CliNode.System;
 /// 启动期快照，或需要宿主的「键 → 存储源」映射表，零依赖 exe 复制一份只会分叉出第二个真相源，因此转发宿主。</para>
 /// <para><b>config_get / config_list 为什么在 2026-11-18 从 local 改回 host</b>：exe 版自带一份 supported 键清单
 /// （漏掉 editorMode 等 12 个键、又多出 thinkingEnabled 等 4 个）和一条「先 settings 再 global」的递归找键规则，
-/// 与宿主 SupportedSettings + SettingSourceMap 各成一套。真机表现就是 <c>config_set theme</c> 写进
+/// 与宿主 <c>SupportedSettings</c> + <c>SettingSourceMap</c> 各成一套。真机表现就是 <c>config_set theme</c> 写进
 /// <c>~/.jcc/global.json</c>、<c>config_get theme</c> 却报未设置（TASK089）。键清单与存储源都是宿主侧知识，
-/// 读侧必须问同一张表，不能各写一份。</para>
+/// 读侧必须问同一张表，不能各写一份。（那张表在 TASK091 已合并成契约层 <c>ConfigKeyRegistry</c>。）</para>
 /// </summary>
 internal static partial class SystemCommands {
     private const int MaxSleepSeconds = 1800;

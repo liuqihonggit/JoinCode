@@ -32,7 +32,7 @@ public interface IConfigurationService {
     event EventHandler<SettingChangeEventArgs>? SettingChanged;
 
     /// <summary>
-    /// 获取配置项值 — 存储源由契约层 <c>SettingSourceMap</c> 按按键决定
+    /// 获取配置项值 — 存储源由契约层 <c>ConfigKeyRegistry</c> 按键决定
     /// （global → global.json，settings → settings.json）。
     /// </summary>
     Task<string?> GetAsync(string key, CancellationToken cancellationToken = default);
@@ -44,7 +44,7 @@ public interface IConfigurationService {
     Task<string?> GetAsync(string key, SettingSource source, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 设置配置项值 — 存储源由 <c>SettingSourceMap</c> 决定
+    /// 设置配置项值 — 存储源由 <c>ConfigKeyRegistry</c> 决定
     /// </summary>
     Task<bool> SetAsync(string key, string value, CancellationToken cancellationToken = default);
 
@@ -61,13 +61,13 @@ public interface IConfigurationService {
     Task<bool> SetAsync(string key, string value, SettingSource source, string? appStateKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 删除配置项 — 删的源与写的源一致（由 <c>SettingSourceMap</c> 决定），
+    /// 删除配置项 — 删的源与写的源一致（由 <c>ConfigKeyRegistry</c> 决定），
     /// 不会出现「值在 global.json 却去删 settings.json」的空转
     /// </summary>
     Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 列出已声明且有值的配置项 — 逐键按 <c>SettingSourceMap</c> 的源去读，不是回内存缓存
+    /// 列出已声明且有值的配置项 — 逐键按 <c>ConfigKeyRegistry</c> 声明的源去读，不是回内存缓存
     /// （缓存只装本进程读过的键，否则新进程里 <c>/config list</c> 永远是空的）
     /// </summary>
     Task<Dictionary<string, string>> GetAllAsync(CancellationToken cancellationToken = default);

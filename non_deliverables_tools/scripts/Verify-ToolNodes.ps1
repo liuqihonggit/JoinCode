@@ -312,6 +312,49 @@ if ($Sample) {
 }
 
 # ── 汇总 ────────────────────────────────────────────────────────────
+# ── 首轮提示词索引对账 ──────────────────────────────────────────────
+# resources/tools/cli_groups.yaml 由各分组 node.yaml 生成，是 ToolsSection 告诉模型
+# 「有哪些独立 exe、各自干什么」的唯一数据源。加组却忘记重新生成时不会有任何报错：
+# 新组只是永远不出现在提示词里，模型也就永远发现不了它——这种「静默失明」必须在这一层拦。
+$indexPath = Join-Path $repoRoot "resources/tools/cli_groups.yaml"
+if (-not (Test-Path $indexPath)) {
+    $problems += "首轮提示词索引缺失: $indexPath（用 migrate_mcp_tools_to_cli_nodes.py --index-only 生成）"
+} else {
+    $indexText = Get-Content -Path $indexPath -Raw -Encoding UTF8
+    $indexGroups = @([regex]::Matches(
+        $indexText,
+        '(?ms)^\s+- id:\s*(\S+)\s*\r?\n\s+exe:\s*(\S+)\s*\r?\n\s+tools:\s*(\d+)\s*\r?\n\s+local:\s*(\d+)\s*\r?\n\s+delegate:\s*(\d+)') |
+        ForEach-Object {
+            [pscustomobject]@{
+                Id = $_.Groups[1].Value; Exe = $_.Groups[2].Value
+                Tools = [int]$_.Groups[3].Value; Local = [int]$_.Groups[4].Value
+                Delegate = [int]$_.Groups[5].Value
+            }
+        })
+    foreach ($row in $rows) {
+        $entry = $indexGroups | Where-Object { $_.Id -eq $row.Group } | Select-Object -First 1
+        if (-not $entry) {
+            $problems += "[$($row.Group)] 首轮提示词索引缺少该组（模型不知道有这个 exe，等于该组不存在）"
+            continue
+        }
+        if ($entry.Exe -ne "jcc-tool-$($row.Group)") {
+            $problems += "[$($row.Group)] 索引里的 exe 名 '$($entry.Exe)' 与装配名 'jcc-tool-$($row.Group)' 不一致"
+        }
+        if ($entry.Tools -ne $row.Total -or $entry.Local -ne $row.Local -or $entry.Delegate -ne $row.Delegate) {
+            # 先把两段拼好再 -f：PowerShell 的 -f 优先级高于 +，写成 "a"+"b" -f x 只会格式化后半段。
+            $message = ("[$($row.Group)] 索引数字过时：索引 {0}/{1}/{2}（总/local/delegate），" +
+                "node.yaml 为 {3}/{4}/{5} —— 重新生成 cli_groups.yaml")
+            $problems += ($message -f $entry.Tools, $entry.Local, $entry.Delegate,
+                $row.Total, $row.Local, $row.Delegate)
+        }
+    }
+    foreach ($entry in $indexGroups) {
+        if (-not ($rows | Where-Object { $_.Group -eq $entry.Id })) {
+            $problems += "[$($entry.Id)] 提示词索引登记了不存在的分组（模型会去敲一个不存在的命令）"
+        }
+    }
+}
+
 # 报告体一律走 Write-Output 一次输出：Write-Host 对含换行的多行字符串在部分终端/ConPTY
 # 下会吞掉行尾换行，把表格和汇总行粘成一行（「2.6共 13 组」就是这么来的）。
 $report = @()

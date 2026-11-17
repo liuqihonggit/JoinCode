@@ -38,6 +38,34 @@ public sealed class ToolsSectionTests {
     }
 
     [Fact]
+    public void GetContent_ListsEveryGroupExeWithItsBlurb() {
+        var content = ToolsSection.GetContent();
+        var index = CliGroupIndex.LoadDefault();
+
+        // 提示词的价值都在这一段：模型首轮看不到这些工具，只有看到「有个 exe 叫这个名字、
+        // 它是管什么的」才会想到去 `<exe> -h`。任何一个组漏写，那个组就等于对模型不存在。
+        content.Should().NotBeNull();
+        foreach (var group in index.Groups) {
+            content.Should().Contain(group.Exe, $"分组 {group.Id} 的 exe 未出现在提示词里");
+            content.Should().Contain(group.Blurb, $"分组 {group.Id} 的定位说明未出现在提示词里");
+        }
+        content.Should().Contain($"分装在 {index.GroupCount} 个独立 exe 里（共 {index.ToolCount} 个工具",
+            "总量与分组数必须与索引一致，不能写成写死的 540+");
+    }
+
+    [Fact]
+    public void GetContent_TeachesOnDemandHelpInsteadOfDumpingIt() {
+        var content = ToolsSection.GetContent();
+
+        content.Should().NotBeNull();
+        // 说明书是「按需读」的：先把索引/关键词检索/单工具参数三层入口说清，
+        // 否则模型要么不知道查什么，要么把 5 KB 帮助整段塞进上下文。
+        content.Should().Contain("-h");
+        content.Should().Contain("不要预先整段读");
+        content.Should().Contain("jcc tool call");
+    }
+
+    [Fact]
     public void GetContent_RetiresTwoPhaseToolGroupsProtocol() {
         var content = ToolsSection.GetContent();
 

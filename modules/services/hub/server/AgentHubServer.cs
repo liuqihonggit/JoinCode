@@ -160,7 +160,9 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
 
             var apiKey = ResolveApiKeyForEntry(entry);
             if (string.IsNullOrEmpty(apiKey)) {
-                _logger?.LogWarning("[AgentHubServer] 拉取 {Name} 跳过：未配置 API Key", name);
+                // 与 jcc 侧 ModelListFetcher 同一口径：目录里带的是供应商预设，用户通常只启用其中一个。
+                // 对未启用的供应商逐个 Warning，只会把真正的问题埋掉 —— 静默按「未启用」处理。
+                _logger?.LogDebug("[AgentHubServer] 拉取 {Name} 跳过：auth.json 中没有该供应商的凭据，按未启用处理", name);
                 continue;
             }
 

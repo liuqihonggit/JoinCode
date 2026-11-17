@@ -42,7 +42,12 @@ public sealed class ModelListFetcher : IModelListFetcher {
 
             var apiKey = ResolveApiKey(settings, authKeys);
             if (string.IsNullOrEmpty(apiKey)) {
-                _logger?.LogWarning("[ModelListFetcher] 跳过 {Profile}：未配置 API Key", profile);
+                // 不告警：settings.json 出厂就带五六个供应商预设，用户通常只配了其中一个。
+                // 对每个「预设里存在、auth.json 里没有」的供应商各发一条 Warning，
+                // 启动信息会被五条「未配置 API Key」刷满，真正的问题反而被埋掉。
+                // 判定口径（用户 2026-11-18 明确）：只有 auth.json 里真有该供应商的凭据，
+                // 才允许报它下游的配置缺失；没配过就是没选它，静默跳过。
+                _logger?.LogDebug("[ModelListFetcher] 跳过 {Profile}：auth.json 中没有该供应商的凭据，按未启用处理", profile);
                 continue;
             }
 
@@ -73,7 +78,13 @@ public sealed class ModelListFetcher : IModelListFetcher {
             var client = _httpClientProvider.GetClient();
             using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode) {
-                _logger?.LogWarning("[ModelListFetcher] {Profile} 返回 {Status}，跳过", profile, (int)response.StatusCode);
+                // 走到这里说明 auth.json（或环境变量）里确实有这个供应商的凭据 —— 属于「配了但用不了」，
+                // 必须让用户知道，但要把话说清楚：401/403 是凭据问题，不是网络问题。
+                _logger?.LogWarning(
+                    (int)response.StatusCode is 401 or 403
+                        ? "[ModelListFetcher] {Profile} 拒绝访问（{Status}）：凭据无效或已过期，本次不拉取模型列表"
+                        : "[ModelListFetcher] {Profile} 返回 {Status}，本次不拉取模型列表",
+                    profile, (int)response.StatusCode);
                 return (profile, null);
             }
 

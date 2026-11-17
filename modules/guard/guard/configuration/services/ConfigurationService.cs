@@ -154,6 +154,10 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
             }
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "持久化设置到 {Source} 失败: {Key}", source.ToValue(), key);
+            Diag.WriteLine($"[CONFIG] 持久化失败 {source.ToValue()}/{key}: {ex.GetType().Name}: {ex.Message}");
+            // 原先无论如何都返回 true —— 磁盘写失败（含「路径无法解析，什么都没写」）也报成功，
+            // 用户以为设置生效、实际下次启动还是旧值（TASK090 的 model 就是这样被吞掉的）
+            return false;
         }
 
         // 触发变更通知（对齐 TS 版 appStateKey 热更新同步）

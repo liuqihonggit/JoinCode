@@ -65,9 +65,12 @@ public static class SupportedSettings {
             },
             ["model"] = new() {
                 Type = "string",
-                Description = "覆盖默认模型",
+                // 语义统一为「当前生效模型」：读的是运行时真正用的 vendor.{profile}.model，
+                // 写的也是它 —— 不再出现「写 current.model、运行时读 vendor.model」的两套答案（TASK090）
+                // 不设静态白名单：原本写死 sonnet/opus/haiku/best（从 TS 基线带过来的四个占位），
+                // 结果任何真实模型 id（deepseek-v3 等）都被判「Invalid value」，config_set model 等于不可用。
+                Description = "当前生效模型（存于 vendor.{当前供应商}.model，写入即生效；可用 model_search 查看候选）",
                 AppStateKey = "mainLoopModel",
-                GetOptions = GetModelOptions,
                 FormatOnRead = v => v ?? "default",
                 ValidateOnWrite = ValidateModelId,
             },
@@ -87,7 +90,6 @@ public static class SupportedSettings {
             ["permissions.defaultMode"] = new() {
                 Type = "string",
                 Description = "工具使用的默认权限模式",
-                Path = ["permissions", "defaultMode"],
                 Options = [PermissionMode.Plan.ToValue(), PermissionMode.Auto.ToValue(), PermissionMode.Ask.ToValue(), PermissionMode.Bypass.ToValue()],
             },
             ["language"] = new() {
@@ -136,19 +138,14 @@ public static class SupportedSettings {
         return null;
     }
 
-    /// <summary>获取指定设置键的配置路径段数组</summary>
+    /// <summary>
+    /// 取设置键在 JSON 里的路径段 — 委托契约层 <see cref="SettingPathMap"/>（唯一数据源）。
+    /// <para>原先是本文件里 <c>ConfigSetting.Path</c> 的字段，但那个字段<b>零消费方</b>：
+    /// <c>config_set permissions.defaultMode</c> 照旧写扁平键，运行时读的却是嵌套键，改权限模式不生效。</para>
+    /// </summary>
     /// <param name="key">设置键名</param>
-    /// <returns>路径段数组；无显式路径时按 '.' 分割键名</returns>
-    public static string[] GetPath(string key) {
-        if (All.TryGetValue(key, out var config) && config.Path is not null)
-            return config.Path;
-
-        return key.Split('.');
-    }
-
-    private static string[] GetModelOptions() {
-        return ["sonnet", "opus", "haiku", "best"];
-    }
+    /// <returns>路径段数组；扁平键返回按 '.' 分割的结果</returns>
+    public static string[] GetPath(string key) => SettingPathMap.PathOf(key) ?? key.Split('.');
 
     private static Task<(bool Valid, string? Error)> ValidateModelId(string value) {
         if (string.IsNullOrWhiteSpace(value))

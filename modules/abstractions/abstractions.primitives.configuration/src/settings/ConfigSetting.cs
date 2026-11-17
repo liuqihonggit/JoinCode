@@ -14,12 +14,6 @@ public sealed class ConfigSetting {
     public required string Description { get; init; }
 
     /// <summary>
-    /// 嵌套路径（如 permissions.defaultMode → ["permissions", "defaultMode"]）
-    /// 对齐 TS: path
-    /// </summary>
-    public string[]? Path { get; init; }
-
-    /// <summary>
     /// 静态选项列表
     /// 对齐 TS: options
     /// </summary>

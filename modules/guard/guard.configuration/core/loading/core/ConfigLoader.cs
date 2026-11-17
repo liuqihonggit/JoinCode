@@ -397,6 +397,11 @@ public class ConfigLoader {
     /// 优先尝试强类型反序列化，回退到扁平 KV 格式
     /// </summary>
     private static string? TryGetSettingFromJson(string json, string key) {
+        // 嵌套键（model / permissions.defaultMode）走路径读取 —— 它们不在 current.<key> 上，
+        // 用扁平键读恒为 null，于是 config_get 显示「未设置」而磁盘上明明有值（TASK090）
+        if (SettingPathMap.PathOf(key) is { } path)
+            return TryGetNestedSetting(json, path);
+
         var settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         if (settings is not null) {
             var value = GetSettingByKey(settings, key);
@@ -404,6 +409,90 @@ public class ConfigLoader {
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 按 JSON 路径读值 —— <c>{profile}</c> 段由 <c>current.profile</c> 替换。
+    /// <para>路径任一段缺失、或 <c>{profile}</c> 无法解析（未选供应商）时返回 null：
+    /// 读侧不区分「没配」与「配不了」，写侧才需要区分（见 <see cref="ApplyNestedSetting"/>）。</para>
+    /// </summary>
+    private static string? TryGetNestedSetting(string json, string[] path) {
+        JsonObject? root;
+        try {
+            root = JsonNode.Parse(json) as JsonObject;
+        } catch (JsonException) {
+            return null;
+        }
+
+        if (root is null) return null;
+
+        var segments = ResolvePathSegments(root, path);
+        if (segments is null) return null;
+
+        JsonNode? node = root;
+        foreach (var segment in segments) {
+            if (node is not JsonObject obj || !obj.TryGetPropertyValue(segment, out node))
+                return null;
+        }
+
+        return node switch {
+            null => null,
+            JsonValue => node.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : node.ToJsonString(),
+            _ => node.ToJsonString(),
+        };
+    }
+
+    /// <summary>
+    /// 按 JSON 路径写值 —— 中间层不存在时创建，<paramref name="value"/> 为 null 时删除该字段。
+    /// </summary>
+    /// <returns>写入后的 JSON 文本；<c>{profile}</c> 无法解析时返回 null（调用方保持原文件不动）。</returns>
+    private static string? ApplyNestedSetting(string json, string[] path, string? value) {
+        JsonObject root;
+        try {
+            root = (JsonNode.Parse(json) as JsonObject) ?? new JsonObject();
+        } catch (JsonException) {
+            return null;
+        }
+
+        var segments = ResolvePathSegments(root, path);
+        if (segments is null) return null;
+
+        var parent = root;
+        for (var i = 0; i < segments.Length - 1; i++) {
+            var segment = segments[i];
+            if (parent[segment] is not JsonObject child) {
+                child = new JsonObject();
+                parent[segment] = child;
+            }
+            parent = child;
+        }
+
+        var leaf = segments[^1];
+        if (value is null) {
+            parent.Remove(leaf);
+        } else {
+            parent[leaf] = JsonNode.Parse(ParseJsonValueElement(value).GetRawText());
+        }
+
+        return root.ToJsonString(ConfigIndentedJsonContext.Default.RelaxedOptions());
+    }
+
+    /// <summary>
+    /// 展开路径里的 <c>{profile}</c> 占位 —— 取自 <c>current.profile</c>。
+    /// 占位存在但拿不到 profile 时返回 null（此时「写到哪」没有答案，不能退回扁平键糊过去）。
+    /// </summary>
+    private static string[]? ResolvePathSegments(JsonObject root, string[] path) {
+        if (!path.Contains(SettingPathMap.ProfilePlaceholder))
+            return path;
+
+        var profile = root["current"]?["profile"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(profile))
+            return null;
+
+        var resolved = new string[path.Length];
+        for (var i = 0; i < path.Length; i++)
+            resolved[i] = path[i] == SettingPathMap.ProfilePlaceholder ? profile : path[i];
+        return resolved;
     }
 
     /// <summary>
@@ -416,6 +505,14 @@ public class ConfigLoader {
 
         var directory = Path.GetDirectoryName(settingsPath);
         DirectoryHelper.EnsureDirectoryExists(fs, directory);
+
+        // 嵌套键（model / permissions.defaultMode）按路径写 —— 与读侧同一张表，
+        // 写进去的字段就是运行时读的那个字段（TASK090）
+        var nestedPath = SettingPathMap.PathOf(key);
+        if (nestedPath is not null) {
+            await SaveNestedSettingAsync(settingsPath, nestedPath, value, fs, cancellationToken, logger).ConfigureAwait(false);
+            return;
+        }
 
         try {
             await fs.EditFileAsync<bool>(settingsPath, async (bytes, ct) => {
@@ -439,6 +536,37 @@ public class ConfigLoader {
             await fs.WriteAllTextAsync(settingsPath, outputJson, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    /// 按 JSON 路径写入 settings.json —— 只用 <see cref="JsonNode"/> 定点改那一个字段，
+    /// 不做强类型往返（往返会丢掉 <c>autoFetchModels</c> 等本类不认识的字段）。
+    /// </summary>
+    private static async Task SaveNestedSettingAsync(
+        string settingsPath, string[] path, string? value, IFileSystem fs,
+        CancellationToken cancellationToken, ILogger? logger) {
+        try {
+            await fs.EditFileAsync<bool>(settingsPath, (bytes, _) => {
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                var updated = ApplyNestedSetting(content, path, value);
+                if (updated is null)
+                    throw UnresolvableNestedPath(path);
+
+                return Task.FromResult<(byte[]? NewContent, bool Result)>(
+                    (FileEncodingDetector.EncodeString(updated, encoding), true));
+            }, cancellationToken).ConfigureAwait(false);
+        } catch (FileNotFoundException) {
+            var created = ApplyNestedSetting("{}", path, value) ?? throw UnresolvableNestedPath(path);
+            await fs.WriteAllTextAsync(settingsPath, created, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// 路径里的 <c>{profile}</c> 无法解析时的错误 —— 必须抛而不是静默跳过：
+    /// 「写成功」却什么都没写，是这个模块历史上最坑的一类故障。
+    /// </summary>
+    private static InvalidOperationException UnresolvableNestedPath(string[] path) =>
+        new($"无法写入 settings.json 的 {string.Join('.', path)}：文件里没有 current.profile（尚未选择供应商）。" +
+            "先设置供应商（/config set profile <名字> 或 /init）再写该字段。");
 
     #region 内部辅助方法
 

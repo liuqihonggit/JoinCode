@@ -35,6 +35,7 @@
 - [x] **密钥红线按值判定**：不再按参数名拦 `--key`/`--token`/`--secret`，改为按密钥语义 + 值形态判定。
   - 证据：真机 `jcc tool call search search_symbol --key theme` 不再被阻断；`--api-key sk-xxx`、`--token ghp_xxx`、`--api-key=sk-xxx` 仍被拦（等号形式修复前漏检）；`host.tests` 1329 通过（新增 21 条）。详见 [TASK088](TASK088-密钥红线按值判定.md)。
 - [x] **配置存储源收敛**：`/theme`、GUI、`config_get`/`config_set` 对同一键给同一答案；存储源由契约层 `SettingSourceMap` 唯一决定，旧 `settings.json` 的 global 键一次性搬走。
+- [x] **配置值语义归一**：`config_get model` 与 `config_set model` 落在同一个字段（`vendor.{当前供应商}.model`），嵌套键（`permissions.defaultMode`）按 `SettingPathMap` 的路径读写；写盘失败不再报成功。启动输出从 126 行降到 10 行，控制台与 `jcc_error.log` 默认不含栈帧。详见 [TASK090](TASK090-配置读取语义归一.md)。
   - 证据：真机同目录交叉验证 —— `/theme light` 写 `global.json` 后 `jcc tool call system config_get --setting theme` 读到 `light`；工具写 `dark` 后 `/config get theme` 读回 `dark`；GUI 探针 `GuiSessionProbe` 读 `dark-ansi` 并写回 `light-daltonized` 全部落在 `global.json`；`config_source_probe` 三场景 12 项断言通过；`Guard.Config.Tests` 1305 通过。详见 [TASK089](TASK089-配置存储源分叉.md)。
 
 ## 用户决策记录

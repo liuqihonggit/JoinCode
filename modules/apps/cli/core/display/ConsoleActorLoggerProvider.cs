@@ -86,7 +86,9 @@ internal sealed class ConsoleActorLogger : ILogger {
 
         if (exception is not null) {
             sb.Append('\n').Append("      ").Append(exception.GetType().FullName).Append(": ").Append(exception.Message);
-            if (exception.StackTrace is not null) {
+            // 堆栈只在调试日志（JCC_DEBUGLOG=1）里出现 —— 日志行会直接进终端，
+            // 一行 at JoinCode... 对用户是噪音，而且会掩盖真正要读的那句消息。
+            if (JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog && exception.StackTrace is not null) {
                 var stackLines = exception.StackTrace.Split('\n');
                 foreach (var line in stackLines)
                     sb.Append('\n').Append("      ").Append(line.TrimStart());

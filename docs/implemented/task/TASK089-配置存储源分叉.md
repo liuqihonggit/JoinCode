@@ -282,17 +282,15 @@ theme = dark                                ← 斜杠命令读回工具写的�
 
 ## 十、遗留缺口（已确认存在，本轮不修，避免混进同一提交）
 
-1. **`model` 键读不到**：`SupportedSettings` 声明了 `model`，但源码生成的
-   `CurrentSettings.GetSettingByKey` 的 switch 里**没有** `"model"` 分支（`model` 实际在
-   `vendor.{profile}.model`），所以 `config_get model` 恒为未设置。基准侧 `model` 走独立读取路径。
-2. **嵌套键读取不支持**：`permissions.defaultMode` 的 `ConfigSetting.Path` 有值，但唯一消费方只有
-   `SupportedSettings.GetPath`，而 `ConfigLoader` 用的是生成的 `GetSettingByKey`（只认扁平键名）。
-   写入侧同样未走 `Path`。
+1. ~~**`model` 键读不到**~~ **已修（TASK090）**：`model` 的真身是 `vendor.{profile}.model`，
+   现由契约层 `SettingPathMap` 声明路径、`ConfigLoader` 按路径读写，读写落在同一个字段。
+   详见 [TASK090](TASK090-配置读取语义归一.md)。
+2. ~~**嵌套键读取不支持**~~ **已修（TASK090）**：`ConfigSetting.Path` 是死字段（零消费方），
+   已删除并改为 `SettingPathMap`；`ConfigLoader` 读写都按路径走 `JsonNode` 定点操作。
 3. ~~**`/config list`（斜杠命令）只显示本进程读过的键**~~ **已修**：`GetAllAsync` 原本只回内存缓存，
    新进程里恒为空。现改为逐个已声明键按 `SettingSourceMap` 的源读盘（与 `config_get` 同一条路径），
    真机 `/config list` 已正确列出 `editorMode`/`language`/`theme` 及其来源。
 4. **`SupportedSettings`（15 键）与 `ConfigKey` 枚举（17 键）仍是两套并行清单**，未合并。
 
-剩余 3 条（`model` 键、嵌套键、两套键清单）需要先定语义再动手 —— 例如 `config_get model`
-到底该读 `vendor.{profile}.model`（当前生效模型）还是 `current.model`（覆盖默认模型），
-属于产品判断，不该由实现顺手决定。建议单开一轮（TASK090）带上这个决策点。
+剩余 1 条：`SupportedSettings`（15 键）与 `ConfigKey` 枚举（17 键）仍是两套并行清单，未合并。
+`model` 语义与嵌套键已在 TASK090 一并解决（语义取「生效值」，读写同字段）。

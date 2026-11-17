@@ -284,6 +284,11 @@ class Program {
 
     /// <summary>
     /// 写入错误日志到临时目录的 jcc_error.log。
+    /// <para><b>默认不写堆栈</b>：这个文件路径会回显给用户（「详细日志: ~\.jcc\runtime\jcc_error.log」），
+    /// 写进去的每一行用户都会当成「程序崩了」的证据。堆栈是给维护者看的，只在
+    /// <c>JCC_DEBUGLOG=1</c> 时落盘；默认形态是「异常类型 + 消息 + 一行来源」，
+    /// 足够定位问题出在哪一层，也不至于让用户读到 <c>at JoinCode.App.Builder...</c>。
+    /// 完整堆栈另有归处：崩溃快照目录（crash-dumps）。</para>
     /// </summary>
     /// <param name="ex">异常对象</param>
     /// <param name="fatal">是否为致命异常（标记 [FATAL] 前缀）</param>
@@ -291,9 +296,24 @@ class Program {
     private static async Task<string> WriteErrorLogAsync(Exception ex, bool fatal = false, ILogger? logger = null) {
         var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var prefix = fatal ? "[FATAL] " : string.Empty;
-        var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}{ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}";
+        var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}{ex.GetType().FullName}: {ex.Message}";
+
         if (ex.InnerException is not null)
-            errorContent += $"\n--- InnerException ---\n{ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}";
+            errorContent += $"\n  inner: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}";
+
+        // 一行来源（首个带文件信息的栈帧）— 让维护者不打开调试也能看出发生在哪个方法
+        var origin = FirstStackOrigin(ex);
+        if (origin is not null)
+            errorContent += $"\n  origin: {origin}";
+
+        if (Diag.IsDebugLog) {
+            errorContent += $"\n{ex.StackTrace}";
+            if (ex.InnerException is not null)
+                errorContent += $"\n--- InnerException ---\n{ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}";
+        } else {
+            errorContent += "\n  （需要完整堆栈：设置 JCC_DEBUGLOG=1 后复现，或查看 ~/.jcc/runtime/crash-dumps）";
+        }
+
         try {
             var dir = System.IO.Path.GetDirectoryName(errorLog);
             if (dir is not null && !System.IO.Directory.Exists(dir))
@@ -304,6 +324,34 @@ class Program {
             logger?.LogWarning(logEx, "写入错误日志失败");
         }
         return errorLog;
+    }
+
+    /// <summary>
+    /// 取首个带源文件信息的栈帧（<c>in /path/File.cs:line N</c>），压成一行的 <c>类型.方法 (文件:行)</c>。
+    /// </summary>
+    private static string? FirstStackOrigin(Exception ex) {
+        var stack = ex.StackTrace;
+        if (string.IsNullOrEmpty(stack)) return null;
+
+        foreach (var rawLine in stack.Split('\n')) {
+            var line = rawLine.Trim();
+            if (!line.StartsWith("at ", StringComparison.Ordinal)) continue;
+
+            var inIndex = line.IndexOf(" in ", StringComparison.Ordinal);
+            if (inIndex < 0) continue;
+
+            var method = line[3..inIndex].Trim();
+            var location = line[(inIndex + 4)..].Trim();
+            return $"{method} ({location})";
+        }
+
+        // 没有源文件信息时退而求其次：取最深一帧的方法名
+        foreach (var rawLine in stack.Split('\n')) {
+            var line = rawLine.Trim();
+            if (line.StartsWith("at ", StringComparison.Ordinal))
+                return line[3..].Trim();
+        }
+        return null;
     }
 
     /// <summary>
@@ -687,10 +735,13 @@ class Program {
             if (!registered) return null;
 
             agent.StartBackgroundTasks();
-            Console.Error.WriteLine($"[HUB] Agent 已注册: {agentId}");
+            if (Diag.IsDebugLog)
+                Console.Error.WriteLine($"[HUB] Agent 已注册: {agentId}");
             return agent;
         } catch (Exception ex) {
-            Console.Error.WriteLine($"[HUB] Agent 注册失败: {ex.Message}");
+            // Hub 没起 / 握手超时属于常见形态（-p 单次调用根本不需要 Hub），
+            // 由上层在「真需要 Hub 却不可达」时给出可行动的错误，这里不再重复喊。
+            Diag.WriteLine($"[HUB] Agent 注册失败: {ex.Message}");
             return null;
         }
     }
@@ -710,7 +761,8 @@ class Program {
             "jcchub.exe");
 
         if (!File.Exists(hubExePath)) {
-            Console.Error.WriteLine($"[HUB] jcchub.exe 未找到: {hubExePath}");
+            // 同上：没有 jcchub.exe 不是错误，只有「需要 Hub 又连不上」时才由上层报错并给指引
+            Diag.WriteLine($"[HUB] jcchub.exe 未找到: {hubExePath}");
             return;
         }
 

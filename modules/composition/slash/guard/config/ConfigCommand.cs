@@ -93,7 +93,12 @@ public sealed class ConfigCommand : ChatCommandBase {
         }
 
         var configService = ResolveConfigService(context);
-        await configService.SetAsync(key, value, context.CancellationToken).ConfigureAwait(false);
+        var saved = await configService.SetAsync(key, value, context.CancellationToken).ConfigureAwait(false);
+        if (!saved) {
+            // 写盘失败（含「路径无法解析，什么都没写」）不能报成功 —— 否则用户以为改了，下次启动还是旧值
+            TerminalHelper.WriteLine($"{TerminalColors.Error}设置失败: {key}（未能写入配置文件，原因见上方日志）{AnsiStyleEnumConstants.Reset}");
+            return;
+        }
 
         TerminalHelper.WriteLine($"{TerminalColors.Success}已设置: {key} = {value}{AnsiStyleEnumConstants.Reset}");
     }

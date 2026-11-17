@@ -321,23 +321,33 @@ public sealed partial class ConfigToolHandlers {
 
     /// <summary>
     /// 配置写入失败的诊断 — SetAsync 返回 false。
+    /// <para>把「这个键实际住哪」写进诊断：<c>model</c> 这类嵌套键失败时最常见的原因是
+    /// <c>settings.json</c> 里没有 <c>current.profile</c>，只报「检查配置文件权限」会把人带偏。
+    /// 位置信息来自 <see cref="SettingPathMap"/>（同一张唯一表，不另写一份规则）。</para>
     /// </summary>
     internal static ToolDiagnostic BuildSetFailedDiagnostic(string setting, string value) {
-        var sb = new StringBuilder(128);
+        var sb = new StringBuilder(160);
         sb.Append($"Failed to set {setting}");
         sb.Append($"\n[诊断] 设置项: {setting}");
         sb.Append($"\n[诊断] 尝试写入的值: \"{value}\"");
+
+        var nestedPath = SettingPathMap.PathOf(setting);
+        if (nestedPath is not null) {
+            sb.Append($"\n[诊断] 目标位置: settings.json → {string.Join('.', nestedPath)}");
+            if (nestedPath.Contains(SettingPathMap.ProfilePlaceholder))
+                sb.Append("（{profile} 取自 current.profile）");
+        }
 
         var details = new List<DiagnosticDetail>(2)
         {
             new("setting", setting),
             new("value", value),
         };
-        var suggestions = new List<string>(2)
-        {
-            "检查配置文件权限",
-            "确认设置项的来源（global/user）是否可写",
-        };
+
+        var suggestions = new List<string>(2) { "检查配置文件权限" };
+        suggestions.Add(nestedPath is { Length: > 0 } && nestedPath.Contains(SettingPathMap.ProfilePlaceholder)
+            ? "先选择供应商（/config set profile <名称> 或 /init）再写该字段"
+            : "确认设置项的来源（global/user）是否可写");
 
         return ToolDiagnostic.Create("SetFailed", sb.ToString(), details, suggestions);
     }

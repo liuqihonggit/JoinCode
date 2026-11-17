@@ -1246,3 +1246,60 @@ jcc prompt --section all         # 打印全部
 
 提交：`3f99d2228`（提示词索引）、`bc1b26ea6`（jcc prompt）、`f613d926f`（slash 帮助文案）。
 
+### 2026-11-17 第三十轮：Agent 内化、诚实模块、目标驱动、显式顺序（四件事一次做完）
+
+用户给了四个目标并要求「作为任务目标工程驱动，每次完成启动 exe 校验，不得用单测挡箭牌」。
+清单与逐项打勾在 `TASK083-诚实模块与目标驱动.md`，本轮四个勾全部完成。
+
+**一、Agent 内部基础工具（5 个）进 jcc，不再走 exe**
+
+`enter_plan_mode` / `exit_plan_mode` / `goal_get` / `goal_update` / `goal_graph_define`
+依赖活会话与目标图，放在 `agent` 独立 exe 里只能转发回宿主，多一次进程跳转却拿不到隔离收益；
+更糟的是它们不在首轮 tools 字段，模型没有第二条发现通道。
+
+- `group_map.yaml` 新增 `internal_tools` 单一数据源，生成器把它们从 `node.yaml` / `help.txt` 剔除；
+- `base.yaml` 登记这 5 个工具，进入协议 tools 字段；`ToolsSection` 逐个列出全部 9 个基础工具；
+- 验收脚本对账：internal_tools 必须出现在 `base.yaml`、且不得留在任何 `node.yaml`（防双入口漂移）；
+- 新口径：**13 组 / 635 工具 = local 217 + delegate 173 + host 245**，进程隔离仍是 390（61%）。
+  `agent` 组从 59 降到 54，host 从 250 降到 245；`Deploy-JccDev.ps1` 的 640 断言同步改 635。
+
+真机：`jcc tool base` 输出 9 个；`jcc tool tree` 13 组 / 635；`jcc mcp_call goal_get` 返回
+`{"ok":true,"data":"No active goal"}`（内部工具确实可调用）；`jcc prompt --section tools` 列出 9 个基础工具 + 13 个 exe。
+
+**二、诚实模块：切模型时如实复述，不自动执行**
+
+`/model` 切换成功后读 `resources/honesty/checklist.yaml`，逐条打印 `[x]` / `[ ]`、证据与下一步，
+并明确「确认前不会动手」。清单放在仓库（不是内嵌资源），改进度不用重编 exe。
+方向必须由用户决定 —— 本轮用户明确要求「不要调用真实 API Key 对话」，所以提示词内容的验证
+统一走 `jcc prompt`，不再依赖模型在线答复。
+
+真机：`jcc slash_call /model model_id=probe-final` 输出「诚实提示」、4 个 `[x]`、0 个未完成，
+测试后已还原 `settings.json`。
+
+**三、目标驱动提示词**
+
+新增 `GoalDrivenSection`：每轮先反问「这次的目标是什么？」；无目标不执行任何任务；
+从对话推断的需求逐条确认；模糊目标必须说明好处与代价并给 2~3 个可判定解释；
+确认后用 `goal_get` / `goal_graph_define` / `goal_update` 记录；切目标或切模型时重新确认方向。
+真机 `jcc prompt --section goal_driven` 输出完整规则。
+
+**四、清理特性排序**
+
+`PromptSection` 67 处、`AppModule` 9 处的 `Order` 数字全部删除，改为：
+
+- `resources/prompts/sections.yaml`：67 个段落按注册名显式排序，生成器未登记就报 JCCGEN001；
+- `resources/app/modules.yaml`：`cli` / `gui` 两个 profile，生成器产出 `AppModuleCatalog`；
+  CLI 工厂按 profile 装配，GUI 工厂按同一份 YAML 映射本程序集实现类型；
+- `EngineApplicationBuilder` 不再 `OrderBy(m => m.Order)`，按注册顺序执行；
+- 测试 `EngineApplicationBuilderTests` 改为断言注册顺序（原断言数字升序）。
+
+真机 `Verify-ExplicitOrder.py`：`jcc prompt` 段落顺序与 YAML 一致（条件段按需注入，
+故验相对顺序不验全集），`jcc --debuglog -p hi` 的模块顺序与 `cli` profile 完全一致，
+源码中无特性 `Order`。
+
+**验证汇总**：`Verify-ToolNodes.ps1 -Sample` 13 组 / 635 / 390 声明与现实一致；
+`Host.Tests` 1284、`Brain.Prompts.Tests` 220、`Abstractions.Primitives.Tools.Tests` 39，均 0 失败。
+
+**提交**：`a466cdd69`（Agent 内化）、`9fdc81c55`（诚实模块）、
+`19f0a5342`（目标驱动）、`d971e46c3`（显式顺序，98 文件）。
+

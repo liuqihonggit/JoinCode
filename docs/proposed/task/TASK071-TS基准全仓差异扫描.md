@@ -98,6 +98,10 @@
 2. remote 会话订阅端（CCR viewer-only 模式）
 3. 直连服务器客户端（server 模式）
 4. 设置迁移机制（11 个 TS 迁移脚本 — 老版本升级用户配置静默失效）
+   - 2026-11-18 进展：只落地了**一件具体的迁移**（`SettingsSourceMigration`：把历史误写在
+     settings.json 的 global 键搬进 global.json，幂等、无版本号），见
+     [TASK089](../implemented/task/TASK089-配置存储源分叉.md)。**通用迁移框架（版本号 + 脚本目录）仍未建**，
+     后续再做别的键搬家时还需要它。
 5. 交互输入历史 history.jsonl（跨会话 Up/Ctrl+R 召回 — CLI 核心体验）
 6. 团队记忆密钥扫描（gitleaks 规则 — 安全面）
 7. LocalAgentTask/主会话后台化任务类型

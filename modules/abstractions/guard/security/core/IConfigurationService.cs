@@ -32,24 +32,25 @@ public interface IConfigurationService {
     event EventHandler<SettingChangeEventArgs>? SettingChanged;
 
     /// <summary>
-    /// 获取配置项值（默认从 settings 源读取）
+    /// 获取配置项值 — 存储源由契约层 <c>SettingSourceMap</c> 按按键决定
+    /// （global → global.json，settings → settings.json）。
     /// </summary>
     Task<string?> GetAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 获取配置项值（指定存储源）
-    /// 所有源统一从 settings.json 读取
+    /// 获取配置项值（显式指定存储源）
+    /// 一般不需要 —— 无 source 重载已按唯一映射表分流；仅在明确知道源时使用。
     /// </summary>
     Task<string?> GetAsync(string key, SettingSource source, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 设置配置项值（默认写入 settings 源）
+    /// 设置配置项值 — 存储源由 <c>SettingSourceMap</c> 决定
     /// </summary>
     Task<bool> SetAsync(string key, string value, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 设置配置项值（指定存储源）
-    /// 对齐 TS 版 updateSettingsForSource — 统一写入 settings.json
+    /// 设置配置项值（显式指定存储源）
+    /// 对齐 TS 版 updateSettingsForSource
     /// </summary>
     Task<bool> SetAsync(string key, string value, SettingSource source, CancellationToken cancellationToken = default);
 
@@ -60,7 +61,8 @@ public interface IConfigurationService {
     Task<bool> SetAsync(string key, string value, SettingSource source, string? appStateKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 删除配置项
+    /// 删除配置项 — 删的源与写的源一致（由 <c>SettingSourceMap</c> 决定），
+    /// 不会出现「值在 global.json 却去删 settings.json」的空转
     /// </summary>
     Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default);
 

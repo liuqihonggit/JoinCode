@@ -70,6 +70,7 @@ public sealed class ConfigCommand : ChatCommandBase {
 
         var key = args[1];
         var configService = ResolveConfigService(context);
+        // 存储源由配置服务按 SettingSourceMap 决定 —— 与 config_get 工具读同一个文件（TASK089）
         var value = await configService.GetAsync(key, context.CancellationToken).ConfigureAwait(false);
         if (value is not null) {
             TerminalHelper.WriteLine($"{key} = {value}");

@@ -5,6 +5,10 @@ namespace Core.Configuration;
 /// <summary>
 /// 支持的配置设置注册表。
 /// 对齐 TS: supportedSettings.ts SUPPORTED_SETTINGS
+/// <para><b>存储源不在本表声明</b> —— 统一由契约层 <see cref="SettingSourceMap"/> 决定
+/// （对齐 TS supportedSettings.ts 的 source 字段）。本表只声明「这个键支持吗、类型、选项、校验」。
+/// 曾经在这里手写 <c>Source = "global"</c>，而 CLI 斜杠命令与 GUI 走的是另一套判断，
+/// 于是同一个键在两个文件里各有一份值，用户与 LLM 互相看不见对方的设置（TASK089）。</para>
 /// </summary>
 public static class SupportedSettings {
     /// <summary>
@@ -15,62 +19,51 @@ public static class SupportedSettings {
     static SupportedSettings() {
         var settings = new Dictionary<string, ConfigSetting>(StringComparer.Ordinal) {
             ["theme"] = new() {
-                Source = "global",
                 Type = "string",
                 Description = "UI 颜色主题",
                 Options = ["dark", "light", "auto", "dark-daltonized", "light-daltonized", "dark-ansi", "light-ansi"],
             },
             ["editorMode"] = new() {
-                Source = "global",
                 Type = "string",
                 Description = "按键绑定模式",
                 Options = ["default", "vim"],
             },
             ["debuglog"] = new() {
-                Source = "global",
                 Type = "boolean",
                 Description = "显示详细调试输出",
                 AppStateKey = "debuglog",
             },
             ["preferredNotifChannel"] = new() {
-                Source = "global",
                 Type = "string",
                 Description = "首选通知渠道",
                 Options = ["terminal", "desktop", "disabled"],
             },
             ["autoCompactEnabled"] = new() {
-                Source = "global",
                 Type = "boolean",
                 Description = "上下文满时自动压缩",
             },
             ["fileCheckpointingEnabled"] = new() {
-                Source = "global",
                 Type = "boolean",
                 Description = "启用文件检查点以便代码回退",
             },
             ["showTurnDuration"] = new() {
-                Source = "global",
                 Type = "boolean",
                 Description = "响应后显示轮次耗时",
             },
             ["terminalProgressBarEnabled"] = new() {
-                Source = "global",
                 Type = "boolean",
                 Description = "在支持的终端中显示 OSC 9;4 进度指示器",
             },
             ["todoFeatureEnabled"] = new() {
-                Source = "global",
                 Type = "boolean",
                 Description = "启用待办/任务跟踪",
             },
             ["teammateMode"] = new() {
-                Source = "global",
                 Type = "string",
                 Description = "如何生成队友: tmux 传统模式, in-process 同进程模式, auto 自动选择",
                 Options = ["tmux", "in-process", "auto"],
             },
             ["model"] = new() {
-                Source = "settings",
                 Type = "string",
                 Description = "覆盖默认模型",
                 AppStateKey = "mainLoopModel",
@@ -79,30 +72,25 @@ public static class SupportedSettings {
                 ValidateOnWrite = ValidateModelId,
             },
             ["alwaysThinkingEnabled"] = new() {
-                Source = "settings",
                 Type = "boolean",
                 Description = "启用扩展思考（false 禁用）",
                 AppStateKey = "thinkingEnabled",
             },
             ["autoMemoryEnabled"] = new() {
-                Source = "settings",
                 Type = "boolean",
                 Description = "启用自动记忆",
             },
             ["autoDreamEnabled"] = new() {
-                Source = "settings",
                 Type = "boolean",
                 Description = "启用后台记忆整合",
             },
             ["permissions.defaultMode"] = new() {
-                Source = "settings",
                 Type = "string",
                 Description = "工具使用的默认权限模式",
                 Path = ["permissions", "defaultMode"],
                 Options = [PermissionMode.Plan.ToValue(), PermissionMode.Auto.ToValue(), PermissionMode.Ask.ToValue(), PermissionMode.Bypass.ToValue()],
             },
             ["language"] = new() {
-                Source = "settings",
                 Type = "string",
                 Description = "JoinCode 响应和语音听写的首选语言（如 \"japanese\", \"spanish\"）",
             },
@@ -110,6 +98,13 @@ public static class SupportedSettings {
 
         All = settings.ToFrozenDictionary(StringComparer.Ordinal);
     }
+
+    /// <summary>
+    /// 取设置键的存储源 — 委托契约层 <see cref="SettingSourceMap"/>（唯一数据源）。
+    /// </summary>
+    /// <param name="key">设置键名。</param>
+    /// <returns>该键的存储源。</returns>
+    public static SettingSource SourceOf(string key) => SettingSourceMap.SourceOf(key);
 
     /// <summary>检查指定设置键是否受支持</summary>
     /// <param name="key">设置键名</param>

@@ -43,8 +43,8 @@ public sealed partial class ConfigToolHandlers {
             }
 
             var config = SupportedSettings.GetConfig(setting)!;
-            // 对齐 TS: source 分流 — global 走 ~/.jcc/global.json, settings 走 ~/.jcc/settings.json
-            var source = config.Source == "global" ? SettingSource.GlobalConfig : SettingSource.UserSettings;
+            // 存储源取自唯一数据源 SettingSourceMap（对齐 TS supportedSettings.ts 的 source 字段）
+            var source = SupportedSettings.SourceOf(setting);
             var currentValue = await _configService.GetAsync(setting, source, cancellationToken).ConfigureAwait(false);
 
             // 对齐 TS: formatOnRead — 读取时格式化
@@ -123,7 +123,7 @@ public sealed partial class ConfigToolHandlers {
             }
 
             // 写入 — 对齐 TS: global → saveGlobalConfig, settings → updateSettingsForSource
-            var source = config.Source == "global" ? SettingSource.GlobalConfig : SettingSource.UserSettings;
+            var source = SupportedSettings.SourceOf(setting);
             var previousValue = await _configService.GetAsync(setting, source, cancellationToken).ConfigureAwait(false);
 
             var success = await _configService.SetAsync(setting, finalValue, source, config.AppStateKey, cancellationToken).ConfigureAwait(false);
@@ -164,7 +164,7 @@ public sealed partial class ConfigToolHandlers {
             var projectSettings = new List<(string Key, ConfigSetting Config)>();
 
             foreach (var (key, config) in SupportedSettings.All) {
-                if (config.Source == "global")
+                if (SupportedSettings.SourceOf(key) == SettingSource.GlobalConfig)
                     globalSettings.Add((key, config));
                 else
                     projectSettings.Add((key, config));

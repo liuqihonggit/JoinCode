@@ -1,8 +1,10 @@
-// system 组下沉 handler — config/错误诊断/permission 读写/model_search/policy_list/通知交互/brief。
+// system 组下沉 handler — 错误诊断/permission 读写/model_search/policy_list/通知交互/brief。
+// config 读写一律在宿主（键清单与存储源映射都在宿主侧，见下方 config 段落说明）。
 // 全部只用 BCL + Win32 + HttpClient。注意分界：
 // - permission 写类已下沉：规则文件 {gitRoot}/.jcc/permission/rules.json 是唯一真相源，
 //   宿主 AgentPermissionManager 按内容戳感知外部改写（见 AgentPermissionManagerExternalWriteTests）。
-// - 其余写类（config_set/brief_mode/memory 写/cron 写）宿主读的是进程内快照或只在启动装载，仍需宿主配套改造，留宿主。
+// - config 读写（config_get/config_set/config_list）留宿主：键清单与「键 → 存储源」映射都是宿主唯一数据源。
+// - 其余写类（brief_mode/memory 写/cron 写）宿主读的是进程内快照或只在启动装载，仍需宿主配套改造，留宿主。
 // - agent_*/analytics_*/TUI(ask_user/confirm)/watcher(memory_team_sync) 绑定宿主进程内状态，物理边界，留宿主。
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -17,56 +19,10 @@ internal static partial class SystemCommands {
     private static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private static string Jcc => Path.Combine(Home, ".jcc");
 
-    // ==================== config（读） ====================
-
-    private static Task<int> ConfigGetAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
-        var key = Required(o, "setting", "config_get");
-        // 支持的 key（与 SupportedSettings 对齐的常用集）
-        string[] supported = ["theme", "model", "debuglog", "thinkingEnabled", "telemetry", "autoFetchModels", "language", "maxTokens", "temperature"];
-        if (!supported.Contains(key, StringComparer.OrdinalIgnoreCase))
-            throw new ArgumentException($"config_get 不支持设置项 '{key}'。可用: {string.Join(", ", supported)}");
-        var value = ReadSetting(key, out var found);
-        Console.Out.WriteLine($"{key} = {(found ? value : "(未设置)")}");
-        return Task.FromResult(0);
-    }
-
-    private static Task<int> ConfigListAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
-        string[] supported = ["theme", "model", "debuglog", "thinkingEnabled", "telemetry", "autoFetchModels", "language", "maxTokens", "temperature"];
-        var sb = new StringBuilder();
-        sb.AppendLine("Available settings:");
-        sb.AppendLine();
-        sb.AppendLine("Global settings:");
-        foreach (var k in supported) {
-            var v = ReadSetting(k, out var found);
-            sb.AppendLine($"  - {k}: {(found ? v : "(not set)")}");
-        }
-        Console.Out.Write(sb.ToString());
-        return Task.FromResult(0);
-    }
-
-    private static string ReadSetting(string key, out bool found) {
-        found = false;
-        foreach (var file in new[] { Path.Combine(Jcc, "settings.json"), Path.Combine(Jcc, "global.json") }) {
-            if (!File.Exists(file)) continue;
-            try {
-                using var doc = JsonDocument.Parse(File.ReadAllText(file).TrimStart('\uFEFF'));
-                if (FindKey(doc.RootElement, key, out var v)) { found = true; return v; }
-            } catch (JsonException) { /* 跳过损坏文件 */ }
-        }
-        return "";
-    }
-    private static bool FindKey(JsonElement el, string key, out string value) {
-        value = "";
-        if (el.ValueKind != JsonValueKind.Object) return false;
-        foreach (var p in el.EnumerateObject()) {
-            if (p.Name.Equals(key, StringComparison.OrdinalIgnoreCase)) {
-                value = p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() ?? "" : p.Value.ToString();
-                return true;
-            }
-            if (p.Value.ValueKind == JsonValueKind.Object && FindKey(p.Value, key, out value)) return true;
-        }
-        return false;
-    }
+    // config_get / config_list 已退休回宿主（2026-11-18，TASK089）：
+    // exe 版自带一份 supported 键清单 + 「先 settings 再 global」的递归找键，与宿主 SupportedSettings +
+    // SettingSourceMap 各成一套，真机上 config_set 写 global、config_get 报未设置。
+    // 本文件保留 config 相关的**写**语义说明，读一律走宿主，见 SystemCommands.Handlers 注释。
 
     // ==================== 错误诊断/修复（确定性规则） ====================
 

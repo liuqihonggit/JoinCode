@@ -562,7 +562,7 @@ internal sealed class JccChatSession : IJccChatSession {
         => _chat.SetSystemPromptAsync(systemPrompt, cancellationToken);
 
     /// <summary>
-    /// 当前主题 — 从 settings.json 读取（键 ConfigKeyEnumConstants.Theme），对齐 CLI ThemeCommand。
+    /// 当前主题 — 从全局配置读取（键 ConfigKeyEnumConstants.Theme），对齐 CLI ThemeCommand。
     /// 未设置或损坏返回 <see cref="ThemeKind.Auto"/>（对齐 CLI GetCurrentThemeAsync 默认回退）。
     /// </summary>
     public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default) {
@@ -570,12 +570,13 @@ internal sealed class JccChatSession : IJccChatSession {
         if (configService is null)
             return ThemeKind.Auto;
 
+        // 存储源由配置服务按 SettingSourceMap 决定（theme → ~/.jcc/global.json）
         var value = await configService.GetAsync(ConfigKeyEnumConstants.Theme, cancellationToken);
         return string.IsNullOrEmpty(value) ? ThemeKind.Auto : (ThemeKindExtensions.FromValue(value) ?? ThemeKind.Auto);
     }
 
     /// <summary>
-    /// 设置主题并持久化到 settings.json（键 ConfigKeyEnumConstants.Theme），对齐 CLI ThemeCommand。
+    /// 设置主题并持久化到全局配置（键 ConfigKeyEnumConstants.Theme），对齐 CLI ThemeCommand。
     /// </summary>
     public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default) {
         var configService = _services.GetService<IConfigurationService>();

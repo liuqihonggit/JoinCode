@@ -34,6 +34,8 @@
   - 证据：真机 `jcc-tool-file.exe read --filePath "AGENTS.md"` 成功（修复前报「缺少必填参数 --file_path」）；`Verify-ToolParamNames.py` 117 项抽查全通；契约层 `JoinCode.CliNodes.Tests` 48 通过。详见 [TASK087](TASK087-参数名归一化两条路径统一.md)。
 - [x] **密钥红线按值判定**：不再按参数名拦 `--key`/`--token`/`--secret`，改为按密钥语义 + 值形态判定。
   - 证据：真机 `jcc tool call search search_symbol --key theme` 不再被阻断；`--api-key sk-xxx`、`--token ghp_xxx`、`--api-key=sk-xxx` 仍被拦（等号形式修复前漏检）；`host.tests` 1329 通过（新增 21 条）。详见 [TASK088](TASK088-密钥红线按值判定.md)。
+- [x] **配置存储源收敛**：`/theme`、GUI、`config_get`/`config_set` 对同一键给同一答案；存储源由契约层 `SettingSourceMap` 唯一决定，旧 `settings.json` 的 global 键一次性搬走。
+  - 证据：真机同目录交叉验证 —— `/theme light` 写 `global.json` 后 `jcc tool call system config_get --setting theme` 读到 `light`；工具写 `dark` 后 `/config get theme` 读回 `dark`；GUI 探针 `GuiSessionProbe` 读 `dark-ansi` 并写回 `light-daltonized` 全部落在 `global.json`；`config_source_probe` 三场景 12 项断言通过；`Guard.Config.Tests` 1305 通过。详见 [TASK089](TASK089-配置存储源分叉.md)。
 
 ## 用户决策记录
 

@@ -110,15 +110,16 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
-    /// <summary>占位会话从 settings.json 读主题 — 引擎不可用时仍恢复上次选择</summary>
+    /// <summary>占位会话从全局配置读主题 — 引擎不可用时仍恢复上次选择</summary>
     public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default) {
         if (_configService is null)
             return ThemeKind.Auto;
+        // 存储源由配置服务按 SettingSourceMap 决定（theme → ~/.jcc/global.json）
         var value = await _configService.GetAsync(ConfigKeyEnumConstants.Theme, cancellationToken);
         return string.IsNullOrEmpty(value) ? ThemeKind.Auto : (ThemeKindExtensions.FromValue(value) ?? ThemeKind.Auto);
     }
 
-    /// <summary>占位会话不持久化主题 — 引擎不可用时仍写 settings.json，对齐 CLI /theme</summary>
+    /// <summary>占位会话不持久化主题 — 引擎不可用时仍写全局配置，对齐 CLI /theme</summary>
     public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default) {
         if (_configService is not null)
             await _configService.SetAsync(ConfigKeyEnumConstants.Theme, theme.ToValue(), cancellationToken);

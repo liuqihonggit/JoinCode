@@ -3,14 +3,15 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 /// <summary>
 /// 配置设置元数据。
 /// 对齐 TS: supportedSettings.ts SettingConfig
+/// <para><b>不含存储源字段</b> —— 存储源统一由 <see cref="SettingSourceMap"/> 决定（对齐 TS 的 source 字段）。
+/// 曾经在本类型里带一个 <c>Source</c> 字符串，但 CLI 斜杠命令与 GUI 走的是另一套判断，
+/// 同一个键于是住在两个文件里、用户与 LLM 互相看不见对方的设置（TASK089）。</para>
 /// </summary>
 public sealed class ConfigSetting {
     /// <summary>获取配置值类型（"boolean" | "string"）。</summary>
     public required string Type { get; init; } // "boolean" | "string"
     /// <summary>获取配置描述。</summary>
     public required string Description { get; init; }
-    /// <summary>获取配置来源（"global" | "settings"）。</summary>
-    public required string Source { get; init; } // "global" | "settings"
 
     /// <summary>
     /// 嵌套路径（如 permissions.defaultMode → ["permissions", "defaultMode"]）

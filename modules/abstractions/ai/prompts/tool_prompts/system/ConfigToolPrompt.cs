@@ -36,7 +36,7 @@ public static class ConfigToolPrompt {
 
             var line = lineBuilder.ToString();
 
-            if (config.Source == SettingSource.GlobalConfig.ToValue()) {
+            if (SettingSourceMap.SourceOf(key) == SettingSource.GlobalConfig) {
                 globalSettings.Add(line);
             } else {
                 projectSettings.Add(line);

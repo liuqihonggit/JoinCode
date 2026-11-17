@@ -71,3 +71,9 @@ items:
     status: done
     evidence: "真机 jcc tool call search search_symbol --key theme 不再被阻断（进入工具层并给精确引导）；--api-key sk-xxx、--token ghp_xxx、--api-key=sk-xxx 三种形态仍被拦（后者修复前漏检）；host.tests 1329 通过（新增 21 条）"
     next: 无需动作
+
+  - id: config_storage_source
+    title: 配置存储源收敛 — /theme、GUI、config_get/config_set 读同一个文件（SettingSourceMap 唯一决定）
+    status: done
+    evidence: "真机同目录交叉验证：/theme 写 light 后 config_get 读到 light，工具写 dark 后 /config get 读回 dark，均在 global.json；GUI 探针 GuiSessionProbe 读写一致；config_source_probe 三场景 12 项断言通过；Guard.Config.Tests 1305 通过"
+    next: 无需动作

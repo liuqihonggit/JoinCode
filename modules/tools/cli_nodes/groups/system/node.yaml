@@ -8,15 +8,15 @@ category: system
 exe: jcc-tool-system.exe
 tags: [agent, analytics, ask, brief, config, confirm, continue, ctx]
 tool_count: 72
-local_tool_count: 24
+local_tool_count: 22
 parameters: []
 tools:
   - id: config_get
-    mode: local
+    mode: host
   - id: config_set
     mode: host
   - id: config_list
-    mode: local
+    mode: host
   - id: agent
     mode: host
   - id: agent_send_message

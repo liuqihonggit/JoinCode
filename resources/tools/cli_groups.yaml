@@ -68,7 +68,7 @@ groups:
   - id: system
     exe: jcc-tool-system
     tools: 72
-    local: 24
+    local: 22
     delegate: 0
     blurb: "配置读写、代理消息与生命周期、诊断、cron 与遥测"
   - id: tools

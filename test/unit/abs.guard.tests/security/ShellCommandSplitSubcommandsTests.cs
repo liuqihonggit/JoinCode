@@ -46,7 +46,8 @@ public sealed class ShellCommandSplitSubcommandsTests {
 
     [Fact]
     public void SinglePipe_IsNotASeparator() {
-        // 管道两侧是同一命令的数据流；上游有「管道目标是解释器」的专门检查，拆开会绕过它
+        // 管道两侧是同一条命令的数据流，拆成两条独立命令会丢掉「右侧消费左侧输出」的语义；
+        // 管道右侧要单独判定时用 SplitPipelineStages。
         ShellCommand.SplitSubcommands("git log | sh").Should().Equal("git log | sh");
     }
 
@@ -92,5 +93,46 @@ public sealed class ShellCommandSplitSubcommandsTests {
     [Fact]
     public void BlankCommand_ReturnsEmpty() {
         ShellCommand.SplitSubcommands("   ").Should().BeEmpty();
+    }
+
+    // ── SplitPipelineStages：把管道两侧也拆开（右侧才是真正动手的） ──
+
+    [Fact]
+    public void PipelineStages_SplitEveryPipeStage() {
+        ShellCommand.SplitPipelineStages("echo hi | xargs rm -rf | tee log")
+            .Should().Equal("echo hi", "xargs rm -rf", "tee log");
+    }
+
+    [Fact]
+    public void PipelineStages_LogicalOrIsStillASeparator() {
+        // || 不是管道：它分开的是两条完整命令，不能拆成「|」+「|」
+        ShellCommand.SplitPipelineStages("false || rm -rf ./build")
+            .Should().Equal("false", "rm -rf ./build");
+    }
+
+    [Fact]
+    public void PipelineStages_PipeInsideQuotes_IsPreserved() {
+        ShellCommand.SplitPipelineStages("grep -E 'a|b' file.txt")
+            .Should().Equal("grep -E 'a|b' file.txt");
+    }
+
+    [Fact]
+    public void PipelineStages_HeredocBodyIsNotSplit() {
+        // 正文里出现的 | 只是被写入的文本；只有起始行（head line）里的管道才拆
+        ShellCommand.SplitPipelineStages("cat > /tmp/x.sh <<EOF\necho a | b\nEOF")
+            .Should().Equal("cat > /tmp/x.sh <<EOF\necho a | b\nEOF");
+    }
+
+    [Fact]
+    public void PipelineStages_HeredocHeadPipe_IsSplit() {
+        // `cat <<EOF | sh` 的管道在起始行，`sh` 是真执行者，必须拆出来
+        ShellCommand.SplitPipelineStages("cat <<EOF | sh\npayload\nEOF")
+            .Should().HaveCount(2)
+            .And.Subject.First().Should().StartWith("cat <<EOF");
+    }
+
+    [Fact]
+    public void PipelineStages_NoPipe_ReturnsSingleSegment() {
+        ShellCommand.SplitPipelineStages("ls -la").Should().Equal("ls -la");
     }
 }

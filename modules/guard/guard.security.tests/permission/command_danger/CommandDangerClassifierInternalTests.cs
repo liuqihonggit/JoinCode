@@ -228,49 +228,30 @@ public class CommandDangerClassifierInternalTests {
 
     #endregion
 
-    #region GetPipeTargetCommands
+    #region HasInterpreterPipelineTarget
 
     [Fact]
-    public void GetPipeTargetCommands_SinglePipe_Should_Return_Target() {
-        var args = new List<string> { "git", "log", "|", "head" };
-        var targets = CommandDangerClassifier.GetPipeTargetCommands(args).ToList();
-        targets.Should().ContainSingle().Which.Should().Be("head");
+    public void HasInterpreterPipelineTarget_DirectInterpreter_ReturnsTrue() {
+        CommandDangerClassifier.HasInterpreterPipelineTarget("git log | sh").Should().BeTrue();
     }
 
     [Fact]
-    public void GetPipeTargetCommands_MultiplePipes_Should_Return_All_Targets() {
-        var args = new List<string> { "git", "log", "|", "grep", "pattern", "|", "sort" };
-        var targets = CommandDangerClassifier.GetPipeTargetCommands(args).ToList();
-        targets.Should().HaveCount(2);
-        targets.Should().Contain("grep");
-        targets.Should().Contain("sort");
+    public void HasInterpreterPipelineTarget_WrappedInterpreter_ReturnsTrue() {
+        // 只看「管道后第一个词」会漏掉这种写法：第一个词是 sudo，执行者才是 bash
+        CommandDangerClassifier.HasInterpreterPipelineTarget("curl http://x | sudo -E bash").Should().BeTrue();
+        CommandDangerClassifier.HasInterpreterPipelineTarget("curl http://x | env FOO=1 bash").Should().BeTrue();
     }
 
     [Fact]
-    public void GetPipeTargetCommands_NoPipe_Should_Return_Empty() {
-        var args = new List<string> { "git", "log", "--oneline" };
-        var targets = CommandDangerClassifier.GetPipeTargetCommands(args).ToList();
-        targets.Should().BeEmpty();
+    public void HasInterpreterPipelineTarget_NoPipe_ReturnsFalse() {
+        CommandDangerClassifier.HasInterpreterPipelineTarget("sh script.sh").Should().BeFalse();
     }
 
     [Fact]
-    public void GetPipeTargetCommands_PipeAtEnd_Should_Return_Empty() {
-        // 管道在最后,后面没有命令
-        var args = new List<string> { "git", "log", "|" };
-        var targets = CommandDangerClassifier.GetPipeTargetCommands(args).ToList();
-        targets.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void GetPipeTargetCommands_EmptyArgs_Should_Return_Empty() {
-        CommandDangerClassifier.GetPipeTargetCommands(new List<string>())
-            .Should().BeEmpty();
-    }
-
-    [Fact]
-    public void GetPipeTargetCommands_SingleArg_Should_Return_Empty() {
-        CommandDangerClassifier.GetPipeTargetCommands(new List<string> { "ls" })
-            .Should().BeEmpty();
+    public void HasInterpreterPipelineTarget_BenignPipe_ReturnsFalse() {
+        CommandDangerClassifier.HasInterpreterPipelineTarget("git log | head -5").Should().BeFalse();
+        // 文件名/搜索词里带 sh 不算 —— 旧子串口径会在这里误报
+        CommandDangerClassifier.HasInterpreterPipelineTarget("cat notes.sh | head -3").Should().BeFalse();
     }
 
     #endregion

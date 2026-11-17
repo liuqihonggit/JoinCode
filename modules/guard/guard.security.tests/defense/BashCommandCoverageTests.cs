@@ -107,6 +107,9 @@ public class BashCommandCoverageTests {
             "true && rm -rf ./build",
             "false || rm -rf ./build",
             "echo hi\nrm -rf ./build",
+            // 管道前缀与分号前缀是同一类降级：首词是 echo，真正删文件的是管道右侧
+            "echo hi | xargs rm -rf",
+            "printf './build\n' | xargs rm -rf",
         ];
 
         foreach (var command in prefixed) {

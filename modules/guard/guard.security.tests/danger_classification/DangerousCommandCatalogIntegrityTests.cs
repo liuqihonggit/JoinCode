@@ -117,12 +117,15 @@ public class DangerousCommandCatalogIntegrityTests {
     }
 
     [Fact]
-    public void Combinations_Should_Contain_PipeToInterpreter_Combinations() {
-        // 管道到解释器组合
-        DangerousCommandCatalog.Combinations.Should().Contain(c =>
-            c.LowerPatterns[0] == "|" && c.LowerPatterns.Contains("bash"));
-        DangerousCommandCatalog.Combinations.Should().Contain(c =>
-            c.LowerPatterns[0] == "|" && c.LowerPatterns.Contains("python"));
+    public void Combinations_Should_Not_Declare_PipeToInterpreter() {
+        // 「管道到解释器」不再用组合表表达。组合匹配的口径是「原始串同时包含两个子串」，
+        // 用在管道上两边都不准：`cat notes.sh | head`（文件名带 sh）会误报，
+        // `| xargs rm -rf`、`| sudo bash` 会漏报。
+        // 判定已改为 CommandDangerClassifier.ClassifyIndirectExecution 的命令位解析，
+        // 行为回归锁见 BashIndirectExecutionTests。这里只守数据形状：不许再把子串口径加回来。
+        DangerousCommandCatalog.Combinations.Should().NotContain(
+            c => c.LowerPatterns[0] == "|",
+            "管道判定走命令位解析，组合表的子串口径会同时产生误报和漏报");
     }
 
     [Fact]

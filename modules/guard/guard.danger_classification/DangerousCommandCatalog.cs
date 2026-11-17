@@ -7,7 +7,7 @@ namespace Core.Security.DangerClassification;
 public static partial class DangerousCommandCatalog {
     /// <summary>
     /// 解释器命令集合 — 管道传入这些命令可执行任意代码
-    /// <para>唯一数据源,供 CommandDangerClassifier.IsInterpreter 和 BuildCombinations 管道组合共用</para>
+    /// <para>唯一数据源,供 CommandDangerClassifier.IsInterpreter 与间接执行判定共用</para>
     /// </summary>
     public static readonly FrozenSet<string> InterpreterCommands = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
@@ -15,6 +15,36 @@ public static partial class DangerousCommandCatalog {
         "python", "python3", "python2",
         "perl", "ruby", "node", "nodejs", "deno",
         "powershell", "pwsh", "cmd");
+
+    /// <summary>
+    /// 转发器命令集合 — 其**参数本身是一条命令**，真正执行的是参数里的那条
+    /// <para>
+    /// 存在理由：<c>xargs rm -rf</c> 的命令名是 <c>xargs</c>（未登记 → 黄灯 ask），
+    /// 而它实际执行的是 <c>rm -rf</c>（红灯）。只看命令名会把等级判轻。
+    /// </para>
+    /// </summary>
+    public static readonly FrozenSet<string> CommandExecutorCommands = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "xargs");
+
+    /// <summary>
+    /// 命令包装器集合 — 它们不改语义，只在真正的命令前面加权限/环境/计时
+    /// <para>
+    /// 用于命令位解析：<c>| sudo -E bash</c> 的真实命令是 <c>bash</c> 而不是 <c>sudo</c>。
+    /// 不跳过包装器就会漏掉「管道到解释器」。
+    /// </para>
+    /// </summary>
+    public static readonly FrozenSet<string> CommandWrapperCommands = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "sudo", "doas", "env", "nohup", "time", "command", "builtin", "exec");
+
+    /// <summary>
+    /// 在参数中内嵌命令的标志 — <c>find ... -exec rm -rf {} +</c> 这类
+    /// <para>取标志后的词直到终止符（<c>;</c> / <c>+</c>）作为一条命令</para>
+    /// </summary>
+    public static readonly FrozenSet<string> InlineExecFlags = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "-exec", "-execdir", "-ok", "-okdir");
 
     /// <summary>
     /// 命令条目 — 描述单个命令的风险类型和危险等级

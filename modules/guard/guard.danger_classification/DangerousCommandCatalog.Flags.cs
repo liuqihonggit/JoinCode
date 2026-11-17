@@ -84,15 +84,12 @@ public static partial class DangerousCommandCatalog {
             new(["git", "--config-env"], CommandRisk.SystemModification, CommandDangerLevel.Dangerous, "git --config-env 环境变量注入配置 — 可改变 git 行为，直接拒绝"),
         };
 
-        var pipeToInterpreters = InterpreterCommands
-            .Select(interp => new CombinationEntry(
-                ["|", interp.ToLowerInvariant()],
-                CommandRisk.RemoteExecution,
-                CommandDangerLevel.Execution,
-                $"管道到 {interp} — 不可撤回"))
-            .ToList();
-
-        return [.. hardcoded, .. pipeToInterpreters];
+        // 管道到解释器**不在这里登记**：组合匹配是「原始串同时包含两个子串」的口径，
+        // 而管道要看的是「右侧命令位上是哪个词」。子串口径两边都不准：
+        //   · 误报 —— `cat notes.sh | head`（文件名里带 sh）、`ls | grep shared` 都会被判成管道进解释器；
+        //   · 漏报 —— `| xargs rm -rf`、`| sudo bash` 一个都抓不到。
+        // 判定改在 CommandDangerClassifier.ClassifyIndirectExecution 用命令位解析做，数据源仍是 InterpreterCommands。
+        return hardcoded;
     }
 
     /// <summary>

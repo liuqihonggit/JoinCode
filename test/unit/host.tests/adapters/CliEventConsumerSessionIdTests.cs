@@ -5,6 +5,7 @@ namespace Host.Tests.Adapters;
 /// 而非 CliEventConsumer 自己生成的 UUID。根因：CliEventConsumer.EnsureSystemInit 行 204 自生成 Guid，
 /// 与 SessionIdGenerator.Generate() 格式（transcript 目录名）不一致，导致 -c 恢复会话找不到 transcript。
 /// </summary>
+[Collection("ConsoleOutput")]
 public sealed class CliEventConsumerSessionIdTests {
     [Fact]
     public void OnText_WithExplicitSessionId_OutputUsesThatSessionId() {

@@ -3,6 +3,7 @@ namespace Core.Tests.ChatCommands;
 /// <summary>
 /// /exit 命令单元测试 — 覆盖确认提示被重定向吞掉 + PTY 交互模式无阻塞
 /// </summary>
+[Collection("ConsoleOutput")]
 public class ExitCommandTests {
     [Fact]
     public void Name_Should_Be_exit() {

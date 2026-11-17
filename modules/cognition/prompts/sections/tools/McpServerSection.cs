@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// MCP服务器部分 - 关于连接的MCP服务器
 /// </summary>
-[PromptSection(Name = "mcp_server", Order = 76, IsDynamic = true)]
+[PromptSection(Name = "mcp_server", IsDynamic = true)]
 public static class McpServerSection {
     /// <summary>
     /// 获取 MCP 服务器部分的提示词内容。当无已连接服务器时返回 null。

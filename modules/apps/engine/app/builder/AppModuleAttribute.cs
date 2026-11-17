@@ -5,8 +5,4 @@ namespace JoinCode.App.Builder;
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public sealed class AppModuleAttribute : Attribute {
-    /// <summary>
-    /// 模块执行优先级 — 数值越小越先执行，默认 100
-    /// </summary>
-    public int Order { get; set; } = 100;
 }

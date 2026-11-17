@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// Scratchpad部分 - 临时文件目录说明
 /// </summary>
-[PromptSection(Name = "scratchpad", Order = 71, IsDynamic = true)]
+[PromptSection(Name = "scratchpad", IsDynamic = true)]
 public static class ScratchpadSection {
     /// <summary>
     /// 获取 scratchpad 部分内容；临时工作区说明，未配置时返回 null。

@@ -4,10 +4,9 @@ namespace JoinCode.App.Modules;
 /// 核心模块 — 注册 AI 工作流服务（AddAiWorkflowServices 包含 AddAutoRegisteredServices + 全部子系统）
 /// + engine 程序集 [Register] 类型自动注册（ADR 0143 Step 3c 搬入 24 个引擎侧资产）
 /// </summary>
-[AppModule(Order = 30)]
+[AppModule]
 public sealed class CoreModule : IAppModule {
     /// <summary>模块加载顺序，值为 30</summary>
-    public int Order => 30;
 
     /// <summary>
     /// 配置核心服务 — 注册 AI 工作流服务、全部管道与 engine 程序集自动注册

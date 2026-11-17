@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// Token预算部分 - 当用户指定token目标时的指导
 /// </summary>
-[PromptSection(Name = "token_budget", Order = 50)]
+[PromptSection(Name = "token_budget")]
 public static class TokenBudgetSection {
     /// <summary>
     /// 获取 Token 预算部分的提示词内容。

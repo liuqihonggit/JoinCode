@@ -3,11 +3,9 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 结构化任务工作流部分 — 当用户输入包含任务关键词时注入，指导按五步工作流执行任务。
 /// </summary>
-[PromptSection(
-    Name = "structured_task_workflow",
+[PromptSection(Name = "structured_task_workflow",
     Keywords = new[] { "修改", "实现", "重构", "修复", "添加", "更改", "变更", "改造", "改动", "调整", "modify", "implement", "refactor", "fix", "add", "change" },
-    InjectOn = PromptSectionInject.Keyword,
-    Order = 64)]
+    InjectOn = PromptSectionInject.Keyword)]
 public static class StructuredTaskWorkflowSection {
     /// <summary>
     /// 获取结构化任务工作流的提示词内容。

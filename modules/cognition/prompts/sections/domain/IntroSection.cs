@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 介绍部分 - AI助手的身份定义
 /// </summary>
-[PromptSection(Name = "intro", Order = 1)]
+[PromptSection(Name = "intro")]
 public static class IntroSection {
     /// <summary>
     /// 获取 intro 部分内容；AI 助手身份定义，有自定义介绍时返回自定义内容。

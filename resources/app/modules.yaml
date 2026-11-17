@@ -1,0 +1,24 @@
+# 应用模块顺序 — 按注册类名显式声明，特性不再持有 Order 数字
+#
+# 消费方: AppModule.Generator（AdditionalFiles）生成 AppModuleCatalog；
+#         CLI / GUI 会话工厂只按 profile 取模块，不再手写 new XxxModule() 列表。
+#
+# 新增模块必须同时登记到使用它的 profile，否则生成期报错（JCCGEN002）。
+version: 1
+profiles:
+  cli:
+    - CoreModule
+    - CliRegistrationModule
+    - ClockModule
+    - BrowserModule
+    - PipeModule
+    - CliModule
+    - HousekeepingModule
+    - McpInitModule
+  gui:
+    - CoreModule
+    - SlashCommandModule
+    - ClockModule
+    - BrowserModule
+    - HousekeepingModule
+    - McpInitModule

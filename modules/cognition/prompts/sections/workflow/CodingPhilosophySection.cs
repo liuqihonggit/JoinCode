@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 编码哲学部分 - AI助手核心设计哲学与编码准则（始终注入，精简版）
 /// </summary>
-[PromptSection(Name = "coding_philosophy", Order = 5)]
+[PromptSection(Name = "coding_philosophy")]
 public static class CodingPhilosophySection {
     /// <summary>
     /// 创建编码哲学 Section 实例（内容缓存）。

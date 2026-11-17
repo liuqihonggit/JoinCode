@@ -19,8 +19,8 @@
     测试后已还原 `settings.json`。
 - [x] **目标驱动提示词**：先问目标、无目标不执行、逐条确认、模糊目标说明利弊。
   - 证据：真机 `jcc prompt --section goal_driven` 输出四条硬规则，并接线 `goal_get` / `goal_graph_define` / `goal_update`。
-- [ ] **清理特性排序**：`AppModule` / `PromptSection` 的 `Order` 数字排序改为注册名 + YAML。
-  - 待验证：生成器编译、模块顺序与段落顺序真机核对。
+- [x] **清理特性排序**：`AppModule` / `PromptSection` 的 `Order` 数字排序改为注册名 + YAML。
+  - 证据：`Verify-ExplicitOrder.py` 真机核对 jcc 段落顺序与 `sections.yaml`、模块顺序与 `modules.yaml` 一致，特性里无 `Order`。
 
 ## 用户决策记录
 

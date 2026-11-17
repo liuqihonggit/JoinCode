@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 验证部分 - 关于代码验证的要求
 /// </summary>
-[PromptSection(Name = "verification", Order = 21)]
+[PromptSection(Name = "verification")]
 public static class VerificationSection {
     /// <summary>
     /// 创建 verification 提示词部分。

@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// Shell信息部分 - 关于当前Shell的说明
 /// 从 SystemActuatorInfos 通用集合遍历，新增 SystemActuatorKind 无需改此代码
 /// </summary>
-[PromptSection(Name = "shell_info", Order = 69, IsDynamic = true)]
+[PromptSection(Name = "shell_info", IsDynamic = true)]
 public static class ShellInfoSection {
     /// <summary>
     /// 创建 Shell 信息提示词部分。

@@ -5,12 +5,11 @@ namespace JoinCode.App.Modules;
 /// 接线技能桥；八插件加载经 <see cref="McpPluginBootstrap"/> 后台化（启动开销优化 — TASK037 后续：
 /// 不阻塞启动等加载墙钟，工具就绪后自动补齐 kernel.Plugins）。
 /// </summary>
-[AppModule(Order = 90)]
+[AppModule]
 public sealed class McpInitModule : IAppModule {
     /// <summary>
     /// 获取模块加载顺序 — 固定为 90，确保在其他基础模块之后加载
     /// </summary>
-    public int Order => 90;
 
     /// <summary>
     /// 注册模块所需的服务到 DI 容器 — 后台加载生命周期句柄（Host DisposeAsync 释放时等待链收尾）

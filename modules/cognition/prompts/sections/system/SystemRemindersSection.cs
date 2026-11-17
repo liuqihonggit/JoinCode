@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 系统提醒部分 - 关于system-reminder标签的说明
 /// </summary>
-[PromptSection(Name = "system_reminders", Order = 4)]
+[PromptSection(Name = "system_reminders")]
 public static class SystemRemindersSection {
     /// <summary>
     /// 创建系统提醒提示词部分。

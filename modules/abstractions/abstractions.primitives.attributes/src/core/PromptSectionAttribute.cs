@@ -45,9 +45,4 @@ public sealed class PromptSectionAttribute : Attribute {
     /// 是否为动态 Section（每轮重新计算），默认 false（缓存）
     /// </summary>
     public bool IsDynamic { get; init; }
-
-    /// <summary>
-    /// 注册顺序（数值越小越靠前），默认 100
-    /// </summary>
-    public int Order { get; init; } = 100;
 }

@@ -6,7 +6,7 @@ namespace Core.Prompts.Sections;
 /// 也可能不是用户要的。本段落要求每轮先反问目标；推断只能当候选，必须逐条确认；
 /// 模糊目标要讲清利弊，让用户选一个可判定的解释。</para>
 /// </summary>
-[PromptSection(Name = "goal_driven", Order = 4)]
+[PromptSection(Name = "goal_driven")]
 public static class GoalDrivenSection {
     /// <summary>获取目标驱动规则文本。</summary>
     public static string? GetContent() =>

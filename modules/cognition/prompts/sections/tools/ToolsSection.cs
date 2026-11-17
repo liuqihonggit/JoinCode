@@ -7,7 +7,7 @@ namespace Core.Prompts.Sections;
 /// 首轮工具，后者决定列出哪些 exe。两者都是生成物，提示词里不手写任何工具名或组名 ——
 /// 手写清单必然漂移成「提示词让你用一个根本不存在的命令」或「新加的组模型永远发现不了」。</para>
 /// </summary>
-[PromptSection(Name = "tools", Order = 11)]
+[PromptSection(Name = "tools")]
 public static class ToolsSection {
     /// <summary>
     /// 获取工具使用部分的提示词内容。根据 base.yaml 的实际声明拼接工具使用指导。

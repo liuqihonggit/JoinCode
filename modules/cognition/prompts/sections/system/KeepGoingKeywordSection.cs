@@ -5,11 +5,9 @@ namespace Core.Prompts.Sections;
 /// 用 RegexPattern 提供比 Keywords 更复杂的匹配能力（多词短语）
 /// Keywords 中包含 "continue" 单词匹配（对齐原 MatchesKeepGoingKeyword 的 lowerInput == "continue" 逻辑）
 /// </summary>
-[PromptSection(
-    Name = "keep_going",
+[PromptSection(Name = "keep_going",
     Keywords = ["continue"],
-    RegexPattern = @"\b(keep going|go on|please continue|continue please)\b",
-    Order = 2)]
+    RegexPattern = @"\b(keep going|go on|please continue|continue please)\b")]
 public static class KeepGoingKeywordSection {
     /// <summary>
     /// 获取继续指令提示词内容 — 引导 AI 从上次中断处继续

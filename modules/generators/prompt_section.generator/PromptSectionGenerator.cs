@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace PromptSection.Generator;
 
 /// <summary>
@@ -11,6 +13,15 @@ namespace PromptSection.Generator;
 [Generator]
 public sealed class PromptSectionGenerator : IIncrementalGenerator {
     private const string PromptSectionAttributeFullName = "JoinCode.Abstractions.Attributes.PromptSectionAttribute";
+
+    /// <summary>注册名未在顺序 YAML 中声明 — 显式设计不允许「没登记就按默认顺序蒙混过关」。</summary>
+    private static readonly DiagnosticDescriptor MissingOrderEntry = new(
+        "JCCGEN001",
+        "注册名缺少显式顺序",
+        "提示词段落 '{0}' 未在 sections.yaml 中登记顺序，无法确定它在系统提示词中的位置",
+        "Generator",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
         var sectionInfos = context.CompilationProvider
@@ -33,13 +44,35 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             })
             .Collect();
 
-        context.RegisterSourceOutput(sectionInfos, static (ctx, sections) => {
-            GenerateKeywordEnum(ctx, sections);
+        var orderFiles = context.AdditionalTextsProvider
+            .Where(static file => string.Equals(Path.GetFileName(file.Path), "sections.yaml", StringComparison.OrdinalIgnoreCase))
+            .Collect();
+
+        context.RegisterSourceOutput(sectionInfos.Combine(orderFiles), static (ctx, pair) => {
+            var orderSource = pair.Right.Length > 0 ? pair.Right[0].GetText() : null;
+            var orderText = orderSource is null ? "" : orderSource.ToString();
+            var ordered = ApplyExplicitOrder(ctx, pair.Left, OrderYaml.ParseNames(orderText));
+            GenerateKeywordEnum(ctx, ordered);
             GenerateKeywordResult(ctx);
-            GenerateKeywordAnalyzer(ctx, sections);
-            GenerateSectionMapper(ctx, sections);
-            GenerateProviderRegistration(ctx, sections);
+            GenerateKeywordAnalyzer(ctx, ordered);
+            GenerateSectionMapper(ctx, ordered);
+            GenerateProviderRegistration(ctx, ordered);
         });
+    }
+
+    /// <summary>按 YAML 里注册名的先后排序；没登记的段落直接报生成期错误。</summary>
+    private static IReadOnlyList<PromptSectionInfo> ApplyExplicitOrder(
+        SourceProductionContext context,
+        ImmutableArray<PromptSectionInfo> sections,
+        IReadOnlyList<string> order) {
+        foreach (var section in sections) {
+            if (OrderYaml.IndexOf(order, section.SectionName) == int.MaxValue)
+                context.ReportDiagnostic(Diagnostic.Create(MissingOrderEntry, Location.None, section.SectionName));
+        }
+        return sections
+            .OrderBy(section => OrderYaml.IndexOf(order, section.SectionName))
+            .ThenBy(section => section.SectionName, StringComparer.Ordinal)
+            .ToArray();
     }
 
     private static PromptSectionInfo? ExtractSectionInfo(INamedTypeSymbol typeSymbol, AttributeData attr) {
@@ -48,7 +81,6 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         var regexPattern = AttributeScanner.GetStringNamedArg(attr, "RegexPattern") ?? "";
         var injectOn = AttributeScanner.GetIntNamedArg(attr, "InjectOn");
         var isDynamic = AttributeScanner.GetBoolNamedArg(attr, "IsDynamic");
-        var order = AttributeScanner.GetIntNamedArg(attr, "Order", 100);
 
         if (string.IsNullOrEmpty(name))
             return null;
@@ -68,14 +100,12 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             regexPattern,
             injectOn,
             isDynamic,
-            order,
             hasGetContent);
     }
 
-    private static void GenerateKeywordEnum(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections) {
+    private static void GenerateKeywordEnum(SourceProductionContext context, IReadOnlyList<PromptSectionInfo> sections) {
         var keywordSections = sections
             .Where(s => s.Keywords.Length > 0 || !string.IsNullOrEmpty(s.RegexPattern))
-            .OrderBy(s => s.Order)
             .ToList();
 
         if (keywordSections.Count == 0)
@@ -135,10 +165,9 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         context.AddSource("UserPromptKeywordResult.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private static void GenerateKeywordAnalyzer(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections) {
+    private static void GenerateKeywordAnalyzer(SourceProductionContext context, IReadOnlyList<PromptSectionInfo> sections) {
         var keywordSections = sections
             .Where(s => s.Keywords.Length > 0 || !string.IsNullOrEmpty(s.RegexPattern))
-            .OrderBy(s => s.Order)
             .ToList();
 
         if (keywordSections.Count == 0)
@@ -282,10 +311,9 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         context.AddSource("UserPromptKeywordAnalyzer.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private static void GenerateSectionMapper(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections) {
+    private static void GenerateSectionMapper(SourceProductionContext context, IReadOnlyList<PromptSectionInfo> sections) {
         var keywordSections = sections
             .Where(s => s.Keywords.Length > 0 || !string.IsNullOrEmpty(s.RegexPattern))
-            .OrderBy(s => s.Order)
             .ToList();
 
         var sb = new StringBuilder();
@@ -335,8 +363,8 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         context.AddSource("KeywordSectionMapper.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private static void GenerateProviderRegistration(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections) {
-        var orderedSections = sections.OrderBy(s => s.Order).ToList();
+    private static void GenerateProviderRegistration(SourceProductionContext context, IReadOnlyList<PromptSectionInfo> sections) {
+        var orderedSections = sections;
 
         var alwaysSections = orderedSections.Where(s => s.InjectOn == 0 && s.Keywords.Length == 0 && string.IsNullOrEmpty(s.RegexPattern)).ToList();
         var agentModeSections = orderedSections.Where(s => (s.InjectOn & 2) != 0).ToList();
@@ -464,7 +492,6 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         public string RegexPattern { get; }
         public int InjectOn { get; }
         public bool IsDynamic { get; }
-        public int Order { get; }
         public bool HasGetContent { get; }
 
         public PromptSectionInfo(
@@ -476,7 +503,6 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             string regexPattern,
             int injectOn,
             bool isDynamic,
-            int order,
             bool hasGetContent) {
             FullyQualifiedName = fullyQualifiedName;
             TypeName = typeName;
@@ -486,7 +512,6 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             RegexPattern = regexPattern;
             InjectOn = injectOn;
             IsDynamic = isDynamic;
-            Order = order;
             HasGetContent = hasGetContent;
         }
     }

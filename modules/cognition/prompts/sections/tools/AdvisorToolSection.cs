@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// Advisor 工具提示词部分
 /// </summary>
-[PromptSection(Name = "advisor_tool", Order = 35)]
+[PromptSection(Name = "advisor_tool")]
 public static class AdvisorToolSection {
     /// <summary>
     /// Advisor 工具指令

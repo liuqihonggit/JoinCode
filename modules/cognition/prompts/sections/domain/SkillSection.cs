@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// Skill部分 - 如何使用技能系统
 /// </summary>
-[PromptSection(Name = "skill", Order = 14)]
+[PromptSection(Name = "skill")]
 public static class SkillSection {
     /// <summary>
     /// 创建 skill 提示词部分。

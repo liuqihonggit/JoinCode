@@ -19,18 +19,6 @@ public static class CliSessionFactory {
             : null;
 
         return EngineSessionFactory.CreateSessionAsync(
-            options, fs,
-            [
-                new Modules.CoreModule(),
-                new Modules.CliRegistrationModule(),
-                new Modules.ClockModule(),
-                new Modules.BrowserModule(),
-                new Modules.PipeModule(),
-                new Modules.CliModule(),
-                new Modules.HousekeepingModule(),
-                new Modules.McpInitModule(),
-            ],
-            loggerProvider,
-            cancellationToken);
+            options, fs, AppModuleCatalog.Create("cli"), loggerProvider, cancellationToken);
     }
 }

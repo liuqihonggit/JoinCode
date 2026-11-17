@@ -26,6 +26,6 @@ items:
 
   - id: attribute_order_cleanup
     title: 清除特性 Order 数字排序，改为注册名 + YAML 显式顺序
-    status: pending
-    evidence: 尚未实现
-    next: AppModule 与 PromptSection 两处生成器改 YAML 顺序，真机核对模块/段落顺序
+    status: done
+    evidence: "jcc 真机：段落顺序与 resources/prompts/sections.yaml 一致、模块顺序与 resources/app/modules.yaml 一致；特性里无 Order"
+    next: 无需动作

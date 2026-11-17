@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 主动工作部分 - 自主工作模式
 /// </summary>
-[PromptSection(Name = "proactive", Order = 22)]
+[PromptSection(Name = "proactive")]
 public static class ProactiveSection {
     /// <summary>
     /// 创建自主工作 Section 实例（内容缓存）。

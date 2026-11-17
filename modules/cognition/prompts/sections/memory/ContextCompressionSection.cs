@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 上下文压缩部分 - 关于对话压缩的说明
 /// </summary>
-[PromptSection(Name = "context_compression", Order = 6)]
+[PromptSection(Name = "context_compression")]
 public static class ContextCompressionSection {
     /// <summary>
     /// 创建 context_compression 提示词部分。

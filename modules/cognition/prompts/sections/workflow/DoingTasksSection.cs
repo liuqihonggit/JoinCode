@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 任务执行部分 - 如何执行任务
 /// </summary>
-[PromptSection(Name = "doing_tasks", Order = 9)]
+[PromptSection(Name = "doing_tasks")]
 public static class DoingTasksSection {
     /// <summary>
     /// 创建任务执行 Section 实例（内容缓存）。

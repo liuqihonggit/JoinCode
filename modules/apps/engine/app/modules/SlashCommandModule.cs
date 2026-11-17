@@ -8,10 +8,9 @@ namespace JoinCode.App.Modules;
 /// 注册形态对齐 CLI 宿主 CliModule 先例（CliModule 属 cli 宿主不在 GUI/TUI 模块链 —
 /// CLI 链由 CliModule 自有注册，两处独立互不干扰）。
 /// </summary>
-[AppModule(Order = 50)]
+[AppModule]
 public sealed class SlashCommandModule : IAppModule {
     /// <summary>模块加载顺序 — 值为 50（核心工作流 CoreModule(30)/时钟 ClockModule(40) 之后、浏览器 BrowserModule(60) 之前）。</summary>
-    public int Order => 50;
 
     /// <summary>
     /// 注册斜杠命令服务 — ChatCommandRegistry 单例（工厂惰性构建，工厂内完成命令全量注册）

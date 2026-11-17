@@ -5,7 +5,7 @@ namespace Core.Prompts.Sections;
 /// 对齐 TS shouldInjectAgentListInMessages = true 模式：
 /// Agent 列表通过 system-reminder 附件注入，系统提示词只引用
 /// </summary>
-[PromptSection(Name = "agent_tool", Order = 12)]
+[PromptSection(Name = "agent_tool")]
 public static class AgentToolSection {
     internal const string SubagentUsageGuidance = "Subagent对于并行化独立查询或保护主上下文窗口免受过多结果的影响很有价值，但在不需要时不应过度使用。重要的是，避免重复Subagent已经在做的工作——如果您将研究委托给Subagent，请不要自己也执行相同的搜索。";
 

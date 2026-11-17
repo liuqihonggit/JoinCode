@@ -28,7 +28,7 @@ public sealed class EngineApplicationBuilder {
     }
 
     /// <summary>
-    /// 构建 Host — 按序调用各模块的 ConfigureServices
+    /// 构建 Host — 按注册顺序调用各模块的 ConfigureServices（顺序由 resources/app/modules.yaml 声明）
     /// <para>loggerProvider 非空时替代默认 console 日志（ADR 0100：清除默认 AddConsole，由宿主注入表现层 provider）</para>
     /// </summary>
     public IHost BuildHost(WorkflowConfig config, CommandLineOptions options, ILoggerProvider? loggerProvider = null) {
@@ -36,8 +36,6 @@ public sealed class EngineApplicationBuilder {
             Options = options,
             Config = config
         };
-
-        var ordered = _modules.OrderBy(m => m.Order).ToList();
 
         return Host.CreateDefaultBuilder()
             .ConfigureServices((_, services) => {
@@ -57,7 +55,7 @@ public sealed class EngineApplicationBuilder {
                     }
                 }
 
-                foreach (var module in ordered) {
+                foreach (var module in _modules) {
                     var sw = PerfTimer.Start($"  ConfigureServices {module.GetType().Name}");
                     module.ConfigureServices(services, context);
                     sw?.Stop();
@@ -115,11 +113,10 @@ public sealed class EngineApplicationBuilder {
     }
 
     /// <summary>
-    /// 模块初始化 — 按序调用各模块的 ConfigureAsync
+    /// 模块初始化 — 按注册顺序调用各模块的 ConfigureAsync（顺序由 resources/app/modules.yaml 声明）
     /// </summary>
     public async Task ConfigureModulesAsync(IServiceProvider services) {
-        var ordered = _modules.OrderBy(m => m.Order).ToList();
-        foreach (var module in ordered) {
+        foreach (var module in _modules) {
             // P2-5: 迁移到 Diag.WriteLine，统一受 JCC_DEBUGLOG 控制
             Diag.WriteLine($"[MODULE] {module.GetType().Name} start");
             var sw = PerfTimer.Start($"  模块 {module.GetType().Name}");

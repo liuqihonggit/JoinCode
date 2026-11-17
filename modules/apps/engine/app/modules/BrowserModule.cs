@@ -3,10 +3,9 @@ namespace JoinCode.App.Modules;
 /// <summary>
 /// 浏览器模块 — 注册 PuppeteerSharp 浏览器自动化服务
 /// </summary>
-[AppModule(Order = 60)]
+[AppModule]
 public sealed class BrowserModule : IAppModule {
     /// <summary>模块加载顺序</summary>
-    public int Order => 60;
 
     /// <summary>
     /// 注册浏览器相关服务

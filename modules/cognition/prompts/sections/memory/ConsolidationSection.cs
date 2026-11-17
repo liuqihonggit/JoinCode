@@ -3,11 +3,9 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 归纳整合指导的提示词部分；关键词触发注入。
 /// </summary>
-[PromptSection(
-    Name = "consolidation",
+[PromptSection(Name = "consolidation",
     Keywords = new[] { "归纳", "合并", "整理", "整合", "统一", "合并到", "归类", "收拢", "consolidate", "merge", "unify", "integrate" },
-    InjectOn = PromptSectionInject.Keyword,
-    Order = 63)]
+    InjectOn = PromptSectionInject.Keyword)]
 public static class ConsolidationSection {
     /// <summary>
     /// 获取 consolidation 部分内容；归纳整合指导文本。

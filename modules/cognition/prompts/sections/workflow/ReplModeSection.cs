@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// REPL模式部分 - 交互式编程环境说明
 /// </summary>
-[PromptSection(Name = "repl_mode", Order = 27)]
+[PromptSection(Name = "repl_mode")]
 public static class ReplModeSection {
     /// <summary>
     /// 获取 REPL 模式部分的提示词内容。当未启用 REPL 模式时返回 null。

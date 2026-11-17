@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 输出效率部分 - 如何高效地与用户沟通
 /// </summary>
-[PromptSection(Name = "output_efficiency", Order = 17)]
+[PromptSection(Name = "output_efficiency")]
 public static class OutputEfficiencySection {
     /// <summary>
     /// 创建输出效率提示词部分。

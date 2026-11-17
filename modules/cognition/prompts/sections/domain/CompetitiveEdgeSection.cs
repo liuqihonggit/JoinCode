@@ -3,11 +3,9 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 竞争性提示词部分 - 监控式+精英式+竞技场排名式三合一
 /// </summary>
-[PromptSection(
-    Name = "competitive_edge",
+[PromptSection(Name = "competitive_edge",
     Keywords = new[] { "冲", "认真点", "别敷衍", "全力以赴", "拿出真本事", "认真做", "别偷懒", "严格", "高标准", "竞争", "竞技", "codex", "swe-bench", "outperform", "elite", "go hard", "no mercy", "严肃", "认真", "拼了", "serious", "rigorous" },
-    InjectOn = PromptSectionInject.AgentMode | PromptSectionInject.CoordinatorMode,
-    Order = 55)]
+    InjectOn = PromptSectionInject.AgentMode | PromptSectionInject.CoordinatorMode)]
 public static class CompetitiveEdgeSection {
     /// <summary>
     /// 获取 competitive_edge 部分内容；竞争性驱动协议文本。

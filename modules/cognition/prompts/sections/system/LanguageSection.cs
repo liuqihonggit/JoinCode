@@ -4,7 +4,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 语言部分 - 指定回复语言
 /// </summary>
-[PromptSection(Name = "language", Order = 66, IsDynamic = true)]
+[PromptSection(Name = "language", IsDynamic = true)]
 public static class LanguageSection {
     /// <summary>
     /// 获取语言偏好部分的内容。

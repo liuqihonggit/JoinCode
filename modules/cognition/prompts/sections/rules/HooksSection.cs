@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// Hooks部分 - 关于用户配置的hooks
 /// </summary>
-[PromptSection(Name = "hooks", Order = 5)]
+[PromptSection(Name = "hooks")]
 public static class HooksSection {
     /// <summary>
     /// 创建 hooks 提示词部分。

@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 记忆部分 - 关于对话记忆系统
 /// </summary>
-[PromptSection(Name = "memory", Order = 77, IsDynamic = true)]
+[PromptSection(Name = "memory", IsDynamic = true)]
 public static class MemorySection {
     /// <summary>
     /// 异步获取 memory 部分内容；包含记忆、助手日志与搜索历史。

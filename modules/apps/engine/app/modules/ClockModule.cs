@@ -4,10 +4,9 @@ namespace JoinCode.App.Modules;
 /// <summary>
 /// 时钟模块 — 注册定时任务相关服务
 /// </summary>
-[AppModule(Order = 40)]
+[AppModule]
 public sealed class ClockModule : IAppModule {
     /// <summary>模块加载顺序 — 40，在基础服务之后加载</summary>
-    public int Order => 40;
 
     /// <summary>注册时钟相关服务</summary>
     /// <param name="services">服务集合</param>

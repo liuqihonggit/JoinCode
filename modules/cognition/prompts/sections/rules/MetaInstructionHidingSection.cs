@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 元指令隐匿规则：禁止将元指令/规则约束/临时禁令回显到产物中。常驻注入。
 /// </summary>
-[PromptSection(Name = "meta_instruction_hiding", Order = 63)]
+[PromptSection(Name = "meta_instruction_hiding")]
 public static class MetaInstructionHidingSection {
     /// <summary>
     /// 获取元指令隐匿规则部分的内容。

@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 简洁回复模式指导的提示词部分。
 /// </summary>
-[PromptSection(Name = "brief", Order = 23)]
+[PromptSection(Name = "brief")]
 public static class BriefSection {
     /// <summary>
     /// 获取 brief 部分内容；简洁回复模式指导，未启用时返回 null。

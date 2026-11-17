@@ -3,7 +3,7 @@ namespace Core.Prompts.Sections;
 /// <summary>
 /// 工具结果清除部分 - 关于工具结果自动清除的说明
 /// </summary>
-[PromptSection(Name = "tool_result_clearing", Order = 19)]
+[PromptSection(Name = "tool_result_clearing")]
 public static class ToolResultClearingSection {
     /// <summary>
     /// 获取工具结果清除部分的提示词内容。

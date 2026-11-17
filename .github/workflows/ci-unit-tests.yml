@@ -122,6 +122,8 @@ jobs:
     name: Registration order table
     runs-on: windows-latest
     timeout-minutes: 5
+    env:
+      PYTHONIOENCODING: utf-8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -139,6 +141,8 @@ jobs:
     name: Module order (CLI + GUI)
     runs-on: windows-latest
     timeout-minutes: 25
+    env:
+      PYTHONIOENCODING: utf-8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -174,6 +178,8 @@ jobs:
     name: Tool Nodes - reality
     runs-on: windows-latest
     timeout-minutes: 15
+    env:
+      PYTHONIOENCODING: utf-8
     steps:
       - name: Checkout
         uses: actions/checkout@v5

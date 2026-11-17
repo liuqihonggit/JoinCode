@@ -288,8 +288,11 @@ theme = dark                                ← 斜杠命令读回工具写的�
 2. **嵌套键读取不支持**：`permissions.defaultMode` 的 `ConfigSetting.Path` 有值，但唯一消费方只有
    `SupportedSettings.GetPath`，而 `ConfigLoader` 用的是生成的 `GetSettingByKey`（只认扁平键名）。
    写入侧同样未走 `Path`。
-3. **`/config list`（斜杠命令）只显示本进程读过的键**：它用 `GetAllAsync`，而该方法只回内存缓存 + 远程，
-   不从磁盘装载。宿主侧 `config_list` 工具逐个键 `GetAsync`，所以是对的。
+3. ~~**`/config list`（斜杠命令）只显示本进程读过的键**~~ **已修**：`GetAllAsync` 原本只回内存缓存，
+   新进程里恒为空。现改为逐个已声明键按 `SettingSourceMap` 的源读盘（与 `config_get` 同一条路径），
+   真机 `/config list` 已正确列出 `editorMode`/`language`/`theme` 及其来源。
 4. **`SupportedSettings`（15 键）与 `ConfigKey` 枚举（17 键）仍是两套并行清单**，未合并。
 
-这四条都在「配置读取」同一片区域，建议单开一轮统一处理，而不是在本次提交里顺手改。
+剩余 3 条（`model` 键、嵌套键、两套键清单）需要先定语义再动手 —— 例如 `config_get model`
+到底该读 `vendor.{profile}.model`（当前生效模型）还是 `current.model`（覆盖默认模型），
+属于产品判断，不该由实现顺手决定。建议单开一轮（TASK090）带上这个决策点。

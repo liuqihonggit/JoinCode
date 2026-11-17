@@ -67,7 +67,8 @@ public interface IConfigurationService {
     Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 获取所有配置项
+    /// 列出已声明且有值的配置项 — 逐键按 <c>SettingSourceMap</c> 的源去读，不是回内存缓存
+    /// （缓存只装本进程读过的键，否则新进程里 <c>/config list</c> 永远是空的）
     /// </summary>
     Task<Dictionary<string, string>> GetAllAsync(CancellationToken cancellationToken = default);
 }

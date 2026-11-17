@@ -207,14 +207,21 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         return true;
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// 列出「已声明且有值」的配置项。
+    /// <para><b>为什么逐键读盘而不是回内存缓存</b>：缓存只装本进程读过的键，新启动一个进程
+    /// <c>/config list</c> 永远是空的（磁盘上明明有值）。旧实现只回缓存，用户看到「当前没有配置项」
+    /// 会以为配置丢了。逐键按 <see cref="SettingSourceMap"/> 声明的源去读，与
+    /// <c>config_get</c>/<c>/config get</c> 走同一条路径，三处答案自然一致。</para>
+    /// </summary>
     public async Task<Dictionary<string, string>> GetAllAsync(CancellationToken cancellationToken = default) {
         await EnsureMigratedAsync().ConfigureAwait(false);
 
-        // 缓存键带 source 前缀 —— 这里剥掉前缀还原为存储键
         var localConfigurations = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var (cacheKey, value) in _configurations) {
-            localConfigurations[StripSourcePrefix(cacheKey)] = value;
+        foreach (var (key, source) in SettingSourceMap.All) {
+            var value = await GetAsync(key, source, cancellationToken).ConfigureAwait(false);
+            if (value is not null)
+                localConfigurations[key] = value;
         }
 
         if (_remoteSettingsService != null) {
@@ -231,12 +238,6 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         }
 
         return localConfigurations;
-    }
-
-    /// <summary>剥掉缓存键的存储源前缀，还原为存储键。</summary>
-    private static string StripSourcePrefix(string cacheKey) {
-        var idx = cacheKey.IndexOf(':');
-        return idx >= 0 ? cacheKey[(idx + 1)..] : cacheKey;
     }
 
     private void OnSettingChanged(string key, string? oldValue, string? newValue, SettingSource source = SettingSource.UserSettings, string? appStateKey = null) {

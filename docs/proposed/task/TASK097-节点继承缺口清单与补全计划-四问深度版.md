@@ -1,6 +1,6 @@
 # TASK097 节点继承缺口清单与补全计划（四问深度版）
 
-> 状态: accepted（用户已裁决；阶段1 G2/G4 均已真机验收通过，下一步阶段2）
+> 状态: accepted（用户已裁决；阶段1 G2/G4、阶段2 G5/G1 均已真机验收通过）
 > 创建: 2026-11-19
 > 裁决: 2026-11-19 — G3 走**数据驱动**（不引入 NodeBase，属性继承交给 G2 数据层）；补全节奏=**按阶段逐步验收**，每阶段真机 exe 跑通后再继续
 > 关联: [DSG048 万物皆节点，节点皆可继承](../design/DSG048-node-plugin-inheritance-architecture.md)、[TASK072 四问深度模板](../../implemented/task/TASK072-基准对比调研代理提示词模板-四问深度版.md)
@@ -203,7 +203,7 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 |------|------|------|
 | 1a | **G2 节点级继承** | ✅ 已真机验收（见 §10） |
 | 1b | **G4 Metadata 配置注入** | ✅ 已真机验收（见 §11，范围限定：配置注入 + 真机可观测 + 唯一默认值；路由消费端另立任务） |
-| 2 | G1 可逆注册 + G5 DI 扫描 | ⏳ 待阶段1 全部验收通过 |
+| 2 | **G1 可逆注册 + G5 节点自动归纳** | ✅ 已真机验收（见 §12；G5 以复用既有 catalog 替代新增 source generator） |
 | 3 | G3 数据驱动收敛（已定方案） | ⏳ 待阶段2 |
 | 4 | G6 经验继承（H₀ 重置红线） | ⏳ 待阶段3 |
 | 5 | G7 AOT（CI） | ⏳ 待阶段4 |
@@ -358,4 +358,50 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 ### 11.5 真实边界（不得宣称超出）
 
 - **metadata 仍无路由消费端**：`NodeRegistry` 排序/开关判定用 `ResolvedNodeEntry.Priority` / `EnabledWhenFeatureFlag`，不读 `NodeMetadata`。Phase1b 只做到"配置注入 + 真机可见 + 默认值唯一"，**capability-based routing 另立任务**。
-- **`Node<TService>` 生产零实例化**：`NodeRegistry.Build(sp)` 在生产不传 customFactories（G5 缺口），故 `INode.Metadata` 的真机值目前只能在端到端单测中观测；G5 落地 DI 扫描后，本阶段打通的注入链会自动生效。不得用"真机 --dump-nodes 有值"宣称运行期节点已带 metadata。
+- **`Node<TService>` 生产零实例化**：`NodeRegistry.Build(sp)` 在生产不传 customFactories（G5 缺口），故 `INode.Metadata` 的真机值目前只能在端到端单测中观测；G5 落地 DI 扫描后，本阶段打通的注入链会自动生效。不得用"真机 --dump-nodes 有值"宣称运行期节点已带 metadata。（**更新：§12 已落地 G5，此边界见 §12.5**）
+
+---
+
+## 12. 阶段2 · G5 节点自动归纳 + G1 可逆注册（2026-11-19）
+
+### 12.1 方案（偏离原设计稿的两处刻意选择）
+
+- **G5 不新增 source generator，复用既有编译期 catalog**：`DataDrivenPipelineComposition.BuildNodeFactories()` 已是唯一节点工厂清单（176 条 `consumerId:nodeId`），生产中被 `NodeServiceResolver` 使用。`NodeServiceResolver.Factories` 只读暴露该 catalog，`NodeRegistry.Build` 从它自动归纳节点 —— 零新增清单、零生成器改动，符合"唯一数据源"。
+- **G1 单一原子状态 + CAS**：不用 lock（项目约定），也不用双字段分别发布。`RegistryState(Registrations, Nodes)` 作为一个不可变整体，`Interlocked.CompareExchange` 单次替换；读路径捕获 `FrozenDictionary` 快照，遍历期间并发 Dispose 不影响。
+- **DSH 语义对齐**：`Register` 返回 `RegistrationHandle`（`Dispose` 幂等、`Replace` 就地换工厂）；同 ID 重复注册保持栈语义 —— 后注册的先回滚，恢复前一个工厂。
+
+### 12.2 差评大师发现并修复
+
+| 级别 | 问题 | 处置 |
+|------|------|------|
+| **P0** | 首版按裸 `nodeId` 去重，`crash-snapshot-mw` 的 **16 个不同 consumer 泛型实例**被当成重复丢掉（与 `NodeServiceResolver` 自己的注释冲突） | ✅ 改完整 `consumerId:nodeId` 为注册键（176 条全留）；`GetNodesForConsumerAsync`/`GetServicesForConsumerAsync` 先查完整键再回退裸 ID；真机归纳数 **160→176、跳过 16→0** |
+| P1 | 双字段（`_registrations`/`_nodes`）分别 CAS 与 Volatile 写，慢线程可用陈旧快照永久覆盖，导致"已 Dispose 节点复活" | ✅ 合并为单一 `RegistryState` 整体 CAS 发布 |
+| P1 | `INodeRegistry` 不暴露 `Register`，DI 按接口注册 → 生产组件无法运行期装卸，G1 形同虚设 | ✅ 接口新增 `Register(...)`，返回 `RegistrationHandle`；测试替身同步实现 |
+| P2 | `NodeEntry` 缓存忽略后续 metadata（多 consumer 共用可能串味） | 记录为遗留：当前每次 `RefreshSnapshot` 都新建 entry 掩盖了该问题；后续若去掉全量重建需一并修 |
+| P2 | `--dump-nodes` 的 G1 自检是 API 冒烟，不等于真实业务验收 | 诚实标注边界；另补端到端测试 `NodeRegistry_DynamicallyRegisteredNode_IsConsumedByProfile`（动态注册 → consumer 消费 → Dispose 后消失） |
+
+### 12.3 改动文件
+
+| 文件 | 变更 |
+|------|------|
+| `modules/abstractions/composition/node/interfaces/RegistrationHandle.cs` | **新增**：可回滚句柄（Dispose 幂等 + Replace） |
+| `.../interfaces/INodeRegistry.cs` | 新增 `Register(...)`（G1 对外可达） |
+| `.../composition/node_registry/core/NodeRegistry.cs` | 重写：catalog 自动归纳（完整键）+ 单一原子状态 CAS + 可逆注册 + `[DI-SCAN]`/`[REGISTER]`/`[REPLACE]`/`[DISPOSE]` 打点 |
+| `.../core/NodeServiceResolver.cs` | 只读暴露 `Factories`（复用唯一 catalog） |
+| `modules/apps/cli/core/commands/core/Program.cs` | `--dump-nodes` 显示归纳数；debug 下跑 G1 生命周期自检 + `ProbeNode` |
+| `...composition.tests/node_registry/ConsumerTest.cs` | 5 个测试：catalog 归纳（完整键）、逆序回滚、Replace、consumer 消费、测试替身实现接口 |
+
+### 12.4 真机验收（唯一标准）
+
+- 归纳：`[DI-SCAN] NodeRegistry 从工厂 catalog 归纳 176 个节点（无效跳过 0）`；`NodeRegistry 自动归纳: 176 个节点`。
+- 生命周期打点（顺序即证据）：`[REGISTER] token=1` → `[REGISTER] token=2` → `[REPLACE] token=2` → `[DISPOSE] token=2`（后注册先退）→ `[DISPOSE] token=1`；自检输出 `after-replace=replaced after-lifo-dispose=first after-all-disposed=removed`。
+- 交叉验证：G4 metadata 仍为 `v=2.1.0 caps=rate-limit,audit`；`jcc tool tree` 真实 13 组 635 工具零回归。
+- 测试：Composition.Tests **1087/1087**（仅回归网，非验收）。
+
+### 12.5 阶段2 后的真实边界
+
+- G5 让 catalog 的 176 个节点全部进入 `NodeRegistry`，`Node<TService>` 不再"生产零实例化"；但**实际管道仍优先走 `NodeServiceResolver.TryResolve<T>`**（`DataDrivenPipelineComposition:530`），`NodeRegistry` 的 INode 路径是并行能力，不是管道主路径。
+- metadata 仍**无路由消费端**（capability-based routing 另立任务）；`--dump-nodes` 的自检是 API 冒烟，不是业务负载验收。
+- G1 的可逆注册已通过 `INodeRegistry` 对外可达，但**当前无生产组件调用它**；它的价值在后续动态插件装卸场景兑现。
+
+> 门禁复盘：本阶段两次被分析器拦下 —— JCC11003（null-forgiving `!`）与 JCC10004（public 成员缺 XML doc），均按规范修正而非抑制，说明门禁在起作用。

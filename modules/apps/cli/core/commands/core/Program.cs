@@ -235,6 +235,30 @@ class Program {
         Cli.TerminalHelper.WriteLine("═══ 已注册节点列表 ═══");
         Cli.TerminalHelper.WriteLine();
 
+        // G5: 真机展示 NodeRegistry 从编译期工厂 catalog 自动归纳的节点数 ——
+        // 与 profile 配置节点交叉核对；空容器只用于读取归纳结果，不解析任何服务。
+        var emptySp = new Microsoft.Extensions.DependencyInjection.ServiceCollection().BuildServiceProvider();
+        var registry = Composition.NodeRegistry.NodeRegistry.BuildFromCatalog(
+            emptySp, Pipelines.DataDrivenPipelineComposition.BuildNodeFactories());
+        Cli.TerminalHelper.WriteLine($"NodeRegistry 自动归纳: {registry.NodeCount} 个节点（来自编译期工厂 catalog，无需手工登记）");
+        Cli.TerminalHelper.WriteLine();
+
+        // G1: 真机自检 —— debug 日志下跑一次完整 注册→替换→卸载，验证逆序回滚与打点顺序。
+        // 走的是生产 NodeRegistry.Register/Replace/Dispose 同一条代码路径（不是单测替身）。
+        if (Environment.GetEnvironmentVariable("JCC_DEBUGLOG") == "1") {
+            var probe = Composition.NodeRegistry.NodeRegistry.BuildFromCatalog(emptySp, []);
+            var h1 = probe.Register("probe", (_, _) => new ProbeNode("first"));
+            var h2 = probe.Register("probe", (_, _) => new ProbeNode("second"));
+            h2.Replace((_, _) => new ProbeNode("replaced"));
+            var before = probe.TryGetNode("probe", out var bn) ? bn?.NodeId ?? "(null)" : "(missing)";
+            h2.Dispose();
+            var after = probe.TryGetNode("probe", out var an) ? an?.NodeId ?? "(null)" : "(missing)";
+            h1.Dispose();
+            var end = probe.TryGetNode("probe", out _) ? "still-present" : "removed";
+            Cli.TerminalHelper.WriteLine($"[G1-SELFTEST] after-replace={before} after-lifo-dispose={after} after-all-disposed={end}");
+            Cli.TerminalHelper.WriteLine();
+        }
+
         foreach (var profileName in profiles.Keys.Order()) {
             var resolved = resolver.Resolve(profileName);
             Cli.TerminalHelper.WriteLine($"Profile: {profileName}");
@@ -261,6 +285,18 @@ class Program {
 
     private static string FormatMetaList(string[] items) =>
         items.Length == 0 ? "-" : string.Join(",", items);
+
+    /// <summary>G1 真机自检用的最小 INode 实现（只在 --dump-nodes debug 自检里构造）。</summary>
+    private sealed class ProbeNode(string id) : Abstractions.Composition.INode {
+        /// <summary>自检节点 ID。</summary>
+        public string NodeId { get; } = id;
+
+        /// <summary>自检节点元数据（用唯一默认值）。</summary>
+        public Abstractions.Composition.NodeMetadata Metadata { get; } = Abstractions.Composition.NodeMetadata.Unspecified;
+
+        /// <summary>自检节点状态。</summary>
+        public Abstractions.Composition.NodeState State { get; } = Abstractions.Composition.NodeState.Active;
+    }
 
     /// <summary>
     /// --dump-profile: 输出指定 Profile 的解析结果（诊断用）

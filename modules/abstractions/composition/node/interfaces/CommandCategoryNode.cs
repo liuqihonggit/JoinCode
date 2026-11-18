@@ -30,13 +30,6 @@ public sealed class CommandCategoryNode : INode {
         Category = category;
         Commands = commands;
         State = NodeState.Active;
-        Metadata = new NodeMetadata(
-            Version: "1.0",
-            Dependencies: [],
-            Capabilities: [],
-            RequiredCapabilities: [],
-            Priority: priority,
-            EnabledWhenFeatureFlag: null
-        );
+        Metadata = NodeMetadata.Unspecified with { Priority = priority };
     }
 }

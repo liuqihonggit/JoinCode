@@ -118,14 +118,40 @@ public sealed class ConsumerTest {
     private static INodeRegistry MakeRegistry(params string[] nodeIds) {
         var nodes = new Dictionary<string, NodeEntry>(StringComparer.Ordinal);
         foreach (var id in nodeIds) {
-            nodes[id] = new NodeEntry(id, _ => new TestNode(id));
+            nodes[id] = new NodeEntry(id, (_, _) => new TestNode(id));
         }
         return new TestNodeRegistry(nodes);
     }
 
+    [Fact]
+    public async Task NodeRegistry_InjectsProfileMetadataIntoRuntimeNode() {
+        // G4 真实注入链（非死路径）：profile 的 meta.* → ResolvedNodeEntry.Config → INode.Metadata。
+        // 走生产 GetNodesForConsumerAsync，断言运行期节点真的拿到配置值。
+        var config = new Dictionary<string, string> {
+            [NodeMetadata.ConfigPrefix + "version"] = "2.1.0",
+            [NodeMetadata.ConfigPrefix + "capabilities"] = "rate-limit,audit"
+        }.ToFrozenDictionary();
+        var profile = new ResolvedProfile("test", new Dictionary<string, ResolvedConsumerConfig> {
+            ["pipeline"] = new("pipeline", [
+                new ResolvedNodeEntry("injected-node", 100, null, config)
+            ])
+        }.ToFrozenDictionary());
+        var registry = NodeRegistry.Build(new EmptyServiceProvider(), [
+            new KeyValuePair<string, Func<IServiceProvider, NodeMetadata?, INode>>(
+                "injected-node", (_, meta) => new Node<object>("injected-node", new object(), meta))
+        ]);
+
+        var nodes = await registry.GetNodesForConsumerAsync("pipeline", profile);
+
+        var node = Assert.Single(nodes);
+        node.Metadata.Version.Should().Be("2.1.0");
+        node.Metadata.Capabilities.Should().Equal("rate-limit", "audit");
+        node.Metadata.Priority.Should().Be(100);       // 路由字段来自 ResolvedNodeEntry，非 meta.*
+    }
+
     private sealed class TestNode(string nodeId) : INode {
         public string NodeId { get; } = nodeId;
-        public NodeMetadata Metadata { get; } = new("1.0", [], [], [], 0, null);
+        public NodeMetadata Metadata { get; } = NodeMetadata.Unspecified;
         public NodeState State { get; } = NodeState.Active;
     }
 

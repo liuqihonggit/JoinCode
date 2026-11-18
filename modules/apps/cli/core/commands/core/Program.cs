@@ -243,7 +243,14 @@ class Program {
                 Cli.TerminalHelper.WriteLine($"  消费点: {consumerId}");
                 foreach (var node in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
                     var flag = node.EnabledWhenFeatureFlag is not null ? $" [flag:{node.EnabledWhenFeatureFlag}]" : "";
-                    Cli.TerminalHelper.WriteLine($"    - {node.Id} (priority={node.Priority}){flag}");
+                    // G4: metadata 从 profile config 的 meta.* 保留键注入 —— 真机可见配置真实值，
+                    // 未声明的节点不占位（保持诊断输出简洁）。
+                    var meta = Abstractions.Composition.NodeMetadata.FromConfig(node.Config);
+                    var metaText = meta is null
+                        ? ""
+                        // 不输出 priority —— 路由以行首 (priority=N) 为准，meta.priority 不存在。
+                        : $" [meta v={meta.Version} deps={FormatMetaList(meta.Dependencies)} caps={FormatMetaList(meta.Capabilities)} req={FormatMetaList(meta.RequiredCapabilities)}]";
+                    Cli.TerminalHelper.WriteLine($"    - {node.Id} (priority={node.Priority}){flag}{metaText}");
                 }
             }
             Cli.TerminalHelper.WriteLine();
@@ -251,6 +258,9 @@ class Program {
 
         return 0;
     }
+
+    private static string FormatMetaList(string[] items) =>
+        items.Length == 0 ? "-" : string.Join(",", items);
 
     /// <summary>
     /// --dump-profile: 输出指定 Profile 的解析结果（诊断用）

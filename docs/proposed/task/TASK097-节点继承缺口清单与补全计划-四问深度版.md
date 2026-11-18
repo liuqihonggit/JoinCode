@@ -1,6 +1,6 @@
 # TASK097 节点继承缺口清单与补全计划（四问深度版）
 
-> 状态: accepted（用户已裁决；阶段1 G2 已真机验收通过，G4 待续）
+> 状态: accepted（用户已裁决；阶段1 G2/G4 均已真机验收通过，下一步阶段2）
 > 创建: 2026-11-19
 > 裁决: 2026-11-19 — G3 走**数据驱动**（不引入 NodeBase，属性继承交给 G2 数据层）；补全节奏=**按阶段逐步验收**，每阶段真机 exe 跑通后再继续
 > 关联: [DSG048 万物皆节点，节点皆可继承](../design/DSG048-node-plugin-inheritance-architecture.md)、[TASK072 四问深度模板](../../implemented/task/TASK072-基准对比调研代理提示词模板-四问深度版.md)
@@ -202,7 +202,7 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 | 阶段 | 任务 | 状态 |
 |------|------|------|
 | 1a | **G2 节点级继承** | ✅ 已真机验收（见 §10） |
-| 1b | G4 Metadata 注入 | ⏳ 待续（与 G2 拆分以控制验收面） |
+| 1b | **G4 Metadata 配置注入** | ✅ 已真机验收（见 §11，范围限定：配置注入 + 真机可观测 + 唯一默认值；路由消费端另立任务） |
 | 2 | G1 可逆注册 + G5 DI 扫描 | ⏳ 待阶段1 全部验收通过 |
 | 3 | G3 数据驱动收敛（已定方案） | ⏳ 待阶段2 |
 | 4 | G6 经验继承（H₀ 重置红线） | ⏳ 待阶段3 |
@@ -310,3 +310,52 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 | P2 | 生成脚本覆写 inherits | ✅ 已加护栏并实跑验证（见验收 #5） |
 
 **总判定**：评审指出的 P0 属实且已修复；阶段1a 从"测试绿但漏检核心场景"纠正为"真机验证到字段级继承"。此轮证明纪律有效——**单元测试全绿不等于验收通过，必须让真机命令命中真实场景**。
+
+---
+
+## 11. 阶段1b · G4 Metadata 配置注入实施记录（2026-11-19）
+
+### 11.1 方案与关键取舍
+
+- **配置落点**：`meta.*` 作为 profile 节点 `config:` 内的保留命名空间（如 `resources/profiles/base.yaml` 的 `stream-rate-limit-mw`）。**刻意复用** `NodeProfileResolver` 已验证的 excludes/includes/overrides 合并机制 —— metadata 自动获得 Profile 的"省略即继承"，零新增继承逻辑，符合 G3 数据驱动决策。
+- **职责切分**：`meta.*` 只放**自描述字段**（version/dependencies/capabilities/required-capabilities）；`priority` / `enabled-when` 是路由字段，以 `ResolvedNodeEntry` 为权威值，由 `NodeRegistry` 注入时补齐 —— 避免同一节点出现两个互相矛盾的 priority。
+- **唯一默认值**：`NodeMetadata.Unspecified` 替代散落在 `Node.cs` / `CommandCategoryNode` / `PromptSectionCategoryNode` / 测试里的 `new("1.0", [], [], [], 0, null)`。
+
+### 11.2 差评大师发现并修复（本阶段最重要的一轮）
+
+首版做成"`FromConfig` 只被 `Program.cs` 的诊断输出调用、`NodeEntry.Create(metadata)` 零生产调用"——**真机绿灯只证明"config 能解析显示"，没证明 metadata 进了节点对象**。评审判定为"用真机绿灯掩盖注入从未发生"，与本次任务要消除的"文档标签≠行为"是同一类错误。已按如下修复：
+
+| 级别 | 问题 | 处置 |
+|------|------|------|
+| P1 | "配置注入"是假象，注入通道零生产调用 | ✅ 打通真实链：`NodeRegistry.GetNodesForConsumerAsync`（被 4 个 Consumer 调用的生产路径）从 `ResolvedNodeEntry.Config` 构造 metadata 并注入 `INode`；`NodeEntry` 工厂签名改为 `(IServiceProvider, NodeMetadata?) → INode` |
+| P1 | 同一行两个 priority（`priority=100` vs `meta.pri=175`），且 meta.pri 无人消费 | ✅ 删除 `meta.priority` 解析与配置，诊断输出不再显示 `pri=` |
+| P1 | `meta.enabled-when` 是僵尸配置（不生效也不显示） | ✅ 从 `meta.*` 移除；flag 以节点级 `enabled-when` 为准 |
+| P1 | 非法 `meta.priority`（"abc"）静默降级为 0，与节点 priority 非法直接报错双标 | ✅ 随字段删除自然消除（不再有该解析路径） |
+| P1 | 注入测试测的是生产永不执行的死路径（"单测当挡箭牌"） | ✅ 改为端到端测试 `NodeRegistry_InjectsProfileMetadataIntoRuntimeNode`：经 `NodeRegistry.Build` + `GetNodesForConsumerAsync` 断言运行期 `INode.Metadata` 拿到配置值 |
+| P2 | 未知 `meta.*` 键（如 `meta.ttl`）会触发"假 metadata" | 记录为约定：保留前缀只认四个自描述键；未知键返回 version=unspecified 的 metadata，不加 loader 校验（避免扩大改动面） |
+
+### 11.3 改动文件
+
+| 文件 | 变更 |
+|------|------|
+| `modules/abstractions/composition/node/interfaces/NodeMetadata.cs` | 新增 `ConfigPrefix` / `FromConfig` / `Unspecified` |
+| `.../interfaces/CommandCategoryNode.cs` / `PromptSectionCategoryNode.cs` | 硬编码 metadata 改 `Unspecified with { Priority }` |
+| `.../composition/node_registry/core/Node.cs` | 构造接收 metadata，消硬编码 |
+| `.../core/NodeEntry.cs` | 工厂签名带 metadata；`CreateNode(sp, metadata)` |
+| `.../core/NodeRegistry.cs` | **生产注入链**：`GetNodesForConsumerAsync` 注入配置 metadata |
+| `modules/apps/cli/core/commands/core/Program.cs` | `--dump-nodes` 输出真实 metadata（不输出 pri） |
+| `resources/profiles/base.yaml` | `stream-rate-limit-mw` 加 `meta.*` 配置 |
+| `...composition.tests/node_registry/{NodeProfileResolverTest,ConsumerTest}.cs` | 4 个测试（解析/无声明/Profile 继承覆写/端到端注入） |
+
+### 11.4 验收
+
+- 红→绿：首轮 15 错（含 JCC11003 门禁抓到 null-forgiving `!`，已改 `Assert.NotNull`）；修复后 abstraction/composition/tests/CLI 四个 csproj 零警告零错误，Composition.Tests **1083/1083 通过**。
+- 真机 exe（唯一标准）：
+  - `jcc --dump-nodes` 在 base/ci/headless/sdk **四个 profile** 均输出 `stream-rate-limit-mw (priority=100) [meta v=2.1.0 deps=config-key-registry caps=rate-limit,audit req=config-key-registry]` —— 配置真实值，非硬编码 `1.0`/空数组；无 meta 声明的节点不占位；无双 priority。
+  - `jcc --dump-profile base` 对照显示 config 中的 `meta.*` 保留键。
+  - `jcc tool tree` 真实 13 组 635 工具零回归。
+
+### 11.5 真实边界（不得宣称超出）
+
+- **metadata 仍无路由消费端**：`NodeRegistry` 排序/开关判定用 `ResolvedNodeEntry.Priority` / `EnabledWhenFeatureFlag`，不读 `NodeMetadata`。Phase1b 只做到"配置注入 + 真机可见 + 默认值唯一"，**capability-based routing 另立任务**。
+- **`Node<TService>` 生产零实例化**：`NodeRegistry.Build(sp)` 在生产不传 customFactories（G5 缺口），故 `INode.Metadata` 的真机值目前只能在端到端单测中观测；G5 落地 DI 扫描后，本阶段打通的注入链会自动生效。不得用"真机 --dump-nodes 有值"宣称运行期节点已带 metadata。

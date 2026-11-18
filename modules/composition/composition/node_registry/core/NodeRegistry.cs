@@ -19,7 +19,7 @@ public sealed class NodeRegistry : INodeRegistry {
     }
 
     /// <summary>从 DI 容器构建节点注册表</summary>
-    public static NodeRegistry Build(IServiceProvider sp, IEnumerable<KeyValuePair<string, Func<IServiceProvider, INode>>>? customFactories = null) {
+    public static NodeRegistry Build(IServiceProvider sp, IEnumerable<KeyValuePair<string, Func<IServiceProvider, NodeMetadata?, INode>>>? customFactories = null) {
         var nodes = new Dictionary<string, NodeEntry>(StringComparer.Ordinal);
 
         if (customFactories is not null) {
@@ -59,10 +59,18 @@ public sealed class NodeRegistry : INodeRegistry {
                     nodeEntry.EnabledWhenFeatureFlag, cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (!isEnabled) continue;
             }
-            if (_nodes.TryGetValue(nodeEntry.Id, out var entry))
-                result.Add(entry.CreateNode(_services));
-            else
+            if (_nodes.TryGetValue(nodeEntry.Id, out var entry)) {
+                // G4 真实注入链：metadata 来自该 Profile 节点的 meta.* 保留键，
+                // 路由字段以 ResolvedNodeEntry 为权威值补齐（避免同一节点出现两个 priority）。
+                var declared = NodeMetadata.FromConfig(nodeEntry.Config);
+                var metadata = (declared ?? NodeMetadata.Unspecified) with {
+                    Priority = nodeEntry.Priority,
+                    EnabledWhenFeatureFlag = nodeEntry.EnabledWhenFeatureFlag
+                };
+                result.Add(entry.CreateNode(_services, metadata));
+            } else {
                 _logger?.LogWarning("Node '{NodeId}' required by consumer '{ConsumerId}' is not registered in NodeRegistry", nodeEntry.Id, consumerId);
+            }
         }
         return result;
     }

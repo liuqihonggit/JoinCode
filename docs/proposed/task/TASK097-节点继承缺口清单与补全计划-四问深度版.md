@@ -468,8 +468,9 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 - **本机限制实证**：ILCompiler 10.0.9 包齐备、SDK 10.0.301，但 `dotnet publish -p:PublishAot=true` 链接阶段报 `LNK1181: advapi32.lib`（Windows SDK 链接库不全），且 `reg.exe` 被安全策略拦截（ADR 0157:315）。本机无法真机 AOT。
 - **CI 验证步骤**：`.github/workflows/daily-aot-publish.yml` 在 publish 后新增 `Verify published exe` step（jcc-aot / jcc-rtr，跳过 GUI），对产物实跑三项：① `--dump-nodes` 断言节点归纳 + G4 metadata `v=2.1.0`；② `experience round` 断言 H₀ 基线 `max-requests=30`；③ `tool tree` 断言 635 工具。
 - **AOT 安全性**：节点注册链 `BuildNodeFactories` / `BuildFromCatalog` / `HarnessComposer` 全是编译期静态工厂 + DTO 源生成 JSON，无 `Assembly.Load`/`Activator.CreateInstance`；全仓反射式 API 有 JCC1013-1016 分析器守卫。G6 未引入运行时反射，不破坏 AOT。
-- **边界**：DSG048 `:783` 的"待 AOT 发布验证"至此有 CI 步骤覆盖，但本机无法署名实测；须 CI 首次运行后回填实际结论。
+- **CI 首跑署名（2026-11-19）**：`workflow_dispatch` 在 `w2@feb6d4c` 触发 `Daily AOT & RTR Publish` run #55（ID `44395058579`），三个 job（jcc-aot / jccgui-aot / jcc-rtr）全部 success；`Verify published exe` 在 jcc-aot 与 jcc-rtr 产物上实跑并输出三行 `[OK]`：`--dump-nodes` 节点归纳 + G4 metadata `v=2.1.0`、`experience round` H₀ 基线 `max-requests=30`、`tool tree` 635 工具（日志 606–609 行）。本机 `LNK1181` 限制未变，但产物侧验证已由 CI 真机署名。
+- **边界**：DSG048 `:783` 的"待 AOT 发布验证"至此闭合；CI 每次发布都会复验，本机仍无法本地复现 AOT 链接（环境限制，非代码问题）。
 
 ### 13.7 TASK097 总判定
 
-G1–G7 全部缺口闭合：G2/G4（阶段1）、G5/G1（阶段2）、G3（零代码）、G6（经验继承 + H₀ 红线，两轮差评修复）、G7（CI 验证步骤）。每阶段真机 exe 验收，单元测试仅作回归网。用户核心诉求「DSH 万物皆节点 + Harness² 可继承 → 节点继承」落地为：**节点可继承描述（G2）+ 节点自动归纳与可逆装卸（G5/G1）+ 经验可跨任务选择性复用且绝不继承成品（G6）**。
+G1–G7 全部缺口闭合：G2/G4（阶段1）、G5/G1（阶段2）、G3（零代码）、G6（经验继承 + H₀ 红线，两轮差评修复）、G7（CI 验证步骤 + run #55 AOT/RTR 产物真机署名）。每阶段真机 exe 验收，单元测试仅作回归网。用户核心诉求「DSH 万物皆节点 + Harness² 可继承 → 节点继承」落地为：**节点可继承描述（G2）+ 节点自动归纳与可逆装卸（G5/G1）+ 经验可跨任务选择性复用且绝不继承成品（G6）**。

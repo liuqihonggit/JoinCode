@@ -14,7 +14,7 @@
   <ItemGroup>
     <Compile Include="$(RepoRoot)modules/generators/aot_safety.shared/AotSafetyHelpers.cs" Link="Shared\AotSafetyHelpers.cs" />
     <Compile Include="$(RepoRoot)modules/generators/aot_safety.shared/SyntaxHelpers.cs" Link="Shared\SyntaxHelpers.cs" />
-    <Compile Include="$(RepoRoot)modules/generators/aot_safety.shared/RuleDetectors/*.cs" Link="Shared\RuleDetectors\%(Filename)%(Extension)" />
+    <Compile Include="$(RepoRoot)modules/generators/aot_safety.shared/rule_detectors/*.cs" Link="Shared\rule_detectors\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

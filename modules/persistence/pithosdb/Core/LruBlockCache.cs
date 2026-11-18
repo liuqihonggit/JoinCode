@@ -1,7 +1,7 @@
 
 
 
-namespace PithosDB.Core.Core;
+namespace PithosDB.Core;
 
 /// <summary>
 /// Thread-safe, lock-free block cache shared across all <see cref="Storage.SSTableReader"/>

@@ -1,7 +1,7 @@
 
 
 
-namespace PithosDB.Core.Core;
+namespace PithosDB.Core;
 
 /// <summary>Entry type discriminator stored as the first byte of each WAL record.</summary>
 public enum WalEntryType : byte { Put = 1, Delete = 2, Batch = 3 }

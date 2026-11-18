@@ -1,6 +1,6 @@
 
 
-namespace PithosDB.Core.Core;
+namespace PithosDB.Core;
 
 /// <summary>
 /// Encodes and decodes values stored on disk when TTL is enabled.

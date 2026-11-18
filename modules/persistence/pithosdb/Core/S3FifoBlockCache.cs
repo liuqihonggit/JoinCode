@@ -1,7 +1,7 @@
 
 
 
-namespace PithosDB.Core.Core;
+namespace PithosDB.Core;
 
 /// <summary>
 /// Thread-safe, lock-free S3-FIFO-style block cache.

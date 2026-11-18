@@ -1,6 +1,6 @@
 global using K4os.Compression.LZ4;
 global using PithosDB.Core.Compaction;
-global using PithosDB.Core.Core;
+global using PithosDB.Core;
 global using PithosDB.Core.Storage;
 global using System.Buffers.Binary;
 global using System.Collections.Concurrent;

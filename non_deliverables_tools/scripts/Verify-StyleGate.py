@@ -50,7 +50,7 @@ def is_generator_rule_source(path):
 def tracked_cs_files():
     out = subprocess.run(['git', 'ls-files', '*.cs'], capture_output=True, text=True, check=True).stdout
     files = [line for line in out.splitlines() if line]
-    return [f for f in files if not f.lower().replace(BS, '/').startswith(SKIP_ROOTS)]
+    return [f for f in files if not f.lower().replace(BS, '/').startswith(SKIP_ROOTS) and os.path.exists(f)]
 
 
 def read_text(path):
@@ -150,28 +150,37 @@ def check_namespace(path, text, violations):
 def check_dirs(files, violations):
     seen = set()
     for path in files:
-        low = path.lower().replace(BS, '/')
+        normalized = path.replace(BS, '/')
+        low = normalized.lower()
         if not low.startswith(PROD_ROOTS) or is_test_path(path):
             continue
-        parts = low.split('/')[:-1]
+        parts = normalized.split('/')[:-1]
         for depth in range(2, len(parts) + 1):
             rel = '/'.join(parts[:depth])
             if rel in seen:
                 continue
             seen.add(rel)
             name = parts[depth - 1]
-            if re.fullmatch(r'[a-z0-9_]+', name):
-                continue
-            directory = '/'.join(parts[:depth])
-            abs_dir = directory.replace('/', BS)
+            parent = '/'.join(parts[:depth - 1])
+            actual = None
             try:
-                entries = os.listdir(abs_dir)
+                for entry in os.listdir(parent or '.'):
+                    if entry.lower() == name.lower():
+                        actual = entry
+                        break
+            except OSError:
+                continue
+            if actual is None or re.fullmatch(r'[a-z0-9_]+', actual):
+                continue
+            directory = '/'.join(parts[:depth - 1] + [actual])
+            try:
+                entries = os.listdir(directory)
             except OSError:
                 continue
             if any(entry.endswith('.csproj') for entry in entries):
                 continue
             violations.append({'rule': 'S8', 'path': directory, 'line': 0,
-                               'text': '目录名必须 lower_snake: ' + name})
+                               'text': '目录名必须 lower_snake: ' + actual})
 
 
 def main():

@@ -1,6 +1,6 @@
 
 
-namespace PithosDB.Core.Core;
+namespace PithosDB.Core;
 
 /// <summary>
 /// Shared block cache that sits between SSTable readers and the disk.

@@ -286,6 +286,19 @@ public static class DataDrivenPipelineComposition {
             var sections = PromptSectionRegistration.GetCoordinatorModeSections().ToArray();
             return new PromptSectionCategoryNode("coordinator-mode-prompt", PromptSectionGroup.CoordinatorMode, sections);
         });
+
+        // ═══════════════════════════════════════════════════════════
+        // command-guard-chain — 命令守卫（contract: guard）
+        // 顺序取自 profile 的 priority，实现由 DI 收集；这里只负责让节点可见、可校验。
+        // ═══════════════════════════════════════════════════════════
+        yield return F("command-guard-chain:git-commit-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.GitCommitGuard>());
+        yield return F("command-guard-chain:drive-protection-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.DriveProtectionGuard>());
+        yield return F("command-guard-chain:cmd-indirect-call-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.CmdIndirectCallGuard>());
+        yield return F("command-guard-chain:robocopy-mirror-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.RobocopyMirrorGuard>());
+        yield return F("command-guard-chain:heredoc-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.HeredocGuard>());
+        yield return F("command-guard-chain:gh-pr-body-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.GhPrBodyGuard>());
+        yield return F("command-guard-chain:gh-timeout-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.GhTimeoutGuard>());
+        yield return F("command-guard-chain:vpn-route-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.VpnRouteGuard>());
     }
 
     /// <summary>

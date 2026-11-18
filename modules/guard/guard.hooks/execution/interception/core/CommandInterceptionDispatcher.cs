@@ -29,28 +29,35 @@ public sealed record DispatchOutcome(string FinalCommand, ToolResult? ShortCircu
 /// </summary>
 [Register(typeof(CommandInterceptionDispatcher), ServiceLifetime.Singleton)]
 public sealed partial class CommandInterceptionDispatcher : ServiceEntity {
+    /// <summary>守卫链在 profile 中的消费点 ID（contract: guard）。</summary>
+    public const string GuardConsumerId = "command-guard-chain";
+
     private readonly ICommandGuard[] _guards;
     private readonly ICommandInterceptor[] _interceptors;
     private readonly ILogger<CommandInterceptionDispatcher>? _logger;
 
     /// <summary>
-    /// 构造调度器 — DI 注入所有守卫和拦截器,按位次降序预排序
-    /// <para>位次由注册顺序表派生(resources/orders.yaml 的 command_guards / command_interceptors 列表),
-    /// 实现类里不再有作者手写的数字。未登记的实现会在构造时直接抛异常,
-    /// 不允许守卫链按未知顺序执行。</para>
+    /// 构造调度器 — DI 注入所有守卫和拦截器，守卫顺序取自 profile 消费点。
+    /// <para>TASK100：顺序不再由 <c>orders.yaml</c> 的序号换算，而由
+    /// <c>profiles/*.yaml</c> 的 <c>command-guard-chain</c> 消费点声明（priority 降序）。
+    /// profile 缺失时退回实现自带的 Priority（单测/无宿主场景）；
+    /// 声明了但实现缺失 → 构造即抛异常，绝不静默漏掉一条守卫。</para>
     /// </summary>
     /// <param name="guards">守卫集合(DI 自动收集所有 <see cref="ICommandGuard"/> 实现)</param>
     /// <param name="interceptors">拦截器集合(DI 自动收集所有 <see cref="ICommandInterceptor"/> 实现)</param>
     /// <param name="logger">日志器(可选)</param>
+    /// <param name="profiles">Profile 管理器(可选) — 提供守卫链顺序声明</param>
     public CommandInterceptionDispatcher(
         IEnumerable<ICommandGuard> guards,
         IEnumerable<ICommandInterceptor> interceptors,
-        ILogger<CommandInterceptionDispatcher>? logger = null) {
-        _guards = guards.OrderByDescending(static g => g.Priority).ToArray();
+        ILogger<CommandInterceptionDispatcher>? logger = null,
+        JoinCode.Abstractions.Composition.IProfileManager? profiles = null) {
+        _guards = NodeChainOrder.Order(
+            guards, profiles, GuardConsumerId, static g => g.Name, static g => g.Priority, "命令守卫");
         _interceptors = interceptors.OrderByDescending(static i => i.Priority).ToArray();
         _logger = logger;
         // 打点：把实际装配顺序打出来 —— 守卫链的先后直接决定谁能先拒绝命令，
-        // 顺序只存在于 resources/orders.yaml 里，日志是唯一的现实核对口。
+        // 顺序只存在于 profile 里，日志是唯一的现实核对口。
         Diag.WriteLine($"[ORDER] command_guards: {string.Join(" > ", _guards.Select(static g => g.Name))}");
         Diag.WriteLine($"[ORDER] command_interceptors: {string.Join(" > ", _interceptors.Select(static i => i.Name))}");
     }

@@ -96,9 +96,61 @@ def main() -> int:
     distribution: dict[str, int] = {}
     for consumer in consumers:
         distribution[consumer["contract"]] = distribution.get(consumer["contract"], 0) + 1
+
+    # 6. 守卫链顺序对账 — profile 是运行期唯一顺序源，orders.yaml 退化为校验表，两者必须一致
+    verify_order_table(consumers)
+
     summary = ", ".join(f"{k}={v}" for k, v in sorted(distribution.items()))
     print(f"[OK] 节点一致性通过: {report['nodeCount']} 节点 / {len(consumers)} 消费点（契约分布: {summary}）")
     return 0
+
+
+def kebab_to_pascal(node_id: str) -> str:
+    """kebab 节点 ID → PascalCase 实现名（与 NodeChainOrder.KebabToPascal 同规则）。"""
+    return "".join(part[:1].upper() + part[1:] for part in node_id.split("-") if part)
+
+
+def read_order_list(key: str) -> list[str]:
+    """读取 resources/orders.yaml 中某个 lists.<key> 的条目顺序。"""
+    path = REPO / "resources/orders.yaml"
+    lines = path.read_text(encoding="utf-8").splitlines()
+    result: list[str] = []
+    in_block = False
+    for line in lines:
+        stripped = line.strip()
+        if not in_block:
+            if stripped == f"{key}:":
+                in_block = True
+            continue
+        if not stripped or stripped.startswith("#"):
+            if result:
+                break
+            continue
+        if not stripped.startswith("- "):
+            break
+        result.append(stripped[2:].strip())
+    return result
+
+
+def verify_order_table(consumers: list[dict]) -> None:
+    """profile 声明顺序 ↔ orders.yaml 列表顺序必须一致（否则运行期与校验表各说一套）。"""
+    profile_nodes = [
+        node["id"]
+        for consumer in consumers
+        if consumer["profile"] == "base" and consumer["consumerId"] == "command-guard-chain"
+        for node in sorted(consumer["nodes"], key=lambda n: -n["priority"])
+    ]
+    if not profile_nodes:
+        return
+    declared = [kebab_to_pascal(node_id) for node_id in profile_nodes]
+    table = read_order_list("command_guards")
+    if table and table != declared:
+        fail(
+            "守卫顺序两套事实不一致：\n"
+            f"  profile command-guard-chain: {', '.join(declared)}\n"
+            f"  orders.yaml command_guards:   {', '.join(table)}\n"
+            "  处置: 两处改成同一顺序（profile 是运行期唯一来源，orders.yaml 只是校验表）。"
+        )
 
 
 if __name__ == "__main__":

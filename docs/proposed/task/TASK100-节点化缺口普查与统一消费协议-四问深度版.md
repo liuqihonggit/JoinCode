@@ -424,7 +424,7 @@ consumers:
 |---|---|---|
 | 0 | 普查与本文档（含 §11 施工单、§12 分域细则） | ✅ |
 | S1 | 契约字段 + dump 扩展 + 一致性门禁 | ✅ |
-| S2 | guard 域节点化（守卫/修正/防御/沙箱） | ⬜ |
+| S2 | guard 域节点化：S2a 守卫链 ✅ / S2b 修正器+沙箱 ⬜ | 🟡 |
 | S3 | provider + role 节点化 | ⬜ |
 | S4 | 能力 + 命令表面节点化 | ⬜ |
 | S5 | 外部 profile 覆盖 | ⬜ |
@@ -457,3 +457,27 @@ consumers:
 | `jcc --dump-nodes --json` | `nodeCount=176 / consumerCount=80`，verification 三数组全空 |
 | 零回归 | 1117/1117 测试（1111 + 6 新增）；`jcc tool tree` 635；`--dump-profile sdk` 正常 |
 | 意外收获 | `--dump-nodes` 此前必须走完整参数解析，`--json/--verify` 会被判未知选项；改为先于 ParseArgs 处理后 CI 可直接用 |
+
+### 14.2 S2a 实施记录（守卫链）
+
+**做法**：守卫链的执行顺序从 `orders.yaml` 序号改为 profile 消费点 `command-guard-chain`（`contract: guard`），`orders.yaml` 退化为校验表。
+
+| 文件 | 改动 |
+|---|---|
+| `modules/guard/guard.hooks/execution/core/NodeChainOrder.cs` | 新增：按 profile 排任意节点链；kebab ID ↔ Pascal 实现名比对；profile 缺失退回 Priority；实现缺失fail-closed抛错；实现未声明追加链尾并打点 |
+| `.../interception/core/CommandInterceptionDispatcher.cs` | 构造改为 `NodeChainOrder.Order(...)`，新增可选 `IProfileManager` 参数 |
+| `modules/composition/pipelines/registration/DataDrivenPipelineComposition.cs` | 新增 8 个 `command-guard-chain:*` 工厂 |
+| `resources/profiles/base.yaml` | 新增 `command-guard-chain`（8 守卫，priority 800→100） |
+| `non_deliverables_tools/scripts/Verify-NodeConsistency.py` | 新增第 6 条校验：profile 顺序 ↔ `orders.yaml` 顺序必须一致 |
+
+**真机验收**
+
+| 项 | 结果 |
+|---|---|
+| `jcc --dump-nodes` | 184 节点（176 + 8 守卫）；`消费点: command-guard-chain [contract=guard, 8 节点]` |
+| 运行期顺序 | `jcc mcp_call bash` + `JCC_DEBUGLOG=1` → `[ORDER] command_guards: GitCommitGuard > DriveProtectionGuard > … > VpnRouteGuard`（= profile 声明） |
+| 拦截真实生效 | `mcp_call bash --command "git commit -m …"` → `execution_failed`：禁止通过 shell 直接执行 git commit |
+| 顺序对账门禁 | 故意交换 `orders.yaml` 前两项 → `[FAIL] 守卫顺序两套事实不一致`，退出码 1；还原后复绿 |
+| 零回归 | Guard.Hooks.Tests 598 全绿；Composition.Tests 1117；`tool tree` 635 |
+
+**已知边界**：从 profile 删除某守卫不会让它失效 —— 实现存在但未声明时按安全优先追加到链尾（打点告警），同时 CI 门禁会报「工厂无声明」。即：**运行期绝不静默丢守卫，配置漂移由 CI 拦**。真正的「关闭某守卫」留给 `enabled-when`（S2b 一起做）。

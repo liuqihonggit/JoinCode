@@ -425,6 +425,28 @@ consumers:
       - id: agent-handoff-mw
         priority: 500
 
+  # TASK100 S2：命令守卫链 — 顺序唯一来源就是这里（priority 降序 = 先评估）。
+  # orders.yaml 的 command_guards 退化为生成期校验表，运行期不再读它。
+  command-guard-chain:
+    contract: guard
+    nodes:
+      - id: git-commit-guard
+        priority: 800
+      - id: drive-protection-guard
+        priority: 700
+      - id: cmd-indirect-call-guard
+        priority: 600
+      - id: robocopy-mirror-guard
+        priority: 500
+      - id: heredoc-guard
+        priority: 400
+      - id: gh-pr-body-guard
+        priority: 300
+      - id: gh-timeout-guard
+        priority: 200
+      - id: vpn-route-guard
+        priority: 100
+
   # TASK100 S1：原 tool-dispatch 4 条声明（shell/file/web/code_execution）已删除 ——
   # 无任何工厂、无任何生产消费方（ToolDispatchConsumer 只在测试里 new）。
   # 工具分组开关待 S4 用 capability 契约重建，不接受「声明了但没人装配」的死配置。

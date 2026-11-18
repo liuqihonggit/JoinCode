@@ -7,10 +7,15 @@ namespace JoinCode.CliNode.System;
 
 /// <summary>
 /// system 分组的本地命令表。
-/// <para>本地实现 26 个「无宿主状态」或「文件即真相源」的工具: sleep / sleep_until / get_process_info、
-/// config 读、错误诊断、permission 读写、model_search / policy_list、通知交互、brief_status。</para>
-/// <para>其余（config_set / agent_* / analytics_* / memory_* / cron 写 …）读写宿主持有的进程内状态或启动期快照，
-/// 零依赖 exe 复制一份只会分叉出第二个真相源，因此继续转发宿主。</para>
+/// <para>本地实现 24 个「无宿主状态」或「文件即真相源」的工具: sleep / sleep_until / get_process_info、
+/// 错误诊断、permission 读写、model_search / policy_list、通知交互、brief_status。</para>
+/// <para>其余（config 读与写 / agent_* / analytics_* / memory_* / cron 写 …）读写宿主持有的进程内状态、
+/// 启动期快照，或需要宿主的「键 → 存储源」映射表，零依赖 exe 复制一份只会分叉出第二个真相源，因此转发宿主。</para>
+/// <para><b>config_get / config_list 为什么在 2026-11-18 从 local 改回 host</b>：exe 版自带一份 supported 键清单
+/// （漏掉 editorMode 等 12 个键、又多出 thinkingEnabled 等 4 个）和一条「先 settings 再 global」的递归找键规则，
+/// 与宿主 <c>SupportedSettings</c> + <c>SettingSourceMap</c> 各成一套。真机表现就是 <c>config_set theme</c> 写进
+/// <c>~/.jcc/global.json</c>、<c>config_get theme</c> 却报未设置（TASK089）。键清单与存储源都是宿主侧知识，
+/// 读侧必须问同一张表，不能各写一份。（那张表在 TASK091 已合并成契约层 <c>ConfigKeyRegistry</c>。）</para>
 /// </summary>
 internal static partial class SystemCommands {
     private const int MaxSleepSeconds = 1800;
@@ -21,8 +26,6 @@ internal static partial class SystemCommands {
             ["sleep_until"] = SleepUntilAsync,
             ["get_process_info"] = ProcessInfoAsync,
             // 纯 BCL 配置/诊断/权限读/通知交互工具
-            ["config_get"] = ConfigGetAsync,
-            ["config_list"] = ConfigListAsync,
             ["diagnose_error"] = DiagnoseErrorAsync,
             ["fix_shell_error"] = FixShellErrorAsync,
             ["fix_file_error"] = FixFileErrorAsync,

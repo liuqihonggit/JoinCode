@@ -1,6 +1,7 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Infra.Tests.Resilience;
 
+[Collection("Diagnostics")]
 public sealed class CrashSnapshotTests {
     [Fact]
     public void CrashSnapshot_Captures_Basic_Exception_Info() {
@@ -81,6 +82,7 @@ public sealed class CrashSnapshotTests {
     }
 }
 
+[Collection("Diagnostics")]
 public sealed class CrashSnapshotStoreTests {
     private readonly CrashSnapshotStore _store = new(maxCapacity: 10);
 
@@ -168,6 +170,7 @@ public sealed class CrashSnapshotStoreTests {
     }
 }
 
+[Collection("Diagnostics")]
 public sealed class FaultFenceTests {
     [Fact]
     public async Task ExecuteAsync_Success_Returns_Value() {

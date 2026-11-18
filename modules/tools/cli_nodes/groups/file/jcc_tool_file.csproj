@@ -12,4 +12,13 @@
     <EmbeddedResource Include="help.txt" LogicalName="JoinCode.CliNodes.Groups.file.help.txt" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 依赖墙的唯一例外，且只给 file 组：读写文件必须保持原文件有无 BOM。
+         BclBridge 是零依赖的 BCL 隔离层（只包 System.IO，无 ProjectReference、无第三方包，
+         已关 Structura 全局引用），不是 Infrastructure / 引擎 / DI。
+         不引它就得在本组再写一套 BOM 判断 —— 事实上已经写成三份了（patch 保留 BOM，
+         write/edit 把 BOM 吃掉，UTF-16 文件还会被静默转成 UTF-8）。规则只留一份，放最低层。 -->
+    <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+  </ItemGroup>
+
 </Project>

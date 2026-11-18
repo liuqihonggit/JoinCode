@@ -81,7 +81,9 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase {
         var commonPath = @"C:\Program Files\PowerShell\7\pwsh.exe";
         if (fs.FileExists(commonPath)) return commonPath;
 
-        logger?.LogWarning("未找到 PowerShell(pwsh), 回退到 powershell.exe. 可设置环境变量 {EnvVar} 指定路径.", PowerShellPathEnvVar);
+        // 回退到 Windows 自带的 Desktop PowerShell 是**可用**的降级路径，不是故障 ——
+        // 大多数没装 PowerShell 7 的机器都会走到这里，每次启动都打 Warning 属于噪音。
+        logger?.LogInformation("未找到 PowerShell(pwsh), 使用系统自带 powershell.exe. 如需指定版本可设置环境变量 {EnvVar}.", PowerShellPathEnvVar);
         return "powershell.exe";
     }
 

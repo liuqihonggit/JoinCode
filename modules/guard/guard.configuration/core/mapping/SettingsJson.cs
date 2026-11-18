@@ -148,49 +148,49 @@ public sealed partial class CurrentSettings {
     public string? EffortLevel { get; init; }
 
     /// <summary>
-    /// UI 主题 (dark/light/auto/daltonized/ansi) — 对齐 CLI /theme、ConfigKey.Theme
+    /// UI 主题 (dark/light/auto/daltonized/ansi) — 对齐 CLI /theme、ConfigKeys.Theme
     /// </summary>
     [JsonPropertyName("theme")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
     public string? Theme { get; init; }
 
     /// <summary>
-    /// 按键绑定模式 (vim/emacs/default) — 对齐 ConfigKey.EditorMode
+    /// 按键绑定模式 (default/vim) — 对齐 ConfigKeys.EditorMode
     /// </summary>
     [JsonPropertyName("editorMode")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
     public string? EditorMode { get; init; }
 
     /// <summary>
-    /// 调试日志输出 — 对齐 ConfigKey.DebugLog
+    /// 调试日志输出 — 对齐 ConfigKeys.DebugLog
     /// </summary>
     [JsonPropertyName("debuglog")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
     public bool? DebugLog { get; init; }
 
     /// <summary>
-    /// 自动压缩上下文 — 对齐 ConfigKey.AutoCompactEnabled
+    /// 自动压缩上下文 — 对齐 ConfigKeys.AutoCompactEnabled
     /// </summary>
     [JsonPropertyName("autoCompactEnabled")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
     public bool? AutoCompactEnabled { get; init; }
 
     /// <summary>
-    /// 文件检查点 — 对齐 ConfigKey.FileCheckpointingEnabled
+    /// 文件检查点 — 对齐 ConfigKeys.FileCheckpointingEnabled
     /// </summary>
     [JsonPropertyName("fileCheckpointingEnabled")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
     public bool? FileCheckpointingEnabled { get; init; }
 
     /// <summary>
-    /// 显示轮次耗时 — 对齐 ConfigKey.ShowTurnDuration
+    /// 显示轮次耗时 — 对齐 ConfigKeys.ShowTurnDuration
     /// </summary>
     [JsonPropertyName("showTurnDuration")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
     public bool? ShowTurnDuration { get; init; }
 
     /// <summary>
-    /// 扩展思考 — 对齐 ConfigKey.AlwaysThinkingEnabled
+    /// 扩展思考 — 对齐 ConfigKeys.AlwaysThinkingEnabled
     /// </summary>
     [JsonPropertyName("alwaysThinkingEnabled")]
     [SettingsProperty(SettingsMergeStrategy.Override)]

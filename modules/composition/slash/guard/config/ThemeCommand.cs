@@ -118,7 +118,8 @@ public sealed class ThemeCommand : ChatCommandBase {
 
     private async Task SetThemeAsync(IConfigurationService? configService, string theme, CancellationToken ct) {
         if (configService is not null) {
-            await configService.SetAsync(ConfigKeyEnumConstants.Theme, theme, ct).ConfigureAwait(false);
+            // 存储源由配置服务按 ConfigKeyRegistry 决定（theme → ~/.jcc/global.json，对齐 TS ThemeProvider）
+            await configService.SetAsync(ConfigKeys.Theme, theme, ct).ConfigureAwait(false);
         }
 
         ApplyTheme(theme);
@@ -126,7 +127,8 @@ public sealed class ThemeCommand : ChatCommandBase {
 
     private static async Task<string> GetCurrentThemeAsync(IConfigurationService? configService) {
         if (configService is not null) {
-            var theme = await configService.GetAsync(ConfigKeyEnumConstants.Theme).ConfigureAwait(false);
+            // 存储源由配置服务按 ConfigKeyRegistry 决定 —— 与 config_get 工具读同一个文件（TASK089）
+            var theme = await configService.GetAsync(ConfigKeys.Theme).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(theme)) return theme;
         }
 

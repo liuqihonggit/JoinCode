@@ -71,3 +71,15 @@ items:
     status: done
     evidence: "真机 jcc tool call search search_symbol --key theme 不再被阻断（进入工具层并给精确引导）；--api-key sk-xxx、--token ghp_xxx、--api-key=sk-xxx 三种形态仍被拦（后者修复前漏检）；host.tests 1329 通过（新增 21 条）"
     next: 无需动作
+
+  - id: config_storage_source
+    title: 配置存储源收敛 — /theme、GUI、config_get/config_set 读同一个文件（SettingSourceMap 唯一决定）
+    status: done
+    evidence: "真机同目录交叉验证：/theme 写 light 后 config_get 读到 light，工具写 dark 后 /config get 读回 dark，均在 global.json；GUI 探针 GuiSessionProbe 读写一致；config_source_probe 三场景 12 项断言通过；Guard.Config.Tests 1305 通过"
+    next: 无需动作
+
+  - id: config_value_semantics
+    title: 配置值语义归一 — model 读写同一个字段（vendor.{profile}.model），嵌套键按路径读写，启动无栈帧/无逐供应商告警
+    status: done
+    evidence: "真机隔离目录：config_get model 读 vendor.p1.model=m1，config_set model m2 后 config_get 与 /config get 均为 m2，settings.json 只改该字段；permissions.defaultMode 写入 current.permissions 并被 PermissionChecker 读取；无 current.profile 时明确报错不假成功；jcc -p 启动输出 126 行→10 行，无栈帧、无 45 条「依赖服务未注册」（实为 ObjectDisposedException 退出竞态）；SettingPathMapTests 7 条 + ConfigCommand 88 通过"
+    next: 无需动作

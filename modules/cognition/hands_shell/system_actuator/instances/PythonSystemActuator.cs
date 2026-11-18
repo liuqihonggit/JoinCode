@@ -72,7 +72,9 @@ public sealed class PythonSystemActuator : SystemActuatorBase {
         foreach (var cp in commonPaths)
             if (fs.FileExists(cp)) return cp;
 
-        logger?.LogWarning("未找到 Python, 回退到 python3. 可设置环境变量 {EnvVar} 指定路径.", PythonPathEnvVar);
+        // 同 PowerShell：没装 python.exe 但 PATH 上有 python3 是常见且可用的情形，
+        // 只在需要排障时才有价值，因此降到 Information。
+        logger?.LogInformation("未找到 python.exe, 使用 python3. 如需指定版本可设置环境变量 {EnvVar}.", PythonPathEnvVar);
         return "python3";
     }
 

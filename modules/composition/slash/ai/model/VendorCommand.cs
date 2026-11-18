@@ -68,7 +68,7 @@ public sealed class VendorCommand : ChatCommandBase {
 
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
         if (configService is not null) {
-            await configService.SetAsync(ConfigKeyEnumConstants.Profile, targetValue, context.CancellationToken).ConfigureAwait(false);
+            await configService.SetAsync(ConfigKeys.Profile, targetValue, context.CancellationToken).ConfigureAwait(false);
         }
 
         TerminalHelper.WriteLine($"已切换供应商: {currentVendor} → {targetValue}" +

@@ -12,7 +12,12 @@ public static class ErrorConsole {
     /// </summary>
     public static bool IsQuiet { get; set; }
 
-    /// <summary>渲染致命错误（红色标题 + 消息 + 堆栈）</summary>
+    /// <summary>
+    /// 渲染致命错误（红色标题 + 消息 + 堆栈）
+    /// <para><b>控制台不打印堆栈</b>：终端是给用户看的，<c>at JoinCode.xxx</c> 对他没有任何信息量，
+    /// 只会让人以为程序崩了。默认只留「类型: 消息」，堆栈在 <c>JCC_DEBUGLOG=1</c> 时才补；
+    /// 完整堆栈另有 <c>~/.jcc/runtime/jcc_error.log</c> 与崩溃快照两处落点。</para>
+    /// </summary>
     public static void Fatal(string message, Exception? ex = null) {
         lock (Lock) {
             Err();
@@ -25,7 +30,7 @@ public static class ErrorConsole {
                 Colored("  详细信息:", System.ConsoleColor.DarkGray);
                 Err($"  {ex.GetType().Name}: {ex.Message}");
 
-                if (!string.IsNullOrEmpty(ex.StackTrace)) {
+                if (JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog && !string.IsNullOrEmpty(ex.StackTrace)) {
                     Err();
                     foreach (var line in ex.StackTrace.Split('\n'))
                         Err($"  {line.Trim()}");

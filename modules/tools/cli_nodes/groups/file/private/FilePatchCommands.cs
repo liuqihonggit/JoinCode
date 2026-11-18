@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using JoinCode.Abstractions.Tools;
+using JoinCode.BclBridge;
 
 namespace JoinCode.CliNode.File;
 
@@ -62,7 +63,7 @@ internal static partial class FilePatchCommands {
     private static (bool Failed, int HunkCount, string Detail) ApplyToFile(
         string filePath, List<PatchHunk> hunks, bool dryRun) {
         var bytes = global::System.IO.File.ReadAllBytes(filePath);
-        var (original, encoding, hasBom) = Decode(bytes);
+        var (original, encoding) = Decode(bytes);
         var lines = SplitLines(original);
         // 行尾风格要跟着原文件走：CRLF 文件被写成 LF，会让整文件在 git 里变成全行修改。
         var newline = UsesCrlf(original) ? "\r\n" : "\n";
@@ -80,7 +81,7 @@ internal static partial class FilePatchCommands {
 
         if (dryRun) return (false, hunks.Count, string.Empty);
         var newContent = string.Join(newline, lines);
-        global::System.IO.File.WriteAllBytes(filePath, Encode(newContent, encoding, hasBom));
+        global::System.IO.File.WriteAllBytes(filePath, BclFileIO.EncodeString(newContent, encoding));
         return (false, hunks.Count, string.Empty);
     }
 
@@ -97,29 +98,16 @@ internal static partial class FilePatchCommands {
     }
 
     /// <summary>
-    /// 解码：识别 UTF-8 BOM / UTF-16 BOM，其余按 UTF-8 处理。
-    /// <para>不猜测 GBK 等本地编码 —— 猜错会静默写坏文件；非法字节直接抛解码异常，
-    /// 让用户知道「这个文件不是 UTF-8」，而不是给他一个改烂的文件。</para>
+    /// 解码：签名判定交给 <see cref="BclFileIO.DetectFromBOM"/>（全仓唯一一份），
+    /// 这里只负责「不允许静默写坏」——UTF-8 用严格模式，非法字节直接抛。
+    /// <para>不猜测 GBK 等本地编码 —— 猜错会静默写坏文件；让用户知道「这个文件不是 UTF-8」，
+    /// 而不是给他一个改烂的文件。</para>
     /// </summary>
-    private static (string Text, Encoding Encoding, bool HasBom) Decode(byte[] bytes) {
-        // 带 BOM 的原样保留：写成 UTF8Encoding(true)，否则 GetPreamble() 为空，改完 BOM 就丢了。
-        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
-            return (Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3), new UTF8Encoding(true), true);
-        if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
-            return (Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2), Encoding.Unicode, true);
-        if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
-            return (Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2), Encoding.BigEndianUnicode, true);
-        return (new UTF8Encoding(false, true).GetString(bytes), new UTF8Encoding(false), false);
-    }
-
-    private static byte[] Encode(string content, Encoding encoding, bool hasBom) {
-        var body = encoding.GetBytes(content);
-        if (!hasBom) return body;
-        var preamble = encoding.GetPreamble();
-        var result = new byte[preamble.Length + body.Length];
-        preamble.CopyTo(result, 0);
-        body.CopyTo(result, preamble.Length);
-        return result;
+    private static (string Text, Encoding Encoding) Decode(byte[] bytes) {
+        var encoding = BclFileIO.DetectFromBOM(bytes);
+        var preambleLength = encoding.GetPreamble().Length;
+        var decoder = encoding.CodePage == Encoding.UTF8.CodePage ? new UTF8Encoding(false, true) : encoding;
+        return (decoder.GetString(bytes, preambleLength, bytes.Length - preambleLength), encoding);
     }
 
     private static List<PatchHunk> ParsePatch(string patch) {

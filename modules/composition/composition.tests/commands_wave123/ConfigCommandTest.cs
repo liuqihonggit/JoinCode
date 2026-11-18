@@ -13,6 +13,10 @@ public sealed class ConfigCommandTest {
         var config = new Mock<IConfigurationService>();
         config.Setup(c => c.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(allConfig ?? []);
+        // 写入默认成功 —— ConfigCommand 现在会看 SetAsync 的返回值（写盘失败不再报「已设置」），
+        // 默认 mock 返回 false 会让所有 set 用例走失败分支。需要失败场景的用例自己覆盖。
+        config.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
         var services = CommandTestHarness.CreateServices(
             configureDi: di => di.AddSingleton(config.Object));
         var context = CommandTestHarness.CreateContext(services, arguments: arguments);
@@ -62,13 +66,23 @@ public sealed class ConfigCommandTest {
 
         result.ShouldContinue.Should().BeTrue();
         output.Should().Contain("已设置: theme = dark");
-        output.Should().Contain("theme: UI 主题 (dark/light/auto)", "已知配置项应展示元数据描述");
+        output.Should().Contain("theme: UI 颜色主题", "已知配置项应展示唯一清单里的描述");
         config.Verify(c => c.SetAsync("theme", "dark", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task Execute_SetWithSpacesInValue_JoinsRemainingArgs() {
-        var (cmd, config, context) = Arrange(arguments: "set theme dark mode");
+    public async Task Execute_SetWhenPersistFails_ReportsFailure_NotSuccess() {
+        var (cmd, config, context) = Arrange(arguments: "set theme dark");
+        config.Setup(c => c.SetAsync("theme", "dark", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        output.Should().Contain("设置失败: theme", "写盘失败不能报「已设置」—— 用户会以为改动生效了");
+        output.Should().NotContain("已设置: theme = dark");
+    }
+
+    [Fact]
+    public async Task Execute_SetWithSpacesInValue_JoinsRemainingArgs() {        var (cmd, config, context) = Arrange(arguments: "set theme dark mode");
 
         var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
@@ -161,7 +175,7 @@ public sealed class ConfigCommandTest {
         output.Should().Contain("custom.key = custom-value");
         output.Should().Contain("language = zh");
         output.Should().Contain("theme = dark");
-        output.Should().Contain("(UI 主题 (dark/light/auto))", "已知键应附带括号内描述");
+        output.Should().Contain("(UI 颜色主题)", "已知键应附带唯一清单里的描述");
         output.Should().Contain("使用 /config set <key> <value> 设置配置");
     }
 

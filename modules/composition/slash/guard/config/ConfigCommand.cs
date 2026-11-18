@@ -10,27 +10,6 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("value", Type = "string", Description = "配置值（set 操作时需要）")]
 public sealed class ConfigCommand : ChatCommandBase {
     /// <summary>
-    /// 已知配置项元数据 — 单一数据源来自 ConfigKey 枚举
-    /// 字典键为 ConfigKey 枚举,值为 UI 描述(仅展示用)
-    /// </summary>
-    private static readonly FrozenDictionary<ConfigKey, string> KnownSettings = new Dictionary<ConfigKey, string> {
-        [ConfigKey.Profile] = "当前供应商预设名 (openai/anthropic/deepseek/...)",
-        [ConfigKey.Theme] = "UI 主题 (dark/light/auto)",
-        [ConfigKey.EditorMode] = "按键绑定模式 (vim/emacs/default)",
-        [ConfigKey.DebugLog] = "调试日志输出 (true/false)",
-        [ConfigKey.AutoCompactEnabled] = "自动压缩上下文 (true/false)",
-        [ConfigKey.AutoMemoryEnabled] = "自动记忆 (true/false)",
-        [ConfigKey.FileCheckpointingEnabled] = "文件检查点 (true/false)",
-        [ConfigKey.ShowTurnDuration] = "显示轮次耗时 (true/false)",
-        [ConfigKey.AlwaysThinkingEnabled] = "扩展思考 (true/false)",
-        [ConfigKey.PermissionsDefaultMode] = "默认权限模式 (allow/ask/deny)",
-        [ConfigKey.Language] = "首选语言 (zh/en/ja/...)",
-        [ConfigKey.FastMode] = "快速模式 (true/false)",
-        [ConfigKey.EffortLevel] = "推理力度 (low/medium/high/xhigh)",
-        [ConfigKey.OutputStyle] = "输出风格 (concise/verbose/normal)",
-    }.ToFrozenDictionary();
-
-    /// <summary>
     /// 执行 /config 命令 — 根据子命令分发到对应配置操作
     /// 支持 get/set/list/remove 四种操作,默认 list
     /// </summary>
@@ -70,6 +49,7 @@ public sealed class ConfigCommand : ChatCommandBase {
 
         var key = args[1];
         var configService = ResolveConfigService(context);
+        // 存储源由配置服务按 ConfigKeyRegistry 决定 —— 与 config_get 工具读同一个文件（TASK089）
         var value = await configService.GetAsync(key, context.CancellationToken).ConfigureAwait(false);
         if (value is not null) {
             TerminalHelper.WriteLine($"{key} = {value}");
@@ -87,12 +67,27 @@ public sealed class ConfigCommand : ChatCommandBase {
         var key = args[1];
         var value = string.Join(" ", args[2..]);
 
-        if (ConfigKeyExtensions.FromValue(key) is { } configKey && KnownSettings.TryGetValue(configKey, out var description)) {
-            TerminalHelper.WriteLine($"  {key}: {description}");
+        // 说明文字取自唯一清单 —— 与 config_set/config_list 用的是同一份描述
+        if (ConfigKeyRegistry.Get(key) is { } setting) {
+            TerminalHelper.WriteLine($"  {key}: {setting.Description}");
+        } else {
+            // 不在清单里的键：不拦（插件/历史键仍可能被别的代码读取），但必须说清楚，
+            // 否则打字错误会静默写进 settings.json —— 用户以为改了，运行时读的是另一个键
+            // 建议来自唯一清单 —— 与 config_get 的 UnknownSetting 诊断同一份算法
+            var hint = string.Join(", ", ConfigKeyRegistry.Suggest(key));
+            TerminalHelper.WriteLine(
+                $"{TerminalColors.Warning}注意: '{key}' 不在已知配置项里，仍会写入。" +
+                (hint.Length > 0 ? $" 你是不是想用: {hint}？" : " 已知项见 /config list。") +
+                $"{AnsiStyleEnumConstants.Reset}");
         }
 
         var configService = ResolveConfigService(context);
-        await configService.SetAsync(key, value, context.CancellationToken).ConfigureAwait(false);
+        var saved = await configService.SetAsync(key, value, context.CancellationToken).ConfigureAwait(false);
+        if (!saved) {
+            // 写盘失败（含「路径无法解析，什么都没写」）不能报成功 —— 否则用户以为改了，下次启动还是旧值
+            TerminalHelper.WriteLine($"{TerminalColors.Error}设置失败: {key}（未能写入配置文件，原因见上方日志）{AnsiStyleEnumConstants.Reset}");
+            return;
+        }
 
         TerminalHelper.WriteLine($"{TerminalColors.Success}已设置: {key} = {value}{AnsiStyleEnumConstants.Reset}");
     }
@@ -133,7 +128,8 @@ public sealed class ConfigCommand : ChatCommandBase {
         var sb = new StringBuilder();
         if (config.Count > 0) {
             foreach (var kvp in config.OrderBy(x => x.Key)) {
-                var desc = ConfigKeyExtensions.FromValue(kvp.Key) is { } ck && KnownSettings.TryGetValue(ck, out var d) ? $"  ({d})" : "";
+                var described = ConfigKeyRegistry.Get(kvp.Key);
+                var desc = described is null ? "" : $"  ({described.Description})";
                 sb.AppendLine($"  {kvp.Key} = {kvp.Value}{desc}");
             }
         } else {
@@ -147,11 +143,12 @@ public sealed class ConfigCommand : ChatCommandBase {
 
     private static string RenderKnownSettings(Dictionary<string, string> config) {
         var sb = new StringBuilder();
-        foreach (var kvp in KnownSettings.OrderBy(x => x.Key)) {
-            var keyStr = kvp.Key.ToValue();
-            var hasValue = config.ContainsKey(keyStr);
-            var marker = hasValue ? $" {TerminalColors.Success}✓{AnsiStyleEnumConstants.Reset}" : "";
-            sb.AppendLine($"  {keyStr}{marker} - {kvp.Value}");
+        foreach (var (key, setting) in ConfigKeyRegistry.All.OrderBy(x => x.Key, StringComparer.Ordinal)) {
+            var marker = config.ContainsKey(key) ? $" {TerminalColors.Success}✓{AnsiStyleEnumConstants.Reset}" : "";
+            var optionsHint = ConfigKeyRegistry.OptionsOf(key) is { Length: > 0 } options
+                ? $"[{string.Join('/', options)}] "
+                : "";
+            sb.AppendLine($"  {key}{marker} - {optionsHint}{setting.Description}");
         }
 
         sb.AppendLine();

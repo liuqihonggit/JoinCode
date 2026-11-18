@@ -147,9 +147,9 @@ public sealed class EffortCommand : ChatCommandBase {
         if (configService is null) return;
 
         if (effort is null or EffortLevel.Auto) {
-            await configService.RemoveAsync(ConfigKeyEnumConstants.EffortLevel, context.CancellationToken).ConfigureAwait(false);
+            await configService.RemoveAsync(ConfigKeys.EffortLevel, context.CancellationToken).ConfigureAwait(false);
         } else {
-            await configService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effort.Value.ToValue(), context.CancellationToken).ConfigureAwait(false);
+            await configService.SetAsync(ConfigKeys.EffortLevel, effort.Value.ToValue(), context.CancellationToken).ConfigureAwait(false);
         }
     }
 

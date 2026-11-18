@@ -1,40 +1,120 @@
-// 配置源分叉探针 — 验证同一 key 在「无 source 重载」与「按 SupportedSettings 源」下的读取是否一致。
-// 背景：/config 命令走 GetAsync(key, ct) → 固定 UserSettings(settings.json)；
-//      config_get 工具走 GetAsync(key, source) → theme 等 10 个键是 GlobalConfig(global.json)。
-//      若两者答案不同，就是「同一语义两个实现」。
-// 退出码：0 = 两路径一致（无分叉）；1 = 分叉；2 = 环境/执行失败。
+// 配置存储源一致性探针（TASK089 验收）
+//
+// 修前形状：/theme、GUI 读写 settings.json，而 config_get/config_set 按另一张表的
+// source 读写 global.json —— 同一键两处答案，用户与 LLM 互相看不见对方的设置。
+// 修后形状：存储源由契约层 ConfigKeyRegistry（唯一清单）决定，且旧 settings.json 里的 global 键会一次性搬走
+//（TASK091 起这一步叫「迁移 v1」，跑过一次就记在 ~/.jcc/config-migrations.json，不再每轮重跑）。
+//
+// 三个场景都必须过：
+//   1) 旧布局（只有 settings.json 有 theme）→ 读得到 + 搬到 global.json + settings 里删掉 + 可重复执行
+//   2) 两边都有值 → global 权威、settings 的旧值清掉
+//   3) 非 global 键不动（model 留在 settings），布尔值搬过去仍是布尔而非字符串
+//
+// 退出码：0 = 全部通过；1 = 有断言失败；2 = 环境/执行异常。
 
-var appData = Environment.GetEnvironmentVariable("JCC_APP_DATA_FOLDER")
-    ?? throw new InvalidOperationException("JCC_APP_DATA_FOLDER 未设置");
-Console.WriteLine($"[PROBE] app data folder = {appData}");
-
-// 生产同款文件系统实现
 var fs = new PhysicalFileSystem();
+var failures = new List<string>();
 
+var root = Path.Combine(Path.GetTempPath(), $"jcc_cfg_probe_{DateTime.UtcNow:HHmmss}_{Environment.ProcessId}");
+DirectoryHelper.EnsureDirectoryExists(fs, root);
 
-// 两份文件各放一个同名 key 的不同值：谁被读到就是谁赢。
-// settings.json 是强类型 schema（current 分支）——必须按真实结构写，否则读不出来。
-// global.json 是扁平 KV（对齐 TS getGlobalConfig）。
-await fs.WriteAllTextAsync(AppDataConstants.Paths.GlobalConfigFilePath, """{"theme":"from-global"}""");
-await fs.WriteAllTextAsync(AppDataConstants.Paths.SettingsFilePath, """{"current":{"theme":"from-settings"}}""");
-Console.WriteLine($"[PROBE] global.json   = {await fs.ReadAllTextAsync(AppDataConstants.Paths.GlobalConfigFilePath)}");
-Console.WriteLine($"[PROBE] settings.json = {(await fs.ReadAllTextAsync(AppDataConstants.Paths.SettingsFilePath)).Replace("\n", " ")}");
+static void Check(List<string> failures, bool condition, string message) {
+    Console.WriteLine(condition ? $"  [OK]   {message}" : $"  [FAIL] {message}");
+    if (!condition) failures.Add(message);
+}
 
-// 路径 1：/config 命令用的重载（无 source）
-// 必须用独立实例 —— ConfigurationService 的内存缓存按 key 存、不区分存储源，
-// 同一实例的第二次读会命中缓存而根本不碰磁盘（缓存会掩盖分叉）。
-var viaSlash = await new ConfigurationService(fs).GetAsync("theme");
-Console.WriteLine($"[PROBE] GetAsync(key) [无 source，等价 /config]        = {viaSlash ?? "(null)"}");
+static void UseFolder(IFileSystem fs, string folder) {
+    DirectoryHelper.EnsureDirectoryExists(fs, folder);
+    AppDataConstants.Paths = AppDataPaths.CreateForTest(folder);
+}
 
-// 路径 2：config_get 工具用的重载（按 SupportedSettings 的 Source）
-var themeConfig = SupportedSettings.GetConfig("theme")
-    ?? throw new InvalidOperationException("SupportedSettings 缺 theme");
-var source = themeConfig.Source == "global" ? SettingSource.GlobalConfig : SettingSource.UserSettings;
-var viaTool = await new ConfigurationService(fs).GetAsync("theme", source);
-Console.WriteLine($"[PROBE] GetAsync(key, {source}) [等价 config_get] = {viaTool ?? "(null)"}");
+// 每个场景都用全新的 ConfigurationService 实例 —— 内存缓存会把「读错源」掩盖成一致。
+static Task<string?> Read(string key) => new ConfigurationService(new PhysicalFileSystem()).GetAsync(key);
 
-var divergent = viaSlash != viaTool;
-Console.WriteLine(divergent
-    ? "[PROBE] 结论：分叉 —— 两条路径对同一 key 给出不同答案"
-    : "[PROBE] 结论：一致 —— 两条路径对同一 key 给出相同答案");
-return divergent ? 1 : 0;
+static async Task<JsonNode?> ReadNodeAsync(IFileSystem fs, string path) {
+    if (!fs.FileExists(path)) return null;
+    var text = await fs.ReadAllTextAsync(path).ConfigureAwait(false);
+    return JsonNode.Parse(text);
+}
+
+static Task WriteTextAsync(IFileSystem fs, string path, string content)
+    => fs.WriteAllTextAsync(path, content);
+
+try {
+    // ── 场景 1：旧布局 ────────────────────────────────────────────────
+    Console.WriteLine("[场景 1] 旧布局：theme 只在 settings.json");
+    UseFolder(fs, Path.Combine(root, "s1"));
+    var settingsPath = AppDataConstants.Paths.SettingsFilePath;
+    var globalPath = AppDataConstants.Paths.GlobalConfigFilePath;
+    await WriteTextAsync(fs, settingsPath, """{"current":{"theme":"from-settings","language":"zh"}}""").ConfigureAwait(false);
+
+    var themeRead = await Read("theme").ConfigureAwait(false);
+    Check(failures, themeRead == "from-settings", $"迁移前读取得到用户原值（实际 {themeRead ?? "(null)"}）");
+
+    var global1 = await ReadNodeAsync(fs, globalPath).ConfigureAwait(false);
+    Check(failures, global1?["theme"]?.GetValue<string>() == "from-settings", "值已落到 global.json");
+
+    var settings1 = await ReadNodeAsync(fs, settingsPath).ConfigureAwait(false);
+    Check(failures, settings1 is not null && settings1["current"]?["theme"] is null, "settings.json 的 current.theme 已删除");
+    Check(failures, settings1?["current"]?["language"]?.GetValue<string>() == "zh", "非 global 键 language 原样保留");
+
+    var viaGlobal = await new ConfigurationService(new PhysicalFileSystem())
+        .GetAsync("theme", SettingSource.GlobalConfig).ConfigureAwait(false);
+    Check(failures, viaGlobal == "from-settings", $"显式指定 global 源与默认路径答案一致（实际 {viaGlobal ?? "(null)"}）");
+
+    var snapshotGlobal = await fs.ReadAllTextAsync(globalPath).ConfigureAwait(false);
+    var snapshotSettings = await fs.ReadAllTextAsync(settingsPath).ConfigureAwait(false);
+    _ = await Read("theme").ConfigureAwait(false);
+    var afterGlobal = await fs.ReadAllTextAsync(globalPath).ConfigureAwait(false);
+    var afterSettings = await fs.ReadAllTextAsync(settingsPath).ConfigureAwait(false);
+    Check(failures, afterGlobal == snapshotGlobal && afterSettings == snapshotSettings, "再跑一次不产生任何写入（幂等）");
+
+    // language 属 settings 源 —— 证明「收敛存储源」没有把非 global 键一起搬走或读不到
+    var languageRead = await Read("language").ConfigureAwait(false);
+    Check(failures, languageRead == "zh", $"非 global 键走 settings 源仍可读（实际 {languageRead ?? "(null)"}）");
+
+    // ── 场景 2：两边都有值 ────────────────────────────────────────────
+    Console.WriteLine("[场景 2] 冲突：global 与 settings 都有 theme");
+    UseFolder(fs, Path.Combine(root, "s2"));
+    settingsPath = AppDataConstants.Paths.SettingsFilePath;
+    globalPath = AppDataConstants.Paths.GlobalConfigFilePath;
+    await WriteTextAsync(fs, globalPath, """{"theme":"from-global"}""").ConfigureAwait(false);
+    await WriteTextAsync(fs, settingsPath, """{"current":{"theme":"from-settings"}}""").ConfigureAwait(false);
+
+    var conflictRead = await Read("theme").ConfigureAwait(false);
+    Check(failures, conflictRead == "from-global", $"冲突时 global 权威（实际 {conflictRead ?? "(null)"}）");
+    var settings2 = await ReadNodeAsync(fs, settingsPath).ConfigureAwait(false);
+    Check(failures, settings2?["current"]?["theme"] is null, "冲突时 settings.json 的旧值被清掉");
+
+    // ── 场景 3：类型与嵌套键 ──────────────────────────────────────────
+    Console.WriteLine("[场景 3] 布尔值与嵌套键");
+    UseFolder(fs, Path.Combine(root, "s3"));
+    settingsPath = AppDataConstants.Paths.SettingsFilePath;
+    globalPath = AppDataConstants.Paths.GlobalConfigFilePath;
+    await WriteTextAsync(fs, settingsPath, """{"current":{"debuglog":true,"permissions":{"defaultMode":"plan"}}}""").ConfigureAwait(false);
+
+    var debugRead = await Read("debuglog").ConfigureAwait(false);
+    Check(failures, debugRead == "true", $"debuglog 读得到（实际 {debugRead ?? "(null)"}）");
+
+    var global3 = await ReadNodeAsync(fs, globalPath).ConfigureAwait(false);
+    Check(failures, global3?["debuglog"]?.GetValueKind() == JsonValueKind.True, "布尔值搬到 global.json 仍是布尔（不是字符串 \"true\"）");
+
+    // 注意：嵌套键的「读」本身不支持（生成的 GetSettingByKey 不认带点的键，既有缺口），
+    // 本探针只断言迁移没把嵌套结构弄坏。
+    var settings3 = await ReadNodeAsync(fs, settingsPath).ConfigureAwait(false);
+    Check(failures, settings3?["current"]?["permissions"]?["defaultMode"]?.GetValue<string>() == "plan", "嵌套结构原样留在 settings.json");
+} catch (Exception ex) {
+    Console.WriteLine($"[PROBE] 执行异常: {ex}");
+    return 2;
+}
+
+Console.WriteLine();
+if (failures.Count > 0) {
+    Console.WriteLine($"[PROBE] 结论：{failures.Count} 项失败");
+    foreach (var f in failures) Console.WriteLine($"         - {f}");
+    return 1;
+}
+
+Console.WriteLine("[PROBE] 结论：三条路径 + 迁移全部一致");
+Console.WriteLine($"[PROBE] 临时目录: {root}");
+return 0;

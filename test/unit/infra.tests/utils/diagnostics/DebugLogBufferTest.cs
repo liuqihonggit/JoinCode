@@ -4,7 +4,10 @@ namespace Infra.Tests.Utils.Diagnostics;
 /// DebugLogBuffer 单元测试 — 验证环形缓冲区、分类逻辑、事件隔离
 /// 注意: Diag.DiagnosticLineWritten 是静态事件，DebugLogBuffer 构造时订阅但未暴露取消订阅方法。
 /// 测试中每个方法先 Clear 确保干净状态，避免跨测试污染。
+/// 放在 Diagnostics Collection 中与 CrashSnapshot/FaultFence 串行 — 后两者异常时调 Diag.WriteError
+/// 会触发同一静态事件，并行跑会让本测试的 Count 断言收到额外条目（CI 曾因此偶发失败）。
 /// </summary>
+[Collection("Diagnostics")]
 public sealed class DebugLogBufferTest {
     private readonly DebugLogBuffer _buffer;
 

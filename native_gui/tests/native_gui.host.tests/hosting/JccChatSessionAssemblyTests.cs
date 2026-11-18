@@ -259,7 +259,7 @@ public class JccChatSessionAssemblyTests {
         await session.SetEffortLevelAsync(EffortLevel.High);
 
         var value = await sp.GetRequiredService<IConfigurationService>()
-            .GetAsync(ConfigKeyEnumConstants.EffortLevel);
+            .GetAsync(ConfigKeys.EffortLevel);
         value.Should().Be("high");
     }
 
@@ -286,7 +286,7 @@ public class JccChatSessionAssemblyTests {
         await session.SetEffortLevelAsync(EffortLevel.Auto);
 
         var value = await sp.GetRequiredService<IConfigurationService>()
-            .GetAsync(ConfigKeyEnumConstants.EffortLevel);
+            .GetAsync(ConfigKeys.EffortLevel);
         value.Should().BeNull();
     }
 

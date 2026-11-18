@@ -109,22 +109,27 @@ internal static class NodeYamlParser {
                 .OfType<YamlMappingNode>()
                 .Select(param => ParseParameter(param, source, id))
                 .ToArray(),
-            // 子工具清单只对分组节点（声明了 exe）解析：
-            // base.yaml 的 tools 是完整工具描述，形状不同，靠 exe 为空这条既有不变量天然区分。
-            Tools = exe is null
-                ? []
-                : ReadSequence(map, "tools")
+            // 子工具清单按「YAML 是否显式声明 tools 键」解析，而非 exe 是否为空 ——
+            // 继承父 exe 的子节点也会声明自己的 tools，靠 exe is null 判定会静默丢掉它的全部子工具。
+            // base.yaml 的基础工具条目没有 tools 键（其 tools 在 root 层），天然不受影响。
+            Tools = map.Children.ContainsKey("tools")
+                ? ReadSequence(map, "tools")
                     .OfType<YamlMappingNode>()
                     .Select(entry => ParseToolEntry(entry, source, id))
-                    .ToArray(),
-            DeclaredKeys = map.Children.Keys
-                .OfType<YamlScalarNode>()
-                .Select(key => key.Value)
-                .Where(key => key is not null)
-                .Select(key => key!)
-                .ToHashSet(StringComparer.Ordinal)
+                    .ToArray()
+                : [],
+            DeclaredKeys = DeclaredKeysOf(map)
         };
     }
+
+    /// <summary>raw YAML 中显式出现过的键名 —— 继承合并判定「省略 vs 显式」的唯一依据。</summary>
+    private static IReadOnlySet<string> DeclaredKeysOf(YamlMappingNode map) =>
+        map.Children.Keys
+            .OfType<YamlScalarNode>()
+            .Select(key => key.Value)
+            .Where(key => key is not null)
+            .Select(key => key!)
+            .ToHashSet(StringComparer.Ordinal);
 
     private static CliToolEntry ParseToolEntry(YamlMappingNode map, string source, string nodeId) {
         var toolId = ReadScalar(map, "id");
@@ -138,7 +143,8 @@ internal static class NodeYamlParser {
         return new CliToolEntry {
             Id = toolId,
             Mode = ParseMode(rawMode, source, toolId),
-            Aliases = ReadStringArray(map, "aliases")
+            Aliases = ReadStringArray(map, "aliases"),
+            DeclaredKeys = DeclaredKeysOf(map)
         };
     }
 
@@ -161,7 +167,8 @@ internal static class NodeYamlParser {
             Required = ReadBool(map, "required", fallback: false),
             Default = ReadScalar(map, "default"),
             Aliases = ReadScalar(map, "aliases"),
-            Enum = ReadScalar(map, "enum")
+            Enum = ReadScalar(map, "enum"),
+            DeclaredKeys = DeclaredKeysOf(map)
         };
     }
 

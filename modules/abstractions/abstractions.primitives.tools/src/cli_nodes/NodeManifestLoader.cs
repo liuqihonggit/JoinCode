@@ -15,7 +15,10 @@ public static class NodeManifestLoader {
     public static BaseToolManifest LoadBaseFromText(string yaml, string source = "<text>") =>
         NodeYamlParser.ParseBase(yaml, source);
 
-    /// <summary>解析单个 node.yaml 文本。</summary>
+    /// <summary>
+    /// 解析单个 node.yaml 文本 —— 返回的是**原始声明**，不解析 inherits（没有父池）。
+    /// 需要完整继承结果请用 <see cref="LoadNodesFromDirectory"/> 或 <see cref="CliNodeInheritanceResolver.Resolve"/>。
+    /// </summary>
     public static CliToolDescriptor LoadNodeFromText(string yaml, string source = "<text>") =>
         NodeYamlParser.ParseNode(yaml, source);
 
@@ -29,7 +32,10 @@ public static class NodeManifestLoader {
         return LoadBaseFromText(reader.ReadToEnd(), resourceName);
     }
 
-    /// <summary>从磁盘加载单个节点描述。</summary>
+    /// <summary>
+    /// 从磁盘加载单个节点描述 —— 同 <see cref="LoadNodeFromText"/>，不解析 inherits。
+    /// 单 exe 读自身内嵌描述走这里；跨节点继承必须走目录扫描。
+    /// </summary>
     public static CliToolDescriptor LoadNodeFromFile(string path) =>
         LoadNodeFromText(File.ReadAllText(path), path);
 

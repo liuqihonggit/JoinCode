@@ -25,4 +25,11 @@ public sealed record CliToolParameter {
 
     /// <summary>枚举候选值，逗号分隔。</summary>
     public string? Enum { get; init; }
+
+    /// <summary>
+    /// 解析时 raw YAML 中显式出现过的键名 — 供继承合并判断"省略 vs 显式声明"。
+    /// Type/Required 有默认值，不能靠 null 区分是否显式，必须靠这个集合。
+    /// 手工 new 的参数集合为空，视为全部字段显式。
+    /// </summary>
+    internal IReadOnlySet<string> DeclaredKeys { get; init; } = new HashSet<string>(StringComparer.Ordinal);
 }

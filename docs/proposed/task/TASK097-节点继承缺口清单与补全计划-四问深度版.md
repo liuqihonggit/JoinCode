@@ -254,23 +254,29 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 - **验收面改用现成命令，不扩展 `--dump-nodes`**：§9.1 建议扩展该命令，但实施时发现 `jcc tool tree` / `jcc tool help` 本就读 `CliToolDescriptor` 且**渲染了 category/summary/exe/tags/examples/parameters** —— 这正是继承的全部字段，无需改命令。少一处改动、少一处回归风险。
 - **`inherits` 直接写 node.yaml，不采用 §9.3 的叠加文件**：本阶段不改生成脚本；现网 13 个分组尚无 `inherits`，regenerate 覆盖只在"给真实分组加继承"时才成为问题。**遗留风险**：`migrate_mcp_tools_to_cli_nodes.py` 全量重写 node.yaml（`:492-517,749`）会冲掉手写 `inherits`，真实采用前须按 §9.3 落实叠加文件或让生成器保留该字段。
 - **parser 契约放宽**：声明 `inherits` 的子节点允许省略 `name`/`summary`（由父继承），`id` 仍必填；未声明 `inherits` 的节点维持原必填校验（`NodeYamlParser.cs:88-95`）。这是"省略即继承"能否成立的硬前提——否则子节点在 parse 阶段就被拒，resolver 没有机会介入。
-- **合并语义**：零依赖纯函数 `CliToolDescriptor.DeclaredKeys`（internal，解析元信息）区分"省略 vs 显式"；子节点显式字段胜出，标量/数组省略则从父继承，`parameters`/`tools` 按 name/id 合并（父打底、子覆写同名、子新增追加）；深度≤3、循环检测、缺父均给"原因+触发节点+拦截层+正确写法"四段式报错。
+- **合并语义**：`DeclaredKeys`（internal 解析元信息）区分"省略 vs 显式"；子节点显式字段胜出，标量/数组省略则从父继承。`parameters`/`tools` 按 name/id 合并时**逐字段**继承（父打底 → 子同名字段覆写 → 子省略字段继承父 → 子新增项追加）—— 不能整体替换，否则子只写 `default` 会把父的 `type=integer`/`description` 冲成 parser 默认值。深度≤3、循环检测、缺父均给"原因+触发节点+拦截层+正确写法"四段式报错。
+- **parser 的 tools 判定改用 YAML 键而非 `exe is null`**：继承父 exe 的子节点也要声明自己的 tools，旧判定会静默丢掉全部子工具（由新增测试 `Inheritance_ToolEntryInheritsAliases` 抓出）。
+- **缺父节点补占位描述**：继承失败仍保留节点（可发现性优先），但 parser 放宽后 name/summary 为空串，须补 `[继承失败] 未找到父节点 'X'`，否则 tree 显示空摘要且 find 搜不到。
 
 ### 10.2 改动文件
 
 | 文件 | 变更 |
 |------|------|
 | `modules/abstractions/abstractions.primitives.tools/src/cli_nodes/CliToolDescriptor.cs` | 新增 `Inherits` + internal `DeclaredKeys` |
-| `.../src/cli_nodes/private/NodeYamlParser.cs` | 解析 `inherits`、填充 `DeclaredKeys`；带 `inherits` 时放宽 name/summary 必填 |
-| `.../src/cli_nodes/CliNodeInheritanceResolver.cs` | **新增**：继承合并纯函数（Resolve/ResolveAll） |
-| `.../src/cli_nodes/NodeManifestLoader.cs` | 目录扫描末尾接 `ResolveAll`（无 inherits 时 no-op） |
-| `...tests/CliToolNodeTests.cs` | 新增 5 个继承红测试（省略继承/参数合并/多层链/循环/缺父） |
+| `.../src/cli_nodes/CliToolParameter.cs` / `CliToolEntry.cs` | 新增 internal `DeclaredKeys`（字段级继承的判定依据） |
+| `.../src/cli_nodes/private/NodeYamlParser.cs` | 解析 `inherits`、三处填充 `DeclaredKeys`；带 `inherits` 时放宽 name/summary 必填；tools 判定改看 YAML 键 |
+| `.../src/cli_nodes/CliNodeInheritanceResolver.cs` | **新增**：继承合并纯函数（Resolve/ResolveAll，参数/工具逐字段继承，缺父占位） |
+| `.../src/cli_nodes/NodeManifestLoader.cs` | 目录扫描末尾接 `ResolveAll`（无 inherits 时 no-op）；单节点 API 注明不解析 inherits |
+| `...tests/CliToolNodeTests.cs` | 新增 8 个继承红测试（省略继承/参数合并/多层链/循环/缺父/字段级 default/tools aliases/缺父占位） |
+| `...tests/fixtures/inheritance/{valid,broken}/` | **新增**可复现真机夹具（子参数只写 default；缺父节点） |
+| `scripts/migrate_mcp_tools_to_cli_nodes.py` | 继承护栏：检测到 node.yaml 含 `inherits` 拒绝覆写（守 §9.3 遗留风险） |
 
 ### 10.3 红→绿（回归网，非验收）
 
 - 红：`CliNodeInheritanceResolver` / `Inherits` 不存在，编译报 6 错（预期）。
-- 绿：修正 `IReadOnlyList.Length`→`Count`、parser 放宽契约后，库与测试项目零警告零错误；`dotnet test` = **83/83 通过**（含 5 个继承用例）。
-- 过程中测试 `Inheritance_MultiLevelChain` 首轮失败暴露了 parser 必填契约与继承语义的冲突——按"测试暴露设计问题则修设计，不迁就测试"处理，放宽 parser 契约（见 10.1）。
+- 绿：修正 `IReadOnlyList.Length`→`Count`、parser 放宽契约后，库与测试项目零警告零错误；`dotnet test` = **86/86 通过**（含 8 个继承用例）。
+- 过程中两处测试失败都暴露了真实设计问题，按"修设计，不迁就测试"处理：① `Inheritance_MultiLevelChain` 首轮失败 → parser 必填契约与继承语义冲突，放宽（见 10.1）；② `Inheritance_ToolEntryInheritsAliases` 失败 → parser 用 `exe is null` 判定 tools 导致继承 exe 的子节点丢失全部子工具，改看 YAML 键（见 10.1）。
+- **差评大师发现 P0**（见 §10.5）：原参数合并是整体替换，子只写 `default` 时父的 type/description 被默认值冲掉；原 5 个测试与首轮真机夹具都把字段写全，恰好绕开该场景。已补字段级继承实现 + 2 个针对性红测试 + "只写 default"夹具，重跑 86/86 绿。
 
 ### 10.4 真机 exe 验收（唯一验收标准，非单测）
 
@@ -278,11 +284,29 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 
 | # | 命令 | 真机输出要点 | 判定 |
 |---|------|--------------|------|
-| 1 | `jcc tool tree --dir <verify-inherit>` | `search/` 下同时出现 `base_search/` 与 `child_search/`，两者摘要都是父的"搜索类工具基类" | ✅ 子节点的 category/summary 来自父 |
-| 2 | `jcc tool help child_search --dir <verify-inherit>` | 分类 `search`、可执行文件 `jcc-base-search.exe`、参数 `--pattern`（父定义）+ `--head_limit` 默认值 **50**（子覆写）、示例与标签均来自父 | ✅ 标量/数组继承 + 参数按名覆写全部生效 |
-| 3 | `jcc tool tree --dir <verify-inherit-bad>`（orphan 缺父） | stderr 输出四段式引导（含父 ID、拦截层、正确写法）；节点仍列在 `general/` 下，进程未崩 | ✅ 容错路径不静默吞错、不拖垮整棵树 |
-| 4 | `jcc tool tree`（真实 13 组） | `13 组 / 635 个工具，独立 exe 388（61%）...247 由 jcc 内执行`，与改动前基线一致 | ✅ 无 inherits 的现网节点零回归 |
+| 1 | `jcc tool tree --dir <fixtures>/valid` | `search/` 下同时出现 `base_search/` 与 `child_search/`，两者摘要都是父的"搜索类工具基类" | ✅ 子节点的 category/summary 来自父 |
+| 2 | `jcc tool help child_search --dir <fixtures>/valid` | 分类 `search`、exe `jcc-base-search.exe`、`--pattern`（父定义）；`--head_limit` 显示 **`integer` + 父类描述"最多输出条数（定义在父类）"+ 默认值 50** | ✅ 标量/数组继承 + **参数字段级继承**（子 YAML 只写 `default`，type/description 从父浮出） |
+| 3 | `jcc tool tree --dir <fixtures>/broken`（orphan 缺父） | stderr 四段式引导；节点列为 `orphan/ — [继承失败] 未找到父节点 'parent_that_does_not_exist'`（可被 find 搜到），进程未崩 | ✅ 容错不静默吞错、不拖垮整棵树、不留空描述 |
+| 4 | `jcc tool tree`（真实 13 组） | `13 组 / 635 个工具，独立 exe 388（61%）...247 由 jcc 内执行`，与基线一致 | ✅ 无 inherits 的现网节点零回归 |
+| 5 | `python migrate_mcp_tools_to_cli_nodes.py --scan modules --out <tmp> --category file` | 检测到手写 `inherits` 时拒绝覆写并打印处理路径；node.yaml 内容完好 | ✅ §9.3 遗留风险已加护栏（非 exe 验收，脚本自身实跑） |
 
-子节点 `child_search/node.yaml` 只写了 `id/name/inherits/parameters.head_limit` 四项，其余全部从父浮出——这是继承生效的直接证据。验收夹具在 `artifacts/verify-inherit*/`（构建产物区，非源码）。
+`<fixtures>` = `modules/abstractions/abstractions.primitives.tools.tests/fixtures/inheritance`（**纳入源码版本管理，可重跑**）。`child_search/node.yaml` 只写 `id/name/inherits` 与 `parameters.head_limit.default: "50"` 五项，其余全部从父浮出——这是字段级继承生效的直接证据；旧实现在此夹具下会输出 `string` 类型 + 空描述。
 
 > 打点纪律说明：本次改动走 `tool tree`/`tool help` 的**用户可见输出**作为执行链命中证据（子 YAML 未写的字段凭空出现，因果链唯一），无需在零依赖抽象层注入诊断标签；§1 的 `JCC_DEBUGLOG` 打点纪律保留给 G1/G5 这类"无可见输出"的运行期机制。
+
+### 10.5 差评大师评审与修复（阶段1a 收尾）
+
+派独立评审代理逐文件挑刺，分级结果与实际处置：
+
+| 级别 | 问题 | 处置 |
+|------|------|------|
+| **P0** | 参数"按 name 合并"实为**整体替换**：子只写 `default` 时父的 `type`/`description` 被 parser 默认值冲掉；原 5 个测试与真机夹具都写全字段，恰好漏检核心场景 | ✅ 已修：`CliToolParameter.DeclaredKeys` + `MergeParameter` 逐字段继承；补 2 个针对性红测试 + "只写 default"夹具；真机 B 验证 `integer`+父描述浮出 |
+| P1 | 缺父节点以空 name/summary 进入生产，tree 显示空摘要、find 搜不到 | ✅ 已修：`ResolveAll` catch 补占位描述；真机 C 验证 |
+| P1 | tools 整体替换丢父条目 aliases（评审提示，实查更严重：parser 用 `exe is null` 判定会丢**整个 tools 列表**） | ✅ 已修：`CliToolEntry.DeclaredKeys` + `MergeTool` 逐字段；parser 改看 YAML tools 键；`Inheritance_ToolEntryInheritsAliases` 抓出并锁死 |
+| P1 | `LoadNodeFromFile`/`LoadNodeFromText` 不走 resolver，API 语义割裂 | ✅ 已修：XML 注释明确"返回原始声明，不解析 inherits，完整结果走 Resolve/目录扫描" |
+| P1 | 真机夹具在 artifacts（重建即丢）且字段写全 | ✅ 已修：夹具纳入源码 `tests/fixtures/inheritance/`，子参数只写 default |
+| P2 | chain 累加不回溯是否误判循环 | 核实后非 bug：单链无分叉，深度检查位置恰好实现"最多 3 节点含根" |
+| P2 | `DeclaredKeys` 原样传递的语义 | 当前无影响（Merge 只读 child 的 keys，合并结果不二次入链）；未来若允许二次 Resolve 需改为并集 |
+| P2 | 生成脚本覆写 inherits | ✅ 已加护栏并实跑验证（见验收 #5） |
+
+**总判定**：评审指出的 P0 属实且已修复；阶段1a 从"测试绿但漏检核心场景"纠正为"真机验证到字段级继承"。此轮证明纪律有效——**单元测试全绿不等于验收通过，必须让真机命令命中真实场景**。

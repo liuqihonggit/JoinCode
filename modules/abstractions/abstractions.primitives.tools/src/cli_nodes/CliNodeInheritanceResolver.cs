@@ -36,7 +36,14 @@ public static class CliNodeInheritanceResolver {
             } catch (InvalidOperationException ex) {
                 Console.Error.WriteLine(
                     $"保留未解析节点 '{node.Id}'（CliNodeInheritanceResolver 目录扫描层拦截）：{ex.Message}");
-                result.Add(node);
+                // 继承失败仍保留节点（可发现性优先），但补占位描述 ——
+                // parser 放宽后 orphan 的 name/summary 是空串，不补则 tree 显示 "orphan/ — " 且 find 搜不到。
+                result.Add(node with {
+                    Name = string.IsNullOrWhiteSpace(node.Name) ? node.Id : node.Name,
+                    Summary = string.IsNullOrWhiteSpace(node.Summary)
+                        ? $"[继承失败] 未找到父节点 '{node.Inherits ?? "(未声明)"}'"
+                        : node.Summary
+                });
             }
         }
         return result;
@@ -94,28 +101,54 @@ public static class CliNodeInheritanceResolver {
         IsDeclared(child, key) ? getter(child) : getter(parent);
 
     /// <summary>字段是否由子显式声明。手工构造（DeclaredKeys 空）视为全部显式。</summary>
-    private static bool IsDeclared(CliToolDescriptor node, string key) =>
-        node.DeclaredKeys.Count == 0 || node.DeclaredKeys.Contains(key);
+    private static bool IsDeclared(CliToolDescriptor node, string key) => IsDeclared(node.DeclaredKeys, key);
+    private static bool IsDeclared(CliToolParameter param, string key) => IsDeclared(param.DeclaredKeys, key);
+    private static bool IsDeclared(CliToolEntry entry, string key) => IsDeclared(entry.DeclaredKeys, key);
 
-    /// <summary>参数按 name 合并：父打底，子同名整体覆写，子新增追加。</summary>
+    private static bool IsDeclared(IReadOnlySet<string> declared, string key) =>
+        declared.Count == 0 || declared.Contains(key);
+
+    /// <summary>
+    /// 参数按 name 合并：父打底、子同名项**逐字段**覆写、子新增追加。
+    /// <para>不能整体替换 —— Type/Required 有默认值，子只写 default 时若整体替换，
+    /// 父的 type=integer/description 会被子 parser 的默认值冲掉（类型退化 + 描述丢失）。</para>
+    /// </summary>
     private static CliToolParameter[] MergeParameters(CliToolParameter[] child, CliToolParameter[] parent) {
         var result = new List<CliToolParameter>(parent);
         foreach (var param in child) {
             var index = result.FindIndex(p => string.Equals(p.Name, param.Name, StringComparison.Ordinal));
-            if (index >= 0) result[index] = param;
+            if (index >= 0) result[index] = MergeParameter(param, result[index]);
             else result.Add(param);
         }
         return [.. result];
     }
 
-    /// <summary>子工具按 id 合并：父打底，子同名整体覆写，子新增追加。</summary>
+    private static CliToolParameter MergeParameter(CliToolParameter child, CliToolParameter parent) => new() {
+        Name = parent.Name,
+        Type = IsDeclared(child, "type") ? child.Type : parent.Type,
+        Description = IsDeclared(child, "description") ? child.Description : parent.Description,
+        Required = IsDeclared(child, "required") ? child.Required : parent.Required,
+        Default = IsDeclared(child, "default") ? child.Default : parent.Default,
+        Aliases = IsDeclared(child, "aliases") ? child.Aliases : parent.Aliases,
+        Enum = IsDeclared(child, "enum") ? child.Enum : parent.Enum,
+        DeclaredKeys = child.DeclaredKeys
+    };
+
+    /// <summary>子工具按 id 合并：父打底、子同名项逐字段覆写（保住父的 aliases）、子新增追加。</summary>
     private static CliToolEntry[] MergeTools(CliToolEntry[] child, CliToolEntry[] parent) {
         var result = new List<CliToolEntry>(parent);
         foreach (var tool in child) {
             var index = result.FindIndex(t => string.Equals(t.Id, tool.Id, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0) result[index] = tool;
+            if (index >= 0) result[index] = MergeTool(tool, result[index]);
             else result.Add(tool);
         }
         return [.. result];
     }
+
+    private static CliToolEntry MergeTool(CliToolEntry child, CliToolEntry parent) => new() {
+        Id = parent.Id,
+        Mode = IsDeclared(child, "mode") ? child.Mode : parent.Mode,
+        Aliases = IsDeclared(child, "aliases") ? child.Aliases : parent.Aliases,
+        DeclaredKeys = child.DeclaredKeys
+    };
 }

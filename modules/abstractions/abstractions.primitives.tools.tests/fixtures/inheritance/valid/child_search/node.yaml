@@ -1,0 +1,6 @@
+id: child_search
+name: jcc-child-search
+inherits: base_search
+parameters:
+  - name: head_limit
+    default: "50"

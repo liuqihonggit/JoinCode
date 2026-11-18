@@ -1,59 +1,69 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace PithosDB.Core.Core;
 
 /// <summary>
-/// Thread-safe LRU block cache shared across all <see cref="Storage.SSTableReader"/>
+/// Thread-safe, lock-free block cache shared across all <see cref="Storage.SSTableReader"/>
 /// instances. Caches raw block bytes keyed by (file path, block offset) so hot blocks
 /// are served from memory rather than re-read from disk on every lookup.
+/// <para>
+/// Fully lock-free: entries live in a <see cref="ConcurrentDictionary{TKey,TValue}"/> and
+/// recency is tracked with an atomic tick, so a cache hit is one dictionary read plus one
+/// volatile write. Eviction is sampled LRU — when the byte budget is exceeded, a small
+/// random sample of entries is inspected and the least-recently-used sample is removed.
+/// The policy is approximate (theoretical worst case slightly below exact LRU) but needs
+/// no global lock, so readers and evictors never block each other.
+/// </para>
 /// </summary>
 public sealed class LruBlockCache : IBlockCache
 {
     private sealed class Entry
     {
-        public required string Path;
-        public required long Offset;
         public required byte[] Data;
+        public long LastAccessTicks;
     }
+
+    private const int EvictionSampleSize = 8;
+    private const int MaxEvictionsPerPut = 4;
 
     private readonly long _maxBytes;
     private long _usedBytes;
-    private readonly Dictionary<(string, long), LinkedListNode<Entry>> _map = new();
-    private readonly LinkedList<Entry> _lru = new();
-    private readonly object _sync = new();
+    private readonly ConcurrentDictionary<(string, long), Entry> _map = new();
 
+    /// <summary>
+    /// Creates a block cache that keeps at most <paramref name="maxBytes"/> of block data.
+    /// </summary>
     public LruBlockCache(long maxBytes) => _maxBytes = maxBytes;
 
+    /// <inheritdoc/>
     public bool TryGet(string path, long offset, [NotNullWhen(true)] out byte[]? data)
     {
-        lock (_sync)
+        if (_map.TryGetValue((path, offset), out var entry))
         {
-            if (_map.TryGetValue((path, offset), out var node))
-            {
-                _lru.Remove(node);
-                _lru.AddFirst(node);
-                data = node.Value.Data;
-                return true;
-            }
+            Volatile.Write(ref entry.LastAccessTicks, Environment.TickCount64);
+            data = entry.Data;
+            return true;
         }
         data = null;
         return false;
     }
 
+    /// <inheritdoc/>
     public void Put(string path, long offset, byte[] data)
     {
-        lock (_sync)
+        var key = (path, offset);
+        if (_map.ContainsKey(key)) return;
+
+        var entry = new Entry
         {
-            if (_map.ContainsKey((path, offset))) return;
+            Data = data,
+            LastAccessTicks = Environment.TickCount64,
+        };
+        if (!_map.TryAdd(key, entry)) return;
 
-            while (_usedBytes + data.Length > _maxBytes && _lru.Last is not null)
-                Remove(_lru.Last);
-
-            var entry = new Entry { Path = path, Offset = offset, Data = data };
-            var node = _lru.AddFirst(entry);
-            _map[(path, offset)] = node;
-            _usedBytes += data.Length;
-        }
+        Interlocked.Add(ref _usedBytes, data.Length);
+        TrimToBudget();
     }
 
     /// <summary>
@@ -62,25 +72,43 @@ public sealed class LruBlockCache : IBlockCache
     /// </summary>
     public void EvictFile(string path)
     {
-        lock (_sync)
+        foreach (var pair in _map)
         {
-            var node = _lru.First;
-            while (node is not null)
-            {
-                var next = node.Next;
-                if (node.Value.Path == path) Remove(node);
-                node = next;
-            }
+            if (pair.Key.Item1 != path) continue;
+            if (_map.TryRemove(pair.Key, out var removed))
+                Interlocked.Add(ref _usedBytes, -removed.Data.Length);
         }
     }
 
     /// <inheritdoc/>
-    public long CurrentSizeBytes { get { lock (_sync) return _usedBytes; } }
+    public long CurrentSizeBytes => Volatile.Read(ref _usedBytes);
 
-    private void Remove(LinkedListNode<Entry> node)
+    private void TrimToBudget()
     {
-        _map.Remove((node.Value.Path, node.Value.Offset));
-        _usedBytes -= node.Value.Data.Length;
-        _lru.Remove(node);
+        for (var i = 0; i < MaxEvictionsPerPut && Volatile.Read(ref _usedBytes) > _maxBytes; i++)
+        {
+            if (!TryEvictOldest()) return;
+        }
+    }
+
+    private bool TryEvictOldest()
+    {
+        Entry? victim = null;
+        (string, long) victimKey = default;
+        var sampled = 0;
+        foreach (var pair in _map)
+        {
+            if (victim is null || pair.Value.LastAccessTicks < victim.LastAccessTicks)
+            {
+                victim = pair.Value;
+                victimKey = pair.Key;
+            }
+            if (++sampled >= EvictionSampleSize) break;
+        }
+
+        if (victim is null) return false;
+        if (!_map.TryRemove(victimKey, out var removed)) return true; // raced with another evictor, retry sampling
+        Interlocked.Add(ref _usedBytes, -removed.Data.Length);
+        return true;
     }
 }

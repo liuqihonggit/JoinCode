@@ -212,7 +212,7 @@ public sealed unsafe class SSTableReader : IDisposable
 
     /// <summary>
     /// Streams all entries in byte-lexicographic key order, including tombstones.
-    /// Used by <see cref="Compaction.LeveledCompactor"/> during compaction.
+    /// Used by the leveled compactor during compaction.
     /// Reads directly from the mmap pointer — no FileStream, no per-block allocation.
     /// </summary>
     public IEnumerable<KeyValuePair<byte[], byte[]?>> ReadAllEntries()

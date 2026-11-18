@@ -1,17 +1,15 @@
 
-// JCC9203 抑制: 存量释放函数超时, 后续异步化改造
-#pragma warning disable JCC9203
 namespace Core.Scheduling;
 
 /// <summary>
 /// 高水位标记管理器 — IKvStore 增量持久化实现。
 /// 单值 KV 存储,PutAsync 天然增量更新,无需全量重写。
-/// SemaphoreSlim(1,1) 串行化 IncrementAndGetAsync 读-改-写原子性 — 不可重入,同线程第二次获取阻塞(防重入)。
+/// AsyncGate 任务链串行化 IncrementAndGetAsync 读-改-写原子性 — 无锁原语,无监视器,无信号量。
 /// </summary>
 public sealed class HighWaterMarkManager : IDisposable {
     private readonly IKvStoreLeaseFactory _factory;
     private readonly byte[] _key;
-    private readonly SemaphoreSlim _incrementLock = new(1, 1);
+    private readonly AsyncGate _incrementGate = new();
     private readonly ILogger<HighWaterMarkManager>? _logger;
     private volatile bool _disposed;
 
@@ -63,21 +61,17 @@ public sealed class HighWaterMarkManager : IDisposable {
     }
 
     /// <summary>
-    /// 原子递增高水位标记并返回新值 — SemaphoreSlim(1,1) 串行化读-改-写原子性,不可重入
+    /// 原子递增高水位标记并返回新值 — AsyncGate 任务链串行化读-改-写原子性
     /// </summary>
     public async Task<int> IncrementAndGetAsync(CancellationToken cancellationToken = default) {
         if (_disposed) throw new ObjectDisposedException(nameof(HighWaterMarkManager));
         cancellationToken.ThrowIfCancellationRequested();
-        await _incrementLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try {
-            using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
-            var current = await ReadCoreAsync(lease, cancellationToken).ConfigureAwait(false);
-            var newValue = current + 1;
-            await UpdateCoreAsync(lease, newValue, cancellationToken).ConfigureAwait(false);
-            return newValue;
-        } finally {
-            _incrementLock.Release();
-        }
+        using var gateLease = await _incrementGate.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
+        var current = await ReadCoreAsync(lease, cancellationToken).ConfigureAwait(false);
+        var newValue = current + 1;
+        await UpdateCoreAsync(lease, newValue, cancellationToken).ConfigureAwait(false);
+        return newValue;
     }
 
     /// <summary>
@@ -98,10 +92,9 @@ public sealed class HighWaterMarkManager : IDisposable {
     }
 
     /// <summary>
-    /// 释放 SemaphoreSlim;幂等 — IKvStore 由 DI 容器管理生命周期
+    /// 释放标记;幂等 — IKvStore 由 DI 容器管理生命周期,此处仅阻止后续递增
     /// </summary>
     public void Dispose() {
-        if (Interlocked.Exchange(ref _disposed, true)) return;
-        _incrementLock.DisposeSafe();
+        Interlocked.Exchange(ref _disposed, true);
     }
 }

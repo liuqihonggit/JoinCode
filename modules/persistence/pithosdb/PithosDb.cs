@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 using PithosDB.Core.Compaction;
 using PithosDB.Core.Core;
 using PithosDB.Core.Storage;
@@ -9,27 +10,95 @@ namespace PithosDB.Core;
 /// Embedded key-value store backed by an LSM-tree. Writes are buffered in a
 /// <see cref="MemTable"/>, durably recorded in a <see cref="WriteAheadLog"/>,
 /// and periodically flushed to immutable <see cref="SSTableWriter">SSTables</see>
-/// on disk. All public operations are thread-safe: concurrent reads proceed in
-/// parallel; a write briefly blocks all readers while the MemTable and level
-/// list are updated.
+/// on disk.
+/// <para>
+/// Concurrency model (lock-free):
+/// <list type="bullet">
+/// <item>All mutations are serialised by a single-writer mailbox
+/// (<see cref="Channel{T}"/> → dedicated writer thread), which preserves WAL ordering,
+/// compare-and-swap atomicity and transaction commit atomicity without holding a lock.</item>
+/// <item>Readers capture the current immutable <c>DbView</c> (level listing + shared
+/// readers + active MemTable) with one volatile read and never block; flush and
+/// compaction publish a brand-new view instead of mutating the old one.</item>
+/// <item>Flush swaps the active MemTable instead of clearing it, so readers that
+/// captured the previous view keep seeing a complete dataset.</item>
+/// <item>Retired SSTable readers and files are reclaimed only after every in-flight
+/// reader has drained (active-reader epoch), so compaction never frees memory or files
+/// still referenced by a read.</item>
+/// </list>
+/// </para>
 /// </summary>
 public sealed class PithosDb : IDisposable
 {
     private readonly string _directory;
     private readonly PithosOptions _options;
     private readonly LeveledCompactor _compactor;
-    private readonly List<List<string>> _levels = [];
-    private readonly Dictionary<string, SSTableReader> _readerCache;
     private readonly IBlockCache? _blockCache;
     private readonly Manifest _manifest;
-    private readonly ReaderWriterLockSlim _lock;
 
-    // Background compaction
-    private readonly SemaphoreSlim _compactionSignal = new(0, 1);
+    /// <summary>
+    /// Immutable state snapshot: level listing, one shared reader per SSTable, and the
+    /// active MemTable. Never mutated after publication — writers build a new instance
+    /// and publish it with <see cref="Volatile.Write{T}(ref T, T)"/>.
+    /// </summary>
+    private sealed class DbView
+    {
+        public List<List<string>> Levels { get; }
+        public Dictionary<string, SSTableReader> Readers { get; }
+        public MemTable ActiveMemTable { get; }
+
+        public DbView(List<List<string>> levels, Dictionary<string, SSTableReader> readers, MemTable activeMemTable)
+        {
+            Levels = levels;
+            Readers = readers;
+            ActiveMemTable = activeMemTable;
+        }
+
+        public List<List<string>> CloneLevels() => Levels.Select(level => new List<string>(level)).ToList();
+
+        public Dictionary<string, SSTableReader> CloneReaders() => new(Readers, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Read-epoch guard — readers increment the epoch before capturing the view and
+    /// decrement it when the operation completes. The compactor waits for the epoch to
+    /// drain before disposing retired readers or deleting source SSTables.
+    /// </summary>
+    private readonly struct ReadScope : IDisposable
+    {
+        private readonly PithosDb _db;
+        public DbView View { get; }
+
+        public ReadScope(PithosDb db)
+        {
+            _db = db;
+            View = Volatile.Read(ref db._view);
+        }
+
+        public void Dispose() => Interlocked.Decrement(ref _db._activeReads);
+    }
+
+    private DbView _view;
+    private int _activeReads;
+
+    // Single-writer mailbox — every mutation and every view publication runs on the
+    // writer thread, in FIFO order. This replaces the former ReaderWriterLockSlim.
+    private readonly Channel<Action> _writeQueue = Channel.CreateUnbounded<Action>(
+        new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+    private Thread? _writerThread;
+
+    // Background compaction wake signal — bounded channel (capacity 1, drop-write)
+    // replaces the former SemaphoreSlim(0,1) + SemaphoreFullException probe.
+    private readonly Channel<bool> _compactionSignal = Channel.CreateBounded<bool>(
+        new BoundedChannelOptions(1)
+        {
+            FullMode = BoundedChannelFullMode.DropWrite,
+            SingleReader = true,
+            SingleWriter = false,
+        });
     private readonly CancellationTokenSource _compactionCts = new();
     private Thread? _compactionThread;
 
-    private MemTable _memTable = new();
     private WriteAheadLog? _wal;
     private int _disposed;
 
@@ -43,7 +112,7 @@ public sealed class PithosDb : IDisposable
     /// Tuning options. Pass <see langword="null"/> or omit to use <see cref="PithosOptions.Default"/>.
     /// </param>
     /// <remarks>
-    /// 工厂方法（ADR 0129）：所有资源（blockCache/manifest/compactor/wal）在工厂内逐步创建，
+    /// 工厂方法（ADR 0129）：所有资源（blockCache/manifest/wal）在工厂内逐步创建，
     /// 任一失败时释放已分配资源；RecoverFromWal/RecoverSSTables/后台线程在对象构造后执行，
     /// 失败时 db.Dispose() 释放全部。构造函数仅做字段赋值，禁止半构造化。
     /// </remarks>
@@ -58,9 +127,6 @@ public sealed class PithosDb : IDisposable
         PithosDb? db = null;
         IBlockCache? blockCache = null;
         Manifest? manifest = null;
-        Dictionary<string, SSTableReader>? readerCache = null;
-        ReaderWriterLockSlim? rwLock = null;
-        LeveledCompactor? compactor = null;
         WriteAheadLog? wal = null;
         try
         {
@@ -70,26 +136,21 @@ public sealed class PithosDb : IDisposable
                     : new LruBlockCache(options.BlockCacheSizeBytes)
                 : null;
             manifest = new Manifest(directory);
-            readerCache = new Dictionary<string, SSTableReader>();
-            rwLock = new ReaderWriterLockSlim();
-            compactor = new LeveledCompactor(directory, options, readerCache, blockCache, manifest, rwLock);
             if (!options.InMemory)
                 wal = WriteAheadLog.Open(Path.Combine(directory, "wal.log"), options.WalSyncMode, options.WalSyncIntervalMs);
 
-            db = new PithosDb(directory, options, blockCache, manifest, readerCache, rwLock, compactor, wal);
+            db = new PithosDb(directory, options, blockCache, manifest, wal);
 
             if (!options.InMemory)
             {
                 db.RecoverFromWal();
                 db.RecoverSSTables();
-                if (!options.DisableCompaction)
-                {
-                    db._compactionThread = new Thread(db.CompactionLoop) { IsBackground = true, Name = "PithosDB-Compaction" };
-                    db._compactionThread.Start();
-                    // Trigger an initial check in case recovered levels already need compaction.
-                    db.SignalCompaction();
-                }
             }
+
+            db.StartBackgroundThreads();
+
+            // Trigger an initial check in case recovered levels already need compaction.
+            if (!options.InMemory) db.SignalCompaction();
 
             return db;
         }
@@ -99,9 +160,6 @@ public sealed class PithosDb : IDisposable
             if (db is null)
             {
                 wal?.Dispose();
-                rwLock?.Dispose();
-                if (readerCache is not null)
-                    foreach (var r in readerCache.Values) r.Dispose();
                 (blockCache as IDisposable)?.Dispose();
             }
             throw;
@@ -111,21 +169,19 @@ public sealed class PithosDb : IDisposable
     /// <summary>
     /// 私有构造函数 — 仅字段赋值，不执行任何可能抛异常的 IO 或恢复逻辑（ADR 0129）。
     /// </summary>
-    private PithosDb(string directory, PithosOptions options, IBlockCache? blockCache, Manifest manifest,
-        Dictionary<string, SSTableReader> readerCache, ReaderWriterLockSlim rwLock, LeveledCompactor compactor, WriteAheadLog? wal)
+    private PithosDb(string directory, PithosOptions options, IBlockCache? blockCache, Manifest manifest, WriteAheadLog? wal)
     {
         _directory = directory;
         _options = options;
         _blockCache = blockCache;
         _manifest = manifest;
-        _readerCache = readerCache;
-        _lock = rwLock;
-        _compactor = compactor;
         _wal = wal;
+        _view = new DbView([], new Dictionary<string, SSTableReader>(StringComparer.Ordinal), new MemTable());
+        _compactor = new LeveledCompactor(directory, options, this, blockCache);
     }
 
     /// <summary>
-    /// 释放后访问守卫 — 所有公共增删改查方法入口调用，防止 Dispose 后操作已释放的 WAL/MemTable/SST readers/lock。
+    /// 释放后访问守卫 — 所有公共增删改查方法入口调用，防止 Dispose 后操作已释放的 WAL/MemTable/SST readers。
     /// </summary>
     /// <exception cref="ObjectDisposedException">实例已 Dispose。</exception>
     private void ThrowIfDisposed()
@@ -135,6 +191,80 @@ public sealed class PithosDb : IDisposable
     }
 
     /// <summary>
+    /// Current level listing (immutable by convention after publication). Used by the
+    /// compactor to decide which level needs work.
+    /// </summary>
+    internal List<List<string>> CurrentLevels => Volatile.Read(ref _view).Levels;
+
+    // ── Write mailbox ─────────────────────────────────────────────────────────
+
+    private void ExecuteWrite(Action action)
+    {
+        ThrowIfDisposed();
+        EnqueueWriteCore(action);
+    }
+
+    private T ExecuteWrite<T>(Func<T> action)
+    {
+        ThrowIfDisposed();
+        return EnqueueWriteCore(action);
+    }
+
+    /// <summary>
+    /// Enqueues a mutation on the writer thread and blocks until it completes — the
+    /// public synchronous API keeps its blocking contract while all serialisation
+    /// happens on the mailbox (no lock, no monitor).
+    /// </summary>
+    private void EnqueueWriteCore(Action action) =>
+        EnqueueWriteCore(() => { action(); return true; });
+
+    private T EnqueueWriteCore<T>(Func<T> action)
+    {
+        var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var enqueued = _writeQueue.Writer.TryWrite(() =>
+        {
+            try { completion.TrySetResult(action()); }
+            catch (Exception ex) { completion.TrySetException(ex); }
+        });
+
+        if (!enqueued)
+            throw new ObjectDisposedException(nameof(PithosDb));
+
+        return completion.Task.GetAwaiter().GetResult();
+    }
+
+    private void StartBackgroundThreads()
+    {
+        _writerThread = new Thread(WriterLoop) { IsBackground = true, Name = "PithosDB-Writer" };
+        _writerThread.Start();
+
+        if (_options.InMemory || _options.DisableCompaction) return;
+
+        _compactionThread = new Thread(CompactionLoop) { IsBackground = true, Name = "PithosDB-Compaction" };
+        _compactionThread.Start();
+    }
+
+    private void WriterLoop()
+    {
+        while (true)
+        {
+            bool hasWork;
+            try { hasWork = _writeQueue.Reader.WaitToReadAsync().AsTask().GetAwaiter().GetResult(); }
+            catch (ChannelClosedException) { return; }
+
+            if (!hasWork) return;
+
+            while (_writeQueue.Reader.TryRead(out var operation))
+            {
+                try { operation(); }
+                catch { /* the operation reports failures through its completion source */ }
+            }
+        }
+    }
+
+    // ── Writes ────────────────────────────────────────────────────────────────
+
+    /// <summary>
     /// Inserts or updates <paramref name="key"/> with <paramref name="value"/>.
     /// The write is appended to the WAL before being applied to the MemTable.
     /// A MemTable flush (and possible compaction) is triggered when the buffer
@@ -142,16 +272,14 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public void Put(byte[] key, byte[] value)
     {
-        ThrowIfDisposed();
         var stored = _options.EnableTtl ? ValueCodec.Encode(value) : value;
-        _lock.EnterWriteLock();
-        try
+        ExecuteWrite(() =>
         {
+            var view = Volatile.Read(ref _view);
             _wal?.AppendPut(key, stored);
-            _memTable.Put(key, stored);
-            MaybeFlushMemTable();
-        }
-        finally { _lock.ExitWriteLock(); }
+            view.ActiveMemTable.Put(key, stored);
+            MaybeFlushMemTable(view);
+        });
     }
 
     /// <summary>
@@ -165,20 +293,18 @@ public sealed class PithosDb : IDisposable
     /// </exception>
     public void Put(byte[] key, byte[] value, TimeSpan ttl)
     {
-        ThrowIfDisposed();
         if (!_options.EnableTtl)
             throw new InvalidOperationException(
                 "TTL writes require PithosOptions.EnableTtl = true.");
 
         var stored = ValueCodec.EncodeWithExpiry(value, DateTimeOffset.UtcNow.Add(ttl));
-        _lock.EnterWriteLock();
-        try
+        ExecuteWrite(() =>
         {
+            var view = Volatile.Read(ref _view);
             _wal?.AppendPut(key, stored);
-            _memTable.Put(key, stored);
-            MaybeFlushMemTable();
-        }
-        finally { _lock.ExitWriteLock(); }
+            view.ActiveMemTable.Put(key, stored);
+            MaybeFlushMemTable(view);
+        });
     }
 
     /// <summary>
@@ -188,15 +314,12 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public void Write(WriteBatch batch)
     {
-        ThrowIfDisposed();
         if (batch.Operations.Count == 0) return;
-        _lock.EnterWriteLock();
-        try { ApplyBatch(batch); }
-        finally { _lock.ExitWriteLock(); }
+        ExecuteWrite(() => ApplyBatch(Volatile.Read(ref _view), batch));
     }
 
-    // Encodes, WAL-appends, and MemTable-applies a batch. Caller must hold the write lock.
-    private void ApplyBatch(WriteBatch batch)
+    // Encodes, WAL-appends, and MemTable-applies a batch. Caller runs on the writer thread.
+    private void ApplyBatch(DbView view, WriteBatch batch)
     {
         if (batch.Operations.Count == 0) return;
 
@@ -220,10 +343,10 @@ public sealed class PithosDb : IDisposable
         _wal?.AppendBatch(encoded);
         foreach (var (type, key, value) in encoded)
         {
-            if (type == WalEntryType.Put) _memTable.Put(key, value!);
-            else _memTable.Delete(key);
+            if (type == WalEntryType.Put) view.ActiveMemTable.Put(key, value!);
+            else view.ActiveMemTable.Delete(key);
         }
-        MaybeFlushMemTable();
+        MaybeFlushMemTable(view);
     }
 
     /// <summary>
@@ -234,15 +357,13 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public void Delete(byte[] key)
     {
-        ThrowIfDisposed();
-        _lock.EnterWriteLock();
-        try
+        ExecuteWrite(() =>
         {
+            var view = Volatile.Read(ref _view);
             _wal?.AppendDelete(key);
-            _memTable.Delete(key);
-            MaybeFlushMemTable();
-        }
-        finally { _lock.ExitWriteLock(); }
+            view.ActiveMemTable.Delete(key);
+            MaybeFlushMemTable(view);
+        });
     }
 
     /// <summary>
@@ -254,12 +375,12 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public void DeleteRange(byte[]? from = null, byte[]? to = null)
     {
-        ThrowIfDisposed();
-        // Phase 1: collect keys under a read lock so the scan doesn't block writers.
-        _lock.EnterReadLock();
+        // Phase 1: collect keys without blocking writers.
         List<byte[]> keys;
-        try { keys = CollectScan(from, to).Select(e => e.key).ToList(); }
-        finally { _lock.ExitReadLock(); }
+        using (var scope = BeginRead())
+        {
+            keys = CollectScan(scope.View, from, to).Select(e => e.key).ToList();
+        }
 
         if (keys.Count == 0) return;
 
@@ -279,42 +400,37 @@ public sealed class PithosDb : IDisposable
     /// that does not exist or has been deleted — useful for "insert if absent" semantics.
     /// </para>
     /// <para>
-    /// The read and the conditional write are performed under a single write lock, so no
+    /// The read and the conditional write run as one writer-mailbox operation, so no
     /// concurrent writer can observe an intermediate state.
     /// </para>
     /// </summary>
-    public bool CompareAndSwap(byte[] key, byte[]? expectedValue, byte[] newValue)
-    {
-        ThrowIfDisposed();
-        _lock.EnterWriteLock();
-        try
+    public bool CompareAndSwap(byte[] key, byte[]? expectedValue, byte[] newValue) =>
+        ExecuteWrite(() =>
         {
-            var current = ReadCurrentValue(key);
+            var view = Volatile.Read(ref _view);
+            var current = ReadCurrentValue(view, key);
             if (!BytesEqual(current, expectedValue)) return false;
 
             var stored = _options.EnableTtl ? ValueCodec.Encode(newValue) : newValue;
             _wal?.AppendPut(key, stored);
-            _memTable.Put(key, stored);
-            MaybeFlushMemTable();
+            view.ActiveMemTable.Put(key, stored);
+            MaybeFlushMemTable(view);
             return true;
-        }
-        finally { _lock.ExitWriteLock(); }
-    }
+        });
 
-    // Reads the decoded user value for 'key' without acquiring any lock.
-    // Must only be called while the caller already holds _lock (read or write).
-    private byte[]? ReadCurrentValue(byte[] key)
+    // Reads the decoded user value for 'key'. Caller runs on the writer thread.
+    private byte[]? ReadCurrentValue(DbView view, byte[] key)
     {
         byte[]? raw;
-        if (_memTable.TryGet(key, out raw))
+        if (view.ActiveMemTable.TryGet(key, out raw))
         {
             if (raw is null) return null; // tombstone
             return DecodeAndFilter(key, raw, out var v) ? v : null;
         }
-        foreach (var level in _levels)
+        foreach (var level in view.Levels)
         foreach (var path in Enumerable.Reverse(level))
         {
-            if (_readerCache[path].TryGet(key, out raw))
+            if (view.Readers[path].TryGet(key, out raw))
             {
                 if (raw is null) return null; // tombstone
                 return DecodeAndFilter(key, raw, out var v) ? v : null;
@@ -330,41 +446,45 @@ public sealed class PithosDb : IDisposable
         return a.AsSpan().SequenceEqual(b.AsSpan());
     }
 
+    // ── Reads ─────────────────────────────────────────────────────────────────
+
+    private ReadScope BeginRead()
+    {
+        ThrowIfDisposed();
+        Interlocked.Increment(ref _activeReads);
+        return new ReadScope(this);
+    }
+
     /// <summary>
     /// Looks up <paramref name="key"/>, searching the MemTable first, then each
     /// SSTable level from newest to oldest. Returns <see langword="false"/> if
     /// the key does not exist, has been deleted, has expired (TTL), or is filtered
     /// by <see cref="PithosOptions.CompactionFilter"/>. Multiple threads may call
-    /// <see cref="TryGet"/> concurrently.
+    /// <see cref="TryGet"/> concurrently without blocking each other.
     /// </summary>
     public bool TryGet(byte[] key, out byte[]? value)
     {
-        ThrowIfDisposed();
-        _lock.EnterReadLock();
-        try
+        using var scope = BeginRead();
+        var view = scope.View;
+
+        byte[]? raw;
+        if (view.ActiveMemTable.TryGet(key, out raw))
         {
-            byte[]? raw;
-            if (_memTable.TryGet(key, out raw))
+            if (raw is null) { value = null; return false; } // tombstone
+            return DecodeAndFilter(key, raw, out value);
+        }
+
+        foreach (var level in view.Levels)
+        foreach (var sstPath in Enumerable.Reverse(level))
+        {
+            if (view.Readers[sstPath].TryGet(key, out raw))
             {
                 if (raw is null) { value = null; return false; } // tombstone
                 return DecodeAndFilter(key, raw, out value);
             }
-
-            var sstCount = 0;
-            foreach (var level in _levels)
-            foreach (var sstPath in Enumerable.Reverse(level))
-            {
-                sstCount++;
-                if (_readerCache[sstPath].TryGet(key, out raw))
-                {
-                    if (raw is null) { value = null; return false; } // tombstone
-                    return DecodeAndFilter(key, raw, out value);
-                }
-            }
-            value = null;
-            return false;
         }
-        finally { _lock.ExitReadLock(); }
+        value = null;
+        return false;
     }
 
     /// <summary>
@@ -389,13 +509,8 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public IEnumerable<(byte[] key, byte[] value)> Scan(byte[]? from = null, byte[]? to = null)
     {
-        ThrowIfDisposed();
-        _lock.EnterReadLock();
-        try
-        {
-            return CollectScan(from, to);
-        }
-        finally { _lock.ExitReadLock(); }
+        using var scope = BeginRead();
+        return CollectScan(scope.View, from, to);
     }
 
     /// <summary>
@@ -413,29 +528,26 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public long ApproximateCount(byte[]? from = null, byte[]? to = null)
     {
-        ThrowIfDisposed();
+        using var scope = BeginRead();
+        var view = scope.View;
         var cmp = ByteArrayComparer.Instance;
-        _lock.EnterReadLock();
-        try
+
+        long count = 0;
+
+        // Exact live count from the MemTable.
+        foreach (var kv in view.ActiveMemTable.GetSortedEntries())
         {
-            long count = 0;
-
-            // Exact live count from the MemTable.
-            foreach (var kv in _memTable.GetSortedEntries())
-            {
-                if (from != null && cmp.Compare(kv.Key, from) < 0) continue;
-                if (to   != null && cmp.Compare(kv.Key, to)   > 0) break;
-                if (kv.Value != null) count++; // skip tombstones
-            }
-
-            // Block-level approximation from SSTables across all levels.
-            foreach (var level in _levels)
-                foreach (var path in level)
-                    count += _readerCache[path].ApproximateKeyCount(from, to);
-
-            return count;
+            if (from != null && cmp.Compare(kv.Key, from) < 0) continue;
+            if (to   != null && cmp.Compare(kv.Key, to)   > 0) break;
+            if (kv.Value != null) count++; // skip tombstones
         }
-        finally { _lock.ExitReadLock(); }
+
+        // Block-level approximation from SSTables across all levels.
+        foreach (var level in view.Levels)
+            foreach (var path in level)
+                count += view.Readers[path].ApproximateKeyCount(from, to);
+
+        return count;
     }
 
     /// <summary>
@@ -445,18 +557,14 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public IEnumerable<(byte[] key, byte[] value)> ScanPrefix(byte[] prefix)
     {
-        ThrowIfDisposed();
         if (prefix.Length == 0) return Scan();
 
         byte[]? upper = ComputePrefixUpperBound(prefix);
 
-        _lock.EnterReadLock();
-        try
-        {
-            return CollectScan(prefix, upper)
-                .Where(e => e.key.AsSpan().StartsWith(prefix));
-        }
-        finally { _lock.ExitReadLock(); }
+        using var scope = BeginRead();
+        return CollectScan(scope.View, prefix, upper)
+            .Where(e => e.key.AsSpan().StartsWith(prefix))
+            .ToList();
     }
 
     // Returns the smallest key that is lexicographically greater than every key
@@ -480,20 +588,15 @@ public sealed class PithosDb : IDisposable
     /// <summary>
     /// Returns all live key-value pairs in the inclusive range
     /// [<paramref name="from"/>, <paramref name="to"/>] in descending key order.
-    /// Omit either bound for an open-ended scan; omit both for a full reverse scan.
+    /// Omit either bound for an open-ended range; omit both for a full reverse scan.
     /// Expired and filtered entries are excluded.
     /// </summary>
     public IEnumerable<(byte[] key, byte[] value)> ScanDescending(byte[]? from = null, byte[]? to = null)
     {
-        ThrowIfDisposed();
-        _lock.EnterReadLock();
-        try
-        {
-            var results = CollectScan(from, to);
-            results.Reverse();
-            return results;
-        }
-        finally { _lock.ExitReadLock(); }
+        using var scope = BeginRead();
+        var results = CollectScan(scope.View, from, to);
+        results.Reverse();
+        return results;
     }
 
     // Strips the TTL header (when EnableTtl), checks expiry, and applies the
@@ -518,17 +621,17 @@ public sealed class PithosDb : IDisposable
         return true;
     }
 
-    private List<(byte[] key, byte[] value)> CollectScan(byte[]? from, byte[]? to)
+    private List<(byte[] key, byte[] value)> CollectScan(DbView view, byte[]? from, byte[]? to)
     {
         var comparer = ByteArrayComparer.Instance;
 
         var sources = new List<IEnumerable<KeyValuePair<byte[], byte[]?>>>
         {
-            _memTable.GetSortedEntries()
+            view.ActiveMemTable.GetSortedEntries()
         };
-        foreach (var level in _levels)
+        foreach (var level in view.Levels)
             foreach (var path in Enumerable.Reverse(level))
-                sources.Add(_readerCache[path].ReadAllEntries());
+                sources.Add(view.Readers[path].ReadAllEntries());
 
         var pq = new PriorityQueue<(byte[] key, byte[]? value, int src), (byte[], int)>(
             Comparer<(byte[], int)>.Create((a, b) =>
@@ -591,22 +694,38 @@ public sealed class PithosDb : IDisposable
         return results;
     }
 
-    private void MaybeFlushMemTable()
+    // ── Flush / compaction ────────────────────────────────────────────────────
+
+    // Runs on the writer thread. Swaps the active MemTable for a fresh one and
+    // publishes a new view; the old MemTable stays alive for readers that captured
+    // the previous view and is reclaimed by GC once they finish.
+    private void MaybeFlushMemTable(DbView view)
     {
         if (_options.InMemory) return;
-        if (_memTable.SizeBytes < _options.MemTableSizeThreshold) return;
+        if (view.ActiveMemTable.SizeBytes < _options.MemTableSizeThreshold) return;
 
-        if (_levels.Count == 0) _levels.Add([]);
+        FlushActiveMemTable(view);
+    }
 
+    private void FlushActiveMemTable(DbView view)
+    {
         string sstPath = Path.Combine(_directory, $"L0_{Guid.NewGuid():N}.sst");
-        SSTableWriter.Write(sstPath, _memTable.GetSortedEntries(), _options.BloomFilterFalsePositiveRate, _options.Compression);
-        _levels[0].Add(sstPath);
-        _readerCache[sstPath] = SSTableReader.Open(sstPath, _blockCache);
-        _memTable.Clear();
+        SSTableWriter.Write(sstPath, view.ActiveMemTable.GetSortedEntries(), _options.BloomFilterFalsePositiveRate, _options.Compression);
+
+        var reader = SSTableReader.Open(sstPath, _blockCache);
+
+        var levels = view.CloneLevels();
+        if (levels.Count == 0) levels.Add([]);
+        levels[0].Add(sstPath);
+
+        var readers = view.CloneReaders();
+        readers[sstPath] = reader;
+
+        Volatile.Write(ref _view, new DbView(levels, readers, new MemTable()));
 
         ResetWal();
 
-        _manifest.Write(_levels);
+        _manifest.Write(levels);
         SignalCompaction();
     }
 
@@ -643,35 +762,32 @@ public sealed class PithosDb : IDisposable
     private void FlushForShutdown()
     {
         if (_options.InMemory) return;
-        if (_memTable.SizeBytes == 0) return;
 
-        if (_levels.Count == 0) _levels.Add([]);
+        var view = Volatile.Read(ref _view);
+        if (view.ActiveMemTable.SizeBytes == 0) return;
 
-        string sstPath = Path.Combine(_directory, $"L0_{Guid.NewGuid():N}.sst");
-        SSTableWriter.Write(sstPath, _memTable.GetSortedEntries(), _options.BloomFilterFalsePositiveRate, _options.Compression);
-        _levels[0].Add(sstPath);
-        _readerCache[sstPath] = SSTableReader.Open(sstPath, _blockCache);
-        _memTable.Clear();
-
-        ResetWal();
-
-        _manifest.Write(_levels);
+        FlushActiveMemTable(view);
     }
 
     private void SignalCompaction()
     {
         if (_options.DisableCompaction) return;
-        // Release at most one token so the background thread wakes up.
-        // SemaphoreFullException means a signal is already pending — that's fine.
-        try { _compactionSignal.Release(); } catch (SemaphoreFullException) { }
+        // Bounded capacity 1 with DropWrite: a pending signal already covers this flush.
+        _compactionSignal.Writer.TryWrite(true);
     }
 
     private void CompactionLoop()
     {
         while (true)
         {
-            try { _compactionSignal.Wait(_compactionCts.Token); }
+            bool signaled;
+            try { signaled = _compactionSignal.Reader.WaitToReadAsync(_compactionCts.Token).AsTask().GetAwaiter().GetResult(); }
             catch (OperationCanceledException) { return; }
+            catch (ChannelClosedException) { return; }
+
+            if (!signaled) return;
+
+            while (_compactionSignal.Reader.TryRead(out _)) { }
 
             // Drain all pending work before sleeping again. A single
             // CompactIfNeeded pass may make a previously-under-limit level
@@ -679,21 +795,65 @@ public sealed class PithosDb : IDisposable
             // loop until no level needs compaction.
             try
             {
-                while (_compactor.CompactIfNeeded(_levels)
+                while (_compactor.CompactIfNeeded()
                        && !_compactionCts.IsCancellationRequested) { }
             }
             catch { /* exceptions must not kill the compaction thread */ }
         }
     }
 
+    /// <summary>
+    /// Commits a finished compaction: publishes a new view (merged file added, sources
+    /// removed) and rewrites the manifest before any source file is deleted. Runs as one
+    /// writer-mailbox operation so it is serialised with flushes and WAL resets.
+    /// </summary>
+    /// <returns>The shared readers removed from the view; dispose them only after reads drain.</returns>
+    internal List<SSTableReader> CommitCompaction(int level, IReadOnlyList<string> sources, string outPath, SSTableReader newReader)
+    {
+        List<SSTableReader> removed = [];
+        EnqueueWriteCore(() =>
+        {
+            var view = Volatile.Read(ref _view);
+            var levels = view.CloneLevels();
+            while (levels.Count <= level + 1) levels.Add([]);
+            levels[level + 1].Add(outPath);
+
+            var readers = view.CloneReaders();
+            readers[outPath] = newReader;
+
+            foreach (var path in sources)
+            {
+                levels[level].Remove(path);
+                if (readers.Remove(path, out var cached))
+                    removed.Add(cached);
+            }
+
+            Volatile.Write(ref _view, new DbView(levels, readers, view.ActiveMemTable));
+            _manifest.Write(levels);
+        });
+        return removed;
+    }
+
+    /// <summary>
+    /// Blocks until every in-flight reader has left its read scope. The compactor calls
+    /// this before disposing retired readers and deleting source SSTable files.
+    /// </summary>
+    internal void WaitForReadersToDrain()
+    {
+        var spinner = new SpinWait();
+        while (Volatile.Read(ref _activeReads) != 0)
+            spinner.SpinOnce();
+    }
+
+    // ── Recovery ──────────────────────────────────────────────────────────────
+
     private void RecoverFromWal()
     {
-        var count = 0;
+        var memTable = Volatile.Read(ref _view).ActiveMemTable;
         foreach (var (type, key, value) in WriteAheadLog.Replay(Path.Combine(_directory, "wal.log")))
         {
-            if (type == WalEntryType.Put) _memTable.Put(key, value!);
-            else _memTable.Delete(key);
-            count++;
+            if (type == WalEntryType.Put) memTable.Put(key, value!);
+            else memTable.Delete(key);
         }
     }
 
@@ -710,17 +870,20 @@ public sealed class PithosDb : IDisposable
             }
         }
 
+        var levels = new List<List<string>>();
+        var readers = new Dictionary<string, SSTableReader>(StringComparer.Ordinal);
+
         if (_manifest.TryRead(out var manifestLevels))
         {
             for (int i = 0; i < manifestLevels.Count; i++)
             {
-                while (_levels.Count <= i) _levels.Add([]);
+                while (levels.Count <= i) levels.Add([]);
                 foreach (var path in manifestLevels[i])
                 {
                     if (!File.Exists(path)) continue;
                     if (new FileInfo(path).Length == 0) continue;
-                    _levels[i].Add(path);
-                    _readerCache[path] = SSTableReader.Open(path, _blockCache);
+                    levels[i].Add(path);
+                    readers[path] = SSTableReader.Open(path, _blockCache);
                 }
             }
 
@@ -746,14 +909,17 @@ public sealed class PithosDb : IDisposable
                 if (sep < 2 || !name.StartsWith('L')) continue;
                 if (!int.TryParse(name[1..sep], out int level)) continue;
 
-                while (_levels.Count <= level) _levels.Add([]);
-                _levels[level].Add(path);
-                _readerCache[path] = SSTableReader.Open(path, _blockCache);
+                while (levels.Count <= level) levels.Add([]);
+                levels[level].Add(path);
+                readers[path] = SSTableReader.Open(path, _blockCache);
             }
 
-            if (_levels.Count > 0)
-                _manifest.Write(_levels);
+            if (levels.Count > 0)
+                _manifest.Write(levels);
         }
+
+        var activeMemTable = Volatile.Read(ref _view).ActiveMemTable;
+        Volatile.Write(ref _view, new DbView(levels, readers, activeMemTable));
     }
 
     // ── Stats ─────────────────────────────────────────────────────────────────
@@ -761,43 +927,40 @@ public sealed class PithosDb : IDisposable
     /// <summary>
     /// Returns a point-in-time <see cref="DbStats"/> snapshot: MemTable usage,
     /// per-level SSTable file counts and on-disk sizes, block cache occupancy,
-    /// and WAL size. Acquiring the read lock ensures a consistent view; the call
-    /// is fast for typical level counts but does perform one
-    /// <see cref="FileInfo"/> lookup per SSTable file.
+    /// and WAL size. The snapshot is captured from the published view without
+    /// blocking writers; the call is fast for typical level counts but does perform
+    /// one <see cref="FileInfo"/> lookup per SSTable file.
     /// </summary>
     public DbStats GetStats()
     {
-        ThrowIfDisposed();
-        _lock.EnterReadLock();
-        try
+        using var scope = BeginRead();
+        var view = scope.View;
+
+        var fileCounts = view.Levels.Select(l => l.Count).ToList();
+        var diskSizes  = view.Levels
+            .Select(l => l.Sum(p => File.Exists(p) ? new FileInfo(p).Length : 0L))
+            .ToList();
+
+        long walSize = -1;
+        if (!_options.InMemory)
         {
-            var fileCounts = _levels.Select(l => l.Count).ToList();
-            var diskSizes  = _levels
-                .Select(l => l.Sum(p => File.Exists(p) ? new FileInfo(p).Length : 0L))
-                .ToList();
-
-            long walSize = -1;
-            if (!_options.InMemory)
-            {
-                var walPath = Path.Combine(_directory, "wal.log");
-                walSize = File.Exists(walPath) ? new FileInfo(walPath).Length : 0L;
-            }
-
-            return new DbStats
-            {
-                MemTableSizeBytes        = _memTable.SizeBytes,
-                MemTableEntryCount       = _memTable.Count,
-                LevelCount               = _levels.Count,
-                FileCountPerLevel        = fileCounts,
-                DiskSizeBytesPerLevel    = diskSizes,
-                TotalSstFileCount        = fileCounts.Sum(),
-                TotalSstDiskSizeBytes    = diskSizes.Sum(),
-                BlockCacheCurrentSizeBytes = _blockCache?.CurrentSizeBytes ?? -1L,
-                BlockCacheMaxSizeBytes     = _blockCache is not null ? _options.BlockCacheSizeBytes : -1L,
-                WalSizeBytes             = walSize,
-            };
+            var walPath = Path.Combine(_directory, "wal.log");
+            walSize = File.Exists(walPath) ? new FileInfo(walPath).Length : 0L;
         }
-        finally { _lock.ExitReadLock(); }
+
+        return new DbStats
+        {
+            MemTableSizeBytes        = view.ActiveMemTable.SizeBytes,
+            MemTableEntryCount       = view.ActiveMemTable.Count,
+            LevelCount               = view.Levels.Count,
+            FileCountPerLevel        = fileCounts,
+            DiskSizeBytesPerLevel    = diskSizes,
+            TotalSstFileCount        = fileCounts.Sum(),
+            TotalSstDiskSizeBytes    = diskSizes.Sum(),
+            BlockCacheCurrentSizeBytes = _blockCache?.CurrentSizeBytes ?? -1L,
+            BlockCacheMaxSizeBytes     = _blockCache is not null ? _options.BlockCacheSizeBytes : -1L,
+            WalSizeBytes             = walSize,
+        };
     }
 
     /// <summary>
@@ -820,27 +983,24 @@ public sealed class PithosDb : IDisposable
         return new Transaction(this, GetSnapshot());
     }
 
-    // Validates the read set and applies the write batch atomically under the write lock.
-    // Returns false (without applying any writes) if a conflict is detected.
+    // Validates the read set and applies the write batch atomically as one
+    // writer-mailbox operation. Returns false (without applying any writes) on conflict.
     internal bool TryCommitTransaction(
         Snapshot snapshot,
         IReadOnlyCollection<byte[]> readKeys,
-        WriteBatch batch)
-    {
-        _lock.EnterWriteLock();
-        try
+        WriteBatch batch) =>
+        ExecuteWrite(() =>
         {
+            var view = Volatile.Read(ref _view);
             foreach (var key in readKeys)
             {
-                var current = ReadCurrentValue(key);
+                var current = ReadCurrentValue(view, key);
                 snapshot.TryGet(key, out var snapVal);
                 if (!BytesEqual(current, snapVal)) return false;
             }
-            ApplyBatch(batch);
+            ApplyBatch(view, batch);
             return true;
-        }
-        finally { _lock.ExitWriteLock(); }
-    }
+        });
 
     // ── Snapshot ──────────────────────────────────────────────────────────────
 
@@ -859,26 +1019,23 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public Snapshot GetSnapshot()
     {
-        ThrowIfDisposed();
-        _lock.EnterReadLock();
-        try
-        {
-            // Copy the MemTable into an independent sorted dictionary.
-            var mem = new SortedDictionary<byte[], byte[]?>(ByteArrayComparer.Instance);
-            foreach (var kv in _memTable.GetSortedEntries())
-                mem[kv.Key] = kv.Value;
+        using var scope = BeginRead();
+        var view = scope.View;
 
-            // Capture the level structure and open dedicated readers for each SSTable.
-            // These readers are independent of the shared cache so the snapshot remains
-            // readable even after compaction recycles the shared cache entries.
-            var levelPaths = _levels.Select(l => l.ToList()).ToList();
-            var readers = new Dictionary<string, SSTableReader>(StringComparer.Ordinal);
-            foreach (var path in levelPaths.SelectMany(l => l))
-                readers[path] = SSTableReader.Open(path);
+        // Copy the MemTable into an independent sorted dictionary.
+        var mem = new SortedDictionary<byte[], byte[]?>(ByteArrayComparer.Instance);
+        foreach (var kv in view.ActiveMemTable.GetSortedEntries())
+            mem[kv.Key] = kv.Value;
 
-            return new Snapshot(mem, levelPaths, readers, _options);
-        }
-        finally { _lock.ExitReadLock(); }
+        // Capture the level structure and open dedicated readers for each SSTable.
+        // These readers are independent of the shared cache so the snapshot remains
+        // readable even after compaction recycles the shared cache entries.
+        var levelPaths = view.Levels.Select(l => new List<string>(l)).ToList();
+        var readers = new Dictionary<string, SSTableReader>(StringComparer.Ordinal);
+        foreach (var path in levelPaths.SelectMany(l => l))
+            readers[path] = SSTableReader.Open(path);
+
+        return new Snapshot(mem, levelPaths, readers, _options);
     }
 
     // ── In-memory factory ─────────────────────────────────────────────────────
@@ -905,10 +1062,10 @@ public sealed class PithosDb : IDisposable
 
     // ── Async API ──────────────────────────────────────────────────────────────
     //
-    // ReaderWriterLockSlim has thread affinity and cannot span an await, so each
-    // async method offloads its synchronous counterpart to the thread pool via
-    // Task.Run. This frees the caller's thread while WAL fsyncs and SSTable reads
-    // are in progress — the primary value for ASP.NET and other async-first hosts.
+    // The synchronous API blocks the calling thread on the writer mailbox. Each async
+    // method offloads its synchronous counterpart to the thread pool via Task.Run so
+    // callers' threads are freed while WAL fsyncs and SSTable reads are in progress —
+    // the primary value for ASP.NET and other async-first hosts.
 
     /// <summary>
     /// Asynchronously inserts or updates <paramref name="key"/> with <paramref name="value"/>.
@@ -1015,34 +1172,42 @@ public sealed class PithosDb : IDisposable
     }
 
     /// <summary>
-    /// Stops the background compaction thread, flushes and closes the WAL,
-    /// disposes all cached SSTable readers, then disposes the lock.
-    /// Any compaction already in progress is allowed to finish before returning.
+    /// Stops the background compaction and writer threads, flushes the active MemTable,
+    /// closes the WAL, waits for in-flight readers to drain, then disposes all cached
+    /// SSTable readers. Any compaction already in progress is allowed to finish first.
     /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        // Signal the background thread to stop. If it is mid-compaction it will
-        // finish the current job before seeing the cancellation.
+
+        // Stop compaction first — it may be mid-merge but will finish the current job
+        // before seeing the cancellation.
         _compactionCts.Cancel();
-        SignalCompaction(); // unblock it if it is waiting on the semaphore
+        _compactionSignal.Writer.TryComplete();
         _compactionThread?.Join();
         _compactionCts.Dispose();
-        _compactionSignal.Dispose();
 
-        // Flush MemTable to SST on shutdown — ensures data survives across processes.
-        // Without this, unflushed MemTable data lives only in WAL; if a prior flush
-        // deleted and recreated the WAL, earlier writes are lost to the next process.
-        // FlushForShutdown 失败不阻止后续资源释放（WAL/SST readers/lock）。
-        try { FlushForShutdown(); }
-        catch (Exception ex) { _options.DiagnosticLog?.Invoke($"[PithosDB.Dispose] FlushForShutdown failed: {ex.Message}"); }
+        // Drain whatever writes are still queued, then flush once more and stop the
+        // writer thread. FlushForShutdown 失败不阻止后续资源释放（WAL/SST readers）。
+        if (_writerThread is not null)
+        {
+            EnqueueWriteCore(FlushForShutdownSafe);
+            _writeQueue.Writer.TryComplete();
+            _writerThread.Join();
+        }
+
+        WaitForReadersToDrain();
 
         _wal?.Dispose();
-        foreach (var reader in _readerCache.Values)
+        foreach (var reader in Volatile.Read(ref _view).Readers.Values)
         {
             try { reader.Dispose(); } catch { }
         }
-        _readerCache.Clear();
-        _lock.Dispose();
+    }
+
+    private void FlushForShutdownSafe()
+    {
+        try { FlushForShutdown(); }
+        catch (Exception ex) { _options.DiagnosticLog?.Invoke($"[PithosDB.Dispose] FlushForShutdown failed: {ex.Message}"); }
     }
 }

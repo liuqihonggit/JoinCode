@@ -25,16 +25,11 @@ modules/guard/guard.config.tests/configuration/core/FastModeServiceTests.cs|1
 modules/llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorConcurrencyTests.cs|2
 modules/llm/llm.tests/Adapters/Fallback/StreamIdleWatchdogTests.cs|2
 modules/perception/code_index.tests/a_to_c/ConcurrencySafetyTests.cs|2
-modules/persistence/pithosdb/Compaction/LeveledCompactor.cs|3
-modules/persistence/pithosdb/Core/LruBlockCache.cs|4
-modules/persistence/pithosdb/Core/S3FifoBlockCache.cs|4
-modules/persistence/pithosdb/PithosDb.cs|5
 modules/services/bridge.tests/bridge/core/bridge/BufferedChannelTests.cs|2
 modules/storage/clock.tests/goal/engine/GoalEnginePipelineTests.cs|4
 modules/storage/clock.tests/goal/engine/GoalEngineTests.cs|5
 modules/storage/clock/goal/core/goal_engine/GoalStateUpdater.cs|0
 modules/storage/scheduling.tests/scheduling/tasks/MonitorMcpTaskExecutorTests.cs|1
-modules/storage/scheduling/storage/HighWaterMarkManager.cs|1
 modules/storage/vault.memdir.tests/AdvisorServicePersistenceTests.cs|3
 modules/storage/vault.memdir.tests/EditorModeServicePersistenceTests.cs|3
 modules/storage/vault.other.tests/state/StorePersistenceTests.cs|3

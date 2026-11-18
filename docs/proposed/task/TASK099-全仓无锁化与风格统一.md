@@ -287,6 +287,20 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 - 进程重启后恢复；压缩与读写并发时无超时、无损坏。
 - HNSW 查询结果与改造前召回对比（固定样本集），确保不退化。
 
+#### B4 执行记录
+
+- `PithosDb.cs` 全量重写为单写者 Actor：写命令统一 `Channel<Action>` 投递 + 专用写线程 + `TaskCompletionSource` 同步应答；`DbView`（Levels/Readers/MemTable）不可变快照经 `Volatile.Write` 发布；读路径 `BeginRead()` 取快照并维护 `_activeReads` 计数（读者 epoch），压缩删除源文件前 `WaitForReadersToDrain()` 保证 `SSTableReader`（pinned GCHandle）无 use-after-free；压缩信号由 `SemaphoreSlim(0,1)` 改有界 `Channel<bool>`（DropWrite）；manifest 写入全部串行在写线程。MemTable 改 `ConcurrentDictionary` + `ByteArrayComparer`，排序快照改手工 foreach + Sort（修复 `ConcurrentDictionary` 集合并发 CopyTo 越界）。
+- `LeveledCompactor` 改 `internal`，改为“读 `CurrentLevels` 快照 → 合并生成新 SST → `CommitCompaction` 单写者原子发布 → 排空读者 → 删源文件（失败仅告警延后）”，删除外部传入的 RWLock。
+- `LruBlockCache`/`S3FifoBlockCache` 改 `ConcurrentDictionary` + `Interlocked` 字节计数 + 采样近似淘汰（LRU 采样 8 选最旧；S3-FIFO 二次机会 + 有界 ghost 表），删除各自 `lock(_sync)`。
+- `HighWaterMarkManager` 改 `AsyncGate` 任务链门闩，删除 `SemaphoreSlim(1,1)` 与 `#pragma JCC9203`。
+- 基线：54 文件/320 处 → **49 文件/303 处**（Pithos 5 文件锁原语归零；剩余 B5 租约 5 文件 + B6 锁生态自身 + 测试/基准）。
+- exe 验收（独立 exe 进程，`.xxx/acceptance/pithos_storage` 真实磁盘目录，8KB MemTable + L0 限 2 + 3 层强制触发 flush/compaction）：
+  - 跨进程写/读（进程 A 写 → 进程退出 → 进程 B 新开目录读）：LRU 3000 键 live=2571（249 个 i%7==0 预期删除）scan=2571 failures=0；S3FIFO 同结果（`.xxx/logs/pithos_write_lru.log`、`pithos_verify_lru.log`、`pithos_write_s3.log`、`pithos_verify_s3.log`）。
+  - 并发压测：6 写者×400 + 4 读者（`.xxx/logs/pithos_final_conc.log` errors=0）、8 写者×800×3 轮（stress1-3）全部 PASS，压缩与读写并发无超时/无损坏；重启后 verify live=2142 scan=2142 failures=0（`.xxx/logs/pithos_final_write.log`、`pithos_final_verify.log`）。
+  - 内存 CAS 原子性：8 线程×2000 Put/CAS/Delete 混合，expected=16000 ok=16000 PASS（`.xxx/logs/pithos_final_cas.log`）。
+  - HNSW 真实索引召回：2000 向量×128 维、64 查询、topK=10，HNSW(m16/efC200/efS64) 对 BruteForce 召回 **94.1%**（阈值 >90%），随后 4 读者×2 写者并发后 Count=2400、concurrentErrors=0，EXIT=0（`.xxx/logs/hnsw_recall.log`）。
+  - 回归：PithosKvStore 8/8、Infra Persistence 24/24、Scheduling FileBasedTaskService 15/15、CodeIndex embedding/concurrency 62/62；`Build-AllDomains -Changed` 0 错误；锁门禁 `Verify-NoLockPrimitives.py` 仅剩僵尸基线条目，重写基线后通过（`.xxx/logs/lock_gate_after_b4b.txt`）。
+
 ### B5 跨进程租约
 
 | 文件 | 改造 |
@@ -333,7 +347,7 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 
 ## 5. 四列验收表
 
-> `已验收` 只填真实 exe 证据，必须附 ADR 0080 记录；单元测试不能替代。B0/B1/B2/B3 已验收，B4-B7 待实现/待验收。
+> `已验收` 只填真实 exe 证据，必须附 ADR 0080 记录；单元测试不能替代。B0/B1/B2/B3/B4 已验收，B5-B7 待实现/待验收。
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
@@ -344,8 +358,8 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 | TUI 输入与回合 Actor | `RawStdinPump`、`LazyEngine`、`EngineTurnClient`、`ReplShell`、`BridgeEventPump`、`TerminalQuerier` | ✅ | ✅ `jcc.exe --selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-tui.txt`）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-input.txt`）、`NativeTui.Demo.exe --selftest` / `--selftest-bash` / `--bridge-selftest` 三个 EXIT=0（`b2-demo-selftest.txt` / `b2-demo-bash.txt` / `b2-demo-bridge.txt`，跨进程 bridge 协议走真实管道）；单元测试 NativeTui.Tests 3024/3024、NativeTui.Host.Tests 140/140 |
 | DSH 状态 Actor/不可变快照 | `native_gui` 16 文件 / 82 锁 → 0；事件出 Actor 触发；WS 每连接单写者 | ✅ | ✅ `--dsh-smoke` EXIT=0 ×4（真实 HttpListener/WS：session/create+list、$events/session/follow 双流、goals 暂停事件、32+16 并发 RPC；`.xxx/logs/TASK094/gui_dsh_smoke_loop.log` / `gui_dsh_smoke_after_fix.log`）；`--webui-smoke` EXIT=0 ×3（真实 WebView2 窗口桥接，修复 async Main 导致 STA 失效的 `RPC_E_CHANGED_MODE`，`.xxx/logs/TASK094/gui_webui_smoke3.log` / `gui_webui_smoke_loop1/2.log`）；NativeGui.Core.Tests 409/409（`gui_tests_full3.log`）、NativeGui.Host.Tests 47/47（`gui_host_tests_full.log`） |
 | AsyncLock/限流替换 | 47 文件 / 101 获取 + Semaphore 限流 | ✅ 钩子配置/沙箱 IPC/技能索引/MCP 认证与降级链/流式执行器/GH 并行下载/感知域已去锁；B3 完成单飞初始化（TCS）、状态机/暂停（AsyncGate/TCS 门闩）、并发限流（PermitPool）、单写者传输（ConcurrentDictionary+ImmutableList CAS）、工作者池、GatewayActor 令牌 Channel、GraphExecutionContext 唤醒 Channel、PlanModeManager 去 LockRegistry；**模块外 AsyncLock 生产引用为 0**；基线 138 文件/536 处 → **54 文件/320 处**（剩余仅 B4/B5/锁生态自身与测试） | ✅ jcc + MockServer 并发 4 个真实回合 EXIT=0 ×4（4 次 `chat/completions`，无异常/超时/死锁，`.xxx/logs/mockserver_concurrent.log`、`jcc_turn_1..4.log`）；`jcc --selftest-tui` EXIT=0（`HOST SELFTEST OK`）；相关域测试全绿（AsyncLock 631、Agents 626、Clock 519、Scheduling 287、Vault 867、Bridge 633、Infra 1399、Host 1332、Composition 1135、Downloader 100、Browser 2、Brain 426） |
-| PithosDb 单写者 + 快照 | `PithosDb`、`LeveledCompactor`、Lru/S3Fifo | ❌ | ❌（双进程存储完整性） |
-| HNSW 快照 | `HnswAnn` | ✅ 单 AsyncGate 串行化替换 `ReaderWriterLockSlim`（CodeIndex 792 测试全绿） | ❌（真实索引构建 + 固定样本召回） |
+| PithosDb 单写者 + 快照 | `PithosDb`、`LeveledCompactor`、Lru/S3Fifo、`HighWaterMarkManager` | ✅ 写命令 Channel 单写者 + `DbView` 不可变快照 + 读者 epoch；压缩信号有界 Channel；块缓存 ConcurrentDictionary + 采样淘汰；HighWaterMark 改 AsyncGate；Pithos 5 文件锁原语归零（基线 54/320 → 49/303） | ✅ exe 跨进程写/读：LRU/S3FIFO 各 3000 键 live=2571=scan、failures=0（`pithos_write_lru.log`/`pithos_verify_lru.log`/`pithos_write_s3.log`/`pithos_verify_s3.log`）；并发 6×400 与 8×800×3 轮 errors=0、压缩并发无超时，重启 verify 2142/2142 failures=0（`pithos_final_conc.log`/`pithos_final_write.log`/`pithos_final_verify.log`）；内存 CAS 16000/16000 PASS（`pithos_final_cas.log`）；`.xxx/acceptance/pithos_storage` 真实进程非 mock |
+| HNSW 快照 | `HnswAnn` | ✅ 单 AsyncGate 串行化替换 `ReaderWriterLockSlim`（CodeIndex 792 测试全绿） | ✅ 真实索引 exe：2000×128 固定样本、64 查询、topK=10，HNSW 对 BruteForce 召回 **94.1%**（阈值 >90%），并发 4 读×2 写后 Count=2400、concurrentErrors=0、EXIT=0（`.xxx/logs/hnsw_recall.log`，harness `.xxx/acceptance/hnsw_recall`） |
 | 原子文件租约 | `CrossProcessLock`、`NamedMutexMailboxLock`、Pithos 租约 | ❌ | ❌（3 进程竞争 + 崩溃接管） |
 | 锁生态归档 | AsyncLock/LockRef/AsyncLockedDictionary/TimeoutLock/OrderedLockManager | 🔄 `TimeoutLock` 及其测试已移入 `.xxx/`，`CodeIndex.csproj` 去掉 `AsyncLock.csproj` 引用 | ❌（全仓编译 + exe 回归） |
 | 风格门禁与清理 | pragma/using/null-forgiving/async void/命名/目录/文档 | ❌ | ❌（门禁零命中 + exe 回归） |

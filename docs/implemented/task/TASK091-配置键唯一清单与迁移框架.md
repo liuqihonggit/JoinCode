@@ -148,8 +148,9 @@ DTO 不认识的顶层字段按默认值重写。对离线用户来说，这等�
 
 ## 六、已知遗留（未在本轮处理）
 
-1. **`settings.json` 写入会带 UTF-8 BOM**：`FileEncodingDetector.DecodeBytes` 对无 BOM 的 UTF-8 返回带 preamble 的
-   `Encoding`，`EncodeString` 便写出 BOM。属既有行为（TASK090 的嵌套写入同样如此），影响是 git diff 噪音，
-   不影响解析。修它要动 `BclFileIO.DecodeBytes`，影响面覆盖整个文件 IO，需单独一轮。
+1. ~~**`settings.json` 写入会带 UTF-8 BOM**~~ → **已在 TASK092 修复**：根因是 `BclFileIO.DetectFromBOM`
+   对无签名文件返回带 preamble 的 `Encoding.UTF8`；现改为返回无 BOM UTF-8，「有签名保持签名、
+   没有就不加」成为可断言的不变量，同时修掉 `file` 组 exe 吃掉 BOM、把 UTF-16 静默转成 UTF-8 的问题。
+   见 `docs/implemented/task/TASK092-文件签名保持.md`。
 2. **斜杠命令路径不做硬校验**：`/config set <未知键>` 只警告不拒（插件/历史键可能被其它代码读取）。
    工具侧 `config_set` 仍是硬拒 —— 两条路径的严格程度不同，属有意取舍，若将来确认无外部键依赖可统一。

@@ -1,6 +1,8 @@
 using System.Collections.Frozen;
+using System.Text;
 using System.Text.RegularExpressions;
 using JoinCode.Abstractions.Tools;
+using JoinCode.BclBridge;
 
 namespace JoinCode.CliNode.File;
 
@@ -46,7 +48,8 @@ internal static partial class FileCommands {
         ct.ThrowIfCancellationRequested();
         var path = Required(o, "file_path", "write");
         var content = Required(o, "content", "write");
-        global::System.IO.File.WriteAllText(path, content);
+        // 覆盖已有文件时沿用它的编码与签名；新建文件就是无 BOM UTF-8
+        WriteText(path, content, global::System.IO.File.Exists(path) ? DetectEncoding(path) : BclFileIO.Utf8NoBom);
         Console.Out.WriteLine($"已写入 {path} ({content.Length} 字符)");
         return Task.FromResult(0);
     }
@@ -66,11 +69,11 @@ internal static partial class FileCommands {
         var path = Required(o, "file_path", "edit");
         var oldValue = Required(o, "old_string", "edit");
         var newValue = Required(o, "new_string", "edit");
-        var text = global::System.IO.File.ReadAllText(path);
+        var (text, encoding) = ReadText(path);
         var replaced = IsTrue(o, "replace_all")
             ? text.Replace(oldValue, newValue, StringComparison.Ordinal)
             : ReplaceFirst(text, oldValue, newValue);
-        return WriteChangedAsync(path, text, replaced, "edit");
+        return WriteChangedAsync(path, text, replaced, encoding, "edit");
     }
 
     private static Task<int> EditRegexAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
@@ -78,12 +81,12 @@ internal static partial class FileCommands {
         var path = Required(o, "file_path", "file_edit_regex");
         var pattern = Required(o, "pattern", "file_edit_regex");
         var replacement = Required(o, "replacement", "file_edit_regex");
-        var text = global::System.IO.File.ReadAllText(path);
+        var (text, encoding) = ReadText(path);
         var regex = new Regex(pattern);
         var replaced = IsTrue(o, "replace_all", fallback: true)
             ? regex.Replace(text, replacement)
             : regex.Replace(text, replacement, 1);
-        return WriteChangedAsync(path, text, replaced, "file_edit_regex");
+        return WriteChangedAsync(path, text, replaced, encoding, "file_edit_regex");
     }
 
     private static Task<int> InsertLinesAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
@@ -91,10 +94,11 @@ internal static partial class FileCommands {
         var path = Required(o, "file_path", "file_insert_lines");
         var afterLine = GetInt(o, "after_line", 0);
         var newContent = Required(o, "new_content", "file_insert_lines");
-        var lines = ReadLines(path).ToList();
+        var (text, encoding) = ReadText(path);
+        var lines = SplitLines(text).ToList();
         var index = Math.Clamp(afterLine, 0, lines.Count);
         lines.InsertRange(index, newContent.Split('\n'));
-        global::System.IO.File.WriteAllLines(path, lines);
+        WriteText(path, string.Join(Environment.NewLine, lines) + Environment.NewLine, encoding);
         Console.Out.WriteLine($"已在 {path} 第 {afterLine} 行后插入内容");
         return Task.FromResult(0);
     }
@@ -106,10 +110,11 @@ internal static partial class FileCommands {
         var end = GetInt(o, "end_line", start);
         if (end < start)
             throw new ArgumentException($"file_delete_lines 的 --end_line ({end}) 不能小于 --start_line ({start})。正确写法: 检查行号范围。");
-        var lines = ReadLines(path).ToList();
+        var (text, encoding) = ReadText(path);
+        var lines = SplitLines(text).ToList();
         var count = Math.Min(end, lines.Count) - start + 1;
         if (count > 0) lines.RemoveRange(start - 1, count);
-        global::System.IO.File.WriteAllLines(path, lines);
+        WriteText(path, string.Join(Environment.NewLine, lines) + Environment.NewLine, encoding);
         Console.Out.WriteLine($"已删除 {path} 第 {start}-{end} 行");
         return Task.FromResult(0);
     }
@@ -123,12 +128,12 @@ internal static partial class FileCommands {
         foreach (var path in paths) {
             ct.ThrowIfCancellationRequested();
             if (!global::System.IO.File.Exists(path)) continue;
-            var text = global::System.IO.File.ReadAllText(path);
+            var (text, encoding) = ReadText(path);
             var replaced = IsTrue(o, "replace_all", fallback: true)
                 ? text.Replace(oldValue, newValue, StringComparison.Ordinal)
                 : ReplaceFirst(text, oldValue, newValue);
             if (string.Equals(text, replaced, StringComparison.Ordinal)) continue;
-            global::System.IO.File.WriteAllText(path, replaced);
+            WriteText(path, replaced, encoding);
             changed++;
         }
         Console.Out.WriteLine($"批量编辑完成，修改 {changed}/{paths.Length} 个文件");
@@ -170,12 +175,12 @@ internal static partial class FileCommands {
         return Task.FromResult(0);
     }
 
-    private static Task<int> WriteChangedAsync(string path, string before, string after, string toolId) {
+    private static Task<int> WriteChangedAsync(string path, string before, string after, Encoding encoding, string toolId) {
         if (string.Equals(before, after, StringComparison.Ordinal)) {
             Console.Out.WriteLine($"{toolId}: 未找到可替换内容，文件未改动 ({path})");
             return Task.FromResult(0);
         }
-        global::System.IO.File.WriteAllText(path, after);
+        WriteText(path, after, encoding);
         Console.Out.WriteLine($"{toolId}: 已更新 {path}");
         return Task.FromResult(0);
     }
@@ -183,6 +188,39 @@ internal static partial class FileCommands {
     private static string ReplaceFirst(string text, string oldValue, string newValue) {
         var index = text.IndexOf(oldValue, StringComparison.Ordinal);
         return index < 0 ? text : text[..index] + newValue + text[(index + oldValue.Length)..];
+    }
+
+    /// <summary>读文本并带回原文件编码 —— 编码决定写回时是否带 BOM（有签名保持签名，没有就没有）。</summary>
+    private static (string Text, Encoding Encoding) ReadText(string path) {
+        if (!global::System.IO.File.Exists(path))
+            throw new ArgumentException($"文件不存在: {path}。正确写法: 先用 directory_list 确认路径。");
+        return BclFileIO.Instance.DecodeBytes(global::System.IO.File.ReadAllBytes(path));
+    }
+
+    /// <summary>只探测签名（覆盖写时用）：读前 4 字节，不加载整份内容。</summary>
+    private static Encoding DetectEncoding(string path) {
+        using var stream = global::System.IO.File.OpenRead(path);
+        var buffer = new byte[4];
+        var read = stream.Read(buffer, 0, buffer.Length);
+        return BclFileIO.DetectFromBOM(buffer.AsSpan(0, read));
+    }
+
+    private static void WriteText(string path, string content, Encoding encoding) =>
+        global::System.IO.File.WriteAllBytes(path, BclFileIO.EncodeString(content, encoding));
+
+    /// <summary>按 CRLF / LF / CR 切行，末尾换行不产生空行 —— 与 File.ReadAllLines 口径一致。</summary>
+    private static string[] SplitLines(string text) {
+        if (text.Length == 0) return [];
+        var lines = new List<string>();
+        var start = 0;
+        for (var i = 0; i < text.Length; i++) {
+            if (text[i] is not ('\r' or '\n')) continue;
+            lines.Add(text[start..i]);
+            if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n') i++;
+            start = i + 1;
+        }
+        if (start < text.Length) lines.Add(text[start..]);
+        return [.. lines];
     }
 
     private static string[] ReadLines(string path) {

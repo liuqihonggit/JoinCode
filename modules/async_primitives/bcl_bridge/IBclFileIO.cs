@@ -12,7 +12,11 @@ public interface IBclFileIO {
     /// <summary>同步读取全部文本</summary>
     string ReadAllText(string path);
 
-    /// <summary>从字节数组解码为字符串 — 自动检测 BOM 编码，StreamReader 自动跳过 BOM</summary>
+    /// <summary>
+    /// 从字节数组解码为字符串 — 自动检测 BOM，StreamReader 跳过 BOM。
+    /// <para>返回的 encoding 描述原文件的签名情况：有 BOM 带 preamble，无 BOM 不带，
+    /// 用它（<see cref="BclFileIO.EncodeString"/>）写回时不会改变文件有无 BOM。</para>
+    /// </summary>
     (string Content, System.Text.Encoding Encoding) DecodeBytes(byte[] bytes);
 
     /// <summary>从字节数组用指定编码解码为字符串</summary>

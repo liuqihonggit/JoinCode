@@ -2,49 +2,19 @@ namespace Infrastructure.IO.Services.FileOps;
 
 /// <summary>
 /// 文件编码检测器 — 对齐 TS: fileRead.ts detectFileEncoding + FileEditTool.ts L207-213
-/// TS 逻辑：检查 BOM（0xFF 0xFE → UTF-16LE），否则默认 UTF-8
-/// 空文件默认 UTF-8（不是 ASCII），修复写入 emoji/CJK 时损坏的 bug
+/// <para>只做转发：BOM 判定与编码往返的唯一实现在 <see cref="BclFileIO"/>（最低层、无上层依赖）。
+/// 这里曾另存一份「无 BOM 时返回 Encoding.UTF8」的判定，导致每条 读-改-写 路径都给文件注入 BOM。</para>
 /// </summary>
 public static class FileEncodingDetector {
-    // 无 BOM 的 UTF-8 — 用于无 BOM 的文件和默认编码。
-    // Encoding.UTF8 带 BOM（preamble=EF BB BF），作为默认编码会导致无 BOM 文件更新时被写入 BOM。
-    private static readonly Encoding s_utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+    /// <summary>无 BOM 的 UTF-8 —— 无 BOM 文件的默认编码，也是「写入不新增 BOM」的保证</summary>
+    private static Encoding Utf8NoBom => BclFileIO.Utf8NoBom;
 
     /// <summary>
-    /// 从字节数组前几个字节（BOM）检测编码
-    /// 对齐 TS: fileRead.ts L33-44
-    /// 支持 UTF-16LE / UTF-16BE / UTF-8 / UTF-32LE / UTF-32BE BOM 检测
+    /// 从字节数组前几个字节（BOM）检测编码。
+    /// <para>实现只有一处（<see cref="BclFileIO.DetectFromBOM"/>）：有签名返回带 preamble 的编码，
+    /// 没有就返回无 BOM 的 UTF-8，读写往返不会给文件新增或丢掉 BOM。</para>
     /// </summary>
-    public static Encoding DetectFromBOM(ReadOnlySpan<byte> buffer) {
-        // TS: bytesRead === 0 → 'utf8'
-        if (buffer.Length == 0)
-            return s_utf8NoBom;
-
-        // UTF-32 LE BOM: FF FE 00 00
-        if (buffer.Length >= 4 && buffer[0] == 0xFF && buffer[1] == 0xFE && buffer[2] == 0x00 && buffer[3] == 0x00)
-            return Encoding.UTF32; // UTF-32LE in .NET
-
-        // UTF-32 BE BOM: 00 00 FE FF
-        if (buffer.Length >= 4 && buffer[0] == 0x00 && buffer[1] == 0x00 && buffer[2] == 0xFE && buffer[3] == 0xFF)
-            return new UTF32Encoding(bigEndian: true, byteOrderMark: true);
-
-        // TS: bytesRead >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe → 'utf16le'
-        // UTF-16LE BOM: FF FE
-        if (buffer.Length >= 2 && buffer[0] == 0xFF && buffer[1] == 0xFE)
-            return Encoding.Unicode; // Unicode = UTF-16LE in .NET
-
-        // UTF-16BE BOM: FE FF
-        if (buffer.Length >= 2 && buffer[0] == 0xFE && buffer[1] == 0xFF)
-            return Encoding.BigEndianUnicode; // UTF-16BE in .NET
-
-        // TS: bytesRead >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf → 'utf8'
-        // UTF-8 BOM：返回带 BOM 的 Encoding.UTF8，保持原有 BOM
-        if (buffer.Length >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF)
-            return Encoding.UTF8;
-
-        // TS: 默认 utf8 — 无 BOM 的文件用无 BOM 编码，避免更新时注入 BOM
-        return s_utf8NoBom;
-    }
+    public static Encoding DetectFromBOM(ReadOnlySpan<byte> buffer) => BclFileIO.DetectFromBOM(buffer);
 
     /// <summary>
     /// 从文件路径检测编码（读取前几个字节检查 BOM）
@@ -57,7 +27,7 @@ public static class FileEncodingDetector {
         CancellationToken cancellationToken = default,
         ILogger? logger = null) {
         if (!fs.FileExists(filePath))
-            return s_utf8NoBom;
+            return Utf8NoBom;
 
         try {
             // 读取前 4 字节足够检测所有 BOM
@@ -73,7 +43,7 @@ public static class FileEncodingDetector {
             // 检测失败时记录警告，而非静默吞异常
             // 下游用 UTF-8 解码可能产生乱码，用户需知晓检测失败
             logger?.LogWarning(ex, "文件编码检测失败，降级为 UTF-8: {FilePath}", filePath);
-            return s_utf8NoBom;
+            return Utf8NoBom;
         }
     }
 
@@ -83,16 +53,7 @@ public static class FileEncodingDetector {
     public static (string Content, Encoding Encoding) DecodeBytes(byte[] bytes) => BclFileIO.Instance.DecodeBytes(bytes);
 
     /// <summary>
-    /// 将字符串编码为字节数组 — 保留原始编码的 BOM（如有）。
+    /// 将字符串编码为字节数组 — 该编码有 BOM 就带上，没有就不带（原文件有无签名原样保持）。
     /// </summary>
-    public static byte[] EncodeString(string content, Encoding encoding) {
-        var preamble = encoding.GetPreamble();
-        var contentBytes = encoding.GetBytes(content);
-        if (preamble.Length == 0)
-            return contentBytes;
-        var bytes = new byte[preamble.Length + contentBytes.Length];
-        Buffer.BlockCopy(preamble, 0, bytes, 0, preamble.Length);
-        Buffer.BlockCopy(contentBytes, 0, bytes, preamble.Length, contentBytes.Length);
-        return bytes;
-    }
+    public static byte[] EncodeString(string content, Encoding encoding) => BclFileIO.EncodeString(content, encoding);
 }

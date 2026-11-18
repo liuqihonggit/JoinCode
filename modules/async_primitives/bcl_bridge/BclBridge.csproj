@@ -4,6 +4,9 @@
     <ProjectType>library</ProjectType>
     <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
     <AllowPack>true</AllowPack>
+    <!-- 纯 System.IO 隔离层，不用 Structura；关掉全局引用后，引用本项目的工具 exe
+         不会白白多拷 141 KB 的 Structura.dll（每个 exe 都拷一份）。 -->
+    <ExcludeStructura>true</ExcludeStructura>
   </PropertyGroup>
 
   <ItemGroup>

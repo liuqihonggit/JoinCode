@@ -27,7 +27,73 @@ internal static class CommandTestHarness
             .AddSingleton<ICodeService>(new StubCodeService())
             .AddSingleton<IPlanService>(new StubPlanService())
             .AddSingleton<IToolRegistry>(new StubToolRegistry())
+            .AddFakeCommandComposition()
             .BuildServiceProvider();
+
+    /// <summary>注册斜杠命令组合桩（DSG051 起 Runner 经 INodeRegistry 取 CommandCategoryNode）：
+    /// 命令注册表（未注入时用源码生成器全量注册）+ 按分类包装的节点注册表 + 固定 Profile。
+    /// 探针命令测试传入自带 registry（已注册探针）复用同一节点投影。</summary>
+    /// <param name="services">DI 集合。</param>
+    /// <param name="commandRegistry">命令注册表（null = 生成器全量注册默认命令）。</param>
+    /// <returns>链式返回服务集合。</returns>
+    public static IServiceCollection AddFakeCommandComposition(
+        this IServiceCollection services,
+        ChatCommandRegistry? commandRegistry = null)
+    {
+        var registry = commandRegistry ?? new ChatCommandRegistry();
+        if (commandRegistry is null)
+        {
+            GeneratedCommandRegistration.RegisterAllChatCommands(registry);
+        }
+
+        return services
+            .AddSingleton(registry)
+            .AddSingleton<INodeRegistry>(new FakeNodeRegistry(registry))
+            .AddSingleton<IProfileManager>(new FakeProfileManager());
+    }
+
+    /// <summary>节点注册表桩 — 命令分类按 ChatCommandRegistry 实时投影（探针后注册也可见）。</summary>
+    private sealed class FakeNodeRegistry(ChatCommandRegistry registry) : INodeRegistry
+    {
+        public bool TryGetNode(string nodeId, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out INode? node)
+        {
+            node = Project().FirstOrDefault(candidate => candidate.NodeId == nodeId);
+            return node is not null;
+        }
+
+        public Task<IReadOnlyList<INode>> GetNodesForConsumerAsync(
+            string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Project());
+
+        public Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(
+            string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default)
+            where T : class =>
+            Task.FromResult<IReadOnlyList<T>>(Project().OfType<T>().ToList());
+
+        private IReadOnlyList<INode> Project() =>
+            Enum.GetValues<ChatCommandCategory>()
+                .Select(category => (INode)new CommandCategoryNode(
+                    $"{category.ToValue()}-command", category, registry.GetByCategory(category)))
+                .ToList();
+    }
+
+    /// <summary>Profile 管理桩 — 固定测试 Profile，切换无操作。</summary>
+    private sealed class FakeProfileManager : IProfileManager
+    {
+        public ResolvedProfile Current { get; } = new(
+            "test", FrozenDictionary<string, ResolvedConsumerConfig>.Empty);
+
+        public IReadOnlyList<string> AvailableProfiles => ["test"];
+
+        public event Func<ResolvedProfile, ResolvedProfile, ValueTask>? ProfileSwitching
+        {
+            add { }
+            remove { }
+        }
+
+        public Task SwitchAsync(string profileName, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
 
     /// <summary>IChatService 记录桩 — ClearHistoryAsync 计数，其余成员不支持。</summary>
     internal sealed class FakeChatService : IChatService

@@ -107,6 +107,7 @@ public sealed class EngineSessionCommandCallbacksTests {
             .AddSingleton<ICodeService>(new StubCodeService())
             .AddSingleton<IPlanService>(new StubPlanService())
             .AddSingleton<IToolRegistry>(new StubToolRegistry())
+            .AddFakeCommandComposition()
             .BuildServiceProvider();
     }
 

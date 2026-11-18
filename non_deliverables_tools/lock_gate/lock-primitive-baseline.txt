@@ -122,11 +122,6 @@ native_gui/src/NativeGui.Core/web_host/DshWorkspaceStore.cs|1
 native_gui/tests/native_gui.core.tests/web_host/DshApprovalBrokerTests.cs|10
 native_gui/tests/native_gui.core.tests/web_host/DshTurnRunnerTests.cs|1
 native_gui/tests/native_gui.core.tests/web_host/DshUserQuestionsTests.cs|1
-native_tui/apps/NativeTui.Host/EngineTurnClient.cs|5
-native_tui/src/NativeTui.Core/bridge/BridgeEventPump.cs|1
-native_tui/src/NativeTui.Core/bridge/LazyEngine.cs|5
-native_tui/src/NativeTui.Core/repl/ReplShell.cs|1
-native_tui/src/NativeTui.Core/repl/input/RawStdinPump.cs|5
 test/benchmarks/async_lock.benchmarks/ContentionBench.cs|4
 test/benchmarks/async_lock.benchmarks/NoContentionBench.cs|4
 test/mock/anthropic.mock_server/Program.cs|1

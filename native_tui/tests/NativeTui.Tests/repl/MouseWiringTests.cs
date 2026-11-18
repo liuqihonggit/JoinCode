@@ -222,12 +222,15 @@ public sealed class MouseWiringTests
     }
 
     /// <summary>transcript 激活 — 滚轮走 transcript 内滚动（基准滚轮经键位系统路由 ScrollBox
-    /// 行滚动，App.tsx:543-545 注释）、其余鼠标吞掉（全屏模态选区交互不在 C6 范围）。</summary>
+    /// 行滚动，App.tsx:543-545 注释）+ 拖拽在 transcript 全屏坐标选区并复制
+    ///（TASK077 鼠标增强起第二屏支持选区 — transcript 渲染坐标与 _back 一致）。</summary>
     [Fact]
-    public void TranscriptActive_WheelScrollsTranscriptAndOtherMouseSwallowed()
+    public void TranscriptActive_WheelScrollsTranscriptAndDragSelects()
     {
         var harness = Harness.Create(seeds: TallSeeds(30));
+        harness.Shell.RenderAndFlush();
         harness.Shell.HandleKey(new ConsoleKeyInfo('\x0f', ConsoleKey.O, false, false, false));
+        harness.Shell.RenderAndFlush();
         Assert.True(harness.Shell.IsTranscriptMode);
         var offsetBefore = harness.Shell.Transcript.ScrollOffset;
         Assert.True(offsetBefore > 0, "前置：transcript 快照超出视口（进入时滚到底）");
@@ -235,9 +238,11 @@ public sealed class MouseWiringTests
         harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.WheelUp, MouseButton.Left, 0, 0));
         Assert.Equal(offsetBefore - 1, harness.Shell.Transcript.ScrollOffset);
 
-        // 其余鼠标（Press）吞掉 — 选区状态机不被激活（模态期间不可交互）
-        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.Press, MouseButton.Left, 0, 0));
-        Assert.False(harness.Selection.IsSelecting);
-        Assert.Empty(harness.Copies);
+        // 拖拽 — transcript 第二屏选区交互（跨行选区非空）+ Release 选中即复制
+        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.Press, MouseButton.Left, 3, 2));
+        Assert.True(harness.Selection.IsSelecting);
+        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.Drag, MouseButton.Left, 8, 4));
+        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.Release, MouseButton.Left, 8, 4));
+        Assert.False(string.IsNullOrEmpty(Assert.Single(harness.Copies)));
     }
 }

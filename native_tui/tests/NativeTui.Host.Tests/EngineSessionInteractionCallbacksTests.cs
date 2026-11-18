@@ -242,7 +242,7 @@ public sealed class EngineSessionInteractionCallbacksTests
             .AddSingleton<ICodeService>(new StubCodeService())
             .AddSingleton<IPlanService>(new StubPlanService())
             .AddSingleton<IToolRegistry>(new StubToolRegistry())
-            .AddSingleton(registry)
+            .AddFakeCommandComposition(registry)
             .BuildServiceProvider();
     }
 

@@ -4,6 +4,8 @@ global using System.Collections.Concurrent;
 global using System.Collections.Frozen;
 global using Core.Configuration;
 global using JoinCode;
+global using JoinCode.Abstractions.Composition;
+global using JoinCode.Abstractions.Composition.Profile;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Providers;

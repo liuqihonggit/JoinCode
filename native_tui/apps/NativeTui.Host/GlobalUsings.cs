@@ -1,6 +1,7 @@
 global using System.Collections.Concurrent;
 global using System.Diagnostics;
 global using System.Text;
+global using System.Threading.Channels;
 global using Core.Configuration;
 global using Core.Permission;
 global using Core.Scheduling.Tasks;

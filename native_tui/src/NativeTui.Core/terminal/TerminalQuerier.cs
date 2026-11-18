@@ -9,13 +9,13 @@ namespace NativeTui.Core.Terminal;
 /// </summary>
 public sealed class TerminalQuerier(TextWriter output) : IDisposable
 {
-    private readonly Dictionary<TerminalResponseKind, TaskCompletionSource<TerminalResponse>> _pending = new();
-    private bool _disposed;
+    private readonly ConcurrentDictionary<TerminalResponseKind, TaskCompletionSource<TerminalResponse>> _pending = new();
+    private int _disposed;
 
     /// <summary>发送查询序列并注册等待 — 回复由 Route 命中同 Kind resolve；超时完成得 null。</summary>
     public async Task<TerminalResponse?> QueryAsync(string sequence, TerminalResponseKind expected, TimeSpan timeout)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         var tcs = new TaskCompletionSource<TerminalResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pending[expected] = tcs;
         output.Write(sequence);
@@ -24,6 +24,7 @@ public sealed class TerminalQuerier(TextWriter output) : IDisposable
         var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout)).ConfigureAwait(false);
         if (completed != tcs.Task)
         {
+            _pending.TryRemove(new KeyValuePair<TerminalResponseKind, TaskCompletionSource<TerminalResponse>>(expected, tcs));
             return null;
         }
 
@@ -42,7 +43,7 @@ public sealed class TerminalQuerier(TextWriter output) : IDisposable
     /// 无等待方返回 false（静默丢弃）。</summary>
     public bool Route(TerminalResponse response)
     {
-        if (!_pending.Remove(response.Kind, out var tcs))
+        if (!_pending.TryRemove(response.Kind, out var tcs))
         {
             return false;
         }
@@ -53,17 +54,15 @@ public sealed class TerminalQuerier(TextWriter output) : IDisposable
     /// <summary>释放 — 剩余等待方全部超时置空完成（不悬挂调用方）。</summary>
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
         {
             return;
         }
 
-        _disposed = true;
-        foreach (var tcs in _pending.Values)
+        foreach (var (kind, tcs) in _pending)
         {
+            _pending.TryRemove(kind, out _);
             tcs.TrySetCanceled();
         }
-
-        _pending.Clear();
     }
 }

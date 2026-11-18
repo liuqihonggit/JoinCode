@@ -84,9 +84,10 @@ public sealed class AlternateScreenMouseComboTests
     }
 
     [Fact]
-    public void AltscreenActive_ClickAndDragSwallowedNoSelectionLeak()
+    public void AltscreenActive_ClickAndDragSelectsTranscript()
     {
-        // 备用屏内点击/拖拽吞掉 — 不产生选区（transcript 态鼠标仅滚轮可用）+ 无复制触发
+        // 备用屏内点击/拖拽 — 第二屏选区交互（TASK077 鼠标增强起）：transcript 全屏坐标
+        // 与 _back 一致，Release 后选中即复制
         var harness = Harness.Create();
         var shell = harness.Shell;
         shell.RenderAndFlush();
@@ -97,8 +98,7 @@ public sealed class AlternateScreenMouseComboTests
         shell.HandleRawKeyPress(new KeyPress(KeyKind.Mouse, string.Empty, Mouse: new MouseEvent(MouseKind.Release, MouseButton.Left, 8, 4, false, false, false)));
         shell.RenderAndFlush();
 
-        // 无选区固化（transcript 态 Press/Drag 吞掉 — 不进入选区状态机锚定）
-        Assert.Empty(harness.Copies);
+        Assert.False(string.IsNullOrEmpty(Assert.Single(harness.Copies)));
     }
 
     [Fact]

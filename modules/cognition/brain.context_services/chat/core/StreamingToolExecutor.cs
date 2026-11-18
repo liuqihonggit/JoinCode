@@ -35,6 +35,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
 
     private ExecutorState _state = ExecutorState.Empty;
     private int _scheduling;
+    private int _scheduleRequested;
     private readonly CancellationTokenSource _siblingCts = new();
     private readonly CancellationTokenSource? _linkedCts;
     private readonly CancellationToken _combinedCt;
@@ -191,7 +192,13 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
 
     private void TrySchedule() {
         if (_discarded) return;
-        if (Interlocked.CompareExchange(ref _scheduling, 1, 0) != 0) return;
+        if (Interlocked.CompareExchange(ref _scheduling, 1, 0) != 0) {
+            // 已有调度循环在跑 — 只记下"队列有变化"，由它在退出前再扫一次。
+            // 不能在这里直接判断"还有 Queued 就重排"：排队工具可能在等执行槽位
+            // （非安全工具等安全工具跑完），那会让循环空转占满线程池。
+            Volatile.Write(ref _scheduleRequested, 1);
+            return;
+        }
 
         _ = FireAndForgetTask<Unit>.Run(async _ => {
             try {
@@ -200,12 +207,10 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
                 _logger?.LogError(ex, "[StreamingToolExecutor] 调度循环异常");
             } finally {
                 Volatile.Write(ref _scheduling, 0);
-                if (!_discarded && HasQueuedTools()) TrySchedule();
+                if (Interlocked.Exchange(ref _scheduleRequested, 0) != 0 && !_discarded) TrySchedule();
             }
         }, "streaming-tool-schedule");
     }
-
-    private bool HasQueuedTools() => Volatile.Read(ref _state).Queue.Any(t => t.Status == ToolStatus.Queued);
 
     private async Task ScheduleLoopAsync() {
         while (true) {

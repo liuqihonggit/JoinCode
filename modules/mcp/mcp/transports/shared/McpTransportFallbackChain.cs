@@ -13,7 +13,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport {
     private readonly ILogger? _logger;
     private IMcpTransport? _activeTransport;
     private int _activeIndex = -1;
-    private readonly AsyncLock _switchLock = new();
+    private TaskCompletionSource? _switchGate;
     private int _disposed;
 
     /// <summary>收到 JSON-RPC 消息事件</summary>
@@ -28,7 +28,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport {
     /// <summary>当前活跃传输的类型名</summary>
     public string ActiveTransportType => _activeTransport?.GetType().Name ?? "none";
     /// <summary>当前活跃传输在传输数组中的索引,无活跃传输时为 -1</summary>
-    public int ActiveTransportIndex => _activeIndex;
+    public int ActiveTransportIndex => Volatile.Read(ref _activeIndex);
     /// <summary>降级链配置</summary>
     public TransportFallbackConfig Config => _config;
     /// <summary>降级指标快照</summary>
@@ -80,7 +80,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport {
             _logger?.LogWarning("[TransportFallback] Fallback chain disabled, using first transport only");
             await _transports[0].StartAsync(ct).ConfigureAwait(false);
             _activeTransport = _transports[0];
-            _activeIndex = 0;
+            Volatile.Write(ref _activeIndex, 0);
             WireEvents(_activeTransport);
             return;
         }
@@ -128,7 +128,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport {
             try {
                 await _transports[i].StartAsync(transportCts.Token).ConfigureAwait(false);
                 _activeTransport = _transports[i];
-                _activeIndex = i;
+                Volatile.Write(ref _activeIndex, i);
                 _circuitBreakers[i].RecordSuccess();
                 _metrics.RecordConnection(i);
                 WireEvents(_activeTransport);
@@ -165,7 +165,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport {
             UnwireEvents(_activeTransport);
             await _activeTransport.StopAsync(ct).ConfigureAwait(false);
             _activeTransport = null;
-            _activeIndex = -1;
+            Volatile.Write(ref _activeIndex, -1);
         }
     }
 
@@ -183,24 +183,34 @@ public sealed class McpTransportFallbackChain : IMcpTransport {
     }
 
     private async Task OnActiveTransportErrorAsync(Exception ex) {
-        if (_activeIndex < 0 || _activeIndex >= _transports.Length - 1) return;
+        if (Volatile.Read(ref _activeIndex) < 0 || Volatile.Read(ref _activeIndex) >= _transports.Length - 1) return;
 
-        IMcpTransport? oldTransport;
-        int nextIndex;
-        int oldIndex;
+        // 单飞降级：同一时刻只有一个切换者，其余错误直接放弃（切换完成后索引已推进）
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (Interlocked.CompareExchange(ref _switchGate, gate, null) != null) return;
 
-        using (var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时")) {
-            if (_activeIndex >= _transports.Length - 1) return;
-
-            nextIndex = FindNextAvailableTransport(_activeIndex + 1);
-            if (nextIndex < 0) {
-                _logger?.LogWarning("[TransportFallback] No available fallback transport (all circuit breakers open)");
-                return;
-            }
-
-            oldTransport = _activeTransport;
-            oldIndex = _activeIndex;
+        try {
+            await FallbackAsync(ex).ConfigureAwait(false);
+            gate.TrySetResult();
+        } catch (Exception switchEx) {
+            gate.TrySetException(switchEx);
+            throw;
+        } finally {
+            _ = Interlocked.CompareExchange(ref _switchGate, null, gate);
         }
+    }
+
+    private async Task FallbackAsync(Exception ex) {
+        if (Volatile.Read(ref _activeIndex) >= _transports.Length - 1) return;
+
+        var nextIndex = FindNextAvailableTransport(Volatile.Read(ref _activeIndex) + 1);
+        if (nextIndex < 0) {
+            _logger?.LogWarning("[TransportFallback] No available fallback transport (all circuit breakers open)");
+            return;
+        }
+
+        var oldTransport = _activeTransport;
+        var oldIndex = Volatile.Read(ref _activeIndex);
 
         _logger?.LogWarning(ex, "[TransportFallback] Transport {FromType} connection lost, falling back to {ToType}",
             _transports[oldIndex].GetType().Name, _transports[nextIndex].GetType().Name);
@@ -215,13 +225,10 @@ public sealed class McpTransportFallbackChain : IMcpTransport {
 
             await _transports[nextIndex].StartAsync(CancellationToken.None).ConfigureAwait(false);
 
-            string fromType;
-            using (var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时")) {
-                fromType = _transports[oldIndex].GetType().Name;
-                _activeTransport = _transports[nextIndex];
-                _activeIndex = nextIndex;
-                WireEvents(_activeTransport);
-            }
+            var fromType = _transports[oldIndex].GetType().Name;
+            _activeTransport = _transports[nextIndex];
+            Volatile.Write(ref _activeIndex, nextIndex);
+            WireEvents(_activeTransport);
 
             _circuitBreakers[nextIndex].RecordSuccess();
             var duration = (DateTimeOffset.UtcNow - fallbackStart).TotalMilliseconds;
@@ -292,7 +299,6 @@ public sealed class McpTransportFallbackChain : IMcpTransport {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
-        _switchLock.Dispose();
 
         foreach (var cb in _circuitBreakers) {
             cb.Dispose();

@@ -179,7 +179,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
     private readonly ILogger? _logger;
     private readonly IClockService _clock;
     private readonly List<string> _scopes;
-    private readonly AsyncLock _refreshLock = new();
+    private Task _mutationTail = Task.CompletedTask;
 
     private readonly McpAuthContext _authContext = new();
     private string? _pendingStepUpScope;
@@ -280,44 +280,44 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>刷新成功返回 true,失败返回 false。</returns>
     public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
-        try {
-            _logger?.LogInformation("正在刷新 OAuth2 令牌...");
+        return await RunSerializedAsync(async () => {
+            try {
+                _logger?.LogInformation("正在刷新 OAuth2 令牌...");
 
-            var parameters = new Dictionary<string, string> {
-                ["grant_type"] = "client_credentials",
-                ["client_id"] = _options.ClientId,
-                ["client_secret"] = _options.ClientSecret,
-                ["scope"] = string.Join(" ", _scopes)
-            };
+                var parameters = new Dictionary<string, string> {
+                    ["grant_type"] = "client_credentials",
+                    ["client_id"] = _options.ClientId,
+                    ["client_secret"] = _options.ClientSecret,
+                    ["scope"] = string.Join(" ", _scopes)
+                };
 
-            var tokenResponse = await OAuth2TokenExchange.ExchangeTokenAsync(
-                _httpClient, _options.TokenUrl, parameters,
-                McpClientJsonContext.Default.OAuth2TokenResponse, _logger, cancellationToken).ConfigureAwait(false);
+                var tokenResponse = await OAuth2TokenExchange.ExchangeTokenAsync(
+                    _httpClient, _options.TokenUrl, parameters,
+                    McpClientJsonContext.Default.OAuth2TokenResponse, _logger, cancellationToken).ConfigureAwait(false);
 
-            _authContext.AccessToken = tokenResponse.AccessToken;
-            _authContext.RefreshToken = tokenResponse.RefreshToken;
-            _authContext.Scope = tokenResponse.Scope ?? _authContext.Scope;
-            Volatile.Write(ref _needsStepUpState, 0);
+                _authContext.AccessToken = tokenResponse.AccessToken;
+                _authContext.RefreshToken = tokenResponse.RefreshToken;
+                _authContext.Scope = tokenResponse.Scope ?? _authContext.Scope;
+                Volatile.Write(ref _needsStepUpState, 0);
 
-            if (tokenResponse.ExpiresIn > 0) {
-                _authContext.ExpiresAt = _clock.GetUtcNow().AddSeconds(tokenResponse.ExpiresIn);
+                if (tokenResponse.ExpiresIn > 0) {
+                    _authContext.ExpiresAt = _clock.GetUtcNow().AddSeconds(tokenResponse.ExpiresIn);
+                }
+
+                if (!NeedsStepUp) {
+                    ClearStepUpPending();
+                }
+
+                _logger?.LogInformation("OAuth2 令牌刷新成功");
+                return true;
+            } catch (OAuthException ex) {
+                _logger?.LogError(ex, "刷新令牌失败");
+                return false;
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "刷新令牌时发生异常");
+                return false;
             }
-
-            if (!NeedsStepUp) {
-                ClearStepUpPending();
-            }
-
-            _logger?.LogInformation("OAuth2 令牌刷新成功");
-            return true;
-        } catch (OAuthException ex) {
-            _logger?.LogError(ex, "刷新令牌失败");
-            return false;
-        } catch (Exception ex) {
-            _logger?.LogError(ex, "刷新令牌时发生异常");
-            return false;
-        }
-
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task EnsureAuthenticatedAsync(CancellationToken cancellationToken) {
@@ -331,24 +331,33 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
         }
     }
 
-    /// <summary>
-    /// 释放同步资源 — 释放刷新锁(HttpClient 为借用句柄,不释放)。
-    /// </summary>
-    public void Dispose() {
+    /// <summary>串行化令牌状态写操作 — 单写者任务链，后序操作等待前序完成，无需锁。</summary>
+    private async Task<T> RunSerializedAsync<T>(Func<Task<T>> action, CancellationToken cancellationToken) {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var previous = Interlocked.Exchange(ref _mutationTail, completion.Task);
         try {
-            _refreshLock.Dispose();
+            try { await previous.ConfigureAwait(false); } catch (Exception ex) {
+                _logger?.LogDebug(ex, "前序令牌操作失败,继续当前操作");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = await action().ConfigureAwait(false);
+            completion.SetResult();
+            return result;
         } catch (Exception ex) {
-            _logger?.LogWarning(ex, "OAuth2AuthProvider: 释放 refresh lock 失败");
+            completion.SetException(ex);
+            throw;
         }
     }
 
     /// <summary>
-    /// 释放异步资源 — 释放刷新锁,幂等保护防止重复释放(HttpClient 为借用句柄,不释放)。
+    /// 释放异步资源 — 等待在途令牌操作完成后释放,幂等保护防止重复释放(HttpClient 为借用句柄,不释放)。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _refreshLock.Dispose();
+        try { await _mutationTail.ConfigureAwait(false); } catch (Exception ex) {
+            _logger?.LogDebug(ex, "等待令牌操作完成时出错");
+        }
     }
 }
 

@@ -8,7 +8,6 @@ public sealed partial class McpOAuthService : ServiceEntity {
     private readonly McpOAuthOptions _options;
     private readonly McpPkceAuthProvider _authProvider;
     private readonly ILogger<McpOAuthService>? _logger;
-    private readonly AsyncLock _stateLock = new();
     private HttpListener? _callbackListener;
 
     /// <summary>
@@ -141,7 +140,6 @@ public sealed partial class McpOAuthService : ServiceEntity {
     public override async ValueTask DisposeAsync() {
         StopCallbackListener();
         await _authProvider.DisposeAsync().ConfigureAwait(false);
-        _stateLock.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

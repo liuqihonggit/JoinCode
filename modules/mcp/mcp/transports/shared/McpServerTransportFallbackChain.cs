@@ -9,7 +9,7 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport {
     private readonly ILogger? _logger;
     private IMcpTransport? _activeTransport;
     private int _activeIndex = -1;
-    private readonly AsyncLock _switchLock = new();
+    private TaskCompletionSource? _switchGate;
     private int _disposed;
 
     /// <summary>收到 JSON-RPC 消息事件</summary>
@@ -57,7 +57,7 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport {
 
                 await _transports[i].StartAsync(ct).ConfigureAwait(false);
                 _activeTransport = _transports[i];
-                _activeIndex = i;
+                Volatile.Write(ref _activeIndex, i);
                 WireEvents(_activeTransport);
 
                 _logger?.LogInformation("[ServerFallback] Server started on {Type} (priority={Priority})",
@@ -82,7 +82,7 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport {
             UnwireEvents(_activeTransport);
             await _activeTransport.StopAsync(ct).ConfigureAwait(false);
             _activeTransport = null;
-            _activeIndex = -1;
+            Volatile.Write(ref _activeIndex, -1);
         }
     }
 
@@ -100,14 +100,29 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport {
     }
 
     private async Task OnActiveTransportErrorAsync(Exception ex) {
-        if (_activeIndex < 0 || _activeIndex >= _transports.Length - 1) return;
+        if (Volatile.Read(ref _activeIndex) < 0 || Volatile.Read(ref _activeIndex) >= _transports.Length - 1) return;
 
-        using var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时");
+        // 单飞降级：同一时刻只有一个切换者，其余错误直接放弃（切换后索引已推进，无需排队）
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (Interlocked.CompareExchange(ref _switchGate, gate, null) != null) return;
 
-        if (_activeIndex >= _transports.Length - 1) return;
+        try {
+            await DegradeAsync(ex).ConfigureAwait(false);
+            gate.TrySetResult();
+        } catch (Exception switchEx) {
+            gate.TrySetException(switchEx);
+            throw;
+        } finally {
+            _ = Interlocked.CompareExchange(ref _switchGate, null, gate);
+        }
+    }
 
-        var fromType = _transports[_activeIndex].GetType().Name;
-        var nextIndex = _activeIndex + 1;
+    private async Task DegradeAsync(Exception ex) {
+        if (Volatile.Read(ref _activeIndex) >= _transports.Length - 1) return;
+
+        var index = Volatile.Read(ref _activeIndex);
+        var fromType = _transports[index].GetType().Name;
+        var nextIndex = index + 1;
 
         _logger?.LogWarning(ex, "[ServerFallback] Transport {FromType} runtime error, degrading to {ToType}",
             fromType, _transports[nextIndex].GetType().Name);
@@ -120,7 +135,7 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport {
         try {
             await _transports[nextIndex].StartAsync(CancellationToken.None).ConfigureAwait(false);
             _activeTransport = _transports[nextIndex];
-            _activeIndex = nextIndex;
+            Volatile.Write(ref _activeIndex, nextIndex);
             WireEvents(_activeTransport);
 
             FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs {
@@ -128,7 +143,7 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport {
                 ToTransportType = _transports[nextIndex].GetType().Name,
                 Reason = ex.Message,
                 IsServerSide = true,
-                FromPriority = _activeIndex,
+                FromPriority = index,
                 ToPriority = nextIndex + 1,
             });
 
@@ -138,7 +153,6 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport {
             _logger?.LogError(fallbackEx, "[ServerFallback] Degradation to {Type} also failed",
                 _transports[nextIndex].GetType().Name);
         }
-
     }
 
     private void WireEvents(IMcpTransport transport) {
@@ -171,7 +185,6 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
-        _switchLock.Dispose();
 
         foreach (var transport in _transports) {
             await transport.DisposeAsync().ConfigureAwait(false);

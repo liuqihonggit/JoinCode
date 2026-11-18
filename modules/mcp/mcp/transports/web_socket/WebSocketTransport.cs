@@ -8,7 +8,6 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport {
     private readonly McpServerConnectionConfig _config;
     private readonly IMcpAuthProvider? _authProvider;
     private readonly ILogger<WebSocketTransport>? _logger;
-    private readonly AsyncLock _receiveLock = new();
     private System.Net.WebSockets.ClientWebSocket? _ws;
 
     /// <summary>IMcpTransport: 收到 JSON-RPC 消息</summary>
@@ -165,7 +164,6 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport {
     public override async ValueTask DisposeAsync() {
         _ws?.Dispose();
         _ws = null;
-        _receiveLock.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

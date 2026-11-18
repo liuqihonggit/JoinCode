@@ -10,9 +10,8 @@ namespace McpToolDispatch;
 /// </summary>
 [McpToolDispatch(ToolCategory.McpAuth)]
 public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider {
-    private readonly Dictionary<string, IMcpAuthProvider> _authProviders = new();
+    private volatile ImmutableHamT<string, IMcpAuthProvider> _authProviders = ImmutableHamT<string, IMcpAuthProvider>.Empty;
     private readonly ILogger? _logger;
-    private readonly AsyncLock _authLock = new();
     private readonly IMcpAuthPersistenceService? _persistenceService;
     private readonly IHttpClientProvider? _httpClientProvider;
     private int _disposed;
@@ -52,7 +51,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
 
         return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var provider = new ApiKeyAuthProvider(api_key, header_name);
-            _authProviders[auth_name] = provider;
+            SetProvider(auth_name, provider);
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.ApiKey, cancellationToken).ConfigureAwait(false);
             await SaveAuthEntryAsync(new McpAuthEntry { AuthName = auth_name, AuthType = "ApiKey", ApiKey = api_key, HeaderName = header_name }, cancellationToken).ConfigureAwait(false);
@@ -83,7 +82,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
 
         return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var provider = new BearerAuthProvider(token);
-            _authProviders[auth_name] = provider;
+            SetProvider(auth_name, provider);
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.Bearer, cancellationToken).ConfigureAwait(false);
             await SaveAuthEntryAsync(new McpAuthEntry { AuthName = auth_name, AuthType = "Bearer", Token = token }, cancellationToken).ConfigureAwait(false);
@@ -115,7 +114,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
 
         return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var provider = new BasicAuthProvider(username, password);
-            _authProviders[auth_name] = provider;
+            SetProvider(auth_name, provider);
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.Basic, cancellationToken).ConfigureAwait(false);
             await SaveAuthEntryAsync(new McpAuthEntry { AuthName = auth_name, AuthType = "Basic", Username = username, Password = password }, cancellationToken).ConfigureAwait(false);
@@ -168,9 +167,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
                 Logger = _logger,
             });
 
-            using (var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时")) {
-                _authProviders[auth_name] = provider;
-            }
+            SetProvider(auth_name, provider);
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.OAuth2, cancellationToken).ConfigureAwait(false);
             await SaveAuthEntryAsync(new McpAuthEntry { AuthName = auth_name, AuthType = "OAuth2", ClientId = client_id, ClientSecret = client_secret, TokenUrl = token_url, Scopes = scopeList }, cancellationToken).ConfigureAwait(false);
@@ -200,15 +197,12 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
             return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
-        IMcpAuthProvider? provider;
-        using (var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时")) {
-            if (!_authProviders.TryGetValue(auth_name, out provider)) {
-                return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
-            }
+        if (!_authProviders.TryGetValue(auth_name, out var provider)) {
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
         }
 
         try {
-            var success = await provider!.RefreshAsync(cancellationToken).ConfigureAwait(false);
+            var success = await provider.RefreshAsync(cancellationToken).ConfigureAwait(false);
 
             if (success) {
                 return ToolResultBuilder.Success()
@@ -280,7 +274,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         }
 
         try {
-            if (!_authProviders.Remove(auth_name)) {
+            if (!RemoveProvider(auth_name)) {
                 return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.AuthConfigNotFound, auth_name))
                     .Build();
@@ -360,13 +354,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
                 _logger?.LogWarning(ex, L.T(StringKey.DisposeAuthProviderErrorLog));
             }
         }
-        _authProviders.Clear();
-
-        try {
-            _authLock.Dispose();
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, L.T(StringKey.DisposeTimeoutOrFailedLog));
-        }
+        _authProviders = ImmutableHamT<string, IMcpAuthProvider>.Empty;
     }
 
     /// <summary>
@@ -377,7 +365,25 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         await _loadTask.DisposeAsync().ConfigureAwait(false);
         await Task.WhenAll(_authProviders.Values.OfType<IAsyncDisposable>()
             .Select(p => p.DisposeAsync().AsTask())).ConfigureAwait(false);
-        _authProviders.Clear();
-        _authLock.Dispose();
+        _authProviders = ImmutableHamT<string, IMcpAuthProvider>.Empty;
+    }
+
+    /// <summary>发布认证提供者 — 不可变快照 CAS，读侧零同步</summary>
+    private void SetProvider(string authName, IMcpAuthProvider provider) {
+        while (true) {
+            var current = _authProviders;
+            var updated = current.SetItem(authName, provider);
+            if (Interlocked.CompareExchange(ref _authProviders, updated, current) == current) return;
+        }
+    }
+
+    /// <summary>移除认证提供者 — 不可变快照 CAS，返回是否存在</summary>
+    private bool RemoveProvider(string authName) {
+        while (true) {
+            var current = _authProviders;
+            if (!current.ContainsKey(authName)) return false;
+            var updated = current.Remove(authName);
+            if (Interlocked.CompareExchange(ref _authProviders, updated, current) == current) return true;
+        }
     }
 }

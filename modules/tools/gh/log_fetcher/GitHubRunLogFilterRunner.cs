@@ -226,7 +226,7 @@ internal sealed class GitHubRunLogFilterRunner {
     /// 探测失败(API 错误/无 check_run_url)按非超时处理,不误判。</para>
     /// <para>缓存 key=gh:jobs:timeout:{runId}(已完成 run 的超时判定不可变,同 jobs 列表缓存策略);
     /// wantRefresh=true 跳过缓存读(仍写缓存)。无 cancelled job 时直接返回空集,不发任何 API。</para>
-    /// <para>并行探测: SemaphoreSlim 限流,对齐 expand=failed 的并行下载模式。</para>
+    /// <para>并行探测: 工作者池限流,对齐 expand=failed 的并行下载模式。</para>
     /// </summary>
     /// <param name="owner">仓库 owner</param>
     /// <param name="repo">仓库名</param>
@@ -245,21 +245,28 @@ internal sealed class GitHubRunLogFilterRunner {
             && await TryGetCachedTimeoutJobIdsAsync(runId, ct).ConfigureAwait(false) is { } cachedIds)
             return cachedIds;
 
-        // 并行探测各 cancelled job 的 check-run annotations
+        // 并行探测各 cancelled job 的 check-run annotations — 工作者池限流
         var concurrency = Math.Min(cancelledJobs.Count, GetMaxConcurrency());
-        using var semaphore = new SemaphoreSlim(concurrency);
-        var probeTasks = cancelledJobs.Select(async job => {
-            if (!TryExtractCheckRunId(job.CheckRunUrl, out var checkRunId)) return (job.Id.Value, false);
-            await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
+        var probeResults = new (long JobId, bool IsTimeout)[cancelledJobs.Count];
+        var nextProbeIndex = -1;
+
+        async Task ProbeWorkerAsync() {
+            while (true) {
+                var index = Interlocked.Increment(ref nextProbeIndex);
+                if (index >= cancelledJobs.Count) return;
+                var job = cancelledJobs[index];
+                if (!TryExtractCheckRunId(job.CheckRunUrl, out var checkRunId)) {
+                    probeResults[index] = (job.Id.Value, false);
+                    continue;
+                }
                 var isTimeout = await IsTimeoutCancelledAsync(owner, repo, checkRunId, ct).ConfigureAwait(false);
-                return (job.Id.Value, isTimeout);
-            } finally {
-                semaphore.Release();
+                probeResults[index] = (job.Id.Value, isTimeout);
             }
-        }).ToArray();
-        var probeResults = await Task.WhenAll(probeTasks).ConfigureAwait(false);
-        var timeoutIds = probeResults.Where(r => r.Item2).Select(r => r.Item1).ToHashSet();
+        }
+
+        var probeWorkerCount = Math.Max(1, concurrency);
+        await Task.WhenAll(Enumerable.Range(0, probeWorkerCount).Select(_ => ProbeWorkerAsync())).ConfigureAwait(false);
+        var timeoutIds = probeResults.Where(r => r.IsTimeout).Select(r => r.JobId).ToHashSet();
 
         await WriteCachedTimeoutJobIdsAsync(runId, timeoutIds, ct).ConfigureAwait(false);
         return timeoutIds;
@@ -340,22 +347,27 @@ internal sealed class GitHubRunLogFilterRunner {
         // 并发限制参数化,避免 GitHub API 二级限速(对齐旧系统 TryDownloadJobsAsync)
         var channel = Channel.CreateUnbounded<string>();
         var writer = channel.Writer;
-        using var semaphore = new SemaphoreSlim(maxConcurrency);
+        var nextJobIndex = -1;
 
-        var tasks = jobIds.Select(async jobId => {
-            await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                await foreach (var line in GetOrFetchJobLogsAsync(owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false)) {
-                    await writer.WriteAsync(line, ct).ConfigureAwait(false);
+        async Task JobWorkerAsync() {
+            while (true) {
+                var index = Interlocked.Increment(ref nextJobIndex);
+                if (index >= jobIds.Count) return;
+                var jobId = jobIds[index];
+                try {
+                    await foreach (var line in GetOrFetchJobLogsAsync(owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false)) {
+                        await writer.WriteAsync(line, ct).ConfigureAwait(false);
+                    }
+                } catch (OperationCanceledException) {
+                    // 取消: 静默退出,channel 由外部完成
+                } catch (Exception ex) {
+                    await writer.WriteAsync($"[ERROR] job {jobId}: {ex.Message}", CancellationToken.None).ConfigureAwait(false);
                 }
-            } catch (OperationCanceledException) {
-                // 取消: 静默退出,channel 由外部完成
-            } catch (Exception ex) {
-                await writer.WriteAsync($"[ERROR] job {jobId}: {ex.Message}", CancellationToken.None).ConfigureAwait(false);
-            } finally {
-                semaphore.Release();
             }
-        }).ToArray();
+        }
+
+        var jobWorkerCount = Math.Clamp(maxConcurrency, 1, jobIds.Count);
+        var tasks = Enumerable.Range(0, jobWorkerCount).Select(_ => JobWorkerAsync()).ToArray();
 
         // 后台等待所有完成后关闭 channel(不阻塞调用方 yield)
         _ = FireAndForgetTask<Unit>.Run(async ct => {
@@ -613,7 +625,7 @@ internal sealed class GitHubRunLogFilterRunner {
 
     /// <summary>
     /// 并行提取多个 job 的失败测试信息 — Channel 流水线模型,下载+解析重叠
-    /// <para>生产者: SemaphoreSlim 控制并发下载+解析,完成即推 channel</para>
+    /// <para>生产者: 工作者池控制并发下载+解析,完成即推 channel</para>
     /// <para>消费者: 流式收集结果到 Dictionary,不等所有 job 完成</para>
     /// <para>计时: 返回 per-job 耗时(ms),供调用方诊断瓶颈(下载慢 vs 解析慢)</para>
     /// </summary>
@@ -622,28 +634,33 @@ internal sealed class GitHubRunLogFilterRunner {
         int maxConcurrency, bool wantRefresh, CancellationToken ct) {
         if (jobIds.Count == 0) return (new(), "");
 
-        using var semaphore = new SemaphoreSlim(maxConcurrency);
         var channel = Channel.CreateUnbounded<(long jobId, List<TestFailureInfo> failures, long elapsedMs)>();
         var writer = channel.Writer;
         var sw = System.Diagnostics.Stopwatch.StartNew();
+        var nextJobIndex2 = -1;
 
-        // 生产者: 并行下载+解析,完成即推 channel(流水线: 下载完一个就推,不等其他)
-        var producerTasks = jobIds.Select(async jobId => {
-            await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                var jobSw = System.Diagnostics.Stopwatch.StartNew();
-                var failures = await ExtractFailuresForJobAsync(
-                    owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false);
-                jobSw.Stop();
-                await writer.WriteAsync((jobId, failures, jobSw.ElapsedMilliseconds), ct).ConfigureAwait(false);
-            } catch (OperationCanceledException) {
-                // 取消: 静默退出
-            } catch (Exception) {
-                await writer.WriteAsync((jobId, new List<TestFailureInfo>(), -1), CancellationToken.None).ConfigureAwait(false);
-            } finally {
-                semaphore.Release();
+        // 生产者: 工作者池限流并行下载+解析,完成即推 channel(流水线: 下载完一个就推,不等其他)
+        async Task ProducerWorkerAsync() {
+            while (true) {
+                var index = Interlocked.Increment(ref nextJobIndex2);
+                if (index >= jobIds.Count) return;
+                var jobId = jobIds[index];
+                try {
+                    var jobSw = System.Diagnostics.Stopwatch.StartNew();
+                    var failures = await ExtractFailuresForJobAsync(
+                        owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false);
+                    jobSw.Stop();
+                    await writer.WriteAsync((jobId, failures, jobSw.ElapsedMilliseconds), ct).ConfigureAwait(false);
+                } catch (OperationCanceledException) {
+                    // 取消: 静默退出
+                } catch (Exception) {
+                    await writer.WriteAsync((jobId, new List<TestFailureInfo>(), -1), CancellationToken.None).ConfigureAwait(false);
+                }
             }
-        }).ToArray();
+        }
+
+        var producerWorkerCount = Math.Clamp(maxConcurrency, 1, jobIds.Count);
+        var producerTasks = Enumerable.Range(0, producerWorkerCount).Select(_ => ProducerWorkerAsync()).ToArray();
 
         // 后台等待所有生产者完成后关闭 channel
         _ = FireAndForgetTask<Unit>.Run(async ct => {

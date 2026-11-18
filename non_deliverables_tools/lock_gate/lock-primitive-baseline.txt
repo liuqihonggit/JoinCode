@@ -27,7 +27,6 @@ modules/async_primitives/async_lock/lock/LockRegistry.cs|1
 modules/async_primitives/async_lock/lock/LockTimeoutPolicy.cs|1
 modules/async_primitives/async_lock/lock/OrderedLockManager.cs|4
 modules/async_primitives/async_lock/mailbox/PriorityMailbox.cs|1
-modules/cognition/brain.context_services/chat/core/StreamingToolExecutor.cs|1
 modules/cognition/brain_planning/planning/planning2/PlanModeManager.cs|1
 modules/composition/composition.tests/commands_wave123/CommandTestHarness.cs|1
 modules/guard/guard.config.tests/configuration/core/FastModeServiceTests.cs|1
@@ -39,14 +38,6 @@ modules/llm/agents.fork/AgentBase.cs|2
 modules/llm/agents.fork/ForkSubAgentManagerActor.cs|3
 modules/llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorConcurrencyTests.cs|2
 modules/llm/llm.tests/Adapters/Fallback/StreamIdleWatchdogTests.cs|2
-modules/mcp/mcp/auth/o_auth/McpOAuthService.cs|1
-modules/mcp/mcp/auth/o_auth/McpPkceAuthProvider.cs|1
-modules/mcp/mcp/client/auth/InteractiveElicitationHandler.cs|1
-modules/mcp/mcp/client/auth/McpAuthProviders.cs|1
-modules/mcp/mcp/core/handlers/McpAuthToolHandlers.cs|1
-modules/mcp/mcp/transports/shared/McpServerTransportFallbackChain.cs|1
-modules/mcp/mcp/transports/shared/McpTransportFallbackChain.cs|1
-modules/mcp/mcp/transports/web_socket/WebSocketTransport.cs|1
 modules/perception/code_index.tests/a_to_c/ConcurrencySafetyTests.cs|2
 modules/perception/code_index.tests/p_to_t/TimeoutLockTests.cs|10
 modules/perception/code_index/core/TimeoutLock.cs|3
@@ -84,8 +75,6 @@ modules/storage/vault.memdir.tests/AdvisorServicePersistenceTests.cs|3
 modules/storage/vault.memdir.tests/EditorModeServicePersistenceTests.cs|3
 modules/storage/vault.other.tests/state/StorePersistenceTests.cs|3
 modules/storage/vault/memdir/memdir2/services/core/ConfigPersistentServiceBase.cs|1
-modules/tools/gh/handlers/GitHubToolHandlers.Run.cs|2
-modules/tools/gh/log_fetcher/GitHubRunLogFilterRunner.cs|3
 test/benchmarks/async_lock.benchmarks/ContentionBench.cs|4
 test/benchmarks/async_lock.benchmarks/NoContentionBench.cs|4
 test/mock/anthropic.mock_server/Program.cs|1

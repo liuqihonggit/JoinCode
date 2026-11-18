@@ -27,10 +27,6 @@ modules/async_primitives/async_lock/lock/LockRegistry.cs|1
 modules/async_primitives/async_lock/lock/LockTimeoutPolicy.cs|1
 modules/async_primitives/async_lock/lock/OrderedLockManager.cs|4
 modules/async_primitives/async_lock/mailbox/PriorityMailbox.cs|1
-modules/async_primitives/transport.impl/bridge/shared/messaging/BoundedUUIDSet.cs|1
-modules/async_primitives/transport.impl/bridge/shared/messaging/SerialBatchEventUploader.cs|1
-modules/async_primitives/transport.impl/shared/BufferedChannel.cs|1
-modules/async_primitives/transport.impl/shared/TransportBase.cs|1
 modules/cognition/brain.context_services/chat/core/StreamingToolExecutor.cs|1
 modules/cognition/brain_planning/planning/planning2/PlanModeManager.cs|1
 modules/cognition/hands/integration/core/ChromeIntegrationService.cs|1

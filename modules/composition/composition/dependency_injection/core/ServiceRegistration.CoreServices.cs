@@ -60,7 +60,7 @@ public static partial class ServiceRegistration {
             .ValidateOnStart();
 
         // IKvStoreLeaseFactory — 根据 JCC_FILE_SYSTEM_MODE 环境变量决定后端
-        // 默认 PithosKvStoreLeaseFactory（租约模式+跨进程 Mutex，ADR 0139），InMemory=纯内存
+        // 默认 PithosKvStoreLeaseFactory（租约模式+跨进程原子文件租约，ADR 0139），InMemory=纯内存
         services.AddEnvSwitch<IKvStoreLeaseFactory>(
             JccEnvVar.FileSystemMode, "InMemory",
             _ => new InMemoryKvStoreLeaseFactory(),

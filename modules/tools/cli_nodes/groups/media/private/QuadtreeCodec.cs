@@ -2,9 +2,9 @@
 // 只保留纯 C# 网格计算（BuildGrid/GetNeighbor/PaintCells/坐标映射），剔除 [Register] DI 特性与
 // SkiaSharp 图像解码。quadtree_build 唯一的 SKBitmap.Decode（取图片宽高）改用纯 BCL PngHeaderParser。
 // 编码：数字点分路径 L0.2.1，象限序 SW=0/SE=1/NW=2/NE=3（左下起算）。
-using System.Globalization;
-using System.Text;
-using System.Text.Json.Serialization;
+
+
+
 
 namespace JoinCode.CliNode.Media;
 

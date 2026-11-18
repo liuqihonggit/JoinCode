@@ -1,4 +1,4 @@
-﻿namespace PithosDB.Core.Core;
+namespace PithosDB.Core;
 
 /// <summary>
 /// Byte-lexicographic comparer for <see cref="T:byte[]"/> keys. Implements both

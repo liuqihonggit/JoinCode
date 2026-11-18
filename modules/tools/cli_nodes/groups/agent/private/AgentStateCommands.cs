@@ -2,10 +2,10 @@
 // 状态全部文件化到 ~/.jcc/（与宿主同一份文件，单一真相源）。用 JsonNode 读写以兼容宿主 DTO 字段，
 // 不引任何引擎类型。活 agent（subagent_*/task_stop*/goal_update/verify_plan_execution）绑定进程内
 // LLM 循环，物理边界，留宿主。
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using JoinCode.Abstractions.Tools;
+
+
+
+
 
 namespace JoinCode.CliNode.Agent;
 

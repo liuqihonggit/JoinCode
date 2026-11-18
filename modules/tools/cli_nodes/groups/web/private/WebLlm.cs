@@ -1,9 +1,9 @@
 // web_fetch 的二级模型调用 —— 纯 BCL HttpClient 直调 OpenAI-compatible /chat/completions。
 // 与 code 组 CodeLlm、media 组 MediaLlm 同一套做法；三处重复是依赖墙的代价（每个 exe 只引契约层，
 // 不共享 Infrastructure），改这里时请同步那两处（有测试覆盖的部分在宿主侧）。
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+
+
+
 
 namespace JoinCode.CliNode.Web;
 

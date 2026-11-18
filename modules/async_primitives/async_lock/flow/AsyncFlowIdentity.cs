@@ -7,7 +7,7 @@ namespace Core.Utils;
 /// SetFlowId 保留当前 ActorId,SetActorId 保留当前 FlowId。
 /// </para>
 /// <para>
-/// FlowId 在 AsyncLock 入口惰性注册(EnsureFlowRegistered),ActorId 在 ActorBase.ConsumeLoopAsync 入口设置。
+/// ActorId 在 ActorBase.ConsumeLoopAsync 入口设置；旧 AsyncLock 入口已随锁生态移除（TASK099 B6）。
 /// </para>
 /// </summary>
 public sealed class AsyncFlowIdentity {

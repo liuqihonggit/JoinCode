@@ -1,65 +1,65 @@
 namespace Infrastructure.Persistence;
 
 /// <summary>
-/// PithosDB 租约工厂 — AcquireAsync 时 Open PithosDb + 获取两锁联合，锁被占时降级内存。
-/// <para>第1层：进程内 SemaphoreSlim(1,1) — 不可重入，同线程第二次获取阻塞（防重入）。</para>
-/// <para>第2层：跨进程 CrossProcessLock — Windows 用 NamedMutex，Linux 用 flock，已处理 ReleaseMutex ApplicationException。</para>
-/// <para>获取顺序：先 SemaphoreSlim 再 CrossProcessLock；释放顺序相反（lease.Dispose 负责）。</para>
-/// <para>非阻塞获取：锁被占时立即降级 OpenInMemory，不等待。</para>
-/// <para>复用 NamedMutexMailboxLock 两锁联合模式（ADR 0132）。</para>
+/// PithosDB 租约工厂 — AcquireAsync 时 Open PithosDb + 获取两层租约，租约被占时降级内存。
+/// <para>第1层：<see cref="InProcessLeaseRegistry"/> 原子占位 — 非阻塞，同进程已占立即降级。</para>
+/// <para>第2层：<see cref="CrossProcessLock"/> 原子文件租约（CreateNew + token + TTL + 心跳）— 非阻塞，被占立即降级；过期租约当场接管。</para>
+/// <para>获取顺序：先进程内占位再跨进程租约；释放顺序相反（lease.Dispose 负责）。</para>
+/// <para>非阻塞获取：租约被占时立即降级 OpenInMemory，不等待。</para>
 /// </summary>
 public sealed class PithosKvStoreLeaseFactory : IKvStoreLeaseFactory {
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> s_semaphores = new();
-
     private readonly string _dataDirectory;
     private readonly PithosOptions? _options;
+    private readonly ILogger? _logger;
 
     /// <summary>创建磁盘租约工厂。</summary>
     /// <param name="dataDirectory">数据目录路径。</param>
     /// <param name="options">可选 PithosDB 配置。</param>
-    public PithosKvStoreLeaseFactory(string dataDirectory, PithosOptions? options = null) {
+    /// <param name="logger">可选日志器（记录租约获取/降级时间线）。</param>
+    public PithosKvStoreLeaseFactory(string dataDirectory, PithosOptions? options = null, ILogger? logger = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(dataDirectory);
         _dataDirectory = dataDirectory;
         _options = options;
+        _logger = logger;
     }
 
     /// <inheritdoc />
     public async Task<IKvStoreLease> AcquireAsync() {
         var lockKey = Path.GetFullPath(_dataDirectory);
-        var semaphore = s_semaphores.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
 
-        if (!semaphore.Wait(0)) {
-            return new PithosKvStoreLease(PithosDb.OpenInMemory(), null, null, ownsDb: true, isInMemory: true);
+        if (!InProcessLeaseRegistry.TryClaim(lockKey)) {
+            _logger?.LogDebug("[PithosKvStoreLeaseFactory] 进程内租约已占用，降级内存: {LockKey}", lockKey);
+            return CreateInMemoryLease();
         }
 
         CrossProcessLock? crossProcessLock = null;
         try {
-            crossProcessLock = await CrossProcessLock.AcquireAsync(lockKey, TimeSpan.Zero, CancellationToken.None).ConfigureAwait(false);
-        } catch (TimeoutException) {
-            semaphore.Release();
-            return new PithosKvStoreLease(PithosDb.OpenInMemory(), null, null, ownsDb: true, isInMemory: true);
+            crossProcessLock = await CrossProcessLock.AcquireAsync(lockKey, TimeSpan.Zero, CancellationToken.None, _logger).ConfigureAwait(false);
+        } catch (TimeoutException ex) {
+            InProcessLeaseRegistry.Release(lockKey);
+            _logger?.LogDebug("[PithosKvStoreLeaseFactory] 跨进程租约被占，降级内存: {LockKey} ({Reason})", lockKey, ex.Message);
+            return CreateInMemoryLease();
         }
 
         try {
             var db = _options is not null
                 ? PithosDb.Open(_dataDirectory, _options)
                 : PithosDb.Open(_dataDirectory);
-            return new PithosKvStoreLease(db, crossProcessLock, semaphore, ownsDb: true, isInMemory: false);
+            return new PithosKvStoreLease(db, crossProcessLock, lockKey, ownsDb: true, isInMemory: false);
         } catch (Exception ex) {
-            Console.Error.WriteLine($"[PithosKvStoreLeaseFactory] Open failed, releasing locks: {ex.Message}");
-            crossProcessLock.DisposeSafe();
-            semaphore.Release();
+            _logger?.LogError(ex, "[PithosKvStoreLeaseFactory] PithosDb 打开失败，释放租约: {LockKey}", lockKey);
+            crossProcessLock.DisposeSafe(_logger);
+            InProcessLeaseRegistry.Release(lockKey);
             throw;
         }
     }
 
-    /// <summary>计算数据目录对应的跨进程锁名 — 供测试占住锁验证降级路径。</summary>
-    public static string GetMutexName(string dataDirectory) {
-        var normalized = Path.GetFullPath(dataDirectory);
-        var bytes = Encoding.UTF8.GetBytes(normalized);
-        var hash = System.Security.Cryptography.SHA256.HashData(bytes);
-        return $@"Global\jcc-pithos-{Convert.ToHexString(hash, 0, 16)}";
-    }
+    private static PithosKvStoreLease CreateInMemoryLease()
+        => new(PithosDb.OpenInMemory(), null, null, ownsDb: true, isInMemory: true);
+
+    /// <summary>计算数据目录对应的租约文件路径 — 供测试占住租约验证降级路径。</summary>
+    public static string GetLeasePath(string dataDirectory)
+        => CrossProcessLock.ResolveLeasePath(FileSystemFactory.Create(), Path.GetFullPath(dataDirectory));
 }
 
 /// <summary>

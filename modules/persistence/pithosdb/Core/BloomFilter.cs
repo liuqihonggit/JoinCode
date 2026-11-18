@@ -1,4 +1,4 @@
-﻿namespace PithosDB.Core.Core;
+namespace PithosDB.Core;
 
 /// <summary>
 /// Probabilistic membership filter using double-hashing over MurmurHash3.

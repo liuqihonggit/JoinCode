@@ -1,5 +1,7 @@
 # 锁 → 管道通讯重构方案
 
+> 状态: **历史记录** — 锁生态已由 ADR 0158 取代、TASK099 B6 移出编译；本文的管道/Actor 结论仍有效，锁相关前提按现行无锁规约理解。
+
 > 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
 

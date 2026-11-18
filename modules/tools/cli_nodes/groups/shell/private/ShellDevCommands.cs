@@ -2,9 +2,9 @@
 // 只用 BCL：写临时 csproj + dotnet build/run 执行代码（无 Roslyn、无引擎 DI）；
 // repl execute shell out 到 dotnet-script/pwsh/python3；terminal_capture 因 exe stdout 被重定向，
 // 无法抓宿主控制台句柄，降级为元数据输出（如实记录）。
-using System.Diagnostics;
-using System.Text;
-using JoinCode.Abstractions.Tools;
+
+
+
 
 namespace JoinCode.CliNode.Shell;
 

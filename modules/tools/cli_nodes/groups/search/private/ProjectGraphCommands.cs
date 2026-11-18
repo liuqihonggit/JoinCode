@@ -2,9 +2,9 @@
 // 数据不依赖宿主索引：exe 直接扫描工作区所有 .csproj，用 XDocument 解析 ProjectReference/PackageReference，
 // 构建与宿主 ProjectDependencyGraph 等价的图。create_index/update_index 需 Tree-sitter native、
 // search_semantic/document 需 ONNX 模型、符号/graph 分析类依赖宿主建的索引快照——这些留宿主。
-using System.Collections.Frozen;
-using System.Xml.Linq;
-using JoinCode.Abstractions.Tools;
+
+
+
 
 namespace JoinCode.CliNode.Search;
 

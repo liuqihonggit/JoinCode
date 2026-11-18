@@ -7,6 +7,8 @@ namespace JoinCode.App.Modules.Tests;
 /// RefreshKernelPluginsAsync 竞态；原 catch 一律 LogError（fail 级）进 stderr 触发 E2E NoErrors 断言红。
 /// 降级语义：ObjectDisposedException = 退出竞态良性噪音（进程将亡刷新无意义）→ LogDebug 静默，
 /// 对齐 McpPluginBootstrap"宿主关闭取消静默"先例；其余异常保持 LogError。
+/// <para>注：异常消息里的 "AsyncLock" 是历史 E2E 场景的原始 objectName，旧锁生态已随
+/// ADR 0158 / TASK099 B6 移出编译，这里用字符串字面量复现同一场景，不再引用已删除类型。</para>
 /// </summary>
 public class McpInitModuleTests
 {
@@ -15,7 +17,7 @@ public class McpInitModuleTests
     public void HandleRefreshError_ObjectDisposed_DowngradedToDebug()
     {
         var logger = new SpyLogger();
-        var ex = new ObjectDisposedException(nameof(AsyncLock), "锁 'AsyncLock#2' 已释放");
+        var ex = new ObjectDisposedException("AsyncLock", "锁 'AsyncLock#2' 已释放");
 
         McpInitModule.HandleRefreshError(ex, logger);
 

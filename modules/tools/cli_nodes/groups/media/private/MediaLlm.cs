@@ -1,9 +1,9 @@
 // 纯 BCL 的 OpenAI-compatible LLM 客户端 — 用 HttpClient 直调 /chat/completions，
 // 从 ~/.jcc/settings.json 读 endpoint/model/apiKeyEnvVar，密钥从环境变量取。
 // 不引用任何 LLM SDK / 引擎程序集：jcc 主进程无需为 vision 工具初始化引擎。
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+
+
+
 
 namespace JoinCode.CliNode.Media;
 

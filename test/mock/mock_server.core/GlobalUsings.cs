@@ -9,6 +9,7 @@ global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;
 global using Services.Update;
 global using System.Collections.Concurrent;
+global using System.Collections.Immutable;
 global using System.Net;
 global using System.Net.Sockets;
 global using System.Text;

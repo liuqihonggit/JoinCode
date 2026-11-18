@@ -316,6 +316,20 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 - 强制结束 owner 进程，等待 TTL 后另一个进程可接管；数据无损坏。
 - 日志记录 owner token、获取/续期/接管时间线。
 
+#### B5 执行记录
+
+- `CrossProcessLock.cs` 重写为原子文件租约（仅 `IFileSystem`，删除 `Mutex` 与 `FileStream` 直调/`#pragma`）：`FileMode.CreateNew` 原子创建 `{key}.jcclease`，header `lease|1|token|pid|ttlMs|ticks`；owner 持写句柄每 5s 追加 `renew|ticks`（TTL 15s + 时钟容差 2s），进程崩溃即停止续期；过期租约由任意进程 `MoveFile` 原子改名归档（`.takeover`）后重试创建；释放时校验 token 后删除，已被接管则跳过（无复活竞态）。
+- 新增 `InProcessLeaseRegistry.cs`：`ConcurrentDictionary` 原子占位替代 `SemaphoreSlim(1,1)`；`NamedMutexMailboxLock.cs` 改为“进程内占位 + 跨进程租约”，保留类名与签名，`FileLock`/`MailboxActor`/`AgentDiscoveryService` 调用点零改动。
+- `PithosKvStoreLeaseFactory.cs`：`AcquireAsync` = 进程内占位 → `CrossProcessLock.AcquireAsync(timeout=0)` → 打开 PithosDb；任一层被占立即返回内存租约（非阻塞降级）；失败路径回滚占位与租约。`PithosKvStoreLease.cs`：Dispose 先跨进程后进程内。`LeasedKvStoreAdapter.cs`：`SemaphoreSlim(1,1)` 改 `AsyncGate`，每次操作获取短租约。
+- 审计日志：`Diag` 新增 `[LEASE] acquire/renew/takeover/release`（path/token/pid/时间，`JCC_DEBUGLOG=1`）；ILogger 同步记录获取/续期/接管/释放。
+- 基线：49 文件/303 处 → **44 文件/289 处**（租约 5 文件锁原语归零），`JCC4008` 门禁通过。
+- 新增真机自检入口：`jcc.exe --selftest-crossproc`（父进程编排；子进程 `--selftest-crossproc worker compete|crash <dataDir> <id> <ms>`）。
+- exe 验收（`.xxx/logs/b5_crossproc_accept3.log`，EXIT=0，真实 `artifacts/bin/JoinCode/Debug/net10.0/jcc.exe`）：
+  - 竞争：3 个真实 jcc 进程同时竞争同一 dataDir 8s，acquires=74（w0=26 / w1=27 / w2=21）、degrades=197，降级获取最大 19ms（非阻塞）；所有权日志 74 次 `enter/exit` 严格交替（无重叠持有）；存储 scan 键数 74 = acquire 次数，无缺失/多余键。
+  - 崩溃接管：crash worker 持租约 11s（`[LEASE] renew` ×2）后被强杀；父进程 **16.9s/16.3s 两轮**后接管（`[LEASE] takeover oldToken=… oldPid=… lastRenewed=…`），延迟 ≥ TTL；崩溃前写入 `crash:before` 恢复成功，接管后写 `crash:after`，重新获取租约后两键均可读（数据无损坏）。
+  - 回归：Infra.IO 374/374、Agents 626/626、Dream 193/193、Composition 1106/1106 全绿；`Build-AllDomains -Changed -IncludeUntracked` 0 错误（`.xxx/logs/b5_build_alldomains.txt`）。
+  - 过程发现（未改代码）：无退让时释放后立即重取会饿死其他进程（首轮 w0=102 / w1=w2=0）；自检 harness 加入 10–90ms 释放后让出 + 5–120ms 降级退避后轮转正常。生产语义不变（降级方由业务重试节奏决定），记录为”公平性由业务层退避规约“。
+
 ### B6 移除锁生态
 
 1. 按 AGENTS.md 禁删规则，把以下文件移动到仓库根 `.xxx/`（带时间戳），不直接删除：
@@ -327,6 +341,19 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 2. 清理所有引用、`GlobalUsings`、注册、诊断、提示词；禁止保留兼容重载。
 3. 更新文档状态：`TASK079` 标注被 ADR 0158 取代；`DSG038`/`REF006`/`REF007` 改为“已被本任务收敛为终态”的历史记录。
 4. 全仓编译 `pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1`；跑完整 exe 回归矩阵。
+
+#### B6 执行记录
+
+- 归档（`.xxx/*.<日期>.del`，仓库根）：`AsyncLock.cs`、`AsyncLockedDictionary.cs`、`LockRef.cs`、`LockRegistry.cs`、`LockRegistryConfig.cs`、`LockTimeoutPolicy.cs`、`OrderedLockManager.cs`；测试 `AsyncLockDiagnosisTests.cs`、`AsyncLockDiagnosisPureTests.cs`、`OverflowGuardBoundaryTests.cs`、`Infra.Utils/AsyncLockTest.cs`、`AsyncLockedDictionaryTest.cs`；基准 `ContentionBench.cs`、`NoContentionBench.cs`；分析器 `LockInAsyncMethodRule`(JCC4001)、`SemaphoreSlimWaitNoTimeoutRule`(JCC4002)、`LockWithGetAwaiterRule`(JCC4003)、`LockAndSemaphoreSlimOnSameStateRule`(JCC4004)、`SemaphoreSlimNotDisposedRule`(JCC4005)、`ConcurrentDictSemaphoreSlimNotDisposedRule`(JCC4006)、`LockScopeConsoleErrorRule`(JCC4007) 及对应 JCC4005/4006 CodeFix。
+- 保留：`CasRetry.cs`（CodeIndex 生产在用，非锁原语）、Actor/Channel/AsyncLazy/邮箱/传输等基础设施、`ForbiddenLockPrimitiveRule`(JCC4008) 防回潮。
+- 消费点迁移：`KestrelMockServer` 的 `AsyncLock` 守卫改 `ImmutableList` + `ImmutableInterlocked.Update` + `Volatile.Read`（控制面读写锁无关化）；`Testing.Common.InMemoryFileSystem` 的 per-path `AsyncLock` 改 `ConcurrentDictionary<string, AsyncGate>` 任务链门闩。
+- 提示词/注释：`DeadlockAuditSection` 声明旧锁生态已移出编译禁止重建；`AsyncFlowIdentity`、`McpInitModule` 过时锁描述同步修正；TASK079/DSG038/REF006/REF007 标注历史记录（被 ADR 0158 取代）。
+- 基线：44 文件/289 处 → **29 文件/65 处**（JCC4008 门禁通过）。
+- 编译/验收证据：
+  - 全仓按需编译 6 项目 0 错误（`.xxx/logs/b6_build_alldomains.txt`）；`AotSafety.Generator`、`CodeFixes` 单独 0 错误。
+  - 锁生态退出编译：`artifacts/bin/AsyncLock/Debug/net10.0/AsyncLock.dll` 元数据中 `LockRegistry/LockRef/AsyncLockedDictionary/LockTimeoutPolicy/OrderedLockManager` 均为 0 命中，Actor/传输类保留。
+  - exe 回归：`jcc --selftest-crossproc` EXIT=0（acquires=76、degrades=213、TTL 接管 15.9s，`.xxx/logs/b6_crossproc_regress.log`）；`jcc --selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/b6_selftest_tui.log`）。
+  - 测试：AsyncLock.Tests 556/556（Actor 等保留部分）、Infra.Utils 561/561、MockServer.Core 85/85（含真实 Kestrel HTTP 控制面）、Infra.IO 374/374、Agents 626/626、Dream 193/193、Composition 1106/1106。
 
 ### B7 风格统一
 
@@ -347,12 +374,12 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 
 ## 5. 四列验收表
 
-> `已验收` 只填真实 exe 证据，必须附 ADR 0080 记录；单元测试不能替代。B0/B1/B2/B3/B4 已验收，B5-B7 待实现/待验收。
+> `已验收` 只填真实 exe 证据，必须附 ADR 0080 记录；单元测试不能替代。B0/B1/B2/B3/B4/B5/B6 已验收，B7 待实现/待验收。
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
 | JCC4008 `ForbiddenLockPrimitiveRule` + `Verify-NoLockPrimitives.py` + 逐文件基线 | 16 域 + native_gui/native_tui + CI | ✅ | ✅ 注入 `LockGateProbe.cs` 实测构建失败（`error JCC4008`，`.xxx/logs/TASK094/build-lock-probe-red.txt`），移入 `.xxx/` 后构建恢复 0 错误；基线门禁 B0 150 文件/570 处 → B1 收紧为 143 文件/553 处 → B2 收紧为 138 文件/536 处 → **B2 终态 116 文件/425 处**（`lock-gate-b2-gui2.txt`）通过；全仓 `Build-AllDomains.ps1` 通过（`.xxx/logs/TASK094/build-all-b1.txt`）；工具侧 7 处 `SemaphoreSlim` 限流改为 `BoundedWorkQueue`/`AsCpuParallel`，`JccAuditCli.csproj` 0 警告 0 错误 |
-| TUI/GUI/跨进程 exe 挂钩 | `jcc.exe --selftest-tui`、`--selftest-input`、`NativeGui.Host.exe --webui-smoke`/`--dsh-smoke`；`--selftest-crossproc` 挂 B5 | ✅（跨进程待 B5） | ✅ `--selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/TASK094/b1-selftest-tui2.txt`）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/b1-selftest-input.txt`）、**`--dsh-smoke` EXIT=0 ×4**（`.xxx/logs/TASK094/gui_dsh_smoke_loop.log`、`gui_dsh_smoke_after_fix.log`：首页 → session/create → 双流 → goals 暂停事件 → 48 路并发 RPC）、**`--webui-smoke` EXIT=0 ×3**（`.xxx/logs/TASK094/gui_webui_smoke3.log`、`gui_webui_smoke_loop1/2.log`：`WEBVIEW2-READY` + `BRIDGE-SMOKE ok`） |
+| TUI/GUI/跨进程 exe 挂钩 | `jcc.exe --selftest-tui`、`--selftest-input`、`NativeGui.Host.exe --webui-smoke`/`--dsh-smoke`；`--selftest-crossproc` 挂 B5 | ✅ | ✅ `--selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/TASK094/b1-selftest-tui2.txt`）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/b1-selftest-input.txt`）、**`--dsh-smoke` EXIT=0 ×4**（`.xxx/logs/TASK094/gui_dsh_smoke_loop.log`、`gui_dsh_smoke_after_fix.log`：首页 → session/create → 双流 → goals 暂停事件 → 48 路并发 RPC）、**`--webui-smoke` EXIT=0 ×3**（`.xxx/logs/TASK094/gui_webui_smoke3.log`、`gui_webui_smoke_loop1/2.log`：`WEBVIEW2-READY` + `BRIDGE-SMOKE ok`） |
 | 非阻塞 Console 单写者 | `ErrorConsole`、`ConsoleSuppressionGate` | ✅ | ✅ `jcc.EXE -p hi` 经无 key 路径渲染 `✖ 致命错误` EXIT=1（`.xxx/logs/TASK094/exe-errorconsole-endpoint.txt`）；`--selftest-tui` 在 `JCC_DEBUGLOG=1` 高日志下 EXIT=0；单元测试 5/5（`ConsoleSuppressionGateTests`，`test-gate.txt`） |
 | 单写者 Channel / 快照 | `LspConnection`、`RgEngine`、`ConfigurationService`、`AsyncLazy` | ✅ | ✅ `jcc-tool-code.exe lsp_hover` 经 csharp-ls 真实 stdio JSON-RPC 返回 `RgOutcome? outcome` EXIT=0（`.xxx/logs/TASK094/lsp-hover.txt`）；`jcc-rg.exe --stream` 输出 4 个命中文件 EXIT=0（`.xxx/logs/TASK094/exe-rg-stream2.txt`）；AsyncLazy 单飞 3/3、FileHistory 多版本 3/3、Rg 154/154 全绿 |
 | TUI 输入与回合 Actor | `RawStdinPump`、`LazyEngine`、`EngineTurnClient`、`ReplShell`、`BridgeEventPump`、`TerminalQuerier` | ✅ | ✅ `jcc.exe --selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-tui.txt`）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-input.txt`）、`NativeTui.Demo.exe --selftest` / `--selftest-bash` / `--bridge-selftest` 三个 EXIT=0（`b2-demo-selftest.txt` / `b2-demo-bash.txt` / `b2-demo-bridge.txt`，跨进程 bridge 协议走真实管道）；单元测试 NativeTui.Tests 3024/3024、NativeTui.Host.Tests 140/140 |
@@ -360,8 +387,8 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 | AsyncLock/限流替换 | 47 文件 / 101 获取 + Semaphore 限流 | ✅ 钩子配置/沙箱 IPC/技能索引/MCP 认证与降级链/流式执行器/GH 并行下载/感知域已去锁；B3 完成单飞初始化（TCS）、状态机/暂停（AsyncGate/TCS 门闩）、并发限流（PermitPool）、单写者传输（ConcurrentDictionary+ImmutableList CAS）、工作者池、GatewayActor 令牌 Channel、GraphExecutionContext 唤醒 Channel、PlanModeManager 去 LockRegistry；**模块外 AsyncLock 生产引用为 0**；基线 138 文件/536 处 → **54 文件/320 处**（剩余仅 B4/B5/锁生态自身与测试） | ✅ jcc + MockServer 并发 4 个真实回合 EXIT=0 ×4（4 次 `chat/completions`，无异常/超时/死锁，`.xxx/logs/mockserver_concurrent.log`、`jcc_turn_1..4.log`）；`jcc --selftest-tui` EXIT=0（`HOST SELFTEST OK`）；相关域测试全绿（AsyncLock 631、Agents 626、Clock 519、Scheduling 287、Vault 867、Bridge 633、Infra 1399、Host 1332、Composition 1135、Downloader 100、Browser 2、Brain 426） |
 | PithosDb 单写者 + 快照 | `PithosDb`、`LeveledCompactor`、Lru/S3Fifo、`HighWaterMarkManager` | ✅ 写命令 Channel 单写者 + `DbView` 不可变快照 + 读者 epoch；压缩信号有界 Channel；块缓存 ConcurrentDictionary + 采样淘汰；HighWaterMark 改 AsyncGate；Pithos 5 文件锁原语归零（基线 54/320 → 49/303） | ✅ exe 跨进程写/读：LRU/S3FIFO 各 3000 键 live=2571=scan、failures=0（`pithos_write_lru.log`/`pithos_verify_lru.log`/`pithos_write_s3.log`/`pithos_verify_s3.log`）；并发 6×400 与 8×800×3 轮 errors=0、压缩并发无超时，重启 verify 2142/2142 failures=0（`pithos_final_conc.log`/`pithos_final_write.log`/`pithos_final_verify.log`）；内存 CAS 16000/16000 PASS（`pithos_final_cas.log`）；`.xxx/acceptance/pithos_storage` 真实进程非 mock |
 | HNSW 快照 | `HnswAnn` | ✅ 单 AsyncGate 串行化替换 `ReaderWriterLockSlim`（CodeIndex 792 测试全绿） | ✅ 真实索引 exe：2000×128 固定样本、64 查询、topK=10，HNSW 对 BruteForce 召回 **94.1%**（阈值 >90%），并发 4 读×2 写后 Count=2400、concurrentErrors=0、EXIT=0（`.xxx/logs/hnsw_recall.log`，harness `.xxx/acceptance/hnsw_recall`） |
-| 原子文件租约 | `CrossProcessLock`、`NamedMutexMailboxLock`、Pithos 租约 | ❌ | ❌（3 进程竞争 + 崩溃接管） |
-| 锁生态归档 | AsyncLock/LockRef/AsyncLockedDictionary/TimeoutLock/OrderedLockManager | 🔄 `TimeoutLock` 及其测试已移入 `.xxx/`，`CodeIndex.csproj` 去掉 `AsyncLock.csproj` 引用 | ❌（全仓编译 + exe 回归） |
+| 原子文件租约 | `CrossProcessLock`、`InProcessLeaseRegistry`、`NamedMutexMailboxLock`、Pithos 租约 | ✅ `CreateNew` + token + TTL 15s + 心跳 5s + `MoveFile` 接管；`Mutex`/`SemaphoreSlim` 归零（基线 49/303 → 44/289）；`--selftest-crossproc` 真机自检入口 | ✅ 3 个真实 jcc 进程竞争 8s：acquires=74（26/27/21 三进程轮转持有）、degrades=197 最大 19ms、所有权日志 enter/exit 严格交替、scan 键数=74 无缺失；强杀 owner 后 16.3s 接管（≥ TTL），`crash:before` 恢复 + 接管后写入重启可读，EXIT=0（`.xxx/logs/b5_crossproc_accept3.log`） |
+| 锁生态归档 | AsyncLock/LockRef/AsyncLockedDictionary/LockRegistry/OrderedLockManager + JCC4001-4007 | ✅ 7 类型文件 + 5 测试 + 2 基准 + 7 分析器 + 2 CodeFix 移入 `.xxx/`；MockServer 改 ImmutableList，Testing.Common 改 AsyncGate；基线 44/289 → 29/65 | ✅ 全仓按需编译 0 错误；`AsyncLock.dll` 元数据无锁生态类型；`--selftest-crossproc` EXIT=0、`--selftest-tui` EXIT=0；AsyncLock.Tests 556、Infra.Utils 561、MockServer 85、Infra.IO 374、Agents 626、Dream 193、Composition 1106 全绿（`.xxx/logs/b6_*.log`） |
 | 风格门禁与清理 | pragma/using/null-forgiving/async void/命名/目录/文档 | ❌ | ❌（门禁零命中 + exe 回归） |
 
 ## 6. Exe 验收协议

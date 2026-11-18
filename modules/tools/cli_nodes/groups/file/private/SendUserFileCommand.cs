@@ -1,8 +1,8 @@
 // send_user_file — 纯文件读取 + 字符串摘要，无宿主 TUI 交互。
 // 真实实现的 IFileTransferService 只是文本拼接（下载链接是 http://localhost:{端口}/download/... 假链接），
 // 无真实 HTTP 服务。exe 用 BCL File/FileInfo 等价复刻。
-using System.Text;
-using JoinCode.Abstractions.Tools;
+
+
 
 namespace JoinCode.CliNode.File;
 

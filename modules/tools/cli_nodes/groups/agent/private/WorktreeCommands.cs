@@ -1,8 +1,8 @@
 // agent 组 worktree_* 下沉 —— 走 git 原生命令，git 自身就是真相源（`git worktree list`），
 // 不再依赖宿主的进程内 session 注册表。路径/分支命名沿用宿主约定：
 //   {gitRoot}/.jcc/worktrees/{agentId 的 / \ 换成 +}，分支 worktree-{同上}
-using System.Globalization;
-using System.Text;
+
+
 
 namespace JoinCode.CliNode.Agent;
 

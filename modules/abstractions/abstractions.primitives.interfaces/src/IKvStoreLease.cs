@@ -7,15 +7,15 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>降级内存时 IsInMemory=true，写入不持久但操作正常。</para>
 /// </summary>
 public interface IKvStoreLease : IKvStore, IDisposable {
-    /// <summary>是否降级为内存模式（跨进程 Mutex 被占时降级，写入不持久）。</summary>
+    /// <summary>是否降级为内存模式（跨进程租约被占时降级，写入不持久）。</summary>
     bool IsInMemory { get; }
 }
 
 /// <summary>
 /// KV 存储租约工厂 — 按需获取租约，快读快释放。
-/// <para>磁盘模式：AcquireAsync 时 Open PithosDb + 获取 SemaphoreSlim(1,1) 防重入 + CrossProcessLock 跨进程互斥，Dispose 时释放。</para>
-/// <para>降级模式：锁被占时返回内存租约（写入不持久，短命令够用）。</para>
-/// <para>两锁联合：SemaphoreSlim 进程内防重入 + CrossProcessLock 跨进程（复用 NamedMutexMailboxLock 模式）。</para>
+/// <para>磁盘模式：AcquireAsync 时 Open PithosDb + 进程内原子占位 + 跨进程原子文件租约（CreateNew + token + TTL + 心跳），Dispose 时释放。</para>
+/// <para>降级模式：租约被占时返回内存租约（写入不持久，短命令够用）。</para>
+/// <para>两层互斥：进程内占位防重入 + 跨进程文件租约（同一机制复用于邮箱锁与代理注册表）。</para>
 /// <para>替代方案（放弃）：进程级 Mutex 持有到 Dispose — 持有 = 进程生命周期，长驻 mcp server 先启动时后续 CLI 全降级。</para>
 /// </summary>
 public interface IKvStoreLeaseFactory {

@@ -18,7 +18,7 @@ public static class DeadlockAuditSection {
 
 ## 无锁并发检查清单
 
-本项目并发红线：禁止新增 lock/Monitor/SemaphoreSlim/Semaphore/Mutex/ReaderWriterLockSlim/SpinLock/事件等待句柄，以及 AsyncLock/LockRef/AsyncLockedDictionary/LockRegistry/TimeoutLock/OrderedLockManager（JCC4008）。并发通过业务状态所有权规约，而不是靠锁：
+本项目并发红线：禁止新增 lock/Monitor/SemaphoreSlim/Semaphore/Mutex/ReaderWriterLockSlim/SpinLock/事件等待句柄（JCC4008）；旧锁生态 AsyncLock/LockRef/AsyncLockedDictionary/LockRegistry/TimeoutLock/OrderedLockManager 已整体移出编译（ADR 0158 / TASK099 B6），禁止重新引入或重建等价封装。并发通过业务状态所有权规约，而不是靠锁：
 
 1. 先找共享可变状态，明确唯一写者；跨线程写状态必须收口到 Actor 单写者邮箱（Channel&lt;T&gt; + 单消费者）
 2. 读多写少用不可变快照 + Interlocked.CompareExchange 发布，读方只读快照
@@ -27,7 +27,7 @@ public static class DeadlockAuditSection {
 5. 需要串行化的是"消息处理顺序"，不是"代码临界区"；把操作改写成消息投递给所有者
 6. 跨进程互斥用 FileMode.CreateNew 原子文件租约 + TTL 心跳，禁止命名 Mutex
 7. UI 线程亲和（WPF/Avalonia 控件）用 Dispatcher 调度，不用锁保护 UI 状态
-8. 存量锁按 TASK099 批次收敛；新增锁直接视为缺陷，必须改为 Actor/Channel/CAS/租约
+8. 存量锁已按 TASK099 B0-B6 收敛；新增锁直接视为缺陷，必须改为 Actor/Channel/CAS/租约
 
 ## 竞态条件测试
 

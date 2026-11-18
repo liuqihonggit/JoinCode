@@ -46,7 +46,7 @@ public sealed class InMemoryFileSystem : IFileSystem {
     private readonly InMemoryDirectoryEntry _root = new() { FullPath = "" };
     private readonly ConcurrentDictionary<string, InMemoryFileEntry> _files = new();
     private readonly ConcurrentDictionary<string, InMemoryDirectoryEntry> _directories = new();
-    private readonly ConcurrentDictionary<string, AsyncLock> _editLocks = new();
+    private readonly ConcurrentDictionary<string, AsyncGate> _editGates = new();
     private string _currentDirectory = "/test";
 
     public InMemoryFileSystem() {
@@ -224,18 +224,14 @@ public sealed class InMemoryFileSystem : IFileSystem {
     /// <inheritdoc />
     public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default) {
         var normalizedPath = NormalizePath(path);
-        var editLock = _editLocks.GetOrAdd(normalizedPath, p => new AsyncLock($"EditFile:{p}"));
-        var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(true);
-        if (releaser is null)
-            throw new TimeoutException($"编辑文件锁超时: {path}");
-        using (releaser) {
-            var bytes = await ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(true);
-            var (newContent, result) = await transform(bytes, cancellationToken).ConfigureAwait(true);
-            if (newContent is not null) {
-                await WriteAllBytesAsync(path, newContent, cancellationToken).ConfigureAwait(true);
-            }
-            return result;
+        var gate = _editGates.GetOrAdd(normalizedPath, _ => new AsyncGate());
+        using var releaser = await gate.AcquireAsync(cancellationToken).ConfigureAwait(true);
+        var bytes = await ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(true);
+        var (newContent, result) = await transform(bytes, cancellationToken).ConfigureAwait(true);
+        if (newContent is not null) {
+            await WriteAllBytesAsync(path, newContent, cancellationToken).ConfigureAwait(true);
         }
+        return result;
     }
 
     // === IFileSystem: File 存在/删除/移动/复制 ===

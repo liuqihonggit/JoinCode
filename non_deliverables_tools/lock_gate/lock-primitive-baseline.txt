@@ -2,23 +2,9 @@
 # 格式: 仓库相对路径|允许出现的最大次数（|0 = 仅分析器拦截的间接消费豁免）
 # 更新: python non_deliverables_tools/scripts/Verify-NoLockPrimitives.py --write-baseline
 
-modules/abstractions/infrastructure/async_file_lock/CrossProcessLock.cs|5
-modules/abstractions/infrastructure/async_file_lock/NamedMutexMailboxLock.cs|4
-modules/abstractions/infrastructure/persistence/LeasedKvStoreAdapter.cs|1
-modules/abstractions/infrastructure/persistence/PithosKvStoreLease.cs|2
-modules/abstractions/infrastructure/persistence/PithosKvStoreLeaseFactory.cs|2
 modules/async_primitives/async_lock.tests/actor/ActorBaseBugReproTest.cs|1
 modules/async_primitives/async_lock.tests/actor/BackpressurePipelineTest.cs|1
-modules/async_primitives/async_lock.tests/lock/AsyncLockDiagnosisPureTests.cs|28
-modules/async_primitives/async_lock.tests/lock/AsyncLockDiagnosisTests.cs|71
 modules/async_primitives/async_lock.tests/lock/CasRetryTests.cs|2
-modules/async_primitives/async_lock.tests/pure/OverflowGuardBoundaryTests.cs|9
-modules/async_primitives/async_lock/lock/AsyncLock.cs|57
-modules/async_primitives/async_lock/lock/AsyncLockedDictionary.cs|6
-modules/async_primitives/async_lock/lock/LockRef.cs|4
-modules/async_primitives/async_lock/lock/LockRegistry.cs|1
-modules/async_primitives/async_lock/lock/LockTimeoutPolicy.cs|1
-modules/async_primitives/async_lock/lock/OrderedLockManager.cs|4
 modules/async_primitives/async_lock/mailbox/PriorityMailbox.cs|1
 modules/composition/composition.tests/commands_wave123/CommandTestHarness.cs|1
 modules/guard/guard.config.tests/configuration/core/FastModeServiceTests.cs|1
@@ -33,22 +19,15 @@ modules/storage/scheduling.tests/scheduling/tasks/MonitorMcpTaskExecutorTests.cs
 modules/storage/vault.memdir.tests/AdvisorServicePersistenceTests.cs|3
 modules/storage/vault.memdir.tests/EditorModeServicePersistenceTests.cs|3
 modules/storage/vault.other.tests/state/StorePersistenceTests.cs|3
-test/benchmarks/async_lock.benchmarks/ContentionBench.cs|4
-test/benchmarks/async_lock.benchmarks/NoContentionBench.cs|4
 test/mock/anthropic.mock_server/Program.cs|1
 test/mock/deep_seek.mock_server/Program.cs|1
 test/mock/mcp.mock_server/engine/Program.cs|1
 test/mock/mock_server.core/HttpListenerMockServer.cs|1
-test/mock/mock_server.core/KestrelMockServer.cs|1
 test/mock/mock_server.core/MockServerController.cs|13
 test/mock/mock_server.core/PrefixCacheSimulator.cs|2
 test/mock/mock_server.core/ScriptedResponseStrategyBase.cs|3
 test/mock/mock_server.e2e.tests/core/MockServerSharedFixture.cs|1
 test/mock/open_ai.mock_server/Program.cs|1
 test/mock/responses.mock_server/Program.cs|1
-test/unit/host.tests/engine/McpInitModuleTests.cs|1
 test/unit/infra.tests/io/core/FileWatcherActorBaseTests.cs|4
 test/unit/infra.tests/io/subprocess/ResilientChannelTests.cs|1
-test/unit/infra.tests/utils/async/AsyncLockTest.cs|21
-test/unit/infra.tests/utils/async/AsyncLockedDictionaryTest.cs|11
-test/unit/testing.common/services/InMemoryFileSystem.cs|2

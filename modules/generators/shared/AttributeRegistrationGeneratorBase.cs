@@ -1,7 +1,3 @@
-using Microsoft.CodeAnalysis;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 
 internal abstract class AttributeRegistrationGeneratorBase<TInfo> : IIncrementalGenerator {
     internal abstract string AttributeFullName { get; }

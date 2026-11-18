@@ -1,5 +1,7 @@
 # lock → AsyncLock 全量迁移计划
 
+> 状态: **历史记录** — AsyncLock 生态已由 ADR 0158 取代、TASK099 B6 移出编译；现行并发改造走 Actor/不可变快照/原子文件租约。
+
 > 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
 

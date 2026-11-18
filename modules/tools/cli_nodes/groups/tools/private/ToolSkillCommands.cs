@@ -3,9 +3,9 @@
 // tool_list/show_template 读 ~/.jcc/tool-templates/*.json；skill_list 扫描 ~/.jcc/skills 与外部 SKILL.md。
 // skill（对话注入/子智能体）、skill_execute（LLM 引擎+工具网关）、skill_search/recommend/discover
 // （需宿主技能注册表含 MCP 远程技能）、tool_score*（宿主内存双写）保留 host。
-using System.Diagnostics;
-using System.Text;
-using JoinCode.Abstractions.Tools;
+
+
+
 
 namespace JoinCode.CliNode.Tools;
 

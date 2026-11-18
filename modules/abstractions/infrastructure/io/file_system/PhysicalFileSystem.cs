@@ -7,7 +7,7 @@ namespace IO.FileSystem;
 [Register(typeof(IFileSystem), ServiceLifetime.Singleton)]
 public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     // === File 写操作 ===
-    // 统一原则：所有写操作用 FileShare.ReadWrite，允许并发读取者，避免跨进程/同进程读-写冲突。写-写互斥由调用方的 Named Mutex 保护。
+    // 统一原则：所有写操作用 FileShare.ReadWrite，允许并发读取者，避免跨进程/同进程读-写冲突。写-写互斥由调用方的原子文件租约保护。
 
     // 对齐 File.WriteAllText 默认行为：无 BOM 的 UTF-8。
     // Encoding.UTF8 带 BOM（preamble=EF BB BF），StreamWriter 会在 Flush 时写入 BOM，

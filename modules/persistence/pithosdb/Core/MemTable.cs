@@ -1,4 +1,4 @@
-﻿namespace PithosDB.Core.Core;
+namespace PithosDB.Core;
 
 /// <summary>
 /// In-memory write buffer for the LSM-tree. Entries are held in a

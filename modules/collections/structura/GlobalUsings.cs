@@ -16,3 +16,4 @@ global using System.Runtime.Intrinsics.X86;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
 global using System.Threading;
+global using static Structura.Collections.SwissTableHelper;

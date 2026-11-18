@@ -2,13 +2,13 @@
 // 归属判定（2026-11-16）：能被外部调用、且实现不依赖宿主共享状态的工具下沉为独立 exe 本地实现；
 // 依赖 vision LLM / 场景撤销栈 / voice-vcr 单例 / SkiaSharp 原生库的工具仍由宿主 jcc 内执行。
 // 参数名与 help.txt 的 [McpToolParameter] 逐一对应；错误用 Rust 风格（原因+参数+守卫+正确写法）。
-using System.Collections.Frozen;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using JoinCode.Abstractions.Tools;
+
+
+
+
+
+
+
 
 namespace JoinCode.CliNode.Media;
 

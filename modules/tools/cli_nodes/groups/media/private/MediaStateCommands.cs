@@ -1,8 +1,8 @@
 // media 组第三批 handler — 状态类（文件化，单一真相源）+ 剩余图像/voice/vcr。
 // 状态文件化后下沉后不再调宿主，跨进程持久化，jcc 无需初始化这些服务。
-using System.Text;
-using System.Text.Json;
-using JoinCode.Abstractions.Tools;
+
+
+
 
 namespace JoinCode.CliNode.Media;
 

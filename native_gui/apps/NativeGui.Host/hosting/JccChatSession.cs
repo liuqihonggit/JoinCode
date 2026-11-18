@@ -263,7 +263,7 @@ internal sealed class JccChatSession : IJccChatSession {
 
     /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
     private void OnSettingChanged(object? sender, SettingChangeEventArgs e) {
-        if (e.Key == ConfigKeyEnumConstants.Theme && e.NewValue is not null) {
+        if (e.Key == ConfigKeys.Theme && e.NewValue is not null) {
             var theme = ThemeKindExtensions.FromValue(e.NewValue) ?? ThemeKind.Auto;
             ThemeChanged?.Invoke(this, theme);
         }
@@ -483,9 +483,9 @@ internal sealed class JccChatSession : IJccChatSession {
         var configService = _services.GetService<IConfigurationService>();
         if (configService is not null) {
             if (effortLevel is EffortLevel.Auto) {
-                await configService.RemoveAsync(ConfigKeyEnumConstants.EffortLevel, cancellationToken);
+                await configService.RemoveAsync(ConfigKeys.EffortLevel, cancellationToken);
             } else {
-                await configService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effortLevel.ToValue(), cancellationToken);
+                await configService.SetAsync(ConfigKeys.EffortLevel, effortLevel.ToValue(), cancellationToken);
             }
         }
     }
@@ -562,7 +562,7 @@ internal sealed class JccChatSession : IJccChatSession {
         => _chat.SetSystemPromptAsync(systemPrompt, cancellationToken);
 
     /// <summary>
-    /// 当前主题 — 从全局配置读取（键 ConfigKeyEnumConstants.Theme），对齐 CLI ThemeCommand。
+    /// 当前主题 — 从全局配置读取（键 ConfigKeys.Theme），对齐 CLI ThemeCommand。
     /// 未设置或损坏返回 <see cref="ThemeKind.Auto"/>（对齐 CLI GetCurrentThemeAsync 默认回退）。
     /// </summary>
     public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default) {
@@ -571,17 +571,17 @@ internal sealed class JccChatSession : IJccChatSession {
             return ThemeKind.Auto;
 
         // 存储源由配置服务按 SettingSourceMap 决定（theme → ~/.jcc/global.json）
-        var value = await configService.GetAsync(ConfigKeyEnumConstants.Theme, cancellationToken);
+        var value = await configService.GetAsync(ConfigKeys.Theme, cancellationToken);
         return string.IsNullOrEmpty(value) ? ThemeKind.Auto : (ThemeKindExtensions.FromValue(value) ?? ThemeKind.Auto);
     }
 
     /// <summary>
-    /// 设置主题并持久化到全局配置（键 ConfigKeyEnumConstants.Theme），对齐 CLI ThemeCommand。
+    /// 设置主题并持久化到全局配置（键 ConfigKeys.Theme），对齐 CLI ThemeCommand。
     /// </summary>
     public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default) {
         var configService = _services.GetService<IConfigurationService>();
         if (configService is not null)
-            await configService.SetAsync(ConfigKeyEnumConstants.Theme, theme.ToValue(), cancellationToken);
+            await configService.SetAsync(ConfigKeys.Theme, theme.ToValue(), cancellationToken);
     }
 
     /// <summary>清空当前会话历史 — 委托引擎 IChatService.ClearHistoryAsync</summary>

@@ -264,13 +264,167 @@ consumers:
 
 ---
 
-## 10. 进度
+---
+
+## 11. 契约字段规格（S1 施工单，零行为变更）
+
+### 11.1 数据模型改动
+
+| 类型 | 文件 | 改动 |
+|---|---|---|
+| `ConsumerConfig` | `modules/abstractions/composition/node/profile/ConsumerConfig.cs:7` | 新增 `string Contract`，默认 `"middleware"`（位置参数之后带默认值，避免改动全部构造点） |
+| `ResolvedConsumerConfig` | `modules/abstractions/composition/node/profile/ResolvedProfile.cs:14` | 同上，携带契约供运行期与 dump 使用 |
+| `NodeProfileResolver` | `modules/composition/composition/node_registry/profile/NodeProfileResolver.cs` | 解析 `contract:` 键；子 profile 省略即继承父的契约 |
+| `NodeProfileLoader` | `.../profile/NodeProfileLoader.cs` | 未知 `contract` 值 → 解析失败并报错（Rust 风格：列出合法值） |
+
+**YAML 形态**（唯一新增键，全部现有 profile 零改动）：
+
+```yaml
+consumers:
+  chat-pipeline:
+    contract: middleware     # 可省略，省略即 middleware
+    nodes: [...]
+```
+
+**合法契约值**（首版 6 个，收敛在单一常量类，与 `NodeContract` 枚举一一对应）：
+
+| 值 | 组合语义 | 消费者 |
+|---|---|---|
+| `middleware` | 顺序叠加（priority 升序） | 16 条 `MiddlewarePipeline<T>` |
+| `guard` | 顺序叠加（priority 降序），首结论胜 | `CommandInterceptionDispatcher` |
+| `provider` | 互斥选择（按协议/能力） | `QueryServiceFactory` |
+| `role` | 互斥选择（按 role+variant） | `AgentRoleProfileRegistry` |
+| `capability` | 存在即提供 | `EngineServiceContext` |
+| `command-group` | 分类聚合 | `ChatCommandRegistry` / category node |
+
+### 11.2 `--dump-nodes` 输出扩展
+
+每个消费点首行输出契约，便于人工核对：
+
+```
+  消费点: chat-pipeline  [contract=middleware, 14 节点]
+  消费点: guard-chain    [contract=guard, 8 节点]
+```
+
+同时新增汇总行：`契约分布: middleware=21, guard=1, provider=1, role=1`。
+
+### 11.3 一致性门禁规则（`Verify-NodeConsistency.py`）
+
+| # | 规则 | 失败示例 |
+|---|---|---|
+| 1 | 每个 `consumer:node` 声明必须有工厂 | `tool-dispatch:shell` 无工厂 → 失败 |
+| 2 | 每个工厂必须至少被一个 profile 声明 | 孤儿工厂 → 失败 |
+| 3 | `contract` 必须是合法值 | `contract: middlewares` → 失败 |
+| 4 | `contract: provider/role` 的消费点，节点 ID 不得重复 | 同名两 provider → 失败 |
+
+门禁读取方式：`jcc --dump-nodes --json` 输出结构化清单（新增 `--json`，AOT 源生成 DTO），脚本与 CI 用同一份输出做三方比对，避免脚本自己解析 C#。
+
+### 11.4 S1 验收
+
+1. `jcc --dump-nodes` 21 个消费点全部显示 `contract=middleware`，669 放置不变。
+2. `--dump-nodes --json` 输出可被脚本解析；门禁 `--verify` 当前报 **4 个 `tool-dispatch` 违规**（预期失败，作为首个待修项）。
+3. 1103 测试零回归；`jcc tool tree` 635 不变。
+
+---
+
+## 12. 分域实施细则
+
+> 统一命名：节点 ID 用 kebab-case，前缀表域（`git-commit-guard` / `anthropic-adapter` / `defense-strict-parse`），与现有 `-mw` 风格一致。
+
+### 12.1 guard 域（S2）
+
+**现状精确清单**
+
+| 族 | 条目 | 现状位置 |
+|---|---|---|
+| 命令守卫 | `GitCommitGuard` / `DriveProtectionGuard` / `CmdIndirectCallGuard` / `RobocopyMirrorGuard` / `HeredocGuard` / `GhPrBodyGuard` / `GhTimeoutGuard` / `VpnRouteGuard` | `orders.yaml:21-29` 定序；`[Register(typeof(ICommandGuard))]` 收集 |
+| 工具修正 hook | `GhPrBodyFixHook` / `JsonFixHook` / `GhTimeoutFixHook` | `orders.yaml:35-38` + `ToolFixHookRegistry.cs:39-43` 手写 new |
+| BashDefense 链 | `Begin` → `CheckDangerousCommand` → `StrictParse` → `CheckRetainedDevice` → `CheckRedirectWhitelist` → `CheckGitPushCiGuard` → `RequireArgvHash`（1+6 步） | `ShellCommandInterceptionMiddleware.cs:106-113` 硬编码 `.Then()` |
+| 沙箱提供器 | `Soft` / `Process` / `Docker` / `Bubblewrap`，降级链 `Bubblewrap > Process > Soft` | `SandboxProvidersPlugin.cs:39-42`、`SandboxManager.cs:138-140` |
+
+**目标形态**：新增 3 个 `contract: guard` 消费点（`command-guard-chain` / `tool-fix-chain` / `defense-chain`）+ 1 个 `contract: provider` 消费点（`sandbox-providers`，降级链用 `priority` 表达）。
+
+**迁移映射**：`orders.yaml` 的列表顺序 → profile `priority`（首项最高 = `800`，逐项 −100）。**`orders.yaml` 保留为生成期校验源**，避免两套顺序打架（门禁比对二者一致）。
+
+**三处重复名单收敛**：`DI 集合收集` / `orders.yaml` / `InterceptFlagDetector` 三份 → 收敛为「profile 声明为唯一装配源，`orders.yaml` 降级为门禁校验表，`InterceptFlagDetector` 改为读取节点 `CanHandle` 声明的能力标签」。
+
+**验收**：dump 可见完整守卫链且顺序 = `orders.yaml`；`Verify-BashGuard.ps1` 全绿；profile 去掉一个守卫后真机对应拒绝行为消失、其余不变。
+
+### 12.2 provider 域（S3）
+
+**现状**：`LlmProvidersPlugin.cs:29-39` 注册 5 个 + default；`ServiceRegistration.cs:15-36` 又注册一份（含 Hub，插件没有）；`ProviderDefinitionRegistry.cs:107-115` 协议 `switch` 决定 Definition。
+
+**目标**：`llm-providers` 消费点，`contract: provider`，节点 = `anthropic-adapter` / `azure-adapter` / `agnes-adapter` / `responses-adapter` / `jev-adapter` / `openai-adapter`(default) / `hub-adapter` / `pipe-adapter`。选择依据从 `ProtocolKind` 枚举改为节点声明的 `meta.capabilities`（如 `protocol:anthropic`），枚举只留作兼容常量。
+
+**收益**：新协议 = 1 个适配器文件 + 1 条 profile 声明；两份不对称注册表合并为一份；未知协议不再静默降级（无匹配节点 → 明确报错并列出可用节点）。
+
+**验收**：现有 8 厂商配置逐个真机出话；删一条 provider 声明 → 启动报「无匹配 provider」且提示可用列表。
+
+### 12.3 role 域（S3）
+
+**现状**：`AgentRoleProfileRegistry.cs:222` 9 条（1 Coordinator + 8 Executor 变体），工具白名单/黑名单/模型/温度全在 C#。
+
+**目标**：`agent-roles` 消费点，`contract: role`，每档一个节点，`config` 携带 `allowed-tools` / `disallowed-tools` / `model` / `when-to-use`。同时修 `subagent_type` 断链（当前永远拿不到对应档案）。
+
+**验收**：`--dump-nodes` 列出 9 档；改 profile 里某档 `allowed-tools` 后真机 spawn 的工具面随之变化。
+
+### 12.4 能力域（S4）
+
+**现状**：`EngineServiceContext.cs:8-58` 13 个字段手工暴露；`McpInitModule.cs:79-90` 8 插件硬编码；`[Register(typeof(IWorkflowPlugin))]` 已注册却不用于装配。
+
+**目标**：`capabilities` 消费点，`contract: capability`，节点 = `todo` / `task` / `cron` / `goal` / `memdir` / `dream` / `code-index` / `vision`。`EngineServiceContext` 改为由节点表构造（`GetServicesForConsumerAsync<ICapabilityNode>("capabilities", ...)`），插件清单由 `contract: capability` 的节点驱动。
+
+**验收**：profile 去掉 `todo` 后 `todo` 工具不出现且 `EngineServiceContext.TodoService` 为 null；去掉 `dream` 后 dream 任务不再自动注册。
+
+### 12.5 命令表面（S4）
+
+**现状**：`CliSubCommand` 20 值 + `FlatSubCommandRouter.cs:14-49` 16 case + `ApplicationBuilder` 2 个 if。
+
+**目标**：`cli-commands` 消费点，`contract: command-group`，每值一个节点（ID = 枚举值的 kebab 形式），router 改为按节点表查执行器；`-h` 与 dump 同源。
+
+**验收**：20 条命令全部可 dump；profile 去掉 `probe` 后 `jcc probe` 报「该命令未在当前 profile 启用」而非「未知子命令」。
+
+### 12.6 工具分组与死声明（S1 内先修）
+
+`tool-dispatch` 4 个声明：**删除**（推荐）或接 4 个 `contract: capability` 工厂。S1 门禁会先让它可见，再由 §12.6 处置；635 工具契约本身不动。
+
+### 12.7 外部 profile 覆盖（S5）
+
+`NodeProfileLoader` 增加覆盖层读取顺序：
+
+```
+内嵌 base.yaml（H₀）
+  → $JCC_PROFILE_DIR/<name>.yaml（磁盘 delta，可选）
+  → 经验 patch（Round，仅 config/priority）
+```
+
+合并走 `DeltaComposer`（`DeltaLifetime.Permanent`），不新增覆写逻辑；磁盘层缺失即回到内嵌基线。AOT 下为纯数据解析，无反射。
+
+**验收**：磁盘 yaml 改 `stream-rate-limit-mw` 的 `max-requests` 后，`jcc probe` 基线随之变化；删除目录后回 30。
+
+---
+
+## 13. 风险与回滚
+
+| 风险 | 影响 | 对策 |
+|---|---|---|
+| 契约语义改动波及 165 声明 | 装配顺序变化 | 契约缺省 = middleware；S1 不改任何声明 |
+| guard 域安全回归 | 漏拦/误拦 | 逐守卫真机对照（拒绝/改写/放行三态）；`Verify-BashGuard.ps1` 必跑 |
+| 双份注册表合并漏实现 | 某协议不可用 | 合并后逐协议真机出话，缺一即失败 |
+| 门禁误报 | CI 阻塞 | 门禁只校验「声明↔工厂↔契约值」，不做语义校验 |
+| 外部覆盖被滥用 | 环境漂移 | 覆盖层可整体丢弃；启动时打印 `[PROFILE] source=embedded+disk` |
+
+回滚：每步独立提交，S1 只加字段与门禁，回滚即恢复 `contract` 默认值。
+
+---
+
+## 14. 进度
 
 | 步 | 内容 | 状态 |
 |---|---|---|
-| 0 | 普查与本文档 | ✅ |
-| S1 | 契约字段 + 一致性门禁 | ⬜ |
-| S2 | guard 域节点化 | ⬜ |
+| 0 | 普查与本文档（含 §11 施工单、§12 分域细则） | ✅ |
+| S1 | 契约字段 + dump 扩展 + 一致性门禁 | ⬜ |
+| S2 | guard 域节点化（守卫/修正/防御/沙箱） | ⬜ |
 | S3 | provider + role 节点化 | ⬜ |
 | S4 | 能力 + 命令表面节点化 | ⬜ |
 | S5 | 外部 profile 覆盖 | ⬜ |

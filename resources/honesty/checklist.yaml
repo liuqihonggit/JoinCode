@@ -95,3 +95,9 @@ items:
     status: done
     evidence: "真机 8 场景：settings.json 无 BOM 写入前后 @7b 22 63、带 BOM 仍 @ef bb bf 且不重复；file edit 三种编码写后分别为 @ef bb bf 67 / @67 6f 6f / @ff fe 67 00（UTF-16 不再被静默转码）；write 覆盖保签名、新建不加；insert_lines 与 apply_patch 均保持；ConfigFileEncodingTests 4 条（临时回退旧实现实测 3 红） + BclBridge 41 条通过"
     next: 无需动作
+
+  - id: slash_json_args
+    title: 斜杠命令 JSON 参数归一化 — slash_call 传的 key=value/JSON 不再被当成整串参数值，40 个命令零改动
+    status: done
+    evidence: "真机隔离目录：vendor vendor=openai 从「未知供应商 {\"vendor\":\"openai\"}」变为正常切换；effort/color/trust/hooks/thinkback/goal 单值与多段场景全对；GetNormalizedArgs 对 JSON 复用 GetSplitArgs 抽值拼回文本、非 JSON 原样；SlashCallArgumentTests 11 条（先红 4 条）+ Host.Tests 1336 + Composition.Tests 1079 通过"
+    next: 无需动作

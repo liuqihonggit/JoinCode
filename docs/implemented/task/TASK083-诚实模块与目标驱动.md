@@ -45,6 +45,8 @@
   - 证据：真机 `config_get effortLevel` 从「Unknown setting」变为可读写、`config_list` 输出 20 键并分组、`config-migrations.json` 只记录一次迁移；`ConfigKeyRegistryTests` 13 条 + `ConfigMigrationRunnerTests` 8 条通过。
 - [x] **文件签名保持**：有 BOM 保留且只一个、没有就不新增，编码也跟着原文件走。详见 [TASK092](TASK092-文件签名保持.md)。
   - 证据：真机 8 场景 —— `settings.json` 无 BOM 写入前后都是 `7b 22 63`、带 BOM 仍 `ef bb bf` 且不重复；`file edit` 三种编码分别保持；`ConfigFileEncodingTests` 4 条（临时回退旧实现实测 3 红）+ `BclBridge` 41 条通过。
+- [x] **斜杠命令 JSON 参数归一化**：`slash_call` 传的 `key=value`/JSON 不再被当成整串参数值，40 个 `GetNormalizedArgs` 命令零改动兼容。详见 [TASK094](TASK094-斜杠命令JSON参数归一化.md)。
+  - 证据：真机隔离目录 `vendor vendor=openai` 从「未知供应商 `{"vendor":"openai"}`」变为正常切换；`effort`/`color`/`trust`/`hooks`/`thinkback`/`goal` 单值与多段全对；`GetNormalizedArgs` 对 JSON 复用 `GetSplitArgs` 抽值拼回文本、非 JSON 原样；`SlashCallArgumentTests` 11 条（先红 4 条）+ `Host.Tests` 1336 + `Composition.Tests` 1079 通过。
 
 ## 用户决策记录
 

@@ -1,6 +1,6 @@
 # TASK097 节点继承缺口清单与补全计划（四问深度版）
 
-> 状态: accepted（用户已裁决；阶段1 G2/G4、阶段2 G5/G1 均已真机验收通过）
+> 状态: accepted（用户已裁决；阶段1 G2/G4、阶段2 G5/G1、阶段3 G6、阶段4 G7 均已真机验收/固化；TASK097 全部缺口闭合）
 > 创建: 2026-11-19
 > 裁决: 2026-11-19 — G3 走**数据驱动**（不引入 NodeBase，属性继承交给 G2 数据层）；补全节奏=**按阶段逐步验收**，每阶段真机 exe 跑通后再继续
 > 关联: [DSG048 万物皆节点，节点皆可继承](../design/DSG048-node-plugin-inheritance-architecture.md)、[TASK072 四问深度模板](../../implemented/task/TASK072-基准对比调研代理提示词模板-四问深度版.md)
@@ -204,9 +204,9 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 | 1a | **G2 节点级继承** | ✅ 已真机验收（见 §10） |
 | 1b | **G4 Metadata 配置注入** | ✅ 已真机验收（见 §11，范围限定：配置注入 + 真机可观测 + 唯一默认值；路由消费端另立任务） |
 | 2 | **G1 可逆注册 + G5 节点自动归纳** | ✅ 已真机验收（见 §12；G5 以复用既有 catalog 替代新增 source generator） |
-| 3 | G3 数据驱动收敛（已定方案） | ⏳ 待阶段2 |
-| 4 | G6 经验继承（H₀ 重置红线） | ⏳ 待阶段3 |
-| 5 | G7 AOT（CI） | ⏳ 待阶段4 |
+| 3 | G3 数据驱动收敛（已定方案） | ✅ 无代码工作（数据驱动已由 G2/G4/G5 实质落地：INode 保持 3 属性最小接口、无 NodeBase、metadata 配置注入、节点继承在下层；仅此状态行回填） |
+| 4 | G6 经验继承（H₀ 重置红线） | ✅ 已真机验收（见 §13；两轮差评修复，patch 进入生产消费端） |
+| 5 | G7 AOT（CI） | ✅ CI 验证步骤已加（见 §13.6；本机链接库受限，真机 AOT 只能在 CI） |
 
 > 阶段1 拆分理由：G2 在 abstractions 层、G4 在 composition 层，分属两个模块，绑在一起验收会让"继承生效"与"metadata 生效"的因果链混在一起。先独立验收 G2，再动 G4。
 
@@ -405,3 +405,71 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 - G1 的可逆注册已通过 `INodeRegistry` 对外可达，但**当前无生产组件调用它**；它的价值在后续动态插件装卸场景兑现。
 
 > 门禁复盘：本阶段两次被分析器拦下 —— JCC11003（null-forgiving `!`）与 JCC10004（public 成员缺 XML doc），均按规范修正而非抑制，说明门禁在起作用。
+
+---
+
+## 13. 阶段3-5 实现与真机验收（2026-11-19）
+
+### 13.1 G3 数据驱动收敛 — 零代码工作
+
+调研核实：用户拍板的数据驱动方案已由 G2/G4/G5 实质落地——`INode` 保持 3 属性最小接口、全仓无业务 `NodeBase`、metadata 配置注入、节点继承在下层数据层。**代码剩余量 = 0**，仅回填状态表（唯一残留是文档标签）。不引入 `NodeBase` 避免两套继承并存。
+
+### 13.2 G6 经验继承 — 设计
+
+对齐 Harness² 论文（arXiv:2610.14224）与 DSG048 §2.2.4：
+
+| 要素 | 实现 | 唯一数据源 / 复用 |
+|------|------|------|
+| 经验条目 | `ImprovementEntry(cue, lesson, evidence, patch?)` | 三字段 = 论文 `has_experience`；patch 让经验真实改变 profile（非死数据） |
+| append-only 库 | `improvement/EXPERIENCE.jsonl`，一行一条 | `ImprovementJsonContext`（AOT 源生成）；历史不改写 |
+| Propose | `ImprovementLibrary.Propose` 按 cue **边界匹配** | 只读、命中≠采纳；去掉裸 Contains（修 web/webhook 误命中） |
+| H₀ 重置 | `HarnessComposer.Compose(profiles, profileName, patches)` | **结构性保证**：签名不接受"上一轮成品"，永远重新 Resolve；产出严格从 YAML 重建 |
+| 生产消费 | `ImprovementStore.LoadAdoptedPatches(fs)` → `IProfileManager.Current` | 限流中间件真实读这个对象，patch 进入即生效（非打印死数据） |
+
+**H₀ 语义澄清**（复评 P1-2）：H₀ = 所选 profile 的干净初始态（每轮从 YAML 重新解析），不固定是名为 base 的 profile；生产 profileName 可为 ci/sdk/headless。
+
+### 13.3 G6 真机验收（唯一标准，非单测）
+
+命令 `jcc experience reflect|propose|round|effective`；`JCC_IMPROVEMENT_FILE` 指定库、`JCC_EXPERIENCE_ADOPT` 指定本轮采纳 cue。
+
+| # | 真机命令 | 结果 | 判定 |
+|---|----------|------|------|
+| 1 | `experience round`（空库） | `max-requests=30`（H₀） | ✅ 无经验时严格等于基底 |
+| 2 | `experience reflect --cue rate-limit ... --patch .../max-requests=50` | library +1，JSONL 追加，历史不变 | ✅ append-only + 三字段校验 |
+| 3 | `experience propose --cue rate-limit` | 命中 1 条候选，只读未应用 | ✅ Propose 不自动采纳 |
+| 4 | `experience round`（propose 命中后不 adopt） | `=30` | ✅ **检索≠采纳**红线 |
+| 5 | `experience round --adopt rate-limit` | `=50` | ✅ 显式 adopt 才改变 |
+| 6 | **下一轮** `experience round`（无 adopt） | `=30` | ✅ **H₀ 重置**，不继承上一轮 50 |
+| 7 | `experience effective`（不带 adopt） | `IProfileManager.Current.max-requests=30` | ✅ 生产消费端基线 |
+| 8 | `experience effective` + `JCC_EXPERIENCE_ADOPT=rate-limit` | `=50` | ✅ **patch 真实进入生产消费端**（P0 闭环） |
+| 9 | **新进程** `experience effective`（不带 adopt） | `=30` | ✅ 跨进程 H₀ 重置（论文实证） |
+| 10 | 未知选项 `--adoptx` / 坏库（空 cue+patch） | Rust 风格报错 / fail-closed 到 30 | ✅ 错误路径不污染、不崩溃 |
+| 11 | 不兼容 patch（指向不存在节点） | exit=0，回退干净态 30 + 四段式引导 | ✅ ComposeSafe 不拖垮启动 |
+| 12 | `jcc tool tree` / G4/G5/G1 打点 | 635 工具；176 节点归纳；meta v=2.1.0；G1 逆序回滚 | ✅ 全阶段零回归 |
+
+### 13.4 G6 两轮差评修复（纪律记录）
+
+**第一轮评审抓出 P0**：首版 patch 只被 `round` 打印，未进入任何生产消费端——G4「可配置的死数据」坑原样复现。真机绿灯只证明"写入+显示"，没证明"经验改变行为"。修复：`ImprovementStore` 桥接环境变量 + JSONL，`AddDataDrivenPipelines` 构造 `IProfileManager` initial 时用 `ComposeSafe(profiles, profileName, adopted)`，patch 进入限流中间件真实读取的对象。真机 30→50→30（跨进程）证明闭环。同时修 P1：边界匹配、ConfigKey 存在性、未知选项校验、坏库 fail-closed、patch 空值校验。
+
+**第二轮复评抓出 P1-1**：patch 在 base 合法但在 ci 可能指向被 exclude 节点，`ApplyPatch` 抛异常会让宿主启动崩溃（一条"合法写入"的经验让 jcc 起不来）。修复：新增 `HarnessComposer.ComposeSafe`（patch 不兼容时 fail-closed 回退干净态 + 四段式引导），生产链改用它；同步 P1-2 命名对齐（baseName→profileName，澄清 H₀ 语义）。真机 exit=0 回退 30。
+
+**门禁复盘**：本阶段被 JCC9001（composition 层 `File.Exists` 绕过 IFileSystem）、JCC11003（null-forgiving）、CS1573（XML param）、CS8076（插值条件表达式）拦下，全部按规范修正而非抑制。
+
+### 13.5 G6 真实边界（不越界宣称）
+
+- 经验 patch 只覆写 H₀ 中**已存在**的 config 键，不能凭空新增节点/键（reflect 阶段校验 + ComposeSafe 运行期兜底）。
+- Propose 是关键词**边界匹配**（整词/'-'分段），不是语义检索；无 embedding、无 LLM 参与决策——对齐 Harness² "行为对比"精神但用确定性规则实现。
+- `JCC_FILE_SYSTEM_MODE=InMemory` 时经验库读内存空库 → adopt 静默失效并回退 H₀（fail-safe，测试模式预期）；生产默认 Physical 成立。
+- 写侧 `reflect` 用 `File.AppendAllText`（应用层直连合法），读侧经 IFileSystem；InMemory 模式下写读后端不同步，属可接受遗留（Physical 模式一致）。
+- 经验库 append-only 无跨进程写锁；Windows 上并发 reflect 会抛 sharing violation（不写坏行），单跳并发超出本阶段范围。
+
+### 13.6 G7 AOT 验证（CI，本机受限）
+
+- **本机限制实证**：ILCompiler 10.0.9 包齐备、SDK 10.0.301，但 `dotnet publish -p:PublishAot=true` 链接阶段报 `LNK1181: advapi32.lib`（Windows SDK 链接库不全），且 `reg.exe` 被安全策略拦截（ADR 0157:315）。本机无法真机 AOT。
+- **CI 验证步骤**：`.github/workflows/daily-aot-publish.yml` 在 publish 后新增 `Verify published exe` step（jcc-aot / jcc-rtr，跳过 GUI），对产物实跑三项：① `--dump-nodes` 断言节点归纳 + G4 metadata `v=2.1.0`；② `experience round` 断言 H₀ 基线 `max-requests=30`；③ `tool tree` 断言 635 工具。
+- **AOT 安全性**：节点注册链 `BuildNodeFactories` / `BuildFromCatalog` / `HarnessComposer` 全是编译期静态工厂 + DTO 源生成 JSON，无 `Assembly.Load`/`Activator.CreateInstance`；全仓反射式 API 有 JCC1013-1016 分析器守卫。G6 未引入运行时反射，不破坏 AOT。
+- **边界**：DSG048 `:783` 的"待 AOT 发布验证"至此有 CI 步骤覆盖，但本机无法署名实测；须 CI 首次运行后回填实际结论。
+
+### 13.7 TASK097 总判定
+
+G1–G7 全部缺口闭合：G2/G4（阶段1）、G5/G1（阶段2）、G3（零代码）、G6（经验继承 + H₀ 红线，两轮差评修复）、G7（CI 验证步骤）。每阶段真机 exe 验收，单元测试仅作回归网。用户核心诉求「DSH 万物皆节点 + Harness² 可继承 → 节点继承」落地为：**节点可继承描述（G2）+ 节点自动归纳与可逆装卸（G5/G1）+ 经验可跨任务选择性复用且绝不继承成品（G6）**。

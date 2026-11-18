@@ -106,4 +106,10 @@ public enum CliSubCommand {
     [EnumValue("prompt")]
     [SubCommandInfo("打印系统提示词各段内容 — 改完提示词当场核对", "自省", Example = "jcc prompt --section tools")]
     Prompt,
+
+    /// <summary>经验继承 — jcc experience reflect|propose|round（G6，Harness² H₀ 重置红线）</summary>
+    /// <para>跨任务复用改进经验：append-only 经验库 + 按 cue 选择性 Propose + 每轮从 H₀ 重启。</para>
+    [EnumValue("experience")]
+    [SubCommandInfo("经验库 reflect/propose/round — 从 H₀ 重启、只选择性复用经验", "经验继承", Example = "jcc experience propose --cue rate-limit")]
+    Experience,
 }

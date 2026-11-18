@@ -305,7 +305,18 @@ public static class DataDrivenPipelineComposition {
         // 注册 IProfileManager + ResolvedProfile（DSG049: 运行期 Profile 动态切换）
         services.AddSingleton<IProfileManager>(sp => {
             var resolver = sp.GetRequiredService<NodeProfileResolver>();
-            var initial = resolver.Resolve(profileName);
+            var profiles = NodeProfileLoader.LoadFromResources();
+
+            // G6 经验继承：每轮从 profileName 基底重新解析（H₀ 重置红线），
+            // 仅当显式设置 JCC_EXPERIENCE_ADOPT 时才叠加匹配经验的 patch。
+            // patch 进入 IProfileManager.Current → 被限流等中间件真实消费（非死数据）。
+            var fs = sp.GetService<IFileSystem>();
+            var adopted = fs is null
+                ? []
+                : Composition.Improvement.ImprovementStore.LoadAdoptedPatches(fs);
+            // ComposeSafe: patch 与所选 profile 不兼容时 fail-closed 回退干净态，绝不因经验阻断启动。
+            var initial = Composition.Improvement.HarnessComposer.ComposeSafe(profiles, profileName, adopted);
+
             var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<ProfileManager>();
             return new ProfileManager(resolver, initial, logger);
         });

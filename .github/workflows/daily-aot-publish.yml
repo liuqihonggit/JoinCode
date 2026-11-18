@@ -84,6 +84,37 @@ jobs:
           }
         shell: pwsh
 
+      # G7 (TASK097): AOT/RTR 产物启动验证 — 证明 NativeAOT 下节点继承链、G4 metadata、
+      # G6 经验命令都真实可用（本机无 Windows SDK 链接库 advapi32.lib，真机 AOT 验证只能在此完成）。
+      - name: Verify published exe (--dump-nodes / experience)
+        if: matrix.project.name != 'jccgui-aot'
+        run: |
+          $dir = "publish/${{ matrix.project.name }}"
+          $exe = (Get-ChildItem $dir -Filter "jcc*.exe" -File | Select-Object -First 1).FullName
+          if (-not $exe) { Write-Error "AOT 产物目录 $dir 缺少 jcc*.exe"; exit 1 }
+          Write-Host "=== AOT/RTR 产物启动验证: $exe ==="
+
+          # 1. 节点自动归纳（G5）+ G4 metadata：base profile 应带注入的 meta 值
+          $dump = & $exe --dump-nodes 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { Write-Error "--dump-nodes 退出码 $LASTEXITCODE"; exit 1 }
+          if ($dump -notmatch 'stream-rate-limit-mw') { Write-Error "--dump-nodes 未输出限流节点"; exit 1 }
+          if ($dump -notmatch 'v=2\.1\.0') { Write-Error "--dump-nodes 未显示 G4 配置注入的 metadata v=2.1.0"; exit 1 }
+          Write-Host "  [OK] --dump-nodes: 节点归纳 + G4 metadata 注入正常"
+
+          # 2. G6 经验命令在 AOT 下可用（H₀ 基线 = 30）
+          $round = & $exe experience round 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { Write-Error "experience round 退出码 $LASTEXITCODE"; exit 1 }
+          if ($round -notmatch 'H₀' -or $round -notmatch 'max-requests=30') {
+            Write-Error "experience round 未回到 H₀ 基线: $round"; exit 1
+          }
+          Write-Host "  [OK] experience round: G6 H₀ 重置红线在 AOT 下成立"
+
+          # 3. 635 工具零回归
+          $tree = & $exe tool tree 2>&1 | Out-String
+          if ($tree -notmatch '635') { Write-Error "tool tree 未报告 635 工具: $tree"; exit 1 }
+          Write-Host "  [OK] tool tree: 635 工具零回归"
+        shell: pwsh
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:

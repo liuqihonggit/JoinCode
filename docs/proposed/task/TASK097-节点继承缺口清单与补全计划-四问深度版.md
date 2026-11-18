@@ -1,7 +1,8 @@
 # TASK097 节点继承缺口清单与补全计划（四问深度版）
 
-> 状态: proposed（待用户逐项裁决）
+> 状态: accepted（用户已裁决，阶段1 进行中）
 > 创建: 2026-11-19
+> 裁决: 2026-11-19 — G3 走**数据驱动**（不引入 NodeBase，属性继承交给 G2 数据层）；补全节奏=**按阶段逐步验收**，每阶段真机 exe 跑通后再继续
 > 关联: [DSG048 万物皆节点，节点皆可继承](../design/DSG048-node-plugin-inheritance-architecture.md)、[TASK072 四问深度模板](../../implemented/task/TASK072-基准对比调研代理提示词模板-四问深度版.md)
 > 上游诉求: 用户核心目的 —— 学习 DSH「万物皆节点」+ Google Harness²「可继承」，设计成**节点继承**让 Agent 框架变轻松；要求①调查两者架构选择与细节 ②列出工程未完成的缺口 ③任何修改必须真机启动 exe 验收，不得用单元测试当挡箭牌。
 
@@ -78,7 +79,7 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 | 影响面 | "节点皆可继承"最核心的字面含义缺失；新增工具变体须整份复制 node.yaml 描述 |
 | 原始素材 | Harness² `write_tree` 先删后写 + Tree dict 省略；DSH patch overlay |
 | 补全方案 | node.yaml schema 增顶层 `inherits` + `overrides`/`excludes`；新增 `CliNodeProfileResolver` **复用 `NodeProfileResolver` 的合并语义**（排除→新增→覆写，深度≤3，循环检测），产出 `ResolvedToolDescriptor`；`NodeManifestLoader` 解析后先过 resolver |
-| **真机 exe 验收** | `jcc --dump-nodes` 对比父子节点合并后的属性/参数差异；真机 `jcc tool call file read --path <真实文件>` 验证继承来的参数默认值生效；跨组继承用例实跑 |
+| **真机 exe 验收（调研修正）** | ⚠️ 现有 `--dump-nodes` 只读 NodeProfile，**不读 CliToolDescriptor**（`Program.cs:231-253`），原方案不成立。须先扩展该命令输出 descriptor 的合并结果，再对比父子属性/参数；辅以 `jcc tool call file read --path <真实文件>` 验证继承来的默认值生效 |
 
 ### G3 ⚪ 是否引入统一 NodeBase（设计分歧，待拍板）
 
@@ -102,7 +103,7 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 | 影响面 | 无法用 metadata 做独立验证断言；节点自描述不完整 |
 | 原始素材 | DSH Provider 提供 capabilities 供消费点发现 |
 | 补全方案 | `NodeMetadata` 从 node.yaml / profile config 注入，而非 ctor 写死；至少 Version/Dependencies/Capabilities/Priority 可配 |
-| **真机 exe 验收** | `jcc --dump-nodes` 输出必须显示配置注入的真实值，而非 `"1.0"` / 空数组 |
+| **真机 exe 验收（调研修正）** | ⚠️ 现有 `--dump-nodes` 不输出 Metadata（`Program.cs:231-253` 数据源是 profile YAML，绕开 `INode.Metadata`），须扩展命令输出；输出必须是配置注入的真实值，而非 `"1.0"` / 空数组。另：`Node<TService>` 生产路径未被调用（`NodeEntry.Create<TService>` 无调用点），真实验收须走 `NodeRegistry.Build` 实际路径 |
 
 ### G5 🟡 DI 自动扫描未落地（名不副实）
 
@@ -189,8 +190,54 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 
 ---
 
-## 7. 待用户逐项裁决（一问一答）
+## 7. 用户裁决记录
 
-1. **G3 选项**：NodeBase 走 DSH 式（A）还是 Harness² 式数据驱动（B，推荐）？
-2. **补全范围**：按阶段1→5 全补（用户已表达"补充全部"倾向），还是先补阶段1 看真机效果？
-3. **G6 范围**：是否需要本轮实现经验继承（PPC + library），还是先停在 G1–G5 的结构层？
+1. **G3 选项** → **数据驱动（B）**：不引入 NodeBase，`INode` 保持最小接口，属性继承交给 G2 数据层。理由：G2 落地后属性继承已由数据层解决，再加基类就是重复；且 Harness² 已证明不靠基类也能适配。
+2. **补全节奏** → **按阶段逐步验收**：每阶段真机 exe 跑通、用户看到结果后再继续。
+
+---
+
+## 8. 剩余任务与进度
+
+| 阶段 | 任务 | 状态 |
+|------|------|------|
+| 1 | G2 节点级继承 + G4 Metadata 注入 | 🔄 进行中 |
+| 2 | G1 可逆注册 + G5 DI 扫描 | ⏳ 待阶段1 验收通过 |
+| 3 | G3 数据驱动收敛（已定方案） | ⏳ 待阶段2 |
+| 4 | G6 经验继承（H₀ 重置红线） | ⏳ 待阶段3 |
+| 5 | G7 AOT（CI） | ⏳ 待阶段4 |
+
+> 每阶段纪律：红测试 → 实现 → 编译 → 绿测试 → **真机 exe 验收（不得用单测代替）** → 文档 → 提交 → 差评大师 → 修复。
+
+---
+
+## 9. 实现级调研修正（2026-11-19，阶段1 动手前）
+
+> 派两路只读调研核实 G2/G4 实际改动面，发现四处文档撰写时未知的事实。以代码实证为准，修正实现方案。**这一节的存在本身就是四问深度法的价值证明**：只看 `DSG048` 的"✅已完成"标签会得出错误验收方案。
+
+### 9.1 `--dump-nodes` 不读 descriptor / metadata（验收方案失效）
+
+- 实证：`Program.cs:231-253` 的 `DumpNodesInfo()` 数据源是 `NodeProfileLoader.LoadFromResources()` + `NodeProfileResolver.Resolve()`，输出 `Profile/消费点/nodeId(priority)` 纯文本，**完全绕开** `CliToolDescriptor` 与 `INode.Metadata`。
+- 修正：阶段1 必须**扩展 `--dump-nodes`**（或新增 `--dump-tool-nodes`），输出继承合并后的 descriptor 属性/参数与注入后的 metadata，否则 G2/G4 无法真机验收。
+
+### 9.2 依赖墙：resolver 不能跨层复用（架构决策点）
+
+- 实证：`NodeProfileResolver` 在 `modules/composition/`（上层）；待改造的 `CliToolDescriptor`/`NodeManifestLoader` 在 `abstractions.primitives.tools`（底层）。后者由 `cli_node.props` 约束为**零 ProjectReference**，13 个 exe 靠此保持独立。
+- 三个选项：
+  - **① 下沉合并算法到 abstractions 层**（推荐）：把"排除→新增→覆写 + 深度≤3 + 循环检测"提取为底层无依赖的纯函数，composition 的 `NodeProfileResolver` 与 cli_nodes 的新 resolver 都委托它。零重复、零依赖墙击穿、符合"唯一数据源 + 委托消费"。
+  - ② 在 cli_nodes 内新建同构 resolver：逻辑重复，违反"提取重复为公共组件"。
+  - ③ 让 abstractions 反向引用 composition：击穿依赖墙，13 exe 全部变重，**禁止**。
+
+### 9.3 regenerate 脚本会覆盖手写 inherits
+
+- 实证：`migrate_mcp_tools_to_cli_nodes.py:492-517,749` 每次全量重写 node.yaml，`is_generated_or_missing` 只保护 Program.cs/csproj，不保护 node.yaml。
+- 修正（推荐）：继承声明放**独立叠加文件** `node.inherit.yaml`（生成器不触碰），`NodeManifestLoader` 加载 node.yaml 后叠加。生成脚本零改动，最稳。
+
+### 9.4 metadata 是死数据 + `Node<TService>` 生产路径未调用（范围决策点）
+
+- 实证：`Version`/`Dependencies`/`Capabilities`/`RequiredCapabilities` 全仓无读取点；真正路由依据是 `ResolvedNodeEntry.Priority`/`EnabledWhenFeatureFlag`（`NodeRegistry.cs:55-63`），绕开 `NodeMetadata`。`NodeEntry.Create<TService>` 无调用点，`Node<TService>` 实际未被生产路径使用。
+- 修正：阶段1 G4 范围为"**配置注入 + `--dump-nodes` 可观测**"，让 metadata 从硬编码变可配置、可见；"打通 capability-based routing 消费端"另立后续任务（避免阶段1 无限膨胀）。真实验收走 `NodeRegistry.Build` 实际路径，不依赖未使用的 `Node<TService>`。
+
+### 9.5 配置落点（遵循 G3 数据驱动决策）
+
+- metadata 注入源复用现有 profile config 体系（`base.yaml` 节点条目下加 `metadata:` 段），天然继承父 Profile、零新增文件、零 csproj 改动。与 G3"数据驱动、不引入 NodeBase"一致。

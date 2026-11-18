@@ -6,8 +6,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
     private readonly int _port;
     private readonly ILogger? _logger;
     private readonly string _serverName;
-    private readonly List<CapturedRequest> _capturedRequests = [];
-    private readonly AsyncLock _lock = new("KestrelMockServer");
+    private ImmutableList<CapturedRequest> _capturedRequests = ImmutableList<CapturedRequest>.Empty;
     private int _requestIndex;
     private WebApplication? _app;
     private Task? _runTask;
@@ -140,14 +139,10 @@ public sealed class KestrelMockServer : IHttpMockServer {
 
             await DumpConversationToFileAsync(requestIndex, body, cacheStats);
 
-            var releaser = await _lock.TryLockAsync(ctx.RequestAborted).ConfigureAwait(true)
-                ?? throw new TimeoutException($"锁 '{_lock.Name}' 等待超时");
-            using (releaser) {
-                _capturedRequests.Add(captured);
-                Stats.TotalRequests++;
-                if (cacheStats.CacheReadTokens > 0) Stats.CacheHits++;
-                else Stats.CacheMisses++;
-            }
+            ImmutableInterlocked.Update(ref _capturedRequests, (list, item) => list.Add(item), captured);
+            Stats.TotalRequests++;
+            if (cacheStats.CacheReadTokens > 0) Stats.CacheHits++;
+            else Stats.CacheMisses++;
 
             // 捕获响应状态码 — OnCompleted 回调在响应发送完成后执行
             ctx.Response.OnCompleted(() => {
@@ -300,44 +295,25 @@ public sealed class KestrelMockServer : IHttpMockServer {
 
     /// <summary>根据索引获取请求。</summary>
     /// <param name="index">请求索引。</param>
-    public CapturedRequest GetRequest(int index) {
-        var releaser = _lock.TryLock()
-            ?? throw new TimeoutException("[GEN015] [E2E004] 获取请求超时：锁被持有");
-        using (releaser) {
-            return _capturedRequests[index];
-        }
-    }
+    public CapturedRequest GetRequest(int index) => Volatile.Read(ref _capturedRequests)[index];
 
     /// <summary>获取所有请求。</summary>
-    public IReadOnlyList<CapturedRequest> GetAllRequests() {
-        var releaser = _lock.TryLock()
-            ?? throw new TimeoutException("[GEN016] [E2E005] 获取请求列表超时：锁被持有");
-        using (releaser) {
-            return _capturedRequests.ToList();
-        }
-    }
+    public IReadOnlyList<CapturedRequest> GetAllRequests() => Volatile.Read(ref _capturedRequests);
 
     /// <summary>获取 index 大于 <paramref name="since"/> 的请求（增量查询，避免全量传输）。</summary>
     /// <param name="since">上次已处理的最大 index，返回 index > since 的请求。</param>
     public IReadOnlyList<CapturedRequest> GetRequestsSince(int since) {
-        var releaser = _lock.TryLock()
-            ?? throw new TimeoutException("[GEN016] [E2E005] 获取请求列表超时：锁被持有");
-        using (releaser) {
-            return _capturedRequests.Where(r => r.Index > since).ToList();
-        }
+        var snapshot = Volatile.Read(ref _capturedRequests);
+        return [.. snapshot.Where(r => r.Index > since)];
     }
 
     /// <summary>清除所有请求。</summary>
     public void Clear() {
-        var releaser = _lock.TryLock()
-            ?? throw new TimeoutException("[GEN017] [E2E006] 清除请求超时：锁被持有");
-        using (releaser) {
-            _capturedRequests.Clear();
-            _requestIndex = 0;
-            Stats.TotalRequests = 0;
-            Stats.CacheHits = 0;
-            Stats.CacheMisses = 0;
-        }
+        Volatile.Write(ref _capturedRequests, ImmutableList<CapturedRequest>.Empty);
+        Interlocked.Exchange(ref _requestIndex, 0);
+        Stats.TotalRequests = 0;
+        Stats.CacheHits = 0;
+        Stats.CacheMisses = 0;
         _cacheSimulator.ResetCache();
     }
 
@@ -387,7 +363,6 @@ public sealed class KestrelMockServer : IHttpMockServer {
         }
 
         _cts.Dispose();
-        _lock.Dispose();
     }
 
     private async Task DumpConversationToFileAsync(int requestIndex, string body, CacheStats cacheStats) {

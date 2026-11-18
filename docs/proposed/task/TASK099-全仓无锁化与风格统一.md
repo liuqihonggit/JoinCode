@@ -342,6 +342,19 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 3. 更新文档状态：`TASK079` 标注被 ADR 0158 取代；`DSG038`/`REF006`/`REF007` 改为“已被本任务收敛为终态”的历史记录。
 4. 全仓编译 `pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1`；跑完整 exe 回归矩阵。
 
+#### B6 执行记录
+
+- 归档（`.xxx/*.<日期>.del`，仓库根）：`AsyncLock.cs`、`AsyncLockedDictionary.cs`、`LockRef.cs`、`LockRegistry.cs`、`LockRegistryConfig.cs`、`LockTimeoutPolicy.cs`、`OrderedLockManager.cs`；测试 `AsyncLockDiagnosisTests.cs`、`AsyncLockDiagnosisPureTests.cs`、`OverflowGuardBoundaryTests.cs`、`Infra.Utils/AsyncLockTest.cs`、`AsyncLockedDictionaryTest.cs`；基准 `ContentionBench.cs`、`NoContentionBench.cs`；分析器 `LockInAsyncMethodRule`(JCC4001)、`SemaphoreSlimWaitNoTimeoutRule`(JCC4002)、`LockWithGetAwaiterRule`(JCC4003)、`LockAndSemaphoreSlimOnSameStateRule`(JCC4004)、`SemaphoreSlimNotDisposedRule`(JCC4005)、`ConcurrentDictSemaphoreSlimNotDisposedRule`(JCC4006)、`LockScopeConsoleErrorRule`(JCC4007) 及对应 JCC4005/4006 CodeFix。
+- 保留：`CasRetry.cs`（CodeIndex 生产在用，非锁原语）、Actor/Channel/AsyncLazy/邮箱/传输等基础设施、`ForbiddenLockPrimitiveRule`(JCC4008) 防回潮。
+- 消费点迁移：`KestrelMockServer` 的 `AsyncLock` 守卫改 `ImmutableList` + `ImmutableInterlocked.Update` + `Volatile.Read`（控制面读写锁无关化）；`Testing.Common.InMemoryFileSystem` 的 per-path `AsyncLock` 改 `ConcurrentDictionary<string, AsyncGate>` 任务链门闩。
+- 提示词/注释：`DeadlockAuditSection` 声明旧锁生态已移出编译禁止重建；`AsyncFlowIdentity`、`McpInitModule` 过时锁描述同步修正；TASK079/DSG038/REF006/REF007 标注历史记录（被 ADR 0158 取代）。
+- 基线：44 文件/289 处 → **29 文件/65 处**（JCC4008 门禁通过）。
+- 编译/验收证据：
+  - 全仓按需编译 6 项目 0 错误（`.xxx/logs/b6_build_alldomains.txt`）；`AotSafety.Generator`、`CodeFixes` 单独 0 错误。
+  - 锁生态退出编译：`artifacts/bin/AsyncLock/Debug/net10.0/AsyncLock.dll` 元数据中 `LockRegistry/LockRef/AsyncLockedDictionary/LockTimeoutPolicy/OrderedLockManager` 均为 0 命中，Actor/传输类保留。
+  - exe 回归：`jcc --selftest-crossproc` EXIT=0（acquires=76、degrades=213、TTL 接管 15.9s，`.xxx/logs/b6_crossproc_regress.log`）；`jcc --selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/b6_selftest_tui.log`）。
+  - 测试：AsyncLock.Tests 556/556（Actor 等保留部分）、Infra.Utils 561/561、MockServer.Core 85/85（含真实 Kestrel HTTP 控制面）、Infra.IO 374/374、Agents 626/626、Dream 193/193、Composition 1106/1106。
+
 ### B7 风格统一
 
 | 子项 | 目标 | 方法 |
@@ -361,7 +374,7 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 
 ## 5. 四列验收表
 
-> `已验收` 只填真实 exe 证据，必须附 ADR 0080 记录；单元测试不能替代。B0/B1/B2/B3/B4/B5 已验收，B6-B7 待实现/待验收。
+> `已验收` 只填真实 exe 证据，必须附 ADR 0080 记录；单元测试不能替代。B0/B1/B2/B3/B4/B5/B6 已验收，B7 待实现/待验收。
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
@@ -375,7 +388,7 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 | PithosDb 单写者 + 快照 | `PithosDb`、`LeveledCompactor`、Lru/S3Fifo、`HighWaterMarkManager` | ✅ 写命令 Channel 单写者 + `DbView` 不可变快照 + 读者 epoch；压缩信号有界 Channel；块缓存 ConcurrentDictionary + 采样淘汰；HighWaterMark 改 AsyncGate；Pithos 5 文件锁原语归零（基线 54/320 → 49/303） | ✅ exe 跨进程写/读：LRU/S3FIFO 各 3000 键 live=2571=scan、failures=0（`pithos_write_lru.log`/`pithos_verify_lru.log`/`pithos_write_s3.log`/`pithos_verify_s3.log`）；并发 6×400 与 8×800×3 轮 errors=0、压缩并发无超时，重启 verify 2142/2142 failures=0（`pithos_final_conc.log`/`pithos_final_write.log`/`pithos_final_verify.log`）；内存 CAS 16000/16000 PASS（`pithos_final_cas.log`）；`.xxx/acceptance/pithos_storage` 真实进程非 mock |
 | HNSW 快照 | `HnswAnn` | ✅ 单 AsyncGate 串行化替换 `ReaderWriterLockSlim`（CodeIndex 792 测试全绿） | ✅ 真实索引 exe：2000×128 固定样本、64 查询、topK=10，HNSW 对 BruteForce 召回 **94.1%**（阈值 >90%），并发 4 读×2 写后 Count=2400、concurrentErrors=0、EXIT=0（`.xxx/logs/hnsw_recall.log`，harness `.xxx/acceptance/hnsw_recall`） |
 | 原子文件租约 | `CrossProcessLock`、`InProcessLeaseRegistry`、`NamedMutexMailboxLock`、Pithos 租约 | ✅ `CreateNew` + token + TTL 15s + 心跳 5s + `MoveFile` 接管；`Mutex`/`SemaphoreSlim` 归零（基线 49/303 → 44/289）；`--selftest-crossproc` 真机自检入口 | ✅ 3 个真实 jcc 进程竞争 8s：acquires=74（26/27/21 三进程轮转持有）、degrades=197 最大 19ms、所有权日志 enter/exit 严格交替、scan 键数=74 无缺失；强杀 owner 后 16.3s 接管（≥ TTL），`crash:before` 恢复 + 接管后写入重启可读，EXIT=0（`.xxx/logs/b5_crossproc_accept3.log`） |
-| 锁生态归档 | AsyncLock/LockRef/AsyncLockedDictionary/TimeoutLock/OrderedLockManager | 🔄 `TimeoutLock` 及其测试已移入 `.xxx/`，`CodeIndex.csproj` 去掉 `AsyncLock.csproj` 引用 | ❌（全仓编译 + exe 回归） |
+| 锁生态归档 | AsyncLock/LockRef/AsyncLockedDictionary/LockRegistry/OrderedLockManager + JCC4001-4007 | ✅ 7 类型文件 + 5 测试 + 2 基准 + 7 分析器 + 2 CodeFix 移入 `.xxx/`；MockServer 改 ImmutableList，Testing.Common 改 AsyncGate；基线 44/289 → 29/65 | ✅ 全仓按需编译 0 错误；`AsyncLock.dll` 元数据无锁生态类型；`--selftest-crossproc` EXIT=0、`--selftest-tui` EXIT=0；AsyncLock.Tests 556、Infra.Utils 561、MockServer 85、Infra.IO 374、Agents 626、Dream 193、Composition 1106 全绿（`.xxx/logs/b6_*.log`） |
 | 风格门禁与清理 | pragma/using/null-forgiving/async void/命名/目录/文档 | ❌ | ❌（门禁零命中 + exe 回归） |
 
 ## 6. Exe 验收协议

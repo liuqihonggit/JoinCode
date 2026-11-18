@@ -4,6 +4,7 @@ global using Core.Utils;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Transport;
 global using JoinCode.BclBridge;
 global using JoinCode.Transport;

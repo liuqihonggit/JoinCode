@@ -1,5 +1,7 @@
 # TASK079 锁改造为只读+不可变+CAS — 杜绝死锁
 
+> 状态: **已被 [ADR 0158](../adr/0158-lock-free-business-concurrency.md) 取代** — AsyncLock/LockRef/LockRegistry/OrderedLockManager 等锁生态已由 TASK099 B6 移出编译，并发改造统一走 Actor/不可变快照/原子文件租约；本文档仅作历史记录。
+
 ## 背景
 
 项目死锁问题困扰，目标：将显式锁改造为"只读类型 + 不可变容器 + CAS(Compare-And-Swap) 更新"模式，完全杜绝死锁。

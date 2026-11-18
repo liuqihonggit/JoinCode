@@ -2,8 +2,6 @@
 # 格式: 仓库相对路径|允许出现的最大次数（|0 = 仅分析器拦截的间接消费豁免）
 # 更新: python non_deliverables_tools/scripts/Verify-NoLockPrimitives.py --write-baseline
 
-modules/abstractions/abstractions.utils/state/Fsm.cs|1
-modules/abstractions/abstractions.utils/state/StateMachine.cs|2
 modules/abstractions/infrastructure/async_file_lock/CrossProcessLock.cs|5
 modules/abstractions/infrastructure/async_file_lock/NamedMutexMailboxLock.cs|4
 modules/abstractions/infrastructure/io/services/throttle/IOThrottleService.cs|8
@@ -15,7 +13,6 @@ modules/abstractions/infrastructure_hot_spot/DeferredMailService.cs|6
 modules/abstractions/infrastructure_hot_spot/HotSpotSpawnIntegration.cs|1
 modules/abstractions/infrastructure_process/ResilientChannel.cs|1
 modules/apps/cli/app/builder/ApplicationBuilder.cs|1
-modules/apps/cli/queue/CommandQueue.cs|1
 modules/async_primitives/async_lock.tests/actor/ActorBaseBugReproTest.cs|1
 modules/async_primitives/async_lock.tests/actor/BackpressurePipelineTest.cs|1
 modules/async_primitives/async_lock.tests/lock/AsyncLockDiagnosisPureTests.cs|28
@@ -39,7 +36,6 @@ modules/cognition/brain_planning/planning/planning2/PlanModeManager.cs|1
 modules/cognition/hands/integration/core/ChromeIntegrationService.cs|1
 modules/cognition/hands_core/skills/search/SkillSearchService.cs|1
 modules/cognition/hands_core/tool_handlers/dev_tools/handlers/TarballDownloader.cs|2
-modules/collections/structura/dag/ConcurrentDag.cs|1
 modules/composition/composition.tests/commands_wave123/CommandTestHarness.cs|1
 modules/guard/guard.config.tests/configuration/core/FastModeServiceTests.cs|1
 modules/guard/guard.hooks/configuration/HookConfigurationManager.cs|1

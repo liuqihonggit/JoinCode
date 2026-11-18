@@ -23,6 +23,37 @@ public sealed class Dag<T> {
     /// </summary>
     public bool TryGetEdge(string fromId, string toId, [MaybeNullWhen(false)] out DagEdge edge) => _edgesByEndpoints.TryGetValue(EdgeKey(fromId, toId), out edge);
 
+    /// <summary>
+    /// 深拷贝快照 — 节点/边集合独立（节点负载引用共享），供 copy-on-write 发布使用。
+    /// <para>快照发布后不再被修改，读侧可安全并发遍历。</para>
+    /// </summary>
+    /// <returns>与原图结构一致的新实例</returns>
+    internal Dag<T> CloneSnapshot() {
+        var clone = new Dag<T>();
+        foreach (var node in _nodes.Values) {
+            clone._nodes[node.Id] = new DagNode<T> {
+                Id = node.Id,
+                Payload = node.Payload,
+                Version = node.Version,
+            };
+            clone._adjacency[node.Id] = new HashSet<string>(StringComparer.Ordinal);
+            clone._reverseAdjacency[node.Id] = new HashSet<string>(StringComparer.Ordinal);
+        }
+
+        foreach (var edge in _edges.Values) {
+            clone.AddEdgeInternal(new DagEdge {
+                Id = edge.Id,
+                FromId = edge.FromId,
+                ToId = edge.ToId,
+                Label = edge.Label,
+                Weight = edge.Weight,
+            });
+        }
+
+        clone._version = _version;
+        return clone;
+    }
+
     private static string EdgeKey(string fromId, string toId) => string.Concat(fromId, "\0", toId);
 
     /// <summary>

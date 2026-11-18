@@ -54,7 +54,7 @@ public sealed class CommandQueue : IDisposable {
     private readonly ConcurrentQueue<QueuedCommand> _now = new();
     private readonly ConcurrentQueue<QueuedCommand> _next = new();
     private readonly ConcurrentQueue<QueuedCommand> _later = new();
-    private readonly SemaphoreSlim _signal = new(0, int.MaxValue);
+    private TaskCompletionSource _signal = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _count;
 
     /// <summary>当前队列总长度（线程安全读取）。</summary>
@@ -71,7 +71,7 @@ public sealed class CommandQueue : IDisposable {
         };
         queue.Enqueue(cmd);
         Interlocked.Increment(ref _count);
-        _signal.Release();
+        Volatile.Read(ref _signal).TrySetResult();
     }
 
     /// <summary>按优先级出队（Now &gt; Next &gt; Later），同优先级 FIFO。</summary>
@@ -86,11 +86,9 @@ public sealed class CommandQueue : IDisposable {
     /// <summary>尝试出队。</summary>
     /// <param name="cmd">出队的命令。</param>
     /// <returns>非空返回 true；空返回 false。</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    public bool TryDequeue(out QueuedCommand cmd) {
-        var dequeued = Dequeue();
-        cmd = dequeued!;
-        return dequeued is not null;
+    public bool TryDequeue([MaybeNullWhen(false)] out QueuedCommand cmd) {
+        cmd = Dequeue();
+        return cmd is not null;
     }
 
     /// <summary>
@@ -101,8 +99,18 @@ public sealed class CommandQueue : IDisposable {
     /// <returns>出队的命令。</returns>
     public async Task<QueuedCommand> DequeueAsync(CancellationToken cancellationToken = default) {
         while (true) {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
             if (TryDequeue(out var cmd)) return cmd;
-            await _signal.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+            var signal = Volatile.Read(ref _signal);
+            if (signal.Task.IsCompleted) {
+                Interlocked.CompareExchange(
+                    ref _signal,
+                    new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously),
+                    signal);
+                continue;
+            }
+            await signal.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -115,10 +123,10 @@ public sealed class CommandQueue : IDisposable {
         return new QueueSnapshot(now, next, later);
     }
 
-    /// <summary>释放信号量资源（幂等）</summary>
+    /// <summary>释放队列（幂等）— 唤醒等待者，后续出队抛 <see cref="ObjectDisposedException"/>。</summary>
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _signal.Dispose();
+        Volatile.Read(ref _signal).TrySetResult();
     }
 
     private int _disposed;

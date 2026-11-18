@@ -1,8 +1,8 @@
 # 诚实清单 — 模型切换时必须复述的能力状态
 #
-# 消费方: HonestyNotice（/model 切换后打印）。
+# 消费方: HonestyNotice（/model 切换后打印）。只列 status≠done 的项 —— 全 done 时打印一句结论，
 # 纪律: 只允许写「已验证的事实」，状态必须与 commit / 真机校验对应；
-#       pending 项不会自动执行，必须由用户选择方向后才动手。
+#       不再把整份清单念一遍（那会把真正的缺口埋掉）。pending 项不会自动执行，必须由用户选方向后才动手。
 version: 1
 doc: docs/implemented/task/TASK083-诚实模块与目标驱动.md
 items:
@@ -13,9 +13,9 @@ items:
     next: 无需动作
 
   - id: honesty_module
-    title: 模型切换时诚实提示遗漏与已完成项，由用户决定方向
+    title: 模型切换时先复述已确认的目标、再列清单里未完成项，由用户决定方向
     status: done
-    evidence: "真机 /model model_id=probe-honesty 打印 [x]/[ ] 清单并等待用户决定；settings.json 已还原"
+    evidence: "真机隔离目录：/model 先打印「已确认的目标」，再按 status 过滤清单（把一条临时改成 pending 后只列该条，还原后打印「15 项全部有验证证据」）；目标引擎缺失或状态加载失败时打印「无法核实」而不是「（无）」；HonestyNoticeTests 5 条 + Composition.Tests 1079 通过"
     next: 无需动作
 
   - id: goal_driven_prompt
@@ -73,7 +73,7 @@ items:
     next: 无需动作
 
   - id: config_storage_source
-    title: 配置存储源收敛 — /theme、GUI、config_get/config_set 读同一个文件（SettingSourceMap 唯一决定）
+    title: 配置存储源收敛 — /theme、GUI、config_get/config_set 读同一个文件（ConfigKeyRegistry 唯一清单决定）
     status: done
     evidence: "真机同目录交叉验证：/theme 写 light 后 config_get 读到 light，工具写 dark 后 /config get 读回 dark，均在 global.json；GUI 探针 GuiSessionProbe 读写一致；config_source_probe 三场景 12 项断言通过；Guard.Config.Tests 1305 通过"
     next: 无需动作
@@ -81,5 +81,17 @@ items:
   - id: config_value_semantics
     title: 配置值语义归一 — model 读写同一个字段（vendor.{profile}.model），嵌套键按路径读写，启动无栈帧/无逐供应商告警
     status: done
-    evidence: "真机隔离目录：config_get model 读 vendor.p1.model=m1，config_set model m2 后 config_get 与 /config get 均为 m2，settings.json 只改该字段；permissions.defaultMode 写入 current.permissions 并被 PermissionChecker 读取；无 current.profile 时明确报错不假成功；jcc -p 启动输出 126 行→10 行，无栈帧、无 45 条「依赖服务未注册」（实为 ObjectDisposedException 退出竞态）；SettingPathMapTests 7 条 + ConfigCommand 88 通过"
+    evidence: "真机隔离目录：config_get model 读 vendor.p1.model=m1，config_set model m2 后 config_get 与 /config get 均为 m2，settings.json 只改该字段；permissions.defaultMode 写入 current.permissions 并被 PermissionChecker 读取；无 current.profile 时明确报错不假成功；jcc -p 启动输出 126 行→10 行，无栈帧、无 45 条「依赖服务未注册」（实为 ObjectDisposedException 退出竞态）；ConfigKeyPathsTests 7 条 + ConfigCommand 88 通过"
+    next: 无需动作
+
+  - id: config_key_registry
+    title: 配置键收敛为唯一清单 — 20 个键的 Key/类型/描述/选项/存储源/JSON 路径/校验同处一行，配置迁移带版本号
+    status: done
+    evidence: "真机隔离目录：config_get effortLevel 从「Unknown setting」变为可读写、config_list 输出 20 键并分组、非法选项被拒、model 与 permissions.defaultMode 落在运行时真正读的位置；迁移只跑一次（config-migrations.json）且 detail 中文不转义；ConfigKeyRegistryTests 13 条 + ConfigMigrationRunnerTests 8 条通过；ConfigKey 枚举与 SupportedSettings/SettingSourceMap/SettingPathMap 已归档"
+    next: 无需动作
+
+  - id: file_signature_preserved
+    title: 文件签名（BOM）保持 — 有签名保留且只一个、没有就不新增，编码也跟着原文件走
+    status: done
+    evidence: "真机 8 场景：settings.json 无 BOM 写入前后 @7b 22 63、带 BOM 仍 @ef bb bf 且不重复；file edit 三种编码写后分别为 @ef bb bf 67 / @67 6f 6f / @ff fe 67 00（UTF-16 不再被静默转码）；write 覆盖保签名、新建不加；insert_lines 与 apply_patch 均保持；ConfigFileEncodingTests 4 条（临时回退旧实现实测 3 红） + BclBridge 41 条通过"
     next: 无需动作

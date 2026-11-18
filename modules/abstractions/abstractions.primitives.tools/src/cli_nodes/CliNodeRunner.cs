@@ -135,7 +135,7 @@ public static class CliNodeRunner {
         // 名字归一化：斜杠命令要把 Git Bash 展开的 Windows 路径还原成 /agents。
         var requested = definition.NameNormalizer(args[0]);
         var known = ListToolIds(help);
-        var canonical = CanonicalToolId(requested, known);
+        var canonical = CanonicalToolId(definition.GroupId, requested, known);
         var unknown = known.Count > 0 && canonical.Length == 0;
 
         if (args.Length > 1 && IsHelp(args[1])) {
@@ -197,19 +197,14 @@ public static class CliNodeRunner {
 
     /// <summary>
     /// 把调用方给的名字换成帮助清单里的规范 ID；找不到返回空串。
-    /// <para>需要这一层的直接原因：斜杠命令的 ID 是 <c>/agents</c>，而 Git Bash 会把以 <c>/</c> 开头的参数
-    /// 展开成安装根下的路径，还原后往往只剩 <c>agents</c>。两种写法都该能调用同一个命令。</para>
+    /// <para>需要这一层的直接原因：同一组里 <c>read</c> 与 <c>file_read</c> 是同一个工具、
+    /// <c>rm</c> 就是删文件，调用方不该先猜「这次要不要带 <c>file_</c>」。</para>
+    /// <para>判定规则来自契约层 <see cref="ToolAliasTable"/>（唯一数据源）——
+    /// 与宿主 <c>jcc tool call</c> 用的是同一份，否则同一次调用在两条路径上一个通一个「工具不存在」。</para>
     /// </summary>
-    private static string CanonicalToolId(string requested, List<string> known) {
+    private static string CanonicalToolId(string groupId, string requested, List<string> known) {
         if (known.Count == 0) return requested;
-        foreach (var candidate in known) {
-            if (string.Equals(candidate, requested, StringComparison.Ordinal)) return candidate;
-        }
-        var trimmed = requested.TrimStart('/');
-        foreach (var candidate in known) {
-            if (string.Equals(candidate.TrimStart('/'), trimmed, StringComparison.OrdinalIgnoreCase)) return candidate;
-        }
-        return string.Empty;
+        return ToolAliasTable.Resolve(groupId, known, requested) ?? string.Empty;
     }
 
     private static async Task<int> RunLocalAsync(
@@ -449,6 +444,11 @@ public static class CliNodeRunner {
                 : $"host（转发宿主 jcc {definition.HostVerb}）";
         Write($"{definition.Title} / {toolId} — 参数说明（复用现有 [McpToolParameter] 特性）\n");
         Write($"执行方式: {mode}\n");
+        // 等价写法：同一组里 read 与 file_read 是同一个工具，rm 就是删文件。
+        // 不写出来，调用方只能靠猜「这次要不要带 file_」，猜错就以为工具不存在。
+        var aliases = ToolAliasTable.AliasesOf(definition.GroupId, toolId).Skip(1).ToArray();
+        if (aliases.Length > 0)
+            Write($"等价写法: {string.Join(" / ", aliases)}\n");
         Write(normalized[start..end].TrimEnd() + "\n");
     }
 

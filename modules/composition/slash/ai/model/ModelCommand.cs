@@ -13,7 +13,10 @@ public sealed class ModelCommand : ChatCommandBase {
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
-        var args = ChatCommandBase.GetNormalizedArgs(context);
+        // 不能用 GetNormalizedArgs：slash_call 把 key=value / JSON 规范化成 JSON 串放进 Arguments，
+        // 那样 args 会是整串 {"model_id":"probe"}，被当成模型名直接写进配置。
+        var split = ChatCommandBase.GetSplitArgs(context);
+        var args = split.Length > 0 ? split[0] : string.Empty;
 
         if (string.IsNullOrEmpty(args)) {
             return ShowModelPickerAsync(context);

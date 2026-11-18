@@ -131,6 +131,22 @@ jobs:
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-RegistrationOrder.py
 
+  # 诚实清单是「切换模型时对用户说的话」的事实来源，它和给人看的 TASK083 文档必须同源。
+  # 分开维护一定会漂移：清单加了项、文档忘打勾 → 用户看到「全部完成」，文档里还留着未完成项。
+  # 那正是「诚实模块」自己变得不诚实的方式，所以让它在 CI 里红一次，而不是在用户面前错一次。
+  honesty-checklist:
+    name: Honesty checklist matches doc
+    runs-on: windows-latest
+    timeout-minutes: 5
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Verify checklist.yaml against TASK083 doc
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-HonestyChecklist.py
+
   # 显式模块顺序 — 真机核对 CLI 与 GUI 两套装配：
   #   ① CLI：启动 jcc，比对实际模块启动顺序 == resources/app/modules.yaml 的 cli profile；
   #   ② GUI：启动探针真建一次引擎会话，比对 [MODULE] 顺序 == gui profile。

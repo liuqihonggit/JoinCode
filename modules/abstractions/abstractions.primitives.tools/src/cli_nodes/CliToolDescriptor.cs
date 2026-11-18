@@ -41,11 +41,20 @@ public sealed record CliToolDescriptor {
     /// <summary>是否有子工具清单（分组节点为 true）。</summary>
     public bool HasToolEntries => Tools.Length > 0;
 
-    /// <summary>按工具 ID 或别名查找子工具条目。</summary>
-    /// <param name="toolId">工具 ID 或别名（大小写不敏感）。</param>
-    /// <returns>命中条目；未声明时返回 <see langword="null"/>。</returns>
-    public CliToolEntry? FindTool(string toolId) =>
-        Tools.FirstOrDefault(entry => entry.Matches(toolId));
+    /// <summary>按工具 ID、别名、全名/短名（<c>file_read</c> ↔ <c>read</c>）或组内同义词查找子工具条目。</summary>
+    /// <param name="toolId">工具 ID 或任意等价写法（大小写不敏感）。</param>
+    /// <returns>命中条目；未声明或名称有歧义时返回 <see langword="null"/>。</returns>
+    public CliToolEntry? FindTool(string toolId) {
+        // 条目自带的 ID / aliases 优先 —— 斜杠组的 aliases 与 ID 完全等价，不参与前缀推导
+        var direct = Tools.FirstOrDefault(entry => entry.Matches(toolId));
+        if (direct is not null) return direct;
+
+        // 再走全名/短名/同义词互认，规则与分组 exe 侧共用 ToolAliasTable（唯一数据源）
+        var resolved = ToolAliasTable.Resolve(Id, Tools.Select(entry => entry.Id).ToArray(), toolId);
+        return resolved is null
+            ? null
+            : Tools.FirstOrDefault(entry => string.Equals(entry.Id, resolved, StringComparison.OrdinalIgnoreCase));
+    }
 
     /// <summary>是否为进入协议原生 tools 字段的基础工具。</summary>
     public bool IsBaseTool => Exe is null;

@@ -108,8 +108,7 @@ public static class CliToolSearch {
         if (!node.HasToolEntries || string.IsNullOrWhiteSpace(query)) return;
         var terms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var matched = node.Tools
-            .Where(entry => terms.Any(term => Contains(entry.Id, term)
-                                              || entry.Aliases.Any(alias => Contains(alias, term))))
+            .Where(entry => terms.Any(term => MatchesEntry(node.Id, entry, term)))
             .OrderBy(entry => entry.Id, StringComparer.Ordinal)
             .ToArray();
         foreach (var entry in matched)
@@ -126,8 +125,10 @@ public static class CliToolSearch {
         entry.Aliases.Length == 0 ? string.Empty : $"  别名: {string.Join(", ", entry.Aliases)}";
 
     private static int ScoreTerm(CliToolDescriptor node, string term) =>
-        (node.Tools.Any(entry => Contains(entry.Id, term)
-                                 || entry.Aliases.Any(alias => Contains(alias, term))) ? 120 : 0)
+        (node.Tools.Any(entry => MatchesEntry(node.Id, entry, term)) ? 120 : 0)
+        // 名字本身就是关键词（rm / read / 删）时压过「恰好含这两个字母」的噪音：
+        // 两个字母的子串会命中 confirm_action、permission_* 一大堆无关工具
+        + (node.Tools.Any(entry => MatchesEntryExactly(node.Id, entry, term)) ? 80 : 0)
         + (Contains(node.Id, term) ? 100 : 0)
         + (Contains(node.Name, term) ? 50 : 0)
         + (Contains(node.Summary, term) ? 20 : 0)
@@ -136,4 +137,25 @@ public static class CliToolSearch {
 
     private static bool Contains(string? haystack, string needle) =>
         haystack is not null && haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 条目的任一写法命中关键词 —— 规范 ID、node.yaml 声明的别名、以及全名/短名/同义词。
+    /// <para>少了最后一层，<c>jcc tool find rm</c> 会是 0 命中：<c>rm</c> 既不是哪个 ID 的子串，
+    /// 也不在 node.yaml 的 aliases 里，但它确实就是「删文件」。</para>
+    /// </summary>
+    private static bool MatchesEntry(string groupId, CliToolEntry entry, string term) =>
+        Contains(entry.Id, term)
+        || entry.Aliases.Any(alias => Contains(alias, term))
+        || ToolAliasTable.AliasesOf(groupId, entry.Id).Any(alias => Contains(alias, term));
+
+    /// <summary>
+    /// 关键词**等于**某个写法（而不是恰好是它的子串）—— 用来把真命中排在噪音前面。
+    /// </summary>
+    private static bool MatchesEntryExactly(string groupId, CliToolEntry entry, string term) =>
+        NameEquals(entry.Id, term)
+        || entry.Aliases.Any(alias => NameEquals(alias, term))
+        || ToolAliasTable.AliasesOf(groupId, entry.Id).Any(alias => NameEquals(alias, term));
+
+    private static bool NameEquals(string candidate, string term) =>
+        string.Equals(candidate, term, StringComparison.OrdinalIgnoreCase);
 }

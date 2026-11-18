@@ -1,7 +1,8 @@
 # TASK083 — 诚实模块与目标驱动提示词
 
 > 本文件是**诚实清单的可视化版本**，与 `resources/honesty/checklist.yaml` 同源。
-> 每次用户切换模型，CLI 会复述这里的状态：哪些已完成、哪些可能遗漏。
+> 每次用户切换模型，CLI 先复述**已确认的目标**（取自 `IGoalEngine` 的运行时状态，不是从对话推测），
+> 再只列这里**未完成**的项 —— 已完成的项不复述，否则真正的缺口会被一堆 `[x]` 埋掉。
 > 未完成项**不得自动执行**，必须由用户选择方向；确认后再逐项打勾。
 
 ## 目标
@@ -14,9 +15,11 @@
 
 - [x] **Agent 内部基础工具**：5 个工具内化进 jcc，每轮注册并出现在首轮提示词。
   - 证据：commit `a466cdd69`；真机 `jcc tool base` 9 个；`jcc prompt --section tools` 逐行列出。
-- [x] **诚实模块**：模型切换时打印本清单，明示可能遗漏项，不自动执行。
-  - 证据：真机 `jcc slash_call /model model_id=probe-honesty` 打印 1 个 `[x]`、3 个 `[ ]` 及「确认前不会动手」；
-    测试后已还原 `settings.json`。
+- [x] **诚实模块**：模型切换时先复述已确认的目标，再只列清单里的未完成项，不自动执行。
+  - 证据：真机隔离目录 `/model` 输出「已确认的目标」段 + 未完成项段；把一条临时改成 `pending` 后只列该条，
+    还原后打印「15 项全部有验证证据，无未完成项」；目标引擎未就绪 / 状态加载失败两种情形都打印「无法核实」
+    而不是「（无）」（`HonestyNoticeTests` 5 条锁住这三条界线）；`Composition.Tests` 1079 通过。
+  - 同时修掉：`/model` 经 `slash_call` 调用时把整串 `{"model_id":"x"}` 当模型名写进配置（改用 `GetSplitArgs`）。
 - [x] **目标驱动提示词**：先问目标、无目标不执行、逐条确认、模糊目标说明利弊。
   - 证据：真机 `jcc prompt --section goal_driven` 输出四条硬规则，并接线 `goal_get` / `goal_graph_define` / `goal_update`。
 - [x] **清理特性排序**：`AppModule` / `PromptSection` 的 `Order` 数字排序改为注册名 + YAML。
@@ -34,9 +37,14 @@
   - 证据：真机 `jcc-tool-file.exe read --filePath "AGENTS.md"` 成功（修复前报「缺少必填参数 --file_path」）；`Verify-ToolParamNames.py` 117 项抽查全通；契约层 `JoinCode.CliNodes.Tests` 48 通过。详见 [TASK087](TASK087-参数名归一化两条路径统一.md)。
 - [x] **密钥红线按值判定**：不再按参数名拦 `--key`/`--token`/`--secret`，改为按密钥语义 + 值形态判定。
   - 证据：真机 `jcc tool call search search_symbol --key theme` 不再被阻断；`--api-key sk-xxx`、`--token ghp_xxx`、`--api-key=sk-xxx` 仍被拦（等号形式修复前漏检）；`host.tests` 1329 通过（新增 21 条）。详见 [TASK088](TASK088-密钥红线按值判定.md)。
-- [x] **配置存储源收敛**：`/theme`、GUI、`config_get`/`config_set` 对同一键给同一答案；存储源由契约层 `SettingSourceMap` 唯一决定，旧 `settings.json` 的 global 键一次性搬走。
-- [x] **配置值语义归一**：`config_get model` 与 `config_set model` 落在同一个字段（`vendor.{当前供应商}.model`），嵌套键（`permissions.defaultMode`）按 `SettingPathMap` 的路径读写；写盘失败不再报成功。启动输出从 126 行降到 10 行，控制台与 `jcc_error.log` 默认不含栈帧。详见 [TASK090](TASK090-配置读取语义归一.md)。
-  - 证据：真机同目录交叉验证 —— `/theme light` 写 `global.json` 后 `jcc tool call system config_get --setting theme` 读到 `light`；工具写 `dark` 后 `/config get theme` 读回 `dark`；GUI 探针 `GuiSessionProbe` 读 `dark-ansi` 并写回 `light-daltonized` 全部落在 `global.json`；`config_source_probe` 三场景 12 项断言通过；`Guard.Config.Tests` 1305 通过。详见 [TASK089](TASK089-配置存储源分叉.md)。
+- [x] **配置存储源收敛**：`/theme`、GUI、`config_get`/`config_set` 对同一键给同一答案；存储源由契约层唯一清单决定，旧 `settings.json` 的 global 键一次性搬走。
+  - 证据：真机同目录交叉验证 —— `/theme light` 写 `global.json` 后 `jcc tool call system config_get --setting theme` 读到 `light`；工具写 `dark` 后 `/config get theme` 读回 `dark`；GUI 探针 `GuiSessionProbe` 读写一致；`config_source_probe` 三场景 12 项断言通过。详见 [TASK089](TASK089-配置存储源分叉.md)。
+- [x] **配置值语义归一**：`config_get model` 与 `config_set model` 落在同一个字段（`vendor.{当前供应商}.model`），嵌套键（`permissions.defaultMode`）按清单声明的 JSON 路径读写；写盘失败不再报成功。启动输出从 126 行降到 10 行，控制台与 `jcc_error.log` 默认不含栈帧。详见 [TASK090](TASK090-配置读取语义归一.md)。
+  - 证据：真机隔离目录 `config_get model` 读 `vendor.p1.model`、`config_set` 后两处读回一致且只改该字段；`permissions.defaultMode` 写入后 `PermissionChecker` 读到；`Guard.Config.Tests` 1305 通过。
+- [x] **配置键收敛为唯一清单**：`ConfigKey` 枚举 + `SupportedSettings` + `SettingSourceMap` + `SettingPathMap` 四张表合并为 `ConfigKeyRegistry`（20 键），配置写入只改一个字段，配置迁移带版本号。详见 [TASK091](TASK091-配置键唯一清单与迁移框架.md)。
+  - 证据：真机 `config_get effortLevel` 从「Unknown setting」变为可读写、`config_list` 输出 20 键并分组、`config-migrations.json` 只记录一次迁移；`ConfigKeyRegistryTests` 13 条 + `ConfigMigrationRunnerTests` 8 条通过。
+- [x] **文件签名保持**：有 BOM 保留且只一个、没有就不新增，编码也跟着原文件走。详见 [TASK092](TASK092-文件签名保持.md)。
+  - 证据：真机 8 场景 —— `settings.json` 无 BOM 写入前后都是 `7b 22 63`、带 BOM 仍 `ef bb bf` 且不重复；`file edit` 三种编码分别保持；`ConfigFileEncodingTests` 4 条（临时回退旧实现实测 3 红）+ `BclBridge` 41 条通过。
 
 ## 用户决策记录
 

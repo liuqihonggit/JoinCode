@@ -39,15 +39,6 @@ modules/llm/agents.fork/ForkSubAgentManagerActor.cs|3
 modules/llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorConcurrencyTests.cs|2
 modules/llm/llm.tests/Adapters/Fallback/StreamIdleWatchdogTests.cs|2
 modules/perception/code_index.tests/a_to_c/ConcurrencySafetyTests.cs|2
-modules/perception/code_index.tests/p_to_t/TimeoutLockTests.cs|10
-modules/perception/code_index/core/TimeoutLock.cs|3
-modules/perception/code_index/incremental/IncrementalUpdater.cs|1
-modules/perception/code_index/indexing/CodeIndexer.cs|1
-modules/perception/code_index/parsing/CSharpSymbolExtractor.cs|4
-modules/perception/code_index/parsing/TreeSitterParserPool.cs|1
-modules/perception/code_index/vector/HnswAnn.cs|1
-modules/perception/eyes/lsp/core/LspDiagnosticRegistry.cs|1
-modules/perception/eyes/lsp/service/LspService.cs|1
 modules/persistence/pithosdb/Compaction/LeveledCompactor.cs|3
 modules/persistence/pithosdb/Core/LruBlockCache.cs|4
 modules/persistence/pithosdb/Core/S3FifoBlockCache.cs|4

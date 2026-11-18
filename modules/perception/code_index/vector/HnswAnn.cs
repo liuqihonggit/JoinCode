@@ -4,7 +4,7 @@ namespace JoinCode.CodeIndex.Vector;
 /// HNSW (Hierarchical Navigable Small World) 近似最近邻搜索实现。
 /// <para>多层图结构：上层稀疏快速定位，下层密集精确搜索。</para>
 /// <para>搜索复杂度 O(efSearch × log N)，比暴力搜索 O(N) 快数倍至数十倍。</para>
-/// <para>线程安全：读操作（Search）读锁，写操作（Add/Remove）写锁。</para>
+/// <para>线程安全：所有操作经 <see cref="AsyncGate"/> 串行化（任务链门闩，无 OS 锁原语）。</para>
 /// <para>使用 SwissTable（SIMD 加速字典）存储向量和图结构，PriorityQueue 做堆搜索。</para>
 /// <para>实现 IAnnSearchGraphPersistence：加载时直接恢复邻接表，不重新构图（O(N) 而非 O(N × efConstruction × log N)）。</para>
 /// </summary>
@@ -20,7 +20,7 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
     private readonly int _efSearch;
     private readonly double _mL;
 
-    private readonly ReaderWriterLockSlim _lock = new();
+    private readonly AsyncGate _gate = new();
     private readonly Random _rng = new();
 
     private const string GraphMagic = "HNSW1";
@@ -53,70 +53,54 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
     /// <summary>当前向量数量。</summary>
     public int Count {
         get {
-            _lock.EnterReadLock();
-            try {
-                return _vectors.Count;
-            } finally {
-                _lock.ExitReadLock();
-            }
+            using var scope = _gate.Acquire();
+            return _vectors.Count;
         }
     }
 
     /// <summary>添加单个向量。若 id 已存在则覆盖。</summary>
     public void Add(string id, ReadOnlySpan<float> vector) {
         ArgumentNullException.ThrowIfNull(id);
-        _lock.EnterWriteLock();
-        try {
-            InsertCore(id, vector.ToArray());
-        } finally {
-            _lock.ExitWriteLock();
-        }
+        using var scope = _gate.Acquire();
+        InsertCore(id, vector.ToArray());
     }
 
     /// <summary>批量添加向量。已存在的 id 覆盖。</summary>
     public void AddRange(IReadOnlyList<(string Id, float[] Vector)> items) {
         ArgumentNullException.ThrowIfNull(items);
-        _lock.EnterWriteLock();
-        try {
-            for (var i = 0; i < items.Count; i++)
-                InsertCore(items[i].Id, items[i].Vector);
-        } finally {
-            _lock.ExitWriteLock();
-        }
+        using var scope = _gate.Acquire();
+        for (var i = 0; i < items.Count; i++)
+            InsertCore(items[i].Id, items[i].Vector);
     }
 
     /// <summary>删除指定 id 的向量。</summary>
     public void Remove(string id) {
         ArgumentNullException.ThrowIfNull(id);
-        _lock.EnterWriteLock();
-        try {
-            if (!_vectors.ContainsKey(id)) return;
-            _vectors.Remove(id);
+        using var scope = _gate.Acquire();
+        if (!_vectors.ContainsKey(id)) return;
+        _vectors.Remove(id);
 
-            for (var lc = 0; lc < _layers.Count; lc++) {
-                if (_layers[lc].TryGetValue(id, out var neighbors)) {
-                    foreach (var n in neighbors) {
-                        if (_layers[lc].TryGetValue(n, out var nNeighbors)) {
-                            nNeighbors.Remove(id);
-                        }
-                    }
-                    _layers[lc].Remove(id);
-                }
-            }
-
-            if (_entryPoint == id) {
-                _entryPoint = null;
-                _entryLevel = -1;
-                for (var lc = _layers.Count - 1; lc >= 0; lc--) {
-                    if (_layers[lc].Count > 0) {
-                        _entryPoint = _layers[lc].Keys.First();
-                        _entryLevel = lc;
-                        break;
+        for (var lc = 0; lc < _layers.Count; lc++) {
+            if (_layers[lc].TryGetValue(id, out var neighbors)) {
+                foreach (var n in neighbors) {
+                    if (_layers[lc].TryGetValue(n, out var nNeighbors)) {
+                        nNeighbors.Remove(id);
                     }
                 }
+                _layers[lc].Remove(id);
             }
-        } finally {
-            _lock.ExitWriteLock();
+        }
+
+        if (_entryPoint == id) {
+            _entryPoint = null;
+            _entryLevel = -1;
+            for (var lc = _layers.Count - 1; lc >= 0; lc--) {
+                if (_layers[lc].Count > 0) {
+                    _entryPoint = _layers[lc].Keys.First();
+                    _entryLevel = lc;
+                    break;
+                }
+            }
         }
     }
 
@@ -127,26 +111,22 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
         ArgumentNullException.ThrowIfNull(query);
         if (topK <= 0) return [];
 
-        _lock.EnterReadLock();
-        try {
-            if (_entryPoint is null || _vectors.Count == 0) return [];
+        using var scope = _gate.Acquire();
+        if (_entryPoint is null || _vectors.Count == 0) return [];
 
-            var ep = _entryPoint;
-            for (var lc = _entryLevel; lc > 0; lc--) {
-                var w = SearchLayer(query, ep, 1, lc, ct);
-                if (w.Count > 0) ep = w[0].Id;
-            }
-
-            var ef = Math.Max(_efSearch, topK);
-            var results = SearchLayer(query, ep, ef, 0, ct);
-            return results
-                .Select(x => (x.Id, Score: 1f - x.Dist))
-                .OrderByDescending(x => x.Score)
-                .Take(topK)
-                .ToList();
-        } finally {
-            _lock.ExitReadLock();
+        var ep = _entryPoint;
+        for (var lc = _entryLevel; lc > 0; lc--) {
+            var w = SearchLayer(query, ep, 1, lc, ct);
+            if (w.Count > 0) ep = w[0].Id;
         }
+
+        var ef = Math.Max(_efSearch, topK);
+        var results = SearchLayer(query, ep, ef, 0, ct);
+        return results
+            .Select(x => (x.Id, Score: 1f - x.Dist))
+            .OrderByDescending(x => x.Score)
+            .Take(topK)
+            .ToList();
     }
 
     /// <summary>
@@ -155,25 +135,21 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
     /// </summary>
     public void SaveGraph(BinaryWriter bw) {
         ArgumentNullException.ThrowIfNull(bw);
-        _lock.EnterReadLock();
-        try {
-            bw.Write(System.Text.Encoding.UTF8.GetBytes(GraphMagic));
-            bw.Write(_entryLevel);
-            WriteNullableString(bw, _entryPoint);
-            bw.Write(_layers.Count);
-            for (var lc = 0; lc < _layers.Count; lc++) {
-                var layer = _layers[lc];
-                bw.Write(layer.Count);
-                foreach (var (id, neighbors) in layer) {
-                    WriteString(bw, id);
-                    bw.Write(neighbors.Count);
-                    foreach (var n in neighbors) {
-                        WriteString(bw, n);
-                    }
+        using var scope = _gate.Acquire();
+        bw.Write(System.Text.Encoding.UTF8.GetBytes(GraphMagic));
+        bw.Write(_entryLevel);
+        WriteNullableString(bw, _entryPoint);
+        bw.Write(_layers.Count);
+        for (var lc = 0; lc < _layers.Count; lc++) {
+            var layer = _layers[lc];
+            bw.Write(layer.Count);
+            foreach (var (id, neighbors) in layer) {
+                WriteString(bw, id);
+                bw.Write(neighbors.Count);
+                foreach (var n in neighbors) {
+                    WriteString(bw, n);
                 }
             }
-        } finally {
-            _lock.ExitReadLock();
         }
     }
 
@@ -188,34 +164,30 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
         if (magic != GraphMagic)
             throw new InvalidDataException($"HNSW 图格式不匹配: 期望 {GraphMagic}, 实际 {magic}");
 
-        _lock.EnterWriteLock();
-        try {
-            _vectors.Clear();
-            _layers.Clear();
+        using var scope = _gate.Acquire();
+        _vectors.Clear();
+        _layers.Clear();
 
-            foreach (var (id, vec) in vectors) {
-                _vectors[id] = vec;
-            }
+        foreach (var (id, vec) in vectors) {
+            _vectors[id] = vec;
+        }
 
-            _entryLevel = br.ReadInt32();
-            _entryPoint = ReadNullableString(br);
-            var layerCount = br.ReadInt32();
-            for (var lc = 0; lc < layerCount; lc++) {
-                var layer = new SwissTable<string, List<string>>();
-                var nodeCount = br.ReadInt32();
-                for (var n = 0; n < nodeCount; n++) {
-                    var id = ReadString(br);
-                    var neighborCount = br.ReadInt32();
-                    var neighbors = new List<string>(neighborCount);
-                    for (var nc = 0; nc < neighborCount; nc++) {
-                        neighbors.Add(ReadString(br));
-                    }
-                    layer[id] = neighbors;
+        _entryLevel = br.ReadInt32();
+        _entryPoint = ReadNullableString(br);
+        var layerCount = br.ReadInt32();
+        for (var lc = 0; lc < layerCount; lc++) {
+            var layer = new SwissTable<string, List<string>>();
+            var nodeCount = br.ReadInt32();
+            for (var n = 0; n < nodeCount; n++) {
+                var id = ReadString(br);
+                var neighborCount = br.ReadInt32();
+                var neighbors = new List<string>(neighborCount);
+                for (var nc = 0; nc < neighborCount; nc++) {
+                    neighbors.Add(ReadString(br));
                 }
-                _layers.Add(layer);
+                layer[id] = neighbors;
             }
-        } finally {
-            _lock.ExitWriteLock();
+            _layers.Add(layer);
         }
     }
 

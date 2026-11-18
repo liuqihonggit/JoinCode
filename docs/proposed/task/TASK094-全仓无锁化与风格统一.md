@@ -329,11 +329,11 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 | 单写者 Channel / 快照 | `LspConnection`、`RgEngine`、`ConfigurationService`、`AsyncLazy` | ✅ | ✅ `jcc-tool-code.exe lsp_hover` 经 csharp-ls 真实 stdio JSON-RPC 返回 `RgOutcome? outcome` EXIT=0（`.xxx/logs/TASK094/lsp-hover.txt`）；`jcc-rg.exe --stream` 输出 4 个命中文件 EXIT=0（`.xxx/logs/TASK094/exe-rg-stream2.txt`）；AsyncLazy 单飞 3/3、FileHistory 多版本 3/3、Rg 154/154 全绿 |
 | TUI 输入与回合 Actor | `RawStdinPump`、`LazyEngine`、`EngineTurnClient`、`ReplShell`、`BridgeEventPump`、`TerminalQuerier` | ✅ | ✅ `jcc.exe --selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-tui.txt`）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-input.txt`）、`NativeTui.Demo.exe --selftest` / `--selftest-bash` / `--bridge-selftest` 三个 EXIT=0（`b2-demo-selftest.txt` / `b2-demo-bash.txt` / `b2-demo-bridge.txt`，跨进程 bridge 协议走真实管道）；单元测试 NativeTui.Tests 3024/3024、NativeTui.Host.Tests 140/140 |
 | DSH 状态 Actor/不可变快照 | `native_gui` 16 文件 / 82 锁 → 0；事件出 Actor 触发；WS 每连接单写者 | ✅ | ✅ `--dsh-smoke` EXIT=0 ×4（真实 HttpListener/WS：session/create+list、$events/session/follow 双流、goals 暂停事件、32+16 并发 RPC；`.xxx/logs/TASK094/gui_dsh_smoke_loop.log` / `gui_dsh_smoke_after_fix.log`）；`--webui-smoke` EXIT=0 ×3（真实 WebView2 窗口桥接，修复 async Main 导致 STA 失效的 `RPC_E_CHANGED_MODE`，`.xxx/logs/TASK094/gui_webui_smoke3.log` / `gui_webui_smoke_loop1/2.log`）；NativeGui.Core.Tests 409/409（`gui_tests_full3.log`）、NativeGui.Host.Tests 47/47（`gui_host_tests_full.log`） |
-| AsyncLock/限流替换 | 47 文件 / 101 获取 + Semaphore 限流 | ❌ | ❌（jcc + MockServer 并发回合） |
+| AsyncLock/限流替换 | 47 文件 / 101 获取 + Semaphore 限流 | 🔄 进行中：钩子配置/沙箱 IPC/技能索引/MCP 认证与降级链/流式执行器/GH 并行下载/感知域（LspService 单飞、LspDiagnosticRegistry 不可变快照、CSharpSymbolExtractor AsyncGate、TreeSitterParserPool 门闩、HnswAnn 单门闩）已去锁；基线 138 文件/536 处 → **82 文件/372 处** | ❌（jcc + MockServer 并发回合） |
 | PithosDb 单写者 + 快照 | `PithosDb`、`LeveledCompactor`、Lru/S3Fifo | ❌ | ❌（双进程存储完整性） |
-| HNSW 快照 | `HnswAnn` | ❌ | ❌（真实索引构建 + 固定样本召回） |
+| HNSW 快照 | `HnswAnn` | ✅ 单 AsyncGate 串行化替换 `ReaderWriterLockSlim`（CodeIndex 792 测试全绿） | ❌（真实索引构建 + 固定样本召回） |
 | 原子文件租约 | `CrossProcessLock`、`NamedMutexMailboxLock`、Pithos 租约 | ❌ | ❌（3 进程竞争 + 崩溃接管） |
-| 锁生态归档 | AsyncLock/LockRef/AsyncLockedDictionary/TimeoutLock/OrderedLockManager | ❌ | ❌（全仓编译 + exe 回归） |
+| 锁生态归档 | AsyncLock/LockRef/AsyncLockedDictionary/TimeoutLock/OrderedLockManager | 🔄 `TimeoutLock` 及其测试已移入 `.xxx/`，`CodeIndex.csproj` 去掉 `AsyncLock.csproj` 引用 | ❌（全仓编译 + exe 回归） |
 | 风格门禁与清理 | pragma/using/null-forgiving/async void/命名/目录/文档 | ❌ | ❌（门禁零命中 + exe 回归） |
 
 ## 6. Exe 验收协议
@@ -426,7 +426,20 @@ printf 'ab\025\033[D\033[1;5D\033[200~中文粘贴内容\033[201~\037你\r' | ./
 <!-- 验证: 待 B5 真实多进程验收；若失败先修租约设计，不自动改回 Mutex -->
 
 <!-- 🤖 Auto Decision: 2026-11-19 -->
+<!-- 决策: HnswAnn 的 ReaderWriterLockSlim 用单个 AsyncGate 串行化全部读写，不做不可变图快照双缓冲 -->
+<!-- 原因: HNSW 插入会改动多层邻接表，整图不可变复制的成本随 N 线性增长；索引构建/搜索并发度低，串行化按业务可接受 -->
+<!-- 替代方案: 写入 Actor + 图快照双缓冲（待 B4 与 PithosDb 一起做性能评估后再定）；保留 RWLock（用户已否决） -->
+<!-- 验证: CodeIndex.Tests 792/792 通过；HNSW 召回对比留到 B4 exe 验收 -->
+
+<!-- 🤖 Auto Decision: 2026-11-19 -->
+<!-- 决策: LspDiagnosticRegistry 用不可变快照（pending/delivered/DeliveredOrder）CAS 发布，CheckPending 一次 CAS 原子取走全部待处理批次 -->
+<!-- 原因: 原实现标记 AttachmentSent 与删除分两个锁窗口，并发 CheckPending 可能重复投递；快照 take 消除双投递且无锁 -->
+<!-- 替代方案: 每 key Actor 邮箱（过度设计，注册表操作都是短临界区）；保留 AsyncLock（用户已否决） -->
+<!-- 验证: Eyes.Tests 78/78 通过 -->
+
+<!-- 🤖 Auto Decision: 2026-11-19 -->
 <!-- 决策: 项目目录名与 csproj/程序集同名的（如 guard.security、*.generator）登记命名白名单；嵌套源码目录仍强制 lower_snake -->
 <!-- 原因: 项目目录名与构建/包名绑定，改名会破坏 slnx/CI/包引用；嵌套目录是纯源码组织，可安全统一 -->
 <!-- 替代方案: 全量重命名所有目录（成本高、收益低，且与现有 16 域结构冲突） -->
 <!-- 验证: B7 门禁脚本按“项目目录白名单+嵌套目录零违规”判定 -->
+

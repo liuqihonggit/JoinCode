@@ -135,6 +135,7 @@ Compose(骨架 ResolvedProfile, IReadOnlyList<CompositionDelta> deltas) → Comp
 ## 7. 真实边界（不越界宣称）
 
 - Probe 只针对**已存在节点的可配置键**（当前实证载体 = `max-requests`），不能凭空验证新节点。
+- **行为可观测性前提**：Probe 在固定 60 次瞬间请求上比对 allow/deny，只对"改变窗口容量"的键（如 `max-requests`）有判别力；改 `window-seconds` 这类不改变瞬间请求行为的键，会被判为"零差异"而拒绝——这是**保守 fail-closed**，宁可挡住不可验证的经验，也不放进无证据的经验。要支持更多键需扩展指纹维度（另立任务）。
 - Probe 是确定性行为对比（真实 limiter 请求），不是语义检索、不调用 LLM。
 - 融合收敛的是**键级 delta 覆盖入口**；`NodeProfileResolver.Merge` 的 excludes/includes/priority 专门语义保留为结构层前置处理，不强行塞进统一 Delta。
 - H₀ 重置从"进程结束隐式"升级为"Lifetime 显式过滤"，但生产启动仍是每进程一次 Compose，不做进程内多轮自动切换（除显式 probe 命令）。

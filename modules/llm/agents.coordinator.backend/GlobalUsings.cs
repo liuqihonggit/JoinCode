@@ -3,6 +3,7 @@ global using Infrastructure.Subprocess;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Utils;
 global using Microsoft.Extensions.Logging;
 global using System;
 global using System.Collections.Generic;

@@ -15,7 +15,7 @@ public sealed record ForkManagerDependencies(
 /// Fork 子代理管理器 Actor 版 — 单消费者 Channel + 命令模式,零锁。
 /// <para>所有可变状态(_entries/_sharedCache)由 Consumer 线程独占访问,无需锁。</para>
 /// <para>慢操作(管道执行/CancelAgent/后台Execute)在 Consumer 外执行,通过命令读写状态(方案B)。</para>
-/// <para>_forkSemaphore 保留:(N,N) 并发限流器,不是状态锁。</para>
+/// <para>_forkPermits 保留:许可池并发限流器,不是状态锁。</para>
 /// <para>已接管 IForkSubAgentManager 注册(原 ForkSubAgentManager 已归档至 .xxx/)。</para>
 /// </summary>
 [Register(typeof(IForkSubAgentManager), ServiceLifetime.Singleton)]
@@ -62,7 +62,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     private readonly IClockService _clock;
     private readonly Dictionary<string, ForkEntry> _entries = [];
     private readonly Dictionary<string, Dictionary<string, string>> _sharedCache = [];
-    private volatile AsyncLock? _forkSemaphore;
+    private volatile PermitPool? _forkPermits;
     private int _disposed;
 
     /// <summary>Fork 完成事件 — Fork 进入终态时触发（在 Consumer 外触发）</summary>
@@ -89,9 +89,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         _clock = clock ?? SystemClockService.Instance;
 
         var maxForks = (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentForks;
-        _forkSemaphore = maxForks > 0
-            ? new AsyncLock(nameof(ForkSubAgentManagerActor) + ".Concurrency", maxForks, maxForks)
-            : null;
+        _forkPermits = maxForks > 0 ? new PermitPool(maxForks) : null;
     }
 
     /// <summary>
@@ -102,18 +100,9 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// <param name="ct">取消令牌</param>
     /// <returns>Fork 结果</returns>
     public async Task<ForkResult> ForkAsync(ForkOptions options, CancellationToken ct = default) {
-        var sem = _forkSemaphore;
         IDisposable? releaser = null;
-        if (sem is not null) {
-            try {
-                releaser = await sem.TryLockAsync(ct).ConfigureAwait(false)
-                    ?? throw new System.TimeoutException($"锁 '{sem.Name}' 等待超时");
-            } catch (ObjectDisposedException) {
-                sem = _forkSemaphore;
-                if (sem is not null)
-                    releaser = await sem.TryLockAsync(ct).ConfigureAwait(false)
-                        ?? throw new System.TimeoutException($"锁 '{sem.Name}' 等待超时");
-            }
+        if (_forkPermits is { } permits) {
+            releaser = await permits.AcquireAsync(ct).ConfigureAwait(false);
         }
         var semaphoreTransferredToBackground = false;
         try {
@@ -547,14 +536,12 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     }
 
     /// <summary>
-    /// 热重载 fork 并发上限 — 原子替换 SemaphoreSlim，旧的 Dispose（ADR 0048）
+    /// 热重载 fork 并发上限 — 替换许可池容量（ADR 0048）
     /// </summary>
     public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options) {
         var maxForks = options.MaxConcurrentForks;
-        var newSem = maxForks > 0
-            ? new AsyncLock(nameof(ForkSubAgentManagerActor) + ".Concurrency", maxForks, maxForks)
-            : null;
-        var old = Interlocked.Exchange(ref _forkSemaphore, newSem);
+        var newPermits = maxForks > 0 ? new PermitPool(maxForks) : null;
+        var old = Interlocked.Exchange(ref _forkPermits, newPermits);
         old?.Dispose();
         _logger?.LogInformation("fork 并发上限已热重载为 {Limit}", maxForks);
     }
@@ -574,7 +561,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     public override ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         TrySend(new CleanupAllCmd());
-        _forkSemaphore?.Dispose();
+        _forkPermits?.Dispose();
         return base.DisposeAsync();
     }
 }

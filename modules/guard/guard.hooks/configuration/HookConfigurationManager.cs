@@ -55,13 +55,15 @@ public interface IHookConfigurationManager {
 /// 钩子配置管理器实现
 /// </summary>
 public sealed partial record HookConfigurationManager : IHookConfigurationManager, IAsyncDisposable {
-    private readonly AsyncLock _lock = new();
     private readonly IFileSystem _fs;
     private readonly ILogger<HookConfigurationManager>? _logger;
     private volatile ImmutableHamT<HookSource, IHookConfigurationProvider> _providers = ImmutableHamT<HookSource, IHookConfigurationProvider>.Empty;
     private volatile ImmutableHamT<string, HookConfigurationGroup> _cache = ImmutableHamT<string, HookConfigurationGroup>.Empty;
 
     private const string CacheKey = "all_hooks";
+    private Task _mutationTail = Task.CompletedTask;
+    private Task<HookConfigurationGroup>? _loadTask;
+    private long _cacheVersion;
     private int _disposed;
 
     /// <summary>
@@ -97,13 +99,39 @@ public sealed partial record HookConfigurationManager : IHookConfigurationManage
             return cached;
         }
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        // 单飞加载：并发调用共享同一个加载任务，加载期间发生写入则丢弃本次结果（由写入方失效缓存）
+        while (true) {
+            var existing = Volatile.Read(ref _loadTask);
+            if (existing is not null) {
+                return await existing.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
 
-        // 双重检查
-        if (_cache.TryGetValue(CacheKey, out cached)) {
-            return cached;
+            var tcs = new TaskCompletionSource<HookConfigurationGroup>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (Interlocked.CompareExchange(ref _loadTask, tcs.Task, null) != null)
+                continue;
+
+            try {
+                var version = Interlocked.Read(ref _cacheVersion);
+                var group = await LoadAllHooksCoreAsync(CancellationToken.None).ConfigureAwait(false);
+                if (Interlocked.Read(ref _cacheVersion) == version) {
+                    while (true) {
+                        var current = _cache;
+                        var updated = current.SetItem(CacheKey, group);
+                        if (Interlocked.CompareExchange(ref _cache, updated, current) == current) break;
+                    }
+                }
+                tcs.TrySetResult(group);
+                return group;
+            } catch (Exception ex) {
+                tcs.TrySetException(ex);
+                throw;
+            } finally {
+                _ = Interlocked.CompareExchange(ref _loadTask, null, tcs.Task);
+            }
         }
+    }
 
+    private async Task<HookConfigurationGroup> LoadAllHooksCoreAsync(CancellationToken cancellationToken) {
         var group = new HookConfigurationGroup();
 
         // 按优先级顺序加载各来源
@@ -131,14 +159,7 @@ public sealed partial record HookConfigurationManager : IHookConfigurationManage
             }
         }
 
-        // 手写 CAS 循环整体替换 _cache(与项目统一模式,手写循环使 Roslyn IDE0044 识别 ref 写入)
-        while (true) {
-            var current = _cache;
-            var updated = current.SetItem(CacheKey, group);
-            if (Interlocked.CompareExchange(ref _cache, updated, current) == current) break;
-        }
         return group;
-
     }
 
     /// <inheritdoc />
@@ -173,13 +194,11 @@ public sealed partial record HookConfigurationManager : IHookConfigurationManage
             throw new InvalidOperationException($"Source {source} is not editable");
         }
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        await provider.AddHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-        while (true) {
-            var current = _cache;
-            if (Interlocked.CompareExchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty, current) == current) break;
-        }
+        await RunSerializedMutationAsync(async () => {
+            Interlocked.Increment(ref _cacheVersion);
+            await provider.AddHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
+            ClearCache();
+        }, cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation(
             "Added hook to {Source} for event {Event}: {HookDisplay}",
@@ -204,13 +223,11 @@ public sealed partial record HookConfigurationManager : IHookConfigurationManage
             throw new InvalidOperationException($"Source {source} is not editable");
         }
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        await provider.RemoveHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-        while (true) {
-            var current = _cache;
-            if (Interlocked.CompareExchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty, current) == current) break;
-        }
+        await RunSerializedMutationAsync(async () => {
+            Interlocked.Increment(ref _cacheVersion);
+            await provider.RemoveHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
+            ClearCache();
+        }, cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation(
             "Removed hook from {Source} for event {Event}: {HookDisplay}",
@@ -222,18 +239,48 @@ public sealed partial record HookConfigurationManager : IHookConfigurationManage
 
     /// <inheritdoc />
     public Task InvalidateCacheAsync(CancellationToken cancellationToken = default) {
+        Interlocked.Increment(ref _cacheVersion);
+        ClearCache();
+        _logger?.LogDebug("Hook configuration cache invalidated");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>串行化写操作 — 单写者任务链，后序写等待前序完成，无需锁</summary>
+    private async Task RunSerializedMutationAsync(Func<Task> mutation, CancellationToken cancellationToken) {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var previous = Interlocked.Exchange(ref _mutationTail, completion.Task);
+        try {
+            try { await previous.ConfigureAwait(false); } catch (Exception ex) {
+                _logger?.LogDebug(ex, "前序钩子配置写操作失败,继续当前写操作");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            await mutation().ConfigureAwait(false);
+            completion.SetResult();
+        } catch (Exception ex) {
+            completion.SetException(ex);
+            throw;
+        }
+    }
+
+    private void ClearCache() {
         while (true) {
             var current = _cache;
             if (Interlocked.CompareExchange(ref _cache, ImmutableHamT<string, HookConfigurationGroup>.Empty, current) == current) break;
         }
-        _logger?.LogDebug("Hook configuration cache invalidated");
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _lock.Dispose();
+        try { await _mutationTail.ConfigureAwait(false); } catch (Exception ex) {
+            _logger?.LogDebug(ex, "等待钩子配置写操作完成时出错");
+        }
+        var loadTask = Volatile.Read(ref _loadTask);
+        if (loadTask is not null) {
+            try { await loadTask.ConfigureAwait(false); } catch (Exception ex) {
+                _logger?.LogDebug(ex, "等待钩子配置加载任务完成时出错");
+            }
+        }
     }
 }
 

@@ -11,7 +11,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     private readonly HttpClientRef _httpClient;
     private readonly ILogger<McpPkceAuthProvider>? _logger;
     private readonly IFileSystem _fs;
-    private readonly AsyncLock _refreshLock = new();
+    private Task _mutationTail = Task.CompletedTask;
     private readonly McpOAuthMetadataDiscovery _metadataDiscovery;
     private readonly McpDynamicClientRegistration _dcr;
 
@@ -147,18 +147,18 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>刷新成功返回 true；失败返回 false</returns>
     public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
-        try {
-            if (!string.IsNullOrEmpty(_authContext.RefreshToken)) {
-                return await RefreshTokenAsync(cancellationToken).ConfigureAwait(false);
+        return await RunSerializedAsync(async () => {
+            try {
+                if (!string.IsNullOrEmpty(_authContext.RefreshToken)) {
+                    return await RefreshTokenAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                return await AuthorizeWithPkceAsync(cancellationToken).ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "PKCE 认证刷新失败");
+                return false;
             }
-
-            return await AuthorizeWithPkceAsync(cancellationToken).ConfigureAwait(false);
-        } catch (Exception ex) {
-            _logger?.LogError(ex, "PKCE 认证刷新失败");
-            return false;
-        }
-
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -204,36 +204,37 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 
         await EnsureClientConfiguredAsync(cancellationToken).ConfigureAwait(false);
 
-        using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
-        try {
-            var parameters = new Dictionary<string, string> {
-                ["grant_type"] = "authorization_code",
-                ["code"] = authorizationCode,
-                ["redirect_uri"] = _options.RedirectUrl,
-                ["client_id"] = _resolvedClientId ?? _options.ClientId ?? throw new InvalidOperationException("ClientId is not set."),
-                ["code_verifier"] = _codeVerifier ?? string.Empty
-            };
+        return await RunSerializedAsync(async () => {
+            try {
+                var parameters = new Dictionary<string, string> {
+                    ["grant_type"] = "authorization_code",
+                    ["code"] = authorizationCode,
+                    ["redirect_uri"] = _options.RedirectUrl,
+                    ["client_id"] = _resolvedClientId ?? _options.ClientId ?? throw new InvalidOperationException("ClientId is not set."),
+                    ["code_verifier"] = _codeVerifier ?? string.Empty
+                };
 
-            if (!string.IsNullOrEmpty(_options.ClientSecret)) {
-                parameters["client_secret"] = _options.ClientSecret;
+                if (!string.IsNullOrEmpty(_options.ClientSecret)) {
+                    parameters["client_secret"] = _options.ClientSecret;
+                }
+
+                var tokenResponse = await OAuth2TokenExchange.ExchangeTokenAsync(
+                    _httpClient, _resolvedTokenUrl!, parameters,
+                    McpOAuthJsonContext.Default.OAuth2TokenResponse, _logger, cancellationToken).ConfigureAwait(false);
+
+                UpdateAuthContext(tokenResponse);
+                await PersistTokenAsync(cancellationToken).ConfigureAwait(false);
+
+                _logger?.LogInformation("PKCE 授权码交换成功");
+                return true;
+            } catch (OAuthException ex) {
+                _logger?.LogError(ex, "授权码交换失败");
+                return false;
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "授权码交换异常");
+                return false;
             }
-
-            var tokenResponse = await OAuth2TokenExchange.ExchangeTokenAsync(
-                _httpClient, _resolvedTokenUrl!, parameters,
-                McpOAuthJsonContext.Default.OAuth2TokenResponse, _logger, cancellationToken).ConfigureAwait(false);
-
-            UpdateAuthContext(tokenResponse);
-            await PersistTokenAsync(cancellationToken).ConfigureAwait(false);
-
-            _logger?.LogInformation("PKCE 授权码交换成功");
-            return true;
-        } catch (OAuthException ex) {
-            _logger?.LogError(ex, "授权码交换失败");
-            return false;
-        } catch (Exception ex) {
-            _logger?.LogError(ex, "授权码交换异常");
-            return false;
-        }
+        }, cancellationToken).ConfigureAwait(false);
 
     }
 
@@ -425,11 +426,22 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         }
     }
 
-    /// <summary>
-    /// 释放同步资源 — 释放刷新锁(HttpClient 为借用句柄,不释放)
-    /// </summary>
-    public void Dispose() {
-        _refreshLock.Dispose();
+    /// <summary>串行化令牌状态写操作 — 单写者任务链，后序操作等待前序完成，无需锁</summary>
+    private async Task<T> RunSerializedAsync<T>(Func<Task<T>> action, CancellationToken cancellationToken) {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var previous = Interlocked.Exchange(ref _mutationTail, completion.Task);
+        try {
+            try { await previous.ConfigureAwait(false); } catch (Exception ex) {
+                _logger?.LogDebug(ex, "前序令牌操作失败,继续当前操作");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = await action().ConfigureAwait(false);
+            completion.SetResult();
+            return result;
+        } catch (Exception ex) {
+            completion.SetException(ex);
+            throw;
+        }
     }
 
     /// <summary>
@@ -437,7 +449,9 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     /// </summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _refreshLock.Dispose();
+        try { await _mutationTail.ConfigureAwait(false); } catch (Exception ex) {
+            _logger?.LogDebug(ex, "等待令牌操作完成时出错");
+        }
     }
 }
 

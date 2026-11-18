@@ -15,7 +15,7 @@ public sealed partial class HotSpotSpawnIntegration : IHotSpotSpawnIntegration {
 
     private volatile bool _listenersRegistered;
     private string? _registeredCaptainId;
-    private readonly AsyncLock _registerLock = new("HotSpotSpawnIntegration");
+    private readonly AsyncGate _registerGate = new();
 
     /// <summary>
     /// 构造热点 spawn 集成服务
@@ -50,18 +50,17 @@ public sealed partial class HotSpotSpawnIntegration : IHotSpotSpawnIntegration {
     public void EnsureListenersRegistered(string captainId) {
         if (_listenersRegistered && _registeredCaptainId == captainId) return;
 
-        using (_registerLock.LockOrCrash()) {
-            if (_listenersRegistered && _registeredCaptainId == captainId) return;
+        using var scope = _registerGate.Acquire();
+        if (_listenersRegistered && _registeredCaptainId == captainId) return;
 
-            var intentListener = new IntentReportFileWriteListener(_intentCollector, _hotFileDetector, captainId);
-            var broadcastListener = new ContractChangeBroadcastListener(_broadcaster, _hotFileDetector, _hotSpotTracker, _router, captainId);
-            _registry.Register(intentListener);
-            _registry.Register(broadcastListener);
+        var intentListener = new IntentReportFileWriteListener(_intentCollector, _hotFileDetector, captainId);
+        var broadcastListener = new ContractChangeBroadcastListener(_broadcaster, _hotFileDetector, _hotSpotTracker, _router, captainId);
+        _registry.Register(intentListener);
+        _registry.Register(broadcastListener);
 
-            _listenersRegistered = true;
-            _registeredCaptainId = captainId;
-            _logger?.LogInformation("[HotSpotIntegration] Listener 已注册, captainId={CaptainId}", captainId);
-        }
+        _listenersRegistered = true;
+        _registeredCaptainId = captainId;
+        _logger?.LogInformation("[HotSpotIntegration] Listener 已注册, captainId={CaptainId}", captainId);
     }
 
     /// <summary>

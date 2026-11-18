@@ -10,7 +10,7 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable {
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
     private bool _initialized;
-    private readonly AsyncLock _initLock = new();
+    private TaskCompletionSource? _initSignal;
     /// <summary>
     /// 日志记录器（可选）
     /// </summary>
@@ -67,14 +67,28 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable {
     }
 
     private async Task EnsureInitializedAsync() {
-        if (Volatile.Read(ref _initialized)) return;
-        if (Volatile.Read(ref _disposed) == 1) return;
-        var guard = await _initLock.TryLockAsync().ConfigureAwait(false);
-        if (guard is null) return;
-        using (guard) {
-            if (Volatile.Read(ref _initialized)) return;
-            try { await InitializeAsync().ConfigureAwait(false); } catch (Exception ex) { _logger?.LogWarning(ex, "{TypeName}: 初始化失败", GetType().Name); }
+        if (Volatile.Read(ref _initialized) || Volatile.Read(ref _disposed) == 1) return;
+
+        var signal = Volatile.Read(ref _initSignal);
+        if (signal is null) {
+            var mine = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            signal = Interlocked.CompareExchange(ref _initSignal, mine, null) ?? mine;
+            if (ReferenceEquals(signal, mine)) {
+                _ = RunInitializeAsync(mine);
+            }
+        }
+
+        await signal.Task.ConfigureAwait(false);
+    }
+
+    private async Task RunInitializeAsync(TaskCompletionSource completion) {
+        try {
+            await InitializeAsync().ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "{TypeName}: 初始化失败", GetType().Name);
+        } finally {
             Volatile.Write(ref _initialized, true);
+            completion.TrySetResult();
         }
     }
 
@@ -107,6 +121,5 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable {
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _disposeCts.CancelAndDisposeSafe(_logger);
-        _initLock.Dispose();
     }
 }

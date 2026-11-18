@@ -9,7 +9,7 @@ namespace JoinCode.Gui.WebHost;
 internal sealed class DshWorkspaceStore {
     private readonly IFileSystem _fs;
     private readonly string _filePath;
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly DshSerialMailbox _actor = new();
     private DshWorkspaceBaselineValue? _document;
 
     /// <summary>构造工作区存储</summary>
@@ -27,27 +27,22 @@ internal sealed class DshWorkspaceStore {
     internal bool DirectoryExists(string path) => _fs.DirectoryExists(path);
 
     /// <summary>工作区/归档/置顶的当前快照（供 workspace/follow 基线使用）</summary>
-    internal async Task<DshWorkspaceBaselineValue> ReadBaselineAsync(CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<DshWorkspaceBaselineValue> ReadBaselineAsync(CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             return new DshWorkspaceBaselineValue {
                 Items = [.. document.Items],
                 ArchivedSessionIds = [.. document.ArchivedSessionIds],
                 PinnedSessionIds = [.. document.PinnedSessionIds],
             };
-        } finally {
-            _gate.Release();
-        }
-    }
+        });
 
     /// <summary>workspace/create：按路径收养（已存在则原样返回，created=false）</summary>
-    internal async Task<(DshWorkspaceItem Workspace, bool Created)> CreateAsync(string path, CancellationToken cancellationToken = default) {
+    internal Task<(DshWorkspaceItem Workspace, bool Created)> CreateAsync(string path, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         var normalized = Normalize(path);
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+        return _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             if (document.Items.FirstOrDefault(item => string.Equals(item.Path, normalized, StringComparison.OrdinalIgnoreCase)) is { } existing) {
                 return (existing, false);
             }
@@ -61,48 +56,38 @@ internal sealed class DshWorkspaceStore {
                 UpdatedAt = now,
             };
             document.Items.Add(created);
-            await SaveAsync(document, cancellationToken);
+            await SaveAsync(document, cancellationToken).ConfigureAwait(false);
             return (created, true);
-        } finally {
-            _gate.Release();
-        }
+        });
     }
 
     /// <summary>workspace/rename：改显示名</summary>
-    internal async Task<DshWorkspaceItem?> RenameAsync(string workspaceId, string title, CancellationToken cancellationToken = default) {
+    internal Task<DshWorkspaceItem?> RenameAsync(string workspaceId, string title, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+        return _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             return await MutateAsync(document, workspaceId, item => {
                 item.Title = title;
                 return item;
-            }, cancellationToken);
-        } finally {
-            _gate.Release();
-        }
+            }, cancellationToken).ConfigureAwait(false);
+        });
     }
 
     /// <summary>workspace/delete：移除工作区行（会话本身留在会话存中）</summary>
-    internal async Task<bool> DeleteAsync(string workspaceId, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<bool> DeleteAsync(string workspaceId, CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             var removed = document.Items.RemoveAll(item => string.Equals(item.WorkspaceId, workspaceId, StringComparison.Ordinal)) > 0;
             if (removed) {
-                await SaveAsync(document, cancellationToken);
+                await SaveAsync(document, cancellationToken).ConfigureAwait(false);
             }
             return removed;
-        } finally {
-            _gate.Release();
-        }
-    }
+        });
 
     /// <summary>workspace/insertBefore：把工作区移到锚点之前（锚点省略则追加到末尾），返回完整顺序</summary>
-    internal async Task<List<string>?> InsertBeforeAsync(string workspaceId, string? beforeWorkspaceId, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<List<string>?> InsertBeforeAsync(string workspaceId, string? beforeWorkspaceId, CancellationToken cancellationToken = default) =>
+        _actor.RunAsync<List<string>?>(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             var moved = document.Items.FirstOrDefault(item => string.Equals(item.WorkspaceId, workspaceId, StringComparison.Ordinal));
             if (moved is null) {
                 return null;
@@ -112,18 +97,14 @@ internal sealed class DshWorkspaceStore {
                 ? -1
                 : document.Items.FindIndex(item => string.Equals(item.WorkspaceId, beforeWorkspaceId, StringComparison.Ordinal));
             document.Items.Insert(anchor < 0 ? document.Items.Count : anchor, moved);
-            await SaveAsync(document, cancellationToken);
+            await SaveAsync(document, cancellationToken).ConfigureAwait(false);
             return [.. document.Items.Select(item => item.WorkspaceId)];
-        } finally {
-            _gate.Release();
-        }
-    }
+        });
 
     /// <summary>workspace/insertSessionBefore：把会话移到同工作区锚点之前，返回该工作区行</summary>
-    internal async Task<DshWorkspaceItem?> InsertSessionBeforeAsync(string workspaceId, string sessionId, string? beforeSessionId, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<DshWorkspaceItem?> InsertSessionBeforeAsync(string workspaceId, string sessionId, string? beforeSessionId, CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             return await MutateAsync(document, workspaceId, item => {
                 item.SessionIds.RemoveAll(candidate => string.Equals(candidate, sessionId, StringComparison.Ordinal));
                 var anchor = beforeSessionId is null
@@ -131,107 +112,77 @@ internal sealed class DshWorkspaceStore {
                     : item.SessionIds.FindIndex(candidate => string.Equals(candidate, beforeSessionId, StringComparison.Ordinal));
                 item.SessionIds.Insert(anchor < 0 ? item.SessionIds.Count : anchor, sessionId);
                 return item;
-            }, cancellationToken);
-        } finally {
-            _gate.Release();
-        }
-    }
+            }, cancellationToken).ConfigureAwait(false);
+        });
 
     /// <summary>把会话登记到工作区（会话创建/恢复时调用）</summary>
-    internal async Task<DshWorkspaceItem?> AttachSessionAsync(string workspaceId, string sessionId, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<DshWorkspaceItem?> AttachSessionAsync(string workspaceId, string sessionId, CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             return await MutateAsync(document, workspaceId, item => {
                 if (!item.SessionIds.Contains(sessionId, StringComparer.Ordinal)) {
                     item.SessionIds.Add(sessionId);
                 }
                 return item;
-            }, cancellationToken);
-        } finally {
-            _gate.Release();
-        }
-    }
+            }, cancellationToken).ConfigureAwait(false);
+        });
 
     /// <summary>按 workspaceId 找已存在的工作区（会话创建时解析工作目录）</summary>
-    internal async Task<DshWorkspaceItem?> FindAsync(string workspaceId, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<DshWorkspaceItem?> FindAsync(string workspaceId, CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             return document.Items.FirstOrDefault(item => string.Equals(item.WorkspaceId, workspaceId, StringComparison.Ordinal));
-        } finally {
-            _gate.Release();
-        }
-    }
+        });
 
     /// <summary>按路径找已存在的工作区（会话创建时用于回填归属）</summary>
-    internal async Task<DshWorkspaceItem?> FindByPathAsync(string path, CancellationToken cancellationToken = default) {
+    internal Task<DshWorkspaceItem?> FindByPathAsync(string path, CancellationToken cancellationToken = default) {
         var normalized = Normalize(path);
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+        return _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             return document.Items.FirstOrDefault(item => string.Equals(item.Path, normalized, StringComparison.OrdinalIgnoreCase));
-        } finally {
-            _gate.Release();
-        }
+        });
     }
 
     /// <summary>归档：加入归档集合并从置顶集合移除，返回完整归档集合</summary>
-    internal async Task<List<string>> ArchiveAsync(string sessionId, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<List<string>> ArchiveAsync(string sessionId, CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             if (!document.ArchivedSessionIds.Contains(sessionId, StringComparer.Ordinal)) {
                 document.ArchivedSessionIds.Add(sessionId);
             }
             document.PinnedSessionIds.RemoveAll(candidate => string.Equals(candidate, sessionId, StringComparison.Ordinal));
-            await SaveAsync(document, cancellationToken);
-            return [.. document.ArchivedSessionIds];
-        } finally {
-            _gate.Release();
-        }
-    }
+            await SaveAsync(document, cancellationToken).ConfigureAwait(false);
+            return new List<string>(document.ArchivedSessionIds);
+        });
 
     /// <summary>取消归档：移出归档集合，返回完整归档集合</summary>
-    internal async Task<List<string>> UnarchiveAsync(string sessionId, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<List<string>> UnarchiveAsync(string sessionId, CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             document.ArchivedSessionIds.RemoveAll(candidate => string.Equals(candidate, sessionId, StringComparison.Ordinal));
-            await SaveAsync(document, cancellationToken);
-            return [.. document.ArchivedSessionIds];
-        } finally {
-            _gate.Release();
-        }
-    }
+            await SaveAsync(document, cancellationToken).ConfigureAwait(false);
+            return new List<string>(document.ArchivedSessionIds);
+        });
 
     /// <summary>置顶：加入置顶集合，返回完整置顶集合</summary>
-    internal async Task<List<string>> PinAsync(string sessionId, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<List<string>> PinAsync(string sessionId, CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             if (!document.PinnedSessionIds.Contains(sessionId, StringComparer.Ordinal)) {
                 document.PinnedSessionIds.Add(sessionId);
             }
-            await SaveAsync(document, cancellationToken);
-            return [.. document.PinnedSessionIds];
-        } finally {
-            _gate.Release();
-        }
-    }
+            await SaveAsync(document, cancellationToken).ConfigureAwait(false);
+            return new List<string>(document.PinnedSessionIds);
+        });
 
     /// <summary>取消置顶：移出置顶集合，返回完整置顶集合</summary>
-    internal async Task<List<string>> UnpinAsync(string sessionId, CancellationToken cancellationToken = default) {
-        await _gate.WaitAsync(cancellationToken);
-        try {
-            var document = await LoadAsync(cancellationToken);
+    internal Task<List<string>> UnpinAsync(string sessionId, CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            var document = await LoadAsync(cancellationToken).ConfigureAwait(false);
             document.PinnedSessionIds.RemoveAll(candidate => string.Equals(candidate, sessionId, StringComparison.Ordinal));
-            await SaveAsync(document, cancellationToken);
-            return [.. document.PinnedSessionIds];
-        } finally {
-            _gate.Release();
-        }
-    }
+            await SaveAsync(document, cancellationToken).ConfigureAwait(false);
+            return new List<string>(document.PinnedSessionIds);
+        });
 
     /// <summary>对目标工作区行应用变更并落库（找不到返回 null）</summary>
     private async Task<DshWorkspaceItem?> MutateAsync(

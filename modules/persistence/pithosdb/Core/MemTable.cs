@@ -1,20 +1,22 @@
 ﻿namespace PithosDB.Core.Core;
 
 /// <summary>
-/// In-memory write buffer for the LSM-tree. Entries are stored in a
-/// <see cref="SortedDictionary{TKey,TValue}"/> keyed by byte-lexicographic order,
-/// so <see cref="GetSortedEntries"/> can be flushed directly to an SSTable.
+/// In-memory write buffer for the LSM-tree. Entries are held in a
+/// <see cref="ConcurrentDictionary{TKey,TValue}"/> keyed by byte-lexicographic
+/// equality, so readers may snapshot-enumerate the buffer while the single
+/// writer thread keeps inserting. Sorted key order is materialised on demand by
+/// <see cref="GetSortedEntries"/> for flush and scan paths.
 /// Deleted keys are represented as <see langword="null"/> tombstone values.
 /// </summary>
 public class MemTable
 {
-    private readonly SortedDictionary<byte[], byte[]?> _data =
+    private readonly ConcurrentDictionary<byte[], byte[]?> _data =
         new(ByteArrayComparer.Instance);
 
     private long _sizeBytes;
 
     /// <summary>Approximate in-memory size of all keys and values in bytes.</summary>
-    public long SizeBytes => _sizeBytes;
+    public long SizeBytes => Volatile.Read(ref _sizeBytes);
 
     /// <summary>Number of entries including tombstones.</summary>
     public int Count => _data.Count;
@@ -26,12 +28,11 @@ public class MemTable
     public void Put(byte[] key, byte[] value)
     {
         if (_data.TryGetValue(key, out var existing))
-            _sizeBytes -= existing?.Length ?? 0;
+            Interlocked.Add(ref _sizeBytes, value.Length - (existing?.Length ?? 0));
         else
-            _sizeBytes += key.Length;
+            Interlocked.Add(ref _sizeBytes, key.Length + value.Length);
 
         _data[key] = value;
-        _sizeBytes += value.Length;
     }
 
     /// <summary>
@@ -43,7 +44,7 @@ public class MemTable
     public void Delete(byte[] key)
     {
         if (_data.TryGetValue(key, out var existing))
-            _sizeBytes -= key.Length + (existing?.Length ?? 0);
+            Interlocked.Add(ref _sizeBytes, -(key.Length + (existing?.Length ?? 0)));
 
         _data[key] = null; // tombstone
     }
@@ -58,15 +59,21 @@ public class MemTable
         _data.TryGetValue(key, out value);
 
     /// <summary>
-    /// Returns all entries in byte-lexicographic key order, including tombstones.
-    /// Used when flushing to an SSTable.
+    /// Returns a materialised copy of all entries in byte-lexicographic key order,
+    /// including tombstones. Safe to enumerate while the writer keeps inserting —
+    /// the snapshot reflects the moment the call started.
+    /// <para>
+    /// The entries are copied with the dictionary's own snapshot enumerator (LINQ's
+    /// <c>ICollection.CopyTo</c> path pre-sizes the array from a racy <see cref="Count"/>
+    /// and can throw when the writer grows the table concurrently).
+    /// </para>
     /// </summary>
-    public IEnumerable<KeyValuePair<byte[], byte[]?>> GetSortedEntries() => _data;
-
-    /// <summary>Removes all entries and resets <see cref="SizeBytes"/> to zero.</summary>
-    public void Clear()
+    public IEnumerable<KeyValuePair<byte[], byte[]?>> GetSortedEntries()
     {
-        _data.Clear();
-        _sizeBytes = 0;
+        var entries = new List<KeyValuePair<byte[], byte[]?>>(_data.Count);
+        foreach (var entry in _data)
+            entries.Add(entry);
+        entries.Sort(static (a, b) => ByteArrayComparer.Instance.Compare(a.Key, b.Key));
+        return entries;
     }
 }

@@ -5,16 +5,13 @@ namespace JoinCode.Gui.WebHost;
 /// <c>session/control</c> 连接的订阅者。前端按 <c>seq</c> 丢弃过期帧，因此序号由发布方保证单调递增。
 /// </summary>
 internal sealed class DshSessionControlHub {
-    private readonly Lock _gate = new();
-    private readonly Dictionary<string, ControlListener> _listeners = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ControlListener> _listeners = new(StringComparer.Ordinal);
 
     /// <summary>登记一个控制帧订阅者（返回的句柄在流关闭时注销）</summary>
     /// <param name="send">推送一条投影帧的回调（由 WebSocket 层串行发送）</param>
     internal IDisposable Attach(Func<DshSessionControlProjection, Task> send) {
         var id = Guid.NewGuid().ToString("N");
-        lock (_gate) {
-            _listeners[id] = new ControlListener(id, send);
-        }
+        _listeners[id] = new ControlListener(id, send);
         return new Detacher(this, id);
     }
 
@@ -31,18 +28,10 @@ internal sealed class DshSessionControlHub {
         }
     }
 
-    /// <summary>取订阅者快照（同步持锁，await 一律在锁外）</summary>
-    private ControlListener[] Snapshot() {
-        lock (_gate) {
-            return [.. _listeners.Values];
-        }
-    }
+    /// <summary>取订阅者快照（并发字典快照，await 在快照之外）</summary>
+    private ControlListener[] Snapshot() => [.. _listeners.Values];
 
-    private void Detach(string id) {
-        lock (_gate) {
-            _listeners.Remove(id);
-        }
-    }
+    private void Detach(string id) => _listeners.TryRemove(id, out _);
 
     /// <summary>一个控制流订阅者</summary>
     private sealed record ControlListener(string Id, Func<DshSessionControlProjection, Task> Send);

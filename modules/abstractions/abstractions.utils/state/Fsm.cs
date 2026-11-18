@@ -73,20 +73,18 @@ public sealed record TransitionResult<TState, TEvent>(
 /// <para>行为流程：获取当前状态 → 查表得到事件函数指针 → 守卫判定 → 执行动作 → 转移</para>
 /// <para>ADR 0040: 禁止元组 key，用 TransitionKey record struct；熔断作为状态枚举值</para>
 /// <para>ADR 0041: 排序并行数组 + Array.BinarySearch 替代 FrozenDictionary（省内存，连续缓存友好）</para>
-/// <para>线程安全：状态读写用 lock，Action 在 lock 外执行（避免长持锁）</para>
+/// <para>线程安全：状态用不可变 <see cref="StateCell{TState}"/> 引用 + CAS 原子迁移，读取零阻塞；
+/// Action 在状态发布后执行，不占用任何临界区</para>
 /// </summary>
 public sealed class Fsm<TState, TEvent>
     where TState : struct, Enum
     where TEvent : struct, Enum {
     private readonly TransitionKey<TState, TEvent>[] _sortedKeys;
     private readonly TransitionRule<TState>[] _rules;
-    private readonly AsyncLock _lock = new("Fsm");
-    private TState _currentState;
+    private StateCell<TState> _state;
 
-    /// <summary>当前状态（线程安全读取）</summary>
-    public TState CurrentState {
-        get { using (_lock.LockOrCrash()) { return _currentState; } }
-    }
+    /// <summary>当前状态（无锁读取一次性快照）</summary>
+    public TState CurrentState => Volatile.Read(ref _state).Value;
 
     /// <summary>状态变更事件（转换成功后触发）</summary>
     public event EventHandler<TransitionResult<TState, TEvent>>? StateChanged;
@@ -103,7 +101,7 @@ public sealed class Fsm<TState, TEvent>
         TState initialState) {
         _sortedKeys = sortedKeys;
         _rules = rules;
-        _currentState = initialState;
+        _state = new StateCell<TState>(initialState);
     }
 
     /// <summary>
@@ -115,7 +113,7 @@ public sealed class Fsm<TState, TEvent>
         var pairs = table.OrderBy(kvp => kvp.Key).ToArray();
         _sortedKeys = pairs.Select(p => p.Key).ToArray();
         _rules = pairs.Select(p => p.Value).ToArray();
-        _currentState = initialState;
+        _state = new StateCell<TState>(initialState);
     }
 
     /// <summary>
@@ -127,21 +125,18 @@ public sealed class Fsm<TState, TEvent>
     }
 
     /// <summary>
-    /// 触发事件 — 查表 → 守卫判定 → 转移 → 执行动作
-    /// <para>线程安全：查表+守卫+状态转移在 lock 内，Action 在 lock 外</para>
+    /// 触发事件 — 查表 → 守卫判定 → CAS 发布新状态 → 执行动作
+    /// <para>线程安全：状态迁移用 CAS 原子完成，CAS 失败说明状态被并发修改，按最新状态重新评估；
+    /// Action 与事件在状态发布后执行，不在任何临界区内（并发下守卫可能被多个竞争者分别求值，无副作用）</para>
     /// </summary>
     /// <param name="evt">触发的事件</param>
     /// <param name="ctx">共享上下文（可选）</param>
     /// <returns>转换结果</returns>
     public TransitionResult<TState, TEvent> Trigger(TEvent evt, FsmContext? ctx = null) {
-        TState oldState;
-        TState newState;
-        TransitionAction? actionToRun;
-
-        using (_lock.LockOrCrash()) {
-            oldState = _currentState;
-            var key = new TransitionKey<TState, TEvent>(_currentState, evt);
-            var rule = LookupRule(key);
+        while (true) {
+            var snapshot = Volatile.Read(ref _state);
+            var oldState = snapshot.Value;
+            var rule = LookupRule(new TransitionKey<TState, TEvent>(oldState, evt));
 
             if (rule is null)
                 return new TransitionResult<TState, TEvent>(false, oldState, oldState, evt, TransitionOutcome.NoRule);
@@ -149,16 +144,15 @@ public sealed class Fsm<TState, TEvent>
             if (rule.Guard is not null && !rule.Guard(ctx))
                 return new TransitionResult<TState, TEvent>(false, oldState, oldState, evt, TransitionOutcome.GuardFailed);
 
-            newState = rule.Target;
-            actionToRun = rule.Action;
-            _currentState = newState;
+            var next = new StateCell<TState>(rule.Target);
+            if (Interlocked.CompareExchange(ref _state, next, snapshot) != snapshot)
+                continue;
+
+            rule.Action?.Invoke(ctx);
+            var result = new TransitionResult<TState, TEvent>(true, oldState, rule.Target, evt, TransitionOutcome.Transitioned);
+            StateChanged?.Invoke(this, result);
+            return result;
         }
-
-        actionToRun?.Invoke(ctx);
-
-        var result = new TransitionResult<TState, TEvent>(true, oldState, newState, evt, TransitionOutcome.Transitioned);
-        StateChanged?.Invoke(this, result);
-        return result;
     }
 
     /// <summary>
@@ -171,44 +165,35 @@ public sealed class Fsm<TState, TEvent>
     /// 检查事件是否可触发（查表 + 守卫通过）
     /// </summary>
     public bool CanTrigger(TEvent evt, FsmContext? ctx = null) {
-        using (_lock.LockOrCrash()) {
-            var key = new TransitionKey<TState, TEvent>(_currentState, evt);
-            var rule = LookupRule(key);
-            if (rule is null)
-                return false;
+        var state = Volatile.Read(ref _state).Value;
+        var rule = LookupRule(new TransitionKey<TState, TEvent>(state, evt));
+        if (rule is null)
+            return false;
 
-            return rule.Guard is null || rule.Guard(ctx);
-        }
+        return rule.Guard is null || rule.Guard(ctx);
     }
 
     /// <summary>
     /// 获取当前状态下所有可触发的事件（守卫通过的事件）
     /// </summary>
     public IReadOnlyList<TEvent> GetAvailableEvents(FsmContext? ctx = null) {
-        using (_lock.LockOrCrash()) {
-            var state = _currentState;
-            var result = new List<TEvent>();
-            for (var i = 0; i < _sortedKeys.Length; i++) {
-                if (_sortedKeys[i].From.Equals(state)) {
-                    var rule = _rules[i];
-                    if (rule.Guard is null || rule.Guard(ctx))
-                        result.Add(_sortedKeys[i].Event);
-                }
+        var state = Volatile.Read(ref _state).Value;
+        var result = new List<TEvent>();
+        for (var i = 0; i < _sortedKeys.Length; i++) {
+            if (_sortedKeys[i].From.Equals(state)) {
+                var rule = _rules[i];
+                if (rule.Guard is null || rule.Guard(ctx))
+                    result.Add(_sortedKeys[i].Event);
             }
-            return result;
         }
+        return result;
     }
 
     /// <summary>
     /// 强制设置状态（仅用于测试/恢复场景，跳过守卫和动作）
     /// </summary>
     public void ForceSet(TState state) {
-        TState oldState;
-        using (_lock.LockOrCrash()) {
-            oldState = _currentState;
-            _currentState = state;
-        }
-
+        var oldState = Interlocked.Exchange(ref _state, new StateCell<TState>(state)).Value;
         if (!oldState.Equals(state))
             StateChanged?.Invoke(this, new TransitionResult<TState, TEvent>(true, oldState, state, default, TransitionOutcome.Transitioned));
     }
@@ -216,9 +201,5 @@ public sealed class Fsm<TState, TEvent>
     /// <summary>
     /// 重置到指定状态（不触发事件）
     /// </summary>
-    public void Reset(TState state) {
-        using (_lock.LockOrCrash()) {
-            _currentState = state;
-        }
-    }
+    public void Reset(TState state) => Interlocked.Exchange(ref _state, new StateCell<TState>(state));
 }

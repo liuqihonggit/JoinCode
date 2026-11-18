@@ -20,43 +20,40 @@ public static class DualDisposableFixer {
         var affectedFiles = new ConcurrentBag<string>();
         var interfaceRemovals = 0;
         var totalChanges = 0;
-        var semaphore = new SemaphoreSlim(8);
         var processedCount = 0;
 
-        var tasks = filePaths.Select(async filePath => {
-            await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                if (!File.Exists(filePath)) return;
-                var source = await File.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
-                var tree = CSharpSyntaxTree.ParseText(source, path: filePath);
-                var root = await tree.GetRootAsync(ct).ConfigureAwait(false);
+        await BoundedWorkQueue.RunAsync(
+            filePaths,
+            8,
+            async (filePath, token) => {
+                try {
+                    if (!File.Exists(filePath)) return;
+                    var source = await File.ReadAllTextAsync(filePath, token).ConfigureAwait(false);
+                    var tree = CSharpSyntaxTree.ParseText(source, path: filePath);
+                    var root = await tree.GetRootAsync(token).ConfigureAwait(false);
 
-                var rewriter = new DualDisposableRewriter();
-                var newRoot = rewriter.Visit(root);
+                    var rewriter = new DualDisposableRewriter();
+                    var newRoot = rewriter.Visit(root);
 
-                if (rewriter.FixedCount <= 0) return;
+                    if (rewriter.FixedCount <= 0) return;
 
-                affectedFiles.Add(filePath);
-                Interlocked.Add(ref interfaceRemovals, rewriter.InterfaceRemovalCount);
-                Interlocked.Add(ref totalChanges, rewriter.FixedCount);
+                    affectedFiles.Add(filePath);
+                    Interlocked.Add(ref interfaceRemovals, rewriter.InterfaceRemovalCount);
+                    Interlocked.Add(ref totalChanges, rewriter.FixedCount);
 
-                if (!dryRun) {
-                    var newText = newRoot.ToFullString();
-                    await File.WriteAllTextAsync(filePath, newText, ct).ConfigureAwait(false);
+                    if (!dryRun) {
+                        var newText = newRoot.ToFullString();
+                        await File.WriteAllTextAsync(filePath, newText, token).ConfigureAwait(false);
+                    }
+
+                    var count = Interlocked.Increment(ref processedCount);
+                    if (count % 50 == 0)
+                        Console.WriteLine($"  [修复 {count}/{filePaths.Count}]...");
+                } catch (Exception ex) {
+                    Console.Error.WriteLine($"  修复失败: {Path.GetFileName(filePath)} - {ex.Message}");
                 }
-
-                var count = Interlocked.Increment(ref processedCount);
-                if (count % 50 == 0)
-                    Console.WriteLine($"  [修复 {count}/{filePaths.Count}]...");
-            } catch (Exception ex) {
-                Console.Error.WriteLine($"  修复失败: {Path.GetFileName(filePath)} - {ex.Message}");
-            } finally {
-                semaphore.Release();
-            }
-        });
-
-        await Task.WhenAll(tasks).ConfigureAwait(false);
-        semaphore.Dispose();
+            },
+            ct).ConfigureAwait(false);
 
         return new DualDisposableFixReport {
             AffectedFiles = affectedFiles.ToList(),

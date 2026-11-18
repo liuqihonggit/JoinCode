@@ -15,7 +15,7 @@ internal sealed class ExecutionContext : IAsyncDisposable {
     public ExecutionContext(ExecutionOptions options, CancellationToken cancellationToken) {
         Options = options;
         CancellationToken = cancellationToken;
-        ConcurrencyLock = new AsyncLock(nameof(ExecutionContext) + ".Concurrency", options.MaxConcurrentTasks, options.MaxConcurrentTasks);
+        ConcurrencyLock = new PermitPool(Math.Max(1, options.MaxConcurrentTasks));
         _completedTaskIds = new ConcurrentDictionary<string, byte>();
     }
 
@@ -23,8 +23,8 @@ internal sealed class ExecutionContext : IAsyncDisposable {
     public ExecutionOptions Options { get; }
     /// <summary>获取取消令牌。</summary>
     public CancellationToken CancellationToken { get; }
-    /// <summary>获取并发锁。</summary>
-    public AsyncLock ConcurrencyLock { get; }
+    /// <summary>获取并发许可池。</summary>
+    public PermitPool ConcurrencyLock { get; }
 
     /// <summary>
     /// 添加运行中的任务 - 线程安全（ConcurrentDictionary 无锁）

@@ -12,8 +12,10 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
     private ISkillService? _skillService;
     private ImmutableHamT<string, FrozenSet<string>> _tagIndex = ImmutableHamT<string, FrozenSet<string>>.Empty;
     private ImmutableHamT<string, string> _nameIndex = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
-    private DateTime _lastIndexTime = DateTime.MinValue;
-    private readonly AsyncLock _indexLock = new();
+    private long _lastIndexTicks = DateTime.MinValue.Ticks;
+    private TaskCompletionSource? _indexGate;
+
+    private static readonly TimeSpan IndexTtl = TimeSpan.FromMinutes(5);
 
     /// <summary>懒解析 ISkillService — 首次调用搜索方法时才构造，避免 IToolRegistry 解析链提前触发</summary>
     private ISkillService SkillService => _skillService ??= _serviceProvider.GetRequiredService<ISkillService>();
@@ -145,14 +147,38 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
         }
     }
 
+    private bool IsIndexFresh() => DateTime.UtcNow - new DateTime(Volatile.Read(ref _lastIndexTicks)) < IndexTtl;
+
     private async Task EnsureIndexAsync(CancellationToken cancellationToken) {
-        if ((DateTime.UtcNow - _lastIndexTime).TotalMinutes < 5) return;
+        // 单飞重建：同一时刻只有一个重建任务，并发调用等待同一门闩结果
+        while (true) {
+            if (IsIndexFresh()) return;
 
-        using var guard = await _indexLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_indexLock.Name}' 等待超时");
+            var existing = Volatile.Read(ref _indexGate);
+            if (existing is not null) {
+                await existing.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
 
-        if ((DateTime.UtcNow - _lastIndexTime).TotalMinutes < 5) return;
+            var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (Interlocked.CompareExchange(ref _indexGate, gate, null) != null)
+                continue;
 
-        var skills = await SkillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
+            try {
+                await RebuildIndexAsync().ConfigureAwait(false);
+                gate.TrySetResult();
+            } catch (Exception ex) {
+                gate.TrySetException(ex);
+                throw;
+            } finally {
+                _ = Interlocked.CompareExchange(ref _indexGate, null, gate);
+            }
+            return;
+        }
+    }
+
+    private async Task RebuildIndexAsync() {
+        var skills = await SkillService.GetAvailableSkillsAsync(CancellationToken.None).ConfigureAwait(false);
         var tagNamePairs = new List<(string Name, FrozenSet<string> Tags)>();
         var namePairs = new List<(string Name, string Value)>();
 
@@ -168,9 +194,8 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
         Volatile.Write(ref _tagIndex, tagNamePairs.ToImmutableHamT(p => p.Name, p => p.Tags));
         Volatile.Write(ref _nameIndex, namePairs.ToImmutableHamT(p => p.Name, p => p.Value));
 
-        _lastIndexTime = DateTime.UtcNow;
+        Volatile.Write(ref _lastIndexTicks, DateTime.UtcNow.Ticks);
         _logger?.LogDebug(L.T(StringKey.SkillSearchIndexRebuilt), skills.Count);
-
     }
 
     private static double CalculateRelevanceScore(SkillDefinition skill, SkillSearchQuery query) {
@@ -313,7 +338,6 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
     /// 释放资源 — 释放索引锁
     /// </summary>
     public override void Dispose() {
-        _indexLock.Dispose();
         base.Dispose();
     }
 

@@ -28,7 +28,10 @@ internal interface IDshPty : IAsyncDisposable {
 /// 只在 Windows 上可用；非 Windows 返回 <see cref="PlatformNotSupportedException"/>，由上层转成引导错误。
 /// </summary>
 internal sealed partial class DshConPty : IDshPty {
-    private readonly Lock _writeGate = new();
+    private readonly Channel<(byte[] Bytes, TaskCompletionSource<Exception?> Completion)> _writes =
+        Channel.CreateUnbounded<(byte[] Bytes, TaskCompletionSource<Exception?> Completion)>(
+            new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+    private readonly Task _writePump;
     private readonly Process _process;
     private readonly IntPtr _pseudoConsole;
     private readonly IntPtr _attributeList;
@@ -78,6 +81,7 @@ internal sealed partial class DshConPty : IDshPty {
             }
         }
         _pump = Task.Run(PumpOutput);
+        _writePump = Task.Run(PumpWritesAsync);
     }
 
     /// <summary>启动一个 ConPTY 终端</summary>
@@ -90,13 +94,34 @@ internal sealed partial class DshConPty : IDshPty {
         new(shellPath, arguments, cwd, cols, rows);
 
     /// <inheritdoc />
-    public unsafe void Write(string data) {
-        var bytes = Encoding.UTF8.GetBytes(data);
-        lock (_writeGate) {
-            fixed (byte* pointer = bytes) {
-                if (!WriteFile(_inputWrite, pointer, (uint)bytes.Length, out _, IntPtr.Zero)) {
-                    throw new IOException($"写入终端失败（Win32 错误 {Marshal.GetLastWin32Error()}）");
-                }
+    public void Write(string data) {
+        var completion = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_writes.Writer.TryWrite((Encoding.UTF8.GetBytes(data), completion))) {
+            throw new ObjectDisposedException(nameof(DshConPty));
+        }
+        if (completion.Task.GetAwaiter().GetResult() is { } error) {
+            throw new IOException($"写入终端失败：{error.Message}", error);
+        }
+    }
+
+    /// <summary>单写者循环：串行执行 WriteFile，保证一次 Write 的字节不被并发调用交错</summary>
+    private async Task PumpWritesAsync() {
+        await foreach (var (bytes, completion) in _writes.Reader.ReadAllAsync().ConfigureAwait(false)) {
+            try {
+                WriteDirect(bytes);
+                completion.TrySetResult(null);
+            } catch (Exception ex) {
+                completion.TrySetResult(ex);
+            }
+        }
+    }
+
+    /// <summary>写入原始字节到 ConPTY 输入管道（仅由写循环调用）</summary>
+    /// <param name="bytes">UTF-8 输入字节</param>
+    private unsafe void WriteDirect(byte[] bytes) {
+        fixed (byte* pointer = bytes) {
+            if (!WriteFile(_inputWrite, pointer, (uint)bytes.Length, out _, IntPtr.Zero)) {
+                throw new IOException($"写入终端失败（Win32 错误 {Marshal.GetLastWin32Error()}）");
             }
         }
     }
@@ -163,6 +188,8 @@ internal sealed partial class DshConPty : IDshPty {
         } catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException) {
             GuiDiag.Log($"[DSH-TERMINAL] kill skipped: {ex.GetType().Name}");
         }
+        _writes.Writer.TryComplete();
+        await _writePump.ConfigureAwait(false);
         _inputWrite.DisposeSafe();
         _outputRead.Dispose();
         if (_attributeList != IntPtr.Zero) {

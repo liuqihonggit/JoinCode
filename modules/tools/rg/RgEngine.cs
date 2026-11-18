@@ -31,13 +31,43 @@ internal static class RgEngine {
         var degree = q.Threads is > 0 ? q.Threads.Value : Environment.ProcessorCount;
 
         if (onFileResult is not null) {
-            var streamLock = new object();
-            files.AsCpuParallel()
-                .WithCancellation(ct)
-                .WithDegreeOfParallelism(degree)
-                .Select(f => SearchFile(f, regex, q, ct))
-                .Where(r => r is not null)
-                .ForAll(r => { lock (streamLock) onFileResult(r!); });
+            var channel = Channel.CreateBounded<RgFileResult>(new BoundedChannelOptions(Math.Max(64, degree * 8)) {
+                SingleReader = true,
+                SingleWriter = false,
+                FullMode = BoundedChannelFullMode.Wait,
+            });
+            var consumer = Task.Run(async () => {
+                try {
+                    await foreach (var result in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
+                        onFileResult(result);
+                    }
+                } finally {
+                    channel.Writer.TryComplete();
+                }
+            }, CancellationToken.None);
+
+            Exception? producerError = null;
+            try {
+                files.AsCpuParallel()
+                    .WithCancellation(ct)
+                    .WithDegreeOfParallelism(degree)
+                    .Select(f => SearchFile(f, regex, q, ct))
+                    .Where(r => r is not null)
+                    // 同步 API 内的背压等待：无 SynchronizationContext，消费端为独立线程池任务
+                    .ForAll(r => {
+                        if (r is null) return;
+                        channel.Writer.WriteAsync(r, ct).AsTask().GetAwaiter().GetResult();
+                    });
+            } catch (Exception ex) {
+                producerError = ex;
+            } finally {
+                channel.Writer.TryComplete(producerError);
+            }
+
+            consumer.GetAwaiter().GetResult();
+            if (producerError is not null) {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(producerError).Throw();
+            }
             return RgOutcome.Ok([], null, null);
         }
 

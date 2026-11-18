@@ -83,23 +83,42 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
     private readonly CSharpCallExtractor _callExtractor = new();
     private readonly CSharpDependencyExtractor _dependencyExtractor = new();
     private readonly TreeCache _treeCache;
-    private readonly Threading.TimeoutLock _parseLock;
+    private readonly AsyncGate _parseGate = new();
     private readonly TreeSitterParser? _dedicatedParser;
     private readonly ILogger? _logger;
     private int _disposed;
+
+    private static readonly TimeSpan ParseTimeout = TimeSpan.FromSeconds(30);
 
     private void Log(string message) {
         _logger?.LogDebug(message);
     }
 
+    private IDisposable AcquireParseScope() {
+        try {
+            return _parseGate.Acquire(ParseTimeout);
+        } catch (TimeoutException ex) {
+            Log($"[CSharpExtractor.Parse] TIMEOUT: {ex.Message}");
+            throw;
+        }
+    }
+
+    private async Task<IDisposable> AcquireParseScopeAsync(CancellationToken ct) {
+        try {
+            return await _parseGate.AcquireAsync(ct, ParseTimeout).ConfigureAwait(false);
+        } catch (TimeoutException ex) {
+            Log($"[CSharpExtractor.Parse] TIMEOUT: {ex.Message}");
+            throw;
+        }
+    }
+
     /// <summary>
-    /// 构造 C# 符号提取器 — 使用内部树缓存与解析锁
+    /// 构造 C# 符号提取器 — 使用内部树缓存与解析门闩
     /// </summary>
     /// <param name="logger">日志记录器(可选)</param>
     public CSharpSymbolExtractor(ILogger? logger = null) {
         _logger = logger;
         _treeCache = new TreeCache(maxEntries: 500, logger);
-        _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
     }
 
     /// <summary>
@@ -110,11 +129,10 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
     internal CSharpSymbolExtractor(TreeCache treeCache, ILogger? logger = null) {
         _logger = logger;
         _treeCache = treeCache;
-        _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
     }
 
     /// <summary>
-    /// Creates an extractor bound to a dedicated parser, bypassing the global TreeSitterParserPool lock.
+    /// Creates an extractor bound to a dedicated parser, bypassing the global TreeSitterParserPool gate.
     /// Use only in parallel/async contexts where all files processed by this instance are accessed
     /// from a single thread, so no cross-thread contention on TreeSitter's non-thread-safe Parser.
     /// </summary>
@@ -123,7 +141,6 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
         _logger = logger;
         _treeCache = new TreeCache(maxEntries: 500, logger);
-        _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
         _dedicatedParser = dedicatedParser;
     }
 
@@ -137,7 +154,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         ArgumentNullException.ThrowIfNull(sourceCode);
         ArgumentNullException.ThrowIfNull(filePath);
 
-        using var parseScope = _parseLock.Acquire();
+        using var parseScope = AcquireParseScope();
         return ExtractAllCore(sourceCode, filePath);
     }
 
@@ -152,7 +169,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         ArgumentNullException.ThrowIfNull(sourceCode);
         ArgumentNullException.ThrowIfNull(filePath);
 
-        using var parseScope = await _parseLock.AcquireAsync(ct).ConfigureAwait(false);
+        using var parseScope = await AcquireParseScopeAsync(ct).ConfigureAwait(false);
         return ExtractAllCore(sourceCode, filePath);
     }
 
@@ -419,7 +436,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         ArgumentNullException.ThrowIfNull(sourceCode);
         ArgumentNullException.ThrowIfNull(filePath);
 
-        using var parseScope = _parseLock.Acquire();
+        using var parseScope = AcquireParseScope();
         return ExtractSymbolsCore(sourceCode, filePath);
     }
 
@@ -434,7 +451,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         ArgumentNullException.ThrowIfNull(sourceCode);
         ArgumentNullException.ThrowIfNull(filePath);
 
-        using var parseScope = await _parseLock.AcquireAsync(ct).ConfigureAwait(false);
+        using var parseScope = await AcquireParseScopeAsync(ct).ConfigureAwait(false);
         return ExtractSymbolsCore(sourceCode, filePath);
     }
 
@@ -478,7 +495,6 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
         _treeCache.Dispose();
         _dedicatedParser?.Dispose();
-        _parseLock.Dispose();
     }
 
     /// <summary>

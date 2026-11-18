@@ -46,8 +46,7 @@ public sealed partial class AgentStateMachine {
             return false;
         }
 
-        var lk = context.Lock;
-        using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
+        using var guard = await context.Gate.AcquireAsync(ct).ConfigureAwait(false);
         if (!context.StateMachine.TryTransitionTo(newState)) {
             _logger?.LogWarning("[AgentStateMachine] Agent {AgentId} 无法从 {CurrentState} 转换到 {NewState}",
                 agentId, context.CurrentState, newState);
@@ -241,8 +240,8 @@ public sealed class AgentStateContext : IAsyncDisposable {
     public DateTime LastTransitionTime { get; set; }
     /// <summary>状态转换历史记录列表</summary>
     public List<StateTransition> TransitionHistory { get; }
-    /// <summary>异步锁，保护状态转换的并发安全 — internal 收窄，禁止外部直接获取锁，强制走 TryTransitionAsync 接口</summary>
-    internal AsyncLock Lock { get; }
+    /// <summary>串行门闩，保护状态转换的并发安全 — internal 收窄，禁止外部直接获取，强制走 TryTransitionAsync 接口</summary>
+    internal AsyncGate Gate { get; }
     /// <summary>最近一次状态转换的源状态</summary>
     internal TaskExecutionStatus LastTransitionFrom { get; private set; }
 
@@ -265,7 +264,7 @@ public sealed class AgentStateContext : IAsyncDisposable {
         LastTransitionTime = createdAt;
         LastTransitionFrom = TaskExecutionStatus.Pending;
         TransitionHistory = new List<StateTransition>();
-        Lock = new AsyncLock(nameof(AgentStateContext));
+        Gate = new AsyncGate();
         _stateMachine = new StateMachine<TaskExecutionStatus>(
             AgentStateMachine.GetTransitions(), TaskExecutionStatus.Pending, clock);
         _stateMachine.StateChanged += OnStateChanged;
@@ -276,12 +275,12 @@ public sealed class AgentStateContext : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 异步释放上下文，释放内部锁资源
+    /// 异步释放上下文，解除状态机事件订阅
     /// </summary>
-    public async ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+    public ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _stateMachine.StateChanged -= OnStateChanged;
-        Lock.Dispose();
+        return ValueTask.CompletedTask;
     }
 }
 

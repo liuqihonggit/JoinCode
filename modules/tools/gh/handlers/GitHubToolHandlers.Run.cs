@@ -469,21 +469,25 @@ public partial class GitHubToolHandlers {
     /// <summary>并行拉取各失败 job 日志(对齐 expand=failures 的 Semaphore+并行模式)</summary>
     private async Task<(RunJobItemResponse Job, string Text)[]> FetchFailedJobLogsParallel(GhRepoCtx repo, string runId, List<RunJobItemResponse> failedJobs, int perJobMaxLines, int skip, bool wantRefresh, int? contextOverride, FrozenSet<string>? markers, GitHubLogFilter filterLevel) {
         var failConcurrency = Math.Min(failedJobs.Count, GitHubRunLogFilterRunner.GetMaxConcurrency());
-        using var failSemaphore = new SemaphoreSlim(failConcurrency);
-        var failJobTasks = failedJobs.Select(async job => {
-            await failSemaphore.WaitAsync(repo.Ct).ConfigureAwait(false);
-            try {
+        var jobResults = new (RunJobItemResponse Job, string Text)[failedJobs.Count];
+        var nextIndex = -1;
+
+        async Task WorkerAsync() {
+            while (true) {
+                var index = Interlocked.Increment(ref nextIndex);
+                if (index >= failedJobs.Count) return;
+                var job = failedJobs[index];
                 var jobResult = await StreamAndFilterAsync(
                     repo.Owner, repo.Repo, runId, job.Id.ToString(),
                     false, $"失败步骤({job.Name})", markers, filterLevel,
                     perJobMaxLines, repo.Ct, null, skip, wantRefresh, forceSmartStart: true, contextOverride: contextOverride).ConfigureAwait(false);
-                var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
-                return (job, jobText);
-            } finally {
-                failSemaphore.Release();
+                jobResults[index] = (job, jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "");
             }
-        }).ToArray();
-        return await Task.WhenAll(failJobTasks).ConfigureAwait(false);
+        }
+
+        var workerCount = Math.Max(1, failConcurrency);
+        await Task.WhenAll(Enumerable.Range(0, workerCount).Select(_ => WorkerAsync())).ConfigureAwait(false);
+        return jobResults;
     }
 
     /// <summary>expand=failures 模式 — 跨所有失败 job 批量提取失败测试详情</summary>
@@ -1243,23 +1247,26 @@ public partial class GitHubToolHandlers {
 
             _fs.CreateDirectory(dir);
 
-            using var semaphore = new SemaphoreSlim(4, 4);
-            var downloadTasks = artifacts.Select(async art => {
-                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try {
+            var dlResults = new (string artifactName, bool Success, string? Error)[artifacts.Count];
+            var nextDownloadIndex = -1;
+
+            async Task DownloadWorkerAsync() {
+                while (true) {
+                    var index = Interlocked.Increment(ref nextDownloadIndex);
+                    if (index >= artifacts.Count) return;
+                    var art = artifacts[index];
                     var filePath = _fs.CombinePath(dir, $"{art.artifactName}.zip");
                     try {
                         var dlResult = await client.DownloadArtifactAsync(owner, repoName, art.artifactId, filePath, cancellationToken).ConfigureAwait(false);
-                        return (art.artifactName, Success: dlResult.Success, Error: dlResult.Error);
+                        dlResults[index] = (art.artifactName, dlResult.Success, dlResult.Error);
                     } catch (Exception ex) {
-                        return (art.artifactName, Success: false, Error: ex.Message);
+                        dlResults[index] = (art.artifactName, false, ex.Message);
                     }
-                } finally {
-                    semaphore.Release();
                 }
-            }).ToArray();
+            }
 
-            var dlResults = await Task.WhenAll(downloadTasks).ConfigureAwait(false);
+            var downloadWorkerCount = Math.Clamp(4, 1, artifacts.Count);
+            await Task.WhenAll(Enumerable.Range(0, downloadWorkerCount).Select(_ => DownloadWorkerAsync())).ConfigureAwait(false);
 
             var sb = new StringBuilder();
             var successCount = 0;

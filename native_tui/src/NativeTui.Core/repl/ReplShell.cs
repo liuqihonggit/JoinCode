@@ -592,7 +592,7 @@ public sealed class ReplShell
 
     /// <summary>事件驱动唤醒信号 — 有键/引擎事件时置位，<see cref="PaceTick"/> 节拍等待
     /// 提前结束（输入回显/流式输出低延迟 — 基准事件驱动渲染 16ms 节流的轮询近似）。</summary>
-    private readonly ManualResetEventSlim _inputWake = new(false);
+    private volatile bool _inputWakePending;
 
     /// <summary>强制重绘空白前置帧（零尺寸屏 — InlineComposer 判 prev.Cols ≠ next.Cols 走
     /// FullReset 路径：2J+3J+光标归位 绝对锚定整帧重绘；缓存复用零分配）。</summary>
@@ -881,7 +881,7 @@ public sealed class ReplShell
             {
                 // 事件驱动唤醒 — 本拍有键：节拍等待提前结束，下一拍立即再查输入
                 //（按键回显/快速连打低延迟 — 基准事件驱动渲染的轮询近似）
-                _inputWake.Set();
+                _inputWakePending = true;
             }
 
             DrainEngine();
@@ -950,7 +950,7 @@ public sealed class ReplShell
 
             _driver.Apply(bridgeEvent);
             // 事件驱动唤醒 — 流式 token/工具事件到达即置位，节拍等待提前结束（渲染低延迟）
-            _inputWake.Set();
+            _inputWakePending = true;
         }
 
         foreach (var diagnostic in _engine.DrainDiagnostics())
@@ -4701,16 +4701,23 @@ public sealed class ReplShell
     }
 
     /// <summary>对齐 50ms 拍长（忙完剩余时间等待）— 事件驱动可中断：有键/引擎事件时
-    /// <see cref="_inputWake"/> 提前唤醒（输入低延迟），无事件满拍等待（动画节拍保持）。</summary>
+    /// <see cref="_inputWakePending"/> 提前唤醒（输入低延迟），无事件满拍等待（动画节拍保持）。</summary>
     private void PaceTick(long tickStart)
     {
         var elapsedMs = _clock.ElapsedMilliseconds - tickStart;
         var sleepMs = TickMs - (int)elapsedMs;
-        if (sleepMs > 0)
+        if (sleepMs <= 0)
         {
-            _inputWake.Wait(sleepMs);
-            _inputWake.Reset();
+            return;
         }
+
+        if (_inputWakePending)
+        {
+            _inputWakePending = false;
+            return;
+        }
+
+        Thread.Sleep(sleepMs);
     }
 
     /// <summary>ctrl+l 强制全量重绘（S6 任务 8）：inline — 下一帧走 FullReset（零尺寸空白前置帧

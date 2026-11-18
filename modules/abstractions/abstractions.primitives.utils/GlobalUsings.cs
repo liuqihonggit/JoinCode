@@ -6,6 +6,7 @@ global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Models.Update;
+global using System.Collections.Concurrent;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;
 global using System.Diagnostics.CodeAnalysis;

@@ -135,14 +135,10 @@ public sealed partial class BridgeMain {
     /// 后台执行不阻塞主循环，定期清理已完成的任务
     /// </summary>
     internal void TrackCleanup(Task cleanupTask) {
-        using var guard = _cleanupLock.LockOrCrash();
-        _pendingCleanups.Add(cleanupTask);
+        _pendingCleanups.TryAdd(cleanupTask, 0);
 
         // 清理已完成的任务
-        _ = cleanupTask.ContinueWith(_ => {
-            using var guard = _cleanupLock.LockOrCrash();
-            _pendingCleanups.Remove(cleanupTask);
-        }, TaskScheduler.Default);
+        _ = cleanupTask.ContinueWith(_completed => _pendingCleanups.TryRemove(cleanupTask, out _), TaskScheduler.Default);
     }
 
     /// <summary>
@@ -333,10 +329,7 @@ public sealed partial class BridgeMain {
         if (_loopTask is not null) {
             try { await _loopTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
         }
-        List<Task> cleanupSnapshot;
-        using (_cleanupLock.LockOrCrash()) {
-            cleanupSnapshot = _pendingCleanups.ToList();
-        }
+        var cleanupSnapshot = _pendingCleanups.Keys.ToList();
         await Task.WhenAll(cleanupSnapshot).ConfigureAwait(false);
         Dispose();
     }
@@ -349,7 +342,6 @@ public sealed partial class BridgeMain {
         _loopCts?.Dispose();
         _pointerManager.Dispose();
         _ = _tokenRefresh?.DisposeAsync().AsTask();
-        _cleanupLock.Dispose();
         base.Dispose();
     }
 

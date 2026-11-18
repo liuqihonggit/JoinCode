@@ -12,6 +12,7 @@ internal sealed class DshTurnRunner {
 
     /// <summary>会话 → 待跑队列（mode=queue：上一轮进行中时把新输入排队，轮次结束后按序执行）</summary>
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>> _pending = new(StringComparer.Ordinal);
+    private readonly DshSerialMailbox _queueActor = new();
 
     /// <summary>构造执行器</summary>
     /// <param name="services">宿主服务容器</param>
@@ -111,7 +112,8 @@ internal sealed class DshTurnRunner {
 
     /// <summary>把输入放进会话队列（ItemId = GUID，前端 updateQueue 的行操作句柄）</summary>
     private void Queue(string sessionId, PendingPrompt prompt) =>
-        _pending.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>()).Enqueue(prompt);
+        _queueActor.Run(() =>
+            _pending.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>()).Enqueue(prompt));
 
     /// <summary>构造带操作句柄的排队项</summary>
     private static PendingPrompt NewPending(string requestId, string text) =>
@@ -119,7 +121,9 @@ internal sealed class DshTurnRunner {
 
     /// <summary>轮次收尾后启动下一条排队输入（无排队则返回）</summary>
     private void StartQueued(Hosting.IJccChatSession engine, string sessionId) {
-        if (!_pending.TryGetValue(sessionId, out var queue) || !queue.TryDequeue(out var prompt)) {
+        var prompt = _queueActor.Run(() =>
+            _pending.TryGetValue(sessionId, out var queue) && queue.TryDequeue(out var dequeued) ? dequeued : null);
+        if (prompt is null) {
             return;
         }
         if (_services.Streams.TryBeginTurn(sessionId) is not { } turn) {
@@ -443,23 +447,24 @@ internal sealed class DshTurnRunner {
     internal sealed record QueueItem(string ItemId, string RequestId, string Text);
 
     /// <summary>会话队列快照（按入队顺序）</summary>
-    internal IReadOnlyList<QueueItem> ListQueue(string sessionId) {
-        if (!_pending.TryGetValue(sessionId, out var queue)) {
-            return [];
-        }
-        var snapshot = new List<QueueItem>();
-        foreach (var prompt in queue) {
-            snapshot.Add(new QueueItem(prompt.ItemId, prompt.RequestId, prompt.Text));
-        }
-        return snapshot;
-    }
+    internal IReadOnlyList<QueueItem> ListQueue(string sessionId) =>
+        _queueActor.Run<IReadOnlyList<QueueItem>>(() => {
+            if (!_pending.TryGetValue(sessionId, out var queue)) {
+                return [];
+            }
+            var snapshot = new List<QueueItem>();
+            foreach (var prompt in queue) {
+                snapshot.Add(new QueueItem(prompt.ItemId, prompt.RequestId, prompt.Text));
+            }
+            return snapshot;
+        });
 
     /// <summary>编辑排队项文本（无该项返回 false）</summary>
-    internal bool TryEditQueueItem(string sessionId, string itemId, string text) {
-        if (!_pending.TryGetValue(sessionId, out var queue)) {
-            return false;
-        }
-        lock (queue) {
+    internal bool TryEditQueueItem(string sessionId, string itemId, string text) =>
+        _queueActor.Run(() => {
+            if (!_pending.TryGetValue(sessionId, out var queue)) {
+                return false;
+            }
             var rewritten = false;
             var rebuilt = new System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>();
             foreach (var prompt in queue) {
@@ -475,15 +480,14 @@ internal sealed class DshTurnRunner {
             }
             _pending[sessionId] = rebuilt;
             return true;
-        }
-    }
+        });
 
     /// <summary>移除排队项（无该项返回 false）</summary>
-    internal bool TryRemoveQueueItem(string sessionId, string itemId) {
-        if (!_pending.TryGetValue(sessionId, out var queue)) {
-            return false;
-        }
-        lock (queue) {
+    internal bool TryRemoveQueueItem(string sessionId, string itemId) =>
+        _queueActor.Run(() => {
+            if (!_pending.TryGetValue(sessionId, out var queue)) {
+                return false;
+            }
             var removed = false;
             var rebuilt = new System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>();
             foreach (var prompt in queue) {
@@ -498,6 +502,5 @@ internal sealed class DshTurnRunner {
             }
             _pending[sessionId] = rebuilt;
             return true;
-        }
-    }
+        });
 }

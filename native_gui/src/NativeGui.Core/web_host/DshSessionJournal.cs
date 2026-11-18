@@ -10,7 +10,7 @@ namespace JoinCode.Gui.WebHost;
 internal sealed class DshSessionJournal {
     private readonly IFileSystem _fs;
     private readonly string _directory;
-    private readonly SemaphoreSlim _appendGate = new(1, 1);
+    private readonly DshSerialMailbox _appendActor = new();
 
     /// <summary>构造事件日志</summary>
     /// <param name="fs">文件系统抽象</param>
@@ -51,18 +51,14 @@ internal sealed class DshSessionJournal {
     /// <param name="sessionId">会话 ID</param>
     /// <param name="sessionEvent">事件</param>
     /// <param name="cancellationToken">取消令牌</param>
-    internal async Task AppendAsync(string sessionId, DshSessionEvent sessionEvent, CancellationToken cancellationToken = default) {
-        var path = PathFor(sessionId);
-        var directory = _fs.GetParentPath(path);
-        if (directory is not null && !_fs.DirectoryExists(directory)) {
-            _fs.CreateDirectory(directory);
-        }
-        var line = JsonSerializer.Serialize(sessionEvent, DshJsonContext.Default.DshSessionEvent) + "\n";
-        await _appendGate.WaitAsync(cancellationToken);
-        try {
-            await _fs.AppendAllTextAsync(path, line, cancellationToken);
-        } finally {
-            _appendGate.Release();
-        }
-    }
+    internal Task AppendAsync(string sessionId, DshSessionEvent sessionEvent, CancellationToken cancellationToken = default) =>
+        _appendActor.RunAsync(async () => {
+            var path = PathFor(sessionId);
+            var directory = _fs.GetParentPath(path);
+            if (directory is not null && !_fs.DirectoryExists(directory)) {
+                _fs.CreateDirectory(directory);
+            }
+            var line = JsonSerializer.Serialize(sessionEvent, DshJsonContext.Default.DshSessionEvent) + "\n";
+            await _fs.AppendAllTextAsync(path, line, cancellationToken).ConfigureAwait(false);
+        });
 }

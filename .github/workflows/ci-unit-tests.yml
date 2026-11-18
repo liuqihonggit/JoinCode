@@ -147,6 +147,21 @@ jobs:
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-HonestyChecklist.py
 
+  # 零锁并发红线 — JCC4008 分析器负责语义判定，本门禁负责文本基线只减不增：
+  # 存量锁按文件登记次数，新增文件/次数增加/基线未收紧都会红；B6 归档锁生态后基线清零。
+  lock-primitive-gate:
+    name: Lock primitives - baseline only decreases
+    runs-on: windows-latest
+    timeout-minutes: 5
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Verify lock primitive baseline against source
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-NoLockPrimitives.py
+
   # 显式模块顺序 — 真机核对 CLI 与 GUI 两套装配：
   #   ① CLI：启动 jcc，比对实际模块启动顺序 == resources/app/modules.yaml 的 cli profile；
   #   ② GUI：启动探针真建一次引擎会话，比对 [MODULE] 顺序 == gui profile。

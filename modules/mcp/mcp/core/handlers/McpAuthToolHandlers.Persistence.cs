@@ -81,7 +81,7 @@ public sealed partial class McpAuthToolHandlers {
         }
 
         if (provider is not null) {
-            _authProviders[entry.AuthName] = provider;
+            SetProvider(entry.AuthName, provider);
         }
     }
 

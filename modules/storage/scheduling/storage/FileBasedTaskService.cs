@@ -13,9 +13,9 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     private readonly ITaskFileReader _taskFileReader;
     private readonly ILogger<FileBasedTaskService>? _logger;
     private readonly IFileOperationService _fileOperationService;
-    private readonly AsyncLock _initLock = new();
+    private TaskCompletionSource? _initSignal;
     private bool _initialized;
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>
     /// 基于文件系统的任务服务构造函数
@@ -39,17 +39,30 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default) {
         if (_initialized) return;
 
-        using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
-
-        if (_initialized) return;
-
-        if (!_fileOperationService.DirectoryExists(_options.TaskDirectoryPath)) {
-            _fileOperationService.CreateDirectory(_options.TaskDirectoryPath);
-            _logger?.LogInformation(L.T(StringKey.CreateTaskDirLog), _options.TaskDirectoryPath);
+        var signal = Volatile.Read(ref _initSignal);
+        if (signal is null) {
+            var mine = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            signal = Interlocked.CompareExchange(ref _initSignal, mine, null) ?? mine;
+            if (ReferenceEquals(signal, mine)) {
+                RunInitialize(mine);
+            }
         }
 
-        _initialized = true;
+        await signal.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
 
+    private void RunInitialize(TaskCompletionSource completion) {
+        try {
+            if (!_fileOperationService.DirectoryExists(_options.TaskDirectoryPath)) {
+                _fileOperationService.CreateDirectory(_options.TaskDirectoryPath);
+                _logger?.LogInformation(L.T(StringKey.CreateTaskDirLog), _options.TaskDirectoryPath);
+            }
+
+            _initialized = true;
+            completion.TrySetResult();
+        } catch (Exception ex) {
+            completion.TrySetException(ex);
+        }
     }
 
     /// <inheritdoc />
@@ -442,9 +455,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
 
     /// <summary>释放资源时回调，释放初始化锁与高水位标记管理器。</summary>
     public override void Dispose() {
-        if (_disposed) return;
-        _disposed = true;
-        _initLock.Dispose();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _highWaterMarkManager.Dispose();
         base.Dispose();
     }

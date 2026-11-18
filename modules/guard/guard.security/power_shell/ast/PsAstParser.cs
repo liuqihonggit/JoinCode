@@ -7,7 +7,6 @@ namespace JoinCode.Guard.Security.PowerShell;
 public static partial class PsAstParser {
     private static readonly string ParseScriptBody = BuildParseScript();
     private static string? _cachedPwshPath;
-    private static readonly AsyncLock CacheLock = new("PsAstParser");
 
     private const int MaxCacheSize = 256;
     private static ImmutableHamT<string, PsParsedCommand> ParseCache = ImmutableHamT<string, PsParsedCommand>.Empty;
@@ -326,9 +325,8 @@ public static partial class PsAstParser {
         StringComparer.OrdinalIgnoreCase);
 
     private static string? FindPwshPath() {
-        using (CacheLock.LockOrCrash()) {
-            if (_cachedPwshPath is not null) return _cachedPwshPath;
-        }
+        var cached = Volatile.Read(ref _cachedPwshPath);
+        if (cached is not null) return cached;
 
         string? found = null;
 
@@ -348,9 +346,7 @@ public static partial class PsAstParser {
         }
 
         if (found is not null) {
-            using (CacheLock.LockOrCrash()) {
-                _cachedPwshPath = found;
-            }
+            Volatile.Write(ref _cachedPwshPath, found);
         }
 
         return found;

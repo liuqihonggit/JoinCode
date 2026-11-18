@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading.Channels;
 
 namespace JoinCode.CliNode.Code;
 
@@ -20,11 +21,17 @@ internal sealed class LspConnection : IAsyncDisposable {
     private readonly Process _process;
     private readonly Stream _toServer;
     private readonly Stream _fromServer;
-    private readonly SemaphoreSlim _writeLock = new(1, 1);
+    // 单写者邮箱：并发的请求/通知只入队，由唯一写循环按到达顺序整帧写出
+    private readonly Channel<WriteCommand> _writeQueue = Channel.CreateUnbounded<WriteCommand>(new UnboundedChannelOptions {
+        SingleReader = true,
+        SingleWriter = false,
+    });
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonNode?>> _pending = new(StringComparer.Ordinal);
     private readonly HashSet<string> _openedFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _readCts = new();
-    private readonly StringBuilder _stderrTail = new();
+    // 单写者发布不可变快照：stderr 泵写，诊断读取，无需互斥
+    private volatile string _stderrTail = "";
+    private Task _writePump = Task.CompletedTask;
     private int _nextId;
     private int _disposed;
 
@@ -71,6 +78,8 @@ internal sealed class LspConnection : IAsyncDisposable {
     }
 
     private void StartPumps() {
+        _writePump = Task.Run(() => WriteLoopAsync(_readCts.Token), CancellationToken.None);
+
         _ = Task.Run(async () => {
             try {
                 await ReadLoopAsync(_readCts.Token).ConfigureAwait(false);
@@ -87,10 +96,8 @@ internal sealed class LspConnection : IAsyncDisposable {
                 var buffer = new char[4096];
                 int read;
                 while ((read = await _process.StandardError.ReadAsync(buffer.AsMemory(), CancellationToken.None).ConfigureAwait(false)) > 0) {
-                    lock (_stderrTail) {
-                        _stderrTail.Append(buffer, 0, read);
-                        if (_stderrTail.Length > 4000) _stderrTail.Remove(0, _stderrTail.Length - 4000);
-                    }
+                    var combined = _stderrTail + new string(buffer, 0, read);
+                    _stderrTail = combined.Length > 4000 ? combined[^4000..] : combined;
                 }
             } catch (Exception) {
                 // 进程已退出
@@ -113,11 +120,9 @@ internal sealed class LspConnection : IAsyncDisposable {
     }
 
     private string StderrHint() {
-        lock (_stderrTail) {
-            if (_stderrTail.Length == 0) return "。";
-            var tail = _stderrTail.ToString().Trim();
-            return "。服务器 stderr 末尾：" + (tail.Length > 600 ? tail[^600..] : tail);
-        }
+        var tail = _stderrTail.Trim();
+        if (tail.Length == 0) return "。";
+        return "。服务器 stderr 末尾：" + (tail.Length > 600 ? tail[^600..] : tail);
     }
 
     public async Task OpenFileAsync(string filePath, string languageId, CancellationToken ct) {
@@ -171,13 +176,41 @@ internal sealed class LspConnection : IAsyncDisposable {
     private async Task WriteAsync(JsonNode message, CancellationToken ct) {
         var body = Encoding.UTF8.GetBytes(message.ToJsonString());
         var header = Encoding.ASCII.GetBytes($"Content-Length: {body.Length.ToString(CultureInfo.InvariantCulture)}\r\n\r\n");
-        await _writeLock.WaitAsync(ct).ConfigureAwait(false);
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_writeQueue.Writer.TryWrite(new WriteCommand(header, body, ct, completion))) {
+            throw new ObjectDisposedException(nameof(LspConnection), "LSP 写入队列已关闭");
+        }
+
+        await completion.Task.WaitAsync(ct).ConfigureAwait(false);
+    }
+
+    private async Task WriteLoopAsync(CancellationToken ct) {
         try {
-            await _toServer.WriteAsync(header, ct).ConfigureAwait(false);
-            await _toServer.WriteAsync(body, ct).ConfigureAwait(false);
-            await _toServer.FlushAsync(ct).ConfigureAwait(false);
-        } finally {
-            _writeLock.Release();
+            await foreach (var command in _writeQueue.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
+                if (command.Ct.IsCancellationRequested) {
+                    command.Completion.TrySetCanceled(command.Ct);
+                    continue;
+                }
+
+                try {
+                    await _toServer.WriteAsync(command.Header, CancellationToken.None).ConfigureAwait(false);
+                    await _toServer.WriteAsync(command.Body, CancellationToken.None).ConfigureAwait(false);
+                    await _toServer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
+                    command.Completion.TrySetResult();
+                } catch (Exception ex) {
+                    command.Completion.TrySetException(ex);
+                    FailQueuedWrites(ex);
+                    return;
+                }
+            }
+        } catch (OperationCanceledException) {
+            FailQueuedWrites(new ObjectDisposedException(nameof(LspConnection), "LSP 连接已关闭"));
+        }
+    }
+
+    private void FailQueuedWrites(Exception error) {
+        while (_writeQueue.Reader.TryRead(out var command)) {
+            command.Completion.TrySetException(error);
         }
     }
 
@@ -258,6 +291,8 @@ internal sealed class LspConnection : IAsyncDisposable {
         _pending.Clear();
     }
 
+    private sealed record WriteCommand(byte[] Header, byte[] Body, CancellationToken Ct, TaskCompletionSource Completion);
+
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         try {
@@ -269,6 +304,8 @@ internal sealed class LspConnection : IAsyncDisposable {
         }
         try {
             _readCts.Cancel();
+            _writeQueue.Writer.TryComplete();
+            await _writePump.ConfigureAwait(false);
             if (!_process.HasExited) {
                 if (!_process.WaitForExit(2000)) _process.Kill(entireProcessTree: true);
             }
@@ -276,7 +313,6 @@ internal sealed class LspConnection : IAsyncDisposable {
             // 已退出
         }
         _process.Dispose();
-        _writeLock.Dispose();
         _readCts.Dispose();
     }
 }

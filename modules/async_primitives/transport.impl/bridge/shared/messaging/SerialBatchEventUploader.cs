@@ -22,6 +22,8 @@ public sealed class RetryableError : Exception {
 /// <summary>
 /// 序列化批次事件上传器 — 对齐 TS 端 SerialBatchEventUploader
 /// 同一时间只有一个 POST 在飞，支持延迟缓冲、背压、指数退避重试、maxConsecutiveFailures
+/// <para>无锁实现：待发送队列用有界 <see cref="Channel{T}"/> 承担背压；排空循环由
+/// CAS(0→1) 保证全局单实例；重试批次保存在排空循环本地队列，天然串行且顺序不变。</para>
 /// </summary>
 public sealed class SerialBatchEventUploader : IDisposable {
     private readonly HttpClient _httpClient;
@@ -30,22 +32,27 @@ public sealed class SerialBatchEventUploader : IDisposable {
     private readonly SerialBatchUploaderOptions _options;
     private readonly Func<IReadOnlyList<string>, Task> _sendFunc;
 
-    private readonly List<string> _pending;
-    private readonly AsyncLock _drainLock = new();
-    private readonly List<TaskCompletionSource> _flushResolvers;
-    private readonly List<Action> _backpressureResolvers;
+    private readonly Channel<string> _queue;
+    private readonly ChannelWriter<string> _writer;
+    private readonly ChannelReader<string> _reader;
+    private TaskCompletionSource _idle = NewIdleSignal();
+    private readonly int _maxBatchSize;
+    private readonly int _maxBatchBytes;
     private CancellationTokenSource? _sleepCts;
+    private int _retryCount;
     private int _pendingAtClose;
-    private bool _draining;
-    private bool _closed;
+    private int _drainActive;
+    private int _closed;
     private int _droppedBatches;
     private int _isDisposed;
 
     /// <summary>因 maxConsecutiveFailures 丢弃的批次计数</summary>
-    public int DroppedBatchCount => _droppedBatches;
+    public int DroppedBatchCount => Volatile.Read(ref _droppedBatches);
 
     /// <summary>待发送队列深度</summary>
-    public int PendingCount => _closed ? _pendingAtClose : _pending.Count;
+    public int PendingCount => Volatile.Read(ref _closed) != 0
+        ? Volatile.Read(ref _pendingAtClose)
+        : _reader.Count + Volatile.Read(ref _retryCount);
 
     /// <summary>
     /// 序列化批次事件上传器构造函数
@@ -65,32 +72,28 @@ public sealed class SerialBatchEventUploader : IDisposable {
         _logger = logger;
         _sendFunc = SendViaHttpPostAsync;
 
-        _pending = new List<string>();
-
-        _flushResolvers = [];
-        _backpressureResolvers = [];
+        _maxBatchSize = Math.Max(1, _options.MaxBatchSize);
+        _maxBatchBytes = _options.MaxBatchBytes;
+        _queue = Channel.CreateBounded<string>(new BoundedChannelOptions(Math.Max(1, _options.MaxQueueSize)) {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = true,
+            SingleWriter = false,
+            AllowSynchronousContinuations = false,
+        });
+        _writer = _queue.Writer;
+        _reader = _queue.Reader;
     }
 
     /// <summary>入队事件 — 满队列时阻塞（背压）</summary>
     public async Task EnqueueAsync(string message, CancellationToken ct = default) {
-        if (_closed) return;
+        if (Volatile.Read(ref _closed) != 0) return;
 
-        // 背压: 等待队列有空间
-        while (_pending.Count >= _options.MaxQueueSize && !_closed) {
-            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            _backpressureResolvers.Add(() => tcs.TrySetResult());
-
-            using var linkedCts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(5000));
-            try {
-                await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                // 超时，再检查一次
-            }
+        try {
+            await _writer.WriteAsync(message, ct).ConfigureAwait(false);
+        } catch (ChannelClosedException) {
+            return;
         }
 
-        if (_closed) return;
-
-        _pending.Add(message);
         _ = DrainAsync();
     }
 
@@ -103,66 +106,69 @@ public sealed class SerialBatchEventUploader : IDisposable {
 
     /// <summary>排空写队列 — 阻塞直到所有事件发送完毕</summary>
     public async Task FlushAsync(CancellationToken ct = default) {
-        if (_pending.Count == 0 && !_draining) return;
-
         _ = DrainAsync();
 
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _flushResolvers.Add(tcs);
+        while (true) {
+            if (Volatile.Read(ref _closed) != 0) return;
+            if (PendingCount == 0 && Volatile.Read(ref _drainActive) == 0) return;
 
-        try {
-            await tcs.Task.WaitAsync(ct).ConfigureAwait(false);
-        } catch (OperationCanceledException) {
-            // flush 被取消不算错误
+            var signal = Volatile.Read(ref _idle);
+            if (signal.Task.IsCompleted) {
+                Interlocked.CompareExchange(ref _idle, NewIdleSignal(), signal);
+                continue;
+            }
+
+            try {
+                await signal.Task.WaitAsync(ct).ConfigureAwait(false);
+            } catch (OperationCanceledException) {
+                return;
+            }
         }
     }
 
     /// <summary>关闭上传器 — 丢弃待处理事件，释放所有等待者</summary>
     public void Close() {
-        if (_closed) return;
-        _closed = true;
-        _pendingAtClose = _pending.Count;
-        _pending.Clear();
+        var remaining = _reader.Count + Volatile.Read(ref _retryCount);
+        if (Interlocked.Exchange(ref _closed, 1) != 0) return;
+        Volatile.Write(ref _pendingAtClose, remaining);
+        _writer.TryComplete();
 
         // 中断正在进行的睡眠
         _sleepCts?.Cancel();
 
-        // 释放背压等待者
-        foreach (var resolve in _backpressureResolvers) resolve();
-        _backpressureResolvers.Clear();
-
-        // 释放 flush 等待者
-        foreach (var tcs in _flushResolvers) tcs.TrySetResult();
-        _flushResolvers.Clear();
+        // 释放 flush/等待空闲的调用方
+        Volatile.Read(ref _idle).TrySetResult();
     }
 
     /// <summary>
-    /// 释放资源，关闭上传器并释放锁
+    /// 释放资源，关闭上传器并中断退避睡眠
     /// </summary>
     public void Dispose() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
         Close();
-        _drainLock.Dispose();
         _sleepCts?.Dispose();
         _sleepCts = null;
     }
 
     /// <summary>
-    /// 排空循环 — 同一时间仅一个实例运行
-    /// 串行发送批次，失败时指数退避重试
+    /// 排空循环 — CAS 保证同一时间仅一个实例运行
+    /// 串行发送批次，失败时指数退避重试；失败批次放回本地队首，顺序不丢
     /// </summary>
     private async Task DrainAsync() {
-        using var guard = await _drainLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_drainLock.Name}' 等待超时");
+        if (Interlocked.CompareExchange(ref _drainActive, 1, 0) != 0) return;
 
-        if (_draining || _closed) return;
-        _draining = true;
-
-
+        var retryQueue = new List<string>();
         var failures = 0;
 
         try {
-            while (_pending.Count > 0 && !_closed) {
-                var batch = TakeBatch();
+            while (Volatile.Read(ref _closed) == 0) {
+                if (retryQueue.Count == 0) {
+                    var next = await ReadNextAsync().ConfigureAwait(false);
+                    if (next is null) break;
+                    retryQueue.Add(next);
+                }
+
+                var batch = TakeBatch(retryQueue);
                 if (batch.Count == 0) continue;
 
                 try {
@@ -172,40 +178,51 @@ public sealed class SerialBatchEventUploader : IDisposable {
                     failures++;
 
                     if (ShouldDropBatch(failures, _options.MaxConsecutiveFailures)) {
-                        _droppedBatches++;
+                        Interlocked.Increment(ref _droppedBatches);
                         _options.OnBatchDropped?.Invoke(batch.Count, failures);
                         failures = 0;
-                        ReleaseBackpressure();
                         continue;
                     }
 
-                    // 重新入队到队首
-                    _pending.InsertRange(0, batch);
+                    // 失败批次放回本地队首，下一步先重试它们
+                    retryQueue.InsertRange(0, batch);
+                    Interlocked.Add(ref _retryCount, batch.Count);
 
                     var retryAfterMs = ExtractRetryAfterMs(ex);
                     var delay = ComputeRetryDelay(failures, retryAfterMs);
                     await SleepAsync(delay).ConfigureAwait(false);
-                    continue;
                 }
-
-                ReleaseBackpressure();
             }
         } finally {
-            _draining = false;
-
-            // 队列为空时通知 flush 等待者
-            if (_pending.Count == 0) {
-                foreach (var tcs in _flushResolvers) tcs.TrySetResult();
-                _flushResolvers.Clear();
+            Volatile.Write(ref _retryCount, retryQueue.Count);
+            Volatile.Write(ref _drainActive, 0);
+            if (PendingCount == 0) {
+                Volatile.Read(ref _idle).TrySetResult();
             }
         }
     }
 
-    /// <summary>从队列中提取一批事件 — 尊重 maxBatchSize 和 maxBatchBytes</summary>
-    internal List<string> TakeBatch() {
-        var takeCount = ComputeBatchTakeCount(_pending, _options.MaxBatchSize, _options.MaxBatchBytes);
-        var result = _pending.GetRange(0, takeCount);
-        _pending.RemoveRange(0, takeCount);
+    /// <summary>从有界通道读取下一条待发送事件；通道完成返回 null</summary>
+    private async Task<string?> ReadNextAsync() {
+        try {
+            return await _reader.ReadAsync(CancellationToken.None).ConfigureAwait(false);
+        } catch (ChannelClosedException) {
+            return null;
+        }
+    }
+
+    /// <summary>从本地重试队列 + 通道中提取一批事件 — 尊重 maxBatchSize 和 maxBatchBytes（超标尾部留在队首）</summary>
+    private List<string> TakeBatch(List<string> retryQueue) {
+        var needed = _maxBatchSize - retryQueue.Count;
+        while (needed > 0 && _reader.TryRead(out var item)) {
+            retryQueue.Add(item);
+            needed--;
+        }
+
+        var takeCount = ComputeBatchTakeCount(retryQueue, _maxBatchSize, _maxBatchBytes);
+        var result = retryQueue.GetRange(0, takeCount);
+        retryQueue.RemoveRange(0, takeCount);
+        Interlocked.Exchange(ref _retryCount, retryQueue.Count);
         return result;
     }
 
@@ -295,13 +312,8 @@ public sealed class SerialBatchEventUploader : IDisposable {
         }
     }
 
-    /// <summary>释放背压等待者</summary>
-    private void ReleaseBackpressure() {
-        if (_backpressureResolvers.Count == 0) return;
-        var resolvers = _backpressureResolvers.ToArray();
-        _backpressureResolvers.Clear();
-        foreach (var resolve in resolvers) resolve();
-    }
+    /// <summary>创建空闲信号（RunContinuationsAsynchronously 防止同步回调重入）</summary>
+    private static TaskCompletionSource NewIdleSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>内置 HTTP POST 发送 — 对齐 TS 端 HybridTransport.postOnce</summary>
     private async Task SendViaHttpPostAsync(IReadOnlyList<string> batch) {

@@ -184,7 +184,7 @@ public class CommandQueueTests {
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMilliseconds(100));
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => queue.DequeueAsync(cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => queue.DequeueAsync(cts.Token));
     }
 
     [Fact]

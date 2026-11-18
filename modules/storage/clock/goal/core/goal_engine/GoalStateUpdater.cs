@@ -20,9 +20,7 @@ internal sealed class GoalStateUpdater {
     /// <param name="context">图执行上下文（提供 StateLock）</param>
     /// <param name="ct">取消令牌</param>
     public async Task SetGoalStatusAsync(GoalState goalState, GoalStatus status, GraphExecutionContext context, CancellationToken ct) {
-        var lk = context.StateLock;
-        using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false)
-            ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
+        using var guard = await context.StateGate.AcquireAsync(ct).ConfigureAwait(false);
         goalState.Status = status;
         goalState.AchievedAt = _clock.GetUtcNow();
     }
@@ -38,9 +36,7 @@ internal sealed class GoalStateUpdater {
                 totalTurns++;
         }
 
-        var lk = context.StateLock;
-        using var guard = await lk.TryLockAsync().ConfigureAwait(false)
-            ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
+        using var guard = await context.StateGate.AcquireAsync().ConfigureAwait(false);
         context.State.TokensUsed = totalTokens;
         context.State.TurnsCompleted = totalTurns;
     }
@@ -50,9 +46,7 @@ internal sealed class GoalStateUpdater {
     /// <param name="message">助手消息文本</param>
     /// <param name="ct">取消令牌</param>
     public async Task AppendChatMessageAsync(GraphExecutionContext context, string message, CancellationToken ct) {
-        var lk = context.StateLock;
-        using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false)
-            ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
+        using var guard = await context.StateGate.AcquireAsync(ct).ConfigureAwait(false);
         context.ChatHistory.AddAssistantMessage(message);
     }
 }

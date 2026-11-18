@@ -17,11 +17,14 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
     private readonly PermissionModeApplier? _applyPermissionMode;
     private readonly BackgroundTaskEventPump? _backgroundPump;
     private readonly NewConversationStarter? _startNewConversation;
-    private readonly Lock _turnLock = new();
+    // 回合状态只由 Actor 单写者修改；读侧用 Task 自身线程安全状态或 Volatile 快照
+    private readonly Channel<TurnCommand> _commands = Channel.CreateBounded<TurnCommand>(
+        new BoundedChannelOptions(64) { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
     private CancellationTokenSource? _turnCts;
     private Task? _turnTask;
+    private int _disposed;
 
-    /// <summary>新会话待清标记（G3 D8 — StartNewConversation 置位，下回合 Submit lock 内消费：
+    /// <summary>新会话待清标记（G3 D8 — StartNewConversation 置位，下回合 Submit 命令由回合 Actor 消费：
     /// 启动清上下文任务并串行等待完成 — 清上下文不打断在途回合，忙时调用挂起到回合结束后的下回合）。</summary>
     private bool _newConversationPending;
 
@@ -35,6 +38,7 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
         _applyPermissionMode = applyPermissionMode;
         _backgroundPump = backgroundPump;
         _startNewConversation = startNewConversation;
+        _ = Task.Run(ProcessCommandsAsync);
     }
 
     /// <summary>进程内事件出口 — 组装层后台任务泵 Bind 用（M8-8；全程单实例）。</summary>
@@ -57,7 +61,7 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
     public delegate Task NewConversationStarter();
 
     /// <summary>回合进行中（submit 后未 completed/interrupted）。</summary>
-    public bool IsTurnRunning => _turnTask is { IsCompleted: false };
+    public bool IsTurnRunning => Volatile.Read(ref _turnTask) is { IsCompleted: false };
 
     /// <summary>提交回合（单参形态）— 转调图片重载（无附件路径，G3 统一入口零分叉）。</summary>
     public void Submit(string input) => Submit(input, images: null);
@@ -69,43 +73,19 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
     /// <param name="input">用户提交文本（图片附件引用段由投影追加）。</param>
     /// <param name="images">图片附件（null/空 = 无附件等价单参提交）。</param>
     public void Submit(string input, IReadOnlyList<BridgeImageAttachment>? images) {
-        Task? newConversationTask = null;
-        lock (_turnLock) {
-            if (_turnTask is { IsCompleted: false }) {
-                _events.Enqueue(new BridgeEvent.Error(
-                    "回合进行中，本次提交已忽略。如需提交新输入，请先按 Esc 打断当前回合。"));
-                return;
-            }
-
-            // G3 D8 — 回合开始前消费新会话待清标记：启动清上下文任务（IChatService.ClearHistoryAsync），
-            // RunTurnAsync 串行等待完成再进回合执行器；忙时 StartNewConversation 只置标记
-            //（清上下文不打断在途回合 — 本回合结束后的下回合生效）
-            if (_newConversationPending) {
-                _newConversationPending = false;
-                newConversationTask = _startNewConversation?.Invoke();
-            }
-
-            _turnCts?.Dispose();
-            _turnCts = new CancellationTokenSource();
-            var ct = _turnCts.Token;
-            _consumer.Reset();
-            _events.Enqueue(new BridgeEvent.TurnStarted());
-            _turnTask = RunTurnAsync(ProjectImageAttachments(input, images), ct, newConversationTask);
-        }
+        Post(new TurnSubmitCommand(input, images, NewCompletion()));
     }
 
     /// <summary>开始新会话（G3 D8 — Clear 语义引擎侧落点）：置待清标记，下一回合 Submit 时分派
     /// <see cref="NewConversationStarter"/>（IChatService.ClearHistoryAsync）并在回合执行器前串行等待；
     /// 忙时调用 = 标记挂起（清上下文不打断在途回合）；无启动器（null）纯标记 — 回合照常（测试桩零成本）。</summary>
     public void StartNewConversation() {
-        lock (_turnLock)
-            _newConversationPending = true;
+        Post(new TurnStartNewCommand(NewCompletion()));
     }
 
     /// <summary>打断在途回合（取消回合令牌；终态 turn_interrupted 由执行器的 OperationCanceledException 路径发出）。</summary>
     public void Interrupt() {
-        lock (_turnLock)
-            _turnCts?.Cancel();
+        Post(new TurnInterruptCommand(NewCompletion()));
     }
 
     /// <summary>应用权限模式 — 成功发 permission_mode_changed（实际生效值，被安全闸拦截时与请求值不同）；无效/无权限系统发 Error 诱导。</summary>
@@ -208,18 +188,89 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
 
     /// <summary>释放 — 取消在途回合并等待收尾（回合 Task 内无阻塞等待，Dispose 快速返回）。</summary>
     public void Dispose() {
-        CancellationTokenSource? cts;
-        Task? turnTask;
-        lock (_turnLock) {
-            cts = _turnCts;
-            turnTask = _turnTask;
-            _turnCts = null;
-            _turnTask = null;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        Post(new TurnDisposeCommand(NewCompletion()));
+        _commands.Writer.TryComplete();
+    }
+
+    private static TaskCompletionSource NewCompletion() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>投递回合命令并等待 Actor 处理完成 — 保证 Submit/Interrupt 返回时状态已发布。</summary>
+    private void Post(TurnCommand command) {
+        if (!_commands.Writer.TryWrite(command)) {
+            return;
         }
 
-        cts?.Cancel();
-        if (turnTask is { IsCompleted: false })
-            _ = turnTask.ContinueWith(static _ => { }, TaskScheduler.Default);
-        cts?.Dispose();
+        try {
+            command.Completion.Task.GetAwaiter().GetResult();
+        } catch (Exception ex) {
+            Debug.WriteLine($"[EngineTurnClient] 回合命令处理失败: {ex.Message}");
+        }
     }
+
+    /// <summary>回合状态 Actor — 唯一修改 _turnCts/_turnTask/_newConversationPending 的线程。</summary>
+    private async Task ProcessCommandsAsync() {
+        await foreach (var command in _commands.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)) {
+            try {
+                Handle(command);
+                command.Completion.TrySetResult();
+            } catch (Exception ex) {
+                command.Completion.TrySetException(ex);
+            }
+        }
+    }
+
+    private void Handle(TurnCommand command) {
+        switch (command) {
+            case TurnSubmitCommand submit:
+                HandleSubmit(submit);
+                break;
+            case TurnInterruptCommand:
+                _turnCts?.Cancel();
+                break;
+            case TurnStartNewCommand:
+                _newConversationPending = true;
+                break;
+            case TurnDisposeCommand:
+                var cts = _turnCts;
+                var turnTask = _turnTask;
+                _turnCts = null;
+                _turnTask = null;
+                try { cts?.Cancel(); } catch (ObjectDisposedException) { }
+                if (turnTask is { IsCompleted: false })
+                    _ = turnTask.ContinueWith(static _ => { }, TaskScheduler.Default);
+                cts?.Dispose();
+                break;
+        }
+    }
+
+    private void HandleSubmit(TurnSubmitCommand submit) {
+        if (_turnTask is { IsCompleted: false }) {
+            _events.Enqueue(new BridgeEvent.Error(
+                "回合进行中，本次提交已忽略。如需提交新输入，请先按 Esc 打断当前回合。"));
+            return;
+        }
+
+        // G3 D8 — 回合开始前消费新会话待清标记：启动清上下文任务（IChatService.ClearHistoryAsync），
+        // RunTurnAsync 串行等待完成再进回合执行器；忙时 StartNewConversation 只置标记
+        //（清上下文不打断在途回合 — 本回合结束后的下回合生效）
+        Task? newConversationTask = null;
+        if (_newConversationPending) {
+            _newConversationPending = false;
+            newConversationTask = _startNewConversation?.Invoke();
+        }
+
+        _turnCts?.Dispose();
+        _turnCts = new CancellationTokenSource();
+        var ct = _turnCts.Token;
+        _consumer.Reset();
+        _events.Enqueue(new BridgeEvent.TurnStarted());
+        _turnTask = RunTurnAsync(ProjectImageAttachments(submit.Input, submit.Images), ct, newConversationTask);
+    }
+
+    private abstract record TurnCommand(TaskCompletionSource Completion);
+    private sealed record TurnSubmitCommand(string Input, IReadOnlyList<BridgeImageAttachment>? Images, TaskCompletionSource Completion) : TurnCommand(Completion);
+    private sealed record TurnInterruptCommand(TaskCompletionSource Completion) : TurnCommand(Completion);
+    private sealed record TurnStartNewCommand(TaskCompletionSource Completion) : TurnCommand(Completion);
+    private sealed record TurnDisposeCommand(TaskCompletionSource Completion) : TurnCommand(Completion);
 }

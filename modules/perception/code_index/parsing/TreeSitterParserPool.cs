@@ -10,10 +10,10 @@ public static class TreeSitterParserPool {
         isThreadSafe: true);
 
     /// <summary>
-    /// Global lock protecting <see cref="Shared"/> because TreeSitter Parser is NOT thread-safe.
+    /// Global gate protecting <see cref="Shared"/> because TreeSitter Parser is NOT thread-safe.
     /// Different CSharpSymbolExtractor instances have their own _parseLock but all access Shared.Parse().
     /// </summary>
-    private static readonly AsyncLock _sharedLock = new("TreeSitterParserPool.Shared");
+    private static readonly AsyncGate _sharedGate = new();
 
     /// <summary>
     /// Gets a shared, process-wide parser instance. The same parser is returned for the lifetime
@@ -24,16 +24,15 @@ public static class TreeSitterParserPool {
     /// <summary>
     /// Acquires exclusive access to the shared parser. Dispose the returned value to release.
     /// </summary>
-    public static Task<IDisposable> AcquireSharedAsync(CancellationToken ct = default) {
-        var guard = _sharedLock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_sharedLock.Name}' 等待超时");
-        return Task.FromResult(guard);
+    public static async Task<IDisposable> AcquireSharedAsync(CancellationToken ct = default) {
+        return await _sharedGate.AcquireAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Acquires exclusive access to the shared parser synchronously. Dispose the returned value to release.
     /// </summary>
     public static IDisposable AcquireShared() {
-        return _sharedLock.LockOrCrash();
+        return _sharedGate.Acquire();
     }
 
     /// <summary>

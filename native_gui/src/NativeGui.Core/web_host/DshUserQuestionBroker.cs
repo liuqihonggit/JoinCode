@@ -18,25 +18,24 @@ internal sealed class DshUserQuestionBroker {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Pending> _pending = new(StringComparer.Ordinal);
 
     /// <summary>当前 $events 连接的发送通道（null = 前端未连接/已断开）</summary>
-    private (Func<JsonElement, Task> Send, string ClientId)? _events;
+    private sealed record EventsChannel(Func<JsonElement, Task> Send, string ClientId);
+
+    private EventsChannel? _events;
 
     /// <summary>waterfall 帧的目标会话（DshTurnRunner 轮次开始时设置）</summary>
     private volatile string? _agentId;
-
-    /// <summary>连接状态读写锁（保护 _events 与结算一致性）</summary>
-    private readonly object _gate = new();
 
     /// <summary>$events 流打开时挂接发送通道（连接级单例；旧连接被新连接替换）</summary>
     /// <param name="send">帧值发送委托（宿主闭包绑定 streamId）</param>
     /// <param name="clientId">就绪帧下发的客户端标识</param>
     internal void Attach(Func<JsonElement, Task> send, string clientId) {
-        lock (_gate) { _events = (send, clientId); }
+        Volatile.Write(ref _events, new EventsChannel(send, clientId));
         GuiDiag.Log($"[DSH-QUESTION] events stream attached client={clientId}");
     }
 
     /// <summary>$events 流关闭时摘除通道：挂起中的提问立即取消，后续提问直接失败（fail-closed）</summary>
     internal void Detach() {
-        lock (_gate) { _events = null; }
+        Volatile.Write(ref _events, null);
         foreach (var (eventId, pending) in _pending) {
             if (_pending.TryRemove(eventId, out var removed)) {
                 removed.Completion.TrySetResult(AskUserQuestionResult.CancelledResult());
@@ -212,15 +211,12 @@ internal sealed class DshUserQuestionBroker {
         return string.Join(", ", parts);
     }
 
-    /// <summary>同步读取当前发送通道（lock 收敛在同步方法内，规避 async 方法持锁）</summary>
-    private Func<JsonElement, Task>? CurrentSend() {
-        lock (_gate) { return _events?.Send; }
-    }
+    /// <summary>同步读取当前发送通道（volatile 读）</summary>
+    private Func<JsonElement, Task>? CurrentSend() => Volatile.Read(ref _events)?.Send;
 
     /// <summary>同步校验回帖客户端是否仍是当前 $events 连接（重连后的旧代际回帖幂等忽略）</summary>
     /// <param name="clientId">回帖声称的客户端标识</param>
     /// <returns>是否为当前连接</returns>
-    private bool IsCurrentClient(string clientId) {
-        lock (_gate) { return _events is { } channel && string.Equals(channel.ClientId, clientId, StringComparison.Ordinal); }
-    }
+    private bool IsCurrentClient(string clientId) =>
+        Volatile.Read(ref _events) is { } channel && string.Equals(channel.ClientId, clientId, StringComparison.Ordinal);
 }

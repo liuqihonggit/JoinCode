@@ -26,4 +26,5 @@ global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
 global using System.Threading;
 global using System.Threading.Tasks;
-global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;global using System.Threading.Channels;
+global using JoinCode.Abstractions.Utils.Diagnostics;

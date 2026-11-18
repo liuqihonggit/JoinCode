@@ -29,7 +29,7 @@ internal sealed class EventDrivenGraphScheduler : IGraphScheduler {
         GoalGraph graph,
         GraphExecutionContext context,
         ProcessNodeCompletionAsync processNodeAsync,
-        AsyncLock? concurrencyLimiter,
+        PermitPool? concurrencyLimiter,
         CancellationToken ct) {
         var completedCh = Channel.CreateBounded<NodeCompletionOutcome>(
             new BoundedChannelOptions(256) { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
@@ -115,17 +115,16 @@ internal sealed class EventDrivenGraphScheduler : IGraphScheduler {
         GoalGraph graph,
         GraphExecutionContext context,
         ProcessNodeCompletionAsync processNodeAsync,
-        AsyncLock? limiter,
+        PermitPool? limiter,
         Channel<NodeCompletionOutcome> completedCh,
         CancellationToken ct) {
         IDisposable? releaser = null;
         if (limiter is not null)
-            releaser = await limiter.TryLockAsync(ct).ConfigureAwait(false)
-                ?? throw new System.TimeoutException($"锁 '{limiter.Name}' 等待超时");
+            releaser = await limiter.AcquireAsync(ct).ConfigureAwait(false);
         using (releaser) {
             var dagNode = graph.Dag.Nodes[nodeId];
             var outcome = await processNodeAsync(nodeId, dagNode, context, ct).ConfigureAwait(false);
-            context.NodeCompletedSignal.Release();
+            context.NodeCompletedSignal.Writer.TryWrite(true);
             await completedCh.Writer.WriteAsync(outcome, ct).ConfigureAwait(false);
         }
     }

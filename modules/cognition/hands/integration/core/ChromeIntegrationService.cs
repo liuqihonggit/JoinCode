@@ -5,10 +5,9 @@ namespace IO.Services;
 /// </summary>
 [Register(typeof(IChromeIntegrationService), ServiceLifetime.Singleton)]
 public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeIntegrationService, IDisposable {
-    private bool _isConnected;
-    private bool _isDefaultEnabled;
-    private bool _initialized;
-    private readonly AsyncLock _initLock = new();
+    private volatile bool _isConnected;
+    private volatile bool _isDefaultEnabled;
+    private int _initState;
     private readonly IProcessService _processService;
     private readonly ILogger<ChromeIntegrationService>? _logger;
     private readonly IConfigurationService? _configService;
@@ -57,12 +56,11 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     }
 
     private void EnsureInitialized() {
-        if (_initialized) return;
-        using var guard = _initLock.TryLock();
-        if (guard is null) return;
-        if (_initialized) return;
+        // 单飞初始化：0=未开始 1=进行中 2=完成；进行中时并发调用直接返回默认值（与原 TryLock 空转语义一致）
+        if (Volatile.Read(ref _initState) == 2) return;
+        if (Interlocked.CompareExchange(ref _initState, 1, 0) != 0) return;
         try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); } catch { _isDefaultEnabled = false; }
-        _initialized = true;
+        Volatile.Write(ref _initState, 2);
     }
 
     /// <summary>
@@ -138,7 +136,6 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        _initLock.Dispose();
         base.Dispose();
     }
 }

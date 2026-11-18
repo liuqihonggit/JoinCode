@@ -42,8 +42,7 @@ internal sealed class TaskExecutor {
     /// 使用信号量控制并发执行任务
     /// </summary>
     public async Task ExecuteWithSemaphoreAsync(ScheduledTask task, ExecutionContext context, CancellationToken cancellationToken = default) {
-        using (await context.ConcurrencyLock.TryLockAsync(cancellationToken).ConfigureAwait(false)
-            ?? throw new System.TimeoutException($"锁 '{context.ConcurrencyLock.Name}' 等待超时")) {
+        using (await context.ConcurrencyLock.AcquireAsync(cancellationToken).ConfigureAwait(false)) {
             await ExecuteAsync(task, context.Options).ConfigureAwait(false);
         }
     }

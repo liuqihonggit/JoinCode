@@ -2,7 +2,6 @@ namespace Core.Utils;
 
 public sealed class AsyncLazy<T> : IAsyncLazy<T> {
     private readonly Func<Task<T>> _factory;
-    private readonly AsyncLock _gate = new($"{typeof(T).Name}-AsyncLazy", TimeSpan.FromMinutes(1));
     private Task<T>? _task;
     private int _isDisposed;
 
@@ -25,28 +24,31 @@ public sealed class AsyncLazy<T> : IAsyncLazy<T> {
     }
 
     /// <summary>
-    /// 异步获取值 — 首次调用执行工厂委托并缓存,后续调用返回缓存结果。
+    /// 异步获取值 — 首次调用执行工厂委托并缓存,后续调用返回缓存结果；工厂异常同样缓存。
     /// </summary>
     /// <param name="ct">取消令牌。</param>
     public async ValueTask<T> GetValueAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, typeof(AsyncLazy<T>));
 
         var task = Volatile.Read(ref _task);
-        if (task is not null) {
-            return await task.ConfigureAwait(false);
+        if (task is null) {
+            var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            task = Interlocked.CompareExchange(ref _task, completion.Task, null) ?? completion.Task;
+            if (ReferenceEquals(task, completion.Task)) {
+                _ = RunFactoryAsync(completion);
+            }
         }
 
-        var releaser = await _gate.TryLockAsync(ct).ConfigureAwait(false)
-            ?? throw new TimeoutException($"锁 '{_gate.Name}' 等待超时");
-        using (releaser) {
-            task = Volatile.Read(ref _task);
-            if (task is not null) {
-                return await task.ConfigureAwait(false);
-            }
+        return await task.WaitAsync(ct).ConfigureAwait(false);
+    }
 
-            task = _factory();
-            Volatile.Write(ref _task, task);
-            return await task.ConfigureAwait(false);
+    private async Task RunFactoryAsync(TaskCompletionSource<T> completion) {
+        try {
+            completion.TrySetResult(await _factory().ConfigureAwait(false));
+        } catch (OperationCanceledException ex) {
+            completion.TrySetCanceled(ex.CancellationToken);
+        } catch (Exception ex) {
+            completion.TrySetException(ex);
         }
     }
 
@@ -61,6 +63,5 @@ public sealed class AsyncLazy<T> : IAsyncLazy<T> {
 
         var task = Volatile.Read(ref _task);
         if (task is not null) await task.ConfigureAwait(false);
-        _gate.Dispose();
     }
 }

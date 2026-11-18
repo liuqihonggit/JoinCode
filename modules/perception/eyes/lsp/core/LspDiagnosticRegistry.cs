@@ -36,8 +36,6 @@ public sealed class LspPendingDiagnostic {
     public required List<LspDiagnosticFile> Files { get; init; }
     /// <summary>时间戳（毫秒）</summary>
     public long Timestamp { get; init; }
-    /// <summary>是否已作为附件发送</summary>
-    public bool AttachmentSent { get; set; }
 }
 
 /// <summary>
@@ -92,17 +90,23 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     private const int MaxDeliveredFiles = 500;
 
     private readonly IClockService _clock;
-    private readonly AsyncLock _lock = new("LspDiagnosticRegistry");
-    private readonly Dictionary<string, LspPendingDiagnostic> _pending = new();
-    private readonly LinkedList<string> _deliveredLru = new();
-    private readonly Dictionary<string, HashSet<string>> _delivered = new();
+    private LspDiagnosticRegistryState _state = LspDiagnosticRegistryState.Empty;
+
+    /// <summary>注册表不可变快照 — 待处理批次、已投递去重键与投递顺序</summary>
+    private sealed record LspDiagnosticRegistryState(
+        ImmutableHamT<string, LspPendingDiagnostic> Pending,
+        ImmutableHamT<string, ImmutableHamTSet<string>> Delivered,
+        ImmutableList<string> DeliveredOrder) {
+
+        /// <summary>空状态</summary>
+        public static LspDiagnosticRegistryState Empty { get; } = new(
+            ImmutableHamT<string, LspPendingDiagnostic>.Empty,
+            ImmutableHamT<string, ImmutableHamTSet<string>>.Empty,
+            ImmutableList<string>.Empty);
+    }
 
     /// <summary>待处理诊断数量</summary>
-    public int PendingCount {
-        get {
-            using (_lock.LockOrCrash()) { return _pending.Count; }
-        }
-    }
+    public int PendingCount => Volatile.Read(ref _state).Pending.Count;
 
     /// <summary>
     /// 注册待处理诊断
@@ -116,13 +120,10 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         var diagnostic = new LspPendingDiagnostic {
             ServerName = serverName,
             Files = files,
-            Timestamp = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds(),
-            AttachmentSent = false
+            Timestamp = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds()
         };
 
-        using (_lock.LockOrCrash()) {
-            _pending[id] = diagnostic;
-        }
+        Mutate(state => state with { Pending = state.Pending.Add(id, diagnostic) });
     }
 
     /// <summary>
@@ -132,42 +133,29 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     public List<(string ServerName, List<LspDiagnosticFile> Files)> CheckPending() {
         List<LspDiagnosticFile> allFiles;
         HashSet<string> serverNames;
-        List<LspPendingDiagnostic> toMark;
+        ImmutableHamT<string, ImmutableHamTSet<string>> deliveredSnapshot;
 
-        using (_lock.LockOrCrash()) {
-            if (_pending.Count == 0) return [];
+        while (true) {
+            var current = Volatile.Read(ref _state);
+            if (current.Pending.Count == 0) return [];
 
             allFiles = [];
             serverNames = new HashSet<string>(StringComparer.Ordinal);
-            toMark = [];
+            foreach (var diag in current.Pending.Values) {
+                allFiles.AddRange(diag.Files);
+                serverNames.Add(diag.ServerName);
+            }
 
-            foreach (var diag in _pending.Values) {
-                if (!diag.AttachmentSent) {
-                    allFiles.AddRange(diag.Files);
-                    serverNames.Add(diag.ServerName);
-                    toMark.Add(diag);
-                }
+            var next = current with { Pending = ImmutableHamT<string, LspPendingDiagnostic>.Empty };
+            if (Interlocked.CompareExchange(ref _state, next, current) == current) {
+                deliveredSnapshot = current.Delivered;
+                break;
             }
         }
 
         if (allFiles.Count == 0) return [];
 
-        var dedupedFiles = DeduplicateDiagnosticFiles(allFiles);
-
-        foreach (var diag in toMark) {
-            diag.AttachmentSent = true;
-        }
-
-        using (_lock.LockOrCrash()) {
-            var keysToRemove = _pending
-                .Where(kvp => kvp.Value.AttachmentSent)
-                .Select(kvp => kvp.Key)
-                .ToList();
-
-            foreach (var key in keysToRemove) {
-                _pending.Remove(key);
-            }
-        }
+        var dedupedFiles = DeduplicateDiagnosticFiles(allFiles, deliveredSnapshot);
 
         ApplyVolumeLimits(dedupedFiles);
 
@@ -183,18 +171,14 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
 
     /// <summary>清空所有待处理诊断</summary>
     public void ClearAll() {
-        using (_lock.LockOrCrash()) {
-            _pending.Clear();
-        }
+        Mutate(state => state.Pending.Count == 0
+            ? state
+            : state with { Pending = ImmutableHamT<string, LspPendingDiagnostic>.Empty });
     }
 
     /// <summary>重置所有状态（待处理与已投递）</summary>
     public void ResetAll() {
-        using (_lock.LockOrCrash()) {
-            _pending.Clear();
-            _delivered.Clear();
-            _deliveredLru.Clear();
-        }
+        Interlocked.Exchange(ref _state, LspDiagnosticRegistryState.Empty);
     }
 
     /// <summary>
@@ -202,10 +186,24 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     /// </summary>
     /// <param name="fileUri">文件 URI</param>
     public void ClearDeliveredForFile(string fileUri) {
-        using (_lock.LockOrCrash()) {
-            if (_delivered.Remove(fileUri)) {
-                _deliveredLru.Remove(fileUri);
-            }
+        Mutate(state => {
+            if (!state.Delivered.ContainsKey(fileUri)) return state;
+
+            var index = state.DeliveredOrder.IndexOf(fileUri);
+            return state with {
+                Delivered = state.Delivered.Remove(fileUri),
+                DeliveredOrder = index >= 0 ? state.DeliveredOrder.RemoveAt(index) : state.DeliveredOrder
+            };
+        });
+    }
+
+    /// <summary>CAS 发布状态变更 — mutate 返回原实例表示无变更</summary>
+    private void Mutate(Func<LspDiagnosticRegistryState, LspDiagnosticRegistryState> mutate) {
+        while (true) {
+            var current = Volatile.Read(ref _state);
+            var next = mutate(current);
+            if (ReferenceEquals(next, current)) return;
+            if (Interlocked.CompareExchange(ref _state, next, current) == current) return;
         }
     }
 
@@ -236,36 +234,35 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         return result;
     }
 
-    private List<LspDiagnosticFile> DeduplicateDiagnosticFiles(List<LspDiagnosticFile> allFiles) {
+    private static List<LspDiagnosticFile> DeduplicateDiagnosticFiles(
+        List<LspDiagnosticFile> allFiles,
+        ImmutableHamT<string, ImmutableHamTSet<string>> delivered) {
         var fileMap = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         var dedupedFileMap = new Dictionary<string, LspDiagnosticFile>(StringComparer.OrdinalIgnoreCase);
         var dedupedFiles = new List<LspDiagnosticFile>();
 
-        using (_lock.LockOrCrash()) {
-            foreach (var file in allFiles) {
-                if (!fileMap.ContainsKey(file.Uri)) {
-                    fileMap[file.Uri] = new HashSet<string>(StringComparer.Ordinal);
-                    var newDedupedFile = new LspDiagnosticFile { Uri = file.Uri, Diagnostics = [] };
-                    dedupedFiles.Add(newDedupedFile);
-                    dedupedFileMap[file.Uri] = newDedupedFile;
+        foreach (var file in allFiles) {
+            if (!fileMap.ContainsKey(file.Uri)) {
+                fileMap[file.Uri] = new HashSet<string>(StringComparer.Ordinal);
+                var newDedupedFile = new LspDiagnosticFile { Uri = file.Uri, Diagnostics = [] };
+                dedupedFiles.Add(newDedupedFile);
+                dedupedFileMap[file.Uri] = newDedupedFile;
+            }
+
+            var seenDiagnostics = fileMap[file.Uri];
+            var dedupedFile = dedupedFileMap[file.Uri];
+
+            delivered.TryGetValue(file.Uri, out var previouslyDelivered);
+
+            foreach (var diag in file.Diagnostics) {
+                var key = CreateDiagnosticKey(diag);
+
+                if (seenDiagnostics.Contains(key) || (previouslyDelivered is not null && previouslyDelivered.Contains(key))) {
+                    continue;
                 }
 
-                var seenDiagnostics = fileMap[file.Uri];
-                var dedupedFile = dedupedFileMap[file.Uri];
-
-                _delivered.TryGetValue(file.Uri, out var previouslyDelivered);
-                previouslyDelivered ??= new HashSet<string>(StringComparer.Ordinal);
-
-                foreach (var diag in file.Diagnostics) {
-                    var key = CreateDiagnosticKey(diag);
-
-                    if (seenDiagnostics.Contains(key) || previouslyDelivered.Contains(key)) {
-                        continue;
-                    }
-
-                    seenDiagnostics.Add(key);
-                    dedupedFile.Diagnostics.Add(diag);
-                }
+                seenDiagnostics.Add(key);
+                dedupedFile.Diagnostics.Add(diag);
             }
         }
 
@@ -297,25 +294,40 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     }
 
     private void TrackDelivered(List<LspDiagnosticFile> files) {
-        using (_lock.LockOrCrash()) {
+        if (files.Count == 0) return;
+
+        Mutate(state => {
+            var delivered = state.Delivered;
+            var order = state.DeliveredOrder;
+
             foreach (var file in files) {
-                if (!_delivered.ContainsKey(file.Uri)) {
-                    _delivered[file.Uri] = new HashSet<string>(StringComparer.Ordinal);
-                    _deliveredLru.AddLast(file.Uri);
+                if (!delivered.ContainsKey(file.Uri)) {
+                    order = order.Add(file.Uri);
                 }
+
+                var keys = delivered.TryGetValue(file.Uri, out var existing)
+                    ? existing
+                    : ImmutableHamTSet<string>.Empty;
 
                 foreach (var diag in file.Diagnostics) {
-                    _delivered[file.Uri].Add(CreateDiagnosticKey(diag));
+                    keys = keys.Add(CreateDiagnosticKey(diag));
                 }
 
-                while (_delivered.Count > MaxDeliveredFiles) {
-                    var first = _deliveredLru.First ?? throw new InvalidOperationException("LRU first node is null despite exceeding max count.");
-                    var oldest = first.Value;
-                    _deliveredLru.RemoveFirst();
-                    _delivered.Remove(oldest);
+                delivered = delivered.SetItem(file.Uri, keys);
+
+                while (delivered.Count > MaxDeliveredFiles) {
+                    var oldest = order[0];
+                    order = order.RemoveAt(0);
+                    delivered = delivered.Remove(oldest);
                 }
             }
-        }
+
+            if (ReferenceEquals(delivered, state.Delivered) && ReferenceEquals(order, state.DeliveredOrder)) {
+                return state;
+            }
+
+            return state with { Delivered = delivered, DeliveredOrder = order };
+        });
     }
 
     private static string CreateDiagnosticKey(LspDiagnosticItem diag) {
@@ -332,7 +344,6 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
 
     /// <inheritdoc />
     public override void Dispose() {
-        _lock.Dispose();
         base.Dispose();
     }
 }

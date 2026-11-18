@@ -2,11 +2,11 @@ namespace Core.Goal;
 
 
 /// <summary>
-/// 轮询式 Graph 调度器 — while(true) + DrainReadyBatch + NodeCompletedSignal.WaitAsync。
+/// 轮询式 Graph 调度器 — while(true) + DrainReadyBatch + NodeCompletedSignal 通道等待。
 /// </summary>
 /// <remarks>
 /// 提取自 GoalGraphEngine.ExecuteAsync 旧实现，保持行为等价。
-/// 当 batch 为空时通过 <see cref="SemaphoreSlim.WaitAsync(TimeSpan, CancellationToken)"/> 等待节点完成信号（替代 Task.Delay 轮询）。
+/// 当 batch 为空时通过通道 WaitToReadAsync 带 1 秒超时等待节点完成信号（替代 Task.Delay 轮询）。
 /// </remarks>
 internal sealed class PollingGraphScheduler : IGraphScheduler {
     private readonly ILogger? _logger;
@@ -24,7 +24,7 @@ internal sealed class PollingGraphScheduler : IGraphScheduler {
         GoalGraph graph,
         GraphExecutionContext context,
         ProcessNodeCompletionAsync processNodeAsync,
-        AsyncLock? concurrencyLimiter,
+        PermitPool? concurrencyLimiter,
         CancellationToken ct) {
         while (true) {
             ct.ThrowIfCancellationRequested();
@@ -35,8 +35,15 @@ internal sealed class PollingGraphScheduler : IGraphScheduler {
                 if (context.ReadyQueue.IsEmpty)
                     return NodeCompletionOutcome.Continue;
                 try {
-                    await context.NodeCompletedSignal.WaitAsync(TimeSpan.FromSeconds(1), ct).ConfigureAwait(false);
-                } catch (TimeoutException) { _logger?.LogDebug("[GoalGraph] 节点完成信号等待超时,继续检查"); }
+                    using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    waitCts.CancelAfter(TimeSpan.FromSeconds(1));
+                    if (!await context.NodeCompletedSignal.Reader.WaitToReadAsync(waitCts.Token).ConfigureAwait(false)) {
+                        return NodeCompletionOutcome.Continue;
+                    }
+                    while (context.NodeCompletedSignal.Reader.TryRead(out _)) { }
+                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                    _logger?.LogDebug("[GoalGraph] 节点完成信号等待超时,继续检查");
+                }
                 continue;
             }
 
@@ -96,16 +103,15 @@ internal sealed class PollingGraphScheduler : IGraphScheduler {
         GoalGraph graph,
         GraphExecutionContext context,
         ProcessNodeCompletionAsync processNodeAsync,
-        AsyncLock? limiter,
+        PermitPool? limiter,
         CancellationToken ct) {
         IDisposable? releaser = null;
         if (limiter is not null)
-            releaser = await limiter.TryLockAsync(ct).ConfigureAwait(false)
-                ?? throw new System.TimeoutException($"锁 '{limiter.Name}' 等待超时");
+            releaser = await limiter.AcquireAsync(ct).ConfigureAwait(false);
         using (releaser) {
             var dagNode = graph.Dag.Nodes[nodeId];
             var outcome = await processNodeAsync(nodeId, dagNode, context, ct).ConfigureAwait(false);
-            context.NodeCompletedSignal.Release();
+            context.NodeCompletedSignal.Writer.TryWrite(true);
             return outcome;
         }
     }

@@ -8,6 +8,16 @@ class Program {
         var swTotal = PerfTimer.Start("Program.Main 总耗时");
         args = RestoreMsysPathExpansion(args);
 
+        // 真机验收入口 — 直接复用 TUI 宿主的非交互探针，不经过参数解析/引擎双组装
+        if (args is ["--selftest-tui"])
+            return await NativeTui.Host.Program.RunSelftestAsync().ConfigureAwait(false);
+        if (args is ["--selftest-tui-turn"])
+            return await NativeTui.Host.Program.RunSelftestTurnAsync().ConfigureAwait(false);
+        if (args is ["--selftest-tui-commands"])
+            return await NativeTui.Host.Program.RunSelftestCommandsAsync().ConfigureAwait(false);
+        if (args is ["--selftest-input"])
+            return await NativeTui.Host.Program.RunSelftestInputAsync().ConfigureAwait(false);
+
         var sw0 = PerfTimer.Start("NativeDllBootstrapper");
         // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P/Invoke 之前）
         await Entry.Startup.NativeDllBootstrapper.InitializeAsync().ConfigureAwait(false);

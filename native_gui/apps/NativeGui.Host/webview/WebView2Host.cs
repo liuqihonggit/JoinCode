@@ -59,6 +59,7 @@ internal sealed class WebView2Host : NativeControlHost {
             WebViewReady?.Invoke(core);
             core.Navigate(_pageUri);
         } catch (Exception ex) {
+            App.LogDiag($"[WebUI] init failed hr=0x{ex.HResult:X8} apartment={Thread.CurrentThread.GetApartmentState()} thread={Environment.CurrentManagedThreadId}: {ex.Message}");
             InitFailed?.Invoke(ex.Message);
         }
     }

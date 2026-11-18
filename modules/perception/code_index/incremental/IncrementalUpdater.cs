@@ -157,7 +157,6 @@ public sealed class IncrementalUpdater : IDisposable {
             .WithDegreeOfParallelism(parallelism)
             .WithCancellation(ct)
             .ForAll(chunk => {
-                LockRegistry.RegisterFlow();
                 using var parser = TreeSitterParserPool.CreateDisposable();
                 using var extractor = new CSharpSymbolExtractor(parser);
 

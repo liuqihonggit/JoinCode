@@ -8,7 +8,7 @@ namespace McpClient;
 public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElicitationHandler {
     private readonly IUserInteractionService _userInteraction;
     private readonly ILogger<InteractiveElicitationHandler>? _logger;
-    private readonly AsyncLock _queueLock = new();
+    private TaskCompletionSource _tailGate = CreateCompletedGate();
 
     /// <summary>
     /// 构造 InteractiveElicitationHandler 实例。
@@ -35,23 +35,52 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
         JsonRpcId requestId,
         ElicitRequestParams @params,
         CancellationToken cancellationToken) {
-        using var guard = await _queueLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_queueLock.Name}' 等待超时");
+        return await RunSerializedAsync(async () => {
+            try {
+                var mode = @params.Mode == ElicitModeEnumConstants.Url ? ElicitModeEnumConstants.Url : ElicitModeEnumConstants.Form;
+
+                _logger?.LogInformation("处理 Elicitation 请求: 服务器={ServerName}, 模式={Mode}", serverName, mode);
+
+                return mode == ElicitModeEnumConstants.Url
+                    ? await HandleUrlModeAsync(serverName, @params, cancellationToken).ConfigureAwait(false)
+                    : await HandleFormModeAsync(serverName, @params, cancellationToken).ConfigureAwait(false);
+            } catch (OperationCanceledException) {
+                _logger?.LogDebug("Elicitation 请求被取消: 服务器={ServerName}", serverName);
+                return new ElicitResult { Action = ElicitActionEnumConstants.Cancel };
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "处理 Elicitation 请求失败: 服务器={ServerName}", serverName);
+                return new ElicitResult { Action = ElicitActionEnumConstants.Cancel };
+            }
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static TaskCompletionSource CreateCompletedGate() {
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        gate.SetResult();
+        return gate;
+    }
+
+    /// <summary>串行化交互请求 — 单写者门闩链，后序请求等待前序完成，无需锁</summary>
+    private async Task<ElicitResult> RunSerializedAsync(Func<Task<ElicitResult>> action, CancellationToken cancellationToken) {
+        var mine = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var previous = Interlocked.Exchange(ref _tailGate, mine);
         try {
-            var mode = @params.Mode == ElicitModeEnumConstants.Url ? ElicitModeEnumConstants.Url : ElicitModeEnumConstants.Form;
+            try {
+                await previous.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            } catch (OperationCanceledException) {
+                throw;
+            } catch (Exception ex) {
+                _logger?.LogDebug(ex, "前序 Elicitation 请求失败,继续当前请求");
+            }
 
-            _logger?.LogInformation("处理 Elicitation 请求: 服务器={ServerName}, 模式={Mode}", serverName, mode);
-
-            return mode == ElicitModeEnumConstants.Url
-                ? await HandleUrlModeAsync(serverName, @params, cancellationToken).ConfigureAwait(false)
-                : await HandleFormModeAsync(serverName, @params, cancellationToken).ConfigureAwait(false);
-        } catch (OperationCanceledException) {
-            _logger?.LogDebug("Elicitation 请求被取消: 服务器={ServerName}", serverName);
-            return new ElicitResult { Action = ElicitActionEnumConstants.Cancel };
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = await action().ConfigureAwait(false);
+            mine.TrySetResult();
+            return result;
         } catch (Exception ex) {
-            _logger?.LogError(ex, "处理 Elicitation 请求失败: 服务器={ServerName}", serverName);
-            return new ElicitResult { Action = ElicitActionEnumConstants.Cancel };
+            mine.TrySetException(ex);
+            throw;
         }
-
     }
 
     private async Task<ElicitResult> HandleFormModeAsync(
@@ -141,9 +170,8 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
         };
     }
 
-    /// <summary>释放资源 — 释放请求队列锁。</summary>
+    /// <summary>释放资源 — 释放处理器状态。</summary>
     public override void Dispose() {
-        _queueLock.Dispose();
         base.Dispose();
     }
 }

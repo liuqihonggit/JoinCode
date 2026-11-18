@@ -3,7 +3,7 @@ namespace Infrastructure.Network.Downloader.Coordinator;
 /// <summary>
 /// BatchDownloader — IBatchDownloader 实现,批量并行下载,DI Singleton
 /// <para>单一职责:多 URL 并行协调,每个 item 内部复用 IDownloader 多线程分片</para>
-/// <para>限流:SemaphoreSlim 控制 item 间并发数,0 线程阻塞</para>
+/// <para>限流:工作池按并发数领取下标,无信号量</para>
 /// <para>链式:items → DownloadAllAsync → results(顺序与输入一致)</para>
 /// </summary>
 [Register(typeof(IBatchDownloader), ServiceLifetime.Singleton)]
@@ -29,18 +29,21 @@ public sealed partial class BatchDownloader : ServiceEntity, IBatchDownloader {
         if (items.Count == 0) return [];
 
         var effectiveConcurrency = Math.Max(1, maxConcurrency);
-        using var semaphore = new SemaphoreSlim(effectiveConcurrency, effectiveConcurrency);
+        var results = new BatchDownloadResult[items.Count];
+        var nextIndex = -1;
 
-        var tasks = items.Select(async item => {
-            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try {
-                return await DownloadOneAsync(item, cancellationToken).ConfigureAwait(false);
-            } finally {
-                semaphore.Release();
+        async Task WorkerAsync() {
+            while (true) {
+                var index = Interlocked.Increment(ref nextIndex);
+                if (index >= items.Count) return;
+                results[index] = await DownloadOneAsync(items[index], cancellationToken).ConfigureAwait(false);
             }
-        }).ToArray();
+        }
 
-        return await Task.WhenAll(tasks).ConfigureAwait(false);
+        var workerCount = Math.Min(effectiveConcurrency, items.Count);
+        await Task.WhenAll(Enumerable.Range(0, workerCount).Select(_ => WorkerAsync())).ConfigureAwait(false);
+
+        return results;
     }
 
     private async Task<BatchDownloadResult> DownloadOneAsync(

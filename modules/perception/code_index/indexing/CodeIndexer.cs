@@ -412,14 +412,13 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         Console.Error.WriteLine($"[code-index] Phase D 并行: degree={parallelism}, ranges={ranges.Count}, cpu={Environment.ProcessorCount}");
 
         // 每线程一套 parser/extractor,工作窃取跨 range 复用
-        // 原: 98 ranges 各创建一套(98 套 parser+extractor+cache+lock)
+        // 原: 98 ranges 各创建一套(98 套 parser+extractor+cache)
         // 现: 16 线程各创建一套(16 套),省 82 次创建
         var rangeIndex = 0;
         var rangeCount = ranges.Count;
         var tasks = new Task[parallelism];
         for (var t = 0; t < parallelism; t++) {
             tasks[t] = Task.Run(() => {
-                LockRegistry.RegisterFlow();
                 using var parser = TreeSitterParserPool.CreateDisposable();
                 using var extractor = new CSharpSymbolExtractor(parser);
                 var mdExtractor = new MarkdownChunkExtractor();

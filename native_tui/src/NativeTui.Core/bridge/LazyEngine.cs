@@ -8,20 +8,15 @@ namespace NativeTui.Core.Bridge;
 internal sealed class LazyEngine : IReplEngine
 {
     private IReplEngine? _real;
-    private readonly Queue<(string Text, IReadOnlyList<BridgeImageAttachment>? Images)> _pendingSubmit = new();
-    private readonly Queue<BridgeEvent> _pendingEvents = new();
-    private readonly Lock _gate = new();
+    private readonly ConcurrentQueue<(string Text, IReadOnlyList<BridgeImageAttachment>? Images)> _pendingSubmit = new();
+    private readonly ConcurrentQueue<BridgeEvent> _pendingEvents = new();
+    private int _draining;
 
-    /// <summary>注入真实引擎并回放排队的提交（幂等 — 重复调用忽略）。</summary>
+    /// <summary>注入真实引擎并回放排队的提交（幂等 — 重复调用忽略；CAS 单次发布）。</summary>
     public void AttachReal(IReplEngine real)
     {
-        lock (_gate)
-        {
-            if (_real is not null) return;
-            _real = real;
-            while (_pendingSubmit.TryDequeue(out var msg))
-                _real.Submit(msg.Text, msg.Images);
-        }
+        if (Interlocked.CompareExchange(ref _real, real, null) is not null) return;
+        FlushPendingSubmits(real);
     }
 
     /// <summary>引擎是否就绪（真实引擎已注入）。</summary>
@@ -30,21 +25,33 @@ internal sealed class LazyEngine : IReplEngine
     /// <summary>TASK078 — 引擎加载失败时入队错误事件（DrainEvents 返回给 TUI 显示 + IsAlive=false 触发退出）。</summary>
     public void EnqueueError(string message)
     {
-        lock (_gate)
-        {
-            if (_real is null) _pendingEvents.Enqueue(new BridgeEvent.Error(message));
-        }
+        if (Volatile.Read(ref _real) is null) _pendingEvents.Enqueue(new BridgeEvent.Error(message));
     }
 
     public void Submit(string text) => Submit(text, null);
 
     public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images)
     {
-        lock (_gate)
+        // 一律先入队再冲刷：FIFO 保证预热期排队的消息先于就绪后的新消息送达
+        _pendingSubmit.Enqueue((text, images));
+        if (Volatile.Read(ref _real) is { } real) FlushPendingSubmits(real);
+    }
+
+    /// <summary>单冲刷者 CAS — 多生产者同一时刻只有一个在调用 real.Submit，保持 FIFO 顺序。</summary>
+    private void FlushPendingSubmits(IReplEngine real)
+    {
+        if (Interlocked.CompareExchange(ref _draining, 1, 0) != 0) return;
+        try
         {
-            if (_real is { } real) real.Submit(text, images);
-            else _pendingSubmit.Enqueue((text, images));
+            while (_pendingSubmit.TryDequeue(out var msg)) real.Submit(msg.Text, msg.Images);
         }
+        finally
+        {
+            Volatile.Write(ref _draining, 0);
+        }
+
+        // 释放冲刷权后再确认一次：避免入队发生在最后一次 TryDequeue 之后被遗落
+        if (!_pendingSubmit.IsEmpty) FlushPendingSubmits(real);
     }
 
     public void Interrupt() => Volatile.Read(ref _real)?.Interrupt();
@@ -53,14 +60,10 @@ internal sealed class LazyEngine : IReplEngine
 
     public IReadOnlyList<BridgeEvent> DrainEvents()
     {
-        lock (_gate)
-        {
-            if (_real is { } real) return real.DrainEvents();
-            if (_pendingEvents.Count == 0) return Array.Empty<BridgeEvent>();
-            var events = new List<BridgeEvent>(_pendingEvents.Count);
-            while (_pendingEvents.TryDequeue(out var evt)) events.Add(evt);
-            return events;
-        }
+        var events = new List<BridgeEvent>();
+        while (_pendingEvents.TryDequeue(out var evt)) events.Add(evt);
+        if (Volatile.Read(ref _real) is { } real) events.AddRange(real.DrainEvents());
+        return events.Count == 0 ? Array.Empty<BridgeEvent>() : events;
     }
 
     public IReadOnlyList<string> DrainDiagnostics() => Volatile.Read(ref _real)?.DrainDiagnostics() ?? Array.Empty<string>();

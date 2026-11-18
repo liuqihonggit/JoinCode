@@ -318,9 +318,9 @@ public sealed class DshTurnRunnerTests {
         Content = [new DshPromptContent { Type = "text", Text = text }],
     };
 
-    /// <summary>测试装配：runner + 中枢 + 引擎桩 + 事件收集（用信号量唤醒等待，不做真实延时）</summary>
+    /// <summary>测试装配：runner + 中枢 + 引擎桩 + 事件收集（用信号通道唤醒等待，不做真实延时）</summary>
     private sealed class Harness {
-        private readonly SemaphoreSlim _signal = new(0);
+        private readonly Channel<bool> _signal = Channel.CreateUnbounded<bool>();
 
         private Harness(DshTurnRunner runner, DshHostServices services, StubChatSession engine, State.TranscriptService transcripts) {
             Runner = runner;
@@ -353,7 +353,7 @@ public sealed class DshTurnRunnerTests {
             var harness = new Harness(new DshTurnRunner(services), services, engine, transcripts);
             services.Streams.Subscribe(SessionId, "stream-1", sessionEvent => {
                 harness.Events.Add(new DshSessionRecord { Event = sessionEvent });
-                harness._signal.Release();
+                harness._signal.Writer.TryWrite(true);
                 return Task.CompletedTask;
             });
             return harness;
@@ -363,7 +363,7 @@ public sealed class DshTurnRunnerTests {
         public async Task WaitForAsync(string type) {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             while (!Events.Any(entry => entry.Event.Type == type)) {
-                await _signal.WaitAsync(timeout.Token);
+                await _signal.Reader.ReadAsync(timeout.Token);
             }
         }
 
@@ -371,7 +371,7 @@ public sealed class DshTurnRunnerTests {
         public async Task WaitForCountAsync(string type, int count) {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             while (Events.Count(entry => entry.Event.Type == type) < count) {
-                await _signal.WaitAsync(timeout.Token);
+                await _signal.Reader.ReadAsync(timeout.Token);
             }
         }
 

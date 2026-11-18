@@ -13,18 +13,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     private readonly int[] _transitionMasks;
     private readonly FrozenSet<TState>?[] _validNextStates;
     private readonly FrozenSet<TState> _terminalStates = FrozenSet<TState>.Empty;
-    private readonly AsyncLock _lock = new("StateMachine", LockTimeoutPolicy.Crash);
     private readonly IClockService? _clock;
-    private TState _currentState;
-
-    /// <summary>
-    /// 获取锁 — 内置重试 16 次×500ms,全失败按 <see cref="LockTimeoutPolicy.Crash"/> 策略 Environment.Exit(99)。
-    /// <para>Crash 策略下 TryLockWithRetry 不会返回 null(要么返回 Releaser,要么已 Exit),null 检查仅为编译器消除警告。</para>
-    /// </summary>
-    private IDisposable AcquireLock() {
-        return _lock.TryLockWithRetry()
-            ?? throw new InvalidOperationException($"unreachable: {_lock.Name} Crash 策略不返回 null");
-    }
+    private StateCell<TState> _state;
 
     /// <summary>构造状态机。</summary>
     /// <param name="transitions">状态转移表。</param>
@@ -36,7 +26,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         IClockService? clock = null) {
         _transitionMasks = BuildTransitionMasks(transitions);
         _validNextStates = BuildValidNextStates(transitions);
-        _currentState = initialState;
+        _state = new StateCell<TState>(initialState);
         _clock = clock;
     }
 
@@ -52,7 +42,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         IClockService? clock = null) {
         _transitionMasks = BuildTransitionMasks(transitions);
         _validNextStates = BuildValidNextStates(transitions);
-        _currentState = initialState;
+        _state = new StateCell<TState>(initialState);
         _terminalStates = terminalStates;
         _clock = clock;
     }
@@ -88,14 +78,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         return validNext;
     }
 
-    /// <summary>获取当前状态。</summary>
-    public TState CurrentState {
-        get {
-            using (AcquireLock()) {
-                return _currentState;
-            }
-        }
-    }
+    /// <summary>获取当前状态（无锁读取一次性快照）。</summary>
+    public TState CurrentState => Volatile.Read(ref _state).Value;
 
     public event EventHandler<StateChangedEventArgs<TState>>? StateChanged;
 
@@ -114,75 +98,58 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
 
     /// <summary>判断从当前状态是否能转移到目标状态。</summary>
     /// <param name="to">目标状态。</param>
-    public bool CanTransitionTo(TState to) {
-        using (AcquireLock()) {
-            return CanTransitionTo(_currentState, to);
-        }
-    }
+    public bool CanTransitionTo(TState to) => CanTransitionTo(Volatile.Read(ref _state).Value, to);
 
     /// <summary>转移到目标状态，非法转移抛出异常。</summary>
     /// <param name="target">目标状态。</param>
     public void TransitionTo(TState target) {
-        TState oldState;
-        using (AcquireLock()) {
-            if (!CanTransitionTo(_currentState, target)) {
-                OnTransitionFailed(_currentState, target);
-                throw new InvalidOperationException(
-                    $"Invalid state transition from {_currentState} to {target}");
+        while (true) {
+            var snapshot = Volatile.Read(ref _state);
+            var oldState = snapshot.Value;
+            if (!CanTransitionTo(oldState, target)) {
+                OnTransitionFailed(oldState, target);
+                throw new InvalidOperationException($"Invalid state transition from {oldState} to {target}");
             }
 
-            oldState = _currentState;
-            _currentState = target;
-        }
+            if (Interlocked.CompareExchange(ref _state, new StateCell<TState>(target), snapshot) != snapshot)
+                continue;
 
-        OnStateChanged(oldState, target);
+            OnStateChanged(oldState, target);
+            return;
+        }
     }
 
     /// <summary>尝试转移到目标状态，失败返回 false。</summary>
     /// <param name="target">目标状态。</param>
     public bool TryTransitionTo(TState target) {
-        TState oldState;
-        bool changed;
-        using (AcquireLock()) {
-            if (!CanTransitionTo(_currentState, target)) {
+        while (true) {
+            var snapshot = Volatile.Read(ref _state);
+            var oldState = snapshot.Value;
+            if (!CanTransitionTo(oldState, target)) {
                 return false;
             }
 
-            oldState = _currentState;
-            _currentState = target;
-            changed = true;
-        }
+            if (Interlocked.CompareExchange(ref _state, new StateCell<TState>(target), snapshot) != snapshot)
+                continue;
 
-        if (changed) {
             OnStateChanged(oldState, target);
+            return true;
         }
-
-        return true;
     }
 
     /// <summary>强制转移到目标状态，不校验合法性。</summary>
     /// <param name="target">目标状态。</param>
     public void ForceTransitionTo(TState target) {
-        TState oldState;
-        using (AcquireLock()) {
-            oldState = _currentState;
-            _currentState = target;
-        }
-
+        var oldState = Interlocked.Exchange(ref _state, new StateCell<TState>(target)).Value;
         OnStateChanged(oldState, target);
     }
 
     /// <summary>重置到指定初始状态。</summary>
     /// <param name="initialState">初始状态。</param>
     public void Reset(TState initialState) {
-        TState oldState;
-        using (AcquireLock()) {
-            oldState = _currentState;
-            if (oldState.Equals(initialState)) {
-                return;
-            }
-
-            _currentState = initialState;
+        var oldState = Interlocked.Exchange(ref _state, new StateCell<TState>(initialState)).Value;
+        if (oldState.Equals(initialState)) {
+            return;
         }
 
         OnStateChanged(oldState, initialState);
@@ -190,26 +157,22 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
 
     /// <summary>获取当前状态的合法下一状态集合。</summary>
     public IReadOnlySet<TState> GetValidNextStates() {
-        using (AcquireLock()) {
-            var currentIdx = Unsafe.As<TState, int>(ref _currentState);
-            return currentIdx < _validNextStates.Length && _validNextStates[currentIdx] is { } targets
-                ? targets
-                : FrozenSet<TState>.Empty;
-        }
+        var current = Volatile.Read(ref _state).Value;
+        var currentIdx = Unsafe.As<TState, int>(ref current);
+        return currentIdx < _validNextStates.Length && _validNextStates[currentIdx] is { } targets
+            ? targets
+            : FrozenSet<TState>.Empty;
     }
 
     /// <summary>判断当前状态是否为终态。</summary>
     public bool IsTerminalState() {
+        var current = Volatile.Read(ref _state).Value;
         if (_terminalStates.Count == 0) {
-            using (AcquireLock()) {
-                var currentIdx = Unsafe.As<TState, int>(ref _currentState);
-                return currentIdx < _validNextStates.Length && _validNextStates[currentIdx] is { Count: 0 };
-            }
+            var currentIdx = Unsafe.As<TState, int>(ref current);
+            return currentIdx < _validNextStates.Length && _validNextStates[currentIdx] is { Count: 0 };
         }
 
-        using (AcquireLock()) {
-            return _terminalStates.Contains(_currentState);
-        }
+        return _terminalStates.Contains(current);
     }
 
     public event EventHandler<TransitionFailedEventArgs<TState>>? TransitionFailed;

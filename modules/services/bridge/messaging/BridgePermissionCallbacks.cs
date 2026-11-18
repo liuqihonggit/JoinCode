@@ -13,8 +13,7 @@ public interface IBridgePermissionCallbacks : IPermissionCallbacks {
 public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks {
     private readonly IReplBridgeTransport _transport;
     private readonly ILogger? _logger;
-    private readonly Dictionary<string, List<Func<PermissionCallbackResponse, Task>>> _handlers = new();
-    private readonly AsyncLock _semaphore = new();
+    private readonly ConcurrentDictionary<string, ImmutableList<Func<PermissionCallbackResponse, Task>>> _handlers = new();
     private readonly CancellationTokenSource _disposeCts = new();
 
     /// <summary>
@@ -99,32 +98,30 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
     /// <param name="handler">响应处理委托</param>
     /// <returns>取消订阅函数,调用后移除该处理器</returns>
     public Action OnResponse(string requestId, Func<PermissionCallbackResponse, Task> handler) {
-        using var guard = _semaphore.LockOrCrash();
-        if (!_handlers.TryGetValue(requestId, out var list)) {
-            list = new List<Func<PermissionCallbackResponse, Task>>();
-            _handlers[requestId] = list;
-        }
-
-        list.Add(handler);
+        _handlers.AddOrUpdate(
+            requestId,
+            _ => ImmutableList.Create(handler),
+            (_, existing) => existing.Add(handler));
 
         // 返回取消订阅函数
-        return () => {
-            using var guard = _semaphore.LockOrCrash();
-            if (_handlers.TryGetValue(requestId, out var list)) {
-                list.Remove(handler);
-                if (list.Count == 0) {
-                    _handlers.Remove(requestId);
-                }
+        return () => RemoveHandler(requestId, handler);
+    }
+
+    private void RemoveHandler(string requestId, Func<PermissionCallbackResponse, Task> handler) {
+        while (_handlers.TryGetValue(requestId, out var existing)) {
+            var next = existing.Remove(handler);
+            if (next.IsEmpty) {
+                if (_handlers.TryRemove(KeyValuePair.Create(requestId, existing))) return;
+            } else if (_handlers.TryUpdate(requestId, next, existing)) {
+                return;
             }
-        };
+        }
     }
 
     /// <summary>
     /// 处理收到的权限响应 — 由 BridgeMessaging 调用
     /// </summary>
     public async Task HandleResponseAsync(string requestId, PermissionCallbackResponse response) {
-        using var guard = _semaphore.LockOrCrash();
-
         if (!_handlers.TryGetValue(requestId, out var handlers)) return;
 
         foreach (var handler in handlers) {

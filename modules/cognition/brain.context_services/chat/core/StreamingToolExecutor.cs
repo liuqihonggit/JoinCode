@@ -33,11 +33,9 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
     private readonly int _maxConcurrency;
     private readonly ILogger? _logger;
 
-    private readonly List<QueuedTool> _queue = [];
-    private readonly List<StreamingToolResult> _completedBuffer = [];
-    private readonly AsyncLock _semaphore = new();
-    private int _executingCount;
-    private int _nonSafeExecutingCount;
+    private ExecutorState _state = ExecutorState.Empty;
+    private int _scheduling;
+    private int _scheduleRequested;
     private readonly CancellationTokenSource _siblingCts = new();
     private readonly CancellationTokenSource? _linkedCts;
     private readonly CancellationToken _combinedCt;
@@ -72,36 +70,32 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
     /// 添加工具调用到队列 — 对齐 TS StreamingToolExecutor.addTool()
     /// 流式过程中每收到一个 tool_use block 就调用此方法
     /// </summary>
-    public async Task AddToolAsync(ToolCallEntry entry, int originalIndex) {
-        if (_discarded) return;
+    public Task AddToolAsync(ToolCallEntry entry, int originalIndex) {
+        if (_discarded) return Task.CompletedTask;
 
-        using var guard = _semaphore.LockOrCrash();
-
-        _queue.Add(new QueuedTool {
+        var tool = new QueuedTool {
             Entry = entry,
             OriginalIndex = originalIndex,
-            IsConcurrencySafe = false,
             Status = ToolStatus.Queued,
-            CompletionSource = new TaskCompletionSource<StreamingToolResult>()
-        });
+            CompletionSource = new TaskCompletionSource<StreamingToolResult>(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
 
-        RunFireAndForget(ProcessQueueAsync);
+        while (true) {
+            var current = Volatile.Read(ref _state);
+            var updated = current with { Queue = current.Queue.Add(tool) };
+            if (Interlocked.CompareExchange(ref _state, updated, current) == current) break;
+        }
+
+        TrySchedule();
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// 获取已完成的结果（按原始顺序） — 对齐 TS StreamingToolExecutor.getCompletedResults()
     /// </summary>
-    public async Task<IReadOnlyList<StreamingToolResult>> GetCompletedResultsAsync() {
-        if (_discarded) return [];
-
-        using var guard = _semaphore.LockOrCrash();
-
-        var results = _completedBuffer
-            .OrderBy(r => r.OriginalIndex)
-            .ToList();
-        _completedBuffer.Clear();
-        return results;
-
+    public Task<IReadOnlyList<StreamingToolResult>> GetCompletedResultsAsync() {
+        if (_discarded) return Task.FromResult<IReadOnlyList<StreamingToolResult>>([]);
+        return Task.FromResult(DrainCompleted());
     }
 
     /// <summary>
@@ -110,13 +104,10 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
     public async Task<IReadOnlyList<StreamingToolResult>> GetRemainingResultsAsync() {
         if (_discarded) return [];
 
-        List<Task<StreamingToolResult>> pendingTasks;
-        using (var guard = _semaphore.LockOrCrash()) {
-            pendingTasks = _queue
-                .Where(t => t.Status != ToolStatus.Completed)
-                .Select(t => t.CompletionSource.Task)
-                .ToList();
-        }
+        var pendingTasks = Volatile.Read(ref _state).Queue
+            .Where(t => t.Status != ToolStatus.Completed)
+            .Select(t => t.CompletionSource.Task)
+            .ToList();
 
         if (pendingTasks.Count > 0) {
             await Task.WhenAll(pendingTasks).ConfigureAwait(false);
@@ -150,82 +141,131 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
             _logger?.LogDebug("[StreamingToolExecutor] SiblingCts already disposed during discard");
         }
 
-        List<QueuedTool> uncompletedTools;
-        using (var guard = _semaphore.LockOrCrash()) {
-            uncompletedTools = _queue
+        while (true) {
+            var current = Volatile.Read(ref _state);
+            var uncompletedTools = current.Queue
                 .Where(t => t.Status != ToolStatus.Completed && !t.CompletionSource.Task.IsCompleted)
                 .ToList();
+            var updatedQueue = current.Queue
+                .Select(t => t.Status != ToolStatus.Completed ? t with { Status = ToolStatus.Completed } : t)
+                .ToImmutableList();
+            var updated = current with { Queue = updatedQueue, Completed = [] };
 
-            foreach (var tool in _queue) {
-                if (tool.Status != ToolStatus.Completed)
-                    tool.Status = ToolStatus.Completed;
+            if (Interlocked.CompareExchange(ref _state, updated, current) != current) continue;
+
+            foreach (var tool in uncompletedTools) {
+                tool.CompletionSource.TrySetResult(new StreamingToolResult {
+                    ToolName = tool.Entry.Name,
+                    ToolCallId = tool.Entry.Id,
+                    Result = new ToolCallResult {
+                        ResultText = "(discarded by streaming fallback)",
+                        IsError = true
+                    },
+                    OriginalIndex = tool.OriginalIndex
+                });
             }
-
-            _completedBuffer.Clear();
-        }
-
-        foreach (var tool in uncompletedTools) {
-            tool.CompletionSource.TrySetResult(new StreamingToolResult {
-                ToolName = tool.Entry.Name,
-                ToolCallId = tool.Entry.Id,
-                Result = new ToolCallResult {
-                    ResultText = "(discarded by streaming fallback)",
-                    IsError = true
-                },
-                OriginalIndex = tool.OriginalIndex
-            });
+            return;
         }
     }
 
     /// <summary>
-    /// 异步释放资源，取消所有进行中工具并释放信号量
+    /// 异步释放资源，取消所有进行中工具并释放取消令牌
     /// </summary>
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _siblingCts.Cancel();
         _linkedCts?.Dispose();
         _siblingCts.Dispose();
-        _semaphore.Dispose();
 
         return ValueTask.CompletedTask;
     }
 
-    private async Task ProcessQueueAsync() {
+    private IReadOnlyList<StreamingToolResult> DrainCompleted() {
         while (true) {
-            QueuedTool? toolToExecute;
-            using var guard = _semaphore.LockOrCrash();
-
-            toolToExecute = await FindNextExecutableAsync().ConfigureAwait(false);
-            if (toolToExecute is null)
-                break;
-
-            toolToExecute.Status = ToolStatus.Executing;
-            _executingCount++;
-            if (!toolToExecute.IsConcurrencySafe)
-                _nonSafeExecutingCount++;
-
-
-            RunFireAndForget(() => ExecuteToolAsync(toolToExecute));
+            var current = Volatile.Read(ref _state);
+            if (current.Completed.Count == 0) return [];
+            var results = current.Completed.OrderBy(r => r.OriginalIndex).ToList();
+            var updated = current with { Completed = [] };
+            if (Interlocked.CompareExchange(ref _state, updated, current) == current) return results;
         }
     }
-    private async Task<QueuedTool?> FindNextExecutableAsync() {
-        foreach (var tool in _queue) {
-            if (tool.Status != ToolStatus.Queued)
-                continue;
 
-            if (!tool.IsConcurrencySafeDetermined) {
-                if (tool.ParsedArguments.Count == 0)
-                    tool.ParsedArguments = JsonArgumentParser.Parse(tool.Entry.Arguments);
-                tool.IsConcurrencySafe = await _concurrencyClassifier
-                    .IsConcurrencySafeAsync(tool.Entry.Name, tool.ParsedArguments, CancellationToken.None)
+    private void TrySchedule() {
+        if (_discarded) return;
+        if (Interlocked.CompareExchange(ref _scheduling, 1, 0) != 0) {
+            // 已有调度循环在跑 — 只记下"队列有变化"，由它在退出前再扫一次。
+            // 不能在这里直接判断"还有 Queued 就重排"：排队工具可能在等执行槽位
+            // （非安全工具等安全工具跑完），那会让循环空转占满线程池。
+            Volatile.Write(ref _scheduleRequested, 1);
+            return;
+        }
+
+        _ = FireAndForgetTask<Unit>.Run(async _ => {
+            try {
+                await ScheduleLoopAsync().ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "[StreamingToolExecutor] 调度循环异常");
+            } finally {
+                Volatile.Write(ref _scheduling, 0);
+                if (Interlocked.Exchange(ref _scheduleRequested, 0) != 0 && !_discarded) TrySchedule();
+            }
+        }, "streaming-tool-schedule");
+    }
+
+    private async Task ScheduleLoopAsync() {
+        while (true) {
+            if (_discarded) return;
+
+            var queuedTools = Volatile.Read(ref _state).Queue
+                .Where(t => t.Status == ToolStatus.Queued)
+                .ToList();
+            if (queuedTools.Count == 0) return;
+
+            var executable = await FindNextExecutableAsync(queuedTools).ConfigureAwait(false);
+            if (executable is null) return;
+
+            var current = Volatile.Read(ref _state);
+            var index = current.Queue.FindIndex(t => ReferenceEquals(t.CompletionSource, executable.CompletionSource));
+            if (index < 0) continue;
+
+            var updated = current with {
+                Queue = current.Queue.SetItem(index, current.Queue[index] with { Status = ToolStatus.Executing }),
+                ExecutingCount = current.ExecutingCount + 1,
+                NonSafeExecutingCount = current.NonSafeExecutingCount + (executable.IsConcurrencySafe ? 0 : 1)
+            };
+            if (Interlocked.CompareExchange(ref _state, updated, current) != current) continue;
+
+            RunFireAndForget(() => ExecuteToolAsync(executable));
+        }
+    }
+
+    /// <summary>
+    /// 按队列顺序扫描首个可执行工具 — 非安全排队工具不阻塞后续安全工具（对齐原 FindNextExecutableAsync）
+    /// </summary>
+    private async Task<QueuedTool?> FindNextExecutableAsync(IReadOnlyList<QueuedTool> queuedTools) {
+        foreach (var queued in queuedTools) {
+            var candidate = queued;
+            if (!candidate.IsConcurrencySafeDetermined) {
+                var parsedArguments = candidate.ParsedArguments.Count == 0
+                    ? JsonArgumentParser.Parse(candidate.Entry.Arguments)
+                    : candidate.ParsedArguments;
+                var isSafe = await _concurrencyClassifier
+                    .IsConcurrencySafeAsync(candidate.Entry.Name, parsedArguments, CancellationToken.None)
                     .ConfigureAwait(false);
-                tool.IsConcurrencySafeDetermined = true;
+                UpdateTool(candidate, t => t with {
+                    ParsedArguments = parsedArguments,
+                    IsConcurrencySafe = isSafe,
+                    IsConcurrencySafeDetermined = true
+                });
+
+                var refreshed = Volatile.Read(ref _state).Queue
+                    .FirstOrDefault(t => ReferenceEquals(t.CompletionSource, candidate.CompletionSource));
+                if (refreshed is null) continue;
+                candidate = refreshed;
             }
 
-            if (CanExecute(tool.IsConcurrencySafe))
-                return tool;
-
-            continue;
+            if (CanExecute(Volatile.Read(ref _state), candidate.IsConcurrencySafe))
+                return candidate;
         }
 
         return null;
@@ -235,14 +275,14 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
     /// 判断是否可以执行 — 对齐 TS StreamingToolExecutor.canExecuteTool()
     /// 规则：无工具执行→可启动；新工具安全且当前全安全→可并发；否则等待
     /// </summary>
-    private bool CanExecute(bool isConcurrencySafe) {
-        if (_executingCount == 0)
+    private bool CanExecute(ExecutorState state, bool isConcurrencySafe) {
+        if (state.ExecutingCount == 0)
             return true;
 
-        if (_executingCount >= _maxConcurrency)
+        if (state.ExecutingCount >= _maxConcurrency)
             return false;
 
-        if (isConcurrencySafe && _nonSafeExecutingCount == 0)
+        if (isConcurrencySafe && state.NonSafeExecutingCount == 0)
             return true;
 
         return false;
@@ -261,7 +301,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
         } else {
             try {
                 if (tool.ParsedArguments.Count == 0)
-                    tool.ParsedArguments = JsonArgumentParser.Parse(tool.Entry.Arguments);
+                    tool = tool with { ParsedArguments = JsonArgumentParser.Parse(tool.Entry.Arguments) };
                 var args = tool.ParsedArguments;
                 var toolCallResult = await _toolHandler.ExecuteToolCallAsync(
                     tool.Entry.Name, tool.Entry.Id, args, _context, _combinedCt).ConfigureAwait(false);
@@ -295,24 +335,42 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
             }
         }
 
-        using (var guard = _semaphore.LockOrCrash()) {
-            tool.Status = ToolStatus.Completed;
-            _completedBuffer.Add(result);
-            _executingCount--;
-            if (!tool.IsConcurrencySafe)
-                _nonSafeExecutingCount--;
-        }
-
+        CompleteTool(tool, result);
         tool.CompletionSource.TrySetResult(result);
 
-        RunFireAndForget(ProcessQueueAsync);
+        TrySchedule();
+    }
+
+    private void CompleteTool(QueuedTool tool, StreamingToolResult result) {
+        while (true) {
+            var current = Volatile.Read(ref _state);
+            var index = current.Queue.FindIndex(t => ReferenceEquals(t.CompletionSource, tool.CompletionSource));
+            if (index < 0) return;
+
+            var updatedQueue = current.Queue.SetItem(index, current.Queue[index] with { Status = ToolStatus.Completed });
+            var updated = current with {
+                Queue = updatedQueue,
+                Completed = current.Completed.Add(result),
+                ExecutingCount = Math.Max(0, current.ExecutingCount - 1),
+                NonSafeExecutingCount = Math.Max(0, current.NonSafeExecutingCount - (tool.IsConcurrencySafe ? 0 : 1))
+            };
+            if (Interlocked.CompareExchange(ref _state, updated, current) == current) return;
+        }
+    }
+
+    private void UpdateTool(QueuedTool tool, Func<QueuedTool, QueuedTool> update) {
+        while (true) {
+            var current = Volatile.Read(ref _state);
+            var index = current.Queue.FindIndex(t => ReferenceEquals(t.CompletionSource, tool.CompletionSource));
+            if (index < 0) return;
+
+            var updated = current with { Queue = current.Queue.SetItem(index, update(current.Queue[index])) };
+            if (Interlocked.CompareExchange(ref _state, updated, current) == current) return;
+        }
     }
 
     /// <summary>
     /// 安全启动 fire-and-forget 任务 — 观察未处理异常，避免静默吞掉或泄漏。
-    /// <para>必须用 Task.Run 隔离线程:调用方可能在 <c>using var guard = _semaphore.TryLock()</c> 锁作用域内启动,
-    /// 若 <paramref name="taskFactory"/> 返回的 async 方法同步前缀(第一个 await 之前)也调用 <c>AsyncLock.TryLock</c> 获取同一把锁,
-    /// 同步执行会自等自死锁。Task.Run 强制在线程池另一线程执行,避免与当前线程锁持有冲突。> ADR: 0060</para>
     /// </summary>
     private void RunFireAndForget(Func<Task> taskFactory) {
         _ = FireAndForgetTask<Unit>.Run(async ct => {
@@ -337,20 +395,29 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
         Completed
     }
 
-    private sealed class QueuedTool {
+    /// <summary>执行器不可变状态快照 — 所有字段一并 CAS 发布，读侧零同步</summary>
+    private sealed record ExecutorState(
+        ImmutableList<QueuedTool> Queue,
+        ImmutableList<StreamingToolResult> Completed,
+        int ExecutingCount,
+        int NonSafeExecutingCount) {
+        public static readonly ExecutorState Empty = new([], [], 0, 0);
+    }
+
+    private sealed record QueuedTool {
         /// <summary>获取工具调用条目</summary>
         public required ToolCallEntry Entry { get; init; }
         /// <summary>获取原始顺序索引</summary>
         public required int OriginalIndex { get; init; }
-        /// <summary>获取或设置是否并发安全</summary>
-        public bool IsConcurrencySafe { get; set; }
-        /// <summary>获取或设置是否已确定并发安全性</summary>
-        public bool IsConcurrencySafeDetermined { get; set; }
-        /// <summary>获取或设置工具执行状态</summary>
-        public required ToolStatus Status { get; set; }
+        /// <summary>获取是否并发安全</summary>
+        public bool IsConcurrencySafe { get; init; }
+        /// <summary>获取是否已确定并发安全性</summary>
+        public bool IsConcurrencySafeDetermined { get; init; }
+        /// <summary>获取工具执行状态</summary>
+        public required ToolStatus Status { get; init; }
         /// <summary>获取任务完成源</summary>
         public required TaskCompletionSource<StreamingToolResult> CompletionSource { get; init; }
-        /// <summary>获取或设置解析后的参数字典</summary>
-        public Dictionary<string, JsonElement> ParsedArguments { get; set; } = [];
+        /// <summary>获取解析后的参数字典</summary>
+        public Dictionary<string, JsonElement> ParsedArguments { get; init; } = [];
     }
 }

@@ -13,7 +13,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
     private IInteractiveProcess? _process;
     private int _requestCounter;
     private volatile ImmutableHamT<string, TaskCompletionSource<SandboxIpcResponse>> _pendingRequests = ImmutableHamT<string, TaskCompletionSource<SandboxIpcResponse>>.Empty;
-    private readonly AsyncLock _startLock = new();
+    private TaskCompletionSource? _startGate;
     private Task? _readLoopTask;
     private CancellationTokenSource? _readCts;
     private Channel<string>? _writeChannel;
@@ -45,35 +45,63 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
     /// 启动沙箱卫星进程并建立读写循环
     /// </summary>
     public async Task StartAsync(string? satelliteExePath = null, CancellationToken ct = default) {
-        using (await _startLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_startLock.Name}' 等待超时")) {
+        // 单飞启动：同一时刻只有一个启动者，其余调用等待其完成后再复查进程状态
+        while (true) {
             if (_process is not null && !_process.HasExited) {
                 return;
             }
 
-            var exePath = satelliteExePath ?? DiscoverSatelliteExe();
-
-            _readCts = new CancellationTokenSource();
-            _process = await _processService.StartInteractiveAsync(new InteractiveProcessOptions {
-                FileName = exePath,
-                Arguments = "",
-            }, ct).ConfigureAwait(false);
-
-            _readLoopTask = ReadLoopAsync(_readCts.Token);
-
-            _writeChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(256) { FullMode = BoundedChannelFullMode.Wait });
-            _writeCts = new CancellationTokenSource();
-            _writeConsumerTask = WriteLoopAsync(_writeCts.Token);
-
-            if (_onSatelliteStarted is not null) {
-                try {
-                    await _onSatelliteStarted(_process.Id).ConfigureAwait(false);
-                } catch (Exception ex) {
-                    _logger?.LogWarning(ex, "[SandboxIpcClient] 卫星进程 PID 回调执行失败, Pid: {Pid}", _process.Id);
-                }
+            var gate = Volatile.Read(ref _startGate);
+            if (gate is not null) {
+                await gate.Task.WaitAsync(ct).ConfigureAwait(false);
+                continue;
             }
 
-            _logger?.LogInformation("[SandboxIpcClient] 卫星进程已启动: {ExePath}, Pid: {Pid}", exePath, _process.Id);
+            var myGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (Interlocked.CompareExchange(ref _startGate, myGate, null) != null)
+                continue;
+
+            try {
+                await StartCoreAsync(satelliteExePath, ct).ConfigureAwait(false);
+                myGate.TrySetResult();
+            } catch (Exception ex) {
+                myGate.TrySetException(ex);
+                throw;
+            } finally {
+                Interlocked.CompareExchange(ref _startGate, null, myGate);
+            }
+            return;
         }
+    }
+
+    private async Task StartCoreAsync(string? satelliteExePath, CancellationToken ct) {
+        if (_process is not null && !_process.HasExited) {
+            return;
+        }
+
+        var exePath = satelliteExePath ?? DiscoverSatelliteExe();
+
+        _readCts = new CancellationTokenSource();
+        _process = await _processService.StartInteractiveAsync(new InteractiveProcessOptions {
+            FileName = exePath,
+            Arguments = "",
+        }, ct).ConfigureAwait(false);
+
+        _readLoopTask = ReadLoopAsync(_readCts.Token);
+
+        _writeChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(256) { FullMode = BoundedChannelFullMode.Wait });
+        _writeCts = new CancellationTokenSource();
+        _writeConsumerTask = WriteLoopAsync(_writeCts.Token);
+
+        if (_onSatelliteStarted is not null) {
+            try {
+                await _onSatelliteStarted(_process.Id).ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[SandboxIpcClient] 卫星进程 PID 回调执行失败, Pid: {Pid}", _process.Id);
+            }
+        }
+
+        _logger?.LogInformation("[SandboxIpcClient] 卫星进程已启动: {ExePath}, Pid: {Pid}", exePath, _process.Id);
     }
 
     /// <summary>
@@ -263,7 +291,6 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
         return new ValueTask(ShutdownAsync().ContinueWith(
             static (_, state) => {
                 var self = (SandboxIpcClient)state!;
-                self._startLock.Dispose();
                 self._readCts?.Dispose();
                 self._writeCts?.Dispose();
                 self._readCts = null;

@@ -120,7 +120,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             Graph = graph,
             State = goalState,
             ChatHistory = chatHistory,
-            StateLock = new AsyncLock(nameof(GoalGraphEngine)),
+            StateGate = new AsyncGate(),
             Clock = _clock,
         };
 
@@ -145,7 +145,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         var concurrencyOptions = _concurrencyOptions;
         using var concurrencyLimiter = concurrencyOptions.MaxConcurrentExecutions > 0
-            ? new AsyncLock(nameof(GoalGraphEngine) + ".Concurrency", concurrencyOptions.MaxConcurrentExecutions, concurrencyOptions.MaxConcurrentExecutions)
+            ? new PermitPool(concurrencyOptions.MaxConcurrentExecutions)
             : null;
 
         var finalOutcome = await _graphScheduler.RunAsync(

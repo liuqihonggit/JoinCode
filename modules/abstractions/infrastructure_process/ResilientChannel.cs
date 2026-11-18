@@ -1,10 +1,11 @@
 namespace Infrastructure.Subprocess;
 
 /// <summary>
-/// 韧性通道 — 在异步锁和熔断器保护下执行操作，超时或失败时记录熔断器失败，成功时记录成功
+/// 韧性通道 — 在任务链门闩和熔断器保护下执行操作，超时或失败时记录熔断器失败，成功时记录成功
 /// </summary>
 public sealed class ResilientChannel : IDisposable {
-    private readonly AsyncLock _lock = new();
+    private readonly AsyncGate _gate = new();
+    private int _disposed;
     private readonly UnifiedCircuitBreaker? _circuitBreaker;
     private readonly string _channelName;
     private readonly TimeSpan _timeout;
@@ -36,9 +37,10 @@ public sealed class ResilientChannel : IDisposable {
     /// <param name="ct">取消令牌</param>
     /// <returns>操作结果</returns>
     public async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken ct = default) {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         ProbeCircuitBreaker();
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        using var guard = await _gate.AcquireAsync(ct).ConfigureAwait(false);
         try {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(_timeout);
@@ -77,7 +79,9 @@ public sealed class ResilientChannel : IDisposable {
     }
 
     /// <summary>
-    /// 释放通道 — 释放内部异步锁
+    /// 释放通道 — 任务链门闩无底层资源，无需释放
     /// </summary>
-    public void Dispose() => _lock.Dispose();
+    public void Dispose() {
+        Interlocked.Exchange(ref _disposed, 1);
+    }
 }

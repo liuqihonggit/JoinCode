@@ -7,24 +7,13 @@ namespace JoinCode.Gui.WebHost;
 /// <para>两者都不可用时返回 null（等价用户取消），不阻塞前端。</para>
 /// </summary>
 internal static class DshDirectoryPicker {
-    private static readonly Lock Gate = new();
     private static Func<CancellationToken, Task<string?>>? _handler;
 
     /// <summary>注册宿主处理器（窗口创建时调用；传 null 表示注销）</summary>
-    internal static void Register(Func<CancellationToken, Task<string?>>? handler) {
-        lock (Gate) {
-            _handler = handler;
-        }
-    }
+    internal static void Register(Func<CancellationToken, Task<string?>>? handler) => Volatile.Write(ref _handler, handler);
 
     /// <summary>当前是否具备处理器（未注册时前端会得到 null 结果，不影响其它流程）</summary>
-    internal static bool IsAvailable {
-        get {
-            lock (Gate) {
-                return _handler is not null;
-            }
-        }
-    }
+    internal static bool IsAvailable => Volatile.Read(ref _handler) is not null;
 
     /// <summary>请求选择目录：返回绝对路径，未选择/未注册返回 null</summary>
     internal static async Task<string?> PickAsync(CancellationToken cancellationToken) {
@@ -41,10 +30,6 @@ internal static class DshDirectoryPicker {
         return picked;
     }
 
-    /// <summary>取当前处理器快照（锁只在同步方法内短持，避免在 async 方法里加锁）</summary>
-    private static Func<CancellationToken, Task<string?>>? ResolveHandler() {
-        lock (Gate) {
-            return _handler;
-        }
-    }
+    /// <summary>取当前处理器快照</summary>
+    private static Func<CancellationToken, Task<string?>>? ResolveHandler() => Volatile.Read(ref _handler);
 }

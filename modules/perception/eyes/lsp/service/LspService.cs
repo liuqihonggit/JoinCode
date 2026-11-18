@@ -14,7 +14,7 @@ public sealed partial class LspService : ServiceEntity, ILspService {
     private readonly IFileSystem _fs;
     private readonly ILogger<LspService>? _logger;
     private readonly ITelemetryService? _telemetryService;
-    private readonly AsyncLock _initLock = new();
+    private TaskCompletionSource? _initGate;
     private int _isInitialized;
     private int _asyncDisposed;
 
@@ -42,20 +42,37 @@ public sealed partial class LspService : ServiceEntity, ILspService {
     }
 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default) {
-        if (Volatile.Read(ref _isInitialized) == 1 && _lspManager.IsInitialized) return;
+        // 单飞初始化：并发调用共享同一初始化门闩，完成后统一复检
+        while (true) {
+            if (Volatile.Read(ref _isInitialized) == 1 && _lspManager.IsInitialized) return;
 
-        using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
+            var existing = Volatile.Read(ref _initGate);
+            if (existing is not null) {
+                await existing.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                continue;
+            }
 
-        if (Volatile.Read(ref _isInitialized) == 1 && _lspManager.IsInitialized) return;
+            var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (Interlocked.CompareExchange(ref _initGate, gate, null) != null)
+                continue;
 
-        var configEntries = await _configLoader.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-        var instanceConfigs = configEntries.Select(e => e.ToLspInstanceConfig()).ToList();
+            try {
+                var configEntries = await _configLoader.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                var instanceConfigs = configEntries.Select(e => e.ToLspInstanceConfig()).ToList();
 
-        await _lspManager.InitializeAsync(instanceConfigs, cancellationToken).ConfigureAwait(false);
-        Volatile.Write(ref _isInitialized, 1);
+                await _lspManager.InitializeAsync(instanceConfigs, cancellationToken).ConfigureAwait(false);
+                Volatile.Write(ref _isInitialized, 1);
 
-        _logger?.LogInformation("LSP Service initialized with {Count} server config(s)", instanceConfigs.Count);
-
+                _logger?.LogInformation("LSP Service initialized with {Count} server config(s)", instanceConfigs.Count);
+                gate.TrySetResult();
+            } catch (Exception ex) {
+                gate.TrySetException(ex);
+                throw;
+            } finally {
+                _ = Interlocked.CompareExchange(ref _initGate, null, gate);
+            }
+            return;
+        }
     }
 
     private async Task EnsureFileOpenAsync(string filePath, CancellationToken cancellationToken = default) {
@@ -387,7 +404,6 @@ public sealed partial class LspService : ServiceEntity, ILspService {
     /// </summary>
     public override void Dispose() {
         if (_asyncDisposed == 1) return;
-        _initLock.Dispose();
         base.Dispose();
     }
 

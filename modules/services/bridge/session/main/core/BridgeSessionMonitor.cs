@@ -195,10 +195,9 @@ internal sealed class BridgeSessionMonitor {
         _owner._tracker.ClearAll();
 
         // 6. 等待待清理任务 — 对齐 TS 端: pendingCleanups
-        if (_owner._pendingCleanups.Count > 0) {
+        if (!_owner._pendingCleanups.IsEmpty) {
             try {
-                using var guard = await _owner._cleanupLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_owner._cleanupLock.Name}' 等待超时");
-                var cleanups = _owner._pendingCleanups.ToArray();
+                var cleanups = _owner._pendingCleanups.Keys.ToArray();
                 await Task.WhenAll(cleanups).WaitAsync(
                     TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             } catch (Exception ex) {

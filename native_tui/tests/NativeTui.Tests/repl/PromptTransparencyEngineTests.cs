@@ -19,14 +19,23 @@ public sealed class PromptTransparencyEngineTests
         return (engine, inner, shell);
     }
 
+    /// <summary>首次注入折叠项由 SubmitCore 在提交用户消息时动态创建（TASK078）— 先发一条普通消息
+    /// 走外壳提交路径，再触发 /prompt 查看，形状与真实会话一致。</summary>
+    private static void SeedFirstInjection(ReplShell shell)
+    {
+        shell.Input.Insert("种子消息");
+        shell.Submit();
+    }
+
     [Fact]
     public void Submit_Prompt_ExpandsItem_OpensTranscript_ScrollsTop()
     {
         var (engine, inner, shell) = Create("【首次注入的系统提示词】测试快照正文");
+        SeedFirstInjection(shell);
 
         engine.Submit("/prompt");
 
-        Assert.Empty(inner.Submits);
+        Assert.DoesNotContain("/prompt", inner.Submits);
         var item = shell.View.Messages.Items.OfType<PromptContextItem>().Single();
         Assert.True(item.Expanded);
         Assert.Contains("测试快照正文", item.ExpandedContent);
@@ -38,6 +47,7 @@ public sealed class PromptTransparencyEngineTests
     public void Submit_Prompt_WhenTranscriptActive_Closes()
     {
         var (engine, inner, shell) = Create("快照");
+        SeedFirstInjection(shell);
         engine.Submit("/prompt");
         Assert.True(shell.Transcript.IsActive);
 

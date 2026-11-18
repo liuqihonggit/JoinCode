@@ -16,13 +16,18 @@ public static class DeadlockAuditSection {
 
 当用户提到"死锁"、"卡死"、"卡住了"、"竞态条件"、"分片锁"等关键词时，你必须执行以下审计：
 
-## 锁审计检查清单
+## 无锁并发检查清单
 
-1. 重新审核每个锁，检查是否存在死锁问题
-2. 锁必须排序——从小到大加锁，从大到小解锁
-3. 尽可能所有锁加入超时释放（使用 TimeoutLock），除非用户明确拒绝
-4. 异步上下文中禁止使用 lock/Monitor，必须改用 SemaphoreSlim
-5. 多锁场景必须按固定顺序获取
+本项目并发红线：禁止新增 lock/Monitor/SemaphoreSlim/Semaphore/Mutex/ReaderWriterLockSlim/SpinLock/事件等待句柄，以及 AsyncLock/LockRef/AsyncLockedDictionary/LockRegistry/TimeoutLock/OrderedLockManager（JCC4008）。并发通过业务状态所有权规约，而不是靠锁：
+
+1. 先找共享可变状态，明确唯一写者；跨线程写状态必须收口到 Actor 单写者邮箱（Channel&lt;T&gt; + 单消费者）
+2. 读多写少用不可变快照 + Interlocked.CompareExchange 发布，读方只读快照
+3. 生产者/消费者与背压用 Channel&lt;T&gt;，禁止用信号量模拟队列
+4. 单飞初始化用 TaskCompletionSource + CAS，禁止用锁保护 check-then-act
+5. 需要串行化的是"消息处理顺序"，不是"代码临界区"；把操作改写成消息投递给所有者
+6. 跨进程互斥用 FileMode.CreateNew 原子文件租约 + TTL 心跳，禁止命名 Mutex
+7. UI 线程亲和（WPF/Avalonia 控件）用 Dispatcher 调度，不用锁保护 UI 状态
+8. 存量锁按 TASK099 批次收敛；新增锁直接视为缺陷，必须改为 Actor/Channel/CAS/租约
 
 ## 竞态条件测试
 
@@ -39,24 +44,25 @@ for ($i = 0; $i -lt 5; $i++) {
 ## 根因定位
 
 1. 获取完整堆栈跟踪来定位根因
-2. 检查共享状态是否有并发保护（ConcurrentDictionary/lock/Interlocked）
-3. 检查 check-then-act 模式是否原子
-4. SQLite 单连接并发需加锁或使用 WAL 模式
-5. 检查是否存在无限等待（无超时的 WaitOne/WaitAsync）
+2. 检查共享状态是否有唯一写者；没有唯一写者就是竞态根因，不是"锁粒度不够"
+3. 检查 check-then-act 是否用 CAS 或单写者消息替代
+4. SQLite 单连接并发用 WAL + 单写者连接，禁止加进程内锁
+5. 检查是否存在无限等待（无超时的 WaitOne/WaitAsync/Task.Delay 轮询）
 6. 检查是否有 .Result/.Wait() 阻塞异步操作
-7. 检查 Channel/BlockingCollection 是否消费者停止消费
+7. 检查 Channel 是否消费者停止消费、是否有界容量阻塞生产者
 
-## 分片锁优化
+## 无锁改造决策树
 
-1. 按键哈希分片减少锁争用
-2. 每个分片独立 TimeoutLock
-3. 分片数取质数（31/61/127）减少哈希碰撞
-4. 锁排序：按分片索引从小到大加锁
-5. 跨分片操作需获取所有相关分片锁，按序获取
+1. 状态是否可收口到一个所有者？→ Actor 单写者邮箱（每 key 一个 actor 或单全局 actor）
+2. 只读为主的快照？→ Immutable 结构 + Interlocked.CompareExchange 发布新快照
+3. 生产/消费速率不匹配？→ 有界 Channel&lt;T&gt; + 显式背压/丢弃策略
+4. 同一操作并发触发只允许一次？→ TaskCompletionSource + CAS 单飞
+5. 跨进程竞争？→ FileMode.CreateNew 原子文件租约 + TTL 心跳 + 原子 rename 接管
+6. 需要按键并行又保序？→ 按 key 哈希路由到独立 actor，actor 之间不共享可变状态
 
 ## 可用MCP工具
 
-- `code_index_search`: 搜索锁相关符号（SemaphoreSlim/lock/Monitor等）
+- `code_index_search`: 搜索锁相关符号（SemaphoreSlim/lock/Monitor/AsyncLock 等存量）
 - `code_index_find_references`: 查找锁的所有使用位置
 - `code_index_get_callers` / `code_index_get_callees`: 分析锁的调用链
 - `find_bugs`: 查找并发相关的潜在错误

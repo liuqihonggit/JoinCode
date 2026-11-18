@@ -26,8 +26,9 @@ public sealed class ConsoleSuppressionScope : IDisposable {
 /// </summary>
 public static class ConsoleSuppressionGate {
     private const int RingCap = 1024;
-    private static readonly object GateLock = new();
-    private static readonly List<string> Ring = new();
+    // 并发写者（任意线程 Console 调用）只入队；Begin/End 由 TUI 生命周期单线程持有
+    private static readonly ConcurrentQueue<string> Ring = new();
+    private static int _ringCount;
     private static int _depth;
     private static TextWriter _originalOut = TextWriter.Null;
     private static TextWriter _originalError = TextWriter.Null;
@@ -35,28 +36,19 @@ public static class ConsoleSuppressionGate {
     private static SuppressingWriter? _suppressingError;
 
     /// <summary>闸门是否激活（TUI 会话期）— CLI 直写组件（TerminalHelper.RealOut 等持原始 writer 的旁路）据此改道环形缓冲。</summary>
-    public static bool IsActive {
-        get {
-            lock (GateLock) {
-                return _depth > 0;
-            }
-        }
-    }
+    public static bool IsActive => Volatile.Read(ref _depth) > 0;
 
-    /// <summary>开始抑制 — 返回 using var 作用域；嵌套调用引用计数。</summary>
+    /// <summary>开始抑制 — 返回 using var 作用域；嵌套调用引用计数（Begin/End 仅限 TUI 生命周期线程）。</summary>
     /// <param name="reason">抑制原因（如 "TUI 会话"）— 语义标注，当前不落盘。</param>
     public static ConsoleSuppressionScope Begin(string reason = "") {
-        lock (GateLock) {
-            _depth++;
-            if (_depth == 1) {
-                _originalOut = Console.Out;
-                _originalError = Console.Error;
-                _suppressingOut = new SuppressingWriter(Append);
-                _suppressingError = new SuppressingWriter(Append);
-                Console.SetOut(_suppressingOut);
-                Console.SetError(_suppressingError);
-                Ring.Clear();
-            }
+        if (Interlocked.Increment(ref _depth) == 1) {
+            _originalOut = Console.Out;
+            _originalError = Console.Error;
+            _suppressingOut = new SuppressingWriter(Append);
+            _suppressingError = new SuppressingWriter(Append);
+            Console.SetOut(_suppressingOut);
+            Console.SetError(_suppressingError);
+            DrainRing();
         }
 
         return new ConsoleSuppressionScope();
@@ -65,52 +57,52 @@ public static class ConsoleSuppressionGate {
     /// <summary>排水 — 取走当前缓冲行并清空（/debuglog 类消费方；抑制期间调用安全）。
     /// 先冲刷两个捕获 writer 的未换行半行 — WriteRaw 类无换行写也可见。</summary>
     public static IReadOnlyList<string> TakeSuppressedLines() {
-        lock (GateLock) {
-            _suppressingOut?.FlushPending();
-            _suppressingError?.FlushPending();
-            var lines = Ring.ToArray();
-            Ring.Clear();
-            return lines;
-        }
+        _suppressingOut?.FlushPending();
+        _suppressingError?.FlushPending();
+        return DrainRing();
     }
 
     internal static void End() {
-        TextWriter? flushTarget;
-        List<string> lines;
-        lock (GateLock) {
-            _depth--;
-            if (_depth > 0) {
-                return;
-            }
-
-            if (Console.Out == _suppressingOut) {
-                Console.SetOut(_originalOut);
-            }
-
-            if (Console.Error == _suppressingError) {
-                Console.SetError(_originalError);
-            }
-
-            lines = new List<string>(Ring);
-            Ring.Clear();
-            flushTarget = _originalError;
-            _originalOut = TextWriter.Null;
-            _originalError = TextWriter.Null;
-            _suppressingOut = null;
-            _suppressingError = null;
+        if (Interlocked.Decrement(ref _depth) > 0) {
+            return;
         }
+
+        if (Console.Out == _suppressingOut) {
+            Console.SetOut(_originalOut);
+        }
+
+        if (Console.Error == _suppressingError) {
+            Console.SetError(_originalError);
+        }
+
+        _suppressingOut?.FlushPending();
+        _suppressingError?.FlushPending();
+        var lines = DrainRing();
+        var flushTarget = _originalError;
+        _originalOut = TextWriter.Null;
+        _originalError = TextWriter.Null;
+        _suppressingOut = null;
+        _suppressingError = null;
 
         foreach (var line in lines) {
             try { flushTarget.WriteLine(line); } catch (IOException) { break; }
         }
     }
 
+    private static IReadOnlyList<string> DrainRing() {
+        var lines = new List<string>();
+        while (Ring.TryDequeue(out var line)) {
+            Interlocked.Decrement(ref _ringCount);
+            lines.Add(line);
+        }
+
+        return lines;
+    }
+
     private static void Append(string line) {
-        lock (GateLock) {
-            Ring.Add(line);
-            if (Ring.Count > RingCap) {
-                Ring.RemoveRange(0, Ring.Count - RingCap);
-            }
+        Ring.Enqueue(line);
+        if (Interlocked.Increment(ref _ringCount) > RingCap && Ring.TryDequeue(out _)) {
+            Interlocked.Decrement(ref _ringCount);
         }
     }
 

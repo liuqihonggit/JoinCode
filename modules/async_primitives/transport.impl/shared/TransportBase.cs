@@ -1,16 +1,17 @@
 namespace JoinCode.Transport;
 
 /// <summary>
-/// 通用传输基类 — 提供生命周期管理、发送锁、事件触发的标准实现
+/// 通用传输基类 — 提供生命周期管理、单写者发送链、事件触发的标准实现
 /// </summary>
 /// <remarks>
 /// 子类只需实现 ConnectCoreAsync/DisconnectCoreAsync/SendCoreAsync 三个核心方法。
 /// 认证逻辑留在子类（如 MCP 的 IMcpAuthProvider），基类不感知。
+/// 发送是单一写者：每次 SendAsync 把自己接到上一次发送的尾部，保证底层写入严格串行、无锁、无超时。
 /// </remarks>
 public abstract class TransportBase : ITransport {
     private CancellationTokenSource? _cts;
     private Task? _backgroundTask;
-    private readonly AsyncLock _sendLock = new();
+    private Task _sendTail = Task.CompletedTask;
     private int _disposed;
 
     /// <inheritdoc/>
@@ -67,10 +68,23 @@ public abstract class TransportBase : ITransport {
 
     /// <inheritdoc/>
     public async Task SendAsync(ReadOnlyMemory<byte> payload, CancellationToken ct = default) {
-        using var guard = await _sendLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sendLock.Name}' 等待超时");
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var previous = Interlocked.Exchange(ref _sendTail, completion.Task);
+        try {
+            try {
+                await previous.ConfigureAwait(false);
+            } catch (Exception ex) {
+                // 前序发送失败不影响后续发送（错误已由前序调用方观察，此处仅留痕）
+                Diag.WriteLine($"[transport] 前序发送失败: {ex.Message}");
+            }
 
-        await SendCoreAsync(payload, ct).ConfigureAwait(false);
-
+            ct.ThrowIfCancellationRequested();
+            await SendCoreAsync(payload, ct).ConfigureAwait(false);
+            completion.SetResult();
+        } catch (Exception ex) {
+            completion.SetException(ex);
+            throw;
+        }
     }
 
     /// <summary>通用断开流程：取消 CTS → 等待后台任务 → 释放资源 → 触发事件</summary>
@@ -110,14 +124,18 @@ public abstract class TransportBase : ITransport {
     }
 
     /// <inheritdoc/>
-    public virtual ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+    public virtual async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        return new ValueTask(StopAsync().ContinueWith(
-            _ => {
-                _sendLock.Dispose();
-                GC.SuppressFinalize(this);
-            },
-            TaskContinuationOptions.ExecuteSynchronously));
+        try {
+            await StopAsync().ConfigureAwait(false);
+            try {
+                await _sendTail.ConfigureAwait(false);
+            } catch (Exception ex) {
+                Diag.WriteLine($"[transport] 释放时等待发送链失败: {ex.Message}");
+            }
+        } finally {
+            GC.SuppressFinalize(this);
+        }
     }
 }

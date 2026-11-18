@@ -37,8 +37,8 @@ public sealed class GraphExecutionContext : IAsyncDisposable {
     public required GoalState State { get; init; }
     /// <summary>聊天历史</summary>
     public required MessageList ChatHistory { get; init; }
-    /// <summary>状态锁（保护 goalState.Status 写入）</summary>
-    public required AsyncLock StateLock { get; init; }
+    /// <summary>状态门闩（保护 goalState.Status 写入）</summary>
+    public required AsyncGate StateGate { get; init; }
     /// <summary>时钟服务</summary>
     public required IClockService Clock { get; init; }
 
@@ -46,9 +46,12 @@ public sealed class GraphExecutionContext : IAsyncDisposable {
     public ConcurrentQueue<string> ReadyQueue { get; } = new();
 
     /// <summary>
-    /// 节点完成信号 — 替代 Task.Delay 轮询。每个节点完成时 Release,循环在 batch 为空时 WaitAsync。
+    /// 节点完成信号 — 无锁唤醒通道。每个节点完成时写入一个标记,循环在 batch 为空时带超时等待并排空。
     /// </summary>
-    public SemaphoreSlim NodeCompletedSignal { get; } = new(0, int.MaxValue);
+    public Channel<bool> NodeCompletedSignal { get; } = Channel.CreateUnbounded<bool>(new UnboundedChannelOptions {
+        SingleReader = true,
+        SingleWriter = false
+    });
     /// <summary>节点执行状态（按节点 ID 索引，合并重试计数与完成/失败标记）</summary>
     private readonly ConcurrentDictionary<string, NodeExecutionState> _nodeStates = new(StringComparer.Ordinal);
 
@@ -331,11 +334,10 @@ public sealed class GraphExecutionContext : IAsyncDisposable {
         return nextIds;
     }
 
-    /// <summary>释放资源 — NodeCompletedSignal 和 StateLock（幂等）</summary>
+    /// <summary>释放资源 — 关闭 NodeCompletedSignal 写入端（幂等）</summary>
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
-        NodeCompletedSignal.Dispose();
-        StateLock.Dispose();
+        NodeCompletedSignal.Writer.TryComplete();
         return ValueTask.CompletedTask;
     }
 

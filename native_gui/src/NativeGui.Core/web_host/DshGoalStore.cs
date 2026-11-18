@@ -10,7 +10,7 @@ namespace JoinCode.Gui.WebHost;
 internal sealed class DshGoalStore(IFileSystem fs, string? filePath = null) {
     private readonly string _filePath = filePath
         ?? Path.Combine(AppDataPaths.Default.JccDirectory, "dsh_goals.json");
-    private readonly object _gate = new();
+    private readonly DshSerialMailbox _actor = new();
     private Dictionary<string, DshGoalDocument> _goals = new(StringComparer.Ordinal);
 
     /// <summary>activation 翻转事件（sessionId + 目标快照）— 宿主桥 $events 帧用</summary>
@@ -19,23 +19,22 @@ internal sealed class DshGoalStore(IFileSystem fs, string? filePath = null) {
     private bool _loaded;
 
     /// <summary>读会话目标（无目标返回 null）</summary>
-    internal DshGoal? Get(string sessionId) {
-        lock (_gate) {
+    internal DshGoal? Get(string sessionId) =>
+        _actor.Run(() => {
             EnsureLoaded();
             return _goals.TryGetValue(sessionId, out var doc) ? Project(doc) : null;
-        }
-    }
+        });
 
     /// <summary>创建目标（armed/active，revision=1）；已存在目标返回 conflict 引导</summary>
     internal (DshGoalRef? Ref, DshRpcResult? Error) Create(string sessionId, string objective, int? maxGoalRounds) {
         if (string.IsNullOrWhiteSpace(objective)) {
             return (null, DshRpcResults.Fail("goals/rejected", "goals/create 需要非空 objective；在目标栏输入目标后重试"));
         }
-        lock (_gate) {
+        return _actor.Run(() => {
             EnsureLoaded();
             if (_goals.ContainsKey(sessionId)) {
                 var current = _goals[sessionId].Revision;
-                return (null, DshRpcResults.Fail("goals/conflict",
+                return ((DshGoalRef?)null, (DshRpcResult?)DshRpcResults.Fail("goals/conflict",
                     $"会话 {sessionId} 已有目标（revision={current}）；先 clear 再创建新目标"));
             }
             var doc = new DshGoalDocument {
@@ -52,15 +51,15 @@ internal sealed class DshGoalStore(IFileSystem fs, string? filePath = null) {
             _goals[sessionId] = doc;
             Persist();
             return (new DshGoalRef { Id = doc.Id, Revision = doc.Revision }, null);
-        }
+        });
     }
 
     /// <summary>编辑目标（CAS：expectedRevision 不匹配返回 conflict）；objective/maxGoalRounds 可改</summary>
-    internal (DshGoal? Goal, DshRpcResult? Error) Edit(string sessionId, DshGoalRef reference, string? objective, int? maxGoalRounds) {
-        lock (_gate) {
+    internal (DshGoal? Goal, DshRpcResult? Error) Edit(string sessionId, DshGoalRef reference, string? objective, int? maxGoalRounds) =>
+        _actor.Run(() => {
             EnsureLoaded();
             if (!_goals.TryGetValue(sessionId, out var doc) || doc.Id != reference.Id) {
-                return (null, DshRpcResults.Fail("goals/not-found", $"会话 {sessionId} 无目标 {reference.Id}；先 goals/get 确认再操作"));
+                return ((DshGoal?)null, (DshRpcResult?)DshRpcResults.Fail("goals/not-found", $"会话 {sessionId} 无目标 {reference.Id}；先 goals/get 确认再操作"));
             }
             if (doc.Revision != reference.Revision) {
                 return (null, DshRpcResults.Fail("goals/conflict",
@@ -79,37 +78,40 @@ internal sealed class DshGoalStore(IFileSystem fs, string? filePath = null) {
             _goals[sessionId] = doc;
             Persist();
             return (Project(doc), null);
-        }
-    }
+        });
 
     /// <summary>状态迁移（pause→disarmed/resume→armed/complete→disarmed；均 CAS）— activation 翻转触发 GoalChanged</summary>
     private (DshGoal? Goal, DshRpcResult? Error) Transition(string sessionId, DshGoalRef reference, string phase, string activation) {
-        lock (_gate) {
-            EnsureLoaded();
-            if (!_goals.TryGetValue(sessionId, out var doc) || doc.Id != reference.Id) {
-                return (null, DshRpcResults.Fail("goals/not-found", $"会话 {sessionId} 无目标 {reference.Id}；先 goals/get 确认再操作"));
-            }
-            if (doc.Revision != reference.Revision) {
-                return (null, DshRpcResults.Fail("goals/conflict",
-                    $"目标版本 {reference.Revision} 已过期（当前 {doc.Revision}）；刷新目标栏后用新 revision 重试"));
-            }
-            if (doc.Phase == "complete") {
-                return (null, DshRpcResults.Fail("goals/rejected", "目标已完成，状态不可再迁移；clear 后创建新目标"));
-            }
-            var activationFlipped = doc.Activation != activation;
-            doc = doc with {
-                Phase = phase,
-                Activation = activation,
-                Revision = doc.Revision + 1,
-                UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            };
-            _goals[sessionId] = doc;
-            Persist();
-            if (activationFlipped) {
-                GoalChanged?.Invoke(sessionId, doc);
-            }
-            return (Project(doc), null);
+        var (goal, error, flippedDocument) = _actor.Run(() => TransitionCore(sessionId, reference, phase, activation));
+        if (flippedDocument is not null) {
+            GoalChanged?.Invoke(sessionId, flippedDocument);
         }
+        return (goal, error);
+    }
+
+    /// <summary>状态迁移的串行段（actor 内执行）；返回需外发事件的目标快照</summary>
+    private (DshGoal? Goal, DshRpcResult? Error, DshGoalDocument? FlippedDocument) TransitionCore(string sessionId, DshGoalRef reference, string phase, string activation) {
+        EnsureLoaded();
+        if (!_goals.TryGetValue(sessionId, out var doc) || doc.Id != reference.Id) {
+            return (null, DshRpcResults.Fail("goals/not-found", $"会话 {sessionId} 无目标 {reference.Id}；先 goals/get 确认再操作"), null);
+        }
+        if (doc.Revision != reference.Revision) {
+            return (null, DshRpcResults.Fail("goals/conflict",
+                $"目标版本 {reference.Revision} 已过期（当前 {doc.Revision}）；刷新目标栏后用新 revision 重试"), null);
+        }
+        if (doc.Phase == "complete") {
+            return (null, DshRpcResults.Fail("goals/rejected", "目标已完成，状态不可再迁移；clear 后创建新目标"), null);
+        }
+        var activationFlipped = doc.Activation != activation;
+        doc = doc with {
+            Phase = phase,
+            Activation = activation,
+            Revision = doc.Revision + 1,
+            UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        };
+        _goals[sessionId] = doc;
+        Persist();
+        return (Project(doc), null, activationFlipped ? doc : null);
     }
 
     /// <summary>暂停（active→paused，armed→disarmed）</summary>
@@ -126,25 +128,28 @@ internal sealed class DshGoalStore(IFileSystem fs, string? filePath = null) {
 
     /// <summary>清除（CAS；返回被清目标的 id/revision）</summary>
     internal (DshGoalRef? Ref, DshRpcResult? Error) Clear(string sessionId, DshGoalRef reference) {
-        lock (_gate) {
+        var (cleared, error, clearedDocument) = _actor.Run(() => {
             EnsureLoaded();
             if (!_goals.TryGetValue(sessionId, out var doc) || doc.Id != reference.Id) {
-                return (null, DshRpcResults.Fail("goals/not-found", $"会话 {sessionId} 无目标 {reference.Id}；先 goals/get 确认再操作"));
+                return ((DshGoalRef?)null, (DshRpcResult?)DshRpcResults.Fail("goals/not-found", $"会话 {sessionId} 无目标 {reference.Id}；先 goals/get 确认再操作"), (DshGoalDocument?)null);
             }
             if (doc.Revision != reference.Revision) {
                 return (null, DshRpcResults.Fail("goals/conflict",
-                    $"目标版本 {reference.Revision} 已过期（当前 {doc.Revision}）；刷新目标栏后用新 revision 重试"));
+                    $"目标版本 {reference.Revision} 已过期（当前 {doc.Revision}）；刷新目标栏后用新 revision 重试"), null);
             }
             _goals.Remove(sessionId);
             Persist();
-            GoalChanged?.Invoke(sessionId, doc);
-            return (new DshGoalRef { Id = doc.Id, Revision = doc.Revision + 1 }, null);
+            return (new DshGoalRef { Id = doc.Id, Revision = doc.Revision + 1 }, null, doc);
+        });
+        if (cleared is not null && clearedDocument is not null) {
+            GoalChanged?.Invoke(sessionId, clearedDocument);
         }
+        return (cleared, error);
     }
 
     /// <summary>轮次计数（DshTurnRunner 受理钩子；无目标/未武装 no-op）</summary>
-    internal void IncrementRounds(string sessionId) {
-        lock (_gate) {
+    internal void IncrementRounds(string sessionId) =>
+        _actor.Run(() => {
             EnsureLoaded();
             if (!_goals.TryGetValue(sessionId, out var doc) || doc.Activation != "armed") {
                 return;
@@ -154,8 +159,7 @@ internal sealed class DshGoalStore(IFileSystem fs, string? filePath = null) {
                 UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             };
             Persist();
-        }
-    }
+        });
 
     /// <summary>投影落盘文档 → wire 形状（时间毫秒）</summary>
     private static DshGoal Project(DshGoalDocument doc) => new() {

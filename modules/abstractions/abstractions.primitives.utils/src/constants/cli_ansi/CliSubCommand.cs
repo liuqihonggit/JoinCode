@@ -112,4 +112,10 @@ public enum CliSubCommand {
     [EnumValue("experience")]
     [SubCommandInfo("经验库 reflect/propose/round — 从 H₀ 重启、只选择性复用经验", "经验继承", Example = "jcc experience propose --cue rate-limit")]
     Experience,
+
+    /// <summary>行为门禁 — jcc probe [--adopt &lt;cue&gt;]，用生产限流器发真实请求对比 H₀ 与候选行为</summary>
+    /// <para>TASK098 融合：DSH 结构 delta 与 Harness² 经验 delta 共用 Probe 门禁，靠行为差异而非配置打印判定采纳。</para>
+    [EnumValue("probe")]
+    [SubCommandInfo("行为对比门禁 — 真实请求验证 delta 是否改变行为（TASK098）", "融合门禁", Example = "jcc probe --adopt rate-limit")]
+    Probe,
 }

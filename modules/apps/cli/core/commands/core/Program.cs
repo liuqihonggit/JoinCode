@@ -257,6 +257,25 @@ class Program {
             var end = probe.TryGetNode("probe", out _) ? "still-present" : "removed";
             Cli.TerminalHelper.WriteLine($"[G1-SELFTEST] after-replace={before} after-lifo-dispose={after} after-all-disposed={end}");
             Cli.TerminalHelper.WriteLine();
+
+            // TASK098 融合自检 —— 一个 CompositionHandle 同时兑现 G1 逆序回滚 + G6 H₀ 恢复。
+            // 走生产 DeltaComposer.Compose（Permanent/Round 统一入口）+ Track（G1 挂接）+ Dispose（双回滚）。
+            var skeleton = resolver.Resolve("base");
+            var round = Composition.Improvement.CompositionDelta.FromExperience(
+                new Composition.Improvement.HarnessPatch("chat-pipeline", "stream-rate-limit-mw", "max-requests", "50"),
+                "selftest", "真机自检");
+            var handle = Composition.Improvement.DeltaComposer.Compose(skeleton, [round]);
+            FusionMax(handle.Current, out var currentMax);
+            var regA = probe.Register("fusion", (_, _) => new ProbeNode("reg-A"));
+            var regB = probe.Register("fusion", (_, _) => new ProbeNode("reg-B"));
+            handle.Track(regA);
+            handle.Track(regB);
+            var regBefore = probe.TryGetNode("fusion", out var fb) ? fb?.NodeId ?? "(null)" : "(missing)";
+            handle.Dispose();
+            FusionMax(handle.Current, out var restoredMax);
+            var regAfter = probe.TryGetNode("fusion", out _) ? "still-present" : "removed";
+            Cli.TerminalHelper.WriteLine($"[T098-FUSION] current-max={currentMax} after-dispose-max={restoredMax} reg-before={regBefore} reg-after={regAfter} disposed={handle.IsDisposed}");
+            Cli.TerminalHelper.WriteLine();
         }
 
         foreach (var profileName in profiles.Keys.Order()) {
@@ -281,6 +300,13 @@ class Program {
         }
 
         return 0;
+    }
+
+    /// <summary>TASK098 融合自检辅助：从 profile 读限流阈值，读不到给占位符。</summary>
+    private static void FusionMax(Abstractions.Composition.Profile.ResolvedProfile profile, out string value) {
+        value = profile.Consumers.TryGetValue("chat-pipeline", out var c)
+            ? c.Nodes.FirstOrDefault(n => n.Id == "stream-rate-limit-mw")?.Config.GetValueOrDefault("max-requests") ?? "(null)"
+            : "(null)";
     }
 
     private static string FormatMetaList(string[] items) =>

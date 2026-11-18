@@ -314,8 +314,31 @@ public static class DataDrivenPipelineComposition {
             var adopted = fs is null
                 ? []
                 : Composition.Improvement.ImprovementStore.LoadAdoptedPatches(fs);
-            // ComposeSafe: patch 与所选 profile 不兼容时 fail-closed 回退干净态，绝不因经验阻断启动。
-            var initial = Composition.Improvement.HarnessComposer.ComposeSafe(profiles, profileName, adopted);
+
+            // TASK098：默认仍走 HarnessComposer（内部已收敛到统一 DeltaComposer 入口），保持 TASK097 零回归。
+            ResolvedProfile initial;
+            if (Environment.GetEnvironmentVariable("JCC_PROBE") == "1" && adopted.Count > 0) {
+                // Probe 门禁显式开启：把经验 patch 包装成 Round delta，用生产限流器跑真实行为对比。
+                // FAIL → fail-closed 回 H₀（经验不进生产消费端），绝不因为"检索命中"就信任经验。
+                var resolver0 = new NodeProfileResolver(profiles);
+                var skeleton = resolver0.Resolve(profileName);
+                var deltas = adopted.Select(p => Composition.Improvement.CompositionDelta.FromExperience(p, null, null)).ToArray();
+                var handle = Composition.Improvement.DeltaComposer.ComposeSafe(skeleton, deltas);
+                var verdict = Composition.Improvement.BehaviorProbe.Compare(skeleton, handle.Current);
+                if (verdict.Passed) {
+                    initial = handle.Current;
+                } else {
+                    Console.Error.WriteLine(
+                        $"[PROBE-GATE] 启动期行为门禁拒绝经验（JCC_PROBE=1）：{verdict.Reason}" +
+                        " 拦截层: DataDrivenPipelineComposition 启动装配。" +
+                        " 正确写法: 修正经验 patch 或关闭 JCC_PROBE 回到纯 cue 采纳。");
+                    initial = skeleton;
+                }
+                handle.Dispose(); // 只取 Current 的值对象，不留句柄（组合在本进程长期存活由 IProfileManager 承载）。
+            } else {
+                // ComposeSafe: patch 与所选 profile 不兼容时 fail-closed 回退干净态，绝不因经验阻断启动。
+                initial = Composition.Improvement.HarnessComposer.ComposeSafe(profiles, profileName, adopted);
+            }
 
             var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<ProfileManager>();
             return new ProfileManager(resolver, initial, logger);

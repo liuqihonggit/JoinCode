@@ -23,12 +23,13 @@ public static class HarnessComposer {
         IReadOnlyList<HarnessPatch> adoptedPatches) {
         // 红线核心：永远重新 Resolve(profileName)，不接收也不缓存上一轮结果。
         var resolver = new NodeProfileResolver(profiles);
-        var resolved = resolver.Resolve(profileName);
+        var skeleton = resolver.Resolve(profileName);
 
-        foreach (var patch in adoptedPatches)
-            resolved = ApplyPatch(resolved, patch);
-
-        return resolved;
+        // TASK098 F1 收敛：经验 patch 经统一 Delta 入口叠加（Permanent/Round 共用同一覆写原语）。
+        var deltas = adoptedPatches
+            .Select(p => CompositionDelta.FromExperience(p, null, null))
+            .ToArray();
+        return DeltaComposer.Compose(skeleton, deltas).Current;
     }
 
     /// <summary>
@@ -46,45 +47,13 @@ public static class HarnessComposer {
         var resolver = new NodeProfileResolver(profiles);
         var clean = resolver.Resolve(profileName);
         if (adoptedPatches.Count == 0) return clean;
-        try {
-            var resolved = clean;
-            foreach (var patch in adoptedPatches)
-                resolved = ApplyPatch(resolved, patch);
-            return resolved;
-        } catch (InvalidOperationException ex) {
-            Console.Error.WriteLine(
-                $"[EXPERIENCE] 经验 patch 与当前 profile '{profileName}' 不兼容，已忽略全部 patch 回退到干净态（HarnessComposer 安全组装层）。" +
-                $" 原因: {ex.Message}" +
-                " 正确写法: 让经验 patch 指向所有 profile 都保留的节点，或换用匹配的 profile。");
-            return clean;
-        }
-    }
 
-    private static ResolvedProfile ApplyPatch(ResolvedProfile profile, HarnessPatch patch) {
-        if (!profile.Consumers.TryGetValue(patch.Consumer, out var consumer))
-            throw new InvalidOperationException(
-                $"经验 patch 的目标消费点 '{patch.Consumer}' 在 H₀ 中不存在（HarnessComposer 组装层拦截）。" +
-                $"触发参数: consumer={patch.Consumer}, node={patch.Node}。" +
-                $"可用消费点: {string.Join(", ", profile.Consumers.Keys.Order())}。" +
-                $"正确写法: 用 H₀ 中已有的消费点 ID，或先在 base.yaml 增加该消费点。");
-        if (consumer.Nodes.All(n => n.Id != patch.Node))
-            throw new InvalidOperationException(
-                $"经验 patch 的目标节点 '{patch.Node}' 在消费点 '{patch.Consumer}' 的 H₀ 配置中不存在（HarnessComposer 组装层拦截）。" +
-                $"触发参数: consumer={patch.Consumer}, node={patch.Node}, key={patch.ConfigKey}。" +
-                $"可用节点: {string.Join(", ", consumer.Nodes.Select(n => n.Id))}。" +
-                $"正确写法: 指向 H₀ 中已有的节点；经验只覆写已有节点 config，不能凭空新建节点。");
-
-        var newNodes = consumer.Nodes.Select(node => {
-            if (node.Id != patch.Node) return node;
-            var config = new Dictionary<string, string>(node.Config, StringComparer.Ordinal) {
-                [patch.ConfigKey] = patch.ConfigValue,
-            };
-            return node with { Config = config.ToFrozenDictionary(StringComparer.Ordinal) };
-        }).ToArray();
-
-        var newConsumers = new Dictionary<string, ResolvedConsumerConfig>(profile.Consumers, StringComparer.Ordinal) {
-            [patch.Consumer] = consumer with { Nodes = newNodes },
-        };
-        return profile with { Consumers = newConsumers.ToFrozenDictionary(StringComparer.Ordinal) };
+        // TASK098 F1 收敛：经验 patch 经统一 Delta 安全入口，不兼容时 fail-closed 回干净态。
+        var deltas = adoptedPatches
+            .Select(p => CompositionDelta.FromExperience(p, null, null))
+            .ToArray();
+        // ComposeSafe 只取结果不保留句柄；句柄内无节点注册，Dispose 仅把 Current 恢复 H₀（此处 Current 即返回值）。
+        using var handle = DeltaComposer.ComposeSafe(clean, deltas);
+        return handle.Current;
     }
 }

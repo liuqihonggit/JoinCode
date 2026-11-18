@@ -29,14 +29,8 @@ modules/async_primitives/async_lock/lock/OrderedLockManager.cs|4
 modules/async_primitives/async_lock/mailbox/PriorityMailbox.cs|1
 modules/cognition/brain.context_services/chat/core/StreamingToolExecutor.cs|1
 modules/cognition/brain_planning/planning/planning2/PlanModeManager.cs|1
-modules/cognition/hands/integration/core/ChromeIntegrationService.cs|1
-modules/cognition/hands_core/skills/search/SkillSearchService.cs|1
-modules/cognition/hands_core/tool_handlers/dev_tools/handlers/TarballDownloader.cs|2
 modules/composition/composition.tests/commands_wave123/CommandTestHarness.cs|1
 modules/guard/guard.config.tests/configuration/core/FastModeServiceTests.cs|1
-modules/guard/guard.hooks/configuration/HookConfigurationManager.cs|1
-modules/guard/guard.sandbox/ipc/SandboxIpcClient.cs|1
-modules/guard/guard.security/power_shell/ast/PsAstParser.cs|1
 modules/llm/agents.coordinator.backend/TmuxPaneBackend.cs|1
 modules/llm/agents.coordinator.core/AgentCoordinator.cs|3
 modules/llm/agents.coordinator.core/AgentExecutionEngine.cs|1

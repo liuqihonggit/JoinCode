@@ -55,20 +55,27 @@ public sealed class TarballDownloader {
         if (requests.Count == 0) return [];
         _fs.CreateDirectory(tempDir);
 
-        using var sem = new SemaphoreSlim(Math.Max(1, parallelJobs));
-        var tasks = requests.Select(r => DownloadOneAsync(r, tempDir, sem, ct)).ToList();
-        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-        return [..results];
+        var results = new SubmoduleDownloadResult[requests.Count];
+        var nextIndex = -1;
+
+        async Task WorkerAsync(CancellationToken token) {
+            while (true) {
+                var index = Interlocked.Increment(ref nextIndex);
+                if (index >= requests.Count) return;
+                results[index] = await DownloadOneAsync(requests[index], tempDir, token).ConfigureAwait(false);
+            }
+        }
+
+        var workerCount = Math.Clamp(parallelJobs, 1, requests.Count);
+        await Task.WhenAll(Enumerable.Range(0, workerCount).Select(_ => WorkerAsync(ct))).ConfigureAwait(false);
+        return results;
     }
 
     private async Task<SubmoduleDownloadResult> DownloadOneAsync(
         SubmoduleDownloadRequest request,
         string tempDir,
-        SemaphoreSlim sem,
         CancellationToken ct) {
-        await sem.WaitAsync(ct).ConfigureAwait(false);
-        try {
-            var tarballPath = _fs.CombinePath(tempDir, $"{request.Owner}-{request.Repo}.tar.gz");
+        var tarballPath = _fs.CombinePath(tempDir, $"{request.Owner}-{request.Repo}.tar.gz");
             var path = $"repos/{request.Owner}/{request.Repo}/tarball/{request.Ref}";
 
             for (var retry = 0; retry <= MaxRetries; retry++) {
@@ -108,9 +115,6 @@ public sealed class TarballDownloader {
             }
 
             return new SubmoduleDownloadResult(request, false, null, "超过最大重试次数");
-        } finally {
-            sem.Release();
-        }
     }
 
     private static bool IsRetryable(int statusCode) => statusCode is >= 500 and < 600 or 429;

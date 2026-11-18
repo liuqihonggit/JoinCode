@@ -10,7 +10,7 @@ public sealed class SshSession : ISshSession {
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
     private readonly SshPortForwardManager _portForwardManager;
-    private readonly AsyncLock _stateLock = new();
+    private readonly AsyncGate _stateGate = new();
     private readonly StateMachine<SshConnectionState> _stateMachine;
     private int _isDisposed;
     private Process? _sshProcess;
@@ -51,7 +51,7 @@ public sealed class SshSession : ISshSession {
     public async Task ConnectAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
+        using var guard = await _stateGate.AcquireAsync(ct).ConfigureAwait(false);
         try {
             if (_stateMachine.CurrentState == SshConnectionState.Connected) {
                 return;
@@ -98,7 +98,7 @@ public sealed class SshSession : ISshSession {
     public async Task DisconnectAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
+        using var guard = await _stateGate.AcquireAsync(ct).ConfigureAwait(false);
 
         StopKeepAlive();
         await _portForwardManager.StopAllAsync(ct).ConfigureAwait(false);
@@ -274,7 +274,6 @@ public sealed class SshSession : ISshSession {
         }
         _sshProcess = null;
 
-        _stateLock.Dispose();
         return portTask;
     }
 

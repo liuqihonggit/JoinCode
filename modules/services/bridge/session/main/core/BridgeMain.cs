@@ -16,8 +16,7 @@ public sealed partial class BridgeMain : ServiceEntity {
 
     // 活跃会话跟踪 — 对齐 TS 端 runBridgeLoop 的 7 个 Map + 3 个 Set
     internal readonly BridgeSessionTracker _tracker = new();
-    internal readonly List<Task> _pendingCleanups = new(); // 待清理任务 — 对齐 TS 端 pendingCleanups
-    internal readonly AsyncLock _cleanupLock = new(); // 替代 lock — JCC4001 分析器要求
+    internal readonly ConcurrentDictionary<Task, byte> _pendingCleanups = new(); // 待清理任务 — 对齐 TS 端 pendingCleanups
 
     // 退避状态 — 对齐 TS 端 BackoffConfig + 双轨退避
     internal readonly BridgeBackoffStrategy _backoff;

@@ -213,24 +213,29 @@ internal sealed class DownloadSession : IDownloadSession {
     }
 
     /// <summary>
-    /// AIO 并发下载分片 — Task.WhenAll + SemaphoreSlim 限流,0 线程阻塞
+    /// AIO 并发下载分片 — 工作池按 MaxThreads 领取分片,0 线程阻塞
     /// <para>替代 PLINQ + .GetAwaiter().GetResult()(BIO),用真异步并发避免线程池浪费</para>
-    /// <para>SemaphoreSlim.WaitAsync 限制并发度=MaxThreads,不阻塞线程</para>
+    /// <para>工作池并发度=MaxThreads,无信号量</para>
     /// </summary>
     private async Task<ChunkDownloadResult[]> DownloadChunksParallelAsync(
         List<DownloadChunk> chunks, IReadOnlyDictionary<string, string>? headers, CancellationToken ct) {
-        using var semaphore = new SemaphoreSlim(_options.MaxThreads, _options.MaxThreads);
-        var tasks = chunks.Select(async chunk => {
-            await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                return await _chunkDownloader
+        var results = new ChunkDownloadResult[chunks.Count];
+        var nextIndex = -1;
+
+        async Task WorkerAsync() {
+            while (true) {
+                var index = Interlocked.Increment(ref nextIndex);
+                if (index >= chunks.Count) return;
+                var chunk = chunks[index];
+                results[index] = await _chunkDownloader
                     .DownloadAsync(_url, chunk, GetPartPath(chunk.Index), headers, ct)
                     .ConfigureAwait(false);
-            } finally {
-                semaphore.Release();
             }
-        });
-        return await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+
+        var workerCount = Math.Min(Math.Max(1, _options.MaxThreads), chunks.Count);
+        await Task.WhenAll(Enumerable.Range(0, workerCount).Select(_ => WorkerAsync())).ConfigureAwait(false);
+        return results;
     }
 
     private async Task<bool> LoadOrPlanChunks(RangeSupportResult probe) {

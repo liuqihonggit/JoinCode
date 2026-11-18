@@ -257,6 +257,20 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 - jcc 对测试仓库执行真实代码索引/解析命令；观察 TreeSitter 并发无交错。
 - TUI/GUI smoke 回归。
 
+#### B3 执行记录
+
+- 新增无锁原语：`AsyncGate`（任务链门闩，`modules/abstractions/abstractions.utils/state/AsyncGate.cs`）与 `PermitPool`（Channel 令牌池，支持热调整容量），统一承载互斥与 (N,N) 限流。
+- 单飞初始化：`PuppeteerBrowserAutomationService`、`ConfigPersistentServiceBase`、`FileBasedTaskService` 改 `TaskCompletionSource` 单飞信号（CAS 创建、初始化完成统一 `TrySetResult`），消除 `AsyncLock` + double-check 模式。
+- 状态机/暂停：`AgentStateMachine` 内部 `AsyncGate`；`AgentBase` 暂停语义重写为 TCS 门闩（Pause 创建、Resume/5s 超时清除），删除死代码 `_pauseLock`；`BridgeDeviceTokenService` 存储互斥改 `AsyncGate`。
+- 并发限流：`ExecutionContext.ConcurrencyLock` → `PermitPool`；`GoalGraphEngine` 并发限流 → `PermitPool`；`ForkSubAgentManagerActor` 并发槽 → 热替换 `PermitPool`；`IOThrottleService`、`DeferredMailService`、`HotSpotSpawnIntegration` 去 `AsyncLock`/`LockRef`。
+- 单写者传输：`BridgeMain` 待清理任务表改 `ConcurrentDictionary` + `ContinueWith` 摘除；`BridgePermissionCallbacks` 处理器表改 `ConcurrentDictionary` + `ImmutableList` CAS。
+- 工作者池：`BatchDownloader`、`DownloadSession`、`AgentExecutionEngine` 改 `Interlocked.Increment` 领号 + 结果下标数组，去掉信号量。
+- 信号/限流：`GatewayActor` 限流改预填具有界 `Channel<bool>`；`GraphExecutionContext.NodeCompletedSignal` 改无界唤醒 Channel（`WaitToReadAsync` + 1s 超时 + 排空），`PollingGraphScheduler`/`EventDrivenGraphScheduler` 写端 `TryWrite`。
+- `PlanModeManager` 去掉 `LockRegistry.EnsureFlowRegistered`，改进程内单调序号（slug 仅作会话缓存键）。
+- 基线：82 文件/372 处 → 54 文件/320 处；AsyncLock 模块外生产消费者为 0，剩余为 B4/B5/锁生态自身。
+- exe 验收（ADR 0080/0077）：MockServer(Debug) + jcc(Debug) 并发 4 个真实回合，4 进程 EXIT=0，MockServer 记录 4 次 `chat/completions`，日志无异常/超时/死锁（`.xxx/logs/mockserver_concurrent.log`、`.xxx/logs/jcc_turn_1..4.log`，脚本 `.xxx/acceptance/run_concurrent_turns.sh`）；`jcc --selftest-tui` EXIT=0（HOST SELFTEST OK）。
+- 工具环境问题（非本批回归）：本 worktree Debug 布局缺 `artifacts/bin/JoinCode/Debug/net10.0/jcc-rg.exe`（实际产物在 `artifacts/bin/rg/Debug/net10.0/`），`jcc rg` 子命令不可用；`jcc --selftest-input` 在非交互 bash 下收 0 键（需真实 TTY）。已记录，待构建布局/入口补齐。
+
 ### B4 存储与索引核心
 
 | 文件 | 现状 | 方案 |
@@ -319,7 +333,7 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 
 ## 5. 四列验收表
 
-> `已验收` 只填真实 exe 证据，必须附 ADR 0080 记录；单元测试不能替代。当前处于计划阶段，全部为待实现/待验收。
+> `已验收` 只填真实 exe 证据，必须附 ADR 0080 记录；单元测试不能替代。B0/B1/B2/B3 已验收，B4-B7 待实现/待验收。
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
@@ -329,7 +343,7 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 | 单写者 Channel / 快照 | `LspConnection`、`RgEngine`、`ConfigurationService`、`AsyncLazy` | ✅ | ✅ `jcc-tool-code.exe lsp_hover` 经 csharp-ls 真实 stdio JSON-RPC 返回 `RgOutcome? outcome` EXIT=0（`.xxx/logs/TASK094/lsp-hover.txt`）；`jcc-rg.exe --stream` 输出 4 个命中文件 EXIT=0（`.xxx/logs/TASK094/exe-rg-stream2.txt`）；AsyncLazy 单飞 3/3、FileHistory 多版本 3/3、Rg 154/154 全绿 |
 | TUI 输入与回合 Actor | `RawStdinPump`、`LazyEngine`、`EngineTurnClient`、`ReplShell`、`BridgeEventPump`、`TerminalQuerier` | ✅ | ✅ `jcc.exe --selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-tui.txt`）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-input.txt`）、`NativeTui.Demo.exe --selftest` / `--selftest-bash` / `--bridge-selftest` 三个 EXIT=0（`b2-demo-selftest.txt` / `b2-demo-bash.txt` / `b2-demo-bridge.txt`，跨进程 bridge 协议走真实管道）；单元测试 NativeTui.Tests 3024/3024、NativeTui.Host.Tests 140/140 |
 | DSH 状态 Actor/不可变快照 | `native_gui` 16 文件 / 82 锁 → 0；事件出 Actor 触发；WS 每连接单写者 | ✅ | ✅ `--dsh-smoke` EXIT=0 ×4（真实 HttpListener/WS：session/create+list、$events/session/follow 双流、goals 暂停事件、32+16 并发 RPC；`.xxx/logs/TASK094/gui_dsh_smoke_loop.log` / `gui_dsh_smoke_after_fix.log`）；`--webui-smoke` EXIT=0 ×3（真实 WebView2 窗口桥接，修复 async Main 导致 STA 失效的 `RPC_E_CHANGED_MODE`，`.xxx/logs/TASK094/gui_webui_smoke3.log` / `gui_webui_smoke_loop1/2.log`）；NativeGui.Core.Tests 409/409（`gui_tests_full3.log`）、NativeGui.Host.Tests 47/47（`gui_host_tests_full.log`） |
-| AsyncLock/限流替换 | 47 文件 / 101 获取 + Semaphore 限流 | 🔄 进行中：钩子配置/沙箱 IPC/技能索引/MCP 认证与降级链/流式执行器/GH 并行下载/感知域（LspService 单飞、LspDiagnosticRegistry 不可变快照、CSharpSymbolExtractor AsyncGate、TreeSitterParserPool 门闩、HnswAnn 单门闩）已去锁；基线 138 文件/536 处 → **82 文件/372 处** | ❌（jcc + MockServer 并发回合） |
+| AsyncLock/限流替换 | 47 文件 / 101 获取 + Semaphore 限流 | ✅ 钩子配置/沙箱 IPC/技能索引/MCP 认证与降级链/流式执行器/GH 并行下载/感知域已去锁；B3 完成单飞初始化（TCS）、状态机/暂停（AsyncGate/TCS 门闩）、并发限流（PermitPool）、单写者传输（ConcurrentDictionary+ImmutableList CAS）、工作者池、GatewayActor 令牌 Channel、GraphExecutionContext 唤醒 Channel、PlanModeManager 去 LockRegistry；**模块外 AsyncLock 生产引用为 0**；基线 138 文件/536 处 → **54 文件/320 处**（剩余仅 B4/B5/锁生态自身与测试） | ✅ jcc + MockServer 并发 4 个真实回合 EXIT=0 ×4（4 次 `chat/completions`，无异常/超时/死锁，`.xxx/logs/mockserver_concurrent.log`、`jcc_turn_1..4.log`）；`jcc --selftest-tui` EXIT=0（`HOST SELFTEST OK`）；相关域测试全绿（AsyncLock 631、Agents 626、Clock 519、Scheduling 287、Vault 867、Bridge 633、Infra 1399、Host 1332、Composition 1135、Downloader 100、Browser 2、Brain 426） |
 | PithosDb 单写者 + 快照 | `PithosDb`、`LeveledCompactor`、Lru/S3Fifo | ❌ | ❌（双进程存储完整性） |
 | HNSW 快照 | `HnswAnn` | ✅ 单 AsyncGate 串行化替换 `ReaderWriterLockSlim`（CodeIndex 792 测试全绿） | ❌（真实索引构建 + 固定样本召回） |
 | 原子文件租约 | `CrossProcessLock`、`NamedMutexMailboxLock`、Pithos 租约 | ❌ | ❌（3 进程竞争 + 崩溃接管） |
@@ -443,3 +457,21 @@ printf 'ab\025\033[D\033[1;5D\033[200~中文粘贴内容\033[201~\037你\r' | ./
 <!-- 替代方案: 全量重命名所有目录（成本高、收益低，且与现有 16 域结构冲突） -->
 <!-- 验证: B7 门禁脚本按“项目目录白名单+嵌套目录零违规”判定 -->
 
+
+<!-- 🤖 Auto Decision: 2026-11-19 B3 -->
+<!-- 决策: AgentBase 暂停语义用 TaskCompletionSource 门闩（Pause 创建 gate、Resume/5s 超时清除），删除 _pauseLock -->
+<!-- 原因: 原 AsyncLock(1,1) 从未被持有/释放，暂停实际靠轮询标志；TCS 直接表达“挂起直到恢复或超时”，无锁可死锁 -->
+<!-- 替代方案: 保留 AsyncLock 供 Pause/Resume（语义错位）；Channel 信号（需排空且无超时语义） -->
+<!-- 验证: Agents.Tests 626/626；暂停超时日志保留“暂停等待超时（5秒），自动恢复执行” -->
+
+<!-- 🤖 Auto Decision: 2026-11-19 B3 -->
+<!-- 决策: GatewayActor 限流改预填具有界 Channel<bool> 令牌；GraphExecutionContext 完成信号改无界 Channel 唤醒 -->
+<!-- 原因: SemaphoreSlim 仅作计数令牌/信号，Channel 读写端天然支持背压与取消，无 WaitAsync 超时/Dispose 竞态 -->
+<!-- 替代方案: PermitPool（支持热调整，但 GatewayActor 容量固定且无需 Resize）；TCS 广播（多等待者需重建） -->
+<!-- 验证: AsyncLock.Tests 631/631；Clock.Tests 519/519（含 GoalEngine 管线） -->
+
+<!-- 🤖 Auto Decision: 2026-11-19 B3 -->
+<!-- 决策: 单飞初始化统一用 TaskCompletionSource 信号字段 + CAS 创建，而非缓存 Task 字段 -->
+<!-- 原因: JCC9307 要求 Task 字段在 Dispose 中 await，初始化任务天然不随宿主释放；TCS 只暴露完成信号，失败/成功都统一传播 -->
+<!-- 替代方案: Lazy<Task>（异常缓存语义不同）；AsyncGate + double-check（仍是一把互斥锁） -->
+<!-- 验证: Puppeteer/Browser、ConfigPersistentServiceBase/Vault、FileBasedTaskService/Scheduling 全绿 -->

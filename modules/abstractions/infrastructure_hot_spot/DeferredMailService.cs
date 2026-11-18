@@ -1,13 +1,12 @@
 namespace Infrastructure.HotSpot;
 
 /// <summary>
-/// 延迟邮件服务实现 — ConcurrentDictionary + per-agent lock 线程安全
+/// 延迟邮件服务实现 — 不可变快照 + CAS 线程安全
 /// 轮次计数到期或任务结束注入时投递
 /// </summary>
 [Register(typeof(IDeferredMailService), ServiceLifetime.Singleton)]
 public sealed class DeferredMailService : IDeferredMailService {
     private ImmutableHamT<string, ImmutableList<DeferredMailEntry>> _pending = ImmutableHamT<string, ImmutableList<DeferredMailEntry>>.Empty;
-    private ImmutableHamT<string, AsyncLock> _locks = ImmutableHamT<string, AsyncLock>.Empty;
 
     /// <summary>
     /// 延迟投递邮件 — 加入待发送队列，按 OpenAfterTurns 计数到期后投递
@@ -19,13 +18,7 @@ public sealed class DeferredMailService : IDeferredMailService {
         cancellationToken.ThrowIfCancellationRequested();
 
         var entry = new DeferredMailEntry { Mail = mail, RemainingTurns = mail.OpenAfterTurns };
-        var lk = GetLock(mail.To);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            ImmutableInterlocked.Update(ref _pending, d => {
-                var list = d.GetValueOrDefault(mail.To, ImmutableList<DeferredMailEntry>.Empty);
-                return d.SetItem(mail.To, list.Add(entry));
-            });
-        }
+        Publish(mail.To, list => list.Add(entry));
         return Task.CompletedTask;
     }
 
@@ -36,22 +29,24 @@ public sealed class DeferredMailService : IDeferredMailService {
     /// <returns>已到期可投递的邮件列表</returns>
     public IReadOnlyList<DeferredMail> TickTurns(string agentId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        var lk = GetLock(agentId);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            if (!Volatile.Read(ref _pending).TryGetValue(agentId, out var list))
+
+        while (true) {
+            var current = Volatile.Read(ref _pending);
+            if (!current.TryGetValue(agentId, out var list))
                 return [];
 
             var matured = new List<DeferredMail>();
             var remaining = ImmutableList<DeferredMailEntry>.Empty;
             foreach (var entry in list) {
-                entry.RemainingTurns--;
-                if (entry.RemainingTurns <= 0)
+                if (entry.RemainingTurns - 1 <= 0)
                     matured.Add(entry.Mail);
                 else
-                    remaining = remaining.Add(entry);
+                    remaining = remaining.Add(entry with { RemainingTurns = entry.RemainingTurns - 1 });
             }
-            ImmutableInterlocked.Update(ref _pending, d => d.SetItem(agentId, remaining));
-            return matured;
+
+            var next = remaining.Count == 0 ? current.Remove(agentId) : current.SetItem(agentId, remaining);
+            if (Interlocked.CompareExchange(ref _pending, next, current) == current)
+                return matured;
         }
     }
 
@@ -63,20 +58,26 @@ public sealed class DeferredMailService : IDeferredMailService {
     /// <returns>已投递的邮件列表</returns>
     public IReadOnlyList<DeferredMail> FlushOnTaskEnd(string agentId, MailMarker? markerFilter = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        var lk = GetLock(agentId);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            if (!Volatile.Read(ref _pending).TryGetValue(agentId, out var list))
+
+        while (true) {
+            var current = Volatile.Read(ref _pending);
+            if (!current.TryGetValue(agentId, out var list))
                 return [];
 
+            List<DeferredMail> flushed;
+            ImmutableHamT<string, ImmutableList<DeferredMailEntry>> next;
+
             if (markerFilter is { } filter) {
-                var matched = list.Where(e => e.Mail.Marker.HasFlag(filter)).Select(e => e.Mail).ToList();
-                ImmutableInterlocked.Update(ref _pending, d => d.SetItem(agentId, list.RemoveAll(e => e.Mail.Marker.HasFlag(filter))));
-                return matched;
+                flushed = list.Where(e => e.Mail.Marker.HasFlag(filter)).Select(e => e.Mail).ToList();
+                var remaining = list.RemoveAll(e => e.Mail.Marker.HasFlag(filter));
+                next = remaining.Count == 0 ? current.Remove(agentId) : current.SetItem(agentId, remaining);
+            } else {
+                flushed = list.Select(e => e.Mail).ToList();
+                next = current.Remove(agentId);
             }
 
-            var all = list.Select(e => e.Mail).ToList();
-            ImmutableInterlocked.Update(ref _pending, d => d.Remove(agentId));
-            return all;
+            if (Interlocked.CompareExchange(ref _pending, next, current) == current)
+                return flushed;
         }
     }
 
@@ -88,31 +89,28 @@ public sealed class DeferredMailService : IDeferredMailService {
     /// <returns>待发送邮件列表</returns>
     public IReadOnlyList<DeferredMail> GetPending(string agentId, MailMarker? markerFilter = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        var lk = GetLock(agentId);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            if (!Volatile.Read(ref _pending).TryGetValue(agentId, out var list))
-                return [];
-            var mails = list.Select(e => e.Mail);
-            if (markerFilter is { } filter)
-                mails = mails.Where(m => m.Marker.HasFlag(filter));
-            return mails.ToList();
+        if (!Volatile.Read(ref _pending).TryGetValue(agentId, out var list))
+            return [];
+        var mails = list.Select(e => e.Mail);
+        if (markerFilter is { } filter)
+            mails = mails.Where(m => m.Marker.HasFlag(filter));
+        return mails.ToList();
+    }
+
+    private void Publish(string agentId, Func<ImmutableList<DeferredMailEntry>, ImmutableList<DeferredMailEntry>> mutate) {
+        while (true) {
+            var current = Volatile.Read(ref _pending);
+            var list = current.GetValueOrDefault(agentId, ImmutableList<DeferredMailEntry>.Empty);
+            var next = current.SetItem(agentId, mutate(list));
+            if (Interlocked.CompareExchange(ref _pending, next, current) == current)
+                return;
         }
     }
 
-    private LockRef GetLock(string agentId) {
-        var snapshot = Volatile.Read(ref _locks);
-        if (snapshot.TryGetValue(agentId, out var existing))
-            return new LockRef(existing);
-
-        var newLock = new AsyncLock(nameof(DeferredMailService));
-        ImmutableInterlocked.Update(ref _locks, d => d.ContainsKey(agentId) ? d : d.Add(agentId, newLock));
-        return new LockRef(Volatile.Read(ref _locks)[agentId]);
-    }
-
-    private sealed class DeferredMailEntry {
+    private sealed record DeferredMailEntry {
         /// <summary>获取延迟邮件。</summary>
         public required DeferredMail Mail { get; init; }
-        /// <summary>获取或设置剩余轮次。</summary>
-        public int RemainingTurns { get; set; }
+        /// <summary>获取剩余轮次。</summary>
+        public required int RemainingTurns { get; init; }
     }
 }

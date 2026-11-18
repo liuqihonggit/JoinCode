@@ -15,6 +15,8 @@ public sealed class AsyncGate {
     /// <param name="timeout">获取超时（null 表示无限等待）</param>
     /// <returns>释放器，释放时唤醒后序获取者</returns>
     public async Task<IDisposable> AcquireAsync(CancellationToken ct = default, TimeSpan? timeout = null) {
+        ct.ThrowIfCancellationRequested();
+
         var mine = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var previous = Interlocked.Exchange(ref _tail, mine);
 
@@ -25,10 +27,10 @@ public sealed class AsyncGate {
                 await previous.Task.WaitAsync(ct).ConfigureAwait(false);
             }
         } catch (TimeoutException) {
-            mine.TrySetException(new TimeoutException("AsyncGate 获取超时"));
-            throw;
-        } catch (OperationCanceledException) {
-            mine.TrySetCanceled(ct);
+            mine.TrySetResult();
+            throw new TimeoutException("AsyncGate 获取超时");
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            mine.TrySetResult();
             throw;
         } catch (Exception ex) {
             Diag.WriteLine($"[AsyncGate] 前序持有者异常,继续当前获取: {ex.Message}");
@@ -57,7 +59,7 @@ public sealed class AsyncGate {
         }
 
         if (!acquired) {
-            mine.TrySetException(new TimeoutException("AsyncGate 获取超时"));
+            mine.TrySetResult();
             throw new TimeoutException("AsyncGate 获取超时");
         }
 

@@ -35,6 +35,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     private readonly PlanFileStore _fileStore;
     private int _planCounter;
     private int _disposed;
+    private static int _sessionSlugSequence;
 
     private readonly SessionPlanState _fallbackState = new();
     private const string PlanStateKey = "plan_state";
@@ -163,11 +164,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         }).ToList() ?? new List<PlanStep>();
 
         // 对齐 TS getPlanSlug(): 同一 session 内缓存 slug，保证覆盖同一文件
-        // 用 AsyncFlowIdentity.FlowId 替代 Environment.CurrentManagedThreadId — async 流跨 await 自动流转,不随线程池调度变化
+        // 进程内单调序号替代线程/流标识 — session 状态自身已缓存 slug,序号只需保证缓存键唯一
         var sessionState = CurrentSessionState();
-        var flowId = LockRegistry.EnsureFlowRegistered();
+        var sessionSeq = Interlocked.Increment(ref _sessionSlugSequence);
         sessionState.CurrentSessionSlug ??= PlanSlugGenerator.GetOrCreateSlug(
-            $"session_{flowId}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs, _logger);
+            $"session_{sessionSeq}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs, _logger);
 
         var plan = new PlanState {
             PlanId = planId,

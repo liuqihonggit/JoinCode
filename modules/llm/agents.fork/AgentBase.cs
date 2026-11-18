@@ -18,10 +18,10 @@ public class AgentBase : Entity, IAgent {
     protected readonly List<string> _context;
     /// <summary>取消令牌源，控制 Agent 执行的取消</summary>
     protected readonly CancellationTokenSource _cts;
-    /// <summary>暂停锁，用于实现 Agent 暂停/恢复机制</summary>
-#pragma warning disable JCC4005 // SemaphoreSlim 在 OnDispose() 中释放，分析器无法追踪间接调用路径
-    protected readonly AsyncLock _pauseLock;
-#pragma warning restore JCC4005
+    /// <summary>暂停门闩 — 暂停时置位，恢复/超时解除；不发信号量，纯任务完成源</summary>
+    private TaskCompletionSource? _pauseGate;
+    /// <summary>暂停最长等待 — 超时自动恢复执行，避免无人恢复时永久卡住</summary>
+    private static readonly TimeSpan PauseWaitTimeout = TimeSpan.FromSeconds(5);
     /// <summary>上次缓存安全参数（可选），用于 LLM 缓存复用</summary>
     protected JoinCode.Abstractions.LLM.Chat.CacheSafeParams? _lastCacheSafeParams;
 
@@ -168,7 +168,6 @@ public class AgentBase : Entity, IAgent {
         _clock = clock ?? SystemClockService.Instance;
         _context = new List<string>();
         _cts = new CancellationTokenSource();
-        _pauseLock = new AsyncLock(nameof(AgentBase));
         Status = TaskExecutionStatus.Pending;
         _executionCount = 0;
         ContextManager = contextManager;
@@ -192,7 +191,7 @@ public class AgentBase : Entity, IAgent {
     /// </summary>
     public override void Dispose() {
         _cts.Dispose();
-        _pauseLock.Dispose();
+        Interlocked.Exchange(ref _pauseGate, null)?.TrySetResult();
         base.Dispose();
     }
 
@@ -273,13 +272,13 @@ public class AgentBase : Entity, IAgent {
                     var pauseStart = _clock.GetUtcNow();
 
                     try {
-                        using (await _pauseLock.TryLockAsync(linkedToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_pauseLock.Name}' 等待超时")) { }
+                        await WaitWhilePausedAsync(linkedToken).ConfigureAwait(false);
 
                         var pauseDuration = _clock.GetUtcNow() - pauseStart;
                         _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", GetType().Name, UniqueId, pauseDuration.TotalMilliseconds);
                     } catch (TimeoutException) {
-                        _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（30秒），自动恢复执行", GetType().Name, UniqueId);
-                        Status = TaskExecutionStatus.Running;
+                        _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（5秒），自动恢复执行", GetType().Name, UniqueId);
+                        ForceResumeAfterPauseTimeout();
                     }
                 }
 
@@ -421,9 +420,9 @@ public class AgentBase : Entity, IAgent {
 
             if (Status == TaskExecutionStatus.Paused) {
                 try {
-                    using (await _pauseLock.TryLockAsync(linkedToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_pauseLock.Name}' 等待超时")) { }
+                    await WaitWhilePausedAsync(linkedToken).ConfigureAwait(false);
                 } catch (TimeoutException) {
-                    Status = TaskExecutionStatus.Running;
+                    ForceResumeAfterPauseTimeout();
                 }
             }
 
@@ -503,10 +502,36 @@ public class AgentBase : Entity, IAgent {
     /// 暂停LLM循环 — 子类可重写以扩展暂停逻辑
     /// </summary>
     public virtual void Pause() {
-        if (Status == TaskExecutionStatus.Running) {
-            Status = TaskExecutionStatus.Paused;
-            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", GetType().Name, UniqueId);
+        if (Status != TaskExecutionStatus.Running) {
+            return;
         }
+
+        Interlocked.CompareExchange(
+            ref _pauseGate,
+            new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously),
+            null);
+        Status = TaskExecutionStatus.Paused;
+        _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", GetType().Name, UniqueId);
+    }
+
+    /// <summary>
+    /// 暂停等待 — 每轮 chunk 检查点阻塞，恢复或超时后返回
+    /// </summary>
+    private async Task WaitWhilePausedAsync(CancellationToken ct) {
+        var gate = Volatile.Read(ref _pauseGate);
+        if (gate is null) {
+            return;
+        }
+
+        await gate.Task.WaitAsync(PauseWaitTimeout, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 暂停等待超时后的自愈 — 回到 Running 并丢弃暂停门闩
+    /// </summary>
+    private void ForceResumeAfterPauseTimeout() {
+        Status = TaskExecutionStatus.Running;
+        Interlocked.Exchange(ref _pauseGate, null)?.TrySetResult();
     }
 
     /// <summary>
@@ -523,10 +548,13 @@ public class AgentBase : Entity, IAgent {
     /// 恢复LLM循环 — 子类可重写以扩展恢复逻辑
     /// </summary>
     public virtual void Resume() {
-        if (Status == TaskExecutionStatus.Paused) {
-            Status = TaskExecutionStatus.Running;
-            _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，释放暂停锁", GetType().Name, UniqueId);
+        if (Status != TaskExecutionStatus.Paused) {
+            return;
         }
+
+        Status = TaskExecutionStatus.Running;
+        Interlocked.Exchange(ref _pauseGate, null)?.TrySetResult();
+        _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，解除暂停门闩", GetType().Name, UniqueId);
     }
 
     /// <summary>

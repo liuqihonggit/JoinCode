@@ -11,9 +11,8 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     private readonly ILogger<PuppeteerBrowserAutomationService> _logger;
     private IBrowser? _browser;
     private bool _initialized;
-    private bool _initializing;
-    private readonly AsyncLock _initLock = new();
-    private bool _disposed;
+    private TaskCompletionSource? _initSignal;
+    private int _disposed;
 
     /// <summary>
     /// 构造 Puppeteer 浏览器自动化服务
@@ -108,11 +107,19 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     private async Task EnsureInitializedAsync() {
         if (_initialized) return;
 
-        using var guard = await _initLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
+        var signal = Volatile.Read(ref _initSignal);
+        if (signal is null) {
+            var mine = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            signal = Interlocked.CompareExchange(ref _initSignal, mine, null) ?? mine;
+            if (ReferenceEquals(signal, mine)) {
+                _ = RunInitializeAsync(mine);
+            }
+        }
 
-        if (_initialized || _initializing) return;
-        _initializing = true;
+        await signal.Task.ConfigureAwait(false);
+    }
 
+    private async Task RunInitializeAsync(TaskCompletionSource completion) {
         try {
             var browserFetcher = new BrowserFetcher();
             var installed = await browserFetcher.DownloadAsync().ConfigureAwait(false);
@@ -132,26 +139,24 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
             _browser = null;
         } finally {
             _initialized = true;
-            _initializing = false;
+            completion.TrySetResult();
         }
-
     }
 
     /// <summary>
-    /// 异步释放 — 关闭浏览器实例并释放锁
+    /// 异步释放 — 关闭浏览器实例
     /// </summary>
-    public ValueTask DisposeAsync() {
-        if (_disposed) return ValueTask.CompletedTask; _disposed = true;
-        if (_browser is not null) {
-            var browser = _browser;
-            _browser = null;
-            return new ValueTask(browser.DisposeAsync().AsTask().ContinueWith(t => {
-                if (t.IsFaulted && t.Exception is { } ex) _logger.LogError(ex, "Failed to dispose browser");
-                _initLock.Dispose();
-            }, TaskContinuationOptions.ExecuteSynchronously));
-        }
+    public async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        _initLock.Dispose();
-        return ValueTask.CompletedTask;
+        var browser = _browser;
+        _browser = null;
+        if (browser is null) return;
+
+        try {
+            await browser.DisposeAsync().ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger.LogError(ex, "Failed to dispose browser");
+        }
     }
 }

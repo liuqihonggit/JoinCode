@@ -13,7 +13,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
 
     private readonly ILogger<TmuxPaneBackend>? _logger;
     private readonly IProcessService _processService;
-    private readonly AsyncLock _creationLock = new();
+    private readonly AsyncGate _creationGate = new();
     private readonly HashSet<string> _managedPanes = new(StringComparer.Ordinal);
     private readonly string? _swarmSocket;
     private readonly bool _insideTmux;
@@ -52,7 +52,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     /// <returns>面板创建结果，包含面板 ID 与后端类型</returns>
     public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
         string teammateId, string command, CancellationToken cancellationToken = default) {
-        using var guard = await _creationLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_creationLock.Name}' 等待超时");
+        using var guard = await _creationGate.AcquireAsync(cancellationToken).ConfigureAwait(false);
 
         if (_insideTmux)
             return await CreatePaneInsideTmuxAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
@@ -238,11 +238,5 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
         }, cancellationToken).ConfigureAwait(false);
 
         return (result.ExitCode, result.StandardOutput, result.StandardError);
-    }
-
-    /// <summary>释放资源 — 释放 tmux 会话创建锁</summary>
-    public override void Dispose() {
-        _creationLock.Dispose();
-        base.Dispose();
     }
 }

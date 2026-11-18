@@ -31,27 +31,23 @@ public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutio
         var maxConcurrency = clusterOptions?.MaxConcurrency ?? options.MaxDegreeOfParallelism;
 
         var agentList = agents.ToList();
-        using var semaphore = new SemaphoreSlim(Math.Max(1, maxConcurrency), Math.Max(1, maxConcurrency));
+        if (agentList.Count == 0) return [];
 
-        var tasks = agentList
-            .Select(async agent => {
-                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try {
-                    var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
-                    return (AgentId: agent.ObjectId.UniqueId, Result: result);
-                } finally {
-                    semaphore.Release();
-                }
-            })
-            .ToList();
+        var results = new SubAgentResult[agentList.Count];
+        var nextIndex = -1;
 
-        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+        async Task WorkerAsync() {
+            while (true) {
+                var index = Interlocked.Increment(ref nextIndex);
+                if (index >= agentList.Count) return;
+                results[index] = await _lifecycleManager.ExecuteAsync(agentList[index], cancellationToken).ConfigureAwait(false);
+            }
+        }
 
-        var resultDict = results.ToDictionary(r => r.AgentId, r => r.Result);
+        var workerCount = Math.Min(Math.Max(1, maxConcurrency), agentList.Count);
+        await Task.WhenAll(Enumerable.Range(0, workerCount).Select(_ => WorkerAsync())).ConfigureAwait(false);
 
-        return agentList
-            .Select(a => resultDict[a.ObjectId.UniqueId])
-            .ToList();
+        return results;
     }
 
     /// <summary>

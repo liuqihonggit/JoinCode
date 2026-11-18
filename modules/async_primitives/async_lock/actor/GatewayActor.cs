@@ -50,7 +50,7 @@ public sealed record GatewayEvent(GatewayCircuitState State, string Message);
 /// <summary>
 /// 网关 Actor — 通用限流/重试/熔断。
 /// <para>继承 ActorBase 获得消息处理 + 输出流,用 LlmGateway 背压配置(容量 200 + 60s 超时)。</para>
-/// <para>限流:SemaphoreSlim 控制最大并发。</para>
+/// <para>限流:有界通道令牌控制最大并发。</para>
 /// <para>重试:指数退避(RetryBaseDelay * 2^attempt)。</para>
 /// <para>熔断:连续失败 CircuitBreakerThreshold 次后打开熔断,RecoveryDelay 后半开试探。</para>
 /// <para>熔断事件通过 OutputAsync 流输出。</para>
@@ -64,7 +64,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
 
     private sealed record CallCommand(TRequest Request, TaskCompletionSource<TResponse> Tcs) : IGatewayCommand;
 
-    private readonly SemaphoreSlim _rateLimiter;
+    private readonly Channel<bool> _rateLimiter;
     private readonly GatewayOptions _options;
     private readonly Func<TRequest, CancellationToken, Task<TResponse>> _handler;
 
@@ -91,7 +91,15 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
         : base(backpressure ?? ActorBackpressure.LlmGateway) {
         _handler = handler;
         _options = options ?? GatewayOptions.LlmGateway;
-        _rateLimiter = new SemaphoreSlim(_options.MaxConcurrency, _options.MaxConcurrency);
+        var capacity = Math.Max(1, _options.MaxConcurrency);
+        _rateLimiter = Channel.CreateBounded<bool>(new BoundedChannelOptions(capacity) {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = false,
+            SingleWriter = false
+        });
+        for (var i = 0; i < capacity; i++) {
+            _rateLimiter.Writer.TryWrite(true);
+        }
     }
 
     /// <summary>
@@ -112,7 +120,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
 
     /// <summary>Actor 停止后释放限流器</summary>
     protected override void PostStop() {
-        _rateLimiter.Dispose();
+        _rateLimiter.Writer.TryComplete();
     }
 
     private async Task ExecuteCallAsync(TRequest req, TaskCompletionSource<TResponse> tcs, CancellationToken ct) {
@@ -129,7 +137,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
             throw new InvalidOperationException("网关熔断器已打开,拒绝调用");
         }
 
-        await _rateLimiter.WaitAsync(ct).ConfigureAwait(false);
+        await _rateLimiter.Reader.ReadAsync(ct).ConfigureAwait(false);
         try {
             for (var attempt = 0; attempt <= _options.MaxRetries; attempt++) {
                 try {
@@ -151,7 +159,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
 
             throw new InvalidOperationException("不应到达此处");
         } finally {
-            _rateLimiter.Release();
+            _rateLimiter.Writer.TryWrite(true);
         }
     }
 

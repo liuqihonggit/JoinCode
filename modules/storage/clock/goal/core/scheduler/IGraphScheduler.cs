@@ -22,7 +22,7 @@ public interface IGraphScheduler {
         GoalGraph graph,
         GraphExecutionContext context,
         ProcessNodeCompletionAsync processNodeAsync,
-        AsyncLock? concurrencyLimiter,
+        PermitPool? concurrencyLimiter,
         CancellationToken ct);
 }
 

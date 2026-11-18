@@ -2,7 +2,7 @@ namespace IO.Services;
 
 /// <summary>
 /// IO 限流服务实现 - 全局单例
-/// 结合 SemaphoreSlim（并发限制）和 Token Bucket（速率限制）
+/// 结合 Channel 许可池（并发限制）和 Token Bucket（速率限制）
 /// </summary>
 public sealed partial class IOThrottleService : IIOThrottleService, IDisposable {
     private readonly IOThrottleOptions _options;
@@ -10,12 +10,12 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
 
-    private readonly AsyncLock _readSemaphore;
-    private readonly AsyncLock _writeSemaphore;
-    private readonly AsyncLock _deleteSemaphore;
+    private readonly Channel<bool> _readPermits;
+    private readonly Channel<bool> _writePermits;
+    private readonly Channel<bool> _deletePermits;
 
     private readonly TokenBucket _tokenBucket;
-    private bool _disposed;
+    private int _disposed;
 
     private int _currentConcurrentOperations;
 
@@ -41,9 +41,9 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
             throw new InvalidOperationException($"[INF023] IOThrottleOptions 验证失败: {validationError}");
         }
 
-        _readSemaphore = new AsyncLock(nameof(IOThrottleService) + ".Read", _options.MaxConcurrentReads, _options.MaxConcurrentReads);
-        _writeSemaphore = new AsyncLock(nameof(IOThrottleService) + ".Write", _options.MaxConcurrentWrites, _options.MaxConcurrentWrites);
-        _deleteSemaphore = new AsyncLock(nameof(IOThrottleService) + ".Delete", _options.MaxConcurrentDeletes, _options.MaxConcurrentDeletes);
+        _readPermits = CreatePermitChannel(_options.MaxConcurrentReads);
+        _writePermits = CreatePermitChannel(_options.MaxConcurrentWrites);
+        _deletePermits = CreatePermitChannel(_options.MaxConcurrentDeletes);
 
         _tokenBucket = new TokenBucket(_options.TokenBucketCapacity, _options.TokenRefillRatePerSecond, () => _clock.GetUtcNow());
 
@@ -75,7 +75,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
     public async Task<IIOExecutionLease> AcquireAsync(
         IOOperationType operationType = IOOperationType.Read,
         CancellationToken cancellationToken = default) {
-        var lockObj = GetLock(operationType);
+        var permits = GetPermits(operationType);
         var tokenCost = _options.GetTokenCost(operationType);
 
         _logger?.LogDebug(
@@ -84,8 +84,9 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
 
         var stopwatch = Stopwatch.StartNew();
 
-        var releaser = await lockObj.TryLockAsync(cancellationToken).ConfigureAwait(false)
-            ?? throw new System.TimeoutException($"锁 '{lockObj.Name}' 等待超时");
+        if (!await permits.Reader.ReadAsync(cancellationToken).ConfigureAwait(false)) {
+            throw new System.TimeoutException($"IO {operationType} 许可池已关闭");
+        }
 
         try {
             await _tokenBucket.WaitForTokensAsync(tokenCost, cancellationToken).ConfigureAwait(false);
@@ -101,10 +102,10 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
                 operationType,
                 stopwatch.ElapsedMilliseconds);
 
-            return new IOExecutionLease(this, operationType, _clock, releaser);
+            return new IOExecutionLease(this, operationType, _clock, permits);
         } catch {
             RecordAcquireMetrics(operationType, stopwatch.ElapsedMilliseconds, false);
-            releaser.Dispose();
+            permits.Writer.TryWrite(true);
             throw;
         }
     }
@@ -118,34 +119,26 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
     public bool TryAcquire(
         IOOperationType operationType,
         out IIOExecutionLease? lease) {
-        var lockObj = GetLock(operationType);
+        var permits = GetPermits(operationType);
         var tokenCost = _options.GetTokenCost(operationType);
 
-        var releaser = lockObj.TryLock(TimeSpan.Zero, default);
-        if (releaser is null) {
+        if (!permits.Reader.TryRead(out _)) {
             RecordAcquireMetrics(operationType, 0, false);
             lease = null;
             return false;
         }
 
-        try {
-            if (!_tokenBucket.TryConsume(tokenCost)) {
-                releaser.Dispose();
-                RecordAcquireMetrics(operationType, 0, false);
-                lease = null;
-                return false;
-            }
-
-            Interlocked.Increment(ref _currentConcurrentOperations);
-            RecordAcquireMetrics(operationType, 0, true);
-            lease = new IOExecutionLease(this, operationType, _clock, releaser);
-            return true;
-        } catch {
-            releaser.Dispose();
+        if (!_tokenBucket.TryConsume(tokenCost)) {
+            permits.Writer.TryWrite(true);
             RecordAcquireMetrics(operationType, 0, false);
             lease = null;
             return false;
         }
+
+        Interlocked.Increment(ref _currentConcurrentOperations);
+        RecordAcquireMetrics(operationType, 0, true);
+        lease = new IOExecutionLease(this, operationType, _clock, permits);
+        return true;
     }
 
     /// <summary>
@@ -160,12 +153,26 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
             operationType);
     }
 
-    private LockRef GetLock(IOOperationType operationType) => new LockRef(operationType switch {
-        IOOperationType.Read => _readSemaphore,
-        IOOperationType.Write => _writeSemaphore,
-        IOOperationType.Delete => _deleteSemaphore,
+    private Channel<bool> GetPermits(IOOperationType operationType) => operationType switch {
+        IOOperationType.Read => _readPermits,
+        IOOperationType.Write => _writePermits,
+        IOOperationType.Delete => _deletePermits,
         _ => throw new ArgumentOutOfRangeException(nameof(operationType))
-    });
+    };
+
+    private static Channel<bool> CreatePermitChannel(int count) {
+        var channel = Channel.CreateBounded<bool>(new BoundedChannelOptions(count) {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = false,
+            SingleWriter = false
+        });
+
+        for (var i = 0; i < count; i++) {
+            channel.Writer.TryWrite(true);
+        }
+
+        return channel;
+    }
 
     private void RecordAcquireMetrics(IOOperationType operationType, long elapsedMs, bool isSuccess) {
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "io.throttle.acquire.count", operationType.ToString(), isSuccess, "IO throttle acquire count");
@@ -177,10 +184,10 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
     /// 释放限流服务持有的所有资源
     /// </summary>
     public void Dispose() {
-        if (_disposed) return; _disposed = true;
-        _readSemaphore.Dispose();
-        _writeSemaphore.Dispose();
-        _deleteSemaphore.Dispose();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _readPermits.Writer.TryComplete();
+        _writePermits.Writer.TryComplete();
+        _deletePermits.Writer.TryComplete();
         _tokenBucket.Dispose();
     }
 }
@@ -190,7 +197,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable 
 /// </summary>
 internal sealed class IOExecutionLease : IIOExecutionLease {
     private readonly IOThrottleService _service;
-    private readonly IDisposable? _releaser;
+    private readonly Channel<bool>? _permits;
     private int _disposed;
 
     /// <summary>获取许可的时间戳</summary>
@@ -204,12 +211,12 @@ internal sealed class IOExecutionLease : IIOExecutionLease {
     /// <param name="service">所属限流服务</param>
     /// <param name="operationType">IO 操作类型</param>
     /// <param name="clock">时钟服务</param>
-    /// <param name="releaser">并发锁释放器</param>
-    public IOExecutionLease(IOThrottleService service, IOOperationType operationType, IClockService clock, IDisposable? releaser = null) {
+    /// <param name="permits">并发许可池，释放时归还</param>
+    public IOExecutionLease(IOThrottleService service, IOOperationType operationType, IClockService clock, Channel<bool>? permits = null) {
         _service = service;
         OperationType = operationType;
         AcquiredAt = clock.GetUtcNow();
-        _releaser = releaser;
+        _permits = permits;
     }
 
     /// <summary>
@@ -217,7 +224,7 @@ internal sealed class IOExecutionLease : IIOExecutionLease {
     /// </summary>
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _releaser?.Dispose();
+        _permits?.Writer.TryWrite(true);
         _service.Release(OperationType);
     }
 

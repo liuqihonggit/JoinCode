@@ -25,7 +25,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly SecretaryRegistry _secretaryRegistry;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;
     private readonly MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
-    private volatile AsyncLock _spawnSemaphore;
+    private readonly PermitPool _spawnPermits;
 
     /// <summary>Agent 任务状态变更事件，参数携带 Agent ID 与新旧状态</summary>
     public event EventHandler<AgentTaskStatusChangedEventArgs>? TaskStatusChanged;
@@ -75,7 +75,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _secretaryRegistry = new SecretaryRegistry((task, opts, ct) => SpawnSubAgentAsync(task, opts, ct), _logger);
 
         var spawnLimit = Math.Max(1, (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentSpawns);
-        _spawnSemaphore = new AsyncLock(nameof(AgentCoordinator) + ".Spawn", spawnLimit, spawnLimit);
+        _spawnPermits = new PermitPool(spawnLimit);
 
         _stateMachine = core.StateMachine;
         _stateMachine.StateChanged += OnStateChanged;
@@ -91,22 +91,20 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     }
 
     /// <summary>
-    /// 释放 spawn 信号量等内核资源
+    /// 释放 spawn 许可池资源
     /// </summary>
     public override void Dispose() {
         _stateMachine.StateChanged -= OnStateChanged;
-        _spawnSemaphore.Dispose();
+        _spawnPermits.Dispose();
         base.Dispose();
     }
 
     /// <summary>
-    /// 热重载 spawn 并发上限 — 原子替换 SemaphoreSlim，旧的 Dispose（ADR 0048）
+    /// 热重载 spawn 并发上限 — 许可池整体换新容量（ADR 0048）
     /// </summary>
     public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options) {
         var newLimit = Math.Max(1, options.MaxConcurrentSpawns);
-        var newSem = new AsyncLock(nameof(AgentCoordinator) + ".Spawn", newLimit, newLimit);
-        var old = Interlocked.Exchange(ref _spawnSemaphore, newSem);
-        old.Dispose();
+        _spawnPermits.Resize(newLimit);
         _logger?.LogInformation("spawn 并发上限已热重载为 {Limit}", newLimit);
     }
 
@@ -121,38 +119,25 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     /// <param name="parentSessionId">可选父会话 ID，用于生成自定义唯一标识</param>
     /// <returns>已生成的子 Agent 实例</returns>
     public async Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null) {
-        var sem = _spawnSemaphore;
-        IDisposable? releaser;
-        try {
-            releaser = await sem.TryLockAsync(cancellationToken).ConfigureAwait(false)
-                ?? throw new System.TimeoutException($"锁 '{sem.Name}' 等待超时");
-        } catch (ObjectDisposedException) {
-            sem = _spawnSemaphore;
-            releaser = await sem.TryLockAsync(cancellationToken).ConfigureAwait(false)
-                ?? throw new System.TimeoutException($"锁 '{sem.Name}' 等待超时");
-        }
-        try {
-            var ctx = new UnifiedSpawnContext {
-                Task = task,
-                SubOptions = options,
-                CancellationToken = cancellationToken,
-                ParentSessionId = parentSessionId,
-            };
-            await _spawnPipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
+        using var spawnPermit = await _spawnPermits.AcquireAsync(cancellationToken).ConfigureAwait(false);
+        var ctx = new UnifiedSpawnContext {
+            Task = task,
+            SubOptions = options,
+            CancellationToken = cancellationToken,
+            ParentSessionId = parentSessionId,
+        };
+        await _spawnPipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
 
-            if (ctx.Agent is not null) {
-                if (ctx.SpawnedAt != default) {
-                    _agentStartTimer.Record(ctx.AgentId, ctx.SpawnedAt);
-                }
-                if (ctx.ExecutionContext is not null) {
-                    SetExecutionContext(ctx.AgentId, ctx.ExecutionContext);
-                }
+        if (ctx.Agent is not null) {
+            if (ctx.SpawnedAt != default) {
+                _agentStartTimer.Record(ctx.AgentId, ctx.SpawnedAt);
             }
-
-            return ctx.Agent ?? throw new InvalidOperationException("Spawn pipeline completed without agent");
-        } finally {
-            releaser.DisposeSafe(_logger);
+            if (ctx.ExecutionContext is not null) {
+                SetExecutionContext(ctx.AgentId, ctx.ExecutionContext);
+            }
         }
+
+        return ctx.Agent ?? throw new InvalidOperationException("Spawn pipeline completed without agent");
     }
 
     /// <summary>

@@ -42,7 +42,7 @@ public static class Program {
     /// 排除副作用命令（reset-config/logout/clear/状态改写类）与调 LLM 命令（--selftest-turn 已覆盖）。
     /// 新增仅只读查询类+当前值显示类：无参查询态（/advisor /assistant /buddy /switch /sampling /statusline）、
     /// 默认 list 分支（/hooks /plugin /permissions /workflows /memory /skills）、显式查询分支（/mcp status /plan status /diag /falv）。</summary>
-    private static async Task<int> RunSelftestCommandsAsync() {
+    public static async Task<int> RunSelftestCommandsAsync() {
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
         await using var session = await EngineSession.CreateAsync().ConfigureAwait(false);
@@ -188,7 +188,7 @@ public static class Program {
     /// <summary>真实回合计时探针（ADR 0080 — 诊断 TUI 链路回复延迟）— 提交一个真实回合
     /// （走用户交互同链：EngineTurnClient → SessionController(mainAgent) → QueryEngine），
     /// 逐事件打印相对时间戳（turn_started/首思考/首 token/完成/错误），60s 超时兜底。</summary>
-    private static async Task<int> RunSelftestTurnAsync() {
+    public static async Task<int> RunSelftestTurnAsync() {
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
         await using var session = await EngineSession.CreateAsync().ConfigureAwait(false);
@@ -821,7 +821,7 @@ public static class Program {
     ///（printf '|' 形态 — 终端即往 stdin 写这些字节，管道字节流与终端形态一致）→
     /// RawStdinPump 读线程全链（UTF-8 增量解码/前缀攒齐/paste 整块/修饰组合）→ 键位全表逐位断言。
     /// stdin 经管道输入（探针通道 — 不经交互模式重定向守卫）；EOF 后读线程退出收敛。</summary>
-    private static async Task<int> RunSelftestInputAsync() {
+    public static async Task<int> RunSelftestInputAsync() {
         using var pump = new RawStdinPump();
         var keys = new List<KeyPress>();
         var timeoutAt = Environment.TickCount64 + 5000;
@@ -880,7 +880,7 @@ public static class Program {
 
     /// <summary>非交互冒烟（ADR 0080 真实组装非 mock）— 真实引擎会话组装 + session_info 握手断言 +
     /// 权限模式真实回执（PermissionChecker 安全闸链路）+ 无效模式 Error 诱导；不提交回合（不调 LLM）。</summary>
-    private static async Task<int> RunSelftestAsync() {
+    public static async Task<int> RunSelftestAsync() {
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
         await using var session = await EngineSession.CreateAsync().ConfigureAwait(false);

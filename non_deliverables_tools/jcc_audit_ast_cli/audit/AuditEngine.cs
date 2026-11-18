@@ -464,41 +464,37 @@ public sealed class AuditEngine {
         Console.WriteLine($"  项目加载完成 ({projects.Count} 个)");
 
         // 并行提取胖构造函数
-        var semaphore = new SemaphoreSlim(MaxConcurrency);
         var completed = 0;
+        var extractResults = new ConcurrentBag<IEnumerable<ConstructorParamInfo>>();
 
-        var tasks = projects.Select(async project => {
-            await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                projectCts.CancelAfter(TimeSpan.FromSeconds(120));
+        await BoundedWorkQueue.RunAsync(
+            projects,
+            MaxConcurrency,
+            async (project, token) => {
+                try {
+                    using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    projectCts.CancelAfter(TimeSpan.FromSeconds(120));
 
-                var compilation = await project.GetCompilationAsync(projectCts.Token).ConfigureAwait(false);
-                if (compilation is null) {
-                    Console.Error.WriteLine($"  编译失败: {project.Name}");
-                    return Enumerable.Empty<ConstructorParamInfo>();
+                    var compilation = await project.GetCompilationAsync(projectCts.Token).ConfigureAwait(false);
+                    if (compilation is null) {
+                        Console.Error.WriteLine($"  编译失败: {project.Name}");
+                        return;
+                    }
+
+                    var fatCtors = ConstructorParamCounter.Extract(compilation, threshold);
+                    var count = Interlocked.Increment(ref completed);
+                    Console.WriteLine($"  [{count}/{projects.Count}] {project.Name} - {fatCtors.Count} 个胖构造函数");
+
+                    extractResults.Add(fatCtors);
+                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                    var count = Interlocked.Increment(ref completed);
+                    Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目超时: {project.Name}");
+                } catch (Exception ex) {
+                    var count = Interlocked.Increment(ref completed);
+                    Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目失败: {project.Name} - {ex.Message}");
                 }
-
-                var fatCtors = ConstructorParamCounter.Extract(compilation, threshold);
-                var count = Interlocked.Increment(ref completed);
-                Console.WriteLine($"  [{count}/{projects.Count}] {project.Name} - {fatCtors.Count} 个胖构造函数");
-
-                return fatCtors.AsEnumerable();
-            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                var count = Interlocked.Increment(ref completed);
-                Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目超时: {project.Name}");
-                return Enumerable.Empty<ConstructorParamInfo>();
-            } catch (Exception ex) {
-                var count = Interlocked.Increment(ref completed);
-                Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目失败: {project.Name} - {ex.Message}");
-                return Enumerable.Empty<ConstructorParamInfo>();
-            } finally {
-                semaphore.Release();
-            }
-        });
-
-        var extractResults = await Task.WhenAll(tasks).ConfigureAwait(false);
-        semaphore.Dispose();
+            },
+            ct).ConfigureAwait(false);
 
         var allFatCtors = extractResults.SelectMany(r => r).ToList();
 
@@ -534,43 +530,41 @@ public sealed class AuditEngine {
         IReadOnlyList<Project> projects, CancellationToken ct) {
         var results = new ProjectAuditResult[projects.Count];
         var completed = 0;
-        var semaphore = new SemaphoreSlim(MaxConcurrency);
 
-        var tasks = projects.Select(async (project, index) => {
-            await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                projectCts.CancelAfter(TimeSpan.FromSeconds(120));
+        await BoundedWorkQueue.RunAsync(
+            Enumerable.Range(0, projects.Count).ToList(),
+            MaxConcurrency,
+            async (index, token) => {
+                var project = projects[index];
+                try {
+                    using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    projectCts.CancelAfter(TimeSpan.FromSeconds(120));
 
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = await AuditProjectCoreAsync(project, projectCts.Token);
-                sw.Stop();
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var result = await AuditProjectCoreAsync(project, projectCts.Token);
+                    sw.Stop();
 
-                var count = Interlocked.Increment(ref completed);
-                Console.WriteLine($"  [{count}/{projects.Count}] {project.Name} - {result.TotalDiagnostics} 条诊断 ({sw.Elapsed.TotalSeconds:F1}s)");
+                    var count = Interlocked.Increment(ref completed);
+                    Console.WriteLine($"  [{count}/{projects.Count}] {project.Name} - {result.TotalDiagnostics} 条诊断 ({sw.Elapsed.TotalSeconds:F1}s)");
 
-                results[index] = result;
-            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                var count = Interlocked.Increment(ref completed);
-                Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目超时: {project.Name}");
-                results[index] = new ProjectAuditResult {
-                    ProjectName = project.Name,
-                    ProjectPath = project.FilePath ?? string.Empty,
-                };
-            } catch (Exception ex) {
-                var count = Interlocked.Increment(ref completed);
-                Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目失败: {project.Name} - {ex.Message}");
-                results[index] = new ProjectAuditResult {
-                    ProjectName = project.Name,
-                    ProjectPath = project.FilePath ?? string.Empty,
-                };
-            } finally {
-                semaphore.Release();
-            }
-        });
-
-        await Task.WhenAll(tasks).ConfigureAwait(false);
-        semaphore.Dispose();
+                    results[index] = result;
+                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                    var count = Interlocked.Increment(ref completed);
+                    Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目超时: {project.Name}");
+                    results[index] = new ProjectAuditResult {
+                        ProjectName = project.Name,
+                        ProjectPath = project.FilePath ?? string.Empty,
+                    };
+                } catch (Exception ex) {
+                    var count = Interlocked.Increment(ref completed);
+                    Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目失败: {project.Name} - {ex.Message}");
+                    results[index] = new ProjectAuditResult {
+                        ProjectName = project.Name,
+                        ProjectPath = project.FilePath ?? string.Empty,
+                    };
+                }
+            },
+            ct).ConfigureAwait(false);
         return results.Where(r => r is not null).ToList()!;
     }
 

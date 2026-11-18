@@ -22,26 +22,23 @@ public static class FastProjectLoader {
         // 阶段1：并行加载 MSBuild 项目（每个 Task 用独立 ProjectCollection，线程安全）
         var msbuildProjects = new ConcurrentBag<(string Path, Microsoft.Build.Evaluation.Project Project, Microsoft.Build.Evaluation.ProjectCollection Collection)>();
         var loadedCount = 0;
-        var semaphore = new SemaphoreSlim(MaxConcurrency);
 
-        var loadTasks = projectPaths.Select(async projectPath => {
-            await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                var pc = new Microsoft.Build.Evaluation.ProjectCollection();
-                var project = pc.LoadProject(projectPath);
-                msbuildProjects.Add((projectPath, project, pc));
-                var count = Interlocked.Increment(ref loadedCount);
-                if (count % 10 == 0)
-                    Console.WriteLine($"  [加载 {count}/{projectPaths.Count}]...");
-            } catch (Exception ex) {
-                Console.Error.WriteLine($"  加载项目失败: {Path.GetFileName(projectPath)} - {ex.Message}");
-            } finally {
-                semaphore.Release();
-            }
-        });
-
-        await Task.WhenAll(loadTasks).ConfigureAwait(false);
-        semaphore.Dispose();
+        projectPaths
+            .AsCpuParallel()
+            .WithDegreeOfParallelism(MaxConcurrency)
+            .WithCancellation(ct)
+            .ForAll(projectPath => {
+                try {
+                    var pc = new Microsoft.Build.Evaluation.ProjectCollection();
+                    var project = pc.LoadProject(projectPath);
+                    msbuildProjects.Add((projectPath, project, pc));
+                    var count = Interlocked.Increment(ref loadedCount);
+                    if (count % 10 == 0)
+                        Console.WriteLine($"  [加载 {count}/{projectPaths.Count}]...");
+                } catch (Exception ex) {
+                    Console.Error.WriteLine($"  加载项目失败: {Path.GetFileName(projectPath)} - {ex.Message}");
+                }
+            });
         loadSw.Stop();
         Console.WriteLine($"  [统计] MSBuild 项目加载完成 ({msbuildProjects.Count}/{projectPaths.Count})，耗时: {loadSw.Elapsed.TotalSeconds:F1}s");
 
@@ -49,29 +46,26 @@ public static class FastProjectLoader {
         var compileSw = System.Diagnostics.Stopwatch.StartNew();
         var compilations = new ConcurrentBag<(string Name, string FilePath, CSharpCompilation Compilation)>();
         var compiledCount = 0;
-        var compileSemaphore = new SemaphoreSlim(MaxConcurrency);
 
-        var compileTasks = msbuildProjects.Select(async item => {
-            await compileSemaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                var compilation = CreateCompilation(item.Project, item.Path);
-                if (compilation is not null) {
-                    var name = item.Project.GetPropertyValue("AssemblyName") ?? Path.GetFileNameWithoutExtension(item.Path);
-                    compilations.Add((name, item.Path, compilation));
+        msbuildProjects
+            .AsCpuParallel()
+            .WithDegreeOfParallelism(MaxConcurrency)
+            .WithCancellation(ct)
+            .ForAll(item => {
+                try {
+                    var compilation = CreateCompilation(item.Project, item.Path);
+                    if (compilation is not null) {
+                        var name = item.Project.GetPropertyValue("AssemblyName") ?? Path.GetFileNameWithoutExtension(item.Path);
+                        compilations.Add((name, item.Path, compilation));
+                    }
+                    var count = Interlocked.Increment(ref compiledCount);
+                    if (count % 10 == 0)
+                        Console.WriteLine($"  [编译 {count}/{msbuildProjects.Count}]...");
+                } catch (Exception ex) {
+                    Console.Error.WriteLine($"  创建 Compilation 失败: {Path.GetFileName(item.Path)} - {ex.Message}");
+                    Interlocked.Increment(ref compiledCount);
                 }
-                var count = Interlocked.Increment(ref compiledCount);
-                if (count % 10 == 0)
-                    Console.WriteLine($"  [编译 {count}/{msbuildProjects.Count}]...");
-            } catch (Exception ex) {
-                Console.Error.WriteLine($"  创建 Compilation 失败: {Path.GetFileName(item.Path)} - {ex.Message}");
-                Interlocked.Increment(ref compiledCount);
-            } finally {
-                compileSemaphore.Release();
-            }
-        });
-
-        await Task.WhenAll(compileTasks).ConfigureAwait(false);
-        compileSemaphore.Dispose();
+            });
         compileSw.Stop();
         Console.WriteLine($"  [统计] Compilation 创建完成 ({compilations.Count}/{msbuildProjects.Count})，耗时: {compileSw.Elapsed.TotalSeconds:F1}s");
 
@@ -91,55 +85,49 @@ public static class FastProjectLoader {
         // 阶段1：并行加载 MSBuild 项目
         var msbuildProjects = new ConcurrentBag<(string Path, Microsoft.Build.Evaluation.Project Project, Microsoft.Build.Evaluation.ProjectCollection Collection)>();
         var loadedCount = 0;
-        var loadSemaphore = new SemaphoreSlim(MaxConcurrency);
 
-        var loadTasks = projectPaths.Select(async projectPath => {
-            await loadSemaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                var pc = new Microsoft.Build.Evaluation.ProjectCollection();
-                var project = pc.LoadProject(projectPath);
-                msbuildProjects.Add((projectPath, project, pc));
-                var count = Interlocked.Increment(ref loadedCount);
-                if (count % 10 == 0)
-                    Console.WriteLine($"  [加载 {count}/{projectPaths.Count}]...");
-            } catch (Exception ex) {
-                Console.Error.WriteLine($"  加载项目失败: {Path.GetFileName(projectPath)} - {ex.Message}");
-            } finally {
-                loadSemaphore.Release();
-            }
-        });
-
-        await Task.WhenAll(loadTasks).ConfigureAwait(false);
-        loadSemaphore.Dispose();
+        projectPaths
+            .AsCpuParallel()
+            .WithDegreeOfParallelism(MaxConcurrency)
+            .WithCancellation(ct)
+            .ForAll(projectPath => {
+                try {
+                    var pc = new Microsoft.Build.Evaluation.ProjectCollection();
+                    var project = pc.LoadProject(projectPath);
+                    msbuildProjects.Add((projectPath, project, pc));
+                    var count = Interlocked.Increment(ref loadedCount);
+                    if (count % 10 == 0)
+                        Console.WriteLine($"  [加载 {count}/{projectPaths.Count}]...");
+                } catch (Exception ex) {
+                    Console.Error.WriteLine($"  加载项目失败: {Path.GetFileName(projectPath)} - {ex.Message}");
+                }
+            });
         loadSw.Stop();
         Console.WriteLine($"  [统计] MSBuild 项目加载完成 ({msbuildProjects.Count}/{projectPaths.Count})，耗时: {loadSw.Elapsed.TotalSeconds:F1}s");
 
         // 阶段2：并行创建 Compilation，完成后立即写入 Channel（消费者可提前开始分析）
         var compileSw = System.Diagnostics.Stopwatch.StartNew();
         var compiledCount = 0;
-        var compileSemaphore = new SemaphoreSlim(MaxConcurrency);
 
-        var compileTasks = msbuildProjects.Select(async item => {
-            await compileSemaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                var compilation = CreateCompilation(item.Project, item.Path);
-                if (compilation is not null) {
-                    var name = item.Project.GetPropertyValue("AssemblyName") ?? Path.GetFileNameWithoutExtension(item.Path);
-                    await writer.WriteAsync((name, item.Path, compilation), ct).ConfigureAwait(false);
+        await BoundedWorkQueue.RunAsync(
+            msbuildProjects.ToList(),
+            MaxConcurrency,
+            async (item, token) => {
+                try {
+                    var compilation = CreateCompilation(item.Project, item.Path);
+                    if (compilation is not null) {
+                        var name = item.Project.GetPropertyValue("AssemblyName") ?? Path.GetFileNameWithoutExtension(item.Path);
+                        await writer.WriteAsync((name, item.Path, compilation), token).ConfigureAwait(false);
+                    }
+                    var count = Interlocked.Increment(ref compiledCount);
+                    if (count % 10 == 0)
+                        Console.WriteLine($"  [编译 {count}/{msbuildProjects.Count}]...");
+                } catch (Exception ex) {
+                    Console.Error.WriteLine($"  创建 Compilation 失败: {Path.GetFileName(item.Path)} - {ex.Message}");
+                    Interlocked.Increment(ref compiledCount);
                 }
-                var count = Interlocked.Increment(ref compiledCount);
-                if (count % 10 == 0)
-                    Console.WriteLine($"  [编译 {count}/{msbuildProjects.Count}]...");
-            } catch (Exception ex) {
-                Console.Error.WriteLine($"  创建 Compilation 失败: {Path.GetFileName(item.Path)} - {ex.Message}");
-                Interlocked.Increment(ref compiledCount);
-            } finally {
-                compileSemaphore.Release();
-            }
-        });
-
-        await Task.WhenAll(compileTasks).ConfigureAwait(false);
-        compileSemaphore.Dispose();
+            },
+            ct).ConfigureAwait(false);
         foreach (var item in msbuildProjects) item.Collection.Dispose();
         writer.TryComplete();
         compileSw.Stop();

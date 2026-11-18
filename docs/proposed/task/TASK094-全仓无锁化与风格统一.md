@@ -175,7 +175,7 @@
    - `SemaphoreSlim/Semaphore`、`Mutex`、`ReaderWriterLockSlim`、`SpinLock`
    - `ManualResetEventSlim/AutoResetEvent/ManualResetEvent/CountdownEvent/Barrier`
    - `AsyncLock`、`LockRef`、`AsyncLockedDictionary`、`TimeoutLock`、`OrderedLockManager`
-2. 新增 CI 脚本 `non_deliverables_tools/scripts/Check-NoLockPrimitives.ps1`，与 JCC4008 双保险；基线文件只减不增。
+2. 新增 CI 脚本 `non_deliverables_tools/scripts/Verify-NoLockPrimitives.py`，与 JCC4008 双保险；基线 `non_deliverables_tools/lock_gate/lock-primitive-baseline.txt` 只减不增（`|0` 行为分析器专用间接消费豁免，B6 清零）。
 3. 修正提示词与分析器文案：
    - `DeadlockAuditSection` 改为“发现锁 → 改 Actor/不可变+CAS/Channel/文件租约”，删除 `TimeoutLock` 和分片锁建议。
    - JCC4001 的修复建议删除“改用 SemaphoreSlim”，改为指向 JCC4008 与 Actor 范式。
@@ -183,7 +183,7 @@
 4. 固化 exe 验收入口：
    - TUI：`jcc.exe --selftest-tui` / `--selftest-input` 透传到 `NativeTui.Host` 现有 selftest（当前为 private，需要公开一个入口）；保留 `NativeTui.Demo.exe --selftest`、`--selftest-bash`、`--bridge-selftest`。
    - GUI：保留 `NativeGui.Host.exe --webui-smoke`；新增 `--dsh-smoke`，真实启动 DSH WebHost，完成一次会话/流式事件往返后退出。
-   - 跨进程：新增 `jcc.exe --selftest-crossproc` 或独立 selftest 模式，用两个真实进程竞争同一租约/存储目录。
+   - 跨进程：新增 `jcc.exe --selftest-crossproc` 或独立 selftest 模式，用两个真实进程竞争同一租约/存储目录（依赖 B5 原子文件租约，挂在 B5 验收）。
 5. 退出标准：故意新增一个 `lock`/`SemaphoreSlim`，JCC4008 与 CI 均失败；三个 exe 挂钩正常退出。
 
 ### B1 低风险模块锁（22 处）
@@ -316,8 +316,8 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
-| JCC4008 `ForbiddenLockPrimitiveRule` + `Check-NoLockPrimitives.ps1` | 16 域 + native_gui/native_tui + CI | ❌ | ❌（注入违规应构建失败） |
-| TUI/GUI/跨进程 exe 挂钩 | `jcc.exe --selftest-tui`、`NativeGui.Host.exe --dsh-smoke`、`jcc.exe --selftest-crossproc` | ❌ | ❌（各挂钩退出码 0） |
+| JCC4008 `ForbiddenLockPrimitiveRule` + `Verify-NoLockPrimitives.py` + 逐文件基线 | 16 域 + native_gui/native_tui + CI | ✅ | ✅ 注入 `LockGateProbe.cs` 实测构建失败（`error JCC4008`，`.xxx/logs/TASK094/build-lock-probe-red.txt`），移入 `.xxx/` 后构建恢复 0 错误；基线门禁 150 文件/570 处通过；全仓 `Build-AllDomains.ps1` 通过（`.xxx/logs/TASK094/build-all-b0-r2.txt`）；工具侧 7 处 `SemaphoreSlim` 限流改为 `BoundedWorkQueue`/`AsCpuParallel`，`JccAuditCli.csproj` 0 警告 0 错误 |
+| TUI/GUI/跨进程 exe 挂钩 | `jcc.exe --selftest-tui`、`--selftest-input`、`NativeGui.Host.exe --dsh-smoke`；`--selftest-crossproc` 挂 B5 | ✅（跨进程待 B5） | ✅ `--selftest-tui` EXIT=0（HOST SELFTEST OK）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/selftest-input-r4.txt`）、`--dsh-smoke` EXIT=0（GET 首页 len=34782，`.xxx/logs/TASK094/dsh-smoke-r2.txt`） |
 | 非阻塞 Console 单写者 | `ErrorConsole`、`ConsoleSuppressionGate` | ❌ | ❌（jcc TUI 高日志无卡死） |
 | 单写者 Channel / 快照 | `LspConnection`、`RgEngine`、`ConfigurationService`、`AsyncLazy` | ❌ | ❌（jcc 搜索/索引/回合并发） |
 | TUI 输入与回合 Actor | `RawStdinPump`、`LazyEngine`、`EngineTurnClient`、`ReplShell`、`BridgeEventPump` | ❌ | ❌（TUI selftest + 真实终端） |
@@ -362,7 +362,7 @@ export JCC_APP_DATA_FOLDER="$PWD/.xxx/tmp/jcc-accept-$(date +%s)"
 
 ```bash
 ./artifacts/bin/JoinCode/Debug/net10.0/jcc.exe --selftest-tui
-./artifacts/bin/JoinCode/Debug/net10.0/jcc.exe --selftest-input
+printf 'ab\025\033[D\033[1;5D\033[200~中文粘贴内容\033[201~\037你\r' | ./artifacts/bin/JoinCode/Debug/net10.0/jcc.exe --selftest-input
 ./artifacts/bin/NativeTui.Demo/Debug/net10.0/NativeTui.Demo.exe --selftest
 ./artifacts/bin/NativeTui.Demo/Debug/net10.0/NativeTui.Demo.exe --selftest-bash
 ./artifacts/bin/NativeTui.Demo/Debug/net10.0/NativeTui.Demo.exe --bridge-selftest

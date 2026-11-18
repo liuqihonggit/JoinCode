@@ -1,12 +1,12 @@
-using System.Buffers.Binary;
+
 // media 组第二批下沉 handler — 图像/LLM/状态/voice/vcr 类。
 // 全部只用 BCL + Win32 P/Invoke：HttpClient 调 LLM，BclPng 编解码，winmm 录音，文件存状态。
 // jcc 主进程无需为这些工具初始化引擎或引用 SkiaSharp/LLM SDK。
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using JoinCode.Abstractions.Tools;
+
+
+
+
+
 
 namespace JoinCode.CliNode.Media;
 

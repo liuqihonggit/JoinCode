@@ -1,5 +1,5 @@
-using Microsoft.ML.OnnxRuntime;
-using Microsoft.ML.OnnxRuntime.Tensors;
+
+
 
 Console.WriteLine("=== ONNX 嵌入详尽基准测试 ===");
 Console.WriteLine($"CPU 线程数: {Environment.ProcessorCount}");

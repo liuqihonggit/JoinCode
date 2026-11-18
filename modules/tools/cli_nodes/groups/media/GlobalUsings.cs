@@ -1,0 +1,10 @@
+global using JoinCode.Abstractions.Tools;
+global using System.Buffers.Binary;
+global using System.Collections.Frozen;
+global using System.Diagnostics;
+global using System.Globalization;
+global using System.IO.Compression;
+global using System.Runtime.InteropServices;
+global using System.Text.Json.Serialization;
+global using System.Text.Json;
+global using System.Text;

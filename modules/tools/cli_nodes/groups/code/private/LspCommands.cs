@@ -1,9 +1,9 @@
 // code 组 lsp_* 下沉 —— exe 自持语言服务器进程（JSON-RPC over stdio），不依赖宿主常驻实例。
 // 只用 BCL：Process 起服务器、手写 Content-Length 分帧、JsonNode 收发。
 // 配置读 ~/.jcc/lsp-servers.json（与宿主 LspConfigLoader 同一文件，不另立真相源）。
-using System.Globalization;
-using System.Text;
-using System.Text.Json.Nodes;
+
+
+
 
 namespace JoinCode.CliNode.Code;
 

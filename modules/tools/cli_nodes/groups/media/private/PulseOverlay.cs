@@ -3,7 +3,7 @@
 //   主线程直接跑消息循环，WM_TIMER 到 duration 后自动 WM_CLOSE → WM_DESTROY → PostQuitMessage，
 //   循环自然退出。没有后台线程、没有跨线程 PostMessage，从根上消除「Close 时窗口还没创建」的竞态。
 // 确定性逻辑（ComputeRadius / Validate / Geometry）拆成 internal static，可独立断言。
-using System.Runtime.InteropServices;
+
 
 namespace JoinCode.CliNode.Media;
 

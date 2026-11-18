@@ -1,7 +1,3 @@
-using Microsoft.CodeAnalysis;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 
 /// <summary>
 /// 生成器公共工具 — 特性扫描的通用 VisitNamespaces 实现

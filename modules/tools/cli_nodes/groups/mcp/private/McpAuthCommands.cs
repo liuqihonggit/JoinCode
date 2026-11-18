@@ -3,10 +3,10 @@
 // 注意：宿主长驻进程的内存字典需适配文件变更（读认证时重载）——这是宿主侧配套，不阻塞本 exe。
 // mcp_connect/disconnect/list_tools/call_tool 等 13 个依赖进程内活跃连接对象（stdio 管道/SSE/WebSocket
 // + ToolRegistry 注册），随进程退出销毁，物理上无法在短生命周期 exe 等价，留宿主。
-using System.Collections.Frozen;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using JoinCode.Abstractions.Tools;
+
+
+
+
 
 namespace JoinCode.CliNode.Mcp;
 

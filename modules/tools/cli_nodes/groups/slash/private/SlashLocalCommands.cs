@@ -1,11 +1,11 @@
 // slash 组本地实现 — 5 个纯文本/环境命令（version/color/env/help/heapdump）。
 // 其余 94 个依赖宿主会话上下文/TUI 回调/LLM 会话流/进程内长连接，转发 jcc slash_call。
 // caveat：env 读到的是独立 exe 自身环境（无宿主会话级变量）；heapdump 诊断的是独立 exe 自身进程——如实标注。
-using System.Collections.Frozen;
-using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using JoinCode.Abstractions.Tools;
+
+
+
+
+
 
 namespace JoinCode.CliNode.Slash;
 

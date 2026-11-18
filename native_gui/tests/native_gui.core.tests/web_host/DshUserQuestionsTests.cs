@@ -23,26 +23,29 @@ public sealed class DshUserQuestionsTests {
             }).ToArray(),
         });
 
-    /// <summary>帧收集器：发送委托投递帧并释放信号，测试按序号等待，不盲等时间</summary>
+    /// <summary>帧收集器：发送委托投递帧并写入信号通道，测试按序号等待，不盲等时间</summary>
     private sealed class FrameFeed {
-        private readonly SemaphoreSlim _signal = new(0);
+        private readonly Channel<bool> _signal = Channel.CreateUnbounded<bool>();
         private readonly ConcurrentQueue<JsonElement> _frames = new();
 
         internal Task Add(JsonElement frame) {
             _frames.Enqueue(frame.Clone());
-            _signal.Release();
+            _signal.Writer.TryWrite(true);
             return Task.CompletedTask;
         }
 
         internal IReadOnlyList<JsonElement> Snapshot() => [.. _frames];
 
         internal async Task<JsonElement> AtAsync(int index) {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             while (true) {
                 var frames = Snapshot();
                 if (frames.Count > index) {
                     return frames[index];
                 }
-                if (!await _signal.WaitAsync(TimeSpan.FromSeconds(5))) {
+                try {
+                    await _signal.Reader.ReadAsync(cts.Token);
+                } catch (OperationCanceledException) {
                     throw new Xunit.Sdk.XunitException($"等待第 {index} 帧超时，已收到 {frames.Count} 帧");
                 }
             }

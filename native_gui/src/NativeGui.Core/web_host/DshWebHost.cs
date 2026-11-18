@@ -437,7 +437,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
     private async Task HandleStreamAsync(HttpListenerContext context) {
         var accepted = await context.AcceptWebSocketAsync(null);
         using var socket = accepted.WebSocket;
-        using var sendGate = new SemaphoreSlim(1, 1);
+        await using var sender = new WebSocketSender(socket);
         var leases = new List<IDisposable>();
         try {
             var buffer = new byte[64 * 1024];
@@ -456,7 +456,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 if (open is null || open.Type != "open" || string.IsNullOrEmpty(open.StreamId)) {
                     continue;
                 }
-                var send = (Func<DshStreamItem, Task>)(item => SendItemAsync(socket, sendGate, item));
+                var send = (Func<DshStreamItem, Task>)sender.SendAsync;
                 var (opening, lease, ready) = await OpenStreamAsync(open, send, _lifetime.Token);
                 if (lease is not null) {
                     leases.Add(lease);
@@ -475,17 +475,22 @@ internal sealed class DshWebHost : IAsyncDisposable {
         }
     }
 
-    /// <summary>发送一条流式项（同一连接串行，避免并发写 WebSocket）</summary>
-    private static async Task SendItemAsync(WebSocket socket, SemaphoreSlim gate, DshStreamItem item) {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(item, DshJsonContext.Default.DshStreamItem);
-        await gate.WaitAsync();
-        try {
-            if (socket.State == WebSocketState.Open) {
-                await socket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None);
-            }
-        } finally {
-            gate.Release();
-        }
+    /// <summary>单连接 WebSocket 发送串行器：所有流项经单写者队列按序写 socket（WebSocket 禁止并发发送）</summary>
+    private sealed class WebSocketSender(WebSocket socket) : IAsyncDisposable {
+        private readonly DshSerialMailbox _actor = new();
+
+        /// <summary>发送一条流式项（连接已关闭时静默跳过）</summary>
+        /// <param name="item">流项</param>
+        internal Task SendAsync(DshStreamItem item) =>
+            _actor.RunAsync(async () => {
+                var bytes = JsonSerializer.SerializeToUtf8Bytes(item, DshJsonContext.Default.DshStreamItem);
+                if (socket.State == WebSocketState.Open) {
+                    await socket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None);
+                }
+            });
+
+        /// <summary>排空待发送项并停止发送器</summary>
+        public ValueTask DisposeAsync() => _actor.DisposeAsync();
     }
 
     /// <summary>把一条会话控制投影帧作为流项发送（session/control）</summary>
@@ -902,30 +907,28 @@ internal sealed class DshWebHost : IAsyncDisposable {
     /// <see cref="StartDelivering"/> 一次性取出补发，之后到达的帧直接下发（不漏帧、不乱序）。
     /// </summary>
     private sealed class ControlFrameBuffer {
-        private readonly Lock _gate = new();
+        private readonly DshSerialMailbox _actor = new();
         private readonly List<DshSessionControlProjection> _pending = [];
         private bool _delivering;
 
         /// <summary>接收一帧：开场阶段缓存，开场完成后直接投递</summary>
-        internal Task AcceptAsync(DshSessionControlProjection frame, Func<DshSessionControlProjection, Task> deliver) {
-            lock (_gate) {
+        internal Task AcceptAsync(DshSessionControlProjection frame, Func<DshSessionControlProjection, Task> deliver) =>
+            _actor.RunAsync(async () => {
                 if (!_delivering) {
                     _pending.Add(frame);
-                    return Task.CompletedTask;
+                    return;
                 }
-            }
-            return deliver(frame);
-        }
+                await deliver(frame);
+            });
 
-        /// <summary>结束缓冲并取走待补发帧（同步方法，避免在 async 上下文持锁）</summary>
-        internal DshSessionControlProjection[] StartDelivering() {
-            lock (_gate) {
+        /// <summary>结束缓冲并取走待补发帧</summary>
+        internal DshSessionControlProjection[] StartDelivering() =>
+            _actor.Run(() => {
                 _delivering = true;
                 var frames = _pending.ToArray();
                 _pending.Clear();
                 return frames;
-            }
-        }
+            });
     }
 
     /// <summary>流连接关闭时的清理动作句柄（$events 摘除权限桥通道等）</summary>

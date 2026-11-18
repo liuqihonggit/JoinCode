@@ -37,7 +37,7 @@ internal sealed class DshHostServices {
         Questions = new DshUserQuestionBroker();
         WorkspaceFiles = new DshWorkspaceFilesService(Sessions, fileSystem);
         Attachments = new DshAttachmentStore(fileSystem);
-        Goals = new DshGoalStore(fileSystem);
+        Goals = new DshGoalStore(fileSystem, Path.Combine(paths.JccDirectory, "dsh_goals.json"));
         Sessions.AttachGoalSource(Goals.Get);
         Feedback = new DshMessageFeedbackStore(fileSystem);
         Jobs = new DshJobService(this);
@@ -71,8 +71,7 @@ internal sealed class DshHostServices {
     internal void AttachEngine(Hosting.IJccChatSession engine) => Engine = engine;
 
     /// <summary>控制帧序号（会话 → 最后分配值；前端按 seq 单调丢弃过期帧）</summary>
-    private readonly Lock _controlSeqGate = new();
-    private readonly Dictionary<string, long> _controlSeq = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, long> _controlSeq = new(StringComparer.Ordinal);
 
     /// <summary>
     /// 应用权限预设（TASK066 C7）：校验 → 写引擎 → 更新会话投影 → 落设置 → 广播
@@ -154,10 +153,18 @@ internal sealed class DshHostServices {
 
     /// <summary>分配控制帧序号（单调递增，且不低于投影快照水位）</summary>
     private long NextControlSeq(string sessionId, long floor) {
-        lock (_controlSeqGate) {
-            var next = Math.Max(floor, _controlSeq.TryGetValue(sessionId, out var last) ? last : -1) + 1;
-            _controlSeq[sessionId] = next;
-            return next;
+        while (true) {
+            if (!_controlSeq.TryGetValue(sessionId, out var last)) {
+                var first = Math.Max(floor, -1) + 1;
+                if (_controlSeq.TryAdd(sessionId, first)) {
+                    return first;
+                }
+                continue;
+            }
+            var next = Math.Max(floor, last) + 1;
+            if (_controlSeq.TryUpdate(sessionId, next, last)) {
+                return next;
+            }
         }
     }
 

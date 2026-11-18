@@ -21,7 +21,7 @@ internal sealed class DshSettingsStore {
 
     private readonly IFileSystem _fs;
     private readonly string _filePath;
-    private readonly Lock Gate = new();
+    private readonly DshSerialMailbox _actor = new();
     private readonly Dictionary<string, NamespaceState> States = new(StringComparer.Ordinal) {
         [WelcomeNamespace] = new(),
         [UiSettingsNamespace] = new(),
@@ -55,52 +55,49 @@ internal sealed class DshSettingsStore {
     /// 启动期加载存档（幂等；文件缺失/损坏按空文档启动 — 引导错误不阻塞前端设置页）。
     /// permission 命名空间无存档值时以引擎 Auto 默认值播种。
     /// </summary>
-    internal async Task InitializeAsync(CancellationToken cancellationToken = default) {
-        if (!MarkLoaded()) {
-            return;
-        }
-        DshSettingsDocument? document = null;
-        try {
-            if (_fs.FileExists(_filePath)) {
-                var json = await _fs.ReadAllTextAsync(_filePath, cancellationToken);
-                document = RelaxedJsonSerializer.Deserialize(json, DshJsonContext.Default.DshSettingsDocument);
+    internal Task InitializeAsync(CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            if (!MarkLoaded()) {
+                return;
             }
-        } catch (Exception ex) {
-            GuiDiag.Log($"[DSH-SETTINGS] load failed: {ex.Message}");
-        }
-        ApplyLoadedDocument(document);
-    }
+            DshSettingsDocument? document = null;
+            try {
+                if (_fs.FileExists(_filePath)) {
+                    var json = await _fs.ReadAllTextAsync(_filePath, cancellationToken);
+                    document = RelaxedJsonSerializer.Deserialize(json, DshJsonContext.Default.DshSettingsDocument);
+                }
+            } catch (Exception ex) {
+                GuiDiag.Log($"[DSH-SETTINGS] load failed: {ex.Message}");
+            }
+            ApplyLoadedDocument(document);
+        });
 
     /// <summary>标记已加载（幂等闸门；返回是否为本轮首次调用）</summary>
     private bool MarkLoaded() {
-        lock (Gate) {
-            if (_loaded) {
-                return false;
-            }
-            _loaded = true;
-            return true;
+        if (_loaded) {
+            return false;
         }
+        _loaded = true;
+        return true;
     }
 
     /// <summary>把加载到的文档合并进命名空间状态（无文档仅播种 permission 默认值）</summary>
     private void ApplyLoadedDocument(DshSettingsDocument? document) {
-        lock (Gate) {
-            if (document is not null) {
-                foreach (var (ns, saved) in document.Namespaces) {
-                    var state = States.TryGetValue(ns, out var existing) ? existing : States[ns] = new NamespaceState();
-                    state.Revision = saved.Revision;
-                    foreach (var (path, value) in saved.Entries) {
-                        state.Entries[path] = value;
-                    }
+        if (document is not null) {
+            foreach (var (ns, saved) in document.Namespaces) {
+                var state = States.TryGetValue(ns, out var existing) ? existing : States[ns] = new NamespaceState();
+                state.Revision = saved.Revision;
+                foreach (var (path, value) in saved.Entries) {
+                    state.Entries[path] = value;
                 }
             }
-            EnsureDefaults();
         }
+        EnsureDefaults();
     }
 
     /// <summary>settings/describe：列出全部命名空间视图</summary>
-    internal DshSettingsDescribe Describe() {
-        lock (Gate) {
+    internal DshSettingsDescribe Describe() =>
+        _actor.Run(() => {
             EnsureDefaults();
             return new DshSettingsDescribe {
                 Writable = true,
@@ -110,18 +107,17 @@ internal sealed class DshSettingsStore {
                     .OrderBy(pair => pair.Key, StringComparer.Ordinal)
                     .Select(pair => View(pair.Key, pair.Value))],
             };
-        }
-    }
+        });
 
     /// <summary>
     /// settings/openSettingsDocument：先把当前设置落盘（编辑器不会看到空文件），再交给系统默认程序打开。
     /// 启动失败返回带文件路径的引导，前端在「打开配置文件」按钮旁展示。
     /// </summary>
     internal DshRpcResult OpenDocument() {
-        lock (Gate) {
+        _actor.Run(() => {
             EnsureDefaults();
             Persist();
-        }
+        });
         if (!_fs.FileExists(_filePath)) {
             return DshRpcResults.Fail(
                 "settings/no-document",
@@ -162,43 +158,42 @@ internal sealed class DshSettingsStore {
         if (request.Ops is null || request.Ops.Count == 0) {
             return DshRpcResults.Fail("settings/rejected", $"settings/mutate 未提供 ops（ns={request.Ns}）");
         }
-        string? routedPreset = null;
-        lock (Gate) {
-            EnsureDefaults();
-            if (!States.TryGetValue(request.Ns, out var state)) {
-                state = new NamespaceState();
-                States[request.Ns] = state;
-            }
-            if (request.ExpectedRevision is { } expected && expected != state.Revision) {
-                return DshRpcResults.Fail(
-                    "settings/conflict",
-                    $"settings/mutate 期望版本 {expected}，实际版本 {state.Revision}（ns={request.Ns}）");
-            }
-            foreach (var op in request.Ops) {
-                if (!IsValidPermissionOp(request.Ns, op)) {
-                    return DshRpcResults.Fail(
-                        "settings/rejected",
-                        $"permission/defaultPreset 的值必须是引擎枚举词汇（plan/auto/ask/bypass/unattended）之一；收到 {DescribeValue(op.Value)}");
-                }
-                if (!Apply(state, op)) {
-                    return DshRpcResults.Fail(
-                        "settings/rejected",
-                        $"settings/mutate 无法应用操作 op={op.Op} path=[{string.Join('/', op.Path ?? [])}]（ns={request.Ns}）");
-                }
-            }
-            state.Revision++;
-            if (string.Equals(request.Ns, PermissionNamespace, StringComparison.Ordinal)
-                && state.Entries.TryGetValue("defaultPreset", out var preset)
-                && preset.ValueKind == JsonValueKind.String) {
-                routedPreset = preset.GetString();
-            }
-            Persist();
-            var view = View(request.Ns, state);
-            if (routedPreset is not null) {
-                PermissionPresetChanged?.Invoke(routedPreset);
-            }
-            return DshRpcResults.Ok(JsonSerializer.SerializeToElement(view, DshJsonContext.Default.DshSettingsNamespaceView));
+        var (result, routedPreset) = _actor.Run(() => MutateCore(request));
+        if (routedPreset is not null) {
+            PermissionPresetChanged?.Invoke(routedPreset);
         }
+        return result;
+    }
+
+    /// <summary>settings/mutate 的串行段：版本校验 → 应用 → 递增版本 → 落盘 → 捕获权限预设</summary>
+    private (DshRpcResult Result, string? RoutedPreset) MutateCore(DshSettingsMutateArgs request) {
+        EnsureDefaults();
+        if (!States.TryGetValue(request.Ns, out var state)) {
+            state = new NamespaceState();
+            States[request.Ns] = state;
+        }
+        if (request.ExpectedRevision is { } expected && expected != state.Revision) {
+            return (DshRpcResults.Fail(
+                "settings/conflict",
+                $"settings/mutate 期望版本 {expected}，实际版本 {state.Revision}（ns={request.Ns}）"), null);
+        }
+        foreach (var op in request.Ops ?? []) {
+            if (!IsValidPermissionOp(request.Ns, op)) {
+                return (DshRpcResults.Fail(
+                    "settings/rejected",
+                    $"permission/defaultPreset 的值必须是引擎枚举词汇（plan/auto/ask/bypass/unattended）之一；收到 {DescribeValue(op.Value)}"), null);
+            }
+            if (!Apply(state, op)) {
+                return (DshRpcResults.Fail(
+                    "settings/rejected",
+                    $"settings/mutate 无法应用操作 op={op.Op} path=[{string.Join('/', op.Path ?? [])}]（ns={request.Ns}）"), null);
+            }
+        }
+        state.Revision++;
+        var routedPreset = ReadPermissionPreset(request.Ns, state);
+        Persist();
+        var view = View(request.Ns, state);
+        return (DshRpcResults.Ok(JsonSerializer.SerializeToElement(view, DshJsonContext.Default.DshSettingsNamespaceView)), routedPreset);
     }
 
     /// <summary>settings/replace：整段替换命名空间（section 即新值），返回新视图</summary>
@@ -258,8 +253,8 @@ internal sealed class DshSettingsStore {
     /// <see cref="PermissionPresetChanged"/>（调用方已完成引擎应用，避免回环重复应用）。
     /// </summary>
     /// <param name="preset">引擎枚举词汇（调用方已校验）</param>
-    internal void SetPermissionPreset(string preset) {
-        lock (Gate) {
+    internal void SetPermissionPreset(string preset) =>
+        _actor.Run(() => {
             EnsureDefaults();
             var state = States[PermissionNamespace];
             if (state.Entries.TryGetValue("defaultPreset", out var current)
@@ -270,49 +265,51 @@ internal sealed class DshSettingsStore {
             state.Entries["defaultPreset"] = JsonSerializer.SerializeToElement(preset, DshJsonContext.Default.String);
             state.Revision++;
             Persist();
-        }
-    }
+        });
 
     /// <summary>读取命名空间某个扁平路径的字符串值（agentPresets/list 默认预设等）</summary>
-    internal string? ReadString(string ns, params string[] path) {
-        lock (Gate) {
+    internal string? ReadString(string ns, params string[] path) =>
+        _actor.Run(() => {
             EnsureDefaults();
             return States.TryGetValue(ns, out var state)
                 && state.Entries.TryGetValue(string.Join('/', path), out var value)
                 && value.ValueKind == JsonValueKind.String
                 ? value.GetString()
                 : null;
-        }
-    }
+        });
 
     /// <summary>设置编辑的统一提交：版本校验 → 应用 → 递增版本 → 落盘 → 权限事件</summary>
     private DshRpcResult Commit(string ns, int? expectedRevision, string method, Func<NamespaceState, string?> apply) {
-        lock (Gate) {
-            EnsureDefaults();
-            if (!States.TryGetValue(ns, out var state)) {
-                state = new NamespaceState();
-                States[ns] = state;
-            }
-            if (expectedRevision is { } expected && expected != state.Revision) {
-                return DshRpcResults.Fail(
-                    "settings/conflict",
-                    $"{method} 期望版本 {expected}，实际版本 {state.Revision}（ns={ns}）");
-            }
-            if (apply(state) is { } error) {
-                return DshRpcResults.Fail("settings/rejected", error);
-            }
-            if (string.Equals(ns, PermissionNamespace, StringComparison.Ordinal)) {
-                EnsureDefaults();
-            }
-            state.Revision++;
-            var routedPreset = ReadPermissionPreset(ns, state);
-            Persist();
-            var view = View(ns, state);
-            if (routedPreset is not null) {
-                PermissionPresetChanged?.Invoke(routedPreset);
-            }
-            return DshRpcResults.Ok(JsonSerializer.SerializeToElement(view, DshJsonContext.Default.DshSettingsNamespaceView));
+        var (result, routedPreset) = _actor.Run(() => CommitCore(ns, expectedRevision, method, apply));
+        if (routedPreset is not null) {
+            PermissionPresetChanged?.Invoke(routedPreset);
         }
+        return result;
+    }
+
+    /// <summary>设置编辑的串行段（actor 内执行）：返回结果与需要外发事件的权限预设</summary>
+    private (DshRpcResult Result, string? RoutedPreset) CommitCore(string ns, int? expectedRevision, string method, Func<NamespaceState, string?> apply) {
+        EnsureDefaults();
+        if (!States.TryGetValue(ns, out var state)) {
+            state = new NamespaceState();
+            States[ns] = state;
+        }
+        if (expectedRevision is { } expected && expected != state.Revision) {
+            return (DshRpcResults.Fail(
+                "settings/conflict",
+                $"{method} 期望版本 {expected}，实际版本 {state.Revision}（ns={ns}）"), null);
+        }
+        if (apply(state) is { } error) {
+            return (DshRpcResults.Fail("settings/rejected", error), null);
+        }
+        if (string.Equals(ns, PermissionNamespace, StringComparison.Ordinal)) {
+            EnsureDefaults();
+        }
+        state.Revision++;
+        var routedPreset = ReadPermissionPreset(ns, state);
+        Persist();
+        var view = View(ns, state);
+        return (DshRpcResults.Ok(JsonSerializer.SerializeToElement(view, DshJsonContext.Default.DshSettingsNamespaceView)), routedPreset);
     }
 
     /// <summary>把对象树摊平成段路径 → 值（叶子含数组/标量；空对象不产生条目）</summary>

@@ -31,7 +31,7 @@ internal sealed class DshProviderSettingsStore {
     private readonly DshModelCatalogSource _models;
 
     /// <summary>串行化 describe/mutate（文件读写 + 目录重载不交错）</summary>
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly DshSerialMailbox _actor = new();
 
     /// <summary>
     /// 命名空间版本（前端 settings/mutate 的 expectedRevision 乐观并发）。
@@ -71,14 +71,8 @@ internal sealed class DshProviderSettingsStore {
     /// （基座层同样含自定义供应商，模型页因此判定为不可删除 — 供应商生命周期归引擎）。
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    internal async Task<DshSettingsNamespaceView> DescribeAsync(CancellationToken cancellationToken) {
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try {
-            return await BuildViewAsync(cancellationToken).ConfigureAwait(false);
-        } finally {
-            _gate.Release();
-        }
-    }
+    internal Task<DshSettingsNamespaceView> DescribeAsync(CancellationToken cancellationToken) =>
+        _actor.RunAsync(() => BuildViewAsync(cancellationToken));
 
     /// <summary>
     /// <c>settings/mutate</c> 的供应商分支：版本校验 → 逐条路径操作 → 写回引擎配置文件
@@ -86,19 +80,18 @@ internal sealed class DshProviderSettingsStore {
     /// </summary>
     /// <param name="args">settings/mutate 参数（ns 必须是 <see cref="Namespace"/>）</param>
     /// <param name="cancellationToken">取消令牌</param>
-    internal async Task<DshRpcResult> MutateAsync(JsonElement args, CancellationToken cancellationToken) {
+    internal Task<DshRpcResult> MutateAsync(JsonElement args, CancellationToken cancellationToken) {
         if (ParseMutateArgs(args) is not { } request || !string.Equals(request.Ns, Namespace, StringComparison.Ordinal)) {
-            return DshRpcResults.Fail("settings/rejected",
+            return Task.FromResult(DshRpcResults.Fail("settings/rejected",
                 $"settings/mutate 的 llm-deepseek 分支需要 {{ns:\"{Namespace}\", ops:[...]}}；收到 args={Describe(args)}。"
-                + "编辑供应商连接请传路径 profiles/{供应商}/baseURL|apiKeyEnv|model|models。");
+                + "编辑供应商连接请传路径 profiles/{供应商}/baseURL|apiKeyEnv|model|models。"));
         }
         if (request.Ops.Count == 0) {
-            return DshRpcResults.Fail("settings/rejected",
+            return Task.FromResult(DshRpcResults.Fail("settings/rejected",
                 $"settings/mutate 未提供 ops（ns={Namespace}）；至少给一条 set/unset 路径操作，例如 "
-                + "{\"op\":\"set\",\"path\":[\"profiles\",\"deepseek\",\"baseURL\"],\"value\":\"https://api.deepseek.com/v1\"}。");
+                + "{\"op\":\"set\",\"path\":[\"profiles\",\"deepseek\",\"baseURL\"],\"value\":\"https://api.deepseek.com/v1\"}。"));
         }
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try {
+        return _actor.RunAsync(async () => {
             if (request.ExpectedRevision is { } expected && expected != NamespaceRevision) {
                 return DshRpcResults.Fail("settings/conflict",
                     $"settings/mutate 期望版本 {expected}，实际版本 {NamespaceRevision}（ns={Namespace}）；设置页已变化，"
@@ -119,9 +112,7 @@ internal sealed class DshProviderSettingsStore {
             return DshRpcResults.Ok(JsonSerializer.SerializeToElement(
                 await BuildViewAsync(cancellationToken).ConfigureAwait(false),
                 DshJsonContext.Default.DshSettingsNamespaceView));
-        } finally {
-            _gate.Release();
-        }
+        });
     }
 
     /// <summary>解析 mutate 参数（格式错误按拒绝返回 null）</summary>

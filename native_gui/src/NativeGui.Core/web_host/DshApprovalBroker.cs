@@ -30,7 +30,9 @@ internal sealed class DshApprovalBroker {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Pending> _pending = new(StringComparer.Ordinal);
 
     /// <summary>当前 $events 连接的发送通道（null = 前端未连接/已断开）；发送委托已绑定该流的 streamId</summary>
-    private (Func<JsonElement, Task> Send, string ClientId)? _events;
+    private sealed record EventsChannel(Func<JsonElement, Task> Send, string ClientId);
+
+    private EventsChannel? _events;
 
     /// <summary>waterfall 帧的目标会话（轮次执行时由 DshTurnRunner 设置；缺省用 host 常量）</summary>
     private volatile string? _agentId;
@@ -46,12 +48,9 @@ internal sealed class DshApprovalBroker {
     /// <param name="send">帧值发送委托（宿主闭包绑定 streamId，保证路由到该逻辑流）</param>
     /// <param name="clientId">就绪帧下发的客户端标识</param>
     internal void Attach(Func<JsonElement, Task> send, string clientId) {
-        lock (_gate) { _events = (send, clientId); }
+        Volatile.Write(ref _events, new EventsChannel(send, clientId));
         GuiDiag.Log($"[DSH-APPROVAL] events stream attached client={clientId}");
     }
-
-    /// <summary>连接状态读写锁（volatile 元组不可用；读写互斥保护 _events 与 _pending 的结算一致性）</summary>
-    private readonly object _gate = new();
 
     /// <summary>
     /// 断流补写的审计写入屏障：<see cref="Detach"/> 的审计是后台任务（释放路径禁阻塞，ADR 0093），
@@ -62,7 +61,7 @@ internal sealed class DshApprovalBroker {
 
     /// <summary>$events 流关闭时摘除通道：挂起中的请求立即拒绝（不挂引擎轮次），后续请求直接拒绝</summary>
     internal void Detach() {
-        lock (_gate) { _events = null; }
+        Volatile.Write(ref _events, null);
         var orphans = new List<Pending>();
         foreach (var (eventId, pending) in _pending) {
             if (_pending.TryRemove(eventId, out var removed)) {
@@ -71,10 +70,21 @@ internal sealed class DshApprovalBroker {
         }
         // 释放路径禁止阻塞：审计 decided 交后台补写，并把补写任务挂进屏障供轮次收尾排空（无前端可回放，仅日志卫生）
         foreach (var orphan in orphans) {
-            var settle = SettleAsync(orphan, DeniedUnavailable);
-            lock (_gate) { _detachedAudit = Task.WhenAll(_detachedAudit, settle); }
+            TrackDetachedAudit(SettleAsync(orphan, DeniedUnavailable));
         }
         GuiDiag.Log("[DSH-APPROVAL] events stream detached: pending requests denied");
+    }
+
+    /// <summary>把断流补写任务并入审计屏障（CAS 追加，避免丢失并发补写）</summary>
+    /// <param name="settle">补写任务</param>
+    private void TrackDetachedAudit(Task settle) {
+        while (true) {
+            var current = Volatile.Read(ref _detachedAudit);
+            var combined = Task.WhenAll(current, settle);
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _detachedAudit, combined, current), current)) {
+                return;
+            }
+        }
     }
 
     /// <summary>设置 waterfall 目标会话（DshTurnRunner 轮次开始时调用；前端按 agentId 路由到对应会话 scope）</summary>
@@ -108,17 +118,13 @@ internal sealed class DshApprovalBroker {
         }
     }
 
-    /// <summary>同步读取断流审计屏障（lock 收敛在同步方法内，规避 async 方法持锁，JCC4001）</summary>
-    private Task DetachedAuditBarrier() {
-        lock (_gate) { return _detachedAudit; }
-    }
+    /// <summary>同步读取断流审计屏障（volatile 读，读取期间可能被并发替换）</summary>
+    private Task DetachedAuditBarrier() => Volatile.Read(ref _detachedAudit);
 
-    /// <summary>同步判定屏障是否已被新到任务替换（同上：避免 async 方法持锁）</summary>
+    /// <summary>同步判定屏障是否已被新到任务替换</summary>
     /// <param name="barrier">先前读取到的屏障</param>
     /// <returns>是否已被替换</returns>
-    private bool DetachedAuditReplaced(Task barrier) {
-        lock (_gate) { return !ReferenceEquals(_detachedAudit, barrier); }
-    }
+    private bool DetachedAuditReplaced(Task barrier) => !ReferenceEquals(Volatile.Read(ref _detachedAudit), barrier);
 
     /// <summary>
     /// 引擎确认点入口：构造 waterfall 帧发给前端并等待回帖。
@@ -210,10 +216,8 @@ internal sealed class DshApprovalBroker {
         }
     }
 
-    /// <summary>同步读取当前发送通道（lock 收敛在同步方法内，规避 async 方法持锁）</summary>
-    private Func<JsonElement, Task>? CurrentSend() {
-        lock (_gate) { return _events?.Send; }
-    }
+    /// <summary>同步读取当前发送通道（volatile 读）</summary>
+    private Func<JsonElement, Task>? CurrentSend() => Volatile.Read(ref _events)?.Send;
 
     /// <summary>
     /// 前端回帖结算：kind=result 且值为 allowed-once → Allow（审计 allowed-once）；kind=result 的其他值 →
@@ -225,10 +229,8 @@ internal sealed class DshApprovalBroker {
     /// <param name="outcome">监听器处理结果</param>
     /// <returns>是否结算了一个挂起中的请求</returns>
     internal Task<bool> SettleAsync(string clientId, string eventId, DshEventOutcome? outcome) {
-        lock (_gate) {
-            if (_events is not { } channel || !string.Equals(channel.ClientId, clientId, StringComparison.Ordinal)) {
-                return Task.FromResult(false);
-            }
+        if (Volatile.Read(ref _events) is not { } channel || !string.Equals(channel.ClientId, clientId, StringComparison.Ordinal)) {
+            return Task.FromResult(false);
         }
         if (!_pending.TryRemove(eventId, out var pending)) {
             return Task.FromResult(false);

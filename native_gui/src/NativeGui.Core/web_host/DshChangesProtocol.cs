@@ -103,33 +103,24 @@ internal sealed class DshPresentHost {
 /// 与事件同生命周期，不持久化 —— 宿主重启后旧事件读不到摘要，前端按 missing 处理（DSH 契约允许）。
 /// </summary>
 internal sealed class DshWorkspaceChangesStore {
-    private readonly Lock _gate = new();
-    private readonly Dictionary<string, Dictionary<long, DshChangesSummary>> _bySession = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<long, DshChangesSummary>> _bySession = new(StringComparer.Ordinal);
 
     /// <summary>记录一轮摘要（事件推送前调用，保证前端收到事件即可读到）</summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="seq">announcing 事件序号</param>
     /// <param name="summary">摘要（含 diffs）</param>
-    internal void Record(string sessionId, long seq, DshChangesSummary summary) {
-        lock (_gate) {
-            if (!_bySession.TryGetValue(sessionId, out var entries)) {
-                entries = [];
-                _bySession[sessionId] = entries;
-            }
-            entries[seq] = summary;
-        }
-    }
+    internal void Record(string sessionId, long seq, DshChangesSummary summary) =>
+        _bySession
+            .GetOrAdd(sessionId, _ => new ConcurrentDictionary<long, DshChangesSummary>())
+            .AddOrUpdate(seq, summary, (_, _) => summary);
 
     /// <summary>读一轮摘要（未知坐标返回 null → 路由回 404）</summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="seq">announcing 事件序号</param>
-    internal DshChangesSummary? Summary(string sessionId, long seq) {
-        lock (_gate) {
-            return _bySession.TryGetValue(sessionId, out var entries) && entries.TryGetValue(seq, out var summary)
-                ? summary
-                : null;
-        }
-    }
+    internal DshChangesSummary? Summary(string sessionId, long seq) =>
+        _bySession.TryGetValue(sessionId, out var entries) && entries.TryGetValue(seq, out var summary)
+            ? summary
+            : null;
 
     /// <summary>读单文件对比（index 越界返回 null → 路由回 404）</summary>
     /// <param name="sessionId">会话 ID</param>

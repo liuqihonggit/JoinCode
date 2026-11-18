@@ -123,11 +123,24 @@ public sealed class DshGoalsTests {
         await using var engine = new PlaceholderChatSession { TurnGate = ct => hold.Task.WaitAsync(ct) };
         services.AttachEngine(engine);
         try {
-            // 两轮受理（TurnGate 挂住 StreamAsync，受理即返回）
+            // 第一轮受理（TurnGate 挂住 StreamAsync，受理即返回）
             (await dispatcher.HandleAsync("session/prompt", PromptArgs(sessionId, "第一轮"))).Ok.Should().BeTrue();
+            // 第二轮排队受理：首轮取消后由队列启动，turn/start 事件即第二轮受理点
+            var secondStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var subscription = services.Streams.Subscribe(sessionId, "goals-test", sessionEvent => {
+                if (sessionEvent.Type == "turn/start"
+                    && sessionEvent.Data.TryGetProperty("turn", out var turn)
+                    && turn.TryGetInt32(out var number)
+                    && number >= 2) {
+                    secondStarted.TrySetResult();
+                }
+                return Task.CompletedTask;
+            });
             hold.TrySetCanceled();
             hold = new TaskCompletionSource();
-            (await dispatcher.HandleAsync("session/prompt", PromptArgs(sessionId, "第二轮"))).Ok.Should().BeTrue();
+            var queued = await dispatcher.HandleAsync("session/prompt", PromptArgs(sessionId, "第二轮", "queue"));
+            queued.Ok.Should().BeTrue($"{queued.Error?.Code}: {queued.Error?.Message}");
+            await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         } finally {
             hold.TrySetCanceled();
         }
@@ -141,12 +154,12 @@ public sealed class DshGoalsTests {
         Revision = reference.GetProperty("revision").GetInt32(),
     };
 
-    private static JsonElement PromptArgs(string sessionId, string text) =>
+    private static JsonElement PromptArgs(string sessionId, string text, string mode = "send") =>
         JsonSerializer.SerializeToElement(new {
             request = new {
                 requestId = Guid.NewGuid().ToString("N"),
                 sessionId,
-                mode = "send",
+                mode,
                 content = new[] { new { type = "text", text } },
             },
         });

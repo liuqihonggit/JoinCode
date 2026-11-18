@@ -19,45 +19,57 @@ public sealed class DshApprovalBrokerTests {
         Value = value is null ? null : JsonSerializer.SerializeToElement(value, DshJsonContext.Default.String),
     };
 
-    /// <summary>attach 一个捕获发送帧的假 $events 连接（信号量通知首帧到达，替代盲等轮询）</summary>
-    private (List<JsonElement> Sent, SemaphoreSlim Signal) AttachCapture() {
-        var sent = new List<JsonElement>();
-        var signal = new SemaphoreSlim(0, int.MaxValue);
+    /// <summary>捕获发送帧的假 $events 连接（并发入队 + 信号通道通知新帧）</summary>
+    private sealed class FrameCapture {
+        private readonly ConcurrentQueue<JsonElement> _frames = new();
+        private readonly Channel<JsonElement> _signals = Channel.CreateUnbounded<JsonElement>();
+
+        /// <summary>记录一帧并唤醒等待方</summary>
+        /// <param name="frame">帧内容</param>
+        internal void Add(JsonElement frame) {
+            _frames.Enqueue(frame);
+            _signals.Writer.TryWrite(frame);
+        }
+
+        /// <summary>取全部帧快照</summary>
+        internal JsonElement[] Snapshot() => [.. _frames];
+
+        /// <summary>取首帧</summary>
+        internal JsonElement First() => Snapshot()[0];
+
+        /// <summary>取最近一帧</summary>
+        internal JsonElement Last() => Snapshot()[^1];
+
+        /// <summary>首帧 eventId</summary>
+        internal string FirstEventId() => First().GetProperty("eventId").GetString() ?? string.Empty;
+
+        /// <summary>最近一帧 eventId</summary>
+        internal string LastEventId() => Last().GetProperty("eventId").GetString() ?? string.Empty;
+
+        /// <summary>等待下一帧（上限 2 秒，超时即测试失败）</summary>
+        internal async Task WaitNextAsync() {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            await _signals.Reader.ReadAsync(cts.Token);
+        }
+    }
+
+    /// <summary>attach 一个捕获发送帧的假 $events 连接</summary>
+    private FrameCapture AttachCapture() {
+        var capture = new FrameCapture();
         _broker.Attach(frame => {
-            lock (sent) { sent.Add(frame); }
-            signal.Release();
+            capture.Add(frame);
             return Task.CompletedTask;
         }, "client-1");
-        return (sent, signal);
+        return capture;
     }
 
     /// <summary>发起一次确认并在首帧发出后完成回帖，返回决策</summary>
     private async Task<PermissionConfirmationDecision> RequestThenSettleAsync(DshEventOutcome outcome) {
-        var (sent, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
-        await _broker.SettleAsync("client-1", FrameEventId(sent), outcome);
+        await frames.WaitNextAsync();
+        await _broker.SettleAsync("client-1", frames.FirstEventId(), outcome);
         return await pending;
-    }
-
-    /// <summary>等待首帧信号（上限 2 秒，超时即测试失败）</summary>
-    private static async Task WaitFrameAsync(SemaphoreSlim signal) {
-        (await signal.WaitAsync(TimeSpan.FromSeconds(2))).Should().BeTrue("waterfall 帧未在 2 秒内发出");
-    }
-
-    /// <summary>取首帧的 eventId</summary>
-    private static string FrameEventId(List<JsonElement> sent) {
-        lock (sent) { return sent[0].GetProperty("eventId").GetString() ?? string.Empty; }
-    }
-
-    /// <summary>取首帧快照（避免与捕获回调并发读写）</summary>
-    private static JsonElement FirstFrame(List<JsonElement> sent) {
-        lock (sent) { return sent[0]; }
-    }
-
-    /// <summary>取最近一帧的 eventId（同一桥发过多次 waterfall 时用）</summary>
-    private static string LastFrameEventId(List<JsonElement> sent) {
-        lock (sent) { return sent[^1].GetProperty("eventId").GetString() ?? string.Empty; }
     }
 
     [Fact]
@@ -69,11 +81,11 @@ public sealed class DshApprovalBrokerTests {
 
     [Fact]
     public async Task Request_EmitsWaterfallFrame_WithExactContractShape() {
-        var (sent, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
+        await frames.WaitNextAsync();
         try {
-            var frame = FirstFrame(sent);
+            var frame = frames.First();
             frame.GetProperty("type").GetString().Should().Be("waterfall");
             frame.GetProperty("event").GetString().Should().Be("approval/request");
             frame.GetProperty("eventId").GetString().Should().NotBeNullOrEmpty();
@@ -85,7 +97,7 @@ public sealed class DshApprovalBrokerTests {
             request.EnumerateObject().Select(p => p.Name).Should().NotContain("agent").And.NotContain("signal");
             frame.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(["type", "event", "eventId", "agentId", "request"]);
         } finally {
-            await _broker.SettleAsync("client-1", FrameEventId(sent), Outcome("result", "rejected"));
+            await _broker.SettleAsync("client-1", frames.FirstEventId(), Outcome("result", "rejected"));
             await pending;
         }
     }
@@ -111,19 +123,19 @@ public sealed class DshApprovalBrokerTests {
 
     [Fact]
     public async Task Settle_UnknownEventId_ReturnsFalse() {
-        var (sent, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
-        await _broker.SettleAsync("client-1", FrameEventId(sent), Outcome("result", "allowed-once"));
+        await frames.WaitNextAsync();
+        await _broker.SettleAsync("client-1", frames.FirstEventId(), Outcome("result", "allowed-once"));
         await pending;
         (await _broker.SettleAsync("client-1", "no-such-event", Outcome("result", "allowed-once"))).Should().BeFalse();
     }
 
     [Fact]
     public async Task Detach_FailsClosed_DeniesPendingAndFuture() {
-        var (sent, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
+        await frames.WaitNextAsync();
         _broker.Detach();
         // 断开时挂起中的请求立即拒绝（不挂引擎轮次）
         (await pending).Should().Be(PermissionConfirmationDecision.Deny);
@@ -134,10 +146,10 @@ public sealed class DshApprovalBrokerTests {
 
     [Fact]
     public async Task Settle_SecondReplyIsIgnored_PendingAlreadySettled() {
-        var (sent, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
-        var eventId = FrameEventId(sent);
+        await frames.WaitNextAsync();
+        var eventId = frames.FirstEventId();
         await _broker.SettleAsync("client-1", eventId, Outcome("result", "allowed-once"));
         (await pending).Should().Be(PermissionConfirmationDecision.Allow);
         // 重复回帖幂等：不抛异常，返回 false
@@ -147,28 +159,39 @@ public sealed class DshApprovalBrokerTests {
     // ---- 审批审计对（approval/asked + approval/decided，对齐 DSH dsh-user-approval）----
 
     /// <summary>捕获审计落库调用（宿主注入 Audit 委托的形状：sessionId/type/payload）</summary>
-    private List<(string SessionId, string Type, JsonElement Payload)> CaptureAudit() {
-        var entries = new List<(string, string, JsonElement)>();
-        _broker.Audit = (sessionId, type, payload) => {
-            lock (entries) { entries.Add((sessionId, type, payload)); }
-            return Task.CompletedTask;
-        };
-        return entries;
+    private sealed class AuditCapture {
+        private readonly ConcurrentQueue<(string SessionId, string Type, JsonElement Payload)> _entries = new();
+
+        /// <summary>记录一条审计</summary>
+        internal void Add(string sessionId, string type, JsonElement payload) => _entries.Enqueue((sessionId, type, payload));
+
+        /// <summary>取审计条目快照</summary>
+        internal List<(string SessionId, string Type, JsonElement Payload)> Snapshot() => [.. _entries];
+
+        /// <summary>清空已捕获条目</summary>
+        internal void Clear() {
+            while (_entries.TryDequeue(out _)) {
+            }
+        }
     }
 
-    /// <summary>取审计条目快照（避免与落库回调并发读写）</summary>
-    private static List<(string SessionId, string Type, JsonElement Payload)> AuditSnapshot(
-        List<(string SessionId, string Type, JsonElement Payload)> entries) {
-        lock (entries) { return [.. entries]; }
+    /// <summary>捕获审计落库调用（宿主注入 Audit 委托的形状：sessionId/type/payload）</summary>
+    private AuditCapture CaptureAudit() {
+        var capture = new AuditCapture();
+        _broker.Audit = (sessionId, type, payload) => {
+            capture.Add(sessionId, type, payload);
+            return Task.CompletedTask;
+        };
+        return capture;
     }
 
     /// <summary>发起一次「开放轮次内的确认」并在回帖后返回决策</summary>
     private async Task<PermissionConfirmationDecision> RoundInTurnAsync(DshEventOutcome outcome) {
         _broker.SetAgent("s1");
-        var (sent, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
-        await _broker.SettleAsync("client-1", FrameEventId(sent), outcome);
+        await frames.WaitNextAsync();
+        await _broker.SettleAsync("client-1", frames.FirstEventId(), outcome);
         return await pending;
     }
 
@@ -176,12 +199,12 @@ public sealed class DshApprovalBrokerTests {
     public async Task Request_InOpenTurn_AuditsAskedBeforeSettling_ThenDecided() {
         var audit = CaptureAudit();
         _broker.SetAgent("s1");
-        var (sent, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
+        await frames.WaitNextAsync();
 
         // 前端尚未回帖：只应有 approval/asked（审计先于等待）
-        var askedOnly = AuditSnapshot(audit);
+        var askedOnly = audit.Snapshot();
         askedOnly.Should().HaveCount(1);
         askedOnly[0].SessionId.Should().Be("s1");
         askedOnly[0].Type.Should().Be("approval/asked");
@@ -191,11 +214,11 @@ public sealed class DshApprovalBrokerTests {
         asked.GetProperty("reason").GetString().Should().Contain("权限确认");
         asked.GetProperty("callId").GetString().Should().Be("req-1");
 
-        await _broker.SettleAsync("client-1", FrameEventId(sent), Outcome("result", "allowed-once"));
+        await _broker.SettleAsync("client-1", frames.FirstEventId(), Outcome("result", "allowed-once"));
         (await pending).Should().Be(PermissionConfirmationDecision.Allow);
 
         // 回帖后闭合审计对：同 id、outcome=allowed-once
-        var pair = AuditSnapshot(audit);
+        var pair = audit.Snapshot();
         pair.Should().HaveCount(2);
         pair[1].Type.Should().Be("approval/decided");
         pair[1].Payload.GetProperty("id").GetString().Should().Be(asked.GetProperty("id").GetString());
@@ -209,7 +232,7 @@ public sealed class DshApprovalBrokerTests {
         var audit = CaptureAudit();
         await RoundInTurnAsync(Outcome(kind, value));
 
-        var decided = AuditSnapshot(audit).Single(entry => entry.Type == "approval/decided");
+        var decided = audit.Snapshot().Single(entry => entry.Type == "approval/decided");
         decided.Payload.GetProperty("outcome").GetString().Should().Be(expected);
     }
 
@@ -218,43 +241,43 @@ public sealed class DshApprovalBrokerTests {
         var audit = CaptureAudit();
         await RoundInTurnAsync(new DshEventOutcome { Kind = "rejected", Error = new DshEventErrorBody { Name = "Error", Message = "boom" } });
 
-        AuditSnapshot(audit).Single(entry => entry.Type == "approval/decided").Payload.GetProperty("outcome").GetString()
+        audit.Snapshot().Single(entry => entry.Type == "approval/decided").Payload.GetProperty("outcome").GetString()
             .Should().Be("unavailable");
     }
 
     [Fact]
     public async Task Request_WithoutOpenTurn_SkipsAuditButStillDecides() {
         var audit = CaptureAudit();
-        var (sent, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
-        await _broker.SettleAsync("client-1", FrameEventId(sent), Outcome("result", "allowed-once"));
+        await frames.WaitNextAsync();
+        await _broker.SettleAsync("client-1", frames.FirstEventId(), Outcome("result", "allowed-once"));
 
         (await pending).Should().Be(PermissionConfirmationDecision.Allow);
-        AuditSnapshot(audit).Should().BeEmpty("没有开放轮次就不该落审计（DSH 要求审计对被轮次包住）");
+        audit.Snapshot().Should().BeEmpty("没有开放轮次就不该落审计（DSH 要求审计对被轮次包住）");
     }
 
     [Fact]
     public async Task CloseTurn_SettlesPendingAsCancelled_AndClosesAuditPair() {
         var audit = CaptureAudit();
         _broker.SetAgent("s1");
-        var (sent, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
+        await frames.WaitNextAsync();
 
         // 轮次收尾（用户取消/引擎异常）→ 挂起确认结算为 cancelled，不残留
         await _broker.CloseTurnAsync("s1");
         (await pending).Should().Be(PermissionConfirmationDecision.Deny);
-        AuditSnapshot(audit).Single(entry => entry.Type == "approval/decided").Payload.GetProperty("outcome").GetString()
+        audit.Snapshot().Single(entry => entry.Type == "approval/decided").Payload.GetProperty("outcome").GetString()
             .Should().Be("cancelled");
 
         // 目标会话已清空：后续请求不再落审计（等价「无开放轮次」）
         audit.Clear();
         var later = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
-        await _broker.SettleAsync("client-1", LastFrameEventId(sent), Outcome("result", "rejected"));
+        await frames.WaitNextAsync();
+        await _broker.SettleAsync("client-1", frames.LastEventId(), Outcome("result", "rejected"));
         await later;
-        AuditSnapshot(audit).Should().BeEmpty();
+        audit.Snapshot().Should().BeEmpty();
     }
 
     [Fact]
@@ -270,9 +293,9 @@ public sealed class DshApprovalBrokerTests {
             }
         };
         _broker.SetAgent("s1");
-        var (_, signal) = AttachCapture();
+        var frames = AttachCapture();
         var pending = _broker.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
+        await frames.WaitNextAsync();
 
         _broker.Detach();
         (await pending).Should().Be(PermissionConfirmationDecision.Deny);
@@ -294,18 +317,15 @@ public sealed class DshApprovalBrokerTests {
     public async Task Dispatcher_EventsResult_RoutesSettleAndRejectsMalformedArgs() {
         var services = new DshHostServices(new IO.FileSystem.InMemoryFileSystem());
         var dispatcher = new DshRpcDispatcher(services);
-        var sent = new ConcurrentQueue<JsonElement>();
-        using var signal = new SemaphoreSlim(0, int.MaxValue);
+        var capture = new FrameCapture();
         services.Approvals.Attach(frame => {
-            sent.Enqueue(frame);
-            signal.Release();
+            capture.Add(frame);
             return Task.CompletedTask;
         }, "client-1");
 
         var pending = services.Approvals.RequestAsync(EngineRequest());
-        await WaitFrameAsync(signal);
-        sent.TryDequeue(out var first);
-        var eventId = first.GetProperty("eventId").GetString() ?? string.Empty;
+        await capture.WaitNextAsync();
+        var eventId = capture.FirstEventId();
 
         // 正常回帖：ok=true，请求结算为 Allow
         var ok = await dispatcher.HandleAsync("$events/result", ResultArgs("client-1", eventId, Outcome("result", "allowed-once")));

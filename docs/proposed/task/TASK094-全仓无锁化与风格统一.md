@@ -228,6 +228,13 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 - GUI：`NativeGui.Host.exe --webui-smoke`（回归）+ `--dsh-smoke`（DSH 主路径）；真实打开窗口完成一次会话/流式事件后退出。
 - 多会话并发：同时开两个会话、并发终端输出、审批/问答交错；日志无锁等待/超时。
 
+#### B2 执行记录（native_tui + native_gui）
+
+- native_tui 3 文件 + 2 事件已清零（提交 02d6dc2d8），selftest 全部 EXIT=0。
+- native_gui 16 文件 / 82 锁 → 0：新增 `DshSerialMailbox` 作为 DSH 宿主状态单写者原语（有界 512 邮箱）；设置/目标/反馈/供应商设置/工作区/日志等存储改 Actor，事件回调（`PermissionPresetChanged`/`GoalChanged`）出 Actor 触发防重入死锁；审批/问答桥改 `Volatile` 通道快照；PTY 写入改单写者 Channel；WebSocket 每连接单写者发送器；静态资产解包 CAS 单飞；回合队列/终端/控制流/目录选择/文件引用按 Actor 或 `ConcurrentDictionary` CAS 重写。
+- 真机 bug（顺手修复）：`Program.Main` 为 `async Task<int>` 时 `[STAThread]` 不生效（实测主线程 `apartment=MTA`），WebView2 环境创建报 `RPC_E_CHANGED_MODE`（0x80010106），`--webui-smoke` EXIT=3。改为同步 `int Main` 后真实窗口冒烟 EXIT=0（`WEBVIEW2-READY` + `BRIDGE-SMOKE ok`）；新增入口契约测试 `WebViewEntryPointTests`（async Main 红 → 同步 Main 绿），日志 `.xxx/logs/TASK094/gui_host_entry_red2.log` / `gui_host_entry_green.log`。
+- `--dsh-smoke` 升级为真实主路径：首页注入 → `session/create` → `session/list` → `$events`/`session/follow` 双流 → `goals/create`+`goals/pause` → `$events` 收到 `goal/activation-changed` → 32 路 `goals/get` + 16 路 `settings/describe` 并发，全部走真实 HttpListener/WS/文件系统，数据目录隔离到系统临时目录（`DshHostServices` 的目标文件路径改由 `AppDataPaths` 注入）。
+
 ### B3 AsyncLock 与限流（47 文件 / 101 获取 + SemaphoreSlim）
 
 按用途分批：
@@ -316,12 +323,12 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
-| JCC4008 `ForbiddenLockPrimitiveRule` + `Verify-NoLockPrimitives.py` + 逐文件基线 | 16 域 + native_gui/native_tui + CI | ✅ | ✅ 注入 `LockGateProbe.cs` 实测构建失败（`error JCC4008`，`.xxx/logs/TASK094/build-lock-probe-red.txt`），移入 `.xxx/` 后构建恢复 0 错误；基线门禁 B0 150 文件/570 处 → B1 收紧为 143 文件/553 处 → B2 收紧为 138 文件/536 处通过；全仓 `Build-AllDomains.ps1` 通过（`.xxx/logs/TASK094/build-all-b1.txt`）；工具侧 7 处 `SemaphoreSlim` 限流改为 `BoundedWorkQueue`/`AsCpuParallel`，`JccAuditCli.csproj` 0 警告 0 错误 |
-| TUI/GUI/跨进程 exe 挂钩 | `jcc.exe --selftest-tui`、`--selftest-input`、`NativeGui.Host.exe --dsh-smoke`；`--selftest-crossproc` 挂 B5 | ✅（跨进程待 B5） | ✅ `--selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/TASK094/b1-selftest-tui2.txt`）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/b1-selftest-input.txt`）、`--dsh-smoke` EXIT=0（GET 首页 len=34782，`.xxx/logs/TASK094/dsh-smoke-r2.txt`） |
+| JCC4008 `ForbiddenLockPrimitiveRule` + `Verify-NoLockPrimitives.py` + 逐文件基线 | 16 域 + native_gui/native_tui + CI | ✅ | ✅ 注入 `LockGateProbe.cs` 实测构建失败（`error JCC4008`，`.xxx/logs/TASK094/build-lock-probe-red.txt`），移入 `.xxx/` 后构建恢复 0 错误；基线门禁 B0 150 文件/570 处 → B1 收紧为 143 文件/553 处 → B2 收紧为 138 文件/536 处 → **B2 终态 116 文件/425 处**（`lock-gate-b2-gui2.txt`）通过；全仓 `Build-AllDomains.ps1` 通过（`.xxx/logs/TASK094/build-all-b1.txt`）；工具侧 7 处 `SemaphoreSlim` 限流改为 `BoundedWorkQueue`/`AsCpuParallel`，`JccAuditCli.csproj` 0 警告 0 错误 |
+| TUI/GUI/跨进程 exe 挂钩 | `jcc.exe --selftest-tui`、`--selftest-input`、`NativeGui.Host.exe --webui-smoke`/`--dsh-smoke`；`--selftest-crossproc` 挂 B5 | ✅（跨进程待 B5） | ✅ `--selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/TASK094/b1-selftest-tui2.txt`）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/b1-selftest-input.txt`）、**`--dsh-smoke` EXIT=0 ×4**（`.xxx/logs/TASK094/gui_dsh_smoke_loop.log`、`gui_dsh_smoke_after_fix.log`：首页 → session/create → 双流 → goals 暂停事件 → 48 路并发 RPC）、**`--webui-smoke` EXIT=0 ×3**（`.xxx/logs/TASK094/gui_webui_smoke3.log`、`gui_webui_smoke_loop1/2.log`：`WEBVIEW2-READY` + `BRIDGE-SMOKE ok`） |
 | 非阻塞 Console 单写者 | `ErrorConsole`、`ConsoleSuppressionGate` | ✅ | ✅ `jcc.EXE -p hi` 经无 key 路径渲染 `✖ 致命错误` EXIT=1（`.xxx/logs/TASK094/exe-errorconsole-endpoint.txt`）；`--selftest-tui` 在 `JCC_DEBUGLOG=1` 高日志下 EXIT=0；单元测试 5/5（`ConsoleSuppressionGateTests`，`test-gate.txt`） |
 | 单写者 Channel / 快照 | `LspConnection`、`RgEngine`、`ConfigurationService`、`AsyncLazy` | ✅ | ✅ `jcc-tool-code.exe lsp_hover` 经 csharp-ls 真实 stdio JSON-RPC 返回 `RgOutcome? outcome` EXIT=0（`.xxx/logs/TASK094/lsp-hover.txt`）；`jcc-rg.exe --stream` 输出 4 个命中文件 EXIT=0（`.xxx/logs/TASK094/exe-rg-stream2.txt`）；AsyncLazy 单飞 3/3、FileHistory 多版本 3/3、Rg 154/154 全绿 |
 | TUI 输入与回合 Actor | `RawStdinPump`、`LazyEngine`、`EngineTurnClient`、`ReplShell`、`BridgeEventPump`、`TerminalQuerier` | ✅ | ✅ `jcc.exe --selftest-tui` EXIT=0（HOST SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-tui.txt`）、`--selftest-input` 管道喂入 9 键 EXIT=0（INPUT SELFTEST OK，`.xxx/logs/TASK094/b2-selftest-input.txt`）、`NativeTui.Demo.exe --selftest` / `--selftest-bash` / `--bridge-selftest` 三个 EXIT=0（`b2-demo-selftest.txt` / `b2-demo-bash.txt` / `b2-demo-bridge.txt`，跨进程 bridge 协议走真实管道）；单元测试 NativeTui.Tests 3024/3024、NativeTui.Host.Tests 140/140 |
-| DSH 状态 Actor/不可变快照 | `native_gui` 16 文件 / 82 锁 | ❌ | ❌（`--dsh-smoke` + `--webui-smoke`） |
+| DSH 状态 Actor/不可变快照 | `native_gui` 16 文件 / 82 锁 → 0；事件出 Actor 触发；WS 每连接单写者 | ✅ | ✅ `--dsh-smoke` EXIT=0 ×4（真实 HttpListener/WS：session/create+list、$events/session/follow 双流、goals 暂停事件、32+16 并发 RPC；`.xxx/logs/TASK094/gui_dsh_smoke_loop.log` / `gui_dsh_smoke_after_fix.log`）；`--webui-smoke` EXIT=0 ×3（真实 WebView2 窗口桥接，修复 async Main 导致 STA 失效的 `RPC_E_CHANGED_MODE`，`.xxx/logs/TASK094/gui_webui_smoke3.log` / `gui_webui_smoke_loop1/2.log`）；NativeGui.Core.Tests 409/409（`gui_tests_full3.log`）、NativeGui.Host.Tests 47/47（`gui_host_tests_full.log`） |
 | AsyncLock/限流替换 | 47 文件 / 101 获取 + Semaphore 限流 | ❌ | ❌（jcc + MockServer 并发回合） |
 | PithosDb 单写者 + 快照 | `PithosDb`、`LeveledCompactor`、Lru/S3Fifo | ❌ | ❌（双进程存储完整性） |
 | HNSW 快照 | `HnswAnn` | ❌ | ❌（真实索引构建 + 固定样本召回） |

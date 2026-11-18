@@ -10,7 +10,8 @@ internal static class DshWebAssets {
     internal const string Version = "0.2.0-rc.2";
 
     private const string ResourceName = "JoinCode.Gui.dsh_web.zip";
-    private static readonly Lock Gate = new();
+    private static readonly TaskCompletionSource<string> Ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static int _started;
     private static string? _root;
 
     /// <summary>缓存必须包含的懒加载分片（旧缓存缺任一分片会让对应面板静默失败）</summary>
@@ -23,16 +24,23 @@ internal static class DshWebAssets {
     /// <summary>解包（幂等）并返回资产根目录</summary>
     /// <param name="fileSystem">文件系统抽象（缓存完整性探测）</param>
     internal static string EnsureExtracted(IFileSystem fileSystem) {
-        lock (Gate) {
-            if (_root is not null) {
-                return _root;
-            }
+        if (Volatile.Read(ref _root) is { } cached) {
+            return cached;
+        }
+        if (Interlocked.Exchange(ref _started, 1) != 0) {
+            return Ready.Task.GetAwaiter().GetResult();
+        }
+        try {
             var target = Path.Combine(AppDataConstants.Paths.JccDirectory, "dsh_web", Version);
             if (!IsComplete(fileSystem, target)) {
                 Extract(target);
             }
-            _root = target;
+            Volatile.Write(ref _root, target);
+            Ready.SetResult(target);
             return target;
+        } catch (Exception ex) {
+            Ready.SetException(ex);
+            throw;
         }
     }
 

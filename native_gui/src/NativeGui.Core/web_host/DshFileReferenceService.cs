@@ -26,8 +26,7 @@ internal sealed class DshFileReferenceService {
     private readonly int _maxResults;
     private readonly int _maxEntries;
     private readonly TimeSpan _cacheTtl;
-    private readonly Lock _gate = new();
-    private readonly Dictionary<string, CacheEntry> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, CacheEntry> _cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>构造文件引用服务</summary>
     /// <param name="sessions">会话存储（解析 agentId → 工作目录）</param>
@@ -99,15 +98,11 @@ internal sealed class DshFileReferenceService {
 
     /// <summary>模糊索引（按工作目录缓存，TTL 内复用）</summary>
     private IReadOnlyList<DshFileReferenceItem> GetIndex(string root, CancellationToken cancellationToken) {
-        lock (_gate) {
-            if (_cache.TryGetValue(root, out var cached) && DateTime.UtcNow - cached.BuiltAt < _cacheTtl) {
-                return cached.Items;
-            }
+        if (_cache.TryGetValue(root, out var cached) && DateTime.UtcNow - cached.BuiltAt < _cacheTtl) {
+            return cached.Items;
         }
         var items = ScanIndex(root, cancellationToken);
-        lock (_gate) {
-            _cache[root] = new CacheEntry(DateTime.UtcNow, items);
-        }
+        _cache[root] = new CacheEntry(DateTime.UtcNow, items);
         return items;
     }
 

@@ -21,7 +21,7 @@ internal sealed class DshTerminalService {
     private readonly Func<string, CancellationToken, Task<string?>> _cwdProvider;
     private readonly Func<string, IReadOnlyList<string>, string, int, int, IDshPty> _spawn;
     private readonly Func<IReadOnlyList<DshTerminalShellProfile>> _shells;
-    private readonly Lock _gate = new();
+    private readonly DshSerialMailbox _actor = new();
     private readonly Dictionary<string, Dictionary<string, DshTerminalSession>> _owners = new(StringComparer.Ordinal);
 
     /// <summary>生产构造：会话工作目录来自会话存储，PTY 用 ConPTY</summary>
@@ -62,81 +62,65 @@ internal sealed class DshTerminalService {
 
     /// <summary>该会话保留的终端元数据</summary>
     /// <param name="sessionId">会话 ID</param>
-    internal IReadOnlyList<DshTerminalInfo> List(string sessionId) {
-        lock (_gate) {
-            return _owners.TryGetValue(sessionId, out var terminals)
-                ? terminals.Values.Select(session => Clone(session.Info)).ToArray()
-                : [];
-        }
-    }
+    internal IReadOnlyList<DshTerminalInfo> List(string sessionId) =>
+        _actor.Run(() => _owners.TryGetValue(sessionId, out var terminals)
+            ? terminals.Values.Select(session => Clone(session.Info)).ToArray()
+            : []);
 
     /// <summary>创建（或幂等返回）终端</summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="request">创建请求</param>
     /// <param name="cancellationToken">取消令牌</param>
-    internal async Task<DshTerminalInfo> CreateAsync(string sessionId, DshTerminalCreateRequest request, CancellationToken cancellationToken) {
-        ValidateId(request.Id);
-        ValidateDimensions(request.Cols, request.Rows);
-        var shell = ResolveShell(request.ShellPath);
-        var cwd = await ResolveCwdAsync(sessionId, cancellationToken);
-        var existing = FindExisting(sessionId, request.Id);
-        if (existing is not null) {
-            return existing;
-        }
-        EnsureCapacity(sessionId);
-        var pty = _spawn(shell.Path, shell.Args, cwd, request.Cols, request.Rows);
-        var session = new DshTerminalSession(request.Id, new DshTerminalInfo {
-            Id = request.Id,
-            Shell = shell,
-            Title = shell.Name,
-            Cwd = cwd,
-            Cols = request.Cols,
-            Rows = request.Rows,
-            State = "running",
-            ExitCode = null,
-        }, pty);
-        session.Pty.Output += data => OnOutput(session, data);
-        session.Pty.Exited += code => OnExit(session, code);
-        var (registered, duplicate) = Register(sessionId, session);
-        if (duplicate is not null) {
-            await duplicate.Pty.DisposeAsync().ConfigureAwait(false);
-        }
-        return Clone(registered.Info);
-    }
+    internal Task<DshTerminalInfo> CreateAsync(string sessionId, DshTerminalCreateRequest request, CancellationToken cancellationToken) =>
+        _actor.RunAsync(async () => {
+            ValidateId(request.Id);
+            ValidateDimensions(request.Cols, request.Rows);
+            var shell = ResolveShell(request.ShellPath);
+            var cwd = await ResolveCwdAsync(sessionId, cancellationToken).ConfigureAwait(false);
+            var existing = FindExisting(sessionId, request.Id);
+            if (existing is not null) {
+                return existing;
+            }
+            EnsureCapacity(sessionId);
+            var pty = _spawn(shell.Path, shell.Args, cwd, request.Cols, request.Rows);
+            var session = new DshTerminalSession(request.Id, new DshTerminalInfo {
+                Id = request.Id,
+                Shell = shell,
+                Title = shell.Name,
+                Cwd = cwd,
+                Cols = request.Cols,
+                Rows = request.Rows,
+                State = "running",
+                ExitCode = null,
+            }, pty);
+            session.Pty.Output += data => OnOutput(session, data);
+            session.Pty.Exited += code => OnExit(session, code);
+            Register(sessionId, session);
+            return Clone(session.Info);
+        });
 
     /// <summary>已有同 ID 终端（返回元数据副本；不存在为 null）</summary>
-    private DshTerminalInfo? FindExisting(string sessionId, string id) {
-        lock (_gate) {
-            return _owners.TryGetValue(sessionId, out var terminals) && terminals.TryGetValue(id, out var terminal)
-                ? Clone(terminal.Info)
-                : null;
-        }
-    }
+    private DshTerminalInfo? FindExisting(string sessionId, string id) =>
+        _owners.TryGetValue(sessionId, out var terminals) && terminals.TryGetValue(id, out var terminal)
+            ? Clone(terminal.Info)
+            : null;
 
     /// <summary>容量校验：达到上限抛引导错误</summary>
     private void EnsureCapacity(string sessionId) {
-        lock (_gate) {
-            var count = _owners.TryGetValue(sessionId, out var terminals) ? terminals.Count : 0;
-            if (count >= MaxTerminals) {
-                throw new DshTerminalException("terminal/limit-reached",
-                    $"会话终端数量已达上限 {MaxTerminals}；请先关闭一个不再使用的终端再新建");
-            }
+        var count = _owners.TryGetValue(sessionId, out var terminals) ? terminals.Count : 0;
+        if (count >= MaxTerminals) {
+            throw new DshTerminalException("terminal/limit-reached",
+                $"会话终端数量已达上限 {MaxTerminals}；请先关闭一个不再使用的终端再新建");
         }
     }
 
-    /// <summary>登记终端；并发创建同 ID 时返回既有终端与新终端（由调用方释放后者）</summary>
-    private (DshTerminalSession Registered, DshTerminalSession? Duplicate) Register(string sessionId, DshTerminalSession session) {
-        lock (_gate) {
-            if (!_owners.TryGetValue(sessionId, out var terminals)) {
-                terminals = new Dictionary<string, DshTerminalSession>(StringComparer.Ordinal);
-                _owners[sessionId] = terminals;
-            }
-            if (terminals.TryGetValue(session.Id, out var existing)) {
-                return (existing, session);
-            }
-            terminals[session.Id] = session;
-            return (session, null);
+    /// <summary>登记终端（单写者线程执行，同 ID 已在更早命令中幂等返回）</summary>
+    private void Register(string sessionId, DshTerminalSession session) {
+        if (!_owners.TryGetValue(sessionId, out var terminals)) {
+            terminals = new Dictionary<string, DshTerminalSession>(StringComparer.Ordinal);
+            _owners[sessionId] = terminals;
         }
+        terminals[session.Id] = session;
     }
 
     /// <summary>
@@ -145,15 +129,12 @@ internal sealed class DshTerminalService {
     /// <param name="sessionId">会话 ID</param>
     /// <param name="id">终端 ID</param>
     /// <param name="attachmentId">attachment 标识</param>
-    internal (DshTerminalSnapshotFrame Snapshot, DshTerminalFollower Follower) Follow(string sessionId, string id, string attachmentId) {
-        ValidateId(attachmentId);
-        DshTerminalSession session;
-        DshTerminalFollower follower;
-        DshTerminalSnapshotFrame snapshot;
-        lock (_gate) {
-            session = Require(sessionId, id);
-            follower = new DshTerminalFollower(attachmentId);
-            snapshot = new DshTerminalSnapshotFrame {
+    internal (DshTerminalSnapshotFrame Snapshot, DshTerminalFollower Follower) Follow(string sessionId, string id, string attachmentId) =>
+        _actor.Run(() => {
+            ValidateId(attachmentId);
+            var session = Require(sessionId, id);
+            var follower = new DshTerminalFollower(attachmentId);
+            var snapshot = new DshTerminalSnapshotFrame {
                 Sequence = session.Sequence,
                 Screen = session.Replay.ToString(),
                 Info = Clone(session.Info),
@@ -164,13 +145,11 @@ internal sealed class DshTerminalService {
                 return (snapshot, follower);
             }
             session.Followers.Add(follower);
-            session.Info = Clone(session.Info);
             session.Info.ControllerId = attachmentId;
             snapshot.Info = Clone(session.Info);
             Broadcast(session, new DshTerminalStateFrame { Info = Clone(session.Info) }, except: follower);
-        }
-        return (snapshot, follower);
-    }
+            return (snapshot, follower);
+        });
 
     /// <summary>写入原始输入（仅当前 controller）</summary>
     /// <param name="sessionId">会话 ID</param>
@@ -182,11 +161,7 @@ internal sealed class DshTerminalService {
             throw new DshTerminalException("terminal/input-too-large",
                 $"终端输入超过 {MaxInputBytes} 字节上限；请分批粘贴或改用文件方式传入");
         }
-        DshTerminalSession session;
-        lock (_gate) {
-            session = RequireController(sessionId, id, attachmentId);
-        }
-        session.Pty.Write(data);
+        _actor.Run(() => RequireController(sessionId, id, attachmentId).Pty.Write(data));
     }
 
     /// <summary>调整尺寸（仅当前 controller）</summary>
@@ -197,14 +172,13 @@ internal sealed class DshTerminalService {
     /// <param name="rows">行数</param>
     internal void Resize(string sessionId, string id, string attachmentId, int cols, int rows) {
         ValidateDimensions(cols, rows);
-        DshTerminalSession session;
-        lock (_gate) {
-            session = RequireController(sessionId, id, attachmentId);
+        _actor.Run(() => {
+            var session = RequireController(sessionId, id, attachmentId);
             session.Pty.Resize(cols, rows);
             session.Info.Cols = cols;
             session.Info.Rows = rows;
             Broadcast(session, new DshTerminalStateFrame { Info = Clone(session.Info) });
-        }
+        });
     }
 
     /// <summary>重命名显示标题</summary>
@@ -216,18 +190,18 @@ internal sealed class DshTerminalService {
         if (trimmed.Length is 0 or > 120) {
             throw new DshTerminalException("terminal/rejected", "终端标题需要 1–120 个字符；请修改后重试");
         }
-        lock (_gate) {
+        _actor.Run(() => {
             var session = Require(sessionId, id);
             session.Info.Title = trimmed;
             Broadcast(session, new DshTerminalStateFrame { Info = Clone(session.Info) });
-        }
+        });
     }
 
     /// <summary>关闭终端（幂等）：终止进程并通知所有跟随者</summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="id">终端 ID</param>
     internal async Task CloseAsync(string sessionId, string id) {
-        var (session, followers) = TakeForClose(sessionId, id);
+        var (session, followers) = _actor.Run(() => TakeForClose(sessionId, id));
         foreach (var follower in followers) {
             follower.Dispose();
         }
@@ -236,40 +210,35 @@ internal sealed class DshTerminalService {
         }
     }
 
-    /// <summary>移除终端并收集需要收尾的跟随者（锁内只做内存操作）</summary>
+    /// <summary>移除终端并收集需要收尾的跟随者（单写者线程只做内存操作）</summary>
     private (DshTerminalSession? Session, List<DshTerminalFollower> Followers) TakeForClose(string sessionId, string id) {
-        lock (_gate) {
-            if (!_owners.TryGetValue(sessionId, out var terminals) || !terminals.Remove(id, out var session)) {
-                return (null, []);
-            }
-            session.Closed = true;
-            session.Info.State = "exited";
-            session.Info.ExitCode ??= 0;
-            var followers = new List<DshTerminalFollower>(session.Followers);
-            session.Followers.Clear();
-            foreach (var follower in followers) {
-                follower.Push(new DshTerminalStateFrame { Info = Clone(session.Info) });
-                follower.Complete();
-            }
-            return (session, followers);
+        if (!_owners.TryGetValue(sessionId, out var terminals) || !terminals.Remove(id, out var session)) {
+            return (null, []);
         }
+        session.Closed = true;
+        session.Info.State = "exited";
+        session.Info.ExitCode ??= 0;
+        var followers = new List<DshTerminalFollower>(session.Followers);
+        session.Followers.Clear();
+        foreach (var follower in followers) {
+            follower.Push(new DshTerminalStateFrame { Info = Clone(session.Info) });
+            follower.Complete();
+        }
+        return (session, followers);
     }
 
     /// <summary>保留声明：终端存在且未关闭即返回 retained（进程生命周期独立于流）</summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="id">终端 ID</param>
-    internal void Retain(string sessionId, string id) {
-        lock (_gate) {
-            _ = Require(sessionId, id);
-        }
-    }
+    internal void Retain(string sessionId, string id) =>
+        _actor.Run(() => _ = Require(sessionId, id));
 
     /// <summary>PTY 输出：推进序号、写回放环并广播</summary>
     private void OnOutput(DshTerminalSession session, string data) {
         if (data.Length == 0) {
             return;
         }
-        lock (_gate) {
+        _actor.Run(() => {
             if (session.Closed) {
                 return;
             }
@@ -277,13 +246,12 @@ internal sealed class DshTerminalService {
             session.Replay.Append(data);
             TrimReplay(session.Replay);
             Broadcast(session, new DshTerminalOutputFrame { Sequence = session.Sequence, Data = data });
-        }
+        });
     }
 
     /// <summary>PTY 退出：更新状态并结束所有跟随流</summary>
-    private void OnExit(DshTerminalSession session, int? exitCode) {
-        List<DshTerminalFollower> followers;
-        lock (_gate) {
+    private void OnExit(DshTerminalSession session, int? exitCode) =>
+        _actor.Run(() => {
             if (session.Closed) {
                 return;
             }
@@ -293,17 +261,13 @@ internal sealed class DshTerminalService {
             if (exitCode is null) {
                 session.Info.Error = "终端进程意外结束";
             }
-            followers = [.. session.Followers];
+            var followers = session.Followers.ToArray();
             session.Followers.Clear();
             foreach (var follower in followers) {
                 follower.Push(new DshTerminalStateFrame { Info = Clone(session.Info) });
                 follower.Complete();
             }
-        }
-        foreach (var follower in followers) {
-            follower.Dispose();
-        }
-    }
+        });
 
     /// <summary>广播帧给除 except 外的所有跟随者；队列满则关闭该跟随者（DSH 慢跟随者显式失败）</summary>
     private static void Broadcast(DshTerminalSession session, object frame, DshTerminalFollower? except = null) {

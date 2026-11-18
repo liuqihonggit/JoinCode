@@ -12,9 +12,8 @@ internal sealed class DshMessageFeedbackStore {
 
     private readonly IFileSystem _fs;
     private readonly string _filePath;
-    private readonly Lock Gate = new();
+    private readonly DshSerialMailbox _actor = new();
     private readonly Dictionary<string, Dictionary<string, DshMessageFeedbackItem>> Sessions = new(StringComparer.Ordinal);
-    private Task? _loading;
     private bool _loaded;
 
     /// <summary>构造反馈存储</summary>
@@ -25,17 +24,15 @@ internal sealed class DshMessageFeedbackStore {
         _filePath = filePath ?? Path.Combine(AppDataPaths.Default.JccDirectory, "dsh-message-feedback.json");
     }
 
-    /// <summary>启动期加载存档（单飞幂等；文件缺失/损坏按空文档启动，不阻塞反馈面板）</summary>
-    internal Task InitializeAsync(CancellationToken cancellationToken = default) {
-        lock (Gate) {
-            if (_loaded) {
-                return Task.CompletedTask;
+    /// <summary>启动期加载存档（幂等；文件缺失/损坏按空文档启动，不阻塞反馈面板）</summary>
+    internal Task InitializeAsync(CancellationToken cancellationToken = default) =>
+        _actor.RunAsync(async () => {
+            if (!_loaded) {
+                await LoadCoreAsync(cancellationToken).ConfigureAwait(false);
             }
-            return _loading ??= LoadCoreAsync(cancellationToken);
-        }
-    }
+        });
 
-    /// <summary>读取存档并在锁内合并（失败只记日志，内存为空文档）</summary>
+    /// <summary>读取存档并在 actor 内合并（失败只记日志，内存为空文档）</summary>
     private async Task LoadCoreAsync(CancellationToken cancellationToken) {
         DshMessageFeedbackDocument? document = null;
         try {
@@ -49,42 +46,35 @@ internal sealed class DshMessageFeedbackStore {
         MergeLoaded(document);
     }
 
-    /// <summary>把已读存档合并进内存（同步锁内执行，避免 async 方法持有 lock）</summary>
+    /// <summary>把已读存档合并进内存（actor 内执行）</summary>
     /// <param name="document">已反序列化文档（读取失败为 null）</param>
     private void MergeLoaded(DshMessageFeedbackDocument? document) {
-        lock (Gate) {
-            if (!_loaded && document is not null) {
-                foreach (var (sessionId, items) in document.Sessions) {
-                    var target = Sessions.TryGetValue(sessionId, out var existing)
-                        ? existing
-                        : Sessions[sessionId] = new Dictionary<string, DshMessageFeedbackItem>(StringComparer.Ordinal);
-                    foreach (var (messageId, item) in items) {
-                        target[messageId] = item;
-                    }
+        if (!_loaded && document is not null) {
+            foreach (var (sessionId, items) in document.Sessions) {
+                var target = Sessions.TryGetValue(sessionId, out var existing)
+                    ? existing
+                    : Sessions[sessionId] = new Dictionary<string, DshMessageFeedbackItem>(StringComparer.Ordinal);
+                foreach (var (messageId, item) in items) {
+                    target[messageId] = item;
                 }
             }
-            _loaded = true;
-            _loading = null;
         }
+        _loaded = true;
     }
 
     /// <summary>列出某会话的全部反馈（按创建时间升序副本）</summary>
-    internal IReadOnlyList<DshMessageFeedbackItem> List(string sessionId) {
-        lock (Gate) {
-            return Sessions.TryGetValue(sessionId, out var items)
+    internal IReadOnlyList<DshMessageFeedbackItem> List(string sessionId) =>
+        _actor.Run<IReadOnlyList<DshMessageFeedbackItem>>(() =>
+            Sessions.TryGetValue(sessionId, out var items)
                 ? [.. items.Values.OrderBy(item => item.CreatedAt).Select(Clone)]
-                : [];
-        }
-    }
+                : []);
 
     /// <summary>读取单条反馈（不存在返回 null）</summary>
-    internal DshMessageFeedbackItem? Get(string sessionId, string messageId) {
-        lock (Gate) {
-            return Sessions.TryGetValue(sessionId, out var items) && items.TryGetValue(messageId, out var item)
+    internal DshMessageFeedbackItem? Get(string sessionId, string messageId) =>
+        _actor.Run(() =>
+            Sessions.TryGetValue(sessionId, out var items) && items.TryGetValue(messageId, out var item)
                 ? Clone(item)
-                : null;
-        }
-    }
+                : null);
 
     /// <summary>
     /// 写入/替换一条反馈：<paramref name="expectedVersion"/> 为 null 表示期望不存在，
@@ -96,8 +86,8 @@ internal sealed class DshMessageFeedbackStore {
         string rating,
         string? note,
         string? category,
-        string? expectedVersion) {
-        lock (Gate) {
+        string? expectedVersion) =>
+        _actor.Run(() => {
             var items = Sessions.TryGetValue(sessionId, out var existing)
                 ? existing
                 : Sessions[sessionId] = new Dictionary<string, DshMessageFeedbackItem>(StringComparer.Ordinal);
@@ -121,14 +111,13 @@ internal sealed class DshMessageFeedbackStore {
                 UpdatedAt = now,
             };
             items[messageId] = saved;
-            PersistLocked();
+            Persist();
             return new DshFeedbackPutOutcome(current is null ? null : Clone(current), Clone(saved));
-        }
-    }
+        });
 
     /// <summary>删除一条反馈：版本一致才删除；不一致返回当前条目（可能为 null）</summary>
-    internal DshFeedbackDeleteOutcome Delete(string sessionId, string messageId, string? expectedVersion) {
-        lock (Gate) {
+    internal DshFeedbackDeleteOutcome Delete(string sessionId, string messageId, string? expectedVersion) =>
+        _actor.Run(() => {
             if (!Sessions.TryGetValue(sessionId, out var items) || !items.TryGetValue(messageId, out var current)) {
                 return new DshFeedbackDeleteOutcome(null, false);
             }
@@ -139,10 +128,9 @@ internal sealed class DshMessageFeedbackStore {
             if (items.Count == 0) {
                 Sessions.Remove(sessionId);
             }
-            PersistLocked();
+            Persist();
             return new DshFeedbackDeleteOutcome(Clone(current), true);
-        }
-    }
+        });
 
     /// <summary>解析版本号（损坏存档按 0 处理，下一次写入自然升级）</summary>
     private static long ParseVersion(string version) =>
@@ -161,8 +149,8 @@ internal sealed class DshMessageFeedbackStore {
         UpdatedAt = item.UpdatedAt,
     };
 
-    /// <summary>全量落盘（调用方必须持锁；失败只记日志，内存状态保留）</summary>
-    private void PersistLocked() {
+    /// <summary>全量落盘（actor 内执行；失败只记日志，内存状态保留）</summary>
+    private void Persist() {
         try {
             var directory = Path.GetDirectoryName(_filePath);
             if (!string.IsNullOrEmpty(directory) && !_fs.DirectoryExists(directory)) {

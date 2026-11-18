@@ -244,6 +244,137 @@ public sealed class CliToolNodeTests {
     // 目录树下钻 LoadNodesFromDirectory 涉及真实磁盘 IO，按 JCC9001「测试 0 磁盘读写」
     // 不放单元测试，由 ADR 0080 真实 exe 验收覆盖（jcc tool find / jcc tool tree）。
 
+    // ===== G2 节点级"省略即继承" =====
+    // 期望值来源: Harness² Tree dict 的 write_tree 语义（DSG048 §2.2.2）——
+    // 子只声明要改的文件,未提及的从 base 继承；迁移到节点层 = 子只声明差异字段,
+    // 未提及的标量/数组从父节点继承,parameters 按 name 合并（子覆盖同名）。
+
+    private const string ParentYaml = """
+        id: base_search
+        name: jcc-base-search
+        summary: 搜索类工具基类
+        category: search
+        exe: jcc-base-search.exe
+        tags: [search, grep, code]
+        examples:
+          - jcc-base-search "pat" modules/
+        parameters:
+          - name: pattern
+            type: string
+            description: 搜索模式
+            required: true
+          - name: head_limit
+            type: integer
+            description: 最多条数
+            default: "200"
+        """;
+
+    private const string ChildYaml = """
+        id: child_search
+        name: jcc-child-search
+        inherits: base_search
+        summary: 子类只覆写摘要
+        parameters:
+          - name: head_limit
+            type: integer
+            description: 子类收紧默认值
+            default: "50"
+        """;
+
+    [Fact]
+    public void Inheritance_ChildOmitsFields_InheritsFromParent() {
+        // 子未声明 category/exe/tags/examples,必须从父继承；id/name/summary 用子的。
+        var parent = NodeManifestLoader.LoadNodeFromText(ParentYaml, "base_search/node.yaml");
+        var child = NodeManifestLoader.LoadNodeFromText(ChildYaml, "child_search/node.yaml");
+
+        var resolved = CliNodeInheritanceResolver.Resolve(child, [parent]);
+
+        Assert.Equal("base_search", child.Inherits);
+        Assert.Equal("child_search", resolved.Id);
+        Assert.Equal("jcc-child-search", resolved.Name);
+        Assert.Equal("子类只覆写摘要", resolved.Summary);
+        // 以下均为"省略即继承"——子 YAML 里一个字都没写。
+        Assert.Equal("search", resolved.Category);
+        Assert.Equal("jcc-base-search.exe", resolved.Exe);
+        Assert.Equal(["search", "grep", "code"], resolved.Tags);
+        Assert.Contains("jcc-base-search", Assert.Single(resolved.Examples));
+    }
+
+    [Fact]
+    public void Inheritance_ParametersMergeByName_ChildOverridesSameName() {
+        // parameters 按 name 合并（仿 NodeProfileResolver.MergeConfig：父打底,子覆写同名键）。
+        var parent = NodeManifestLoader.LoadNodeFromText(ParentYaml, "base_search/node.yaml");
+        var child = NodeManifestLoader.LoadNodeFromText(ChildYaml, "child_search/node.yaml");
+
+        var resolved = CliNodeInheritanceResolver.Resolve(child, [parent]);
+
+        Assert.Equal(2, resolved.Parameters.Length);
+        var headLimit = Assert.Single(resolved.Parameters, p => p.Name == "head_limit");
+        Assert.Equal("50", headLimit.Default);                 // 子覆写
+        Assert.Equal("子类收紧默认值", headLimit.Description);   // 子覆写
+        var pattern = Assert.Single(resolved.Parameters, p => p.Name == "pattern");
+        Assert.Equal("搜索模式", pattern.Description);            // 子未提及,父继承
+        Assert.True(pattern.Required);
+    }
+
+    [Fact]
+    public void Inheritance_MultiLevelChain_ResolvesDepthThree() {
+        // 三层链 base → mid → leaf,leaf 的未声明字段应穿透两层继承到 base。
+        var baseNode = NodeManifestLoader.LoadNodeFromText(ParentYaml, "base/node.yaml");
+        var midYaml = """
+            id: mid
+            name: jcc-mid
+            inherits: base_search
+            tags: [search, refined]
+            """;
+        var leafYaml = """
+            id: leaf
+            name: jcc-leaf
+            inherits: mid
+            """;
+        var mid = NodeManifestLoader.LoadNodeFromText(midYaml, "mid/node.yaml");
+        var leaf = NodeManifestLoader.LoadNodeFromText(leafYaml, "leaf/node.yaml");
+
+        var resolved = CliNodeInheritanceResolver.Resolve(leaf, [baseNode, mid]);
+
+        Assert.Equal("jcc-leaf", resolved.Name);
+        Assert.Equal("search", resolved.Category);                       // 来自 base
+        Assert.Equal(["search", "refined"], resolved.Tags);              // mid 覆写 base
+        Assert.Equal(2, resolved.Parameters.Length);                     // 来自 base
+    }
+
+    [Fact]
+    public void Inheritance_CircularChain_ThrowsWithNodeIds() {
+        const string aYaml = """
+            id: a
+            name: jcc-a
+            inherits: b
+            summary: A
+            """;
+        const string bYaml = """
+            id: b
+            name: jcc-b
+            inherits: a
+            summary: B
+            """;
+        var a = NodeManifestLoader.LoadNodeFromText(aYaml, "a/node.yaml");
+        var b = NodeManifestLoader.LoadNodeFromText(bYaml, "b/node.yaml");
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CliNodeInheritanceResolver.Resolve(a, [a, b]));
+        Assert.Contains("a", ex.Message);
+        Assert.Contains("b", ex.Message);
+        Assert.Contains("循环", ex.Message);
+    }
+
+    [Fact]
+    public void Inheritance_MissingParent_ThrowsWithGuidance() {
+        var child = NodeManifestLoader.LoadNodeFromText(ChildYaml, "child_search/node.yaml");
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CliNodeInheritanceResolver.Resolve(child, []));
+        Assert.Contains("base_search", ex.Message);
+        Assert.Contains("继承", ex.Message);
+    }
+
     private static CliToolDescriptor MakeNode(string id, string category, string summary, string[] tags) =>
         new() { Id = id, Name = id, Summary = summary, Category = category, Tags = tags, Exe = id + ".exe" };
 }

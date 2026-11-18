@@ -1,6 +1,6 @@
 # TASK097 节点继承缺口清单与补全计划（四问深度版）
 
-> 状态: accepted（用户已裁决，阶段1 进行中）
+> 状态: accepted（用户已裁决；阶段1 G2 已真机验收通过，G4 待续）
 > 创建: 2026-11-19
 > 裁决: 2026-11-19 — G3 走**数据驱动**（不引入 NodeBase，属性继承交给 G2 数据层）；补全节奏=**按阶段逐步验收**，每阶段真机 exe 跑通后再继续
 > 关联: [DSG048 万物皆节点，节点皆可继承](../design/DSG048-node-plugin-inheritance-architecture.md)、[TASK072 四问深度模板](../../implemented/task/TASK072-基准对比调研代理提示词模板-四问深度版.md)
@@ -201,11 +201,14 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 
 | 阶段 | 任务 | 状态 |
 |------|------|------|
-| 1 | G2 节点级继承 + G4 Metadata 注入 | 🔄 进行中 |
-| 2 | G1 可逆注册 + G5 DI 扫描 | ⏳ 待阶段1 验收通过 |
+| 1a | **G2 节点级继承** | ✅ 已真机验收（见 §10） |
+| 1b | G4 Metadata 注入 | ⏳ 待续（与 G2 拆分以控制验收面） |
+| 2 | G1 可逆注册 + G5 DI 扫描 | ⏳ 待阶段1 全部验收通过 |
 | 3 | G3 数据驱动收敛（已定方案） | ⏳ 待阶段2 |
 | 4 | G6 经验继承（H₀ 重置红线） | ⏳ 待阶段3 |
 | 5 | G7 AOT（CI） | ⏳ 待阶段4 |
+
+> 阶段1 拆分理由：G2 在 abstractions 层、G4 在 composition 层，分属两个模块，绑在一起验收会让"继承生效"与"metadata 生效"的因果链混在一起。先独立验收 G2，再动 G4。
 
 > 每阶段纪律：红测试 → 实现 → 编译 → 绿测试 → **真机 exe 验收（不得用单测代替）** → 文档 → 提交 → 差评大师 → 修复。
 
@@ -241,3 +244,45 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 ### 9.5 配置落点（遵循 G3 数据驱动决策）
 
 - metadata 注入源复用现有 profile config 体系（`base.yaml` 节点条目下加 `metadata:` 段），天然继承父 Profile、零新增文件、零 csproj 改动。与 G3"数据驱动、不引入 NodeBase"一致。
+
+---
+
+## 10. 阶段1a · G2 节点级继承实施记录（2026-11-19）
+
+### 10.1 关键实现决策（与 §9 调研修正的差异）
+
+- **验收面改用现成命令，不扩展 `--dump-nodes`**：§9.1 建议扩展该命令，但实施时发现 `jcc tool tree` / `jcc tool help` 本就读 `CliToolDescriptor` 且**渲染了 category/summary/exe/tags/examples/parameters** —— 这正是继承的全部字段，无需改命令。少一处改动、少一处回归风险。
+- **`inherits` 直接写 node.yaml，不采用 §9.3 的叠加文件**：本阶段不改生成脚本；现网 13 个分组尚无 `inherits`，regenerate 覆盖只在"给真实分组加继承"时才成为问题。**遗留风险**：`migrate_mcp_tools_to_cli_nodes.py` 全量重写 node.yaml（`:492-517,749`）会冲掉手写 `inherits`，真实采用前须按 §9.3 落实叠加文件或让生成器保留该字段。
+- **parser 契约放宽**：声明 `inherits` 的子节点允许省略 `name`/`summary`（由父继承），`id` 仍必填；未声明 `inherits` 的节点维持原必填校验（`NodeYamlParser.cs:88-95`）。这是"省略即继承"能否成立的硬前提——否则子节点在 parse 阶段就被拒，resolver 没有机会介入。
+- **合并语义**：零依赖纯函数 `CliToolDescriptor.DeclaredKeys`（internal，解析元信息）区分"省略 vs 显式"；子节点显式字段胜出，标量/数组省略则从父继承，`parameters`/`tools` 按 name/id 合并（父打底、子覆写同名、子新增追加）；深度≤3、循环检测、缺父均给"原因+触发节点+拦截层+正确写法"四段式报错。
+
+### 10.2 改动文件
+
+| 文件 | 变更 |
+|------|------|
+| `modules/abstractions/abstractions.primitives.tools/src/cli_nodes/CliToolDescriptor.cs` | 新增 `Inherits` + internal `DeclaredKeys` |
+| `.../src/cli_nodes/private/NodeYamlParser.cs` | 解析 `inherits`、填充 `DeclaredKeys`；带 `inherits` 时放宽 name/summary 必填 |
+| `.../src/cli_nodes/CliNodeInheritanceResolver.cs` | **新增**：继承合并纯函数（Resolve/ResolveAll） |
+| `.../src/cli_nodes/NodeManifestLoader.cs` | 目录扫描末尾接 `ResolveAll`（无 inherits 时 no-op） |
+| `...tests/CliToolNodeTests.cs` | 新增 5 个继承红测试（省略继承/参数合并/多层链/循环/缺父） |
+
+### 10.3 红→绿（回归网，非验收）
+
+- 红：`CliNodeInheritanceResolver` / `Inherits` 不存在，编译报 6 错（预期）。
+- 绿：修正 `IReadOnlyList.Length`→`Count`、parser 放宽契约后，库与测试项目零警告零错误；`dotnet test` = **83/83 通过**（含 5 个继承用例）。
+- 过程中测试 `Inheritance_MultiLevelChain` 首轮失败暴露了 parser 必填契约与继承语义的冲突——按"测试暴露设计问题则修设计，不迁就测试"处理，放宽 parser 契约（见 10.1）。
+
+### 10.4 真机 exe 验收（唯一验收标准，非单测）
+
+编译 `JoinCode.csproj`（8.8s，零错误）后，用 `artifacts/bin/JoinCode/Debug/net10.0/jcc.exe` 实跑四组：
+
+| # | 命令 | 真机输出要点 | 判定 |
+|---|------|--------------|------|
+| 1 | `jcc tool tree --dir <verify-inherit>` | `search/` 下同时出现 `base_search/` 与 `child_search/`，两者摘要都是父的"搜索类工具基类" | ✅ 子节点的 category/summary 来自父 |
+| 2 | `jcc tool help child_search --dir <verify-inherit>` | 分类 `search`、可执行文件 `jcc-base-search.exe`、参数 `--pattern`（父定义）+ `--head_limit` 默认值 **50**（子覆写）、示例与标签均来自父 | ✅ 标量/数组继承 + 参数按名覆写全部生效 |
+| 3 | `jcc tool tree --dir <verify-inherit-bad>`（orphan 缺父） | stderr 输出四段式引导（含父 ID、拦截层、正确写法）；节点仍列在 `general/` 下，进程未崩 | ✅ 容错路径不静默吞错、不拖垮整棵树 |
+| 4 | `jcc tool tree`（真实 13 组） | `13 组 / 635 个工具，独立 exe 388（61%）...247 由 jcc 内执行`，与改动前基线一致 | ✅ 无 inherits 的现网节点零回归 |
+
+子节点 `child_search/node.yaml` 只写了 `id/name/inherits/parameters.head_limit` 四项，其余全部从父浮出——这是继承生效的直接证据。验收夹具在 `artifacts/verify-inherit*/`（构建产物区，非源码）。
+
+> 打点纪律说明：本次改动走 `tool tree`/`tool help` 的**用户可见输出**作为执行链命中证据（子 YAML 未写的字段凭空出现，因果链唯一），无需在零依赖抽象层注入诊断标签；§1 的 `JCC_DEBUGLOG` 打点纪律保留给 G1/G5 这类"无可见输出"的运行期机制。

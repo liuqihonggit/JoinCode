@@ -85,19 +85,23 @@ internal static class NodeYamlParser {
         var id = ReadScalar(map, "id");
         var name = ReadScalar(map, "name");
         var summary = ReadScalar(map, "summary");
+        var inherits = ReadScalar(map, "inherits");
         if (string.IsNullOrWhiteSpace(id))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 存在缺少 id 的节点");
-        if (string.IsNullOrWhiteSpace(name))
+        // G2「省略即继承」：声明 inherits 的子节点只写差异，name/summary 可交给 CliNodeInheritanceResolver 从父继承。
+        // 不声明 inherits 时仍强制必填 —— 提示词里出现一个没有说明的 exe，等于让模型对着未知命令行猜。
+        if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(inherits))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 节点 '{id}' 缺少 name");
-        if (string.IsNullOrWhiteSpace(summary))
+        if (string.IsNullOrWhiteSpace(summary) && string.IsNullOrWhiteSpace(inherits))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 节点 '{id}' 缺少 summary");
 
         var exe = ReadScalar(map, "exe");
         return new CliToolDescriptor {
             Id = id,
-            Name = name,
-            Summary = summary,
+            Name = name ?? "",
+            Summary = summary ?? "",
             Category = ReadScalar(map, "category") ?? "general",
+            Inherits = inherits,
             Exe = exe,
             Tags = ReadStringArray(map, "tags"),
             Examples = ReadStringArray(map, "examples"),
@@ -112,7 +116,13 @@ internal static class NodeYamlParser {
                 : ReadSequence(map, "tools")
                     .OfType<YamlMappingNode>()
                     .Select(entry => ParseToolEntry(entry, source, id))
-                    .ToArray()
+                    .ToArray(),
+            DeclaredKeys = map.Children.Keys
+                .OfType<YamlScalarNode>()
+                .Select(key => key.Value)
+                .Where(key => key is not null)
+                .Select(key => key!)
+                .ToHashSet(StringComparer.Ordinal)
         };
     }
 

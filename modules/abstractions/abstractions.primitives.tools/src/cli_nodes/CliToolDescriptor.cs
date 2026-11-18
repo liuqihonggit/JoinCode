@@ -17,6 +17,12 @@ public sealed record CliToolDescriptor {
     /// <summary>自然分类（用于目录树，不用于 MCP 分组）。</summary>
     public string Category { get; init; } = "general";
 
+    /// <summary>
+    /// 父节点 ID — "省略即继承"：子只声明差异，未提及的字段从父节点继承。
+    /// null 表示不继承（绝大多数节点）。解析由 <see cref="CliNodeInheritanceResolver"/> 完成。
+    /// </summary>
+    public string? Inherits { get; init; }
+
     /// <summary>独立 exe 文件名；基础工具为 null（宿主内实现）。</summary>
     public string? Exe { get; init; }
 
@@ -58,4 +64,11 @@ public sealed record CliToolDescriptor {
 
     /// <summary>是否为进入协议原生 tools 字段的基础工具。</summary>
     public bool IsBaseTool => Exe is null;
+
+    /// <summary>
+    /// 解析时 raw YAML 中显式出现过的键名 — 仅供继承合并判断"省略 vs 显式声明"。
+    /// 用 internal 隔离在解析层，不进公开 DTO 语义；手工 new 的 descriptor 为空，
+    /// 表示"全部字段显式"，此时继承不会覆盖任何字段（符合直觉）。
+    /// </summary>
+    internal IReadOnlySet<string> DeclaredKeys { get; init; } = new HashSet<string>(StringComparer.Ordinal);
 }

@@ -14,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/async_primitives/async_lock/AsyncLock.csproj" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />

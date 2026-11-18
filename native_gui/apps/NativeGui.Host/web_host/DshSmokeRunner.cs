@@ -8,7 +8,7 @@ namespace JoinCode.Gui.WebHost;
 internal static class DshSmokeRunner {
     private const string EventsStreamId = "smoke-events";
     private const string FollowStreamId = "smoke-follow";
-    private const string Objective = "TASK094 无锁宿主冒烟目标";
+    private const string Objective = "TASK099 无锁宿主冒烟目标";
 
     /// <summary>执行冒烟；0=全部通过，1=失败。</summary>
     internal static async Task<int> RunAsync() {

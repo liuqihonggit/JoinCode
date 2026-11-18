@@ -27,7 +27,7 @@ public static class DeadlockAuditSection {
 5. 需要串行化的是"消息处理顺序"，不是"代码临界区"；把操作改写成消息投递给所有者
 6. 跨进程互斥用 FileMode.CreateNew 原子文件租约 + TTL 心跳，禁止命名 Mutex
 7. UI 线程亲和（WPF/Avalonia 控件）用 Dispatcher 调度，不用锁保护 UI 状态
-8. 存量锁按 TASK094 批次收敛；新增锁直接视为缺陷，必须改为 Actor/Channel/CAS/租约
+8. 存量锁按 TASK099 批次收敛；新增锁直接视为缺陷，必须改为 Actor/Channel/CAS/租约
 
 ## 竞态条件测试
 

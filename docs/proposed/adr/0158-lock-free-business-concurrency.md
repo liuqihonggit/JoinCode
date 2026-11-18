@@ -2,7 +2,7 @@
 
 - 状态: proposed
 - 日期: 2026-11-19
-- 关联: [TASK094](../task/TASK094-全仓无锁化与风格统一.md)
+- 关联: [TASK099](../task/TASK099-全仓无锁化与风格统一.md)
 - 取代: [TASK079](../task/TASK079-锁改造为只读不可变CAS-杜绝死锁.md) 中“必须保留锁”的例外清单
 - 参考: [DSG038](../../../modules/async_primitives/docs/design/DSG038-deadlock-elimination-overhaul-master-plan.md)、[REF006](../../../modules/async_primitives/docs/refactor/REF006-lock-to-asynclock.md)、[REF007](../../../modules/composition/docs/refactor/REF007-lock-to-channel-pipeline-plan.md)、[ADR 0059](../../archived/adr/security_concurrency/0059-asynclock-reentrancy-detection.md)
 
@@ -107,7 +107,7 @@
 - 禁止无界 Channel 作为默认选择，必须有容量或明确背压理由。
 - 禁止同步阻塞异步（`.Result`、`.Wait()`、`.GetAwaiter().GetResult()`）出现在异步链路。
 - 锁相关过时注释（如“读操作走 lock(entries)”）必须随实现同步更新。
-- 命名、目录、`GlobalUsings`、`#pragma`、null-forgiving 按 AGENTS.md 统一治理，详见 TASK094 的 B7。
+- 命名、目录、`GlobalUsings`、`#pragma`、null-forgiving 按 AGENTS.md 统一治理，详见 TASK099 的 B7。
 
 ## 替代方案
 
@@ -138,5 +138,5 @@
 
 - 每个批次跨域变更执行全仓编译 `pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1`。
 - 每个批次必须启动真实 exe 验收：`jcc.exe`、`NativeGui.Host.exe`、必要时多进程 `jcc.exe`；单元测试只作为回归，不作为验收证据。
-- 验收记录写入 TASK094 的四列验收表，并附 `.xxx/logs/` 下的命令、退出码和关键日志。
+- 验收记录写入 TASK099 的四列验收表，并附 `.xxx/logs/` 下的命令、退出码和关键日志。
 - `JCC4008` 基线最终为 0；任何新增锁原语使 CI 失败。

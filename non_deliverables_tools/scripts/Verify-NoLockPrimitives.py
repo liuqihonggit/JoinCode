@@ -179,14 +179,22 @@ def read_baseline(path: Path) -> dict[str, int]:
     return baseline
 
 
-def write_baseline(path: Path, counts: dict[str, int]) -> None:
+def write_baseline(path: Path, counts: dict[str, int], repo_root: Path) -> None:
+    # |0 是分析器专用豁免（间接消费锁类型，文本扫描不可见），重写时必须保留；
+    # 文件已删除或重新出现文本级锁原语时以当前扫描结果为准。
+    preserved = {
+        file_path: 0
+        for file_path, allowed in (read_baseline(path).items() if path.exists() else [])
+        if allowed == 0 and file_path not in counts and (repo_root / file_path).exists()
+    }
+    merged = {**counts, **preserved}
     lines = [
         "# JCC4008 锁原语存量基线（只减不增，B6 归档锁生态时清零）",
-        "# 格式: 仓库相对路径|允许出现的最大次数",
+        "# 格式: 仓库相对路径|允许出现的最大次数（|0 = 仅分析器拦截的间接消费豁免）",
         "# 更新: python non_deliverables_tools/scripts/Verify-NoLockPrimitives.py --write-baseline",
         "",
     ]
-    lines.extend(f"{file_path}|{count}" for file_path, count in sorted(counts.items()))
+    lines.extend(f"{file_path}|{count}" for file_path, count in sorted(merged.items()))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -205,7 +213,7 @@ def main() -> int:
     actual = scan(repo_root)
 
     if args.write_baseline:
-        write_baseline(baseline_path, actual)
+        write_baseline(baseline_path, actual, repo_root)
         print(f"已写入基线: {baseline_path} ({len(actual)} 个文件, {sum(actual.values())} 处)")
         return 0
 

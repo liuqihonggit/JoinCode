@@ -1,13 +1,11 @@
 # JCC4008 锁原语存量基线（只减不增，B6 归档锁生态时清零）
-# 格式: 仓库相对路径|允许出现的最大次数
+# 格式: 仓库相对路径|允许出现的最大次数（|0 = 仅分析器拦截的间接消费豁免）
 # 更新: python non_deliverables_tools/scripts/Verify-NoLockPrimitives.py --write-baseline
 
-modules/abstractions/abstractions.primitives.utils/src/diagnostics/ConsoleSuppressionGate.cs|5
 modules/abstractions/abstractions.utils/state/Fsm.cs|1
 modules/abstractions/abstractions.utils/state/StateMachine.cs|2
 modules/abstractions/infrastructure/async_file_lock/CrossProcessLock.cs|5
 modules/abstractions/infrastructure/async_file_lock/NamedMutexMailboxLock.cs|4
-modules/abstractions/infrastructure/io/services/file_ops/FileHistoryService.cs|1
 modules/abstractions/infrastructure/io/services/throttle/IOThrottleService.cs|8
 modules/abstractions/infrastructure/persistence/LeasedKvStoreAdapter.cs|1
 modules/abstractions/infrastructure/persistence/PithosKvStoreLease.cs|2
@@ -17,7 +15,6 @@ modules/abstractions/infrastructure_hot_spot/DeferredMailService.cs|6
 modules/abstractions/infrastructure_hot_spot/HotSpotSpawnIntegration.cs|1
 modules/abstractions/infrastructure_process/ResilientChannel.cs|1
 modules/apps/cli/app/builder/ApplicationBuilder.cs|1
-modules/apps/cli/app/diagnostics/ErrorConsole.cs|5
 modules/apps/cli/queue/CommandQueue.cs|1
 modules/async_primitives/async_lock.tests/actor/ActorBaseBugReproTest.cs|1
 modules/async_primitives/async_lock.tests/actor/BackpressurePipelineTest.cs|1
@@ -26,7 +23,6 @@ modules/async_primitives/async_lock.tests/lock/AsyncLockDiagnosisTests.cs|71
 modules/async_primitives/async_lock.tests/lock/CasRetryTests.cs|2
 modules/async_primitives/async_lock.tests/pure/OverflowGuardBoundaryTests.cs|9
 modules/async_primitives/async_lock/actor/GatewayActor.cs|2
-modules/async_primitives/async_lock/lazy/AsyncLazy.cs|1
 modules/async_primitives/async_lock/lock/AsyncLock.cs|57
 modules/async_primitives/async_lock/lock/AsyncLockedDictionary.cs|6
 modules/async_primitives/async_lock/lock/LockRef.cs|4
@@ -49,7 +45,6 @@ modules/guard/guard.config.tests/configuration/core/FastModeServiceTests.cs|1
 modules/guard/guard.hooks/configuration/HookConfigurationManager.cs|1
 modules/guard/guard.sandbox/ipc/SandboxIpcClient.cs|1
 modules/guard/guard.security/power_shell/ast/PsAstParser.cs|1
-modules/guard/guard/configuration/services/ConfigurationService.cs|1
 modules/llm/agents.coordinator.backend/TmuxPaneBackend.cs|1
 modules/llm/agents.coordinator.core/AgentCoordinator.cs|3
 modules/llm/agents.coordinator.core/AgentExecutionEngine.cs|1
@@ -87,6 +82,7 @@ modules/services/bridge/session/main/core/BridgeMain.cs|1
 modules/services/browser/automation/PuppeteerBrowserAutomationService.cs|1
 modules/storage/clock.tests/goal/engine/GoalEnginePipelineTests.cs|4
 modules/storage/clock.tests/goal/engine/GoalEngineTests.cs|5
+modules/storage/clock/goal/core/goal_engine/GoalStateUpdater.cs|0
 modules/storage/clock/goal/core/goal_graph/GoalGraphEngine.cs|2
 modules/storage/clock/goal/core/scheduler/EventDrivenGraphScheduler.cs|2
 modules/storage/clock/goal/core/scheduler/IGraphScheduler.cs|1
@@ -102,10 +98,8 @@ modules/storage/vault.memdir.tests/AdvisorServicePersistenceTests.cs|3
 modules/storage/vault.memdir.tests/EditorModeServicePersistenceTests.cs|3
 modules/storage/vault.other.tests/state/StorePersistenceTests.cs|3
 modules/storage/vault/memdir/memdir2/services/core/ConfigPersistentServiceBase.cs|1
-modules/tools/cli_nodes/groups/code/private/LspConnection.cs|3
 modules/tools/gh/handlers/GitHubToolHandlers.Run.cs|2
 modules/tools/gh/log_fetcher/GitHubRunLogFilterRunner.cs|3
-modules/tools/rg/RgEngine.cs|1
 native_gui/src/NativeGui.Core/web_host/DshApprovalBroker.cs|7
 native_gui/src/NativeGui.Core/web_host/DshChangesProtocol.cs|3
 native_gui/src/NativeGui.Core/web_host/DshConPty.cs|2
@@ -152,4 +146,3 @@ test/unit/infra.tests/io/subprocess/ResilientChannelTests.cs|1
 test/unit/infra.tests/utils/async/AsyncLockTest.cs|21
 test/unit/infra.tests/utils/async/AsyncLockedDictionaryTest.cs|11
 test/unit/testing.common/services/InMemoryFileSystem.cs|2
-modules/storage/clock/goal/core/goal_engine/GoalStateUpdater.cs|0

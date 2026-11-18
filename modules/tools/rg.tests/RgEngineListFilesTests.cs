@@ -98,6 +98,74 @@ public sealed class RgEngineListFilesTests {
         }
     }
 
+    /// <summary>流式回调必须单写者串行 — 并行搜索不得重入回调。</summary>
+    [Fact]
+    public async Task Search_流式回调_并发搜索下保持串行() {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"rg_stream_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try {
+            for (var i = 0; i < 8; i++) {
+                await File.WriteAllTextAsync(Path.Combine(tempDir, $"f{i}.txt"), $"needle {i}\nother\n").ConfigureAwait(true);
+            }
+
+            var query = BuildStreamQuery([tempDir], threads: 4);
+            var active = 0;
+            var maxActive = 0;
+            var delivered = 0;
+
+            var outcome = await Task.Run(() => RgEngine.Search(query, CancellationToken.None, _ => {
+                var now = Interlocked.Increment(ref active);
+                InterlockedMax(ref maxActive, now);
+                Thread.Sleep(15);
+                Interlocked.Decrement(ref active);
+                Interlocked.Increment(ref delivered);
+            })).ConfigureAwait(true);
+
+            outcome.Success.Should().BeTrue();
+            maxActive.Should().Be(1, "流式回调只能有一个写者，否则输出会交错");
+            delivered.Should().Be(8);
+        } finally {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    private static void InterlockedMax(ref int target, int value) {
+        while (true) {
+            var current = Volatile.Read(ref target);
+            if (current >= value) return;
+            if (Interlocked.CompareExchange(ref target, value, current) == current) return;
+        }
+    }
+
+    private static RgQuery BuildStreamQuery(IReadOnlyList<string> paths, int threads) => new(
+        Pattern: "needle",
+        Paths: paths,
+        Globs: null,
+        FileType: null,
+        TypeNot: null,
+        CaseInsensitive: false,
+        SmartCase: false,
+        WordRegexp: false,
+        OnlyMatching: false,
+        Replace: null,
+        Multiline: false,
+        FixedStrings: false,
+        Hidden: false,
+        NoIgnore: true,
+        Before: null,
+        After: null,
+        Context: null,
+        LineNumbers: false,
+        HeadLimit: null,
+        Offset: null,
+        OutputMode: SearchOutputMode.Content,
+        Sort: null,
+        InvertMatch: false,
+        LineRegexp: false,
+        MaxCount: null,
+        Threads: threads,
+        MaxFilesize: null);
+
     /// <summary>
     /// 构造 --files 模式的 RgQuery（Pattern 空占位，仅过滤相关字段生效）。
     /// </summary>

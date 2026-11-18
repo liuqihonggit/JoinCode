@@ -13,7 +13,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
     private readonly string _baseDir;
     private readonly string _sessionId;
     private readonly bool _checkpointingEnabled;
-    private readonly AsyncLockedDictionary<string, int> _versionTracker = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, StrongBox<int>> _versionTracker = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 构造文件历史备份服务
@@ -46,10 +46,8 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
         int version;
         string backupPath;
 
-        version = await _versionTracker.AddOrUpdateAsync(
-            normalizedPath,
-            (_, existing) => existing + 1,
-            cancellationToken).ConfigureAwait(false);
+        var counter = _versionTracker.GetOrAdd(normalizedPath, static _ => new StrongBox<int>(0));
+        version = Interlocked.Increment(ref counter.Value);
         backupPath = GetBackupFilePath(normalizedPath, version);
 
         try {

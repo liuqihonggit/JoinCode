@@ -41,14 +41,8 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     public Task<string?> GetAsync(string key, CancellationToken cancellationToken = default)
         => GetAsync(key, ConfigKeyRegistry.SourceOf(key), cancellationToken);
 
-    /// <summary>迁移闸门（普通 object 即可，不用可释放类型，避免单例被迫实现 IDisposable）</summary>
-    private readonly object _migrationLock = new();
-
-    /// <summary>迁移任务 — 首次访问时创建，之后所有调用方共享同一个结果</summary>
-    private Task _migrationTask = Task.CompletedTask;
-
-    /// <summary>迁移是否已启动</summary>
-    private bool _migrationStarted;
+    /// <summary>迁移任务 — 首次访问时 CAS 单飞创建，之后所有调用方共享同一个结果</summary>
+    private Task? _migrationTask;
 
     /// <summary>
     /// 首次读写前把历史误写在 settings.json 的 global 键搬到 global.json（TASK089 / 方案 B）。
@@ -56,12 +50,25 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     /// 挂在入口就得写三遍，漏一处就有宿主读到旧位置。</para>
     /// </summary>
     private Task EnsureMigratedAsync() {
-        lock (_migrationLock) {
-            if (!_migrationStarted) {
-                _migrationStarted = true;
-                _migrationTask = RunMigrationOnceAsync();
-            }
-            return _migrationTask;
+        var existing = Volatile.Read(ref _migrationTask);
+        if (existing is not null) return existing;
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var winner = Interlocked.CompareExchange(ref _migrationTask, completion.Task, null);
+        if (winner is not null) return winner;
+
+        _ = RunMigrationAndCompleteAsync(completion);
+        return completion.Task;
+    }
+
+    private async Task RunMigrationAndCompleteAsync(TaskCompletionSource completion) {
+        try {
+            await RunMigrationOnceAsync().ConfigureAwait(false);
+            completion.TrySetResult();
+        } catch (OperationCanceledException ex) {
+            completion.TrySetCanceled(ex.CancellationToken);
+        } catch (Exception ex) {
+            completion.TrySetException(ex);
         }
     }
 

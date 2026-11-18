@@ -51,6 +51,21 @@ public sealed class FileHistoryCheckpointingTests : IDisposable {
         result.Should().Contain(AppDataConstants.Paths.FileHistoryDirectory, "备份应落在 file-history 目录");
     }
 
+    [Fact]
+    public async Task ConcurrentBackups_AssignDistinctVersions() {
+        await using var fs = new InMemoryFileSystem();
+        var file = PlatformFile();
+        await fs.WriteAllTextAsync(file, "original");
+        await using var sut = new global::IO.FileHistoryService(fs);
+
+        var results = await Task.WhenAll(
+            Enumerable.Range(0, 32).Select(_ => sut.BackupBeforeWriteAsync(file)));
+
+        results.Should().NotContainNulls();
+        results.OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).Should().HaveCount(32,
+            "同一文件的并发备份必须拿到互不相同的版本号");
+    }
+
     private static bool HasNoBackups(InMemoryFileSystem fs) {
         var dir = AppDataConstants.Paths.FileHistoryDirectory;
         return !fs.DirectoryExists(dir) || !fs.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Any();

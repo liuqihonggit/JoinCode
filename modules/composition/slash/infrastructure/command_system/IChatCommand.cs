@@ -100,10 +100,20 @@ public abstract class ChatCommandBase : IChatCommand {
     }
 
     /// <summary>
-    /// 获取标准化参数（Trim）
+    /// 获取标准化参数文本。
+    /// <para><c>slash_call</c> 把 key=value / JSON 规范化成 JSON 对象串放进 <see cref="ChatCommandContext.Arguments"/>，
+    /// 若直接 Trim 会把整串 <c>{"vendor":"openai"}</c> 当成参数值（如 /vendor 报「未知供应商」）。
+    /// 这里对 JSON 对象复用 <see cref="GetSplitArgs"/> 抽值后拼回「还原后的原始文本」，与 TUI 手输形态一致；
+    /// 非 JSON 仍走原来的 Trim，避免影响位置参数命令。多段命令据此可自行 Split，不必逐命令改。</para>
     /// </summary>
-    internal static string GetNormalizedArgs(ChatCommandContext context)
-        => context.Arguments.Trim();
+    internal static string GetNormalizedArgs(ChatCommandContext context) {
+        var raw = context.Arguments.Trim();
+        if (raw.StartsWith('{') && raw.EndsWith('}')) {
+            var values = GetSplitArgs(context);
+            if (values.Length > 0) return string.Join(" ", values);
+        }
+        return raw;
+    }
 
     /// <summary>
     /// 获取拆分后的参数数组。

@@ -22,6 +22,23 @@ public sealed class SlashCallArgumentTests {
         ChatCommandBase.GetSplitArgs(CreateContext("{oops")).Should().Equal("{oops");
     }
 
+    [Theory]
+    [InlineData("{\"vendor\":\"openai\"}", "openai")]
+    [InlineData("{\"count\":2}", "2")]
+    [InlineData("{\"action\":\"add\",\"args\":\"PreToolUse echo\"}", "add PreToolUse echo")]
+    [InlineData("{\"enable\":true}", "True")]
+    public void GetNormalizedArgs_JsonObject_RestoresValuesAsText(string raw, string expected) {
+        ChatCommandBase.GetNormalizedArgs(CreateContext(raw)).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("openai")]
+    [InlineData("add PreToolUse echo")]
+    [InlineData("   spaced   text  ", "spaced   text")]
+    public void GetNormalizedArgs_NonJson_KeepsOriginalText(string raw, string? expected = null) {
+        ChatCommandBase.GetNormalizedArgs(CreateContext(raw)).Should().Be(expected ?? raw);
+    }
+
     private static ChatCommandContext CreateContext(string raw) => new() {
         Arguments = raw,
         CancellationToken = CancellationToken.None,

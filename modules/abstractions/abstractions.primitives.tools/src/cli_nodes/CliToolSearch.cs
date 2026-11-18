@@ -135,8 +135,34 @@ public static class CliToolSearch {
         + (node.Tags.Any(tag => Contains(tag, term)) ? 10 : 0)
         + (Contains(node.Category, term) ? 5 : 0);
 
-    private static bool Contains(string? haystack, string needle) =>
-        haystack is not null && haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+    private static bool Contains(string? haystack, string needle) {
+        if (haystack is null) return false;
+        // 两字母查询走词边界：rm 是 confirm / permission 的单词内子串，跟「删除」无关，
+        // 却会以和真命中一样的分数挤进结果（真机 find rm 命中 confirm_action、permission_* 一大片）。
+        // 独立词（gh_pr_view 里的 pr、别名 rm 本身）仍命中；≥3 字母保留子串语义，
+        // 不动 find request / find pull request 这类既有预期。
+        if (needle.Length == 2) return ContainsWord(haystack, needle);
+        return haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>needle 是否作为一个独立「词」出现 —— 两侧是边界（非字母数字）或串首尾。</summary>
+    private static bool ContainsWord(string haystack, string needle) {
+        var start = 0;
+        while (start < haystack.Length) {
+            var index = haystack.IndexOf(needle, start, StringComparison.OrdinalIgnoreCase);
+            if (index < 0) return false;
+            var end = index + needle.Length;
+            var leftIsBoundary = index == 0 || !IsWordChar(haystack[index - 1]);
+            var rightIsBoundary = end == haystack.Length || !IsWordChar(haystack[end]);
+            if (leftIsBoundary && rightIsBoundary) return true;
+            start = index + 1;
+        }
+        return false;
+    }
+
+    // 下划线是 snake_case 的分词符（gh_pr_view 的 pr、file_delete 的 delete 都是独立词），
+    // 不算单词字符 —— 否则两字母查询命中不了 gh_pr_view 这类合法 ID。
+    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c);
 
     /// <summary>
     /// 条目的任一写法命中关键词 —— 规范 ID、node.yaml 声明的别名、以及全名/短名/同义词。

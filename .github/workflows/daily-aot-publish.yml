@@ -109,7 +109,15 @@ jobs:
           }
           Write-Host "  [OK] experience round: G6 H₀ 重置红线在 AOT 下成立"
 
-          # 3. 635 工具零回归
+          # 3. TASK098 融合：Probe 行为门禁在 AOT 下可用（真实限流器 → H₀ allow=30/60）
+          $probe = & $exe probe 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { Write-Error "probe 退出码 $LASTEXITCODE"; exit 1 }
+          if ($probe -notmatch 'allow=30' -or $probe -notmatch 'deny=30') {
+            Write-Error "probe 未产出 H₀ 真实行为指纹: $probe"; exit 1
+          }
+          Write-Host "  [OK] probe: TASK098 行为门禁在 AOT 下产出真实限流指纹"
+
+          # 4. 635 工具零回归
           $tree = & $exe tool tree 2>&1 | Out-String
           if ($tree -notmatch '635') { Write-Error "tool tree 未报告 635 工具: $tree"; exit 1 }
           Write-Host "  [OK] tool tree: 635 工具零回归"

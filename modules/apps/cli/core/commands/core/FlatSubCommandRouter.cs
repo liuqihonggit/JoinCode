@@ -40,6 +40,10 @@ internal static class FlatSubCommandRouter {
             return await CliToolCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Prompt:
             return await PromptPrintCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
+            case CliSubCommand.Experience:
+            return await ExperienceCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
+            case CliSubCommand.Probe:
+            return await ProbeCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             default:
             return null;
         }

@@ -9,6 +9,12 @@ consumers:
         config:
           max-requests: 30
           window-seconds: 60
+          # G4 metadata 保留命名空间（业务 config 不得占用 meta. 前缀）：
+          # 随 Profile 的 excludes/includes/overrides 一起继承合并，--dump-nodes 真机可见。
+          meta.version: "2.1.0"
+          meta.dependencies: config-key-registry
+          meta.capabilities: rate-limit,audit
+          meta.required-capabilities: config-key-registry
       - id: chat-error-handling-mw
         priority: 150
       - id: chat-timing-mw

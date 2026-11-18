@@ -235,6 +235,49 @@ class Program {
         Cli.TerminalHelper.WriteLine("═══ 已注册节点列表 ═══");
         Cli.TerminalHelper.WriteLine();
 
+        // G5: 真机展示 NodeRegistry 从编译期工厂 catalog 自动归纳的节点数 ——
+        // 与 profile 配置节点交叉核对；空容器只用于读取归纳结果，不解析任何服务。
+        var emptySp = new Microsoft.Extensions.DependencyInjection.ServiceCollection().BuildServiceProvider();
+        var registry = Composition.NodeRegistry.NodeRegistry.BuildFromCatalog(
+            emptySp, Pipelines.DataDrivenPipelineComposition.BuildNodeFactories());
+        Cli.TerminalHelper.WriteLine($"NodeRegistry 自动归纳: {registry.NodeCount} 个节点（来自编译期工厂 catalog，无需手工登记）");
+        Cli.TerminalHelper.WriteLine();
+
+        // G1: 真机自检 —— debug 日志下跑一次完整 注册→替换→卸载，验证逆序回滚与打点顺序。
+        // 走的是生产 NodeRegistry.Register/Replace/Dispose 同一条代码路径（不是单测替身）。
+        if (Environment.GetEnvironmentVariable("JCC_DEBUGLOG") == "1") {
+            var probe = Composition.NodeRegistry.NodeRegistry.BuildFromCatalog(emptySp, []);
+            var h1 = probe.Register("probe", (_, _) => new ProbeNode("first"));
+            var h2 = probe.Register("probe", (_, _) => new ProbeNode("second"));
+            h2.Replace((_, _) => new ProbeNode("replaced"));
+            var before = probe.TryGetNode("probe", out var bn) ? bn?.NodeId ?? "(null)" : "(missing)";
+            h2.Dispose();
+            var after = probe.TryGetNode("probe", out var an) ? an?.NodeId ?? "(null)" : "(missing)";
+            h1.Dispose();
+            var end = probe.TryGetNode("probe", out _) ? "still-present" : "removed";
+            Cli.TerminalHelper.WriteLine($"[G1-SELFTEST] after-replace={before} after-lifo-dispose={after} after-all-disposed={end}");
+            Cli.TerminalHelper.WriteLine();
+
+            // TASK098 融合自检 —— 一个 CompositionHandle 同时兑现 G1 逆序回滚 + G6 H₀ 恢复。
+            // 走生产 DeltaComposer.Compose（Permanent/Round 统一入口）+ Track（G1 挂接）+ Dispose（双回滚）。
+            var skeleton = resolver.Resolve("base");
+            var round = Composition.Improvement.CompositionDelta.FromExperience(
+                new Composition.Improvement.HarnessPatch("chat-pipeline", "stream-rate-limit-mw", "max-requests", "50"),
+                "selftest", "真机自检");
+            var handle = Composition.Improvement.DeltaComposer.Compose(skeleton, [round]);
+            FusionMax(handle.Current, out var currentMax);
+            var regA = probe.Register("fusion", (_, _) => new ProbeNode("reg-A"));
+            var regB = probe.Register("fusion", (_, _) => new ProbeNode("reg-B"));
+            handle.Track(regA);
+            handle.Track(regB);
+            var regBefore = probe.TryGetNode("fusion", out var fb) ? fb?.NodeId ?? "(null)" : "(missing)";
+            handle.Dispose();
+            FusionMax(handle.Current, out var restoredMax);
+            var regAfter = probe.TryGetNode("fusion", out _) ? "still-present" : "removed";
+            Cli.TerminalHelper.WriteLine($"[T098-FUSION] current-max={currentMax} after-dispose-max={restoredMax} reg-before={regBefore} reg-after={regAfter} disposed={handle.IsDisposed}");
+            Cli.TerminalHelper.WriteLine();
+        }
+
         foreach (var profileName in profiles.Keys.Order()) {
             var resolved = resolver.Resolve(profileName);
             Cli.TerminalHelper.WriteLine($"Profile: {profileName}");
@@ -243,13 +286,42 @@ class Program {
                 Cli.TerminalHelper.WriteLine($"  消费点: {consumerId}");
                 foreach (var node in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
                     var flag = node.EnabledWhenFeatureFlag is not null ? $" [flag:{node.EnabledWhenFeatureFlag}]" : "";
-                    Cli.TerminalHelper.WriteLine($"    - {node.Id} (priority={node.Priority}){flag}");
+                    // G4: metadata 从 profile config 的 meta.* 保留键注入 —— 真机可见配置真实值，
+                    // 未声明的节点不占位（保持诊断输出简洁）。
+                    var meta = Abstractions.Composition.NodeMetadata.FromConfig(node.Config);
+                    var metaText = meta is null
+                        ? ""
+                        // 不输出 priority —— 路由以行首 (priority=N) 为准，meta.priority 不存在。
+                        : $" [meta v={meta.Version} deps={FormatMetaList(meta.Dependencies)} caps={FormatMetaList(meta.Capabilities)} req={FormatMetaList(meta.RequiredCapabilities)}]";
+                    Cli.TerminalHelper.WriteLine($"    - {node.Id} (priority={node.Priority}){flag}{metaText}");
                 }
             }
             Cli.TerminalHelper.WriteLine();
         }
 
         return 0;
+    }
+
+    /// <summary>TASK098 融合自检辅助：从 profile 读限流阈值，读不到给占位符。</summary>
+    private static void FusionMax(Abstractions.Composition.Profile.ResolvedProfile profile, out string value) {
+        value = profile.Consumers.TryGetValue("chat-pipeline", out var c)
+            ? c.Nodes.FirstOrDefault(n => n.Id == "stream-rate-limit-mw")?.Config.GetValueOrDefault("max-requests") ?? "(null)"
+            : "(null)";
+    }
+
+    private static string FormatMetaList(string[] items) =>
+        items.Length == 0 ? "-" : string.Join(",", items);
+
+    /// <summary>G1 真机自检用的最小 INode 实现（只在 --dump-nodes debug 自检里构造）。</summary>
+    private sealed class ProbeNode(string id) : Abstractions.Composition.INode {
+        /// <summary>自检节点 ID。</summary>
+        public string NodeId { get; } = id;
+
+        /// <summary>自检节点元数据（用唯一默认值）。</summary>
+        public Abstractions.Composition.NodeMetadata Metadata { get; } = Abstractions.Composition.NodeMetadata.Unspecified;
+
+        /// <summary>自检节点状态。</summary>
+        public Abstractions.Composition.NodeState State { get; } = Abstractions.Composition.NodeState.Active;
     }
 
     /// <summary>

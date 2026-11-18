@@ -17,6 +17,12 @@ public sealed class NodeServiceResolver {
         return new NodeServiceResolver(factories.ToFrozenDictionary(StringComparer.Ordinal));
     }
 
+    /// <summary>
+    /// 编译期确定的工厂 catalog（G5 节点自动归纳的唯一数据源，只读暴露）。
+    /// 与 <c>NodeRegistry.BuildFromCatalog</c> 共用同一份，不另生成第二套节点清单。
+    /// </summary>
+    public IReadOnlyDictionary<string, Func<IServiceProvider, object>> Factories => _factories;
+
     /// <summary>按 consumerId + nodeId 尝试解析服务实例</summary>
     public bool TryResolve(string consumerId, string nodeId, IServiceProvider sp, [NotNullWhen(true)] out object? service) {
         var key = CombineKey(consumerId, nodeId);

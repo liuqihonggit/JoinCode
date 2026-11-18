@@ -46,6 +46,12 @@ public sealed record CliToolEntry {
         _ => "host"
     };
 
+    /// <summary>
+    /// 解析时 raw YAML 中显式出现过的键名 — 供继承合并判断 Aliases 等字段"省略 vs 显式"。
+    /// 手工 new 的条目集合为空，视为全部字段显式。
+    /// </summary>
+    internal IReadOnlySet<string> DeclaredKeys { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+
     /// <summary>该条目是否匹配给定名称（ID 或任一别名，大小写不敏感）。</summary>
     /// <param name="name">待查名称。</param>
     /// <returns>命中为 true。</returns>

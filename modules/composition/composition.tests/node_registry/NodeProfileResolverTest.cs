@@ -140,6 +140,61 @@ public sealed class NodeProfileResolverTest {
         act.Should().Throw<ArgumentException>();
     }
 
+    // ===== G4 metadata 配置注入（复用 profile config 的保留命名空间，自动获得继承能力）=====
+
+    [Fact]
+    public void NodeMetadata_FromConfig_ParsesReservedKeys() {
+        var config = new Dictionary<string, string> {
+            ["max-requests"] = "30",                                        // 业务 config 不干扰
+            [NodeMetadata.ConfigPrefix + "version"] = "2.1.0",
+            [NodeMetadata.ConfigPrefix + "dependencies"] = "config-key-registry,feature-flag",
+            [NodeMetadata.ConfigPrefix + "capabilities"] = "rate-limit,audit",
+            [NodeMetadata.ConfigPrefix + "required-capabilities"] = "feature-flag",
+            // priority / enabled-when 是路由字段，不放在 meta.* 里：由 NodeRegistry 从 ResolvedNodeEntry 填。
+        }.ToFrozenDictionary();
+
+        var meta = NodeMetadata.FromConfig(config);
+
+        Assert.NotNull(meta);
+        meta.Version.Should().Be("2.1.0");
+        meta.Dependencies.Should().Equal("config-key-registry", "feature-flag");
+        meta.Capabilities.Should().Equal("rate-limit", "audit");
+        meta.RequiredCapabilities.Should().Equal("feature-flag");
+        meta.Priority.Should().Be(0);                 // 自描述解析不碰路由字段
+        meta.EnabledWhenFeatureFlag.Should().BeNull();
+    }
+
+    [Fact]
+    public void NodeMetadata_FromConfig_NoReservedKeys_ReturnsNull() {
+        var config = new Dictionary<string, string> { ["max-requests"] = "30" }.ToFrozenDictionary();
+
+        NodeMetadata.FromConfig(config).Should().BeNull();
+    }
+
+    [Fact]
+    public void NodeMetadata_FromConfig_AfterProfileInheritance_OverridesParent() {
+        // metadata 搭 Profile 继承便车：子只覆写 version，capabilities 从父 config 继承。
+        var baseProfile = MakeProfile("base", consumers: MakeConsumers(
+            MakeConsumer("chat-pipeline", MakeNode("rate-limit-mw", 100,
+                config: new Dictionary<string, string> {
+                    [NodeMetadata.ConfigPrefix + "version"] = "1.0.0",
+                    [NodeMetadata.ConfigPrefix + "capabilities"] = "rate-limit"
+                }.ToFrozenDictionary()))
+        ));
+        var childProfile = MakeProfile("child", inherits: "base", overrides: [
+            new NodeProfileOverride("chat-pipeline", "rate-limit-mw", null,
+                new Dictionary<string, string> { [NodeMetadata.ConfigPrefix + "version"] = "2.1.0" }.ToFrozenDictionary())
+        ]);
+        var resolver = new NodeProfileResolver(MakeProfilesDict(baseProfile, childProfile));
+
+        var resolved = resolver.Resolve("child");
+        var meta = NodeMetadata.FromConfig(resolved.Consumers["chat-pipeline"].Nodes[0].Config);
+
+        Assert.NotNull(meta);
+        meta.Version.Should().Be("2.1.0");                  // 子覆写
+        meta.Capabilities.Should().Equal("rate-limit");     // 父继承（子未提及）
+    }
+
     // === Helpers ===
 
     private static NodeProfile MakeProfile(

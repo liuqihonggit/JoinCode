@@ -16,17 +16,14 @@ internal sealed class Node<TService> : INode {
     /// <summary>底层服务实例</summary>
     public TService Service { get; }
 
-    internal Node(string nodeId, TService service) {
+    /// <summary>
+    /// 构造运行期节点；metadata 由配置注入（G4），不再在构造函数里写死 Version/Capabilities。
+    /// 未提供时落到 <see cref="NodeMetadata.Unspecified"/> 这个唯一默认值。
+    /// </summary>
+    internal Node(string nodeId, TService service, NodeMetadata? metadata = null) {
         NodeId = nodeId;
         Service = service;
         State = NodeState.Active;
-        Metadata = new NodeMetadata(
-            Version: "1.0",
-            Dependencies: [],
-            Capabilities: [],
-            RequiredCapabilities: [],
-            Priority: 0,
-            EnabledWhenFeatureFlag: null
-        );
+        Metadata = metadata ?? NodeMetadata.Unspecified;
     }
 }

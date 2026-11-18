@@ -1,0 +1,17 @@
+id: base_search
+name: jcc-base-search
+summary: 搜索类工具基类（父节点完整描述）
+category: search
+exe: jcc-base-search.exe
+tags: [search, grep, code]
+examples:
+  - jcc-base-search "pat" modules/
+parameters:
+  - name: pattern
+    type: string
+    description: 搜索模式（定义在父类）
+    required: true
+  - name: head_limit
+    type: integer
+    description: 最多输出条数（定义在父类）
+    default: "200"

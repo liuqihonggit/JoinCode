@@ -12,6 +12,8 @@ public sealed class CliSubCommandEnumTests {
     [InlineData(CliSubCommand.SlashSchema, "slash_schema")]
     [InlineData(CliSubCommand.Rg, "rg")]
     [InlineData(CliSubCommand.Prompt, "prompt")]
+    [InlineData(CliSubCommand.Experience, "experience")]
+    [InlineData(CliSubCommand.Probe, "probe")]
     public void FlatSubCommands_ShouldMapToExpectedStrings(CliSubCommand sub, string expected) {
         sub.ToValue().Should().Be(expected);
         CliSubCommandExtensions.FromValue(expected).Should().Be(sub);

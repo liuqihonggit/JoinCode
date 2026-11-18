@@ -15,7 +15,10 @@ public static class NodeManifestLoader {
     public static BaseToolManifest LoadBaseFromText(string yaml, string source = "<text>") =>
         NodeYamlParser.ParseBase(yaml, source);
 
-    /// <summary>解析单个 node.yaml 文本。</summary>
+    /// <summary>
+    /// 解析单个 node.yaml 文本 —— 返回的是**原始声明**，不解析 inherits（没有父池）。
+    /// 需要完整继承结果请用 <see cref="LoadNodesFromDirectory"/> 或 <see cref="CliNodeInheritanceResolver.Resolve"/>。
+    /// </summary>
     public static CliToolDescriptor LoadNodeFromText(string yaml, string source = "<text>") =>
         NodeYamlParser.ParseNode(yaml, source);
 
@@ -29,7 +32,10 @@ public static class NodeManifestLoader {
         return LoadBaseFromText(reader.ReadToEnd(), resourceName);
     }
 
-    /// <summary>从磁盘加载单个节点描述。</summary>
+    /// <summary>
+    /// 从磁盘加载单个节点描述 —— 同 <see cref="LoadNodeFromText"/>，不解析 inherits。
+    /// 单 exe 读自身内嵌描述走这里；跨节点继承必须走目录扫描。
+    /// </summary>
     public static CliToolDescriptor LoadNodeFromFile(string path) =>
         LoadNodeFromText(File.ReadAllText(path), path);
 
@@ -37,14 +43,17 @@ public static class NodeManifestLoader {
     /// 递归扫描目录树下所有 node.yaml — CLI 层下钻探索的数据源。
     /// 目录结构即分类，不需要 MCP 分组协议。
     /// </summary>
-    public static IReadOnlyList<CliToolDescriptor> LoadNodesFromDirectory(string root) =>
-        Directory.Exists(root)
-            ? Directory.EnumerateFiles(root, NodeFileName, SearchOption.AllDirectories)
-                .OrderBy(path => path, StringComparer.Ordinal)
-                .Select(TryLoadNode)
-                .OfType<CliToolDescriptor>()
-                .ToArray()
-            : Array.Empty<CliToolDescriptor>();
+    public static IReadOnlyList<CliToolDescriptor> LoadNodesFromDirectory(string root) {
+        if (!Directory.Exists(root)) return Array.Empty<CliToolDescriptor>();
+        var nodes = Directory.EnumerateFiles(root, NodeFileName, SearchOption.AllDirectories)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .Select(TryLoadNode)
+            .OfType<CliToolDescriptor>()
+            .ToArray();
+        // G2: 目录内所有 node.yaml 互为继承池 —— 子节点的 inherits 在这里解析成最终属性。
+        // 13 个真实分组都没有 inherits，ResolveAll 对它们是 no-op，零回归。
+        return CliNodeInheritanceResolver.ResolveAll(nodes);
+    }
 
     /// <summary>
     /// 单个清单损坏时跳过，而不是让整个搜索崩溃 — 几十个分组里任意一个写错都不该拖垮下钻。

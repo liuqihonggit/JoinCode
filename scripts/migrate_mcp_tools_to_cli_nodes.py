@@ -737,6 +737,14 @@ def main() -> int:
         target_dir.mkdir(parents=True, exist_ok=True)
         help_path = target_dir / "help.txt"
         index_path = target_dir / "node.yaml"
+        # G2 节点继承护栏：本生成器全量重写 node.yaml，会静默冲掉手写的 inherits。
+        # 一旦有分组真的采用继承，必须先显式处理（迁到叠加文件或让生成器保留字段），不允许数据无声丢失。
+        if index_path.exists() and re.search(r"^\s*inherits\s*:", index_path.read_text(encoding="utf-8"), re.MULTILINE):
+            raise SystemExit(
+                f"分组 '{category}' 的 node.yaml 含手写 inherits 声明，生成器拒绝覆写"
+                f"（否则继承关系会静默丢失）。\n"
+                f"处理: ① 把继承声明迁到 node.inherit.yaml 叠加文件；或 ② 在本脚本的 render_group_index 中保留 inherits。"
+            )
         help_path.write_text(render_group_help(category, exe, unique), encoding="utf-8")
         local_ids = collect_local_ids(target_dir)
         unknown = local_ids - {t["id"] for t in unique}

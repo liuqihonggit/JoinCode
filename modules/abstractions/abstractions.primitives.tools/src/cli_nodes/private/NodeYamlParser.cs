@@ -85,19 +85,23 @@ internal static class NodeYamlParser {
         var id = ReadScalar(map, "id");
         var name = ReadScalar(map, "name");
         var summary = ReadScalar(map, "summary");
+        var inherits = ReadScalar(map, "inherits");
         if (string.IsNullOrWhiteSpace(id))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 存在缺少 id 的节点");
-        if (string.IsNullOrWhiteSpace(name))
+        // G2「省略即继承」：声明 inherits 的子节点只写差异，name/summary 可交给 CliNodeInheritanceResolver 从父继承。
+        // 不声明 inherits 时仍强制必填 —— 提示词里出现一个没有说明的 exe，等于让模型对着未知命令行猜。
+        if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(inherits))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 节点 '{id}' 缺少 name");
-        if (string.IsNullOrWhiteSpace(summary))
+        if (string.IsNullOrWhiteSpace(summary) && string.IsNullOrWhiteSpace(inherits))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 节点 '{id}' 缺少 summary");
 
         var exe = ReadScalar(map, "exe");
         return new CliToolDescriptor {
             Id = id,
-            Name = name,
-            Summary = summary,
+            Name = name ?? "",
+            Summary = summary ?? "",
             Category = ReadScalar(map, "category") ?? "general",
+            Inherits = inherits,
             Exe = exe,
             Tags = ReadStringArray(map, "tags"),
             Examples = ReadStringArray(map, "examples"),
@@ -105,16 +109,27 @@ internal static class NodeYamlParser {
                 .OfType<YamlMappingNode>()
                 .Select(param => ParseParameter(param, source, id))
                 .ToArray(),
-            // 子工具清单只对分组节点（声明了 exe）解析：
-            // base.yaml 的 tools 是完整工具描述，形状不同，靠 exe 为空这条既有不变量天然区分。
-            Tools = exe is null
-                ? []
-                : ReadSequence(map, "tools")
+            // 子工具清单按「YAML 是否显式声明 tools 键」解析，而非 exe 是否为空 ——
+            // 继承父 exe 的子节点也会声明自己的 tools，靠 exe is null 判定会静默丢掉它的全部子工具。
+            // base.yaml 的基础工具条目没有 tools 键（其 tools 在 root 层），天然不受影响。
+            Tools = map.Children.ContainsKey("tools")
+                ? ReadSequence(map, "tools")
                     .OfType<YamlMappingNode>()
                     .Select(entry => ParseToolEntry(entry, source, id))
                     .ToArray()
+                : [],
+            DeclaredKeys = DeclaredKeysOf(map)
         };
     }
+
+    /// <summary>raw YAML 中显式出现过的键名 —— 继承合并判定「省略 vs 显式」的唯一依据。</summary>
+    private static IReadOnlySet<string> DeclaredKeysOf(YamlMappingNode map) =>
+        map.Children.Keys
+            .OfType<YamlScalarNode>()
+            .Select(key => key.Value)
+            .Where(key => key is not null)
+            .Select(key => key!)
+            .ToHashSet(StringComparer.Ordinal);
 
     private static CliToolEntry ParseToolEntry(YamlMappingNode map, string source, string nodeId) {
         var toolId = ReadScalar(map, "id");
@@ -128,7 +143,8 @@ internal static class NodeYamlParser {
         return new CliToolEntry {
             Id = toolId,
             Mode = ParseMode(rawMode, source, toolId),
-            Aliases = ReadStringArray(map, "aliases")
+            Aliases = ReadStringArray(map, "aliases"),
+            DeclaredKeys = DeclaredKeysOf(map)
         };
     }
 
@@ -151,7 +167,8 @@ internal static class NodeYamlParser {
             Required = ReadBool(map, "required", fallback: false),
             Default = ReadScalar(map, "default"),
             Aliases = ReadScalar(map, "aliases"),
-            Enum = ReadScalar(map, "enum")
+            Enum = ReadScalar(map, "enum"),
+            DeclaredKeys = DeclaredKeysOf(map)
         };
     }
 

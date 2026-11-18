@@ -29,6 +29,5 @@ test/mock/mock_server.core/ScriptedResponseStrategyBase.cs|3
 test/mock/mock_server.e2e.tests/core/MockServerSharedFixture.cs|1
 test/mock/open_ai.mock_server/Program.cs|1
 test/mock/responses.mock_server/Program.cs|1
-test/unit/host.tests/engine/McpInitModuleTests.cs|1
 test/unit/infra.tests/io/core/FileWatcherActorBaseTests.cs|4
 test/unit/infra.tests/io/subprocess/ResilientChannelTests.cs|1

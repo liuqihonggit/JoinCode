@@ -334,18 +334,18 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 | 步骤 | 内容 | 状态 |
 |------|------|------|
 | 1 | 备份 tag + ADR v1 + TASK082（已完成 `211f4f379`） | 已完成 |
-| 2 | **本 ADR v2 修订 + TASK082 任务重排** | 进行中 |
+| 2 | **本 ADR v2 修订 + TASK082 任务重排** | ✅ 已完成（v3 定稿、状态 accepted） |
 | 3 | 契约层：`ICliToolNode` / `BaseToolManifest` DTO / YamlDotNet Loader / `BaseToolRegistry` / CLI 搜索下钻 | ✅ 已完成（13/13 单测） |
 | 4 | `resources/tools/base.yaml` 注册 4 个基础工具 + 单元测试 | ✅ 已完成（`jcc tool base` 真实 exe 验收） |
 | 5 | 垂直切片：改造 `jcc-rg.exe`（`node.yaml` + `-h` + 独立可运行），实测单 exe 编译/体积成本 | ✅ 已完成（实测 81 DLL / 16 MB，见 TASK082 §4） |
 | 6 | 依赖墙收敛 + `cli_node.props` 共享配置 + AOT 成本实测 | ✅ 已完成（81 DLL/16MB → 5 DLL/653KB，增量编译 1.94s） |
 | 7 | 只读扫描器 + `group_map.yaml` 按 12 大类重切，生成各组索引/帮助/exe，`jcc-tool-git.exe` 本地实现样板 | ✅ 已完成（12 组 / 去重后 539 工具，扫描原始命中 546；42 个旧碎组归档 `.xxx/`；3 组编译零警告 + 真机验收） |
-| 8 | 逐组做实本地实现（混合模式）：`git`(10/10)、`file`(11/13)、`shell`(6/27)、`tools`(2/18)；剩余 8 组待推进 | 进行中（4/12 组） |
+| 8 | 逐组做实本地实现（混合模式）：13 组全部做实，`lsp_*` / `permission_*` 写类 / `web_fetch` / `worktree_*` 边界项逐条验伪后下沉 | ✅ 已完成（13 组；当前门禁 635 工具 / 隔离 388 = local 215 + delegate 173，host 247 为闭合边界，见 TASK082 第十七轮） |
 | 8b | **进程隔离执行器** `jcc tool call <组> <工具>`：jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码，不初始化引擎 DI | ✅ 已完成（七连真机验收，退出码 0/2/3 全覆盖） |
 | 8c | **斜杠命令独立 exe** `jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>` 进程隔离调用 | ✅ 已完成（生成器 + 真机验收，含 Git Bash 命令名归一化） |
 | 9 | 切换主请求链路：首轮 `tools` 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | ✅ 已完成（三个 provider 的 `BuildBaseTools`；`BuildToolsFromKernel` / `BuildAnthropicToolsFromKernel` 已删除；`request.ToolGroups` 不再写入；9 个单测改写为「只发基础工具」契约） |
-| 10 | 目录节点化重组 + 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 | 部分完成：自包含装配目录已落地（`Pack-ToolNodes.ps1` → `tools/<组>/`，13 组 9045 KB，jcc 经 `JCC_CLI_TOOLS_DIR` 真机消费通过）；生成器归档与目录重组待办 |
-| 11 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 部分完成：全仓编译通过（6m7s）、真机 exe 验收通过；全量测试待步骤 8-10 |
+| 10 | 目录节点化重组 + 全部消费方切换（原计划含归档生成器，已作废）+ 修复引用 | ✅ 已完成：自包含装配目录落地（`Pack-ToolNodes.ps1` → `tools/<组>/`，13 组；jcc 经 `JCC_CLI_TOOLS_DIR` 真机消费通过）；`mcp_tool_dispatch.generator` 是转发兜底的持久组件，**不归档**（见本节结论与文档头「与原文的偏差」） |
+| 11 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | ✅ 已完成（PR #682 全仓编译 + 全量测试通过；`Verify-ToolNodes.ps1` 13 组对账零偏差；ADR 2026-11-17 转 accepted） |
 
 ---
 

@@ -425,14 +425,9 @@ consumers:
       - id: agent-handoff-mw
         priority: 500
 
-  tool-dispatch:
-    nodes:
-      - id: shell
-      - id: file
-      - id: web
-        enabled-when: feature.web-search
-      - id: code_execution
-
+  # TASK100 S1：原 tool-dispatch 4 条声明（shell/file/web/code_execution）已删除 ——
+  # 无任何工厂、无任何生产消费方（ToolDispatchConsumer 只在测试里 new）。
+  # 工具分组开关待 S4 用 capability 契约重建，不接受「声明了但没人装配」的死配置。
   command-dispatch:
     nodes:
       - id: 会话-command

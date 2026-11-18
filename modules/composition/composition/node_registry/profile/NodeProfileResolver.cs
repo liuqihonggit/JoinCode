@@ -48,7 +48,7 @@ public sealed class NodeProfileResolver {
             var nodes = config.Nodes
                 .Select(n => new ResolvedNodeEntry(n.Id, n.Priority, n.EnabledWhenFeatureFlag, n.Config))
                 .ToArray();
-            consumers[consumerId] = new ResolvedConsumerConfig(consumerId, nodes);
+            consumers[consumerId] = new ResolvedConsumerConfig(consumerId, nodes, config.Contract ?? NodeContract.Middleware);
         }
         return new ResolvedProfile(profile.Name, consumers.ToFrozenDictionary(StringComparer.Ordinal));
     }
@@ -95,12 +95,16 @@ public sealed class NodeProfileResolver {
                         existingNodes[newNode.Id] = resolved;
                     }
                 }
-                consumers[consumerId] = existing with { Nodes = existingNodes.Values.OrderBy(n => n.Priority).ToArray() };
+                // 契约随「省略即继承」：子 Profile 未声明则沿用父级契约。
+                consumers[consumerId] = existing with {
+                    Nodes = existingNodes.Values.OrderBy(n => n.Priority).ToArray(),
+                    Contract = config.Contract ?? existing.Contract
+                };
             } else {
                 var nodes = config.Nodes
                     .Select(n => new ResolvedNodeEntry(n.Id, n.Priority, n.EnabledWhenFeatureFlag, n.Config))
                     .ToArray();
-                consumers[consumerId] = new ResolvedConsumerConfig(consumerId, nodes);
+                consumers[consumerId] = new ResolvedConsumerConfig(consumerId, nodes, config.Contract ?? NodeContract.Middleware);
             }
         }
 

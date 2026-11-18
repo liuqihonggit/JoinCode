@@ -58,7 +58,7 @@ public static class NodeProfileLoader {
                 if (string.IsNullOrEmpty(consumerId))
                     throw new InvalidOperationException($"Profile '{name}': consumer has empty key");
                 var nodes = ParseConsumerNodes(value, name);
-                consumers[consumerId] = new ConsumerConfig(consumerId, nodes.ToArray());
+                consumers[consumerId] = new ConsumerConfig(consumerId, nodes.ToArray(), ParseContract(value, name, consumerId));
             }
         }
 
@@ -93,7 +93,7 @@ public static class NodeProfileLoader {
                 if (string.IsNullOrEmpty(consumerId))
                     throw new InvalidOperationException($"Profile '{name}': include consumer has empty key");
                 var nodes = ParseConsumerNodes(value, name);
-                includeDict[consumerId] = new ConsumerConfig(consumerId, nodes.ToArray());
+                includeDict[consumerId] = new ConsumerConfig(consumerId, nodes.ToArray(), ParseContract(value, name, consumerId));
             }
             includes = includeDict.ToFrozenDictionary(StringComparer.Ordinal);
         }
@@ -120,6 +120,32 @@ public static class NodeProfileLoader {
             return new List<NodeEntryConfig>();
         }
         return ParseNodeList(value, profileName);
+    }
+
+    /// <summary>
+    /// 解析消费点的装配契约 — 未声明返回 <see langword="null"/>（交由继承链决定），
+    /// 非法值直接报错并列出合法清单，避免拼错后静默降级为 middleware。
+    /// </summary>
+    /// <param name="value">消费点 YAML 节点（mapping 或简写序列）。</param>
+    /// <param name="profileName">Profile 名（错误提示用）。</param>
+    /// <param name="consumerId">消费点 ID（错误提示用）。</param>
+    /// <returns>规范化后的契约值；未声明返回 <see langword="null"/>。</returns>
+    private static string? ParseContract(YamlNode value, string profileName, string consumerId) {
+        if (value is not YamlMappingNode mapping) return null;
+        if (!mapping.Children.TryGetValue("contract", out var contractNode)) return null;
+
+        var raw = contractNode.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(raw))
+            throw new InvalidOperationException(
+                $"Profile '{profileName}': 消费点 '{consumerId}' 的 contract 为空。合法值: {string.Join(", ", NodeContract.All)}");
+
+        if (!NodeContract.IsValid(raw))
+            throw new InvalidOperationException(
+                $"Profile '{profileName}': 消费点 '{consumerId}' 的 contract '{raw}' 非法。" +
+                $"合法值: {string.Join(", ", NodeContract.All)}。" +
+                $"正确写法: consumers.{consumerId}.contract: {NodeContract.Middleware}|{NodeContract.Guard}|{NodeContract.Provider}|{NodeContract.Role}|{NodeContract.Capability}|{NodeContract.CommandGroup}");
+
+        return NodeContract.Normalize(raw);
     }
 
     private static List<NodeEntryConfig> ParseNodeList(YamlNode node, string profileName) {

@@ -11,9 +11,13 @@ public sealed record ResolvedProfile(
 /// <summary>
 /// 合并后的消费点配置
 /// </summary>
+/// <param name="ConsumerId">消费点 ID。</param>
+/// <param name="Nodes">合并后的节点条目（按 priority 升序）。</param>
+/// <param name="Contract">装配契约，已解析为具体值（缺省 middleware）。</param>
 public sealed record ResolvedConsumerConfig(
     string ConsumerId,
-    IReadOnlyList<ResolvedNodeEntry> Nodes
+    IReadOnlyList<ResolvedNodeEntry> Nodes,
+    string Contract = NodeContract.Middleware
 );
 
 /// <summary>

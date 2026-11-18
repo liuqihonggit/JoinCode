@@ -4,10 +4,7 @@ excludes:
   - web
   - crash-snapshot-mw
   - audit-log-mw
-includes:
-  tool-dispatch:
-    nodes:
-      - id: sdk-api-tool
+# TASK100 S1: tool-dispatch 段已删除 —— sdk-api-tool 既无工厂也无消费方，属死声明。
 overrides:
   - consumer: shell-pipeline
     node: shell-timeout-keyword-mw

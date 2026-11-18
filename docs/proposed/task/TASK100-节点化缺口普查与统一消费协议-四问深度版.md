@@ -423,8 +423,37 @@ consumers:
 | 步 | 内容 | 状态 |
 |---|---|---|
 | 0 | 普查与本文档（含 §11 施工单、§12 分域细则） | ✅ |
-| S1 | 契约字段 + dump 扩展 + 一致性门禁 | ⬜ |
+| S1 | 契约字段 + dump 扩展 + 一致性门禁 | ✅ |
 | S2 | guard 域节点化（守卫/修正/防御/沙箱） | ⬜ |
 | S3 | provider + role 节点化 | ⬜ |
 | S4 | 能力 + 命令表面节点化 | ⬜ |
 | S5 | 外部 profile 覆盖 | ⬜ |
+
+### 14.1 S1 实施记录
+
+**代码**
+
+| 文件 | 改动 |
+|---|---|
+| `modules/abstractions/composition/node/profile/NodeContract.cs` | 新增：6 个契约常量 + `All` / `IsValid` / `Normalize`（唯一清单，错误提示复用） |
+| `.../profile/ConsumerConfig.cs` | 新增 `string? Contract = null`（null = 未声明，交由继承链） |
+| `.../profile/ResolvedProfile.cs` | `ResolvedConsumerConfig` 新增 `Contract = NodeContract.Middleware`（解析后必为具体值） |
+| `modules/composition/composition/node_registry/profile/NodeProfileLoader.cs` | 解析 `contract:`，非法值报错并列出合法清单 |
+| `.../profile/NodeProfileResolver.cs` | 缺省 middleware；includes 合并时「子省略即继承父契约」 |
+| `modules/apps/cli/core/commands/core/NodeDumpReport.cs` | 新增：dump JSON DTO + AOT 源生成上下文 |
+| `modules/apps/cli/core/commands/core/Program.cs` | `--dump-nodes` 先于参数解析处理；显示 `[contract=…, N 节点]` 与契约分布；`--json` / `--verify` |
+| `non_deliverables_tools/scripts/Verify-NodeConsistency.py` | 新增门禁：dump 三方一致 + 契约合法 + 磁盘 profile 全部入 dump |
+| `.github/workflows/ci-unit-tests.yml` | 新增门禁步骤 |
+| `resources/profiles/base.yaml` / `sdk.yaml` | 删除 5 条 `tool-dispatch` 死声明（0 工厂 0 消费方） |
+| `modules/composition/composition.tests/node_registry/NodeContractTest.cs` | 新增 6 个测试（缺省/继承/覆写/非法值） |
+
+**真机验收**
+
+| 项 | 结果 |
+|---|---|
+| `jcc --dump-nodes` | 176 节点；消费点显示 `[contract=middleware, N 节点]`；`契约分布: middleware=80` |
+| `jcc --dump-nodes --verify` | `[OK] 声明 ↔ 工厂 ↔ 契约 三方一致`，退出码 0 |
+| 负向验证 | 临时把 `tool-dispatch` 2 条声明塞回 base.yaml → 门禁 `[FAIL] 死声明: tool-dispatch:file, tool-dispatch:shell`，退出码 1；还原后复绿 |
+| `jcc --dump-nodes --json` | `nodeCount=176 / consumerCount=80`，verification 三数组全空 |
+| 零回归 | 1117/1117 测试（1111 + 6 新增）；`jcc tool tree` 635；`--dump-profile sdk` 正常 |
+| 意外收获 | `--dump-nodes` 此前必须走完整参数解析，`--json/--verify` 会被判未知选项；改为先于 ParseArgs 处理后 CI 可直接用 |

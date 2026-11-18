@@ -186,6 +186,9 @@ jobs:
       - name: Verify CLI module order against modules.yaml
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-ExplicitOrder.py
+      - name: Verify node contracts and declaration↔factory consistency
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-NodeConsistency.py
       - name: Verify GUI session boots with the declared order
         shell: pwsh
         run: |

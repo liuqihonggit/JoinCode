@@ -2,11 +2,6 @@
 # 格式: 仓库相对路径|允许出现的最大次数（|0 = 仅分析器拦截的间接消费豁免）
 # 更新: python non_deliverables_tools/scripts/Verify-NoLockPrimitives.py --write-baseline
 
-modules/abstractions/infrastructure/async_file_lock/CrossProcessLock.cs|5
-modules/abstractions/infrastructure/async_file_lock/NamedMutexMailboxLock.cs|4
-modules/abstractions/infrastructure/persistence/LeasedKvStoreAdapter.cs|1
-modules/abstractions/infrastructure/persistence/PithosKvStoreLease.cs|2
-modules/abstractions/infrastructure/persistence/PithosKvStoreLeaseFactory.cs|2
 modules/async_primitives/async_lock.tests/actor/ActorBaseBugReproTest.cs|1
 modules/async_primitives/async_lock.tests/actor/BackpressurePipelineTest.cs|1
 modules/async_primitives/async_lock.tests/lock/AsyncLockDiagnosisPureTests.cs|28

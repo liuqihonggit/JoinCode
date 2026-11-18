@@ -17,6 +17,10 @@ class Program {
             return await NativeTui.Host.Program.RunSelftestCommandsAsync().ConfigureAwait(false);
         if (args is ["--selftest-input"])
             return await NativeTui.Host.Program.RunSelftestInputAsync().ConfigureAwait(false);
+        if (args is ["--selftest-crossproc"])
+            return await CrossProcessSelftest.RunParentAsync().ConfigureAwait(false);
+        if (args.Length == 6 && args[0] == "--selftest-crossproc" && args[1] == "worker")
+            return await CrossProcessSelftest.RunWorkerAsync(args[2], args[3], args[4], args[5]).ConfigureAwait(false);
 
         var sw0 = PerfTimer.Start("NativeDllBootstrapper");
         // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P/Invoke 之前）

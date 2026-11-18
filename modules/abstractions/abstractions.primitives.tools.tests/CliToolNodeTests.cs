@@ -68,6 +68,30 @@ public sealed class CliToolNodeTests {
     }
 
     [Fact]
+    public void Find_TwoLetterTerm_MatchesWordBoundaryNotMidwordNoise() {
+        var nodes = new[] {
+            MakeNode("confirm_action", "system", "确认一个危险操作", []),
+            MakeNode("permission_list", "system", "列出权限规则", []),
+            MakeNode("gh_pr_view", "github", "查看 pull request", [])
+        };
+
+        // 两字母查询：「rm」是 confirm/per-**mi**ssion 的单词内子串，不算命中；
+        // 「pr」是 gh_pr_view 的下划线边界独立词，命中。
+        Assert.DoesNotContain("confirm_action", CliToolSearch.Find(nodes, "rm").Select(n => n.Id));
+        Assert.DoesNotContain("permission_list", CliToolSearch.Find(nodes, "rm").Select(n => n.Id));
+        Assert.Contains("gh_pr_view", CliToolSearch.Find(nodes, "pr").Select(n => n.Id));
+    }
+
+    [Fact]
+    public void Find_LongerTerm_KeepsSubstringSemantics() {
+        var nodes = new[] { MakeNode("gh_pr_view", "github", "查看 pull request 详情", []) };
+
+        // 长词保留子串语义 —— TASK093 担心的 find pr / find request 既有预期不能破。
+        Assert.Equal("gh_pr_view", Assert.Single(CliToolSearch.Find(nodes, "request")).Id);
+        Assert.Equal("gh_pr_view", Assert.Single(CliToolSearch.Find(nodes, "pull request")).Id);
+    }
+
+    [Fact]
     public void RenderTree_GroupsByCategory() {
         var nodes = new[] {
             NodeManifestLoader.LoadNodeFromText(NodeYaml, "node.yaml"),

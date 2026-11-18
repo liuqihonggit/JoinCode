@@ -47,6 +47,8 @@
   - 证据：真机 8 场景 —— `settings.json` 无 BOM 写入前后都是 `7b 22 63`、带 BOM 仍 `ef bb bf` 且不重复；`file edit` 三种编码分别保持；`ConfigFileEncodingTests` 4 条（临时回退旧实现实测 3 红）+ `BclBridge` 41 条通过。
 - [x] **斜杠命令 JSON 参数归一化**：`slash_call` 传的 `key=value`/JSON 不再被当成整串参数值，40 个 `GetNormalizedArgs` 命令零改动兼容。详见 [TASK094](TASK094-斜杠命令JSON参数归一化.md)。
   - 证据：真机隔离目录 `vendor vendor=openai` 从「未知供应商 `{"vendor":"openai"}`」变为正常切换；`effort`/`color`/`trust`/`hooks`/`thinkback`/`goal` 单值与多段全对；`GetNormalizedArgs` 对 JSON 复用 `GetSplitArgs` 抽值拼回文本、非 JSON 原样；`SlashCallArgumentTests` 11 条（先红 4 条）+ `Host.Tests` 1336 + `Composition.Tests` 1079 通过。
+- [x] **两字母查询词边界匹配**：`tool find rm` 不再命中 `confirm_action`/`permission_*` 等单词内子串噪音，同时保留 `find pr`/`find request` 既有预期。详见 [TASK096](TASK096-两字母查询词边界匹配.md)。
+  - 证据：真机 `find rm` 从 6 个节点降到 1 个（只剩 `file`），`pr`/`request`/`cat` 不变；两字母走词边界（下划线是分词符）、≥3 字母保留子串语义；`CliToolNodeTests` 78 条（新增 2 条先红）+ `Host.Tests` 全量通过。
 
 ## 用户决策记录
 

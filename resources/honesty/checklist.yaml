@@ -101,3 +101,9 @@ items:
     status: done
     evidence: "真机隔离目录：vendor vendor=openai 从「未知供应商 {\"vendor\":\"openai\"}」变为正常切换；effort/color/trust/hooks/thinkback/goal 单值与多段场景全对；GetNormalizedArgs 对 JSON 复用 GetSplitArgs 抽值拼回文本、非 JSON 原样；SlashCallArgumentTests 11 条（先红 4 条）+ Host.Tests 1336 + Composition.Tests 1079 通过"
     next: 无需动作
+
+  - id: two_letter_search
+    title: 两字母查询词边界匹配 — tool find rm 不再命中 confirm_action/permission_* 等单词内子串噪音
+    status: done
+    evidence: "真机 jcc tool find rm 从 6 个节点降到 1 个（只剩 file），find pr/request/cat 既有预期不变；两字母走词边界（下划线是分词符）、≥3 字母保留子串语义；CliToolNodeTests 78 条（新增 2 条先红）+ Host.Tests 全量通过"
+    next: 无需动作

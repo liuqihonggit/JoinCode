@@ -192,9 +192,11 @@ jobs:
       # 工具组三方一致：cli_groups.yaml ↔ ToolGroupDeclaration ↔ base.yaml。
       # 缺这一步的后果是「profile 声明了一个永不存在的组」或「某个组永远关不掉」，
       # 而两种情况在 --dump-nodes 里都只是少一行/多一行，人眼很难发现。
+      # --live 追加真机交叉核对：静态解析 / `tool tree` / 提示词的组目录必须是同一组数字。
+      # 这三者取信于不同的 profile 来源，S7 实测过一次「tool tree 8 组、prompt 13 组」的错位。
       - name: Verify tool group ids across yaml / declaration / profile
         shell: pwsh
-        run: python non_deliverables_tools/scripts/Verify-ToolGroupNodes.py
+        run: python non_deliverables_tools/scripts/Verify-ToolGroupNodes.py --live=artifacts/bin/JoinCode/Debug/net10.0
       - name: Verify GUI session boots with the declared order
         shell: pwsh
         run: |

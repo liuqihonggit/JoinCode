@@ -31,11 +31,17 @@ internal static class PromptPrintCommand {
             // 工具组清单随 profile 变（tool-groups 消费点），生产链路由 SystemPromptMiddleware 开作用域；
             // 本命令走 provider 路径，必须自己开，否则「打印出来的提示词」比真实发送的多列几组 ——
             // 自省命令一旦与生产不一致，就不再是自省。
-            var profileManager = services.GetService<Abstractions.Composition.IProfileManager>();
+            //
+            // TASK100 S7 修：这里原本只用 IProfileManager，而轻量宿主里那个实例是用默认名 base 构造的
+            // （拿不到命令行参数），结果 `jcc --profile ci prompt` 依旧列出 13 个组 —— 与 `tool tree`（8 组）
+            // 当场互相打脸。取信顺序：命令行明确指定 → 以命令行意图为准；否则 → 以引擎当前 profile 为准
+            // （后者才跟得上运行期 /profile 切换）。
+            var profile = CliProfileGate.CurrentExplicit
+                ?? services.GetService<Abstractions.Composition.IProfileManager>()?.Current;
             using var toolGroupScope = Core.Prompts.PromptToolGroupScope.Enter(
-                profileManager is null
+                profile is null
                     ? null
-                    : Abstractions.Composition.Profile.ToolGroupDeclaration.EnabledIds(profileManager.Current));
+                    : Abstractions.Composition.Profile.ToolGroupDeclaration.EnabledIds(profile));
 
             var sections = provider.GetSections().ToList();
             if (sections.Count == 0) {

@@ -1323,6 +1323,11 @@ $ jcc prompt --section tools
 
 ### 22.7 撞出来的真结论：节点 ID 是全局命名空间
 
+> **本节对 `web` 的判断已被 §23.2 更正为误判**：`ci` 的 web-pipeline 从 12 降到 11 是
+> `crash-snapshot-mw` 造成的，与 `web` 无关（`web` 只命中了工具组）。
+> 「节点 ID 是全局命名空间、裸 `excludes` 会跨消费点生效」这个**机制结论仍然成立**，
+> 只是当时的证据读错了 —— 补上的正确做法见 §23.3（`consumer:node` 限定写法）。
+
 加完 `tool-groups` 后 `--dump-nodes` 出现怪事：`base` 与 `headless` 是 13 节点，
 `ci` 与 `sdk` 是 **12** 节点，少的都是 `web`。
 
@@ -1370,3 +1375,180 @@ middleware 里加了一行诊断：
 `jcc -p "hi"` 是完整引擎装配（假 key 止于 401，但装配与提示词构建全跑完），所以这行出现即为生产链路证据。
 **为什么值得单独验**：只验 `jcc prompt` 会出现「诊断命令按 profile 裁、生产不裁」这种最难发现的偏差 ——
 而这种偏差的方向恰好是「看起来一切都对」。
+
+## 23. S7：profile 的工具面取舍（从「能裁」到「真的裁了」）
+
+### 23.1 上一轮之后还缺什么
+
+S6 让 `tool-groups` 能被 profile 裁剪，但四个 profile 里没有一个人真的裁过它：
+`base` 全开，`headless` 只关了几个前端中间件，`ci` / `sdk` 靠一条 `excludes: [web]` 顺手少了一组。
+于是「工具面治理」这件事的**能力**有了，**决策**没有 —— 而没人能一眼看出每个 profile 到底开了多少。
+
+这一节做三件事：把既有错误结论纠正掉、把「限定消费点」从建议变成机制、把取舍写成数字。
+
+### 23.2 先纠正一个已提交的错误结论（§22.7）
+
+§22.7 写的是：`ci.yaml` 的 `excludes: [web]` 同时命中了 web-pipeline 的中间件与 tool-groups 的组。
+**实测是误判**。把 `ci` 的 web-pipeline 逐个列出来对照：
+
+```
+base  (12 个): crash-snapshot-mw, web-timeout-mw, web-retry-mw, web-circuit-breaker-mw,
+               web-metrics-mw, web-validation-mw, web-ssrf-guard-mw, web-cache-check-mw,
+               web-domain-check-mw, web-fetch-mw, web-content-processing-mw, web-cache-write-mw
+ci    (11 个): 同上，但没有 crash-snapshot-mw
+```
+
+少的那一个是 `crash-snapshot-mw` —— 它本来就在 `ci.yaml` 的 excludes 里。`web` 从来没进过 web-pipeline：
+base.yaml 的 web-pipeline 12 个节点里没有任何一个 ID 叫 `web`。程序化核对同样为 0 冲突：
+把 `--dump-nodes --json` 的 base 结果里 13 个组名拿去与「其它所有消费点」的节点 ID 求交，一条也没有。
+
+**为什么必须写下来**：这条误判留在三处（`ci.yaml` 注释、`sdk.yaml` 注释、门禁脚本的 docstring），
+读者会由此推出一条错的推论 ——「web-pipeline 的 web 中间件已经被 CI 关掉了」，进而在别处重复这个错误。
+一个没被验证过的因果关系，比没有结论更贵。
+
+### 23.3 把「建议」变成机制：`excludes` 支持 `consumer:node`
+
+§22.7 的机制结论是对的：`excludes` 按节点 ID 全局生效，不区分消费点。当时的建议是「将来需要时再加限定」，
+而 S7 正要往 `ci` / `sdk` 里加 4 条工具组排除 —— 如果继续裸写，这 4 条就全部建立在
+「组名永远不会和中间件重名」这个**没有任何东西保证**的前提上。
+
+所以先把机制补上（`NodeProfileResolver`）：
+
+```yaml
+excludes:
+  - crash-snapshot-mw      # 历史语义：从所有消费点移除
+  - "tool-groups:media"    # 新语义：只从 tool-groups 移除
+```
+
+两个设计细节：
+
+- **前缀按「是不是已存在的消费点」判定，不按「有没有冒号」判定。** 节点 ID 没有禁止冒号的规则，
+  按冒号硬劈会把一个合法 ID 拆成两半，而失败形态是**静默少一个节点**，不是报错。用父级已解析的
+  消费点集合做白名单，误判方向就变成无害的「整串当节点 ID」。
+- **限定写法的「找不到」要单独措辞。** 裸写法找不到是「哪个消费点都没有」，限定写法找不到是
+  「这个消费点里没有」—— 后者几乎总是笔误（`tool-group:media`），合成一句提示会让人查错方向。
+
+单元测试两条钉住语义：`Resolve_ScopedExclude_RemovesNodeFromOneConsumerOnly`（同名节点在另一消费点保留）、
+`Resolve_ScopedExcludeWithUnknownPrefix_TreatedAsPlainNodeId`（写错消费点名时「什么都没排掉」而不是删错东西）。
+
+### 23.4 取舍：每个 profile 到底开多少
+
+原则只有一条：**只砍「在这个环境里没有消费方」的东西**，砍掉的每一组都要能说出理由，
+而不是「CI 应该更小所以砍一半」。
+
+| profile | 继承 | 工具组 | 工具数 | 排除的组（各自工具数） | 能力 | 能力工具 |
+|---|---|---|---|---|---|---|
+| `base` | — | 13 | 635 | — | 7 | 368（全量注册） |
+| `headless` | base | 12 | 536 | slash(99) | 7 | 368 |
+| `ci` | headless | 8 | 414 | slash(99)、media(60)、code(32)、mcp(25)、web(5) | 5 | 364（cron 4 个被拦） |
+| `sdk` | headless | 8 | 414 | 同 ci | 5 | 364 |
+
+逐条理由（完整版写在对应 yaml 的注释里，这里只摘结论）：
+
+- **slash（99）· headless**：斜杠命令是**前端输入语法**，没有输入框就没人敲 `/commit`，模型也不会用斜杠调工具。
+  等价能力在 CLI 命令面（`jcc slash_call` / `slash_list`）完整保留 —— 排除它不减少真实能力，只是不再往
+  工具清单里塞 99 行用不上的条目。
+- **media（60）· ci/sdk**：桌面自动化（点击/拖拽/截图）与图像生成，runner 无桌面会话。
+- **code（32）· ci/sdk**：notebook 单元格读写与执行，CI 不跑 notebook。
+- **mcp（25）· ci/sdk**：MCP server 连接与授权，CI 没有 peer。
+- **web（5）· ci/sdk**：原有裁剪，本次只是把裸 `web` 改成 `tool-groups:web`（语义不变，耦合去掉）。
+- **dream / cron（能力）· ci/sdk**：CI 没有「空闲期」，也没有长驻进程。dream 是空闲期 LLM 归并
+  （会真烧 token），cron 是定时调度。保留 goal/todo/task/memdir/code-index —— 门禁与 e2e 会真实调用它们。
+
+**有意的取舍**：`headless` 不砍 media。headless 是最需要工具的自动化形态（脚本批量出图正是它的用途），
+它的天花板是「没有前端」，不是「没有桌面」。这条判断若被推翻，改一行 yaml 即可 —— 数字在对账表里。
+
+对账表本身也是可复现的，不必手算：
+
+```
+$ python non_deliverables_tools/scripts/Verify-ToolGroupNodes.py --report
+| profile | 继承 | 启用组 | 排除的组（工具数） | 工具合计 |
+| base | — | 13 | — | 635 |
+| ci | headless | 8 | code(32)、mcp(25)、media(60)、slash(99)、web(5) | 414 |
+| headless | base | 12 | slash(99) | 536 |
+| sdk | headless | 8 | code(32)、mcp(25)、media(60)、slash(99)、web(5) | 414 |
+```
+
+### 23.5 顺手修掉的真 bug：自省命令在撒谎
+
+改完 yaml 去核对，`tool tree` 说 8 组，`jcc --profile ci prompt` 仍列出 13 组：
+
+```
+$ jcc --profile ci tool tree                 → 共 8 组 / 414 个工具
+$ jcc --profile ci prompt --section tools    → 13 个 jcc-tool-*
+```
+
+原因不在渲染逻辑，而在**两个入口取信于不同的 profile 来源**：
+
+| 入口 | profile 来源 | 结果 |
+|---|---|---|
+| `tool tree` / `tool find` / `tool call` | `CliProfileGate`（读 `--profile` / `JCC_NODE_PROFILE`） | 8 组 ✔ |
+| `prompt --section tools` | 轻量宿主里的 `IProfileManager` —— 它用默认名 `base` 构造，拿不到命令行 | 13 组 ✘ |
+
+S6 的注释写着「自省命令一旦与生产不一致，就不再是自省」，而它当时就已经不一致了 —— 只是没人同时跑这两条命令。
+
+修法不是让其中一个覆盖另一个，而是**按「命令行的显式意图」选信源**：
+
+```csharp
+// CliProfileGate.CurrentExplicit：只有 --profile / JCC_NODE_PROFILE 明确出现时才返回解析结果
+var profile = CliProfileGate.CurrentExplicit
+    ?? services.GetService<IProfileManager>()?.Current;   // 否则跟引擎（这才跟得上运行期 /profile 切换）
+```
+
+现在四个 profile 两者一致（13/12/8/8），`JCC_NODE_PROFILE=ci` 也一样。
+
+### 23.6 把结论变成会失败的门禁
+
+`Verify-ToolGroupNodes.py` 从「三方清单核对」扩成四层，前两层是静态度量，后两层是真机：
+
+| 检查 | 拦住什么 |
+|---|---|
+| 三方清单一致（原有） | 声明了不存在的组 / 有组永远关不掉 / 代码常量与 yaml 分叉 |
+| **组 ID 与其它消费点的节点 ID 无同名** | 把 §23.2 那条误判变成结构性检查：真撞车时 CI 红，而不是靠人读注释 |
+| **工具组只能用 `tool-groups:<组>` 排除** | 裸写 `web` 今天就等于限定，明天多一个同名中间件就会连带改掉工具面 |
+| **`--live=<jcc>` 三方对账** | 静态解析 / `tool tree` / 提示词头部必须是同一组数字 —— 正好覆盖 §23.5 那类「两个入口各读各的 profile」 |
+
+负向实测（改一行、跑一次、改回）：
+
+```
+[FAIL] ci.yaml: web —— 请改成 'tool-groups:<组>'
+[FAIL] ci.yaml: 'tool-group:mcp' 的前缀 'tool-group' 不是任何消费点 —— 疑似笔误
+```
+
+真机对账（`--live`，全部 OK）：
+
+```
+[OK] base: 13 组 / 635 工具（静态解析 = tool tree = 提示词）
+[OK] headless: 12 组 / 536 工具
+[OK] ci: 8 组 / 414 工具
+[OK] sdk: 8 组 / 414 工具
+```
+
+### 23.7 生产链路的独立证据（不是诊断命令）
+
+诊断命令一致 ≠ 生产一致。用假 key 跑完整引擎装配（装配与提示词构建全跑完，止于 401）：
+
+| profile | `[CAPS]` | `[CAPS-PLUGIN]` | `[PROMPT-GROUP]` |
+|---|---|---|---|
+| base | todo/task/cron/goal/memdir/dream/code-index 全 on | dream=load code-index=load | 13 个 |
+| headless | 全 on | dream=load code-index=load | 12 个 |
+| ci | cron=off dream=off，其余 on | **dream=skip** code-index=load | **8 个** |
+| sdk | 同 ci | dream=skip code-index=load | 8 个 |
+
+`ci` 的工具注册表那一行同时给了能力面的真实数量：
+
+```
+[TOOL-GATE] indexed=368 off=[cron] blocked=4 samples=[cron_delete,cron_validate,cron_create,cron_list] filter=active
+```
+
+也就是说 `capabilities` 关掉的两项里，`cron` 真正拦掉 4 个工具，`dream` 没有工具面（不进分类表）——
+这与 §19.3「只登记真被治理的分类」一致，不是漏挡。
+
+### 23.8 明确边界
+
+- **`tool call` 仍受组门禁**（§22.9 的边界不变）：`jcc --profile ci tool call media mouse_move --x 1 --y 2`
+  → 退出码 2，「工具组 'media' 未在当前 profile 启用」。它是调试通道，但「组」本身就是配置单位，
+  绕过它等于绕过半个 profile。
+- **`--live` 依赖已编译的 jcc**：CI 里接在 `Build jcc` 之后；本地不传 `--live` 时完全退化为纯静态门禁。
+- **能力裁剪的风险面没变**：`capabilities` 关掉后对应服务为 `null`，消费方必须自己空判 ——
+  S4 的 6 个消费点已经这么做，本节没有新增消费方。

@@ -4,6 +4,7 @@ namespace Core.Security.Sandbox.Providers;
 /// <summary>
 /// Bubblewrap (bwrap) 沙箱提供者 — Linux 下基于用户命名空间的轻量沙箱,提供文件系统、网络、进程隔离
 /// </summary>
+[NodeFactory("sandbox-providers", "bubblewrap-sandbox-provider")]
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 [Register(typeof(ISandboxProvider), ServiceLifetime.Singleton)]
 public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase {

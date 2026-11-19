@@ -4,6 +4,7 @@ namespace Core.Security.Sandbox.Providers;
 /// <summary>
 /// 进程沙箱提供者 — 基于 Windows JobObject 或 Linux 进程组实现进程级隔离沙箱
 /// </summary>
+[NodeFactory("sandbox-providers", "process-sandbox-provider")]
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 [Register(typeof(ISandboxProvider), ServiceLifetime.Singleton)]
 public sealed partial class ProcessSandboxProvider : SandboxProviderBase {

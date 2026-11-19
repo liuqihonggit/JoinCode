@@ -504,7 +504,7 @@ consumers:
 
 **差评抓到的问题（值得记）**：首次构建后生成注册表仍引用已删除的 `FixHooksPlugin`、且 `IToolFixHook` 一个都没注册 —— 原因是 `Guard.csproj` 未重编，生成器扫的是**旧的 Guard.dll**。重编 Guard → guard.hooks → `Composition -t:Rebuild` 后，`FixHooksPlugin` 残留 0、`IToolFixHook` 注册 12 处正常。**教训与 TASK098 同源：编译成功 ≠ 生成物更新，跨库改动必须确认生成代码内容。**
 
-### 14.4 S2c 实施记录（沙箱提供器）— 部分完成，暴露结构性阻塞
+### 14.4 S2c 实施记录（沙箱提供器）— 当时部分完成，后由 §12.8 拆墙闭环（见 12.8.5）
 
 **已完成**
 
@@ -548,15 +548,64 @@ consumers:
 | B. 宿主聚合 | 每个域出 `static XxxNodeFactories.Create()`，由 CLI/Engine 汇总 | 不依赖 DI，dump 仍是纯静态 | CLI 与 GUI 各汇总一次 → 两套清单漂移（正是本任务要消灭的 R4）；且要求宿主引用所有域 |
 | C. 反射扫描 | 启动时扫程序集找 `[NodeFactory]` | 零生成器代码 | AOT 直接不可用（第一约束），且启动变慢；与「全静态工厂」原则冲突 |
 
-**结论：走 A。** 理由：本仓 AOT 是第一约束（G7 已验证），B 会复制出第二份装配清单，C 不可用。
+**结论：走 A，但按「静态目录」裁掉它的容器依赖（实测见 12.8.3）。** 理由：本仓 AOT 是第一约束（G7 已验证），B 会复制出第二份装配清单，C 不可用；而 A 的「建真实宿主再 dump」只是为了拿一份**键列表**，代价与收益不成比例。
 
-#### 12.8.2 A 方案的施工步骤（待执行）
+#### 12.8.2 施工结果：A′ = 静态目录 + 宽闭包持有（已完成）
 
-1. `Abstractions.Composition` 新增 `NodeFactoryAttribute(consumer, nodeId)` 与 `INodeFactoryContribution`（`IReadOnlyList<KeyValuePair<string, Func<IServiceProvider, object>>> Factories`）。
-2. `mcp_tool_dispatch.generator` 增一段扫描：按程序集聚合 `[NodeFactory]` → 生成 `<Assembly>NodeFactoryContribution` 类；沿用现有 `ServiceRegistrationGenerator` 的注册输出（`AddSingleton<INodeFactoryContribution, …>`）。
-3. `Pipelines.BuildNodeFactories(IServiceProvider? sp = null)`：静态 161 条 + `sp?.GetServices<INodeFactoryContribution>()`，**签名向后兼容**，现有调用点不动。
-4. `Program.DumpNodesInfo`：把空容器换成真实宿主容器（复用 `McpCommand.WithHostAsync` 的装配路径），取贡献后 dump；实测耗时，若明显变慢则缓存一次。
-5. 把沙箱 4 个提供器改成 `[NodeFactory("sandbox-providers", "…")]`，恢复 profile 声明，门禁应转绿（当前因删了声明而绿）。
-6. 验收：`--dump-nodes --verify` 仍 `[OK]`；`--dump-nodes` 含 `sandbox-providers`；`tool tree` 635；启动耗时不劣化 20% 以上。
+与实际计划的差异（诚实记录，三处）：
 
-**注意**：步骤 2 是本次唯一需要动生成器的改动，必须跑 `-t:Rebuild` 并检查 `GeneratedServiceRegistration.g.cs` 内容（S2b 已栽过一次：编译成功但生成物是旧的）。
+| 原计划 | 实际做法 | 为什么改 |
+|---|---|---|
+| `INodeFactoryContribution` + 走 DI 注册 | 生成器直接产出 `internal static class NodeFactoryCatalog.Create()` | 贡献物是**静态键列表**，不是服务。走 DI 会把 `--dump-nodes` 逼成"建真实宿主"，且 `GetServices<>` 属于运行期解析，对静态清单没有收益 |
+| `Pipelines.BuildNodeFactories(sp)` 汇总 | 由 `Composition.NodeFactoryContribution.Create()` 持有，`Pipelines` 只 `foreach` 转发 | 见 12.8.3：`Pipelines` 的编译闭包看不到 `Guard.Sandbox`，`Composition` 看得到。目录必须住在闭包最宽的那个程序集 |
+| 特性放 `Abstractions.Composition` | 放 `Abstractions.Primitives.Attributes`（命名空间 `JoinCode.Abstractions.Attributes`） | 后者几乎是全仓默认 global using，各域标注不需要改 `GlobalUsings.cs`；与 `[Register]` 同类同层 |
+
+落地形态：
+
+```
+域内标注：[NodeFactory("sandbox-providers", "soft-sandbox-provider")]
+  → NodeFactoryCatalogGenerator 按编译单元静态聚合
+  → Composition 持有全量目录（internal NodeFactoryCatalog → public NodeFactoryContribution）
+  → Pipelines.BuildNodeFactories() 末尾 foreach 转发
+```
+
+防漂移：生成器内置 `JCC4013`（同编译单元内同键重复）、`JCC4014`（跨程序集同键不同实现）两条编译期错误。
+
+#### 12.8.3 关键实测：那堵墙是真的，但方向被判断错了
+
+S2c 当时的结论是"`Guard.Sandbox` 不在 Pipelines 的编译闭包里，需要补 `ProjectReference`"。这次把它验证到确定：
+
+- 用 `Core.Security.Sandbox.Providers.SoftSandboxProvider`（正确命名空间）→ `CS0234`；
+- 换成 `global::Core.Security.Sandbox.Providers.SoftSandboxProvider` → 仍然 `CS0234`；
+- 但 `Composition` 的生成注册里**本来就写着** `Core.Security.Sandbox.Providers.SoftSandboxProvider`（S2c 实测 `JoinCode.Composition.dll` 16 处），且编译通过。
+
+即：同样的引用路径 `Pipelines → Composition → Guard → Guard.Sandbox`，**`Composition` 看得到、`Pipelines` 看不到**。所以问题不是"缺引用"，而是"工厂目录住进了闭包较窄的那个程序集"。修法因此不是加 `ProjectReference`（那会把装配层绑到叶子实现上，还要 restore），而是**把目录搬到闭包最宽的程序集**——`Composition` 作为装配根，本来就该认识所有实现。这一条同时解释了 S2c 为什么"降级链就绪却加不回节点声明"。
+
+#### 12.8.4 验收口径
+
+| 项 | 结果 |
+|---|---|
+| `jcc --dump-nodes` | 191 节点 / 92 消费点；`sandbox-providers [contract=provider, 4 节点]` |
+| `jcc --dump-nodes --verify` | 声明无工厂 / 工厂无声明 / 互斥内重复 三项全 `[OK]` |
+| 门禁 `Verify-NodeConsistency.py` | `[OK] 191 节点 / 92 消费点（guard=8, middleware=80, provider=4）` |
+| 真机降级链 | `mcp_call bash` 宿主日志 `[ORDER] sandbox_providers(profile): bubblewrap > process > soft > docker` —— 顺序来自 `base.yaml` 而非 OS 默认（Windows 默认是 `process > soft`） |
+| 零回归 | `tool tree` 635；Composition 1117；Guard.Hooks 598；4 个 python 门禁 + 工具节点门禁全绿 |
+| `--dump-nodes` 重量 | 未变（仍是静态目录，不建容器） |
+
+#### 12.8.5 S2c 收尾：沙箱提供器真正成为节点
+
+拆墙后把 S2c 剩下的"声明加不回去"补齐，顺手把降级链的顺序来源落到 profile。
+
+| 文件 | 改动 |
+|---|---|
+| `abstractions.primitives.attributes/src/NodeFactoryAttribute.cs` | **新增** `[NodeFactory(consumer, nodeId)]`（放特性层，各域不改 GlobalUsings） |
+| `generators/mcp_tool_dispatch.generator/NodeFactoryCatalogGenerator.cs` | **新增** 源生成器：按编译单元静态聚合 `[NodeFactory]` → `internal static class NodeFactoryCatalog.Create()`；`JCC4013`/`JCC4014` 两条防漂移错误；空集合必出 `yield break`（否则非迭代器，CS0161） |
+| `composition/dependency_injection/core/NodeFactoryContribution.cs` | **新增** 公开汇聚点，把生成目录交给装配层 |
+| `composition/pipelines/registration/DataDrivenPipelineComposition.cs` | `BuildNodeFactories()` 末尾 `foreach` 转发贡献（签名未变，调用点零改动） |
+| `guard.sandbox/providers/*.cs` | 4 个提供器加 `[NodeFactory("sandbox-providers", "…-sandbox-provider")]` |
+| `guard.sandbox/core/SandboxManager.cs` | 排序改用**全量**提供器（含本平台不可用者）：声明缺实现仍 fail-closed，但"实现在、本平台不可用"不再阻断启动；加 `[ORDER] sandbox_providers(...)` 打点 |
+| `resources/profiles/base.yaml` | 新增 `sandbox-providers`（`contract: provider`，bubblewrap 400 / process 300 / soft 200 / docker 100） |
+
+顺序设计说明：profile 只表达**偏好**，可用性过滤在消费侧做（`_providers` 只收 `IsAvailable`，降级循环还会 `ContainsKey` 复查）。因此一份跨平台清单即可：Windows 上 bubblewrap 不可用会被跳过，实际顺序退回 `process > soft`，与历史行为一致；docker 排最后是保持"只供显式指定、不进自动降级"的既有语义。
+
+这一步之后 `provider` 契约第一次真实出现在 dump 里（`provider=4`），S3 的 `provider` 与 `role` 有了可复制的落地样板。

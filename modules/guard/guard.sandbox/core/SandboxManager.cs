@@ -47,21 +47,28 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     private static SandboxType[] BuildFallbackOrder(
         IEnumerable<ISandboxProvider> providers,
         JoinCode.Abstractions.Composition.IProfileManager? profiles) {
-        var available = providers.Where(static p => p.IsAvailable).ToArray();
+        var all = providers as ISandboxProvider[] ?? providers.ToArray();
         var declared = profiles is not null
             && profiles.Current.Consumers.TryGetValue(ConsumerId, out var consumer)
             && consumer.Nodes.Count > 0;
 
         if (declared && profiles is not null) {
-            return JoinCode.Abstractions.Composition.NodeChainOrder
-                .Order(available, profiles, ConsumerId, static p => p.GetType().Name, static _ => 0, "沙箱提供器")
+            // 用全量（含本平台不可用的实现）参与排序：declared 缺实现要 fail-closed，
+            // 但「实现在、只是本平台不可用」属正常情况，不能因此阻断启动。
+            // 真正的可用性过滤在消费侧完成（_providers 只收 IsAvailable，降级循环还会 ContainsKey 复查）。
+            var ordered = JoinCode.Abstractions.Composition.NodeChainOrder
+                .Order(all, profiles, ConsumerId, static p => p.GetType().Name, static _ => 0, "沙箱提供器")
                 .Select(static p => p.SandboxType)
                 .ToArray();
+            Diag.WriteLine($"[ORDER] sandbox_providers(profile): {string.Join(" > ", ordered.Select(static t => t.ToValue()))}");
+            return ordered;
         }
 
-        return OperatingSystem.IsLinux()
+        SandboxType[] fallback = OperatingSystem.IsLinux()
             ? [SandboxType.Bubblewrap, SandboxType.Process, SandboxType.Soft]
             : [SandboxType.Process, SandboxType.Soft];
+        Diag.WriteLine($"[ORDER] sandbox_providers(os-default): {string.Join(" > ", fallback.Select(static t => t.ToValue()))}");
+        return fallback;
     }
 
     /// <summary>

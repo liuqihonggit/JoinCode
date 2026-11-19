@@ -4,6 +4,7 @@ namespace Core.Security.Sandbox.Providers;
 /// <summary>
 /// Docker 沙箱提供者 — 通过 Docker 容器实现完全隔离的命令执行环境
 /// </summary>
+[NodeFactory("sandbox-providers", "docker-sandbox-provider")]
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 [Register(typeof(ISandboxProvider), ServiceLifetime.Singleton)]
 public sealed partial class DockerSandboxProvider : SandboxProviderBase {

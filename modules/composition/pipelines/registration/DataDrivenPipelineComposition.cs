@@ -307,6 +307,14 @@ public static class DataDrivenPipelineComposition {
         yield return F("tool-fix-chain:json-fix-hook", sp => sp.GetRequiredService<Core.Hooks.Execution.FixHooks.JsonFixHook>());
         yield return F("tool-fix-chain:gh-timeout-fix-hook", sp => sp.GetRequiredService<Core.Hooks.Execution.FixHooks.GhTimeoutFixHook>());
 
+        // ═══════════════════════════════════════════════════════════
+        // 分布式贡献（TASK100）：域内 [NodeFactory] → 生成器静态目录 → 此处转发。
+        // 目录由 Composition 持有（本程序集编译闭包看不到全部实现域，实证见 §12.8）。
+        // ═══════════════════════════════════════════════════════════
+        foreach (var contributed in Core.DependencyInjection.NodeFactoryContribution.Create()) {
+            yield return contributed;
+        }
+
     }
 
     /// <summary>

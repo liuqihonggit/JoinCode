@@ -34,6 +34,25 @@ internal static class CliCommandGate {
         Abstractions.Composition.Profile.ConsumerDeclaration.IsEnabled(s_profile.Value, CliCommandNodes.ConsumerId, nodeId);
 
     /// <summary>
+    /// 按命令行字面量判断启用（<c>mcp_call</c> 这种下划线写法）。
+    /// <para>
+    /// 帮助文本里的命令名是 CLI 字面量，节点 ID 是 kebab —— 两套词。换算只在这里做一次：
+    /// 否则「帮助把 10 条命令误判成未启用」这种错会同时出现在分类概览、分类列表、命令详情三处，
+    /// 而且看起来像 profile 坏了（S4 首次接帮助时就踩了这个：只删 probe，却少了 4 个分类）。
+    /// </para>
+    /// </summary>
+    /// <param name="literal">命令行字面量。</param>
+    /// <returns>启用返回 <see langword="true"/>；未识别的字面量也返回 <see langword="true"/>（交由常规「未知命令」路径处理）。</returns>
+    public static bool IsEnabledLiteral(string literal) {
+        var command = CliSubCommandExtensions.FromValue(literal);
+        if (command is null)
+            return true;
+
+        var node = CliCommandNodes.For(command.Value);
+        return node is null || IsEnabled(node.NodeId);
+    }
+
+    /// <summary>
     /// 从命令行/环境变量解析 profile 名：<c>--profile X</c> &gt; <c>--profile=X</c> &gt; <c>JCC_NODE_PROFILE</c> &gt; base。
     /// </summary>
     /// <param name="args">进程参数（首元素为可执行文件路径）。</param>

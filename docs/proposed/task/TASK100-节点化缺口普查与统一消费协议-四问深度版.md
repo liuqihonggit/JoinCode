@@ -1069,3 +1069,93 @@ ComposeToolFilter(cliFilter, gate)
 - `Composition.Tests` 1117 通过；Composition / CLI 编译 0 警告 0 错误。
 - `Verify-StyleGate` 存量 247 条不变，新增/修改文件零新增违规。
 - 真机：基线 368 工具且 `filter=none`（与改动前一致）；只关 todo 364；关 6 项 309；`mcp_call` 闭环三态。
+
+---
+
+## 20. 帮助文本与节点表同源（§18.6 未做第 3 项）
+
+### 20.1 上一轮只是「执行时」认得 profile，帮助还不认
+
+S4 让命令分发按 `cli-commands` 门禁判启停，但帮助文本仍由 `[SubCommandInfo]` 生成的静态表输出。
+真机（外部 profile 删掉 `probe`）：
+
+```
+$ jcc -h 融合门禁
+融合门禁:
+  probe    行为对比门禁 — ...
+$ jcc -h probe
+probe — 行为对比门禁 — ...
+```
+
+而执行 `jcc probe` 会报「未在当前 profile 启用」。—— 用户看到命令、点进去才被拒，等于两次浪费。
+这不是「潜在的隐患」，是当场可见的不一致。
+
+### 20.2 改法：给生成的帮助方法加一个可见性参数
+
+`EnumMetadataGenerator` 生成的 `CliSubCommandHelpText` 四个方法
+（`GetCategories` / `GetByCategory` / `GetByCommand` / `GetHelp`）各加一个
+`Func<string, bool>? isEnabled = null`（默认 `null` = 全开，历史行为不变），并生成一个私有判定：
+
+```csharp
+private static bool __IsVisible(SubCommandEntry e, Func<string, bool>? isEnabled)
+    => isEnabled is null || isEnabled(e.IsAlias ? (e.AliasOf ?? e.Command) : e.Command);
+```
+
+**别名跟随主命令**：`rc` / `remote` 不是独立节点，`remote-control` 被裁掉时它们也该消失。
+
+三处细节都是「不做就会错」的：
+
+1. **分类判定也要用过滤后的集合** —— 否则某个分类的命令全被裁掉后，它仍被当成「已知分类」返回一张空表。
+   `GetHelp` 里改的是 `Any(e => 分类匹配 && __IsVisible(...))`，不是只过滤列表。
+2. **未启用 ≠ 未知** —— `GetByCommand` 对不可见命令返回
+   「命令 'probe' 未在当前 profile 启用（cli-commands 消费点未声明该节点）」，而不是「未知命令」。
+   两者处置方式完全不同：前者去改 profile，后者去查拼写。
+3. **默认参数保兼容** —— 四个方法都带默认值，其它调用方零改动。
+
+### 20.3 踩到的坑：帮助用的是「字面量」，节点用的是「kebab」
+
+第一版直接传 `CliCommandGate.IsEnabled`（按节点 ID 判），真机结果是**只删了 `probe`，却少了 4 个分类 10 条命令**：
+
+```
+（应只剩 10 类，实际 6 类）
+  缺失: MCP 工具(5) 引擎服务(1) 斜杠命令(3) 融合门禁(1)
+```
+
+原因：帮助表里的命令名是 CLI 字面量（`mcp_call` 带下划线），节点 ID 是枚举名 kebab（`mcp-call`）。
+`isEnabled("mcp_call")` 在白名单语义下当然是 `false`。
+
+修法不是「把节点 ID 改成下划线」（会污染 S4 定下的 kebab 约定，S3 角色域已经踩过一次），
+而是在门禁里加一层换算，且**只在这一处换算**：
+
+```csharp
+public static bool IsEnabledLiteral(string literal) {
+    var command = CliSubCommandExtensions.FromValue(literal);
+    if (command is null) return true;              // 未识别字面量交给常规「未知命令」路径
+    var node = CliCommandNodes.For(command.Value);
+    return node is null || IsEnabled(node.NodeId);
+}
+```
+
+一句话记：**同一个概念出现两套词（字面量 / kebab）时，换算点必须只有一处，且要在最靠近「词」的那层做。**
+
+### 20.4 真机三态 + 别名（外部 profile 驱动，无重编译）
+
+| 场景 | 期望 | 实测 |
+|---|---|---|
+| 全开 `-h sub` | 10 个分类 | 10 个（含融合门禁） |
+| 全开 `-h probe` | 命令详情 + 示例 | 正常 |
+| 删 `probe` → `-h sub` | 融合门禁分类消失 | 9 类，融合门禁不在 |
+| 删 `probe` → `-h 融合门禁` | `未知主题` | `未知主题: 融合门禁` |
+| 删 `probe` → `-h probe` | 未启用提示 | `命令 'probe' 未在当前 profile 启用…` |
+| 删 `probe` → `jcc probe` | 未启用 + 恢复用法 | 与帮助同一句措辞 |
+| 删 `remote-control` → `-h rc` / `-h remote` | 别名随主命令消失 | 两者都报「未在当前 profile 启用」 |
+
+### 20.5 零回归
+
+- 生成器改动向后兼容（默认参数），全仓只有 `ApplicationBuilder` 两处调用，均已改为传门禁。
+- `--dump-nodes` **238 / 112** 不变，`--verify` 三项 `[OK]`；`tool tree` 635 不变。
+- NodeConsistency / ExplicitOrder / RegistrationOrder / HonestyChecklist / NoLockPrimitives 全绿；
+  Composition.Tests 1117 通过；Composition / Utils / CLI 编译 0 警告。
+
+**仍未统一的一处（诚实记录）**：`-h options` 的参数表来自 `CliArg` 特性（`CliArgParser.GetHelpText`），
+与 `cli-commands` 消费点是两个体系 —— 参数级的启停目前没有节点语义，也不该硬套（参数不是命令）。

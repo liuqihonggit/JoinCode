@@ -259,15 +259,27 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         sb.AppendLine($"    public static readonly FrozenSet<string> SelfHelpCommands = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, new string[] {{ {string.Join(", ", selfHelpValues)} }});");
         sb.AppendLine();
 
+        // __IsVisible — 节点可见性判定（别名跟随主命令，因为别名不是独立节点）
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 节点可见性判定 — 别名跟随其主命令：别名不是独立节点，主命令被裁掉时别名也不该出现。");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"e\">子命令条目。</param>");
+        sb.AppendLine("    /// <param name=\"isEnabled\">节点门禁；<see langword=\"null\"/> 表示全开。</param>");
+        sb.AppendLine("    /// <returns>可见返回 <see langword=\"true\"/>。</returns>");
+        sb.AppendLine("    private static bool __IsVisible(SubCommandEntry e, Func<string, bool>? isEnabled)");
+        sb.AppendLine("        => isEnabled is null || isEnabled(e.IsAlias ? (e.AliasOf ?? e.Command) : e.Command);");
+        sb.AppendLine();
+
         // GetCategories 方法 — 列出所有分类及数量
         sb.AppendLine("    /// <summary>列出所有分类及命令数量 — jcc -h 的第一级展开</summary>");
-        sb.AppendLine("    public static string GetCategories()");
+        sb.AppendLine("    /// <param name=\"isEnabled\">节点门禁；<see langword=\"null\"/> 表示全开（历史行为）。</param>");
+        sb.AppendLine("    /// <returns>分类概览文本。</returns>");
+        sb.AppendLine("    public static string GetCategories(Func<string, bool>? isEnabled = null)");
         sb.AppendLine("    {");
         sb.AppendLine("        var sb = new System.Text.StringBuilder(256);");
-        sb.AppendLine("        foreach (var cat in __allEntries.Where(e => !e.IsAlias).GroupBy(e => e.Category).OrderBy(g => g.Key))");
+        sb.AppendLine("        foreach (var cat in __allEntries.Where(e => !e.IsAlias && __IsVisible(e, isEnabled)).GroupBy(e => e.Category).OrderBy(g => g.Key))");
         sb.AppendLine("        {");
-        sb.AppendLine("            var count = cat.Count(e => !e.IsAlias);");
-        sb.AppendLine("            sb.AppendLine($\"  {cat.Key} ({count} 个)\");");
+        sb.AppendLine("            sb.AppendLine($\"  {cat.Key} ({cat.Count()} 个)\");");
         sb.AppendLine("        }");
         sb.AppendLine("        sb.AppendLine();");
         sb.AppendLine("        sb.Append(\"用 jcc -h <分类> 查看该分类下的命令, 或 jcc -h <命令名> 查看命令详情\");");
@@ -277,13 +289,14 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
 
         // GetByCategory 方法 — 列出某分类下的所有命令
         sb.AppendLine("    /// <summary>列出指定分类下的所有命令 — jcc -h &lt;分类&gt; 的第二级展开</summary>");
-        sb.AppendLine("    /// <param name=\"category\">分类名称</param>");
-        sb.AppendLine("    /// <returns>该分类下所有命令的格式化文本</returns>");
-        sb.AppendLine("    public static string GetByCategory(string category)");
+        sb.AppendLine("    /// <param name=\"category\">分类名称。</param>");
+        sb.AppendLine("    /// <param name=\"isEnabled\">节点门禁；<see langword=\"null\"/> 表示全开。</param>");
+        sb.AppendLine("    /// <returns>该分类下所有命令的格式化文本。</returns>");
+        sb.AppendLine("    public static string GetByCategory(string category, Func<string, bool>? isEnabled = null)");
         sb.AppendLine("    {");
         sb.AppendLine("        var sb = new System.Text.StringBuilder(512);");
-        sb.AppendLine("        var entries = __allEntries.Where(e => string.Equals(e.Category, category, StringComparison.OrdinalIgnoreCase) && !e.IsAlias).ToList();");
-        sb.AppendLine("        if (entries.Count == 0) return $\"未知分类: {category}\\n\\n可用分类:\\n{GetCategories()}\";");
+        sb.AppendLine("        var entries = __allEntries.Where(e => !e.IsAlias && __IsVisible(e, isEnabled) && string.Equals(e.Category, category, StringComparison.OrdinalIgnoreCase)).ToList();");
+        sb.AppendLine("        if (entries.Count == 0) return $\"未知分类: {category}\\n\\n可用分类:\\n{GetCategories(isEnabled)}\";");
         sb.AppendLine("        sb.AppendLine($\"{category}:\");");
         sb.AppendLine("        sb.AppendLine();");
         sb.AppendLine("        foreach (var e in entries)");
@@ -299,12 +312,15 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
 
         // GetByCommand 方法 — 显示某命令的详细帮助
         sb.AppendLine("    /// <summary>显示指定命令的详细帮助 — jcc -h &lt;命令名&gt; 的第二级展开</summary>");
-        sb.AppendLine("    /// <param name=\"command\">命令名称</param>");
-        sb.AppendLine("    /// <returns>命令详情的格式化文本</returns>");
-        sb.AppendLine("    public static string GetByCommand(string command)");
+        sb.AppendLine("    /// <param name=\"command\">命令名称。</param>");
+        sb.AppendLine("    /// <param name=\"isEnabled\">节点门禁；<see langword=\"null\"/> 表示全开。</param>");
+        sb.AppendLine("    /// <returns>命令详情的格式化文本。未启用的命令给出「未启用」而不是「未知」——两者处置方式完全不同。</returns>");
+        sb.AppendLine("    public static string GetByCommand(string command, Func<string, bool>? isEnabled = null)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (!__byCommand.TryGetValue(command, out var entry))");
-        sb.AppendLine("            return $\"未知命令: {command}\\n\\n可用分类:\\n{GetCategories()}\";");
+        sb.AppendLine("            return $\"未知命令: {command}\\n\\n可用分类:\\n{GetCategories(isEnabled)}\";");
+        sb.AppendLine("        if (!__IsVisible(entry, isEnabled))");
+        sb.AppendLine("            return $\"命令 '{entry.Command}' 未在当前 profile 启用（cli-commands 消费点未声明该节点）\\n\\n可用分类:\\n{GetCategories(isEnabled)}\";");
         sb.AppendLine("        var sb = new System.Text.StringBuilder(256);");
         sb.AppendLine("        sb.AppendLine($\"{entry.Command} — {entry.Description}\");");
         sb.AppendLine("        if (entry.IsDeprecated) sb.AppendLine(\"[已废弃]\");");
@@ -321,15 +337,18 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
 
         // GetHelp 方法 — 统一入口, 按 topic 分发
         sb.AppendLine("    /// <summary>统一帮助入口 — 按 topic 分发到不同级别</summary>");
-        sb.AppendLine("    /// <param name=\"topic\">null/empty → 分类概览; 分类名 → 该分类命令列表; 命令名 → 命令详情</param>");
-        sb.AppendLine("    /// <returns>对应级别的帮助文本</returns>");
-        sb.AppendLine("    public static string GetHelp(string? topic = null)");
+        sb.AppendLine("    /// <param name=\"topic\">null/empty → 分类概览; 分类名 → 该分类命令列表; 命令名 → 命令详情。</param>");
+        sb.AppendLine("    /// <param name=\"isEnabled\">节点门禁；<see langword=\"null\"/> 表示全开。</param>");
+        sb.AppendLine("    /// <returns>对应级别的帮助文本。</returns>");
+        sb.AppendLine("    public static string GetHelp(string? topic = null, Func<string, bool>? isEnabled = null)");
         sb.AppendLine("    {");
-        sb.AppendLine("        if (string.IsNullOrWhiteSpace(topic)) return GetCategories();");
+        sb.AppendLine("        if (string.IsNullOrWhiteSpace(topic)) return GetCategories(isEnabled);");
         sb.AppendLine("        var topicTrimmed = topic.Trim();");
-        sb.AppendLine("        if (__allEntries.Any(e => string.Equals(e.Category, topicTrimmed, StringComparison.OrdinalIgnoreCase)))");
-        sb.AppendLine("            return GetByCategory(topicTrimmed);");
-        sb.AppendLine("        return GetByCommand(topicTrimmed);");
+        sb.AppendLine("        // 分类判定也要用「过滤后」的集合：某分类的命令全被裁掉后，它既不该出现在概览里，");
+        sb.AppendLine("        // 也不该继续被当成「已知分类」返回一张空表。");
+        sb.AppendLine("        if (__allEntries.Any(e => string.Equals(e.Category, topicTrimmed, StringComparison.OrdinalIgnoreCase) && __IsVisible(e, isEnabled)))");
+        sb.AppendLine("            return GetByCategory(topicTrimmed, isEnabled);");
+        sb.AppendLine("        return GetByCommand(topicTrimmed, isEnabled);");
         sb.AppendLine("    }");
 
         sb.AppendLine("}");

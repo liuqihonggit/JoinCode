@@ -282,7 +282,9 @@ public static class ApplicationBuilder {
             case "sub" or "subcommand" or "subs":
             Cli.TerminalHelper.WriteLine("子命令分类:");
             Cli.TerminalHelper.NewLine();
-            Cli.TerminalHelper.WriteLine(CliSubCommandHelpText.GetCategories());
+            // 帮助文本与节点表同源：profile 里删掉的命令不该继续出现在帮助里
+            // （否则用户看到命令、点进去才被告知「未在当前 profile 启用」，那是两次浪费）。
+            Cli.TerminalHelper.WriteLine(CliSubCommandHelpText.GetCategories(JoinCode.CliCommands.CliCommandGate.IsEnabledLiteral));
             break;
             case "env" or "environment":
             ShowEnvironmentVariables();
@@ -294,6 +296,9 @@ public static class ApplicationBuilder {
             Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("examples"));
             break;
             default:
+            // 先试整串：分类名可能自带空格（如「CLI 节点」），按第一个词截断会永远查不到。
+            // 再试首词：兼容 `-h gh pr` 这种「命令 + 子参数」的写法。
+            if (TryShowSubCommandHelp(t)) break;
             if (TryShowSubCommandHelp(firstWord)) break;
             Cli.TerminalHelper.WriteLine($"未知主题: {t}");
             Cli.TerminalHelper.NewLine();
@@ -325,7 +330,7 @@ public static class ApplicationBuilder {
     /// 尝试显示子命令帮助 — 按分类名或命令名查找
     /// </summary>
     private static bool TryShowSubCommandHelp(string topic) {
-        var help = CliSubCommandHelpText.GetHelp(topic);
+        var help = CliSubCommandHelpText.GetHelp(topic, JoinCode.CliCommands.CliCommandGate.IsEnabledLiteral);
         if (help.StartsWith("未知")) return false;
         Cli.TerminalHelper.WriteLine(help);
         return true;

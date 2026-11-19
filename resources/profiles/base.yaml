@@ -476,6 +476,27 @@ consumers:
       - id: argv-hash
         priority: 100
 
+  # TASK100 S3：LLM 协议实现（contract: provider — 同协议内互斥）。
+  # 对 provider 契约，priority 不表达顺序，只表达「启用集合」：不在集合内的协议直接拒绝，
+  # 而不是静默退回默认实现（那会把 A 协议的配置按 B 协议格式发出去）。
+  llm-providers:
+    contract: provider
+    nodes:
+      - id: openai-compatible
+        priority: 700
+      - id: anthropic
+        priority: 600
+      - id: azure
+        priority: 500
+      - id: agnes
+        priority: 400
+      - id: openai-responses
+        priority: 300
+      - id: jev
+        priority: 200
+      - id: hub
+        priority: 100
+
   # TASK100 S2c：沙箱提供器（contract: provider — 同协议内互斥，按 priority 降序 = 降级时先试）。
   # 这里只是「偏好顺序」；本平台不可用的实现会被 SandboxManager 按 IsAvailable 过滤掉，
   # 所以一份清单可以跨平台通用（Windows 上 bubblewrap 不可用 → 实际顺序 process > soft）。

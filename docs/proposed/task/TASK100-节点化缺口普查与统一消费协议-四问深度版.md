@@ -629,3 +629,67 @@ S2c 当时的结论是"`Guard.Sandbox` 不在 Pipelines 的编译闭包里，需
 - `mcp_call bash --command "echo ok"` 宿主日志 `[ORDER] bash-defense-chain: dangerous-command > strict-parse > retained-device > redirect-whitelist > git-push-ci-guard > argv-hash`；
 - 防御仍真实生效（重构没有把链变成空转）：未闭合引号 → `strict-parse` 拒绝；`format C: /q` → `dangerous-command` 拒绝；
 - 零回归：`tool tree` 635；Composition 1117；Guard.Hooks 598；4 个 python 门禁 + 工具节点门禁全绿。
+## 15. S3：provider 契约落地（LLM 协议实现）
+
+### 15.1 为什么这一批不是「加个 `[NodeFactory]` 就完事」
+
+审计里 S3 记的是「8 个 QueryService、两个不对称注册表」。打开看是：
+
+- `ServiceRegistration.EnsureDefaultProvidersRegistered()` 里手写 5+1 条 `RegisterProvider`
+- `LlmProvidersPlugin.InitializeAsync()` 里**又手写一遍**同样的 5 条
+- 两者写同一个静态 `s_factory` → 同一份清单两个真相，改一处忘一处不会报错（R4 的教科书样本）
+
+而且这些 QueryService **不是 DI 单例**：它们按 `ProviderConfig` 逐次构造（一次请求一份配置）。所以不能直接给它们挂 `[NodeFactory]`，也不能为了节点化把它们改成单例——那会动 LLM 构造链这条热路径。
+
+### 15.2 做法：节点包装层，热路径一行不动
+
+`Api.LLM.QueryServices.Nodes`：
+
+| 类型 | 作用 |
+|---|---|
+| `IProtocolQueryServiceNode` | 一个节点 = 一种 `ProtocolKind` 的实现方式；`Kind` + `Create(config, http, logger, fs, executor)` |
+| 7 个节点类 | `openai-compatible` / `anthropic` / `azure` / `agnes` / `openai-responses` / `jev` / `hub`，各自封装 `new XxxQueryService(...)`（Hub 的构造参数差异封装在节点内） |
+| `LlmProviderNodes.All` | **唯一清单**；注册表、profile 校验、节点工厂都从它派生 |
+| `LlmProviderDeclaration` | profile 声明的**启用集合**（纯数据契约，不依赖 `IProfileManager`） |
+
+LLM 层不认识 profile：装配层（Composition）读 profile → 构造 `LlmProviderDeclaration` 注入 → `CreateQueryService` 创建前 `AssertEnabled(ProtocolKind)`。
+
+为什么 `provider` 契约的 priority 在这里不表达顺序：同协议内互斥，没有「先试谁」的问题（沙箱那边有降级顺序，所以它读 priority）。声明只表达**启用集合**。
+
+**不静默退回**是刻意的：没声明的协议直接拒绝，而不是落到 default factory。否则「Anthropic 的配置被按 OpenAI 格式发出去」这类事故会被藏起来。
+
+### 15.3 真机红→绿（这次的红灯抓到真 bug）
+
+第一版只声明了 6 个节点，漏了 `openai-compatible`——而 `openai` / `deepseek` / `sensenova` / `agnes` 这些 vendor 全部映射到它。真实运行立刻炸：
+
+```
+JCC_ALLOW_DIRECT_FALLBACK=1 JCC_VENDOR=openai jcc chat --prompt hi
+→ System.InvalidOperationException: [LLM-PROVIDER-DISABLED] 协议 'OpenAiCompatible' 未在 profile 消费点
+  'llm-providers' 中声明…当前已启用: Agnes, Anthropic, Azure, Hub, Jev, OpenAiResponses
+```
+
+补上 `openai-compatible` 节点后同一命令：
+
+```
+[LLM] providers registered: openai-compatible, anthropic, azure, agnes, openai-responses, jev, hub (+ default)
+[LLM] provider declaration from profile 'llm-providers': openai-compatible, anthropic, azure, agnes, openai-responses, jev, hub
+✖ API 错误  未配置 API Key，LLM 调用将失败
+```
+
+`LLM-PROVIDER-DISABLED` 计数 0，走到「未配置 API Key」——即协议校验通过、真正进入供应商调用路径（本机没有 key，这是预期终点）。
+
+**如果只写单测不跑真机，这个漏项不会暴露**：单测里不会有 `JCC_VENDOR=openai` 这条最常用的路径。
+
+### 15.4 分布式工厂在这里兑现了价值
+
+7 个 `[NodeFactory]` 加在 `Llm` 程序集里，**`DataDrivenPipelineComposition.BuildNodeFactories()` 一行没改** —— 生成器在 Composition（宽闭包）里自动收集。这是 §12.8 的直接回报：S4 的能力/命令面可以照此办理，不必再回装配层堆代码。
+
+### 15.5 验收
+
+| 项 | 结果 |
+|---|---|
+| `jcc --dump-nodes` | **204 节点 / 100 消费点**；`llm-providers [provider, 7 节点]`、`sandbox-providers [provider, 4 节点]` |
+| `--dump-nodes --verify` | 三项全 `[OK]` |
+| 门禁 `Verify-NodeConsistency.py` | `[OK] 204 节点 / 100 消费点（guard=12, middleware=80, provider=8）` |
+| 真机 red→green | 见 15.3（红灯是真 bug，不是彩排） |
+| 零回归 | `tool tree` 635；Composition 1117；Llm **613**；Guard.Hooks 598；Engine / Dream 编译通过 |

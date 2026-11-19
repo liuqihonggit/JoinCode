@@ -551,3 +551,16 @@ printf 'ab\025\033[D\033[1;5D\033[200~中文粘贴内容\033[201~\037你\r' | ./
 <!-- 原因: 2s 阈值为负载敏感时序断言（并发构建下实测 2.037s 失败），生产实现内部 16×500ms 超时已保证确定性；保留墙钟阈值会把环境抖动误报为缺陷 -->
 <!-- 替代方案: 放宽到 5s/8s（仍不可靠且与生产超时同义）；固定等待（更差）——均否决 -->
 <!-- 验证: 修复后干净 16 轮连续重试全绿（async_lock_flake_final2.log + trx2） -->
+
+#### B7 CI 修复记录（PR #700）
+
+- PR #700 两处红（cognition/storage）根因与修复：
+  1. `LocalizationModuleInitializer` 在 B7 目录整理时被移到 CLI 程序集，只有 CLI 宿主加载它；测试宿主不加载 CLI → `L.LazyInitializer` 未注册 → `L.T` 退化为返回 key（`TaskNotExist` 而非"不存在"），`FileBasedTaskService` 等依赖本地化文案的用例失败。修复：引导文件恢复到 Infrastructure 程序集 `module_init/core/`（所有宿主传递引用），CA2255 以 Infrastructure.csproj 项目级 `NoWarn` + 理由注释豁免（替散落 `#pragma`；仅此一处）。
+  2. Desktop 场景工具（detect/click/look/zoom）测试仍按旧的手写 JSON 排版断言（`"type": "button"` 带空格、原生中文），JCC1017 改 DTO 序列化后为紧凑格式且非 ASCII 转义。修复：测试改 `JsonDocument` 语义断言（元素字段/工具名/suggested_next 理由文案），不锁死排版。
+- 验证：Hands.Tests 374/374、Scheduling 287/287、Brain.Context 971、Brain.Other 426、Brain.Prompts 225、Hands.Api 332、Hands.Shell 526、Hands.Skills 109、Hands.ToolHandlers 611、Clock 519、Downloader 100、Vault.Memdir 484、Vault.Other 383 全绿；全仓 + UI 域编译 0 错误；门禁 0；`--selftest-tui` EXIT=0（HOST SELFTEST OK）。
+
+<!-- 🤖 Auto Decision: 2026-11-19 B7-CI -->
+<!-- 决策: 本地化模块引导固定在 Infrastructure 程序集（module_init/core/），CA2255 用项目级 NoWarn 豁免 -->
+<!-- 原因: L.LazyInitializer 注册必须随所有宿主都加载的程序集启动；放到上层可执行程序集只有 CLI 生效，测试/引擎宿主本地化退化（CI storage 红实证）。ModuleInitializer 是唯一零反射、AOT 安全的自动引导手段，项目级豁免集中可审计，优于散落 pragma -->
+<!-- 替代方案: 保留下层 #pragma（门禁 S1 禁止）；把整个 LocalizerInitializer 字典搬进本地化原语项目（跨项目整体搬迁，层级方向需重构）；各测试自行 Initialize（漏改即回归）——均否决 -->
+<!-- 验证: Scheduling/Hands 等 13 套测试全绿 + 全仓/UI 编译 0 错误 + --selftest-tui EXIT=0 -->

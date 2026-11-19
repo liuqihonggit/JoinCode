@@ -78,7 +78,7 @@ public static partial class PsAstParser {
                     }
                 };
 
-                var result = processService.ExecuteAsync(options).GetAwaiter().GetResult();
+                var result = processService.ExecuteAsync(options).GetAwaiter().GetResult();  // style-allow: sync-block — 同步解析契约: PowerShell AST 解析 API 为同步
 
                 if (result.ExitCode == -1) {
                     return new PsParsedCommand {

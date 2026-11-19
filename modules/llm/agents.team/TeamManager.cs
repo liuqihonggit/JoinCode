@@ -78,15 +78,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         // 单团队限制：当前会话已存在团队时不允许再创建（对齐 TS TeamCreateTool）
         var sessionId = _subAgentContextAccessor.Current?.SessionId;
         if (sessionId is not null) {
-            var existingRoomForSession = _registry.FindRoomBySessionId(sessionId);
-            if (existingRoomForSession is not null) {
+            if (_registry.TryGetRoomBySessionId(sessionId, out _)) {
                 return OperationResult<TeamInfo?>.Fail("已在团队中，请先使用 TeamDelete 删除当前团队");
             }
         }
 
         // 名称唯一性检查（对齐 TS generateUniqueTeamName）
-        var nameConflict = _registry.FindTeamByName(teamName);
-        if (nameConflict is not null) {
+        if (_registry.TryGetTeamByName(teamName, out _)) {
             return OperationResult<TeamInfo?>.Fail($"团队名称 '{teamName}' 已存在，请使用其他名称");
         }
 
@@ -192,7 +190,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// </summary>
     public Task<TeamInfo?> GetTeamByNameAsync(string teamName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
-        return Task.FromResult(_registry.FindTeamByName(teamName));
+        return Task.FromResult(_registry.TryGetTeamByName(teamName, out var info) ? info : null);
     }
 
     /// <summary>

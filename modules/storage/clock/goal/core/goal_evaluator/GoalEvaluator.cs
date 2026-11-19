@@ -1,6 +1,4 @@
 
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Goal;
 
 /// <summary>
@@ -88,17 +86,17 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator {
             ? string.Join("\n", constraints.Select(c => $"- {c}"))
             : L.T(StringKey.GoalEvaluatorNoConstraints);
 
-        return $$$"""
+        return """
             You are a goal completion evaluator. Your job is to determine whether the stated objective has been achieved based on the conversation evidence.
 
             OBJECTIVE:
-            {{{objective}}}
+            @@OBJECTIVE@@
 
             CONSTRAINTS:
-            {{{constraintsText}}}
+            @@CONSTRAINTS@@
 
             RECENT CONVERSATION:
-            {{{recentConversation}}}
+            @@RECENT_CONVERSATION@@
 
             INSTRUCTIONS:
             - Return a JSON object with exactly two fields: "completed" (boolean) and "reason" (string).
@@ -113,6 +111,8 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator {
             ```json
             {"completed": true/false, "reason": "..."}
             ```
-            """;
+            """.Replace("@@OBJECTIVE@@", objective, StringComparison.Ordinal)
+               .Replace("@@CONSTRAINTS@@", constraintsText, StringComparison.Ordinal)
+               .Replace("@@RECENT_CONVERSATION@@", recentConversation, StringComparison.Ordinal);
     }
 }

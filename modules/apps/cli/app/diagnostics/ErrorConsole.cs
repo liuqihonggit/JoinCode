@@ -107,6 +107,7 @@ public static class ErrorConsole {
 
     /// <summary>单写者渲染邮箱 — 多行错误块整体入队，由唯一消费任务串行写终端。</summary>
     private sealed class RenderMailbox {
+        // style-allow: unbounded — 同步 Render 阻塞等待消费完成,有界队列会与唯一写者互相死锁
         private readonly Channel<RenderCommand> _channel = Channel.CreateUnbounded<RenderCommand>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false,
@@ -121,7 +122,7 @@ public static class ErrorConsole {
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _channel.Writer.TryWrite(new RenderCommand(render, completion));
             // 同步 API 等待本行写完：消费端为独立线程池任务，无 SynchronizationContext
-            completion.Task.GetAwaiter().GetResult();
+            completion.Task.GetAwaiter().GetResult();  // style-allow: sync-block — 崩溃诊断同步路径: 异常处理流程内不可 await
         }
 
         private async Task ProcessAsync(CancellationToken ct) {

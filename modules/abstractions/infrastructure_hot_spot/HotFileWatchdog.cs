@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Infrastructure.HotSpot;
 
 /// <summary>
@@ -29,28 +27,31 @@ public sealed class HotFileWatchdog : IHotFileWatchdog {
     /// </summary>
     /// <param name="filePath">被修改的文件路径</param>
     /// <param name="changerId">修改者标识</param>
-    /// <returns>违规时返回告警信息，合规或队长修改返回 null</returns>
-    public HotFileAlert? CheckChange(string filePath, string changerId) {
+    /// <param name="alert">违规时返回告警信息，合规或队长修改返回 null</param>
+    /// <returns>true=需要告警；false=合规</returns>
+    public bool TryGetChange(string filePath, string changerId, [NotNullWhen(true)] out HotFileAlert? alert) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(changerId);
+        alert = null;
 
         if (changerId.Equals("captain", StringComparison.OrdinalIgnoreCase))
-            return null;
+            return false;
 
         if (!_hotFileDetector.IsHotFile(filePath))
-            return null;
+            return false;
 
         var intents = _intentCollector.GetIntents(filePath);
         if (intents.Count > 0)
-            return null;
+            return false;
 
-        return new HotFileAlert {
+        alert = new HotFileAlert {
             FilePath = filePath,
             ChangerId = changerId,
             AlertMessage = FormattableString.Invariant(
                 $"Worker {changerId} 私自修改热文件 {filePath} 未上报意图，请检查"),
             AlertedAt = _clock.GetUtcNow()
         };
+        return true;
     }
 
     /// <summary>
@@ -62,8 +63,7 @@ public sealed class HotFileWatchdog : IHotFileWatchdog {
         ArgumentNullException.ThrowIfNull(changes);
         var alerts = new List<HotFileAlert>();
         foreach (var (filePath, changerId) in changes) {
-            var alert = CheckChange(filePath, changerId);
-            if (alert is not null)
+            if (TryGetChange(filePath, changerId, out var alert))
                 alerts.Add(alert);
         }
         return alerts;

@@ -837,7 +837,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         return null;
     }
 
-    private static string? ExtractErrorMessage(string body) {
+    private string? ExtractErrorMessage(string body) {
         if (string.IsNullOrEmpty(body)) return null;
         if (body[0] != '{') return body.Length > 500 ? body[..500] : body;
         try {
@@ -854,9 +854,9 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
             }
             return parts.Count > 0 ? string.Join("; ", parts) : (body.Length > 500 ? body[..500] : body);
         }
-#pragma warning disable JCC3013
-        catch (Exception) { }
-#pragma warning restore JCC3013
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "GitHub 错误响应解析失败，回退为截断原文");
+        }
         return body.Length > 500 ? body[..500] : body;
     }
 

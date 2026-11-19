@@ -283,7 +283,7 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
             return null;
 
         try {
-            return Task.Run(() => _processService.FindExecutableAsync(command)).GetAwaiter().GetResult();
+            return Task.Run(() => _processService.FindExecutableAsync(command)).GetAwaiter().GetResult();  // style-allow: sync-block — 同步探测契约: IDE 集成解析器为同步委托签名
         } catch {
             return null;
         }

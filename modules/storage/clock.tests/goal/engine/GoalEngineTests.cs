@@ -413,10 +413,11 @@ public sealed class GoalEngineTests {
     }
 
     [Fact]
-    public async Task GetGoalProgress_NoGraph_ReturnsNull() {
+    public async Task TryGetGoalProgress_NoGraph_ReturnsFalse() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         await using var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        engine.GetGoalProgress().Should().BeNull();
+        engine.TryGetGoalProgress(out var progress).Should().BeFalse();
+        progress.Should().BeNull();
     }
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

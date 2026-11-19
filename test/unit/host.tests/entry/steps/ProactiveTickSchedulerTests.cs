@@ -44,15 +44,14 @@ public sealed class ProactiveTickSchedulerTests {
     }
 
     [Fact]
-    public void GenerateTick_ReturnsTickContent() {
+    public void TryGenerateTick_ReturnsTickContent() {
         var scheduler = CreateScheduler();
         _state.SetActive(true);
 
-        var content = scheduler.GenerateTick();
-
-        Assert.NotNull(content);
-        Assert.Contains("<tick>", content);
-        Assert.Contains("</tick>", content);
+        Assert.True(scheduler.TryGenerateTick(out var content));
+        var tick = content ?? throw new InvalidOperationException("激活状态应生成 tick 内容");
+        Assert.Contains("<tick>", tick);
+        Assert.Contains("</tick>", tick);
     }
 
     [Fact]
@@ -60,9 +59,9 @@ public sealed class ProactiveTickSchedulerTests {
         var scheduler = CreateScheduler(tickInterval: TimeSpan.FromSeconds(1));
         _state.SetActive(true);
 
-        scheduler.GenerateTick();
+        scheduler.TryGenerateTick(out _);
         _now = _now.AddSeconds(2);
-        scheduler.GenerateTick();
+        scheduler.TryGenerateTick(out _);
 
         Assert.Equal(2, scheduler.TickCount);
     }
@@ -75,7 +74,7 @@ public sealed class ProactiveTickSchedulerTests {
         _focus.SetFocused();
 
         _now = new DateTimeOffset(2026, 9, 2, 14, 30, 0, TimeSpan.Zero);
-        scheduler.GenerateTick();
+        scheduler.TryGenerateTick(out _);
 
         Assert.Equal(_now + interval, scheduler.NextTickAt);
     }
@@ -89,7 +88,7 @@ public sealed class ProactiveTickSchedulerTests {
         _focus.SetBlurred();
 
         _now = new DateTimeOffset(2026, 9, 2, 14, 30, 0, TimeSpan.Zero);
-        scheduler.GenerateTick();
+        scheduler.TryGenerateTick(out _);
 
         Assert.Equal(_now + blurredInterval, scheduler.NextTickAt);
     }
@@ -101,7 +100,7 @@ public sealed class ProactiveTickSchedulerTests {
         _state.SetActive(true);
 
         _now = new DateTimeOffset(2026, 9, 2, 14, 30, 0, TimeSpan.Zero);
-        scheduler.GenerateTick();
+        scheduler.TryGenerateTick(out _);
 
         _now = _now.AddSeconds(3);
         Assert.False(scheduler.ShouldTick());
@@ -114,7 +113,7 @@ public sealed class ProactiveTickSchedulerTests {
         _state.SetActive(true);
 
         _now = new DateTimeOffset(2026, 9, 2, 14, 30, 0, TimeSpan.Zero);
-        scheduler.GenerateTick();
+        scheduler.TryGenerateTick(out _);
 
         _now = _now.AddSeconds(6);
         Assert.True(scheduler.ShouldTick());
@@ -124,7 +123,7 @@ public sealed class ProactiveTickSchedulerTests {
     public void Reset_ClearsNextTickAt() {
         var scheduler = CreateScheduler();
         _state.SetActive(true);
-        scheduler.GenerateTick();
+        scheduler.TryGenerateTick(out _);
 
         scheduler.Reset();
 
@@ -142,11 +141,12 @@ public sealed class ProactiveTickSchedulerTests {
     }
 
     [Fact]
-    public void GenerateTick_Inactive_ReturnsNull() {
+    public void TryGenerateTick_Inactive_ReturnsNull() {
         var scheduler = CreateScheduler();
         _state.SetActive(false);
 
-        Assert.Null(scheduler.GenerateTick());
+        Assert.False(scheduler.TryGenerateTick(out var tick));
+        Assert.Null(tick);
     }
 }
 

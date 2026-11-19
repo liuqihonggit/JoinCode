@@ -194,10 +194,9 @@ public class QuadtreeToolHandlers {
         if (dir is null)
             return Task.FromResult(ToolResultBuilder.Error().WithText($"[VIS141] 无效方向: {direction}，可选: N/S/W/E/NW/NE/SW/SE").Build());
 
-        var neighbor = _annotator.GetNeighbor(cellCode, dir.Value, imageWidth, imageHeight, depth);
-        var text = neighbor is null
-            ? $"格子 {cellCode} 的 {direction} 方向邻居: 越界（不存在）"
-            : $"格子 {cellCode} 的 {direction} 方向邻居: {neighbor}";
+        var text = _annotator.TryGetNeighbor(cellCode, dir.Value, imageWidth, imageHeight, depth, out var neighbor)
+            ? $"格子 {cellCode} 的 {direction} 方向邻居: {neighbor}"
+            : $"格子 {cellCode} 的 {direction} 方向邻居: 越界（不存在）";
 
         return Task.FromResult(ToolResultBuilder.Success().WithText(text).Build());
     }

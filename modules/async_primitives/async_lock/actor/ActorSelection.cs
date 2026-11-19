@@ -18,7 +18,7 @@ public sealed class ActorSelection {
     /// 解析路径 — 返回注册的 Actor 实例,null 表示路径不存在。
     /// </summary>
     /// <returns>Actor 实例或 null</returns>
-    public IAsyncDisposable? Resolve() => _system.Selection(_path);
+    public IAsyncDisposable? Resolve() => _system.TryGetSelection(_path, out var actor) ? actor : null;
 
     /// <summary>
     /// 发消息给选中的 Actor — 类型安全泛型版,Actor 未注册或类型不匹配时发布 DeadLetter 事件。
@@ -32,7 +32,7 @@ public sealed class ActorSelection {
             throw new ArgumentNullException(nameof(msg));
         }
 
-        if (_system.Selection(_path) is IActor<TCommand> actor) {
+        if (_system.TryGetSelection(_path, out var resolved) && resolved is IActor<TCommand> actor) {
             actor.Tell(msg, sender);
         } else {
             _system.EventStream.Publish(new DeadLetter(msg, sender, _path, "Actor 不存在或类型不匹配"));
@@ -52,7 +52,7 @@ public sealed class ActorSelection {
         TCommand identifyMsg,
         TimeSpan timeout,
         CancellationToken ct = default) {
-        if (_system.Selection(_path) is not IActor<TCommand> actor)
+        if (!_system.TryGetSelection(_path, out var resolved) || resolved is not IActor<TCommand> actor)
             return new ActorIdentity((identifyMsg as IIdentify)?.CorrelationId, null);
         return await ActorIdentify.IdentifyAsync(actor, identifyMsg, timeout, ct).ConfigureAwait(false);
     }

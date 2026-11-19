@@ -61,10 +61,10 @@ public static partial class ServiceRegistration {
             SettingsJson? proSettings = null;
             SettingsJson? localSettings = null;
             try {
-                userSettings = SettingsLoader.LoadUserSettings(fs).GetAwaiter().GetResult();
+                userSettings = SettingsLoader.LoadUserSettings(fs).GetAwaiter().GetResult();  // style-allow: sync-block — 容器构建期同步契约: 注册工厂在 DI 构建时同步读取设置
                 if (locator.TryLocateProjectRoot(out var projectRoot)) {
-                    proSettings = SettingsLoader.LoadProjectSettingsAsync(fs, projectRoot).GetAwaiter().GetResult();
-                    localSettings = SettingsLoader.LoadLocalSettingsAsync(fs, projectRoot).GetAwaiter().GetResult();
+                    proSettings = SettingsLoader.LoadProjectSettingsAsync(fs, projectRoot).GetAwaiter().GetResult();  // style-allow: sync-block — 容器构建期同步契约: 注册工厂在 DI 构建时同步读取设置
+                    localSettings = SettingsLoader.LoadLocalSettingsAsync(fs, projectRoot).GetAwaiter().GetResult();  // style-allow: sync-block — 容器构建期同步契约: 注册工厂在 DI 构建时同步读取设置
                 }
             } catch (Exception ex) {
                 logger?.LogWarning(ex, "Failed to load settings for IConfigRoot, falling back to empty layers");

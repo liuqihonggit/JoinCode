@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Context;
 
 /// <summary>
@@ -447,52 +445,58 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
 
     /// <summary>
     /// 对齐 TS provisionContentReplacementState — 功能开关入口
-    /// 功能开关关闭时返回 null（query 会跳过整个预算执行）
+    /// 功能开关关闭时返回 false（query 会跳过整个预算执行）
     /// 有初始消息时走重建路径（保证恢复会话时 prompt cache 一致性）
     /// 无初始消息时走新建路径
     /// </summary>
+    /// <param name="state">新建或重建的状态</param>
     /// <param name="initialMessages">初始消息列表（可选）</param>
     /// <param name="initialContentReplacements">初始替换记录（可选）</param>
-    /// <returns>功能开关关闭返回 null；否则返回新建或重建的状态</returns>
-    public ContentReplacementState? ProvisionContentReplacementState(
+    /// <returns>功能开关启用返回 true</returns>
+    public bool TryProvisionContentReplacementState(
+        out ContentReplacementState? state,
         IReadOnlyList<ApiMessage>? initialMessages = null,
         IReadOnlyList<ContentReplacementRecord>? initialContentReplacements = null) {
         // 对齐 TS getFeatureValue_CACHED_MAY_BE_STALE('tengu_hawthorn_steeple', false)
         // C# 通过 ContentReplacementConfig.Enabled 配置，默认启用
-        if (!_enabled)
-            return null;
-
-        if (initialMessages is not null && initialMessages.Count > 0) {
-            return ReconstructState(
-                initialMessages,
-                initialContentReplacements ?? []);
+        if (!_enabled) {
+            state = null;
+            return false;
         }
 
-        return new ContentReplacementState();
+        state = initialMessages is { Count: > 0 }
+            ? ReconstructState(initialMessages, initialContentReplacements ?? [])
+            : new ContentReplacementState();
+        return true;
     }
 
     /// <summary>
     /// 对齐 TS reconstructForSubagentResume — 子智能体恢复重建
     /// 传入父级 state 的 replacements 作为继承替换源
-    /// 父级状态为 null 时直接返回 null（功能开关关闭）
+    /// 父级状态为 null 时直接返回 false（功能开关关闭）
     /// </summary>
+    /// <param name="state">重建后的状态</param>
     /// <param name="parentState">父级内容替换状态（可选）</param>
     /// <param name="resumedMessages">恢复后的消息列表</param>
     /// <param name="sidechainRecords">子链替换记录</param>
-    /// <returns>父级状态为 null 时返回 null；否则返回重建后的状态</returns>
-    public ContentReplacementState? ReconstructForSubagentResume(
+    /// <returns>父级状态存在并重建成功返回 true</returns>
+    public bool TryReconstructForSubagentResume(
+        out ContentReplacementState? state,
         ContentReplacementState? parentState,
         IReadOnlyList<ApiMessage> resumedMessages,
         IReadOnlyList<ContentReplacementRecord> sidechainRecords) {
-        if (parentState is null)
-            return null;
+        if (parentState is null) {
+            state = null;
+            return false;
+        }
 
         // 将父级 replacements 转为 IReadOnlyDictionary 传入 ReconstructState
         // 父级已有的替换决策会填充 sidechain 记录中没有覆盖到的条目
-        return ReconstructState(
+        state = ReconstructState(
             resumedMessages,
             sidechainRecords,
             parentState.Replacements);
+        return true;
     }
 
     /// <summary>

@@ -224,7 +224,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
                 FileName = "tmux",
                 ArgumentList = new[] { "-V" },
                 TimeoutMs = 5000
-            }).GetAwaiter().GetResult();
+            }).GetAwaiter().GetResult();  // style-allow: sync-block — 同步控制面契约: tmux 窗格命令同步等待进程完成
             return result.Success;
         } catch {
             return false;

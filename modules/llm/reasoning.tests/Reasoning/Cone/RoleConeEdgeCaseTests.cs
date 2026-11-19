@@ -15,8 +15,9 @@ public sealed class RoleConeEdgeCaseTests {
     public void ExpandFragment_WhenFragmentNotFound_ReturnsNull() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
 
-        var result = cone.ExpandFragment("missing", "*");
+        var ok = cone.TryExpandFragment("missing", "*", out var result);
 
+        Assert.False(ok);
         Assert.Null(result);
     }
 
@@ -28,10 +29,11 @@ public sealed class RoleConeEdgeCaseTests {
         fragment.IsExpanded = false;
         cone.ClearActiveFragmentIdsForTest();
 
-        var result = cone.ExpandFragment("f1", "any");
+        var ok = cone.TryExpandFragment("f1", "any", out var result);
 
-        Assert.NotNull(result);
-        Assert.True(result.IsExpanded);
+        Assert.True(ok);
+        var actual = result ?? throw new InvalidOperationException("空展开条件应始终展开");
+        Assert.True(actual.IsExpanded);
         Assert.Contains("f1", cone.ActiveFragmentIds);
     }
 
@@ -41,8 +43,9 @@ public sealed class RoleConeEdgeCaseTests {
         var fragment = CreateFragment("f1", AgentRole.Prosecutor);
         cone.AddFragment(fragment);
 
-        var result = cone.ExpandFragment("f1", "cross_role_review");
+        var ok = cone.TryExpandFragment("f1", "cross_role_review", out var result);
 
+        Assert.True(ok);
         Assert.NotNull(result);
         Assert.Single(cone.ActiveFragmentIds);
     }

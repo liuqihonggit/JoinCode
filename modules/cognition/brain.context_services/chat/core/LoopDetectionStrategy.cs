@@ -14,12 +14,19 @@ public sealed record LoopInterventionResult(int TriggerCount, int ToolCallCount,
 /// </summary>
 public interface ILoopDetectionStrategy {
     /// <summary>
-    /// 检测文本响应的逻辑指纹循环
+    /// 尝试检测文本响应的逻辑指纹循环
     /// </summary>
-    LoopInterventionResult? CheckTextLoop(string text);
+    /// <param name="text">响应文本</param>
+    /// <param name="result">检测到循环时的干预结果</param>
+    /// <returns>检测到循环返回 true</returns>
+    bool TryGetTextLoop(string text, [NotNullWhen(true)] out LoopInterventionResult? result);
 
     /// <summary>
-    /// 检测工具调用序列循环
+    /// 尝试检测工具调用序列循环
     /// </summary>
-    LoopInterventionResult? CheckToolCallLoop(string toolName, Dictionary<string, JsonElement>? arguments);
+    /// <param name="toolName">工具名称</param>
+    /// <param name="arguments">工具参数</param>
+    /// <param name="result">检测到循环时的干预结果</param>
+    /// <returns>检测到循环返回 true</returns>
+    bool TryGetToolCallLoop(string toolName, Dictionary<string, JsonElement>? arguments, [NotNullWhen(true)] out LoopInterventionResult? result);
 }

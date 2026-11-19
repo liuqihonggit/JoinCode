@@ -73,7 +73,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher {
     /// </summary>
     /// <param name="fullPath">文件完整路径</param>
     /// <param name="changeType">变更类型</param>
-    internal async void OnFileChanged(string fullPath, WatcherChangeTypes changeType) {
+    internal async Task OnFileChangedAsync(string fullPath, WatcherChangeTypes changeType) {
         try {
             if (!EnableRaisingEvents || _disposed != 0) return;
             if (!MatchesWatch(fullPath)) return;
@@ -104,7 +104,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher {
     /// </summary>
     /// <param name="oldFullPath">原文件完整路径</param>
     /// <param name="newFullPath">新文件完整路径</param>
-    internal async void OnFileRenamed(string oldFullPath, string newFullPath) {
+    internal async Task OnFileRenamedAsync(string oldFullPath, string newFullPath) {
         try {
             if (!EnableRaisingEvents || _disposed != 0) return;
             if (!MatchesWatch(newFullPath)) return;

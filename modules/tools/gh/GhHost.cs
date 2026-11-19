@@ -26,7 +26,7 @@ internal sealed class SimpleDownloader(HttpClient http) : IDownloader {
         var dir = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        using var resp = http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).GetAwaiter().GetResult();
+        using var resp = http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).GetAwaiter().GetResult();  // style-allow: sync-block — 同步工具适配层: gh 同步入口复用异步 HttpClient
         resp.EnsureSuccessStatusCode();
         var total = resp.Content.Headers.ContentLength ?? 0;
         using var src = resp.Content.ReadAsStream(cancellationToken);

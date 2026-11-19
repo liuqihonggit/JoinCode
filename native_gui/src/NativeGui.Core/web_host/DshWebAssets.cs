@@ -28,7 +28,7 @@ internal static class DshWebAssets {
             return cached;
         }
         if (Interlocked.Exchange(ref _started, 1) != 0) {
-            return Ready.Task.GetAwaiter().GetResult();
+            return Ready.Task.GetAwaiter().GetResult();  // style-allow: sync-block — 静态资源就绪同步门: Web 宿主启动前同步等待
         }
         try {
             var target = Path.Combine(AppDataConstants.Paths.JccDirectory, "dsh_web", Version);

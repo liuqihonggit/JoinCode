@@ -151,7 +151,7 @@ public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstract
                 FileName = "it2",
                 ArgumentList = new[] { "--version" },
                 TimeoutMs = 5000
-            }).GetAwaiter().GetResult();
+            }).GetAwaiter().GetResult();  // style-allow: sync-block — 同步控制面契约: iTerm2 窗格命令同步等待 AppleScript 完成
             return result.Success;
         } catch {
             return false;

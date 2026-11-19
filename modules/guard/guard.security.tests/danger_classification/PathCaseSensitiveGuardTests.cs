@@ -10,10 +10,21 @@ namespace Guard.Security.Tests;
 public class PathCaseSensitiveGuardTests {
     private readonly PathCaseSensitiveGuard _guard = new();
 
+    private delegate bool TryGetRealPathCallback(string path, out string? realPath);
+
+    private static Mock<IRealPathResolver> CreateResolver(string? realPath) {
+        var resolver = new Mock<IRealPathResolver>();
+        resolver.Setup(r => r.TryGetRealPath(It.IsAny<string>(), out It.Ref<string?>.IsAny))
+                .Returns(new TryGetRealPathCallback((string _, out string? p) => {
+                    p = realPath;
+                    return realPath is not null;
+                }));
+        return resolver;
+    }
+
     [Fact]
     public void Delete_Command_With_Case_Mismatch_Should_Block_And_Suggest_RealPath() {
-        var resolver = new Mock<IRealPathResolver>();
-        resolver.Setup(r => r.GetRealPath(It.IsAny<string>())).Returns("D:\\proj\\SRC");
+        var resolver = CreateResolver("D:\\proj\\SRC");
         var command = ShellCommand.Parse("rm src/");
 
         var result = _guard.Check(command, resolver.Object);
@@ -28,8 +39,7 @@ public class PathCaseSensitiveGuardTests {
 
     [Fact]
     public void Delete_Command_With_Case_Match_Should_Pass() {
-        var resolver = new Mock<IRealPathResolver>();
-        resolver.Setup(r => r.GetRealPath(It.IsAny<string>())).Returns("D:\\proj\\src");
+        var resolver = CreateResolver("D:\\proj\\src");
         var command = ShellCommand.Parse("rm src/");
 
         var result = _guard.Check(command, resolver.Object);
@@ -49,8 +59,7 @@ public class PathCaseSensitiveGuardTests {
 
     [Fact]
     public void Delete_Command_Path_Not_Exist_Should_Pass() {
-        var resolver = new Mock<IRealPathResolver>();
-        resolver.Setup(r => r.GetRealPath(It.IsAny<string>())).Returns((string?)null);
+        var resolver = CreateResolver(null);
         var command = ShellCommand.Parse("rm nonexistent/");
 
         var result = _guard.Check(command, resolver.Object);
@@ -66,8 +75,7 @@ public class PathCaseSensitiveGuardTests {
     [InlineData("rd")]
     [InlineData("Remove-Item")]
     public void All_Delete_Commands_With_Case_Mismatch_Should_Block(string deleteCmd) {
-        var resolver = new Mock<IRealPathResolver>();
-        resolver.Setup(r => r.GetRealPath(It.IsAny<string>())).Returns("D:\\proj\\SRC");
+        var resolver = CreateResolver("D:\\proj\\SRC");
         var command = ShellCommand.Parse($"{deleteCmd} src/");
 
         var result = _guard.Check(command, resolver.Object);
@@ -92,8 +100,7 @@ public class PathCaseSensitiveGuardTests {
     [InlineData("rm src/", "D:\\proj\\SRC")]
     [InlineData("rm src\\", "D:\\proj\\SRC")]
     public void Mixed_Separators_Should_Still_Detect_Case_Mismatch(string command, string realPath) {
-        var resolver = new Mock<IRealPathResolver>();
-        resolver.Setup(r => r.GetRealPath(It.IsAny<string>())).Returns(realPath);
+        var resolver = CreateResolver(realPath);
         var cmd = ShellCommand.Parse(command);
 
         var result = _guard.Check(cmd, resolver.Object);

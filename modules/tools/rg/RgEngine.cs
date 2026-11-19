@@ -55,7 +55,7 @@ internal static class RgEngine {
                     // 同步 API 内的背压等待：无 SynchronizationContext，消费端为独立线程池任务
                     .ForAll(r => {
                         if (r is null) return;
-                        channel.Writer.WriteAsync(r, ct).AsTask().GetAwaiter().GetResult();
+                        channel.Writer.WriteAsync(r, ct).AsTask().GetAwaiter().GetResult();  // style-allow: sync-block — 同步并行管道契约: rg 结果消费端同步拉取
                     });
             } catch (Exception ex) {
                 producerError = ex;
@@ -63,7 +63,7 @@ internal static class RgEngine {
                 channel.Writer.TryComplete(producerError);
             }
 
-            consumer.GetAwaiter().GetResult();
+            consumer.GetAwaiter().GetResult();  // style-allow: sync-block — 同步并行管道契约: rg 结果消费端同步拉取
             if (producerError is not null) {
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(producerError).Throw();
             }

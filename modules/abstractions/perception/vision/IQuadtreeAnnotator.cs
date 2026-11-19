@@ -17,8 +17,9 @@ public interface IQuadtreeAnnotator {
     /// <param name="imageWidth">原图宽度（用于边界判断）</param>
     /// <param name="imageHeight">原图高度</param>
     /// <param name="depth">当前网格层数</param>
-    /// <returns>邻居格子编码，边界外返回 null</returns>
-    string? GetNeighbor(string cellCode, CardinalDirection direction, int imageWidth, int imageHeight, int depth);
+    /// <param name="neighbor">邻居格子编码，边界外为 null</param>
+    /// <returns>true=邻居存在；false=边界外</returns>
+    bool TryGetNeighbor(string cellCode, CardinalDirection direction, int imageWidth, int imageHeight, int depth, [NotNullWhen(true)] out string? neighbor);
 
     /// <summary>批量染色格子（更新 alpha 值）</summary>
     /// <param name="grid">原网格</param>

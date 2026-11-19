@@ -136,8 +136,9 @@ public sealed class MicrocompactServiceTests {
             new(MessageRole.Assistant, "hello"), // 无 timestamp
         };
 
-        var result = service.TimeBasedCompact(messages);
+        var compacted = service.TryGetTimeBasedCompact(messages, out var result);
 
+        compacted.Should().BeFalse();
         result.Should().BeNull();
     }
 
@@ -152,8 +153,9 @@ public sealed class MicrocompactServiceTests {
             new(MessageRole.Assistant, "hello", metadata),
         };
 
-        var result = service.TimeBasedCompact(messages, gapThresholdMinutes: 60);
+        var compacted = service.TryGetTimeBasedCompact(messages, out var result, gapThresholdMinutes: 60);
 
+        compacted.Should().BeFalse();
         result.Should().BeNull();
     }
 
@@ -256,11 +258,12 @@ public sealed class MicrocompactServiceTests {
             new(MessageRole.Assistant, "done", assistantMetadata),
         };
 
-        var result = service.TimeBasedCompact(messages, gapThresholdMinutes: 60, keepRecent: 1);
+        var compacted = service.TryGetTimeBasedCompact(messages, out var result, gapThresholdMinutes: 60, keepRecent: 1);
 
-        result.Should().NotBeNull();
-        result!.ToolsCleared.Should().Be(1);
-        result!.TokensSaved.Should().BeGreaterThan(0);
+        compacted.Should().BeTrue();
+        var actual = result ?? throw new InvalidOperationException("应触发时间间隔微压缩");
+        actual.ToolsCleared.Should().Be(1);
+        actual.TokensSaved.Should().BeGreaterThan(0);
     }
 
     /// <summary>

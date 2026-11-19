@@ -58,37 +58,40 @@ public class ToolCacheManagerTests {
     }
 
     [Fact]
-    public void GetToolInfo_CacheMiss_CallsFactory() {
+    public void TryGetToolInfo_CacheMiss_CallsFactory() {
         var toolInfo = new ToolInfo { Name = "bash", Description = "Run bash" };
         var factoryCalled = false;
 
-        var result = _manager.GetToolInfo("bash", () => {
+        var found = _manager.TryGetToolInfo("bash", () => {
             factoryCalled = true;
             return toolInfo;
-        });
+        }, out var result);
 
         factoryCalled.Should().BeTrue();
+        found.Should().BeTrue();
         result.Should().Be(toolInfo);
     }
 
     [Fact]
-    public void GetToolInfo_CacheHit_ReturnsCachedValue() {
+    public void TryGetToolInfo_CacheHit_ReturnsCachedValue() {
         var toolInfo = new ToolInfo { Name = "bash", Description = "Run bash" };
-        _manager.GetToolInfo("bash", () => toolInfo);
+        _manager.TryGetToolInfo("bash", () => toolInfo, out _);
 
         var factoryCalled = false;
-        var result = _manager.GetToolInfo("bash", () => {
+        var found = _manager.TryGetToolInfo("bash", () => {
             factoryCalled = true;
             return toolInfo;
-        });
+        }, out var result);
 
         factoryCalled.Should().BeFalse();
+        found.Should().BeTrue();
         result.Should().Be(toolInfo);
     }
 
     [Fact]
-    public void GetToolInfo_FactoryReturnsNull_ReturnsNull() {
-        var result = _manager.GetToolInfo("unknown", () => null);
+    public void TryGetToolInfo_FactoryReturnsNull_ReturnsFalse() {
+        var found = _manager.TryGetToolInfo("unknown", () => null, out var result);
+        found.Should().BeFalse();
         result.Should().BeNull();
     }
 
@@ -132,15 +135,15 @@ public class ToolCacheManagerTests {
     [Fact]
     public void InvalidateToolCache_RemovesSpecificTool() {
         var toolInfo = new ToolInfo { Name = "bash", Description = "Run bash" };
-        _manager.GetToolInfo("bash", () => toolInfo);
+        _manager.TryGetToolInfo("bash", () => toolInfo, out _);
 
         _manager.InvalidateToolCache("bash");
 
         var factoryCalled = false;
-        _manager.GetToolInfo("bash", () => {
+        _manager.TryGetToolInfo("bash", () => {
             factoryCalled = true;
             return toolInfo;
-        });
+        }, out _);
 
         factoryCalled.Should().BeTrue();
     }
@@ -164,15 +167,15 @@ public class ToolCacheManagerTests {
     [Fact]
     public void InvalidateAllCache_ClearsEverything() {
         var toolInfo = new ToolInfo { Name = "bash", Description = "Run bash" };
-        _manager.GetToolInfo("bash", () => toolInfo);
+        _manager.TryGetToolInfo("bash", () => toolInfo, out _);
 
         _manager.InvalidateAllCache();
 
         var factoryCalled = false;
-        _manager.GetToolInfo("bash", () => {
+        _manager.TryGetToolInfo("bash", () => {
             factoryCalled = true;
             return toolInfo;
-        });
+        }, out _);
 
         factoryCalled.Should().BeTrue();
     }
@@ -180,15 +183,15 @@ public class ToolCacheManagerTests {
     [Fact]
     public void InvalidateClientTools_InvalidatesMatchingTools() {
         var toolInfo = new ToolInfo { Name = "mcp1.tool1", Description = "Tool 1" };
-        _manager.GetToolInfo("mcp1.tool1", () => toolInfo);
+        _manager.TryGetToolInfo("mcp1.tool1", () => toolInfo, out _);
 
         _manager.InvalidateClientTools("mcp1", () => ["mcp1.tool1", "mcp2.tool2"]);
 
         var factoryCalled = false;
-        _manager.GetToolInfo("mcp1.tool1", () => {
+        _manager.TryGetToolInfo("mcp1.tool1", () => {
             factoryCalled = true;
             return toolInfo;
-        });
+        }, out _);
 
         factoryCalled.Should().BeTrue();
     }
@@ -196,15 +199,15 @@ public class ToolCacheManagerTests {
     [Fact]
     public void InvalidateClientTools_DoesNotInvalidateOtherClientTools() {
         var toolInfo = new ToolInfo { Name = "mcp2.tool1", Description = "Tool 1" };
-        _manager.GetToolInfo("mcp2.tool1", () => toolInfo);
+        _manager.TryGetToolInfo("mcp2.tool1", () => toolInfo, out _);
 
         _manager.InvalidateClientTools("mcp1", () => ["mcp1.tool1", "mcp2.tool1"]);
 
         var factoryCalled = false;
-        _manager.GetToolInfo("mcp2.tool1", () => {
+        _manager.TryGetToolInfo("mcp2.tool1", () => {
             factoryCalled = true;
             return toolInfo;
-        });
+        }, out _);
 
         factoryCalled.Should().BeFalse();
     }

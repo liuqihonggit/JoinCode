@@ -14,36 +14,39 @@ public class FormatValidatorNodeTests {
     }
 
     [Fact]
-    public void ValidateKeywordSectionsEdit_NonKeywordFile_ReturnsNull() {
+    public void TryGetKeywordSectionsEditViolation_NonKeywordFile_ReturnsFalse() {
         var node = new FormatValidatorNode(_fs);
 
-        var result = node.ValidateKeywordSectionsEdit("/regular/file.txt");
+        var hit = node.TryGetKeywordSectionsEditViolation("/regular/file.txt", out var violation);
 
-        Assert.Null(result);
+        Assert.False(hit);
+        Assert.Null(violation);
     }
 
     [Fact]
-    public async Task ValidateKeywordSectionsEdit_KeywordFileNoAgent_ReturnsNull() {
+    public async Task TryGetKeywordSectionsEditViolation_KeywordFileNoAgent_ReturnsFalse() {
         var node = new FormatValidatorNode(_fs);
         var path = Path.Combine(Path.GetTempPath(), $"keyword-sections_{Guid.NewGuid():N}.json");
         await _fs.WriteAllText(path, "[]");
 
-        var result = node.ValidateKeywordSectionsEdit(path);
+        var hit = node.TryGetKeywordSectionsEditViolation(path, out var violation);
 
-        Assert.Null(result);
+        Assert.False(hit);
+        Assert.Null(violation);
     }
 
     [Fact]
-    public void ValidateDoctorAgentEdit_NoAgent_ReturnsNull() {
+    public void TryGetDoctorAgentEditViolation_NoAgent_ReturnsFalse() {
         var node = new FormatValidatorNode(_fs);
 
-        var result = node.ValidateDoctorAgentEdit("/regular/file.txt");
+        var hit = node.TryGetDoctorAgentEditViolation("/regular/file.txt", out var violation);
 
-        Assert.Null(result);
+        Assert.False(hit);
+        Assert.Null(violation);
     }
 
     [Fact]
-    public void ValidateDoctorAgentEdit_DoctorAgentAllowedPath_ReturnsNull() {
+    public void TryGetDoctorAgentEditViolation_DoctorAgentAllowedPath_ReturnsFalse() {
         var accessor = new Mock<ISubAgentContextAccessor>();
         accessor.SetupGet(a => a.Current).Returns(new SubAgentContext {
             AgentId = "test",
@@ -53,13 +56,14 @@ public class FormatValidatorNodeTests {
         });
         var node = new FormatValidatorNode(_fs, accessor.Object);
 
-        var result = node.ValidateDoctorAgentEdit("/home/.jcc/diag/file.txt");
+        var hit = node.TryGetDoctorAgentEditViolation("/home/.jcc/diag/file.txt", out var violation);
 
-        Assert.Null(result);
+        Assert.False(hit);
+        Assert.Null(violation);
     }
 
     [Fact]
-    public void ValidateDoctorAgentEdit_DoctorAgentDisallowedPath_ReturnsError() {
+    public void TryGetDoctorAgentEditViolation_DoctorAgentDisallowedPath_ReturnsViolation() {
         var accessor = new Mock<ISubAgentContextAccessor>();
         accessor.SetupGet(a => a.Current).Returns(new SubAgentContext {
             AgentId = "test",
@@ -69,10 +73,11 @@ public class FormatValidatorNodeTests {
         });
         var node = new FormatValidatorNode(_fs, accessor.Object);
 
-        var result = node.ValidateDoctorAgentEdit("/regular/file.txt");
+        var hit = node.TryGetDoctorAgentEditViolation("/regular/file.txt", out var violation);
 
-        Assert.NotNull(result);
-        Assert.Contains("doctor Agent", result);
+        Assert.True(hit);
+        var actual = violation ?? throw new InvalidOperationException("doctor Agent 路径拒绝应返回违规消息");
+        Assert.Contains("doctor Agent", actual);
     }
 
     private string CreateFile(string content) {

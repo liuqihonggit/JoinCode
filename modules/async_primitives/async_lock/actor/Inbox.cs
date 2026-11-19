@@ -7,6 +7,7 @@ namespace Core.Utils;
 /// <para>线程安全:内部用 Channel 缓冲消息,多线程 Tell 安全。</para>
 /// </summary>
 public sealed class Inbox : IAsyncDisposable {
+    // style-allow: unbounded — Actor 回复邮箱,小消息高频,有界会让 Actor 内部写回复时阻塞自身
     private readonly Channel<object> _channel = Channel.CreateUnbounded<object>(new UnboundedChannelOptions {
         SingleReader = true,
         SingleWriter = false

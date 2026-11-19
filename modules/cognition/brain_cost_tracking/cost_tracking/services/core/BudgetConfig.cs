@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.CostTracking;
 
 /// <summary>
@@ -38,37 +36,45 @@ public sealed class BudgetConfig {
     public bool Enabled { get; init; } = true;
 
     /// <summary>
-    /// 验证配置有效性
+    /// 尝试验证配置有效性
     /// </summary>
-    /// <returns>验证结果，如果有效返回空字符串，否则返回错误信息</returns>
-    public string? Validate() {
+    /// <param name="error">验证失败时的错误信息</param>
+    /// <returns>配置有效返回 true</returns>
+    public bool TryValidate([NotNullWhen(false)] out string? error) {
         if (DailyLimit < 0) {
-            return "每日预算限额不能为负数";
+            error = "每日预算限额不能为负数";
+            return false;
         }
 
         if (MonthlyLimit < 0) {
-            return "每月预算限额不能为负数";
+            error = "每月预算限额不能为负数";
+            return false;
         }
 
         if (TotalLimit < 0) {
-            return "总预算限额不能为负数";
+            error = "总预算限额不能为负数";
+            return false;
         }
 
         if (AlertThresholds == null || AlertThresholds.Count == 0) {
-            return "告警阈值列表不能为空";
+            error = "告警阈值列表不能为空";
+            return false;
         }
 
         foreach (var threshold in AlertThresholds) {
             if (threshold < 0 || threshold > 1) {
-                return $"告警阈值必须在 0.0 到 1.0 之间，当前值: {threshold}";
+                error = $"告警阈值必须在 0.0 到 1.0 之间，当前值: {threshold}";
+                return false;
             }
         }
 
         if (!AlertThresholds.SequenceEqual(AlertThresholds.OrderBy(t => t))) {
-            return "告警阈值应该按升序排列";
+            error = "告警阈值应该按升序排列";
+            return false;
         }
 
-        return null;
+        error = null;
+        return true;
     }
 
     /// <summary>
@@ -76,8 +82,7 @@ public sealed class BudgetConfig {
     /// </summary>
     /// <exception cref="InvalidOperationException">配置无效时抛出</exception>
     public void ValidateOrThrow() {
-        var error = Validate();
-        if (error != null) {
+        if (!TryValidate(out var error)) {
             throw new InvalidOperationException($"[BRN009] 预算配置无效: {error}");
         }
     }
@@ -245,7 +250,6 @@ public sealed class BudgetConfigBuilder {
             Enabled = _enabled
         };
 
-        var error = config.Validate();
-        return error == null ? (config, null) : (null, error);
+        return config.TryValidate(out var error) ? (config, null) : (null, error);
     }
 }

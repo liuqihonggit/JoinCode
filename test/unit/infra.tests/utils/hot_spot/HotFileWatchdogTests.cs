@@ -19,15 +19,15 @@ public sealed class HotFileWatchdogTests
     [Fact]
     public void CheckChange_NormalFile_NoAlert()
     {
-        var alert = _sut.CheckChange("src/utils/helper.cs", "w1");
-        alert.Should().BeNull("非热文件不告警");
+        _sut.TryGetChange("src/utils/helper.cs", "w1", out var alert).Should().BeFalse("非热文件不告警");
+        alert.Should().BeNull();
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckChange_HotFileNotReported_ShouldAlert()
     {
-        var alert = _sut.CheckChange("src/Abstractions/IFoo.cs", "w1");
+        _sut.TryGetChange("src/Abstractions/IFoo.cs", "w1", out var alert).Should().BeTrue("热文件被改未上报应告警");
 
         alert.Should().NotBeNull("热文件被改未上报应告警");
         alert!.FilePath.Should().Be("src/Abstractions/IFoo.cs");
@@ -41,15 +41,15 @@ public sealed class HotFileWatchdogTests
     {
         await _collector.ReportAsync("w1", [MakeIntent("src/Abstractions/IFoo.cs", ModifyIntent.ContractChange, "w1")]);
 
-        var alert = _sut.CheckChange("src/Abstractions/IFoo.cs", "w1");
-        alert.Should().BeNull("已上报意图不告警");
+        _sut.TryGetChange("src/Abstractions/IFoo.cs", "w1", out var alert).Should().BeFalse("已上报意图不告警");
+        alert.Should().BeNull();
     }
 
     [Fact]
     public async Task CheckChange_CaptainModifiesHotFile_NoAlert()
     {
-        var alert = _sut.CheckChange("src/Abstractions/IFoo.cs", "captain");
-        alert.Should().BeNull("队长改热文件不告警");
+        _sut.TryGetChange("src/Abstractions/IFoo.cs", "captain", out var alert).Should().BeFalse("队长改热文件不告警");
+        alert.Should().BeNull();
     }
 
     [Fact]
@@ -57,8 +57,8 @@ public sealed class HotFileWatchdogTests
     {
         await _collector.ReportAsync("w2", [MakeIntent("src/Abstractions/IFoo.cs", ModifyIntent.ContractChange, "w2")]);
 
-        var alert = _sut.CheckChange("src/Abstractions/IFoo.cs", "w1");
-        alert.Should().BeNull("已有上报记录（不论谁报的）不告警");
+        _sut.TryGetChange("src/Abstractions/IFoo.cs", "w1", out var alert).Should().BeFalse("已有上报记录（不论谁报的）不告警");
+        alert.Should().BeNull();
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class HotFileWatchdogTests
     [Fact]
     public void CheckChange_EmptyPath_ShouldThrow()
     {
-        var act = () => _sut.CheckChange("", "w1");
+        var act = () => _sut.TryGetChange("", "w1", out _);
         act.Should().Throw<ArgumentException>();
     }
 }

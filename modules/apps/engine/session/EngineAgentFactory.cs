@@ -40,7 +40,7 @@ public sealed class EngineAgentFactory {
                     IsMainAgent = true,
                     Agent = mainAgent,
                 };
-                spawnPipeline.ExecuteAsync(context, default).GetAwaiter().GetResult();
+                spawnPipeline.ExecuteAsync(context, default).GetAwaiter().GetResult();  // style-allow: sync-block — 同步工厂契约: spawn 管道在工厂构造路径内同步消费
             } catch (Exception ex) {
                 serviceProvider.GetService<ILogger<EngineAgentFactory>>()?.LogWarning(ex, "[EngineAgentFactory] 主代理走统一管道失败，回退到直接创建");
             }

@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Bridge;
 
 /// <summary>
@@ -209,8 +207,7 @@ public sealed partial class BridgeJwtService : ServiceEntity {
     public int CleanupExpiredRevocations() {
         var expiredTokens = new List<string>();
         foreach (var kvp in _revokedTokens) {
-            var claims = GetClaims(kvp.Key);
-            if (claims is not null) {
+            if (TryGetClaims(kvp.Key, out var claims)) {
                 var now = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
                 if (claims.Exp <= now) {
                     expiredTokens.Add(kvp.Key);
@@ -233,8 +230,7 @@ public sealed partial class BridgeJwtService : ServiceEntity {
     public bool IsTokenExpired(string token) {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
-        var claims = GetClaims(token);
-        if (claims is null)
+        if (!TryGetClaims(token, out var claims))
             return true;
 
         var now = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
@@ -242,23 +238,27 @@ public sealed partial class BridgeJwtService : ServiceEntity {
     }
 
     /// <summary>
-    /// 获取 Token 中的 Claims（不验证签名）
+    /// 尝试获取 Token 中的 Claims（不验证签名）
     /// </summary>
     /// <param name="token">JWT Token 字符串</param>
-    /// <returns>Payload，解析失败返回 null</returns>
-    public BridgeJwtPayload? GetClaims(string token) {
+    /// <param name="payload">解析成功时的 Payload</param>
+    /// <returns>解析成功返回 true</returns>
+    public bool TryGetClaims(string token, [NotNullWhen(true)] out BridgeJwtPayload? payload) {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
+        payload = null;
 
         var parts = token.Split('.');
         if (parts.Length != 3)
-            return null;
+            return false;
 
         try {
             var payloadJson = Encoding.UTF8.GetString(Base64UrlDecode(parts[1]));
-            return RelaxedJsonSerializer.Deserialize(payloadJson, BridgeJwtJsonContext.Default.BridgeJwtPayload);
+            payload = RelaxedJsonSerializer.Deserialize(payloadJson, BridgeJwtJsonContext.Default.BridgeJwtPayload);
+            return payload is not null;
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "[BridgeJwt] 解析 Token claims 失败");
-            return null;
+            payload = null;
+            return false;
         }
     }
 

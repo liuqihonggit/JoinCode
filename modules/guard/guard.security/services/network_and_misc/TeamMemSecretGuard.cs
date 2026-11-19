@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Security.Services;
 
 /// <summary>
@@ -36,26 +34,28 @@ public sealed partial class TeamMemSecretGuard : ServiceEntity, ITeamMemSecretGu
     }
 
     /// <inheritdoc />
-    public string? CheckTeamMemSecrets(string filePath, string content) {
+    public bool TryGetTeamMemSecretViolation(string filePath, string content, [NotNullWhen(true)] out string? violation) {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(content);
+        violation = null;
         // 对齐 TS: feature('TEAMMEM') 守卫 — 如果团队记忆目录未配置，跳过检查
         if (string.IsNullOrWhiteSpace(_teamMemDirectory))
-            return null;
+            return false;
 
         // 对齐 TS: isTeamMemPath(filePath) — 不是团队记忆路径则跳过
         if (!IsTeamMemPath(filePath))
-            return null;
+            return false;
 
         // 对齐 TS: scanForSecrets(content)
         var matches = SecurityPatterns.ScanForSecretMatches(content);
         if (matches.Count == 0)
-            return null;
+            return false;
 
         // 对齐 TS: labels = matches.map(m => m.label).join(', ')
         var labels = string.Join(", ", matches.Select(m => m.Label));
-        return $"Content contains potential secrets ({labels}) and cannot be written to team memory. " +
-               "Team memory is shared with all repository collaborators. " +
-               "Remove the sensitive content and try again.";
+        violation = $"Content contains potential secrets ({labels}) and cannot be written to team memory. " +
+                    "Team memory is shared with all repository collaborators. " +
+                    "Remove the sensitive content and try again.";
+        return true;
     }
 }

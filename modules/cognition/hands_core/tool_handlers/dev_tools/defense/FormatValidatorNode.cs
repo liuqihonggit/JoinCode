@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Tools.Handlers;
 
 /// <summary>
@@ -58,31 +56,37 @@ public sealed class FormatValidatorNode {
     /// keyword-sections.json 编辑权限校验 — 仅 keywordMaintenance Agent 可编辑。
     /// </summary>
     /// <param name="filePath">文件路径</param>
-    /// <returns>null 表示允许编辑，错误消息表示权限拒绝</returns>
-    public string? ValidateKeywordSectionsEdit(string filePath) {
+    /// <param name="violation">权限拒绝消息；返回 false 时为 null</param>
+    /// <returns>true 表示命中权限拒绝，false 表示允许编辑</returns>
+    public bool TryGetKeywordSectionsEditViolation(string filePath, [NotNullWhen(true)] out string? violation) {
+        violation = null;
         if (!PathGuardNode.IsKeywordSectionsPath(filePath) || !_fs.FileExists(filePath))
-            return null;
+            return false;
 
         var currentAgentType = _subAgentContextAccessor?.Current?.Variant?.ToValue() ?? _subAgentContextAccessor?.Current?.Role.ToValue();
         if (currentAgentType is null || currentAgentType.Equals("keywordMaintenance", StringComparison.OrdinalIgnoreCase))
-            return null;
+            return false;
 
-        return "keyword-sections.json 只能由 keywordMaintenance Agent 编辑";
+        violation = "keyword-sections.json 只能由 keywordMaintenance Agent 编辑";
+        return true;
     }
 
     /// <summary>
     /// doctor Agent 编辑路径校验 — 仅允许编辑 .jcc/diag/、.jcc/reflexion/、worktree 内文件。
     /// </summary>
     /// <param name="filePath">文件路径</param>
-    /// <returns>null 表示允许编辑，错误消息表示路径拒绝</returns>
-    public string? ValidateDoctorAgentEdit(string filePath) {
+    /// <param name="violation">路径拒绝消息；返回 false 时为 null</param>
+    /// <returns>true 表示命中路径拒绝，false 表示允许编辑</returns>
+    public bool TryGetDoctorAgentEditViolation(string filePath, [NotNullWhen(true)] out string? violation) {
+        violation = null;
         var agentType = _subAgentContextAccessor?.Current?.Variant?.ToValue() ?? _subAgentContextAccessor?.Current?.Role.ToValue();
         if (agentType is null || !agentType.Equals("doctor", StringComparison.OrdinalIgnoreCase))
-            return null;
+            return false;
         if (PathGuardNode.IsDoctorAllowedEditPath(filePath))
-            return null;
+            return false;
 
-        return "doctor Agent 只能编辑 .jcc/diag/、.jcc/reflexion/ 和 worktree 内文件";
+        violation = "doctor Agent 只能编辑 .jcc/diag/、.jcc/reflexion/ 和 worktree 内文件";
+        return true;
     }
 
     /// <summary>替换字符串中第一个匹配项（用于预模拟编辑）。对齐 TS: file.replace。</summary>

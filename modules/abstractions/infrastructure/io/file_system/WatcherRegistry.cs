@@ -21,13 +21,13 @@ internal sealed class WatcherRegistry {
     public void NotifyChanged(string fullPath, WatcherChangeTypes changeType) {
         var snapshot = Volatile.Read(ref _watchers);
         foreach (var watcher in snapshot)
-            watcher.OnFileChanged(fullPath, changeType);
+            _ = watcher.OnFileChangedAsync(fullPath, changeType);
     }
 
     /// <summary>通知所有 watcher 文件重命名</summary>
     public void NotifyRenamed(string oldFullPath, string newFullPath) {
         var snapshot = Volatile.Read(ref _watchers);
         foreach (var watcher in snapshot)
-            watcher.OnFileRenamed(oldFullPath, newFullPath);
+            _ = watcher.OnFileRenamedAsync(oldFullPath, newFullPath);
     }
 }

@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace McpToolRegistry;
 
 /// <summary>
@@ -45,23 +43,25 @@ public sealed partial class ToolCacheManager : ServiceEntity {
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <param name="factory">缓存未命中时的工厂方法</param>
-    /// <returns>工具信息，如果工厂返回null则返回null</returns>
-    public ToolInfo? GetToolInfo(string toolName, Func<ToolInfo?> factory) {
+    /// <param name="toolInfo">工具信息；工厂返回 null 时为 null</param>
+    /// <returns>true 表示找到工具信息，false 表示工厂未产出</returns>
+    public bool TryGetToolInfo(string toolName, Func<ToolInfo?> factory, [NotNullWhen(true)] out ToolInfo? toolInfo) {
         var cacheKey = ToolCacheKeys.ForTool(toolName);
 
         if (_cache.TryGetValue(cacheKey, out ToolInfo? cachedTool) && cachedTool != null) {
-            return cachedTool;
+            toolInfo = cachedTool;
+            return true;
         }
 
-        var toolInfo = factory();
+        toolInfo = factory();
         if (toolInfo == null) {
-            return null;
+            return false;
         }
 
         var expiration = TimeSpan.FromMinutes(_config.ToolExecution.ToolCacheExpirationMinutes);
         _cache.Set(cacheKey, toolInfo, expiration);
 
-        return toolInfo;
+        return true;
     }
 
     /// <summary>

@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Security.Services;
 
 /// <summary>
@@ -7,11 +5,12 @@ namespace Core.Security.Services;
 /// </summary>
 public interface IRealPathResolver {
     /// <summary>
-    /// 获取指定路径在文件系统中的真实大小写路径
+    /// 尝试获取指定路径在文件系统中的真实大小写路径
     /// </summary>
     /// <param name="path">待解析的路径(相对或绝对)</param>
-    /// <returns>真实大小写路径;路径不存在返回 null</returns>
-    string? GetRealPath(string path);
+    /// <param name="realPath">真实大小写路径</param>
+    /// <returns>路径存在返回 true</returns>
+    bool TryGetRealPath(string path, [NotNullWhen(true)] out string? realPath);
 }
 
 /// <summary>
@@ -29,43 +28,48 @@ public sealed class FileSystemRealPathResolver : IRealPathResolver {
     }
 
     /// <inheritdoc />
-    public string? GetRealPath(string path) {
+    public bool TryGetRealPath(string path, [NotNullWhen(true)] out string? realPath) {
+        realPath = null;
         if (string.IsNullOrWhiteSpace(path))
-            return null;
+            return false;
 
         var trimmed = PathNormalizer.TrimTrailingSeparators(path);
         if (string.IsNullOrEmpty(trimmed))
-            return null;
+            return false;
 
         string fullPath;
         try {
             fullPath = _fs.GetFullPath(trimmed);
         } catch (Exception) {
-            return null;
+            return false;
         }
 
         var parent = Path.GetDirectoryName(fullPath);
         var name = Path.GetFileName(fullPath);
         if (string.IsNullOrEmpty(parent) || string.IsNullOrEmpty(name))
-            return null;
+            return false;
 
         if (!_fs.DirectoryExists(parent))
-            return null;
+            return false;
 
         try {
             foreach (var entry in _fs.EnumerateFiles(parent, "*", SearchOption.TopDirectoryOnly)) {
-                if (string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase))
-                    return entry;
+                if (string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase)) {
+                    realPath = entry;
+                    return true;
+                }
             }
 
             foreach (var entry in _fs.EnumerateDirectories(parent, "*", SearchOption.TopDirectoryOnly)) {
-                if (string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase))
-                    return entry;
+                if (string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase)) {
+                    realPath = entry;
+                    return true;
+                }
             }
         } catch (Exception) {
-            return null;
+            return false;
         }
 
-        return null;
+        return false;
     }
 }

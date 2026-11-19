@@ -73,7 +73,7 @@ public sealed partial class ReaperScheduler : IDisposable {
         while (!_cts.IsCancellationRequested) {
             try {
                 _signals.Take(_cts.Token);
-                ScanOnce().GetAwaiter().GetResult();
+                ScanOnce().GetAwaiter().GetResult();  // style-allow: sync-block — 后台定时器同步回调: PeriodicTimer 循环内执行单次扫描
             } catch (OperationCanceledException) { break; } catch (Exception ex) { _logger?.LogWarning(ex, "ReaperScheduler 扫描循环异常"); }
         }
         _logger?.LogDebug("ReaperScheduler 后台线程退出");

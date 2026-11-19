@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace IO.Services;
 
 /// <summary>
@@ -71,10 +69,12 @@ public sealed class ProactiveTickScheduler {
     /// <summary>
     /// 生成 tick 内容并调度下一次 tick
     /// </summary>
-    /// <returns>tick 内容（如 "&lt;tick&gt;14:30:05&lt;/tick&gt;"），或 null 如果不应 tick</returns>
-    public string? GenerateTick() {
+    /// <param name="tick">tick 内容（如 "&lt;tick&gt;14:30:05&lt;/tick&gt;"）；返回 false 时为 null</param>
+    /// <returns>true 表示生成了 tick，false 表示不应 tick</returns>
+    public bool TryGenerateTick([NotNullWhen(true)] out string? tick) {
+        tick = null;
         if (!ShouldTick()) {
-            return null;
+            return false;
         }
 
         var now = _clock();
@@ -86,7 +86,8 @@ public sealed class ProactiveTickScheduler {
         var timeStr = now.LocalDateTime.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
         _logger?.LogDebug("主动模式 tick #{Count} at {Time}, next at {Next}", _tickCount, timeStr, _nextTickAt);
 
-        return $"<tick>{timeStr}</tick>";
+        tick = $"<tick>{timeStr}</tick>";
+        return true;
     }
 
     /// <summary>

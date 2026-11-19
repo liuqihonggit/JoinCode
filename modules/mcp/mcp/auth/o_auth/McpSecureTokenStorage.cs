@@ -149,10 +149,7 @@ public sealed partial class McpSecureTokenStorage {
         return Pbkdf2DeriveBytes(password, salt, 100000, HashAlgorithmName.SHA256, 32);
     }
 
-#pragma warning disable SYSLIB0060
     private static byte[] Pbkdf2DeriveBytes(byte[] password, byte[] salt, int iterations, HashAlgorithmName hashAlgorithm, int outputLength) {
-        using var deriveBytes = new Rfc2898DeriveBytes(password, salt, iterations, hashAlgorithm);
-        return deriveBytes.GetBytes(outputLength);
+        return Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, hashAlgorithm, outputLength);
     }
-#pragma warning restore SYSLIB0060
 }

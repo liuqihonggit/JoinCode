@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Services.Update;
 
 /// <summary>
@@ -120,22 +118,26 @@ public sealed class UpdateServer {
         var exePath = _fs.CombinePath(releasesDir, "jcc.exe");
         await _fs.WriteAllBytes(exePath, exeContent).ConfigureAwait(false);
 
-        var manifest = $$"""
-        {
-          "latestVersion": "{{version}}",
-          "channel": "stable",
-          "releases": [
-            {
-              "version": "{{version}}",
-              "downloadUrl": "releases/{{version}}/jcc.exe",
-              "sha256": "{{sha256}}",
-              "sizeBytes": {{exeContent.Length}},
-              "releaseNotes": "测试版本 {{version}}",
-              "publishedAt": "{{DateTimeOffset.UtcNow:O}}"
-            }
-          ]
-        }
-        """;
-        await _fs.WriteAllText(_fs.CombinePath(_contentRoot, "manifest.json"), manifest).ConfigureAwait(false);
+        var manifest = new UpdateManifest {
+            LatestVersion = version,
+            Channel = "stable",
+            Releases = [
+                new UpdateManifestEntry {
+                    Version = version,
+                    DownloadUrl = $"releases/{version}/jcc.exe",
+                    Sha256 = sha256,
+                    SizeBytes = exeContent.Length,
+                    ReleaseNotes = $"测试版本 {version}",
+                    PublishedAt = DateTimeOffset.UtcNow
+                }
+            ]
+        };
+        var manifestJson = JsonSerializer.Serialize(manifest, UpdateServerJsonContext.Default.UpdateManifest);
+        await _fs.WriteAllText(_fs.CombinePath(_contentRoot, "manifest.json"), manifestJson).ConfigureAwait(false);
     }
 }
+
+/// <summary>更新服务器 JSON 序列化上下文 — AOT 友好</summary>
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(UpdateManifest))]
+internal sealed partial class UpdateServerJsonContext : JsonSerializerContext;

@@ -1,6 +1,4 @@
 
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Hooks.Execution;
 
 /// <summary>
@@ -88,6 +86,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook> {
 
     private string BuildAgentPrompt(string userPrompt, HookInput input) {
         var payloadJson = JsonSerializer.Serialize(input.Payload, HooksJsonContext.Default.DictionaryStringJsonElement);
+        var responseExampleJson = JsonSerializer.Serialize(new AgentHookResponseExample(), HooksJsonContext.Default.AgentHookResponseExample);
 
         return $$$"""
             You are a specialized validation agent. Your task is to validate a tool call.
@@ -104,18 +103,21 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook> {
             Validation Instructions:
             {{userPrompt}}
 
-            You must respond with a JSON object containing:
-            {
-                "decision": "allow" | "block" | "ask",
-                "reason": "detailed explanation",
-                "continue": true | false,
-                "confidence": 0.0 to 1.0
-            }
+            You must respond with a JSON object of the form:
+            ```json
+            {{responseExampleJson}}
+            ```
+
+            Field constraints:
+            - decision: one of allow / block / ask
+            - reason: detailed explanation
+            - continue: true or false
+            - confidence: number between 0.0 and 1.0
 
             Decision guidelines:
-            - "allow": The tool call is safe and should proceed
-            - "block": The tool call is dangerous or violates policies
-            - "ask": Need user confirmation before proceeding
+            - allow: The tool call is safe and should proceed
+            - block: The tool call is dangerous or violates policies
+            - ask: Need user confirmation before proceeding
             """;
     }
 

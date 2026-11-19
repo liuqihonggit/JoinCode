@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Context.Compact;
 
 /// <summary>
@@ -116,36 +114,39 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
     }
 
     /// <summary>
-    /// 时间间隔微压缩 — 当对话空闲超过阈值时触发
+    /// 尝试执行时间间隔微压缩 — 当对话空闲超过阈值时触发
     /// 场景：用户离开很久后回来，旧的工具输出已无参考价值，可以安全清除
     /// 与普通微压缩的区别：仅在时间间隔足够大时才触发，避免活跃对话中误清
     /// </summary>
     /// <param name="messages">原始消息列表</param>
+    /// <param name="result">时间间隔压缩结果</param>
     /// <param name="gapThresholdMinutes">空闲时间阈值（分钟），默认60分钟</param>
     /// <param name="keepRecent">保留最近N个工具结果，默认5</param>
-    /// <returns>时间间隔压缩结果；不满足条件时返回null，由下一个中间件处理</returns>
-    public TimeBasedMicrocompactResult? TimeBasedCompact(
+    /// <returns>实际执行了压缩返回 true，由下一个中间件处理 false 情况</returns>
+    public bool TryGetTimeBasedCompact(
         IReadOnlyList<ApiMessage> messages,
+        [NotNullWhen(true)] out TimeBasedMicrocompactResult? result,
         int gapThresholdMinutes = 60,
         int keepRecent = 5) {
         ArgumentNullException.ThrowIfNull(messages);
+        result = null;
 
         // 找到最后一条助手消息，用于判断对话空闲时间
         var lastAssistant = messages.LastOrDefault(m => m.Role == MessageRole.Assistant);
         if (lastAssistant is null) {
-            return null;
+            return false;
         }
 
         // 提取最后助手消息的时间戳（从元数据中获取）
         var lastTimestamp = lastAssistant.ExtractTimestamp();
         if (lastTimestamp is null) {
-            return null;
+            return false;
         }
 
         // 计算空闲时间，不足阈值则不触发
         var gapMinutes = (_clock.GetUtcNow() - lastTimestamp.Value).TotalMinutes;
         if (gapMinutes < gapThresholdMinutes) {
-            return null;
+            return false;
         }
 
         // 满足时间条件后，执行与普通微压缩相同的清除逻辑
@@ -155,22 +156,23 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
         var clearSet = new HashSet<string>(compactableIds.Where(id => !keepSet.Contains(id)), StringComparer.Ordinal);
 
         if (clearSet.Count == 0) {
-            return null;
+            return false;
         }
 
-        var (result, tokensSaved) = ClearToolResults(messages, clearSet);
+        var (compactedMessages, tokensSaved) = ClearToolResults(messages, clearSet);
 
         if (tokensSaved == 0) {
-            return null;
+            return false;
         }
 
-        return new TimeBasedMicrocompactResult {
-            Messages = result,
+        result = new TimeBasedMicrocompactResult {
+            Messages = compactedMessages,
             GapMinutes = gapMinutes,
             ToolsCleared = clearSet.Count,
             ToolsKept = keepSet.Count,
             TokensSaved = tokensSaved
         };
+        return true;
     }
 
     /// <summary>

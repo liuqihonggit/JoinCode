@@ -112,8 +112,7 @@ public sealed class WriteDefenseService {
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
     public ValueTask<ToolResult?> CheckTeamMemSecrets(WriteDefenseContext ctx, CancellationToken ct) {
-        var secretError = _secretGuard.CheckSecrets(ctx.ResolvedPath, ctx.ContentToCheck);
-        if (secretError is null)
+        if (!_secretGuard.TryGetSecretViolation(ctx.ResolvedPath, ctx.ContentToCheck, out var secretError))
             return ValueTask.FromResult<ToolResult?>(null);
 
         var diag = BuildTeamMemSecretRejectedDiagnostic(secretError);
@@ -229,8 +228,7 @@ public sealed class WriteDefenseService {
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
     public ValueTask<ToolResult?> ValidateKeywordSectionsEdit(WriteDefenseContext ctx, CancellationToken ct) {
-        var error = _validatorNode.ValidateKeywordSectionsEdit(ctx.ResolvedPath);
-        if (error is null)
+        if (!_validatorNode.TryGetKeywordSectionsEditViolation(ctx.ResolvedPath, out _))
             return ValueTask.FromResult<ToolResult?>(null);
 
         RecordFileMetrics(ctx.Operation, FileOperationResult.Rejected);
@@ -246,8 +244,7 @@ public sealed class WriteDefenseService {
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
     public ValueTask<ToolResult?> ValidateDoctorAgentEdit(WriteDefenseContext ctx, CancellationToken ct) {
-        var error = _validatorNode.ValidateDoctorAgentEdit(ctx.ResolvedPath);
-        if (error is null)
+        if (!_validatorNode.TryGetDoctorAgentEditViolation(ctx.ResolvedPath, out _))
             return ValueTask.FromResult<ToolResult?>(null);
 
         RecordFileMetrics(ctx.Operation, FileOperationResult.Rejected);

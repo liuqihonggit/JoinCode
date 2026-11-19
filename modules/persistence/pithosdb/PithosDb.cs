@@ -83,6 +83,7 @@ public sealed class PithosDb : IDisposable
 
     // Single-writer mailbox — every mutation and every view publication runs on the
     // writer thread, in FIFO order. This replaces the former ReaderWriterLockSlim.
+    // style-allow: unbounded — 写邮箱由任意读线程投递,有界会阻塞读线程等待写线程导致锁反转
     private readonly Channel<Action> _writeQueue = Channel.CreateUnbounded<Action>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private Thread? _writerThread;
@@ -230,7 +231,7 @@ public sealed class PithosDb : IDisposable
         if (!enqueued)
             throw new ObjectDisposedException(nameof(PithosDb));
 
-        return completion.Task.GetAwaiter().GetResult();
+        return completion.Task.GetAwaiter().GetResult();  // style-allow: sync-block — 同步存储 API 契约: PithosDb 对外同步事务与压缩入口
     }
 
     private void StartBackgroundThreads()
@@ -249,7 +250,7 @@ public sealed class PithosDb : IDisposable
         while (true)
         {
             bool hasWork;
-            try { hasWork = _writeQueue.Reader.WaitToReadAsync().AsTask().GetAwaiter().GetResult(); }
+            try { hasWork = _writeQueue.Reader.WaitToReadAsync().AsTask().GetAwaiter().GetResult(); }  // style-allow: sync-block — 同步存储 API 契约: PithosDb 对外同步事务与压缩入口
             catch (ChannelClosedException) { return; }
 
             if (!hasWork) return;
@@ -782,7 +783,7 @@ public sealed class PithosDb : IDisposable
         while (true)
         {
             bool signaled;
-            try { signaled = _compactionSignal.Reader.WaitToReadAsync(_compactionCts.Token).AsTask().GetAwaiter().GetResult(); }
+            try { signaled = _compactionSignal.Reader.WaitToReadAsync(_compactionCts.Token).AsTask().GetAwaiter().GetResult(); }  // style-allow: sync-block — 同步存储 API 契约: PithosDb 对外同步事务与压缩入口
             catch (OperationCanceledException) { return; }
             catch (ChannelClosedException) { return; }
 

@@ -240,8 +240,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <param name="tag">错误码前缀(如 EXT-LOAD / NATIVE-LOAD / WF-LOAD)</param>
     internal void CheckPluginApproval(string pluginName, string tag) {
         if (_approvalRegistry is null) return;
-        var pending = _approvalRegistry.PendingRequestFor(pluginName);
-        if (pending is not null && pending.State == ApprovalState.Pending) {
+        if (_approvalRegistry.TryGetPendingRequestFor(pluginName, out var pending)) {
             throw new InvalidOperationException(
                 $"[{tag}-PENDING-APPROVAL] 插件 {pluginName} 有待审批请求 {pending.RequestId}，"
                 + $"请先审批: 调用 PluginApprovalRegistry.Approve({pending.RequestId}) 批准,"

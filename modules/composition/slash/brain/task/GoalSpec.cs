@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -92,14 +90,14 @@ internal static class GoalSpecPromptBuilder {
         sb.AppendLine("收集完所有字段后，输出以下格式的 JSON：");
         sb.AppendLine();
         sb.AppendLine("```json");
-        sb.AppendLine("{");
-        sb.AppendLine("  \"outcome\": \"...\",");
-        sb.AppendLine("  \"verification\": \"...\",");
-        sb.AppendLine("  \"constraints\": \"...\",");
-        sb.AppendLine("  \"boundaries\": \"...\",");
-        sb.AppendLine("  \"iterationLog\": \"...\",");
-        sb.AppendLine("  \"failureCircuit\": \"...\"");
-        sb.AppendLine("}");
+        sb.AppendLine(JsonSerializer.Serialize(new GoalSpec {
+            Outcome = "<达成状态，含数字指标>",
+            Verification = "<验证命令或指标>",
+            Constraints = "<不可打破的底线>",
+            Boundaries = "<允许修改的范围>",
+            IterationLog = "<尝试后记录的改动与结果>",
+            FailureCircuit = "<停止并报告的障碍条件>"
+        }, GoalSpecJsonContext.Default.GoalSpec));
         sb.AppendLine("```");
         sb.AppendLine();
 

@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Context.Compression;
 
 /// <summary>
@@ -33,31 +31,30 @@ public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStr
     /// </summary>
     /// <param name="content">内容</param>
     /// <param name="contentType">内容类型</param>
-    /// <returns>压缩策略，如果没有找到则返回 null</returns>
-    public ICompressionStrategy? GetStrategy(string content, ContentType contentType) {
-        if (!_strategiesByType.TryGetValue(contentType, out var strategies)) {
-            return null;
-        }
+    /// <param name="strategy">压缩策略，如果没有找到则为 null</param>
+    /// <returns>true=找到适合策略；false=没有找到</returns>
+    public bool TryGetStrategy(string content, ContentType contentType, [NotNullWhen(true)] out ICompressionStrategy? strategy) {
+        strategy = null;
+        if (!_strategiesByType.TryGetValue(contentType, out var strategies)) return false;
 
         var compatibleStrategies = strategies
             .Where(s => s.CanHandle(content, contentType))
             .OrderByDescending(s => s.Priority)
             .ToList();
 
-        if (compatibleStrategies.Count == 0) {
-            return null;
-        }
+        if (compatibleStrategies.Count == 0) return false;
 
         if (compatibleStrategies.Count == 1) {
             RecordStrategySelectionMetrics(compatibleStrategies[0].Name, contentType.ToString());
-            return compatibleStrategies[0];
+            strategy = compatibleStrategies[0];
+            return true;
         }
 
         var selected = SelectBestStrategy(compatibleStrategies, content, contentType);
-        if (selected != null) {
-            RecordStrategySelectionMetrics(selected.Name, contentType.ToString());
-        }
-        return selected;
+        if (selected is null) return false;
+        RecordStrategySelectionMetrics(selected.Name, contentType.ToString());
+        strategy = selected;
+        return true;
     }
 
     /// <summary>

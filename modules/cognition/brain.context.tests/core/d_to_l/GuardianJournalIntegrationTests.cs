@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 public sealed class GuardianJournalIntegrationTests {
     [Fact]
@@ -42,15 +42,16 @@ public sealed class GuardianJournalIntegrationTests {
         var veryLow = new string('a', 90) + new string('b', 10);
         var evenLower = new string('a', 500) + new string('b', 10);
 
-        guardian.CheckTextLoop(high);
-        guardian.CheckTextLoop(medium);
-        guardian.CheckTextLoop(low);
-        guardian.CheckTextLoop(veryLow);
+        guardian.TryGetTextLoop(high, out _);
+        guardian.TryGetTextLoop(medium, out _);
+        guardian.TryGetTextLoop(low, out _);
+        guardian.TryGetTextLoop(veryLow, out _);
 
-        var result = guardian.CheckTextLoop(evenLower);
+        var detected = guardian.TryGetTextLoop(evenLower, out var result);
 
-        Assert.NotNull(result);
-        Assert.Contains("信息熵减", result.Reason);
+        Assert.True(detected);
+        var actual = result ?? throw new InvalidOperationException("应检测到信息熵减循环");
+        Assert.Contains("信息熵减", actual.Reason);
 
         await Task.Delay(200);
         Assert.True(journal.WindowCount >= 4);
@@ -70,18 +71,19 @@ public sealed class GuardianJournalIntegrationTests {
         using var doc2 = JsonDocument.Parse("\"TODO\"");
 
         for (var i = 0; i < 6; i++) {
-            guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement> {
+            guardian.TryGetToolCallLoop("Read", new Dictionary<string, JsonElement> {
                 ["file_path"] = doc1.RootElement.Clone()
-            });
-            guardian.CheckToolCallLoop("Grep", new Dictionary<string, JsonElement> {
+            }, out _);
+            guardian.TryGetToolCallLoop("Grep", new Dictionary<string, JsonElement> {
                 ["pattern"] = doc2.RootElement.Clone()
-            });
+            }, out _);
         }
 
-        var result = guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement> {
+        var detected = guardian.TryGetToolCallLoop("Read", new Dictionary<string, JsonElement> {
             ["file_path"] = doc1.RootElement.Clone()
-        });
+        }, out var result);
 
+        Assert.True(detected);
         Assert.NotNull(result);
 
         await Task.Delay(200);

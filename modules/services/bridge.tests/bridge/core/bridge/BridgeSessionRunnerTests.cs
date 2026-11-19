@@ -227,58 +227,59 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         found!.Status.Should().Be(BridgeSessionStatus.Active);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateSnapshot_ShouldCaptureSessionState() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-snapshot-001").ConfigureAwait(true);
 
         // Act
-        var snapshot = _sut.CreateSnapshot(session.SessionId);
+        var created = _sut.TryCreateSnapshot(session.SessionId, out var snapshot);
 
         // Assert
-        snapshot.Should().NotBeNull();
-        snapshot!.SessionId.Should().Be(session.SessionId);
-        snapshot.ClientId.Should().Be("client-snapshot-001");
-        snapshot.State.Should().Be(BridgeSessionStatus.Active);
-        snapshot.CapturedAt.Should().BeCloseTo(_fakeTime.GetUtcNow(), TimeSpan.FromSeconds(5));
+        created.Should().BeTrue();
+        var actual = snapshot ?? throw new InvalidOperationException("会话快照应创建成功");
+        actual.SessionId.Should().Be(session.SessionId);
+        actual.ClientId.Should().Be("client-snapshot-001");
+        actual.State.Should().Be(BridgeSessionStatus.Active);
+        actual.CapturedAt.Should().BeCloseTo(_fakeTime.GetUtcNow(), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
     public void CreateSnapshot_ShouldReturnNull_WhenSessionNotFound() {
         // Act
-        var snapshot = _sut.CreateSnapshot("non-existent-session");
+        var created = _sut.TryCreateSnapshot("non-existent-session", out var snapshot);
 
         // Assert
+        created.Should().BeFalse();
         snapshot.Should().BeNull();
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RestoreFromSnapshotAsync_ShouldResumeSuspendedSession() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-restore-001").ConfigureAwait(true);
-        var snapshot = _sut.CreateSnapshot(session.SessionId);
+        _sut.TryCreateSnapshot(session.SessionId, out var snapshot).Should().BeTrue();
+        var recordedSnapshot = snapshot ?? throw new InvalidOperationException("会话快照应创建成功");
         await _sut.SuspendSessionAsync(session.SessionId).ConfigureAwait(true);
 
         // Act - 快照记录为 Active，当前为 Suspended，应恢复
-        var restored = await _sut.RestoreFromSnapshotAsync(snapshot!).ConfigureAwait(true);
+        var restored = await _sut.RestoreFromSnapshotAsync(recordedSnapshot).ConfigureAwait(true);
 
         // Assert
-        restored.Should().NotBeNull();
-        restored!.Status.Should().Be(BridgeSessionStatus.Active);
+        var resumed = restored ?? throw new InvalidOperationException("会话应恢复成功");
+        resumed.Status.Should().Be(BridgeSessionStatus.Active);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RestoreFromSnapshotAsync_ShouldReturnNull_WhenSessionClosed() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-restore-002").ConfigureAwait(true);
-        var snapshot = _sut.CreateSnapshot(session.SessionId);
+        _sut.TryCreateSnapshot(session.SessionId, out var snapshot).Should().BeTrue();
+        var recordedSnapshot = snapshot ?? throw new InvalidOperationException("会话快照应创建成功");
         await _sut.StopSessionAsync(session.SessionId).ConfigureAwait(true);
 
         // Act
-        var restored = await _sut.RestoreFromSnapshotAsync(snapshot!).ConfigureAwait(true);
+        var restored = await _sut.RestoreFromSnapshotAsync(recordedSnapshot).ConfigureAwait(true);
 
         // Assert
         restored.Should().BeNull();

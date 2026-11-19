@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
@@ -143,12 +141,18 @@ public sealed class PluginApprovalRegistry {
     }
 
     /// <summary>查找某插件的待审批请求</summary>
-    public PluginApprovalRequest? PendingRequestFor(string pluginId) {
+    /// <param name="pluginId">插件标识。</param>
+    /// <param name="request">待审批请求（找到时非 null）。</param>
+    /// <returns>true=存在待审批请求。</returns>
+    public bool TryGetPendingRequestFor(string pluginId, [NotNullWhen(true)] out PluginApprovalRequest? request) {
         foreach (var req in Volatile.Read(ref _requests).Values) {
-            if (req.PluginId == pluginId && req.State == ApprovalState.Pending)
-                return req;
+            if (req.PluginId == pluginId && req.State == ApprovalState.Pending) {
+                request = req;
+                return true;
+            }
         }
-        return null;
+        request = null;
+        return false;
     }
 
     /// <summary>批准 — 首个回答者获胜，已处理返回 false</summary>

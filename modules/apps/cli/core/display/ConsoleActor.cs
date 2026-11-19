@@ -33,24 +33,21 @@ public sealed class ConsoleActor : ActorBase<ConsoleCommand, Unit> {
             break;
 
             case ReadLineCmd(var reply):
-#pragma warning disable JCC2001 // Actor 串行化执行，调用方已检查 IsInputRedirected
-            var line = System.Console.ReadLine() ?? string.Empty;
-#pragma warning restore JCC2001
-            reply.TrySetResult(line);
+            reply.TrySetResult(System.Console.IsInputRedirected
+                ? System.Console.In.ReadLine() ?? string.Empty
+                : System.Console.ReadLine() ?? string.Empty);
             break;
 
             case ReadLineRawCmd(var reply):
-#pragma warning disable JCC2001 // Actor 串行化执行，调用方已检查 IsInputRedirected
-            var rawLine = System.Console.ReadLine();
-#pragma warning restore JCC2001
-            reply.TrySetResult(rawLine);
+            reply.TrySetResult(System.Console.IsInputRedirected
+                ? System.Console.In.ReadLine()
+                : System.Console.ReadLine());
             break;
 
             case ReadKeyCmd(var intercept, var reply):
-#pragma warning disable JCC2002 // Actor 串行化执行，调用方已检查 IsInputRedirected
-            var key = System.Console.ReadKey(intercept);
-#pragma warning restore JCC2002
-            reply.TrySetResult(key);
+            reply.TrySetResult(System.Console.IsInputRedirected
+                ? default
+                : System.Console.ReadKey(intercept));
             break;
 
             case ClearScreenCmd:
@@ -91,7 +88,7 @@ public sealed class ConsoleActor : ActorBase<ConsoleCommand, Unit> {
     public string ReadLine() {
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         TrySend(new ReadLineCmd(tcs));
-        return tcs.Task.GetAwaiter().GetResult();
+        return tcs.Task.GetAwaiter().GetResult();  // style-allow: sync-block — Actor 同步门面: CLI 无 SynchronizationContext, 公共契约同步返回
     }
 
     /// <summary>
@@ -101,7 +98,7 @@ public sealed class ConsoleActor : ActorBase<ConsoleCommand, Unit> {
     public string? ReadLineOrNull() {
         var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         TrySend(new ReadLineRawCmd(tcs));
-        return tcs.Task.GetAwaiter().GetResult();
+        return tcs.Task.GetAwaiter().GetResult();  // style-allow: sync-block — Actor 同步门面: CLI 无 SynchronizationContext, 公共契约同步返回
     }
 
     /// <summary>
@@ -110,7 +107,7 @@ public sealed class ConsoleActor : ActorBase<ConsoleCommand, Unit> {
     public ConsoleKeyInfo ReadKey(bool intercept = false) {
         var tcs = new TaskCompletionSource<ConsoleKeyInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
         TrySend(new ReadKeyCmd(intercept, tcs));
-        return tcs.Task.GetAwaiter().GetResult();
+        return tcs.Task.GetAwaiter().GetResult();  // style-allow: sync-block — Actor 同步门面: CLI 无 SynchronizationContext, 公共契约同步返回
     }
 
     /// <summary>清屏（经过 Actor 串行化）</summary>
@@ -125,7 +122,7 @@ public sealed class ConsoleActor : ActorBase<ConsoleCommand, Unit> {
     public ConsoleColor SetColor(ConsoleColor color) {
         var tcs = new TaskCompletionSource<ConsoleColor>(TaskCreationOptions.RunContinuationsAsynchronously);
         TrySend(new SetColorCmd(color, tcs));
-        return tcs.Task.GetAwaiter().GetResult();
+        return tcs.Task.GetAwaiter().GetResult();  // style-allow: sync-block — Actor 同步门面: CLI 无 SynchronizationContext, 公共契约同步返回
     }
 
     /// <summary>重置颜色（经过 Actor 串行化）</summary>

@@ -217,11 +217,11 @@ public sealed class ContentReplacementServiceTests {
         var fileService = new MockToolResultFileService();
         await using var service = CreateService();
 
-        var state = service.ProvisionContentReplacementState();
+        service.TryProvisionContentReplacementState(out var state).Should().BeTrue();
 
-        state.Should().NotBeNull();
-        state!.SeenIds.Should().BeEmpty();
-        state.Replacements.Should().BeEmpty();
+        var provisioned = state ?? throw new InvalidOperationException("冷启动应返回新状态");
+        provisioned.SeenIds.Should().BeEmpty();
+        provisioned.Replacements.Should().BeEmpty();
     }
 
     /// <summary>
@@ -248,11 +248,11 @@ public sealed class ContentReplacementServiceTests {
 
         // 用原始消息 + 记录重建状态（传入原始消息，非 budgeted 消息）
         // 对齐 TS: provisionContentReplacementState(initialMessages, initialContentReplacements)
-        var state2 = service.ProvisionContentReplacementState(messages, newlyReplaced);
+        service.TryProvisionContentReplacementState(out var state2, messages, newlyReplaced).Should().BeTrue();
 
-        state2.Should().NotBeNull();
-        state2!.SeenIds.Keys.Should().Contain("tool_1");
-        state2.Replacements.Should().ContainKey("tool_1");
+        var reconstructed = state2 ?? throw new InvalidOperationException("重建应返回状态");
+        reconstructed.SeenIds.Keys.Should().Contain("tool_1");
+        reconstructed.Replacements.Should().ContainKey("tool_1");
     }
 
     /// <summary>
@@ -266,7 +266,7 @@ public sealed class ContentReplacementServiceTests {
 
         var messages = new List<ApiMessage> { new(MessageRole.User, "test") };
 
-        var result = service.ReconstructForSubagentResume(null, messages, []);
+        service.TryReconstructForSubagentResume(out var result, null, messages, []).Should().BeFalse();
 
         result.Should().BeNull();
     }
@@ -293,12 +293,12 @@ public sealed class ContentReplacementServiceTests {
             CreateToolMessage("tool_1", "original content"),
         };
 
-        var result = service.ReconstructForSubagentResume(parentState, messages, []);
+        service.TryReconstructForSubagentResume(out var result, parentState, messages, []).Should().BeTrue();
 
-        result.Should().NotBeNull();
-        result!.Replacements.Should().ContainKey("tool_1");
-        result.Replacements["tool_1"].Should().Be("<persisted-output>parent replacement</persisted-output>");
-        result.SeenIds.Keys.Should().Contain("tool_1");
+        var resumedState = result ?? throw new InvalidOperationException("父级状态应重建成功");
+        resumedState.Replacements.Should().ContainKey("tool_1");
+        resumedState.Replacements["tool_1"].Should().Be("<persisted-output>parent replacement</persisted-output>");
+        resumedState.SeenIds.Keys.Should().Contain("tool_1");
     }
 
     /// <summary>
@@ -427,7 +427,7 @@ public sealed class ContentReplacementServiceTests {
         var fileService = new MockToolResultFileService();
         await using var service = CreateService(enabled: false);
 
-        var state = service.ProvisionContentReplacementState();
+        service.TryProvisionContentReplacementState(out var state).Should().BeFalse();
 
         state.Should().BeNull();
     }

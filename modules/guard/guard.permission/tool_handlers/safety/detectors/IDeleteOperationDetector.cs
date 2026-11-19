@@ -7,10 +7,13 @@ namespace Core.Permission;
 /// </summary>
 public interface IDeleteOperationDetector {
     /// <summary>
-    /// 检测当前工具调用是否为删除操作
+    /// 尝试检测当前工具调用是否为删除操作
     /// </summary>
-    /// <returns>删除操作信息，如果不是删除操作则返回 null</returns>
-    DeleteOperationInfo? Detect(string toolName, Dictionary<string, JsonElement>? arguments);
+    /// <param name="toolName">工具名称</param>
+    /// <param name="arguments">工具参数</param>
+    /// <param name="info">删除操作信息</param>
+    /// <returns>是删除操作返回 true</returns>
+    bool TryDetect(string toolName, Dictionary<string, JsonElement>? arguments, [NotNullWhen(true)] out DeleteOperationInfo? info);
 }
 
 /// <summary>

@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Prompts.Sections;
 
 /// <summary>
@@ -18,14 +16,16 @@ public sealed class ModelInfoSection {
     }
 
     /// <summary>
-    /// 获取模型信息部分的内容。
+    /// 尝试获取模型信息部分的内容。
     /// </summary>
-    /// <returns>模型信息文本；未设置模型 ID 时返回 <c>null</c>。</returns>
-    public string? GetContent() {
+    /// <param name="content">模型信息文本。</param>
+    /// <returns>已设置模型 ID 返回 true；否则返回 false。</returns>
+    public bool TryGetContent([NotNullWhen(true)] out string? content) {
         var modelId = PromptConfigSnapshot.Current.ModelId;
         var modelName = PromptConfigSnapshot.Current.ModelName;
         if (string.IsNullOrWhiteSpace(modelId)) {
-            return null;
+            content = null;
+            return false;
         }
 
         var modelDescription = !string.IsNullOrWhiteSpace(modelName)
@@ -37,9 +37,10 @@ public sealed class ModelInfoSection {
             ? $"\n\n助手知识截止日期是 {knowledgeCutoff}。"
             : "";
 
-        return $"""
+        content = $"""
             {modelDescription}{knowledgeCutoffMessage}
             """;
+        return true;
     }
 
     /// <summary>
@@ -47,7 +48,7 @@ public sealed class ModelInfoSection {
     /// </summary>
     /// <returns>动态系统提示词部分。</returns>
     public static SystemPromptSection Create() =>
-        SystemPromptSection.Dynamic("model_info", () => new ModelInfoSection(new ModelConfigLoader()).GetContent());
+        SystemPromptSection.Dynamic("model_info", () => new ModelInfoSection(new ModelConfigLoader()).TryGetContent(out var content) ? content : null);
 
     private string? GetKnowledgeCutoff(string modelId) {
         return _modelConfigLoader.FindModelByModelId(modelId)?.KnowledgeCutoff;

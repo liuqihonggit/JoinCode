@@ -252,8 +252,7 @@ public sealed class DynamicPluginRegistry {
         if (_runtime.TryGetRunning(name, out var existing))
             return existing.PackageId;
 
-        var pending = _approval.PendingRequestFor(name);
-        if (pending is not null && pending.State == ApprovalState.Pending) {
+        if (_approval.TryGetPendingRequestFor(name, out var pending)) {
             throw new InvalidOperationException(
                 $"[DYN-RUN-PENDING-APPROVAL] 插件 {name} 有待审批请求 {pending.RequestId}，请先审批。");
         }

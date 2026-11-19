@@ -334,7 +334,7 @@ internal static partial class SystemCommands {
         if (!string.IsNullOrEmpty(token)) req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + token);
         try {
             using var resp = http.Send(req, ct);
-            var body = resp.Content.ReadAsStringAsync(ct).GetAwaiter().GetResult();
+            var body = resp.Content.ReadAsStringAsync(ct).GetAwaiter().GetResult();  // style-allow: sync-block — 同步命令契约: 系统配置命令同步读取 HTTP 响应体
             Console.Out.WriteLine($"触发成功 ({(int)resp.StatusCode}): {Truncate(body, 500)}");
         } catch (Exception ex) { Console.Error.WriteLine($"remote_trigger 失败: {ex.Message}"); return Task.FromResult(2); }
         return Task.FromResult(0);

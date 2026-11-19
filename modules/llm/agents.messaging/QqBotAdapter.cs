@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -27,7 +25,7 @@ public sealed class QqBotAdapter : PlatformBotAdapterBase<QqBotConfig> {
 
     protected override async ValueTask<string> AcquireTokenAsync(CancellationToken ct) {
         var url = $"{Config.AuthBaseUrl}/app/getAppAccessToken";
-        var body = $$"""{"appId":"{{Config.AppId}}","appSecret":"{{Config.AppSecret}}"}""";
+        var body = JsonSerializer.Serialize(new QqTokenRequestDto { AppId = Config.AppId, AppSecret = Config.AppSecret }, BotAdapterJsonContext.Default.QqTokenRequestDto);
         using var response = await HttpClient.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"), ct).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
@@ -114,4 +112,28 @@ internal sealed class FeishuMessageContentDto {
 [JsonSerializable(typeof(FeishuMessageCallbackDto))]
 [JsonSerializable(typeof(FeishuMessageCallbackDataDto))]
 [JsonSerializable(typeof(QqMessageResponseDto))]
+[JsonSerializable(typeof(QqTokenRequestDto))]
+[JsonSerializable(typeof(FeishuTokenRequestDto))]
 internal sealed partial class BotAdapterJsonContext : JsonSerializerContext;
+
+/// <summary>QQ 获取 AppAccessToken 请求 DTO</summary>
+internal sealed class QqTokenRequestDto {
+    /// <summary>应用 ID。</summary>
+    [JsonPropertyName("appId")]
+    public required string AppId { get; init; }
+
+    /// <summary>应用密钥。</summary>
+    [JsonPropertyName("appSecret")]
+    public required string AppSecret { get; init; }
+}
+
+/// <summary>飞书获取 tenant_access_token 请求 DTO</summary>
+internal sealed class FeishuTokenRequestDto {
+    /// <summary>应用 ID。</summary>
+    [JsonPropertyName("app_id")]
+    public required string AppId { get; init; }
+
+    /// <summary>应用密钥。</summary>
+    [JsonPropertyName("app_secret")]
+    public required string AppSecret { get; init; }
+}

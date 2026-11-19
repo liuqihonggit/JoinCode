@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Goal;
 
 
@@ -118,14 +116,14 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
             ? string.Join(", ", criteria)
             : "completeness, correctness, format, no_hallucination";
 
-        return $$$"""
+        return """
             You are a quality scorer for a parallel agent system. Score the node output across multiple dimensions.
 
             NODE OUTPUT:
-            {{{nodeOutput}}}
+            @@NODE_OUTPUT@@
 
             SCORING DIMENSIONS:
-            {{{criteriaText}}}
+            @@CRITERIA@@
 
             Each dimension score ranges from 0.0 (worst) to 1.0 (best).
 
@@ -142,7 +140,8 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
               ]
             }
             ```
-            """;
+            """.Replace("@@NODE_OUTPUT@@", nodeOutput, StringComparison.Ordinal)
+               .Replace("@@CRITERIA@@", criteriaText, StringComparison.Ordinal);
     }
 
     private static NodeQualityScore ParseScoringResult(string? content, ILogger? logger = null) {

@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace JoinCode.Abstractions.LLM.Chat;
 
 /// <summary>
@@ -21,34 +19,11 @@ public sealed record ToolCallEntry {
     /// 手动构建 JSON 以兼容 NativeAOT（无需 JsonContext）
     /// </summary>
     public static JsonElement ToToolCallsJson(IReadOnlyList<ToolCallEntry> entries) {
-        var sb = new StringBuilder();
-        sb.Append('[');
-        for (var i = 0; i < entries.Count; i++) {
-            if (i > 0) sb.Append(',');
-            var e = entries[i];
-            sb.Append("{\"Id\":");
-            AppendJsonString(sb, e.Id);
-            sb.Append(",\"Name\":");
-            AppendJsonString(sb, e.Name);
-            sb.Append(",\"Arguments\":");
-            AppendJsonString(sb, e.Arguments);
-            sb.Append('}');
-        }
-        sb.Append(']');
-        return JsonElementHelper.FromJson(sb.ToString());
-    }
-
-    /// <summary>
-    /// AOT 安全的 JSON 字符序列化 — 手动拼引号 + 转义
-    /// </summary>
-    private static void AppendJsonString(StringBuilder sb, string? value) {
-        if (value is null) {
-            sb.Append("null");
-            return;
-        }
-        sb.Append('"');
-        sb.Append(JsonEncodedText.Encode(value).Value);
-        sb.Append('"');
+        var dtos = entries
+            .Select(e => new ToolCallMetadataDto { Id = e.Id, Name = e.Name, Arguments = e.Arguments })
+            .ToList();
+        var json = JsonSerializer.Serialize(dtos, ToolCallEntryJsonContext.Default.ListToolCallMetadataDto);
+        return JsonElementHelper.FromJson(json);
     }
 
     /// <summary>
@@ -88,3 +63,19 @@ public sealed class ToolCallItemJson {
     [JsonPropertyName("Arguments")]
     public string? Arguments { get; set; }
 }
+
+/// <summary>ToolCalls Metadata 序列化 DTO — 字段顺序对齐 [{Id, Name, Arguments}]。</summary>
+internal sealed class ToolCallMetadataDto {
+    /// <summary>工具调用 ID（可为 null）。</summary>
+    public string? Id { get; init; }
+
+    /// <summary>工具名称。</summary>
+    public required string Name { get; init; }
+
+    /// <summary>工具调用参数 JSON。</summary>
+    public string Arguments { get; init; } = "{}";
+}
+
+/// <summary>ToolCalls Metadata 的 AOT 序列化上下文。</summary>
+[JsonSerializable(typeof(List<ToolCallMetadataDto>))]
+internal sealed partial class ToolCallEntryJsonContext : JsonSerializerContext;

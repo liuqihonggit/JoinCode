@@ -73,14 +73,15 @@ public sealed class ProviderDefinitionPolymorphismTests {
     public void Azure_ExtractApiKeyFromCompound_ShouldExtractKey() {
         var def = new Core.Configuration.Providers.AzureProviderDefinition(ModelConfigLoader);
         var compound = def.SerializeAuthCredentials("my-key", "https://test.openai.azure.com");
-        var extracted = def.ExtractApiKeyFromCompound(compound);
+        def.TryExtractApiKeyFromCompound(compound, out var extracted).Should().BeTrue();
         extracted.Should().Be("my-key");
     }
 
     [Fact]
     public void OpenAI_ExtractApiKeyFromCompound_ShouldReturnNull() {
         IProviderDefinition def = new Core.Configuration.Providers.OpenAiCompatibleProviderDefinition(ModelConfigLoader, "openai");
-        def.ExtractApiKeyFromCompound("any-key").Should().BeNull();
+        def.TryExtractApiKeyFromCompound("any-key", out var extracted).Should().BeFalse();
+        extracted.Should().BeNull();
     }
 
     [Fact]

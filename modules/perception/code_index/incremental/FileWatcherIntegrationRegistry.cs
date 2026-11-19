@@ -118,14 +118,11 @@ public sealed class FileWatcherIntegrationRegistry : ActorBase<FileWatcherRegist
     /// <summary>
     /// 释放资源 — 解除事件订阅，等待 Consumer 退出后释放所有 watcher
     /// </summary>
-#pragma warning disable JCC9304 // Actor 模式: base.DisposeAsync() 等 Consumer 退出后才能安全访问 _watchers(Consumer 已退出，无并发)
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _registry.RepoRegistered -= OnRepoRegistered;
         _registry.RepoUnregistered -= OnRepoUnregistered;
-
-        await base.DisposeAsync().ConfigureAwait(false);
 
         foreach (var kvp in _watchers) {
             try {
@@ -136,8 +133,9 @@ public sealed class FileWatcherIntegrationRegistry : ActorBase<FileWatcherRegist
             }
         }
         _watchers.Clear();
+
+        await base.DisposeAsync().ConfigureAwait(false);
     }
-#pragma warning restore JCC9304
 }
 
 /// <summary>

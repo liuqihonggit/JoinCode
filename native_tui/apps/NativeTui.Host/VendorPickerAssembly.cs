@@ -44,7 +44,7 @@ internal static class VendorPickerAssembly
             fastMode?.SetPrimaryModel(defaultModelId);
         }
 
-        services.GetService<IConfigurationService>()?.SetAsync("profile", vendor).GetAwaiter().GetResult();
+        services.GetService<IConfigurationService>()?.SetAsync("profile", vendor).GetAwaiter().GetResult();  // style-allow: sync-block — TUI 输入同步契约: 供应商选择在 UI 线程同步写配置
 
         if (fastMode is { IsFastModeActive: true } && defaultModelId.Length > 0) {
             if (catalog is not null && !catalog.SupportsFastMode(defaultModelId, vendor)) {

@@ -77,6 +77,34 @@ def resolve_case(path):
     return '/'.join(out)
 
 
+def skip_nested_string(text, start):
+    """跳过内插 hole 内的嵌套普通字符串，返回闭合引号之后的位置。"""
+    n = len(text)
+    k = start
+    while k < n:
+        if text[k] == '\\':
+            k += 2
+            continue
+        if text[k] == '"' or text[k] == '\n':
+            return k + 1 if text[k] == '"' else k
+        k += 1
+    return k
+
+
+def skip_nested_char(text, start):
+    """跳过内插 hole 内的字符字面量，返回闭合单引号之后的位置。"""
+    n = len(text)
+    k = start
+    while k < n:
+        if text[k] == '\\':
+            k += 2
+            continue
+        if text[k] == "'" or text[k] == '\n':
+            return k + 1 if text[k] == "'" else k
+        k += 1
+    return k
+
+
 def blank_code_noise(text):
     """把注释与字符串字面量内容替换为空格（保留换行与字符位置），避免正则误报。"""
     chars = list(text)
@@ -118,8 +146,10 @@ def blank_code_noise(text):
         if ch in '@$':
             j = i
             verbatim = False
+            interpolated = False
             while j < n and text[j] in '@$':
                 verbatim = verbatim or text[j] == '@'
+                interpolated = interpolated or text[j] == '$'
                 j += 1
             if j < n and text[j] == '"':
                 quote_start = j
@@ -131,16 +161,39 @@ def blank_code_noise(text):
                     end = n if close < 0 else close + quote_count
                 else:
                     end = j
+                    depth = 0
                     while end < n:
-                        if text[end] == '\\' and not verbatim:
+                        c = text[end]
+                        if c == '\\' and not verbatim:
                             end += 2
                             continue
-                        if text[end] == '"':
+                        if interpolated and c == '{':
+                            if depth == 0 and end + 1 < n and text[end + 1] == '{':
+                                end += 2
+                                continue
+                            depth += 1
+                            end += 1
+                            continue
+                        if interpolated and c == '}':
+                            if depth == 0 and end + 1 < n and text[end + 1] == '}':
+                                end += 2
+                                continue
+                            if depth > 0:
+                                depth -= 1
+                            end += 1
+                            continue
+                        if c == '"':
                             if verbatim and end + 1 < n and text[end + 1] == '"':
                                 end += 2
                                 continue
+                            if depth > 0:
+                                end = skip_nested_string(text, end + 1)
+                                continue
                             end += 1
                             break
+                        if c == "'" and depth > 0:
+                            end = skip_nested_char(text, end + 1)
+                            continue
                         end += 1
                 blank(i, end)
                 i = end
@@ -155,6 +208,8 @@ def blank_code_noise(text):
             if quote_count >= 3:
                 close = text.find('"' * quote_count, j)
                 end = n if close < 0 else close + quote_count
+            elif quote_count == 2:
+                end = j
             else:
                 end = j
                 while end < n:

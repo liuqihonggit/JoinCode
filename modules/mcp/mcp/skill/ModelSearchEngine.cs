@@ -1,5 +1,3 @@
-// JCC10009 抑制: 存量元组 key, 后续改为字符串 key
-#pragma warning disable JCC10009
 namespace McpClient;
 
 /// <summary>
@@ -78,7 +76,10 @@ public sealed class ModelSearchEngine {
     private readonly FrozenDictionary<ModelModalityKind, List<ModelSearchEntry>> _byModality;
 
     /// <summary>(功能, vendor) → 模型列表 — map[功能Key][vendor] O(1) 查找</summary>
-    private readonly FrozenDictionary<(ModelModalityKind Modality, string Vendor), List<ModelSearchEntry>> _byModalityAndVendor;
+    private readonly FrozenDictionary<ModalityVendorKey, List<ModelSearchEntry>> _byModalityAndVendor;
+
+    /// <summary>功能 + vendor 复合键</summary>
+    private readonly record struct ModalityVendorKey(ModelModalityKind Modality, string Vendor);
 
     private static FrozenDictionary<string, ModelModalityKind> BuildKeyToModality() {
         var dict = new Dictionary<string, ModelModalityKind>(StringComparer.OrdinalIgnoreCase);
@@ -110,12 +111,12 @@ public sealed class ModelSearchEngine {
         return dict.ToFrozenDictionary();
     }
 
-    private static FrozenDictionary<(ModelModalityKind, string), List<ModelSearchEntry>> BuildByModalityAndVendor(List<ModelSearchEntry> models) {
-        var dict = new Dictionary<(ModelModalityKind, string), List<ModelSearchEntry>>();
+    private static FrozenDictionary<ModalityVendorKey, List<ModelSearchEntry>> BuildByModalityAndVendor(List<ModelSearchEntry> models) {
+        var dict = new Dictionary<ModalityVendorKey, List<ModelSearchEntry>>();
         foreach (var model in models) {
             foreach (var kind in ModalityToDescription.Keys) {
                 if (model.Modalities.HasFlag(kind)) {
-                    var key = (kind, model.Vendor);
+                    var key = new ModalityVendorKey(kind, model.Vendor);
                     if (!dict.TryGetValue(key, out var list)) {
                         list = [];
                         dict[key] = list;
@@ -193,7 +194,7 @@ public sealed class ModelSearchEngine {
         }
 
         var vendor = segments[1].Trim();
-        if (_byModalityAndVendor.TryGetValue((modality, vendor), out var vendorModels))
+        if (_byModalityAndVendor.TryGetValue(new ModalityVendorKey(modality, vendor), out var vendorModels))
             return FormatModels(vendorModels);
         return new ModelSearchResult([], isModelList: true);
     }

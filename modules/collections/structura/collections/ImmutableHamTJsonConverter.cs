@@ -1,12 +1,10 @@
-// JCC11005 抑制: JsonConverter.Read 是框架接口实现, 必须返回 T?, 不能改 TryGet 模式
-#pragma warning disable JCC11005
 namespace Structura.Collections;
 
 /// <summary>ImmutableHamT&lt;string, string&gt; 的 JSON 转换器 — 将 HAMT 序列化为 JSON 对象,反序列化时重建 HAMT。用于 AOT 场景下替代 BCL ImmutableDictionary 的内置转换器。</summary>
 public sealed class ImmutableHamTStringStringConverter : JsonConverter<ImmutableHamT<string, string>> {
     /// <summary>读取 JSON 对象并重建 ImmutableHamT。</summary>
     public override ImmutableHamT<string, string>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
-        if (reader.TokenType == JsonTokenType.Null) return null;
+        if (reader.TokenType == JsonTokenType.Null) return ImmutableHamT.Create<string, string>();
         if (reader.TokenType != JsonTokenType.StartObject)
             throw new JsonException("Expected StartObject for ImmutableHamT<string,string>");
         var result = ImmutableHamT.Create<string, string>();

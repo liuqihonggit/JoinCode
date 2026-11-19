@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Tools.Handlers;
 
 /// <summary>
@@ -31,22 +29,23 @@ public sealed class DesktopSceneStatusToolHandlers {
         if (state is null)
             return ToolResultBuilder.Success().WithText($"场景 {sceneId} 不存在，请先调 desktop_look 创建场景。").Build();
 
-        var historyJson = string.Join(", ", state.ZoomHistory.Select(h =>
-            "{ \"depth\": " + h.Depth + ", \"cell\": \"" + h.CellCode + "\", \"quadrant\": " + h.Quadrant + " }"));
-
-        var json = $$"""
-            {
-              "scene_id": "{{state.SceneId}}",
-              "current_depth": {{state.CurrentDepth}},
-              "current_cell": "{{state.CurrentCellCode}}",
-              "last_action": "{{state.LastAction ?? ""}}",
-              "zoom_history": [{{historyJson}}],
-              "suggested_next": [{
-                "tool": "desktop_zoom",
-                "reason": "继续夹逼或退层重新选象限"
-              }]
-            }
-            """;
-        return ToolResultBuilder.Success().WithText(json).Build();
+        var result = new DesktopStatusResult {
+            SceneId = state.SceneId,
+            CurrentDepth = state.CurrentDepth,
+            CurrentCell = state.CurrentCellCode,
+            LastAction = state.LastAction ?? string.Empty,
+            ZoomHistory = state.ZoomHistory
+                .Select(h => new DesktopZoomHistoryDto { Depth = h.Depth, Cell = h.CellCode, Quadrant = h.Quadrant })
+                .ToList(),
+            SuggestedNext = [
+                new DesktopSuggestedNext {
+                    Tool = "desktop_zoom",
+                    Reason = "继续夹逼或退层重新选象限"
+                }
+            ]
+        };
+        return ToolResultBuilder.Success()
+            .WithText(JsonSerializer.Serialize(result, DesktopSceneToolJsonContext.Default.DesktopStatusResult))
+            .Build();
     }
 }

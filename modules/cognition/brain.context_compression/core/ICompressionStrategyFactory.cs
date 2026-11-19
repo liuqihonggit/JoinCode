@@ -9,8 +9,9 @@ public interface ICompressionStrategyFactory {
     /// </summary>
     /// <param name="content">内容</param>
     /// <param name="contentType">内容类型</param>
-    /// <returns>压缩策略，如果没有找到则返回null</returns>
-    ICompressionStrategy? GetStrategy(string content, ContentType contentType);
+    /// <param name="strategy">压缩策略（找到时非 null）</param>
+    /// <returns>true=找到适合策略；false=没有找到</returns>
+    bool TryGetStrategy(string content, ContentType contentType, [NotNullWhen(true)] out ICompressionStrategy? strategy);
 
     /// <summary>
     /// 获取指定类型的所有策略

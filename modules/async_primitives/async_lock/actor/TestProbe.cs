@@ -7,6 +7,7 @@ namespace Core.Utils;
 /// <para>Reply 回复最近收到消息的发送者(需发送者实现 <see cref="IActorTell{TCommand}"/>)。</para>
 /// </summary>
 public sealed class TestProbe : IActorTell<object>, IAsyncDisposable {
+    // style-allow: unbounded — 测试探针邮箱,消息量受测试规模约束,有界会丢失断言消息
     private readonly Channel<(object Message, object? Sender)> _channel = Channel.CreateUnbounded<(object, object?)>(new UnboundedChannelOptions {
         SingleReader = true,
         SingleWriter = false

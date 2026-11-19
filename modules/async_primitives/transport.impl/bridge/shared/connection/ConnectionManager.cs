@@ -1,5 +1,3 @@
-// JCC9203 抑制: 存量释放函数超时, 后续异步化改造
-#pragma warning disable JCC9203
 namespace JoinCode.Transport.Bridge;
 
 // TransportProtocol, TransportConnectionState 已迁移到 JoinCode.Transport.Bridge 命名空间 (Transport.Contracts)
@@ -116,7 +114,8 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
 
         if (_reconnectTask is not null) {
             try {
-                await _reconnectTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+                // 释放语义: 不设超时, _reconnectCts 已取消, 任务会自然结束
+                await _reconnectTask.ConfigureAwait(false);
             } catch (OperationCanceledException) {
             }
         }

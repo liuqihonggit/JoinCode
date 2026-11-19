@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Memdir;
 
 /// <summary>
@@ -124,19 +122,24 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     }
 
     /// <summary>
-    /// 获取记忆
+    /// 尝试获取记忆 — 命中时更新访问计数
     /// </summary>
-    public MemoryEntry? GetMemory(string id) {
+    /// <param name="id">记忆标识</param>
+    /// <param name="memory">命中的记忆条目</param>
+    /// <returns>找到返回 true</returns>
+    public bool TryGetMemory(string id, [NotNullWhen(true)] out MemoryEntry? memory) {
         ArgumentNullException.ThrowIfNull(id);
         if (string.IsNullOrWhiteSpace(id))
             throw new ArgumentException("记忆 ID 不能为空或空白", nameof(id));
-        if (Volatile.Read(ref _memories).TryGetValue(id, out var memory)) {
-            var updated = memory.WithAccessed(_clock.GetUtcNow());
+        if (Volatile.Read(ref _memories).TryGetValue(id, out var found)) {
+            var updated = found.WithAccessed(_clock.GetUtcNow());
             ImmutableInterlocked.Update(ref _memories, d => d.SetItem(updated.Id, updated));
-            return updated;
+            memory = updated;
+            return true;
         }
 
-        return null;
+        memory = null;
+        return false;
     }
 
     /// <summary>

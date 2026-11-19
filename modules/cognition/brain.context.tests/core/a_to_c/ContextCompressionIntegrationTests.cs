@@ -342,9 +342,9 @@ public partial class ContextCompressionIntegrationTests {
 
         // 获取策略 - 使用足够长的代码内容
         var codeContent = GenerateLargeCodeContent(10);
-        var codeStrategy = factory.GetStrategy(codeContent, ContentType.Code);
-        codeStrategy.Should().NotBeNull();
-        codeStrategy!.Name.Should().Be("CodeContentCompressor");
+        Assert.True(factory.TryGetStrategy(codeContent, ContentType.Code, out var codeStrategy));
+        var selectedStrategy = codeStrategy ?? throw new InvalidOperationException("Code 策略应已注册");
+        selectedStrategy.Name.Should().Be("CodeContentCompressor");
 
         var allStrategies = factory.GetAllStrategies().ToList();
         allStrategies.Should().NotBeEmpty();

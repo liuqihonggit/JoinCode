@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.Queue;
 
 /// <summary>
@@ -73,21 +71,14 @@ public sealed class CommandQueue : IDisposable {
         Volatile.Read(ref _signal).TrySetResult();
     }
 
-    /// <summary>按优先级出队（Now &gt; Next &gt; Later），同优先级 FIFO。</summary>
-    /// <returns>最高优先级命令；队列空返回 null。</returns>
-    public QueuedCommand? Dequeue() {
-        if (_now.TryDequeue(out var cmd)) { Interlocked.Decrement(ref _count); return cmd; }
-        if (_next.TryDequeue(out cmd)) { Interlocked.Decrement(ref _count); return cmd; }
-        if (_later.TryDequeue(out cmd)) { Interlocked.Decrement(ref _count); return cmd; }
-        return null;
-    }
-
-    /// <summary>尝试出队。</summary>
+    /// <summary>尝试按优先级出队（Now &gt; Next &gt; Later），同优先级 FIFO。</summary>
     /// <param name="cmd">出队的命令。</param>
-    /// <returns>非空返回 true；空返回 false。</returns>
+    /// <returns>出队成功返回 true；队列空返回 false。</returns>
     public bool TryDequeue([MaybeNullWhen(false)] out QueuedCommand cmd) {
-        cmd = Dequeue();
-        return cmd is not null;
+        if (_now.TryDequeue(out cmd)) { Interlocked.Decrement(ref _count); return true; }
+        if (_next.TryDequeue(out cmd)) { Interlocked.Decrement(ref _count); return true; }
+        if (_later.TryDequeue(out cmd)) { Interlocked.Decrement(ref _count); return true; }
+        return false;
     }
 
     /// <summary>

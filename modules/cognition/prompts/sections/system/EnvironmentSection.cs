@@ -99,7 +99,7 @@ public static class EnvironmentSection {
                     TimeoutMs = 3000
                 };
 
-                var procResult = Task.Run(() => processService.ExecuteAsync(options)).GetAwaiter().GetResult();
+                var procResult = Task.Run(() => processService.ExecuteAsync(options)).GetAwaiter().GetResult();  // style-allow: sync-block — 同步提示词章节契约: Compute() 提供同步快照
                 var procOutput = string.IsNullOrWhiteSpace(procResult.StandardOutput) ? procResult.StandardError : procResult.StandardOutput;
                 return string.IsNullOrWhiteSpace(procOutput) ? null : procOutput.Trim();
             }

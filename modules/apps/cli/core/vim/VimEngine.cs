@@ -106,8 +106,4 @@ public sealed partial class VimEngine : ServiceEntity, IVimEngine {
 
     /// <summary>模式切换事件 — 切换模式后触发</summary>
     public event EventHandler<VimMode>? ModeChanged;
-#pragma warning disable CS0067
-    /// <summary>命令执行完成事件</summary>
-    public event EventHandler<VimCommandEventArgs>? CommandExecuted;
-#pragma warning restore CS0067
 }

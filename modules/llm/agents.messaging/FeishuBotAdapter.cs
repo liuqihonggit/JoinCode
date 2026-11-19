@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -27,7 +25,7 @@ public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig> {
 
     protected override async ValueTask<string> AcquireTokenAsync(CancellationToken ct) {
         var url = $"{Config.ApiBaseUrl}/open-apis/auth/v3/tenant_access_token/internal";
-        var body = $$"""{"app_id":"{{Config.AppId}}","app_secret":"{{Config.AppSecret}}"}""";
+        var body = JsonSerializer.Serialize(new FeishuTokenRequestDto { AppId = Config.AppId, AppSecret = Config.AppSecret }, BotAdapterJsonContext.Default.FeishuTokenRequestDto);
         using var response = await HttpClient.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"), ct).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);

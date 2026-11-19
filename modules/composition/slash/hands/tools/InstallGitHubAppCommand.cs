@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -442,14 +440,18 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
                 sha = doc.RootElement.GetProperty("object").GetProperty("sha").GetString() ?? "";
             } catch { return false; }
 
-            var createBranchBody = $$"""{"ref":"refs/heads/{{newBranch}}","sha":"{{sha}}"}""";
+            var createBranchBody = JsonSerializer.Serialize(
+                new CreateGitRefRequest { Ref = $"refs/heads/{newBranch}", Sha = sha },
+                GitHubAppSetupJsonContext.Default.CreateGitRefRequest);
             var createBranchResult = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{repoName}/git/refs", body: createBranchBody, ct: ct).ConfigureAwait(false);
             if (!createBranchResult.Success) return false;
 
             foreach (var workflow in workflows) {
                 var (fileName, content) = GetWorkflowContent(workflow, secretName, authType);
                 var base64Content = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(content));
-                var createFileBody = $$"""{"message":"Add {{workflow}} workflow","content":"{{base64Content}}","branch":"{{newBranch}}"}""";
+                var createFileBody = JsonSerializer.Serialize(
+                    new CreateRepoFileRequest { Message = $"Add {workflow} workflow", Content = base64Content, Branch = newBranch },
+                    GitHubAppSetupJsonContext.Default.CreateRepoFileRequest);
                 var createFileResult = await _apiClient.SendAsync(HttpMethod.Put, $"repos/{repoName}/contents/.github/workflows/{fileName}", body: createFileBody, ct: ct).ConfigureAwait(false);
                 if (!createFileResult.Success) return false;
             }
@@ -720,7 +722,35 @@ public sealed class GitHubRepoDto {
     public GitHubRepoPermissionsDto? Permissions { get; init; }
 }
 
+/// <summary>创建 Git ref 请求 DTO — 对应 POST repos/{owner}/{repo}/git/refs 请求体</summary>
+public sealed record CreateGitRefRequest {
+    /// <summary>完整 ref 路径，如 refs/heads/main</summary>
+    [JsonPropertyName("ref")]
+    public required string Ref { get; init; }
+
+    /// <summary>目标提交 SHA</summary>
+    [JsonPropertyName("sha")]
+    public required string Sha { get; init; }
+}
+
+/// <summary>创建仓库文件请求 DTO — 对应 PUT repos/{owner}/{repo}/contents/{path} 请求体</summary>
+public sealed record CreateRepoFileRequest {
+    /// <summary>提交消息</summary>
+    [JsonPropertyName("message")]
+    public required string Message { get; init; }
+
+    /// <summary>文件内容（Base64）</summary>
+    [JsonPropertyName("content")]
+    public required string Content { get; init; }
+
+    /// <summary>目标分支</summary>
+    [JsonPropertyName("branch")]
+    public required string Branch { get; init; }
+}
+
 /// <summary>install-github-app 命令 JSON 序列化上下文 — 为 GitHubRepoDto 生成 AOT 兼容的源码序列化器</summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(GitHubRepoDto))]
+[JsonSerializable(typeof(CreateGitRefRequest))]
+[JsonSerializable(typeof(CreateRepoFileRequest))]
 public partial class GitHubAppSetupJsonContext : JsonSerializerContext;

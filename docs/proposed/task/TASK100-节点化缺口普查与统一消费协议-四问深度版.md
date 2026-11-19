@@ -424,7 +424,7 @@ consumers:
 |---|---|---|
 | 0 | 普查与本文档（含 §11 施工单、§12 分域细则） | ✅ |
 | S1 | 契约字段 + dump 扩展 + 一致性门禁 | ✅ |
-| S2 | guard 域节点化：S2a 守卫链 ✅ / S2b 修正器 ✅ / S2c 沙箱+防御链 ⬜ | 🟡 |
+| S2 | guard 域节点化：S2a 守卫链 ✅ / S2b 修正器 ✅ / S2c 沙箱 🟡 | 🟡 |
 | S3 | provider + role 节点化 | ⬜ |
 | S4 | 能力 + 命令表面节点化 | ⬜ |
 | S5 | 外部 profile 覆盖 | ⬜ |
@@ -503,3 +503,39 @@ consumers:
 | 零回归 | Guard.Hooks.Tests 598；Composition.Tests 1117；门禁 `[OK]` |
 
 **差评抓到的问题（值得记）**：首次构建后生成注册表仍引用已删除的 `FixHooksPlugin`、且 `IToolFixHook` 一个都没注册 —— 原因是 `Guard.csproj` 未重编，生成器扫的是**旧的 Guard.dll**。重编 Guard → guard.hooks → `Composition -t:Rebuild` 后，`FixHooksPlugin` 残留 0、`IToolFixHook` 注册 12 处正常。**教训与 TASK098 同源：编译成功 ≠ 生成物更新，跨库改动必须确认生成代码内容。**
+
+### 14.4 S2c 实施记录（沙箱提供器）— 部分完成，暴露结构性阻塞
+
+**已完成**
+
+| 文件 | 改动 |
+|---|---|
+| `modules/guard/guard.sandbox/providers/*.cs` | 4 个提供器加 `[Register(typeof(ISandboxProvider))]` |
+| `modules/guard/guard/plugins/SandboxProvidersPlugin.cs` | **删除**（只做 4 连 `new`），同步移除 `McpInitModule` 清单项与 `Core.Plugins` 全局 using |
+| `modules/guard/guard.sandbox/core/SandboxManager.cs` | 构造注入 `IProfileManager`，降级链改读 `_fallbackOrder`（profile 消费点 `sandbox-providers`，缺失时退回 OS 默认）；`AddProvider` 仍保留供运行期热插 |
+| `modules/abstractions/composition/node/chain/NodeChainOrder.cs` | 从 guard.hooks **下沉到契约层**（S3/S4 都要用），命名空间 `JoinCode.Abstractions.Composition` |
+| `Guard.Sandbox.csproj` | 补 `Abstractions.Composition` 引用 |
+
+**真机验收**：`ISandboxProvider` / 4 个提供器类型出现在 `JoinCode.Composition.dll`（生成注册 16 处），`SandboxProvidersPlugin` 残留 0；`mcp_call bash` 正常、`tool tree` 635、门禁 `[OK]`、Composition 1117 + Guard.Hooks 598 全绿。
+
+**阻塞（重要，影响 S3/S4）**
+
+`SandboxManager` 的 profile 降级链已就绪，但**节点声明加不回去** —— 因为 `BuildNodeFactories()` 集中在 `Pipelines`，要写 `F("sandbox-providers:soft-sandbox-provider", sp => sp.GetRequiredService<SoftSandboxProvider>())` 就必须让 Pipelines 引用 `Guard.Sandbox`；实测该程序集不在 Pipelines 的编译闭包内（`ISandboxProvider` 都不可见），补 `ProjectReference` 又触发 restore（违反本仓「改动不 restore」纪律）。
+
+这不是沙箱独有的问题：**176 个节点的工厂全部集中在一个静态方法里，任何"实现不在 Pipelines 引用闭包内"的域都无法成为节点**。S3（provider 在 `llm/core`）、S4（能力在 `storage`/`services`）会撞同一堵墙。
+
+**因此 S3/S4 的前置条件是「节点工厂的分布式贡献」**（新增 §12.8），而不是继续往 Pipelines 堆引用。
+
+### 14.5 新增施工项：§12.8 节点工厂的分布式贡献
+
+目标：每个域自己贡献工厂，Pipelines 只做汇总，不再认识具体类型。
+
+```
+[NodeFactory("sandbox-providers", "soft-sandbox-provider")]   // 域内标注
+→ 源生成器产出 INodeFactoryContribution（域程序集内）
+→ Pipelines 汇总：BuildNodeFactories() = 编译期 catalog（生成物）+ 现有 161 条
+```
+
+约束：AOT 友好（源生成，非反射）；与 `--dump-nodes --verify` 的门禁口径一致（声明 ↔ 工厂 ↔ 契约）；现有 161 条手写工厂可原样保留，逐步迁移。
+
+这一步做完，S3/S4 才能在不改依赖图的前提下推进。

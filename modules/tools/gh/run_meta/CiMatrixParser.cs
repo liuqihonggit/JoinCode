@@ -84,29 +84,6 @@ internal static class CiMatrixParser {
     }
 
     /// <summary>
-    /// 从 CI yml 提取 matrix 展开后的所有值 — 自动检测 job name 中的 ${{ matrix.xxx }},从 include 提取对应字段
-    /// <para>通用提取:不硬编码 name/domain,自动匹配 job name 中引用的 matrix 变量</para>
-    /// </summary>
-    /// <param name="ymlContent">CI yml 文件内容</param>
-    /// <returns>matrix 展开后的所有值(保序),无 matrix 时返回空列表</returns>
-    internal static List<string> ExtractMatrixJobNames(string ymlContent) {
-        var entries = ExtractMatrixIncludeEntries(ymlContent);
-        if (entries.Count == 0) return [];
-        var allJobs = ExtractAllJobNames(ymlContent);
-        foreach (var (_, jobName) in allJobs) {
-            var matrixVars = ExtractAllMatrixVariables(jobName);
-            if (matrixVars.Count == 0) continue;
-            var primaryVar = matrixVars[0];
-            if (entries[0].ContainsKey(primaryVar))
-                return entries
-                    .Select(e => e.GetValueOrDefault(primaryVar, ""))
-                    .Where(v => !string.IsNullOrEmpty(v))
-                    .ToList();
-        }
-        return [];
-    }
-
-    /// <summary>
     /// 从 CI yml 提取 jobs 下的第一个 job_id（如 unit-tests）— 用于筛选对应 workflow 的 check 名
     /// </summary>
     internal static string? ExtractJobId(string ymlContent) {
@@ -122,18 +99,6 @@ internal static class CiMatrixParser {
             }
         }
         return null;
-    }
-
-    /// <summary>
-    /// 从 check 名提取 matrix name — 格式 `{job_id} / {prefix} - {matrix.value}` → `matrix.value`
-    /// <para>非对应 job_id 的 check 返回 null(其他 workflow, 不在审计范围)</para>
-    /// </summary>
-    internal static string? ExtractMatrixNameFromCheck(string checkName, string jobId) {
-        var prefix = $"{jobId} / ";
-        if (!checkName.StartsWith(prefix, StringComparison.Ordinal)) return null;
-        var afterPrefix = checkName[prefix.Length..];
-        var dashIndex = afterPrefix.LastIndexOf(" - ", StringComparison.Ordinal);
-        return dashIndex >= 0 ? afterPrefix[(dashIndex + 3)..] : afterPrefix;
     }
 
     /// <summary>

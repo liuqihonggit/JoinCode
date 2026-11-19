@@ -77,7 +77,9 @@ internal sealed class BranchProtectionAuditor {
     }
 
     /// <summary>
-    /// 审计分支保护一致性 — 读取 CI yml → 解析 job 名 → 查询 GitHub required_status_checks → map 对比
+    /// 审计分支保护一致性 — 读取 CI yml → 解析 check 名(matrix 展开 + 独立 job) → 查询 required_status_checks → 全名对比
+    /// <para>对比口径与 sync-protection 一致: check 全名 <c>{outerJobId} / {job 名}</c>，独立 job(如 Module order)保持原样，
+    /// 不再用 " - " 截断猜测 matrix 值 — reusable workflow 的 "Tool Nodes - declarations" 曾被误切成 "declarations" 误报脏检查。</para>
     /// </summary>
     /// <param name="owner">仓库 owner</param>
     /// <param name="repo">仓库名</param>
@@ -92,22 +94,23 @@ internal sealed class BranchProtectionAuditor {
             return EmptyResult(branch, $"CI yml 文件不存在: {ymlPath}", repoSlug);
 
         var ymlContent = await _fs.ReadAllTextAsync(ymlPath, cancellationToken).ConfigureAwait(false);
-        var ciJobNames = CiMatrixParser.ExtractMatrixJobNames(ymlContent);
-        if (ciJobNames.Count == 0)
-            return EmptyResult(branch, $"未能从 {ymlPath} 中解析出 matrix job 名", repoSlug);
-
         var jobId = CiMatrixParser.ExtractJobId(ymlContent) ?? "unit-tests";
+        var ciCheckNames = CiMatrixParser.ExtractAllCheckNames(ymlContent, jobId);
+        if (ciCheckNames.Count == 0)
+            return EmptyResult(branch, $"未能从 {ymlPath} 中解析出 job 名", repoSlug);
+
         var requiredChecks = await GetRequiredStatusChecksAsync(owner, repo, branch, cancellationToken).ConfigureAwait(false);
         if (requiredChecks is null)
-            return BuildResult(branch, ciJobNames, [], "分支无保护规则或 required_status_checks 未配置, 建议先创建分支保护规则", repoSlug);
+            return BuildResult(branch, ciCheckNames, [], "分支无保护规则或 required_status_checks 未配置, 建议先创建分支保护规则", repoSlug);
 
-        // 从 required_status_checks 中提取对应 job_id 的 matrix name, 其他 workflow 的 check 不在审计范围
-        var requiredMatrixNames = requiredChecks
-            .Select(c => CiMatrixParser.ExtractMatrixNameFromCheck(c, jobId))
-            .Where(n => n is not null)
-            .Cast<string>()
-            .ToList();
-        return BuildResult(branch, ciJobNames, requiredMatrixNames, repo: repoSlug);
+        // 只审计本 workflow 的 check({jobId} / *); build/integration/e2e 等其他 workflow 的 required 不在范围
+        var prefix = $"{jobId} / ";
+        var requiredInScope = requiredChecks.Where(c => c.StartsWith(prefix, StringComparison.Ordinal)).ToList();
+        var outOfScopeCount = requiredChecks.Count - requiredInScope.Count;
+        var note = outOfScopeCount > 0
+            ? $"审计范围: {prefix}*（其他 workflow 的 {outOfScopeCount} 个 required check 不参与对比; 全量同步用 gh branch sync-protection）"
+            : null;
+        return BuildResult(branch, ciCheckNames, requiredInScope, note, repoSlug);
     }
 
     private async Task<List<string>?> GetRequiredStatusChecksAsync(string owner, string repo, string branch, CancellationToken ct) {

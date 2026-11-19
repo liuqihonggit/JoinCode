@@ -594,6 +594,29 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastQuery.Should().ContainKey("created").WhoseValue.Should().Be(">2026-01-01");
     }
 
+    /// <summary>0 结果 + 过滤 → 追加可操作提示（可用 event 值 + 去掉过滤基线），不再"静默空"</summary>
+    [Fact]
+    public async Task RunList_ZeroResultWithFilters_AppendsActionableHint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":0,"workflow_runs":[]}""" };
+
+        var result = await _handler.GhRunListAsync(event_type: "push", common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        var text = result.GetFirstText()!;
+        text.Should().Contain("0 个 run — 生效过滤: event=push");
+        text.Should().Contain("可用 event 值");
+        text.Should().Contain("jcc gh run list --limit 5");
+    }
+
+    /// <summary>0 结果但没有任何过滤 → 不追加"过滤生效"提示（避免无意义噪音）</summary>
+    [Fact]
+    public async Task RunList_ZeroResultWithoutFilters_NoFilterHint() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":0,"workflow_runs":[]}""" };
+
+        var result = await _handler.GhRunListAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.GetFirstText().Should().NotContain("生效过滤");
+    }
+
     /// <summary>run number(小数字)在 detail 404 时自动按 run_number 查询转换为 run id(缺陷3: AI 常误用 run number)</summary>
     [Fact]
     public async Task RunView_RunNumber_AutoConvertsToRunId_On404() {

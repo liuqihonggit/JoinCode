@@ -33,6 +33,29 @@ public sealed class GhCommandResolverTests {
         resolved.Tail.Should().BeEquivalentTo(new[] { "repos/o/r/issues" });
     }
 
+    /// <summary>jcc gh run wait --timeout/--interval 映射到 timeout_seconds/poll_interval_seconds（系统 gh 习惯）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_RunWait_TimeoutAndIntervalAliases_BindToSecondsParams() {
+        var resolved = GhCommandResolver.Resolve(
+            ["gh", "run", "wait", "123", "--timeout", "60", "--interval", "3", "--fail-fast"], out var error);
+        var parameters = new List<GhParam> {
+            new("run_id", true, false),
+            new("timeout_seconds", false, false, "integer"),
+            new("poll_interval_seconds", false, false, "integer"),
+            new("fail_fast", false, true, "boolean"),
+        };
+        var bound = GhArgsBinder.Bind(resolved!.Tail, parameters, "gh_run_wait", out var bindError);
+
+        error.Should().BeNull();
+        bindError.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["run_id"].Should().Be("123");
+        bound["timeout_seconds"].Should().Be("60");
+        bound["poll_interval_seconds"].Should().Be("3");
+        bound["fail_fast"].Should().Be("true");
+    }
+
     /// <summary>系统 gh CLI 的 --raw-field state=open 应映射到 jcc 的 --fields 参数</summary>
     /// <para>AI 习惯用系统 gh 的 --raw-field, jcc 应宽容接受</para>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

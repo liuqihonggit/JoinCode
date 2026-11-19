@@ -10,6 +10,14 @@ internal static class GhSubCommand {
     internal const string CallToolOption = "--call-tool";
 
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
+        // 包装器版本: jcc gh --version — 不是 gh 分组，直接返回版本与用法提示
+        if (Array.IndexOf(args, "--version") >= 0) {
+            var version = typeof(GhSubCommand).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+            TerminalHelper.WriteLine($"jcc gh (jcc-gh) {version}");
+            TerminalHelper.WriteLine("提示: 可用分组见 jcc gh --help；工具参数见 jcc gh <分组> <action> --help");
+            return 0;
+        }
+
         var hasHelp = Array.IndexOf(args, CliArgCliOptionConstants.HelpLongName) >= 0
                     || Array.IndexOf(args, CliArgCliOptionConstants.HelpShortName) >= 0;
         if (hasHelp) {
@@ -84,7 +92,10 @@ internal static class GhSubCommand {
         GhTimingTracker.CurrentTimer.Value = tracker;
         ToolResult? result;
         try {
-            result = await GhDispatcher.InvokeAsync(toolName, bound, ct).ConfigureAwait(false);
+            // 进度回调走 stderr: stdout 只留给最终数据, 长轮询(如 run wait)期间不再像卡死
+            result = await GhDispatcher.InvokeAsync(
+                toolName, bound, ct,
+                progress => TerminalHelper.WriteError($"[gh] {progress.Message}")).ConfigureAwait(false);
         } catch (JqSyntaxException ex) {
             // jq 写错属参数错误（不是执行失败）：报原因 + 退出 2，避免静默回退成整份 JSON
             TerminalHelper.WriteError(ex.Message);
@@ -97,8 +108,16 @@ internal static class GhSubCommand {
             return 1;
         }
         result.TimingInfo = tracker.Format();
-        return OutputResult(result, json);
+        var exitCode = OutputResult(result, json);
+        // 等待超时不是"成功": 已完成/失败结论走 0/1, 超时单独 3, 便于脚本区分
+        if (exitCode == 0 && toolName is "gh_run_wait" or "gh_pr_wait" or "gh_run_wait_failfast" && WaitTimedOut(result))
+            return 3;
+        return exitCode;
     }
+
+    /// <summary>识别等待类工具的超时结论(工具结果为 Ok+警告文案, 语义上是未完成)。</summary>
+    private static bool WaitTimedOut(ToolResult result)
+        => result.GetFirstText()?.Contains("等待超时", StringComparison.Ordinal) == true;
 
     /// <summary>直调入口的未知工具提示 —— 没有 group/action 可拆，直接按名字做包含/近似匹配。</summary>
     private static string UnknownToolMessage(string toolName) {

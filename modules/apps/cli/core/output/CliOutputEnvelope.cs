@@ -106,6 +106,9 @@ public sealed class CliOutputMeta {
 
     /// <summary>各阶段耗时统计(网络/缓存/解析) — gh 工具由 ExecuteGhAsync 统一设置</summary>
     public string? Timing { get; init; }
+
+    /// <summary>附加说明 — 结果之外的上下文提示(如注册表边界), 不参与数据解析</summary>
+    public string? Note { get; init; }
 }
 
 /// <summary>非交互模式运行结果 — 替代匿名类型，AOT 兼容。字段 Content 与 NDJSON CliStreamEventData.Content 统一</summary>

@@ -59,7 +59,7 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 | B1 JsonAssert 帮助器 | 测试项目模板（Desktop 场景先行） | ✅ | ✅ `test/unit/testing.common/asserts/JsonAssert.cs` 语义断言（Parse/Get 路径/字符串/布尔/整数/数组包含）；自测 `JsonAssertTests` 8/8；Desktop 场景 3 文件 9 测试迁移后 30/30 绿（`--filter FullyQualifiedName~DesktopScene`） |
 | B2 排版断言分析器 | 测试项目 | ✅ | ✅ `JsonLayoutAssertionRule`（JCC9311，仅测试项目，Info 级）；分析器测试 5/5（正例 2 + 反例 3）；AotSafety.Tests 全量 267/267；真机 `dotnet build guard.config.tests -p:ErrorLog` SARIF 命中存量 9 处排版断言（level=note 不破坏 TreatWarningsAsErrors）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
 | B3 RetryableFact 模板 + CI Flaky 分层 | AsyncLock.Tests、CI workflows | ✅ | ✅ `Testing.Common/retry/FlakyRetry.cs`（RunUntilAsync/RunAsync，耗尽聚合报错，取消直抛）；`FlakyRetryTests` 5/5；AskWithRetry 两例迁移后 12/12；`Category=Flaky` 15/15、默认过滤 541（556−15）；`ci-unit-tests.yml` 加 `Category!=Flaky`；新增 `ci-flaky-nightly.yml`（UTC 06:30 + workflow_dispatch，YAML 校验通过，首次夜跑待合并后观察）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
-| C1-C6 jcc 工具改造 | `jcc gh` 各子命令、`mcp_list/mcp_schema` | ❌ | ❌ |
+| C1-C6 jcc 工具改造 | `jcc gh` 各子命令、`mcp_list/mcp_schema` | ✅ | ✅ C1 单测（URL 首行 ×2）；C2 exe 实测 `gh branch audit-protection`: 22 匹配 / 0 误报 stale / 检出 2 个真实缺失 check；C3 exe 实测 `run wait --timeout 25 --interval 2`: 每轮进度行 + 超时 exit 3；C4 exe 实测 0 结果带过滤提示与可用 event 值；C5 exe 实测 mcp_list meta.note + mcp_schema gh_* 引导；C6 exe 实测 `gh --version` exit 0。C1 未真实建 PR（可由随后用户的 PR 自然覆盖） |
 | D1 ModuleInitializer 中央开关与登记门禁 | `Directory.Build.props`、门禁脚本 | ❌ | ❌ |
 
 ## 4. 风险与回滚
@@ -124,3 +124,22 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 <!-- 原因: xunit v2 的 FactAttribute 子类无法注入 Trait（发现器只认 TraitAttribute），想靠特性自动完成"标记+重试"必须自研 test framework（重且易碎）；把重试循环收进一个静态方法和保留 Trait 是最小可靠组合 -->
 <!-- 替代方案: 自研 XunitTestCase discoverer（维护成本远超收益）；只在文档里约定"手写 for 循环"（就是现在要消除的重复）——均否决 -->
 <!-- 验证: 5+12+15 测试全绿；默认过滤数与 Flaky 数精确互补 -->
+
+### C 批（2026-11-20 完成）
+
+- C1 `GhPrCreateAsync`：PR URL（或 `PR #n` 兜底）固定首行，auto-merge 分支同样先给位置再给状态；分支保护审计降级为末尾警告并标注"CI 未跑完时可能误报"。
+  - 验收：`PrCreate_AutoMergeTrue_PrUrlIsFirstLine`、`PrCreate_WithoutHtmlUrl_FallsBackToPrNumberFirstLine` 两单测；真实建 PR 动作留待用户 PR 流程验证。
+- C2 `BranchProtectionAuditor`：对比口径对齐 sync-protection — 用 `CiMatrixParser.ExtractAllCheckNames(yml, jobId)` 生成 check 全名（matrix 展开 + 独立 job 原样保留），required 侧按 `{jobId} / ` 前缀过滤本 workflow；删除旧的 `ExtractMatrixJobNames`/`ExtractMatrixNameFromCheck`（" - " 截断正是误报来源）。
+  - 验收：exe 实测 `gh branch audit-protection` 22 匹配、0 误报 stale；同时暴露 2 个**真实**缺失 required check（`Honesty checklist matches doc`、`Lock primitives - baseline only decreases`，需管理员同步，见下）。
+- C3 `GhDispatcher.InvokeAsync` 新增可选 `ToolProgressCallback` 参数注入（GetParams 跳过该参数，不再出现 `--on-progress` 幻影选项）；CLI 把进度写 stderr；`--timeout/--interval/--fail-fast` 别名映射；等待类工具超时 CLI 退出码 3。
+  - 验收：exe 实测 in_progress run：5 行进度、timeout 25s 生效、exit 3。
+- C4 `GhRunListAsync`：`total_count==0` 且带过滤时追加"生效过滤 + 可用 event 值 + 去过滤基线命令"提示，终结静默空。
+- C5 `mcp_list` JSON `meta.note` + 文本提示标注 gh_* 工具由 jcc-gh.exe 提供（172 个，不在 MCP 注册表）；`mcp_schema gh_*` 从"未找到工具"死路改为直接引导 `jcc gh <分组> <action> --help`。
+- C6 `GhSubCommand` 识别 `--version` 输出 `jcc gh (jcc-gh) <版本>` + 用法提示，exit 0。
+  - 验收：gh.tests 793/793，Host.Tests CliOutputEnvelope 33/33，exe 全项实测（见四列验收表）。
+
+<!-- 🤖 Auto Decision: 2026-11-20 TASK101-C -->
+<!-- 决策: C2 直接删除旧的 matrix 解析路径而不是在审计里做兼容映射；C5 采用"注册表边界说明"而非把 gh_* 合并进 MCP 注册表 -->
+<!-- 原因: 两套 check 名口径（裸值 vs 全名）正是误报根因，保留旧解析只会复发；合并注册表需主进程跨 exe 拉取 172 工具，启动开销与双源漂移都比一句说明更贵 -->
+<!-- 替代方案: 审计侧继续按裸 matrix 名比对并特判独立 job（把误报知识写进比对器）；mcp_list 实调 jcc-gh 填充 --list-tools（跨进程 + 缓存一致性）——均否决 -->
+<!-- 验证: audit 实测 22 匹配 0 误报；mcp_list/schema 实测带 note/引导；793 单测全绿 -->

@@ -3,7 +3,7 @@ namespace Gh.Tests;
 public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
-    public void ExtractMatrixJobNames_ParsesCiYmlCorrectly() {
+    public void ExtractAllCheckNames_MatrixJobWithNameField_ExpandsWithOuterPrefix() {
         var yml = """
           jobs:
             unit-tests:
@@ -19,31 +19,12 @@ public sealed partial class GitHubToolHandlersTests {
                       csproj: llm/llm.tests/Llm.Tests.csproj
         """;
 
-        var names = CiMatrixParser.ExtractMatrixJobNames(yml);
+        var names = CiMatrixParser.ExtractAllCheckNames(yml, "unit-tests");
 
-        names.Should().Equal("InfraIO", "Downloader", "Llm");
-    }
-
-    [Fact]
-    public void ExtractMatrixJobNames_DomainField_ParsesCorrectly() {
-        var yml = """
-          jobs:
-            unit-tests:
-              name: Unit - ${{ matrix.domain }}
-              strategy:
-                matrix:
-                  include:
-                    - domain: generators
-                      csprojs: modules/generators/aot_safety.tests/AotSafety.Tests.csproj
-                    - domain: collections
-                      csprojs: modules/collections/structura.tests/Structura.Tests.csproj
-                    - domain: mcp
-                      csprojs: modules/mcp/mcp.tests/Mcp.Tests.csproj
-        """;
-
-        var names = CiMatrixParser.ExtractMatrixJobNames(yml);
-
-        names.Should().Equal("generators", "collections", "mcp");
+        names.Should().Equal(
+            "unit-tests / Unit - InfraIO",
+            "unit-tests / Unit - Downloader",
+            "unit-tests / Unit - Llm");
     }
 
     [Fact]
@@ -67,16 +48,107 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
-    public void ExtractMatrixJobNames_EmptyYml_ReturnsEmpty() {
-        var names = CiMatrixParser.ExtractMatrixJobNames("");
-        names.Should().BeEmpty();
+    public void ExtractAllCheckNames_StandaloneJobs_KeepFullNameWithoutDashTruncation() {
+        // reusable workflow 的独立 job: "Tool Nodes - declarations" 必须整体保留 —
+        // 旧 ExtractMatrixNameFromCheck 会按最后一个 " - " 截成 "declarations"，误报脏检查
+        var yml = """
+          jobs:
+            unit-tests:
+              name: Unit - ${{ matrix.domain }}
+              strategy:
+                matrix:
+                  include:
+                    - domain: generators
+                      csprojs: a.csproj
+            module-order:
+              name: Module order (CLI + GUI)
+              runs-on: ubuntu-24.04
+            tool-nodes-declarations:
+              name: Tool Nodes - declarations
+              runs-on: ubuntu-24.04
+        """;
+
+        var checks = CiMatrixParser.ExtractAllCheckNames(yml, "unit-tests");
+
+        checks.Should().Equal(
+            "unit-tests / Unit - generators",
+            "unit-tests / Module order (CLI + GUI)",
+            "unit-tests / Tool Nodes - declarations");
     }
 
     [Fact]
-    public void ExtractMatrixJobNames_NoMatrix_ReturnsEmpty() {
-        var yml = "jobs:\n  build:\n    runs-on: ubuntu-latest\n";
-        var names = CiMatrixParser.ExtractMatrixJobNames(yml);
-        names.Should().BeEmpty();
+    public void ExtractAllCheckNames_EmptyYml_ReturnsEmpty() {
+        CiMatrixParser.ExtractAllCheckNames("", "unit-tests").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AuditAsync_StandaloneJobsAndOutOfScopeChecks_NoFalseStale() {
+        var fs = new InMemoryFileSystem();
+        const string ymlPath = "/repo/.github/workflows/ci-unit-tests.yml";
+        await fs.WriteAllText(ymlPath, """
+          jobs:
+            unit-tests:
+              name: Unit - ${{ matrix.domain }}
+              strategy:
+                matrix:
+                  include:
+                    - domain: generators
+                      csprojs: a.csproj
+                    - domain: collections
+                      csprojs: b.csproj
+            tool-nodes-reality:
+              name: Tool Nodes - reality
+              runs-on: ubuntu-24.04
+        """).ConfigureAwait(true);
+        var api = new FakeGitHubApiClient();
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"strict":true,"contexts":["build / Build","unit-tests / Unit - generators","unit-tests / Unit - collections","unit-tests / Tool Nodes - reality"]}""",
+        });
+
+        var auditor = new BranchProtectionAuditor(api, fs);
+        var result = await auditor.AuditAsync("owner", "repo", "main", ymlPath).ConfigureAwait(true);
+
+        result.IsConsistent.Should().BeTrue();
+        result.Matched.Should().Equal(
+            "unit-tests / Tool Nodes - reality",
+            "unit-tests / Unit - collections",
+            "unit-tests / Unit - generators");
+        result.StaleInProtection.Should().BeEmpty();
+        result.MissingFromProtection.Should().BeEmpty();
+        result.Note.Should().Contain("其他 workflow 的 1 个 required check 不参与对比");
+    }
+
+    [Fact]
+    public async Task AuditAsync_MissingMatrixContext_ReportsFullContextName() {
+        var fs = new InMemoryFileSystem();
+        const string ymlPath = "/repo/.github/workflows/ci-unit-tests.yml";
+        await fs.WriteAllText(ymlPath, """
+          jobs:
+            unit-tests:
+              name: Unit - ${{ matrix.domain }}
+              strategy:
+                matrix:
+                  include:
+                    - domain: generators
+                      csprojs: a.csproj
+                    - domain: tools
+                      csprojs: b.csproj
+        """).ConfigureAwait(true);
+        var api = new FakeGitHubApiClient();
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"strict":true,"contexts":["unit-tests / Unit - generators"]}""",
+        });
+
+        var auditor = new BranchProtectionAuditor(api, fs);
+        var result = await auditor.AuditAsync("owner", "repo", "main", ymlPath).ConfigureAwait(true);
+
+        result.IsConsistent.Should().BeFalse();
+        result.MissingFromProtection.Should().Equal("unit-tests / Unit - tools");
+        result.StaleInProtection.Should().BeEmpty();
     }
 
     [Fact]

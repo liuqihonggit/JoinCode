@@ -746,3 +746,73 @@ JCC_ALLOW_DIRECT_FALLBACK=1 JCC_VENDOR=openai jcc chat --prompt hi
 | 真机 | `[ROLES] declaration from profile 'agent-roles': <9 个>` → `[ROLES] built-in enabled: <同 9 个>` |
 | 零回归 | `tool tree` 635；Composition 1117；Llm 613；Engine 编译通过 |
 | 未跑 | `Agents.Tests` 与 `Pipelines.Tests` 从未 restore，按纪律未执行（断言均为数量/存在性，不涉及新参数） |
+## 17. S5：外部 profile 覆盖（让「改配置不重编」全局成立）
+
+### 17.1 卡点
+
+profile 只存在于 `EmbeddedResource`（`Composition.csproj` 编译时嵌入），`NodeProfileLoader` 也只读 manifest。
+所以前面四个契约虽然都能被 profile 调，但**调 profile 本身要重编译** —— 四问的第 ④ 条（不改代码改配置）在全局层面一直是假的。
+
+### 17.2 做法与语义
+
+`JCC_PROFILE_DIR` 指向一个目录：
+
+- **同名文件整体覆盖**内嵌版本，新名字则新增
+- 目录不存在 / 没有任何 `.yaml` / 某个文件解析失败 → **一律抛错**（配置写错要响，不能静默退回内嵌）
+
+为什么不做字段级深合并：yaml 本身已经给了三个局部改写机制（`inherits` / `overrides` / `excludes`），
+想要「只改一个消费点」就写个 5 行小文件 `inherits: base`，比隐式深合并可预测得多。
+隐式合并的坏处是没人能说清最终生效的是哪份字段。
+
+### 17.3 与 DeltaComposer 的关系（计划在这里修正了一处）
+
+原计划写的是「S5 用 `DeltaComposer`」。实际动手发现二者是**串联而非替代**：
+
+```
+外部 yaml（S5，定义 H₀ 基底） → NodeProfileResolver → ResolvedProfile
+                                                   ↓
+                              DeltaComposer（TASK098，叠加经验/经验 patch）
+```
+
+`DeltaComposer` 的键级覆写原语处理的是**运行期经验 patch**，让它去合并 yaml 文件等于把两个生命周期混成一层。
+所以 S5 只做「文件级装载」，`DeltaComposer` 一行没改 —— 这比硬套更符合「一个原语只管一类覆写」。
+
+### 17.4 JCC9001 冲突与解法
+
+分析器禁止在 Composition 里直接触盘（`Directory.EnumerateFiles` / `File.ReadAllText` 均报错）。
+没有用 `[SuppressMessage]` 绕，而是给 `LoadFromResources` 加 `IFileSystem?` 参数：
+
+| 调用点 | 传什么 |
+|---|---|
+| `Composition.ServiceRegistration` / `Pipelines.AddDataDrivenPipelines` | `sp.GetService<IFileSystem>()` |
+| CLI 的 4 个诊断入口（`Program` ×2、`ExperienceCommand` ×2、`ProbeCommand`） | `new PhysicalFileSystem()`（CLI 的 csproj 已 `NoWarn JCC9001`，且语义上它就是替用户读盘） |
+
+没传 `IFileSystem` 却设了环境变量 → 抛 `[PROFILE-DIR-NO-FS]` 并说明处置，不静默忽略。
+
+### 17.5 真机验收
+
+**正向（覆盖真的生效，且不用重编译）**：外部 `base.yaml` 把 `process`/`soft` 的优先级对调后：
+
+```
+（内嵌）  docker=100, soft=200, process=300, bubblewrap=400
+（外部）  docker=100, process=200, soft=300, bubblewrap=400
+```
+
+**负向（fail-closed）**：
+
+```
+JCC_PROFILE_DIR=D:\no\such\dir jcc --dump-nodes
+✖ 致命错误  [PROFILE-DIR-NOT-FOUND] 环境变量 JCC_PROFILE_DIR 指向的目录不存在: D:\no\such\dir。
+            处置: 修正路径，或删除该环境变量以使用内嵌 profile。
+```
+
+**门禁两种模式都跑**：默认 `[OK] 213 节点 / 104 消费点`；带覆盖同样 `[OK] 213 节点 / 104 消费点`
+（节点集合未变，只有优先级变化，符合预期）。
+
+**行为未退化**：`format C: /q` 仍被 `dangerous-command` 拒绝、未闭合引号仍被 `strict-parse` 拒绝。
+
+### 17.6 已知缺口（诚实记录）
+
+本轮之后 `[ORDER] sandbox_providers` / `[ORDER] bash-defense-chain` 这类打点在 `mcp_call` 路径下**看不到了**
+（`[LLM]` / `[ROLES]` 仍在）。行为本身已验证未退化（拦截仍生效、dump 顺序仍来自 profile），
+但「哪一层吞掉了这些诊断行」还没查清，已列为待办 —— 不能因为「验收当时看到过」就当作一直可见。

@@ -95,7 +95,7 @@ internal static class ExperienceCommand {
         // ConfigKey 存在性校验：patch 必须改 H₀ 中真实存在的键，否则是死配置（评审 P1）。
         if (patch is not null) {
             var h0 = Composition.Improvement.HarnessComposer.Compose(
-                Composition.NodeRegistry.NodeProfileLoader.LoadFromResources(), "base", []);
+                Composition.NodeRegistry.NodeProfileLoader.LoadFromResources(fileSystem: new IO.FileSystem.PhysicalFileSystem()), "base", []);
             if (!h0.Consumers.TryGetValue(patch.Consumer, out var cc)
                 || cc.Nodes.FirstOrDefault(n => n.Id == patch.Node) is not { } target) {
                 TerminalHelper.WriteError($"patch 目标 consumer/node 在 H₀ 中不存在（experience reflect patch 校验层拦截）：{patch.Consumer}/{patch.Node}。");
@@ -140,7 +140,7 @@ internal static class ExperienceCommand {
     /// <summary>round — 从 H₀ 重建本轮 harness，--adopt 才叠加 patch。</summary>
     private static int Round(string[] args) {
         var adoptCue = FlatSubCommandRouter.GetOptionValue(args, AdoptOption);
-        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources();
+        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources(fileSystem: new IO.FileSystem.PhysicalFileSystem());
 
         // 红线：无条件重新解析 base，绝不接收上一轮 ResolvedProfile。
         var h0 = Composition.Improvement.HarnessComposer.Compose(profiles, "base", []);

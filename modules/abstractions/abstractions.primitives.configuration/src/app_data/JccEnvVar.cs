@@ -18,6 +18,9 @@ public enum JccEnvVar {
     [EnumValue("JCC_NODE_PROFILE")]
     [SubCommandInfo("节点管道 Profile (base/headless/sdk/ci)", "运行时配置")]
     NodeProfile,
+    [EnumValue("JCC_PROFILE_DIR")]
+    [SubCommandInfo("外部 profile 目录 — 同名覆盖内嵌 profile，改配置不必重编译 (TASK100 S5)", "运行时配置")]
+    NodeProfileDir,
     [EnumValue("JCC_API_VERSION")] ApiVersion,
     [EnumValue("JCC_ORGANIZATION_ID")] OrganizationId,
     [EnumValue("JCC_ENABLE_OAUTH")]

@@ -249,7 +249,7 @@ class Program {
     /// --dump-nodes: 输出所有 Profile 中定义的节点列表（诊断用）
     /// </summary>
     private static int DumpNodesInfo(bool json = false, bool verify = false) {
-        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources();
+        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources(fileSystem: new IO.FileSystem.PhysicalFileSystem());
         var resolver = new Composition.NodeRegistry.NodeProfileResolver(profiles);
 
         // G5: 真机展示 NodeRegistry 从编译期工厂 catalog 自动归纳的节点数 ——
@@ -403,7 +403,7 @@ class Program {
     /// --dump-profile: 输出指定 Profile 的解析结果（诊断用）
     /// </summary>
     private static int DumpProfileInfo(string profileName) {
-        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources();
+        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources(fileSystem: new IO.FileSystem.PhysicalFileSystem());
         var resolver = new Composition.NodeRegistry.NodeProfileResolver(profiles);
 
         if (!profiles.ContainsKey(profileName)) {

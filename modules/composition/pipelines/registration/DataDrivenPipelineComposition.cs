@@ -346,7 +346,7 @@ public static class DataDrivenPipelineComposition {
         // 注册 IProfileManager + ResolvedProfile（DSG049: 运行期 Profile 动态切换）
         services.AddSingleton<IProfileManager>(sp => {
             var resolver = sp.GetRequiredService<NodeProfileResolver>();
-            var profiles = NodeProfileLoader.LoadFromResources();
+            var profiles = NodeProfileLoader.LoadFromResources(fileSystem: sp.GetService<IFileSystem>());
 
             // G6 经验继承：每轮从 profileName 基底重新解析（H₀ 重置红线），
             // 仅当显式设置 JCC_EXPERIENCE_ADOPT 时才叠加匹配经验的 patch。

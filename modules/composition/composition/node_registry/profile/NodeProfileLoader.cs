@@ -7,8 +7,26 @@ namespace JoinCode.Composition.NodeRegistry;
 public static class NodeProfileLoader {
     private const string ResourcePrefix = "JoinCode.Composition.Profiles.";
 
-    /// <summary>从程序集内嵌资源加载所有 Profile</summary>
-    public static FrozenDictionary<string, NodeProfile> LoadFromResources(Assembly? assembly = null) {
+    /// <summary>
+    /// 从程序集内嵌资源加载所有 Profile，并按需叠加外部目录覆盖。
+    /// <para>
+    /// TASK100 S5：此前 profile 只存在于 EmbeddedResource（<c>Composition.csproj</c> 编译时嵌入），
+    /// 改一行节点顺序都要重编译 —— 四问的第④条（不改代码改配置）因此全局不成立。
+    /// 现在可通过 <c>JCC_PROFILE_DIR</c> 指定外部目录：<b>同名文件整体覆盖内嵌版本</b>，新名字则新增。
+    /// </para>
+    /// <para>
+    /// 为什么是「整体覆盖」而不是字段级合并：yaml 本身已有 <c>inherits</c> / <c>overrides</c> / <c>excludes</c>
+    /// 三个局部改写机制，想要局部改就写个小文件 <c>inherits: base</c>，比隐式的深合并可预测得多。
+    /// </para>
+    /// </summary>
+    /// <param name="assembly">内嵌资源所在程序集（默认当前程序集）。</param>
+    /// <param name="fileSystem">读外部目录用的文件系统抽象；不读外部目录时可传 null。</param>
+    /// <param name="externalDirectory">外部 profile 目录；为 null 时读环境变量 <c>JCC_PROFILE_DIR</c>。</param>
+    /// <returns>profile 名 → 解析结果</returns>
+    public static FrozenDictionary<string, NodeProfile> LoadFromResources(
+        Assembly? assembly = null,
+        IFileSystem? fileSystem = null,
+        string? externalDirectory = null) {
         var asm = assembly ?? Assembly.GetExecutingAssembly();
         var profileNames = asm.GetManifestResourceNames()
             .Where(n => n.StartsWith(ResourcePrefix, StringComparison.Ordinal))
@@ -26,7 +44,55 @@ public static class NodeProfileLoader {
                 throw new InvalidOperationException($"Failed to load profile '{name}': {ex.Message}", ex);
             }
         }
+
+        ApplyExternalOverlay(profiles, fileSystem, externalDirectory ?? Environment.GetEnvironmentVariable(JccEnvVar.NodeProfileDir.ToValue()));
         return profiles.ToFrozenDictionary(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// 叠加外部 profile 目录 — 同名覆盖、新名新增；目录不存在或文件解析失败一律抛错（fail-closed）。
+    /// </summary>
+    /// <param name="profiles">已加载的内嵌 profile（就地修改）。</param>
+    /// <param name="fileSystem">文件系统抽象（JCC9001：本程序集不得直接触盘）。</param>
+    /// <param name="directory">外部目录；空则不做任何事。</param>
+    private static void ApplyExternalOverlay(Dictionary<string, NodeProfile> profiles, IFileSystem? fileSystem, string? directory) {
+        if (string.IsNullOrWhiteSpace(directory))
+            return;
+
+        if (fileSystem is null) {
+            throw new InvalidOperationException(
+                $"[PROFILE-DIR-NO-FS] 已通过 {JccEnvVar.NodeProfileDir.ToValue()} 指定外部 profile 目录，但当前入口没有 IFileSystem。" +
+                "处置: 用宿主入口（含 DI）运行，或去掉该环境变量。");
+        }
+
+        if (!fileSystem.DirectoryExists(directory)) {
+            throw new InvalidOperationException(
+                $"[PROFILE-DIR-NOT-FOUND] 环境变量 {JccEnvVar.NodeProfileDir.ToValue()} 指向的目录不存在: {directory}。" +
+                "处置: 修正路径，或删除该环境变量以使用内嵌 profile。");
+        }
+
+        var applied = 0;
+        foreach (var file in fileSystem.EnumerateFiles(directory, "*.yaml", SearchOption.TopDirectoryOnly)
+                     .OrderBy(static path => path, StringComparer.Ordinal)) {
+            var name = Path.GetFileNameWithoutExtension(file);
+            NodeProfile profile;
+            try {
+                profile = ParseYaml(name, string.Join("\n", fileSystem.ReadAllLines(file)));
+            } catch (Exception ex) {
+                throw new InvalidOperationException($"[PROFILE-DIR-PARSE] 外部 profile '{file}' 解析失败: {ex.Message}", ex);
+            }
+
+            var action = profiles.ContainsKey(name) ? "override" : "add";
+            profiles[name] = profile;
+            applied++;
+            Diag.WriteLine($"[PROFILE] external {action}: {name} <- {file}");
+        }
+
+        if (applied == 0) {
+            throw new InvalidOperationException(
+                $"[PROFILE-DIR-EMPTY] 外部 profile 目录里没有任何 .yaml: {directory}。" +
+                "处置: 放入 profile 文件，或删除该环境变量。");
+        }
     }
 
     /// <summary>加载单个 Profile</summary>

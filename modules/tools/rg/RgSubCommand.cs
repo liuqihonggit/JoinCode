@@ -894,11 +894,14 @@ public sealed record RgJsonEnvelope(bool Ok, RgJsonResult? Data, string SchemaVe
 [JsonSerializable(typeof(RgJsonEnvelope))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 internal sealed partial class RgJsonContext : JsonSerializerContext {
-    private static readonly Lazy<RgJsonContext> s_safe = new(() => new RgJsonContext(
-        new JsonSerializerOptions(Default.Options) {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            TypeInfoResolver = Default
-        }));
+    private static readonly Lazy<RgJsonContext> s_safe = new(() => {
+        var defaultContext = Default ?? throw new InvalidOperationException("[RgJsonContext] 源生成上下文 Default 未初始化");
+        return new RgJsonContext(
+            new JsonSerializerOptions(defaultContext.Options) {
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                TypeInfoResolver = defaultContext
+            });
+    });
 
     /// <summary>带 UnsafeRelaxedJsonEscaping 的上下文 — 不转义中文等非 ASCII 字符</summary>
     public static RgJsonContext Safe => s_safe.Value;

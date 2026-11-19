@@ -32,7 +32,9 @@ internal static class GitHubSecretEncryptor {
         using var ecdh = ECDiffieHellman.Create(ECCurve.CreateFromFriendlyName("curve25519"));
         var privateKey = ecdh.ExportParameters(true);
         var publicKey = ecdh.ExportParameters(false);
-        return (publicKey.Q.X, privateKey.D);
+        return (
+            publicKey.Q.X ?? throw new InvalidOperationException("[gh] X25519 公钥缺少 X 分量"),
+            privateKey.D ?? throw new InvalidOperationException("[gh] X25519 私钥缺少 D 分量"));
     }
 
     /// <summary>

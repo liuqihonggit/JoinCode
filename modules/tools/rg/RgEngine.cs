@@ -77,7 +77,10 @@ internal static class RgEngine {
             .WithDegreeOfParallelism(degree)
             .Select(f => SearchFile(f, regex, q, ct))
             .Where(r => r is not null)
-            .ForAll(r => results.Add(r));
+            .ForAll(r => {
+                if (r is null) return;
+                results.Add(r);
+            });
 
         var orderedResults = ApplySort(results, q.Sort);
         var (paged, appliedLimit, appliedOffset) = ApplyPaging(orderedResults, q.HeadLimit, q.Offset);

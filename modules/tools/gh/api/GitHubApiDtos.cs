@@ -899,9 +899,10 @@ internal sealed partial class GitHubApiJsonContext : JsonSerializerContext
 {
 
     private static readonly Lazy<GitHubApiJsonContext> s_safe = new(() => {
-        var opts = new JsonSerializerOptions(Default.Options) {
+        var defaultContext = Default ?? throw new InvalidOperationException("[GitHubApiJsonContext] 源生成上下文 Default 未初始化");
+        var opts = new JsonSerializerOptions(defaultContext.Options) {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            TypeInfoResolver = Default
+            TypeInfoResolver = defaultContext
         };
         StrongTypedIdConverterRegistry.Register(opts);
         return new GitHubApiJsonContext(opts);

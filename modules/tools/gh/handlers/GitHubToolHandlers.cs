@@ -102,8 +102,8 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 构建失败 ToolResult(直接错误消息)
     /// </summary>
-    internal static ToolResult Fail(string message) {
-        return ToolResultBuilder.Error().WithText(message).Build();
+    internal static ToolResult Fail(string? message) {
+        return ToolResultBuilder.Error().WithText(string.IsNullOrWhiteSpace(message) ? "未知错误" : message).Build();
     }
 
     /// <summary>发布评论并返回警告文案(失败时非 null) — close/reopen 附带评论场景,评论失败不阻止主操作但警告用户</summary>

@@ -89,12 +89,14 @@ internal static class GitHubRunPoller {
         CancellationToken ct) {
         var (state, value, error, pollCount, elapsedMs) = await PollUntilAsync(
             ct => PollRunOnceAsync(apiClient, owner, repo, runId, ct),
-            v => $"Run {runId}: {v.Status}",
+            v => $"Run {runId}: {v?.Status}",
             timeout, initialInterval, onProgress, progressType, ct).ConfigureAwait(false);
 
+        if (state == PollState.Error) return RunWaitResult.FromError(error ?? "轮询失败", pollCount);
+        var data = value ?? throw new InvalidOperationException("[gh] 轮询完成但无数据");
         return state switch {
-            PollState.Completed => RunWaitResult.Completed(value.Conclusion ?? "unknown", value.Body, pollCount, elapsedMs),
-            PollState.Timeout => RunWaitResult.FromTimeout(value.Status, value.Body, pollCount, elapsedMs),
+            PollState.Completed => RunWaitResult.Completed(data.Conclusion ?? "unknown", data.Body, pollCount, elapsedMs),
+            PollState.Timeout => RunWaitResult.FromTimeout(data.Status, data.Body, pollCount, elapsedMs),
             _ => RunWaitResult.FromError(error ?? "轮询失败", pollCount)
         };
     }
@@ -103,7 +105,7 @@ internal static class GitHubRunPoller {
     /// 单次 Run 轮询 — IO 操作,返回 (Kind, Value, Error)
     /// </summary>
 
-    private static async Task<(PollOutcomeKind, RunPollData, string?)> PollRunOnceAsync(
+    private static async Task<(PollOutcomeKind, RunPollData?, string?)> PollRunOnceAsync(
         IGitHubApiClient apiClient, string owner, string repo, string runId, CancellationToken ct) {
         var result = await apiClient.SendAsync(
             HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
@@ -129,12 +131,14 @@ internal static class GitHubRunPoller {
         CancellationToken ct) {
         var (state, value, error, pollCount, elapsedMs) = await PollUntilAsync(
             ct => PollPrChecksOnceAsync(apiClient, owner, repo, headSha, ct),
-            v => $"PR #{prNumber}: {v.Summary}",
+            v => $"PR #{prNumber}: {v?.Summary}",
             timeout, initialInterval, onProgress, progressType, ct).ConfigureAwait(false);
 
+        if (state == PollState.Error) return PrWaitResult.FromError(error ?? "轮询失败", pollCount);
+        var prData = value ?? throw new InvalidOperationException("[gh] 轮询完成但无数据");
         return state switch {
-            PollState.Completed => PrWaitResult.Completed(value.Summary, value.FailCount, value.Body, pollCount, elapsedMs),
-            PollState.Timeout => PrWaitResult.FromTimeout(value.Summary, value.Body, pollCount, elapsedMs),
+            PollState.Completed => PrWaitResult.Completed(prData.Summary, prData.FailCount, prData.Body, pollCount, elapsedMs),
+            PollState.Timeout => PrWaitResult.FromTimeout(prData.Summary, prData.Body, pollCount, elapsedMs),
             _ => PrWaitResult.FromError(error ?? "轮询失败", pollCount)
         };
     }
@@ -143,7 +147,7 @@ internal static class GitHubRunPoller {
     /// 单次 PR checks 轮询 — IO 操作,返回 (Kind, Value, Error)
     /// </summary>
 
-    private static async Task<(PollOutcomeKind, PrPollData, string?)> PollPrChecksOnceAsync(
+    private static async Task<(PollOutcomeKind, PrPollData?, string?)> PollPrChecksOnceAsync(
         IGitHubApiClient apiClient, string owner, string repo, string headSha, CancellationToken ct) {
         var result = await apiClient.SendAsync(
             HttpMethod.Get, $"repos/{owner}/{repo}/commits/{headSha}/check-runs",
@@ -171,13 +175,15 @@ internal static class GitHubRunPoller {
         CancellationToken ct) {
         var (state, value, error, pollCount, elapsedMs) = await PollUntilAsync(
             ct => PollRunJobsOnceAsync(apiClient, owner, repo, runId, ct),
-            v => $"Run {runId}: {v.Summary}",
+            v => $"Run {runId}: {v?.Summary}",
             timeout, initialInterval, onProgress, progressType, ct).ConfigureAwait(false);
 
+        if (state == PollState.Error) return JobWatchResult.FromError(error ?? "轮询失败", pollCount);
+        var jobData = value ?? throw new InvalidOperationException("[gh] 轮询完成但无数据");
         return state switch {
-            PollState.Completed => JobWatchResult.Completed(value.RunConclusion, value.FailedJobIds, value.Summary, pollCount, elapsedMs),
-            PollState.FastFailed => JobWatchResult.FailFast(value.RunConclusion, value.FailedJobIds, value.Summary, pollCount, elapsedMs),
-            PollState.Timeout => JobWatchResult.FromTimeout(value.Summary, pollCount, elapsedMs),
+            PollState.Completed => JobWatchResult.Completed(jobData.RunConclusion, jobData.FailedJobIds, jobData.Summary, pollCount, elapsedMs),
+            PollState.FastFailed => JobWatchResult.FailFast(jobData.RunConclusion, jobData.FailedJobIds, jobData.Summary, pollCount, elapsedMs),
+            PollState.Timeout => JobWatchResult.FromTimeout(jobData.Summary, pollCount, elapsedMs),
             _ => JobWatchResult.FromError(error ?? "轮询失败", pollCount)
         };
     }
@@ -186,7 +192,7 @@ internal static class GitHubRunPoller {
     /// 单次 Run jobs 轮询 — 并行查 run status + jobs,发现 failure job 返回 FailFast
     /// </summary>
 
-    private static async Task<(PollOutcomeKind, JobWatchData, string?)> PollRunJobsOnceAsync(
+    private static async Task<(PollOutcomeKind, JobWatchData?, string?)> PollRunJobsOnceAsync(
         IGitHubApiClient apiClient, string owner, string repo, string runId, CancellationToken ct) {
         var runTask = apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct);
         var jobsTask = apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs",

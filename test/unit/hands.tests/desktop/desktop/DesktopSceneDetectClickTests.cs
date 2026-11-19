@@ -2,7 +2,7 @@ namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// AC-07 detect+click mock 完整链路测试 — 验证识别到按钮后推荐 click，点击后推荐 look。
-/// <para>断言按 JSON 语义解析（DTO 序列化为紧凑格式、非 ASCII 转义），不锁死字符串排版。</para>
+/// <para>断言走 JsonAssert 语义路径（不依赖紧凑排版与非 ASCII 转义）。</para>
 /// </summary>
 public sealed class DesktopSceneDetectClickTests {
     /// <summary>AC-07: detect 识别到"="按钮后 suggested_next 含 desktop_click</summary>
@@ -20,16 +20,13 @@ public sealed class DesktopSceneDetectClickTests {
         var result = await handler.DetectAsync("sc_calc");
 
         result.IsError.Should().BeFalse();
-        using var doc = JsonDocument.Parse(TextOf(result));
-        var root = doc.RootElement;
-        root.GetProperty("scene_id").GetString().Should().Be("sc_calc");
-        root.GetProperty("elements").EnumerateArray().Should().Contain(
+        var text = TextOf(result);
+        JsonAssert.AssertString(text, "scene_id", "sc_calc");
+        JsonAssert.AssertArrayContains(text, "elements",
             e => e.GetProperty("type").GetString() == "button" && e.GetProperty("label").GetString() == "=");
-        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+        JsonAssert.AssertArrayContains(text, "suggested_next",
             e => e.GetProperty("tool").GetString() == "desktop_click");
-        var reasons = root.GetProperty("suggested_next").EnumerateArray()
-            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
-        reasons.Should().Contain(r => r.Contains("识别到按钮", StringComparison.Ordinal));
+        JsonAssert.AssertAnyStringContains(text, "suggested_next", "reason", "识别到按钮");
     }
 
     /// <summary>AC-07: detect 识别到输入框后 suggested_next 含 desktop_type</summary>
@@ -44,15 +41,12 @@ public sealed class DesktopSceneDetectClickTests {
 
         var result = await handler.DetectAsync("sc_form");
 
-        using var doc = JsonDocument.Parse(TextOf(result));
-        var root = doc.RootElement;
-        root.GetProperty("elements").EnumerateArray().Should().Contain(
+        var text = TextOf(result);
+        JsonAssert.AssertArrayContains(text, "elements",
             e => e.GetProperty("type").GetString() == "input" && e.GetProperty("label").GetString() == "用户名");
-        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+        JsonAssert.AssertArrayContains(text, "suggested_next",
             e => e.GetProperty("tool").GetString() == "desktop_type");
-        var reasons = root.GetProperty("suggested_next").EnumerateArray()
-            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
-        reasons.Should().Contain(r => r.Contains("输入框", StringComparison.Ordinal));
+        JsonAssert.AssertAnyStringContains(text, "suggested_next", "reason", "输入框");
     }
 
     /// <summary>AC-07: click 成功后 suggested_next 含 desktop_look</summary>
@@ -69,16 +63,13 @@ public sealed class DesktopSceneDetectClickTests {
         var result = await handler.ClickAsync("sc_calc", 500, 300);
 
         result.IsError.Should().BeFalse();
-        using var doc = JsonDocument.Parse(TextOf(result));
-        var root = doc.RootElement;
-        root.GetProperty("succeeded").GetBoolean().Should().BeTrue();
-        root.GetProperty("x").GetInt32().Should().Be(500);
-        root.GetProperty("y").GetInt32().Should().Be(300);
-        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+        var text = TextOf(result);
+        JsonAssert.AssertBool(text, "succeeded", true);
+        JsonAssert.AssertInt(text, "x", 500);
+        JsonAssert.AssertInt(text, "y", 300);
+        JsonAssert.AssertArrayContains(text, "suggested_next",
             e => e.GetProperty("tool").GetString() == "desktop_look");
-        var reasons = root.GetProperty("suggested_next").EnumerateArray()
-            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
-        reasons.Should().Contain(r => r.Contains("点击完成", StringComparison.Ordinal));
+        JsonAssert.AssertAnyStringContains(text, "suggested_next", "reason", "点击完成");
         inputMock.Verify(i => i.ClickAsync(500, 300, MouseAction.Click, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -96,15 +87,12 @@ public sealed class DesktopSceneDetectClickTests {
         var result = await handler.ClickAsync("sc_calc", 0, 1080);
 
         result.IsError.Should().BeFalse();
-        using var doc = JsonDocument.Parse(TextOf(result));
-        var root = doc.RootElement;
-        root.GetProperty("succeeded").GetBoolean().Should().BeFalse();
-        root.GetProperty("error").GetString().Should().Be("DangerousCoordinate");
-        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+        var text = TextOf(result);
+        JsonAssert.AssertBool(text, "succeeded", false);
+        JsonAssert.AssertString(text, "error", "DangerousCoordinate");
+        JsonAssert.AssertArrayContains(text, "suggested_next",
             e => e.GetProperty("tool").GetString() == "desktop_look");
-        var reasons = root.GetProperty("suggested_next").EnumerateArray()
-            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
-        reasons.Should().Contain(r => r.Contains("点击失败", StringComparison.Ordinal));
+        JsonAssert.AssertAnyStringContains(text, "suggested_next", "reason", "点击失败");
     }
 
     /// <summary>AC-07: 完整链路 mock — look → zoom → detect → click 全链路 suggested_next 串联</summary>
@@ -136,17 +124,21 @@ public sealed class DesktopSceneDetectClickTests {
         var clickHandler = new DesktopSceneClickToolHandlers(inputMock.Object, stateStoreMock.Object);
 
         var lookResult = await lookHandler.LookAsync("sc_calc");
-        TextOf(lookResult).Should().Contain("desktop_zoom", "look 应推荐 zoom");
+        JsonAssert.AssertArrayContains(TextOf(lookResult), "suggested_next",
+            e => e.GetProperty("tool").GetString() == "desktop_zoom", "look 应推荐 zoom");
 
         var zoomResult = await zoomHandler.ZoomAsync("sc_calc", 2);
-        TextOf(zoomResult).Should().Contain("desktop_detect", "zoom 看清后应推荐 detect");
+        JsonAssert.AssertArrayContains(TextOf(zoomResult), "suggested_next",
+            e => e.GetProperty("tool").GetString() == "desktop_detect", "zoom 看清后应推荐 detect");
 
         var detectResult = await detectHandler.DetectAsync("sc_calc");
-        TextOf(detectResult).Should().Contain("desktop_click", "detect 识别到按钮应推荐 click");
+        JsonAssert.AssertArrayContains(TextOf(detectResult), "suggested_next",
+            e => e.GetProperty("tool").GetString() == "desktop_click", "detect 识别到按钮应推荐 click");
 
         var clickResult = await clickHandler.ClickAsync("sc_calc", 500, 300);
         clickResult.IsError.Should().BeFalse();
-        TextOf(clickResult).Should().Contain("desktop_look", "click 完成后应推荐 look 继续下一步");
+        JsonAssert.AssertArrayContains(TextOf(clickResult), "suggested_next",
+            e => e.GetProperty("tool").GetString() == "desktop_look", "click 完成后应推荐 look 继续下一步");
     }
 
     /// <summary>提取工具结果首个文本 — 缺失即抛异常（替代 null-forgiving）。</summary>

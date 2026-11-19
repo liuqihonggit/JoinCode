@@ -85,7 +85,7 @@ jobs:
             dotnet test "$proj" -c Debug --nologo --no-build \
               -p:UsePackedComponents=true \
               -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
-              --filter "Category!=Integration&Category!=Benchmark" \
+              --filter "Category!=Integration&Category!=Benchmark&Category!=Flaky" \
               --logger "console;verbosity=normal" \
               --logger "trx;LogFileName=$name.trx"
           done

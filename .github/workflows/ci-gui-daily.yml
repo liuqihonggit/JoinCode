@@ -1,5 +1,7 @@
 name: CI GUI Daily
 
+# UI 域（native_tui + native_gui）的唯一守门人 — PR CI 不再构建 UI（成本决策 2026-11-20）。
+# 跨域契约漂移（INodeRegistry/GoalEngine 等）若漏过 PR，本工作流最迟 2 天内暴露。
 on:
   workflow_dispatch:
   schedule:
@@ -39,6 +41,7 @@ jobs:
 
       - name: Build
         run: |
+          dotnet build native_tui/native_tui.slnx -c Release --nologo -m
           dotnet build native_gui/tests/native_gui.core.tests/NativeGui.Core.Tests.csproj -c Release --nologo
           dotnet build native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj -c Release --nologo
 

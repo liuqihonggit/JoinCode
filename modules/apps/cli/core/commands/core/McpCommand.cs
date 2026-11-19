@@ -115,10 +115,19 @@ public sealed class McpCliCommand {
     private static bool RequiresWholeRegistry(string toolName)
         => toolName is "tool_search" or "tool_score" or "tool_hypergraph" or "tool_list_templates";
 
+    /// <summary>
+    /// mcp_list 的注册表边界说明 — gh_* 工具由独立 jcc-gh.exe 提供, 不在 MCP 注册表。
+    /// </summary>
+    private static string? BuildRegistryBoundaryNote(string? category)
+        => string.IsNullOrEmpty(category) || string.Equals(category, "github", StringComparison.OrdinalIgnoreCase)
+            ? "github 组另有 gh_* 工具(172 个, 由独立 jcc-gh.exe 提供, 如 gh_pr_create)不在 MCP 注册表: 用 jcc gh --help 或 jcc gh <分组> --help 查看"
+            : null;
+
     internal static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct = default)
         => WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             var tools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
+            var boundaryNote = BuildRegistryBoundaryNote(category);
 
             if (json) {
                 var filtered = tools.Values
@@ -133,7 +142,8 @@ public sealed class McpCliCommand {
                         t.GroupName,
                         t.Kind.ToString()))
                     .ToList();
-                var envelope = Cli.Output.CliOutputEnvelope<System.Collections.Generic.List<Cli.Output.CliToolListItem>>.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
+                var envelope = Cli.Output.CliOutputEnvelope<System.Collections.Generic.List<Cli.Output.CliToolListItem>>.Success(
+                    items, new Cli.Output.CliOutputMeta { TotalCount = count, Note = boundaryNote });
                 System.Console.WriteLine(envelope.ToJsonString());
             } else {
                 var grouped = tools.Values
@@ -145,6 +155,7 @@ public sealed class McpCliCommand {
                     TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleEnumConstants.Reset} ({g.Count()}): {string.Join(", ", g.OrderBy(t => t.Name).Select(t => t.Name))}");
                 }
                 TerminalHelper.NewLine();
+                if (boundaryNote is not null) TerminalHelper.WriteLine($"提示: {boundaryNote}");
                 TerminalHelper.WriteLine($"总计: {tools.Count} 个工具（用 jcc mcp_schema <工具名> 查看参数详情）");
             }
             return 0;
@@ -181,12 +192,22 @@ public sealed class McpCliCommand {
             return 0;
         }, ct: ct, skipToolFilter: true);
 
+    /// <summary>
+    /// gh_* 工具的 schema 查询引导 — 这类工具由独立 jcc-gh.exe 提供, MCP 注册表里查不到, 直接报"未找到"会让调用方换命令瞎试。
+    /// </summary>
+    private static string BuildGhSchemaRedirect(string toolName)
+        => $"工具 {toolName} 由独立 jcc-gh.exe（gh CLI 包装器）提供，不在 MCP 注册表。\n"
+         + $"查参数: jcc gh <分组> <action> --help（如 jcc gh pr create --help）\n"
+         + $"列工具: jcc gh --help 看分组；jcc gh <分组> --help 看该组全部 action";
+
     internal static Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct = default)
         => WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             var info = await registry.GetToolInfoAsync(toolName, ct).ConfigureAwait(false);
 
             if (info is null) {
+                if (toolName.StartsWith("gh_", StringComparison.OrdinalIgnoreCase))
+                    return OutputError(BuildGhSchemaRedirect(toolName), json);
                 var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
                 var suggestions = LlmJsonHelper.SuggestToolNames(toolName, allTools.Keys);
                 var msg = suggestions.Count > 0

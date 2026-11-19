@@ -15,7 +15,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
     <WarningsNotAsErrors>JCC3021</WarningsNotAsErrors>
-    <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD100;VSTHRD101;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200</NoWarn>
+    <!-- CA2255 全局豁免由 JCC9312 接管治理: 非测试程序集必须显式声明 <JccAllowModuleInitializer>true</JccAllowModuleInitializer>,
+         测试程序集默认放行(UTF-8/本地化引导惯例)。禁止再散落 #pragma warning disable CA2255 -->
+    <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD100;VSTHRD101;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;CA2255</NoWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>zh-CN</SatelliteResourceLanguages>
     <!-- 分析器开关：/p:JccAnalyzers=false 禁用自定义分析器(AotSafety+CodeFixes)，加速迭代编译 -->
@@ -137,6 +139,8 @@
 
   <ItemGroup>
     <CompilerVisibleProperty Include="ProjectType" />
+    <!-- JCC9312 治理输入: 非测试程序集登记 ModuleInitializer 的中央开关 -->
+    <CompilerVisibleProperty Include="JccAllowModuleInitializer" />
     <Using Include="System.Collections.Concurrent" />
     <Using Include="System.Diagnostics" />
     <Using Include="System.Text.Json" />

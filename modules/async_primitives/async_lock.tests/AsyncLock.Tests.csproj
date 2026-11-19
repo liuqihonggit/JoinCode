@@ -18,5 +18,6 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/llm/core/Llm.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/llm/agents/Agents.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 </Project>

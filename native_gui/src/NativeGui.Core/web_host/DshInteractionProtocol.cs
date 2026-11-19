@@ -207,7 +207,7 @@ internal sealed class DshMessageFeedbackItem {
     /// <summary>消息 ID</summary>
     public string MessageId { get; set; } = "";
     /// <summary>评价（positive / negative）</summary>
-    public string Rating { get; set; } = "positive";
+    public string Rating { get; set; } = DshFeedbackRating.Positive.ToValue();
     /// <summary>补充说明</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Note { get; set; }

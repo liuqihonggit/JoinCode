@@ -82,3 +82,6 @@ jobs:
             artifacts/bin/JoinCode/Debug/net10.0/
             artifacts/bin/Hub/Debug/net10.0/
           retention-days: 1
+
+  # UI 域（native_tui / native_gui）编译验证已移到定期 CI（ci-gui-daily.yml, 每 2 天）。
+  # 决策（用户指令 2026-11-20）: PR 必跑的 windows 构建成本过高；跨域契约漂移由定期 job 兜底。

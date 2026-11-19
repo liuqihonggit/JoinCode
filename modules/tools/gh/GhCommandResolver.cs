@@ -465,6 +465,11 @@ internal static class GhArgsBinder {
             ("rebase",            new GhCliAlias("merge_method", "rebase", AliasKind.FixedValue))
         ),
         ["gh_run_rerun"] = new(("failed", new GhCliAlias("failed_only", "true", AliasKind.FixedValue))),
+        ["gh_run_wait"]  = new(
+            ("timeout",  new GhCliAlias("timeout_seconds", null, AliasKind.TakeNextToken)),
+            ("timeout-seconds", new GhCliAlias("timeout_seconds", null, AliasKind.TakeNextToken)),
+            ("interval", new GhCliAlias("poll_interval_seconds", null, AliasKind.TakeNextToken)),
+            ("fail-fast", new GhCliAlias("fail_fast", "true", AliasKind.FixedValue))),
         ["gh_run_view"]  = new(("job", new GhCliAlias("job_id", null, AliasKind.TakeNextToken)), ("pr", new GhCliAlias("pr", null, AliasKind.TakeNextToken))),
         ["gh_run_list"]  = new(("event", new GhCliAlias("event_type", null, AliasKind.TakeNextToken))),
         ["gh_repo_create"] = new(

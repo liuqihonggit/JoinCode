@@ -52,13 +52,52 @@ public partial class GitHubToolHandlers {
             }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             var failureHint = hasFailure ? await BuildDynamicFailureHintAsync(client, owner, repoName, result.Body, cancellationToken).ConfigureAwait(false) : "";
+            var zeroHint = HasZeroTotalCount(result.Body)
+                ? BuildZeroRunHint(status, branch, event_type, workflow, user, commit, created)
+                : "";
             var formattedOutput = effectiveVerbosity switch {
-                2 => result.Body + failureHint,
-                1 => GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint,
-                _ => GitHubRunListSummarizer.SummarizeRunListBrief(result.Body) + failureHint
+                2 => result.Body + failureHint + zeroHint,
+                1 => GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint + zeroHint,
+                _ => GitHubRunListSummarizer.SummarizeRunListBrief(result.Body) + failureHint + zeroHint
             };
             return Ok(ApplyPaginationAndTruncation(formattedOutput, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: false));
         }).ConfigureAwait(false);
+
+    /// <summary>响应 total_count==0 — 用于 0 结果时追加上下文, 避免"静默空"。</summary>
+    private static bool HasZeroTotalCount(string body) {
+        try {
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.TryGetProperty("total_count", out var tc)
+                && tc.TryGetInt32(out var count)
+                && count == 0;
+        } catch (JsonException) {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 0 结果引导 — 回显生效过滤 + 可用 event 值 + 去掉过滤的退路。
+    /// <para>实证: github API 对不匹配任何 run 的 event 值不报错只返回空集, 静默空会误导排障方向。</para>
+    /// </summary>
+    private static string BuildZeroRunHint(
+        string? status, string? branch, string? eventType, string? workflow, string? user, string? commit, string? created) {
+        var applied = new List<string>(7);
+        if (!string.IsNullOrWhiteSpace(status)) applied.Add($"status={status}");
+        if (!string.IsNullOrWhiteSpace(branch)) applied.Add($"branch={branch}");
+        if (!string.IsNullOrWhiteSpace(eventType)) applied.Add($"event={eventType}");
+        if (!string.IsNullOrWhiteSpace(workflow)) applied.Add($"workflow={workflow}");
+        if (!string.IsNullOrWhiteSpace(user)) applied.Add($"user={user}");
+        if (!string.IsNullOrWhiteSpace(commit)) applied.Add($"commit={commit}");
+        if (!string.IsNullOrWhiteSpace(created)) applied.Add($"created={created}");
+        if (applied.Count == 0) return "";
+        return $"""
+
+            ⚠️ 0 个 run — 生效过滤: {string.Join(", ", applied)}
+            可用 event 值: push | pull_request | pull_request_target | schedule | workflow_dispatch | workflow_call | merge_group | release | issues | discussion
+            提示: 0 结果常见原因: ① event 与仓库真实触发方式不符(如仓库只在 pull_request 上跑) ② 过滤组合过窄
+            可先去掉过滤确认基线: jcc gh run list --limit 5
+            """;
+    }
 
 
     /// <summary>

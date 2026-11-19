@@ -26,6 +26,39 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public async Task PrCreate_AutoMergeTrue_PrUrlIsFirstLine() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":77,"node_id":"PR_kwDOTVZE0c8AAAABCsFVdw","html_url":"https://github.com/owner/repo/pull/77","title":"feat","state":"open"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":77}}}}""",
+        });
+
+        var result = await _handler.GhPrCreateAsync("feat", "feature-branch", @base: "main", auto_merge: true, merge_method: "squash", common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        var lines = result.GetFirstText()!.Split('\n');
+        lines[0].Trim().Should().Be("https://github.com/owner/repo/pull/77");
+        lines[1].Should().Contain("auto-merge");
+    }
+
+    [Fact]
+    public async Task PrCreate_WithoutHtmlUrl_FallsBackToPrNumberFirstLine() {
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":78,"node_id":"","title":"feat","state":"open"}""",
+        });
+
+        var result = await _handler.GhPrCreateAsync("feat", "feature-branch", @base: "main", common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.GetFirstText()!.Split('\n')[0].Trim().Should().Be("PR #78");
+    }
+
+    [Fact]
     public async Task PrCreate_AutoMergeFalse_DoesNotCallGraphQL() {
         _api.NextResponse = new GitHubApiResponse {
             Success = true,

@@ -39,6 +39,7 @@ internal static class GhDispatcher {
                 continue;
             }
             if (p.ParameterType == typeof(CancellationToken)) continue;
+            if (p.ParameterType == typeof(ToolProgressCallback)) continue;
             AddParam(result, ToSnakeCase(p.Name ?? "?"), p.ParameterType, p.GetCustomAttribute<McpToolParameterAttribute>(), p.HasDefaultValue);
         }
         return result;
@@ -56,13 +57,14 @@ internal static class GhDispatcher {
         result.Add(new GhParam(name, isRequired, isBoolean, typeHint));
     }
 
-    internal static async Task<ToolResult?> InvokeAsync(string toolName, Dictionary<string, string> args, CancellationToken ct) {
+    internal static async Task<ToolResult?> InvokeAsync(string toolName, Dictionary<string, string> args, CancellationToken ct, ToolProgressCallback? onProgress = null) {
         if (!s_toolMap.TryGetValue(toolName, out var method)) return null;
         var parameters = method.GetParameters();
         var argValues = new object?[parameters.Length];
         for (var i = 0; i < parameters.Length; i++) {
             var p = parameters[i];
             if (p.ParameterType == typeof(CancellationToken)) { argValues[i] = ct; continue; }
+            if (p.ParameterType == typeof(ToolProgressCallback)) { argValues[i] = onProgress; continue; }
             if (p.GetCustomAttribute<McpToolOptionsAttribute>() is not null) {
                 argValues[i] = BuildCommonOptions(args);
                 continue;

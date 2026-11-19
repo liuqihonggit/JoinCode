@@ -12,7 +12,8 @@
 #   pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -Changed -NoAnalyzers
 #       按需编译且关闭 JCC/NET 分析器与生成文件落盘，最快。
 #   pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1
-#       完整全仓（保留原行为，分钟级）。跨域契约变更 / CI 前才用。
+#       完整全仓（分钟级）：JoinCode.slnx + native_tui/native_gui（UI 域不在 JoinCode.slnx 内，默认一并编译）。
+#       跨域契约变更 / CI 前才用。
 #   pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -NoAnalyzers
 #       全仓但关分析器，明显提速；编译器错误（CS0535 等）仍会暴露。
 #   pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -Domains a,b,c
@@ -89,7 +90,11 @@ function Invoke-BuildTarget {
     dotnet @buildArgs 2>&1 | Tee-Object -FilePath $log | Out-Null
     $code = $LASTEXITCODE
     if ($code -ne 0) {
-        Select-String -Path $log -Pattern "error" | Select-Object -First 15 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+        $errors = @(Select-String -Path $log -Pattern "error" | Select-Object -First 30)
+        if ($errors.Count -eq 0) {
+            Write-Host "    无直接 error 行（可能被 MSB4181/级联失败掩盖），请查看日志" -ForegroundColor Yellow
+        }
+        $errors | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
         Write-Host "    日志: $log" -ForegroundColor Yellow
     }
     return $code
@@ -119,18 +124,34 @@ if ($Changed) {
     exit 0
 }
 
-# 完整全仓 — 保留原行为
+# 完整全仓 — 默认覆盖 JoinCode.slnx + native_tui/native_gui（这两个域不在 JoinCode.slnx 内，
+# 遗漏会放过跨域契约漂移：TASK099 B7 实测 GoalEngine/INodeRegistry 成员变更只被 UI 域编译暴露）
 if ($Domains -eq "") {
-    Write-Host ">>> dotnet build build/sln/JoinCode.slnx (并行模式) ..." -ForegroundColor Cyan
-    $code = Invoke-BuildTarget -Target "build/sln/JoinCode.slnx" -ExtraArgs @("--no-restore") -AnalyzerArgs $analyzerArgs
-    if ($code -eq 0) {
-        Write-Host "全部通过 (JoinCode.slnx)" -ForegroundColor Green
-        Pop-Location
-        exit 0
+    $fullTargets = @(
+        @{ Domain = "solution";   Target = "build/sln/JoinCode.slnx"; Extra = @("--no-restore") },
+        @{ Domain = "native_tui"; Target = "native_tui/native_tui.slnx"; Extra = @() },
+        @{ Domain = "native_gui"; Target = "native_gui/tests/native_gui.core.tests/NativeGui.Core.Tests.csproj"; Extra = @() },
+        @{ Domain = "native_gui"; Target = "native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj"; Extra = @() }
+    )
+    $fullResults = @()
+    $fullFailed = @()
+    foreach ($t in $fullTargets) {
+        $code = Invoke-BuildTarget -Target $t.Target -ExtraArgs $t.Extra -AnalyzerArgs $analyzerArgs
+        $ok = $code -eq 0
+        $fullResults += [pscustomobject]@{ Domain = $t.Domain; Target = $t.Target; Ok = $ok }
+        if (-not $ok) { $fullFailed += $t.Target }
     }
-    Write-Host "JoinCode.slnx 编译失败 (exit $code)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "===== 编译结果 =====" -ForegroundColor Cyan
+    $fullResults | Format-Table Domain, Ok -AutoSize | Out-String | Write-Host
+    if ($fullFailed.Count -gt 0) {
+        Write-Host "失败 target: $($fullFailed -join ', ')" -ForegroundColor Red
+        Pop-Location
+        exit 1
+    }
+    Write-Host "全部通过" -ForegroundColor Green
     Pop-Location
-    exit 1
+    exit 0
 }
 
 # 按域编译模式

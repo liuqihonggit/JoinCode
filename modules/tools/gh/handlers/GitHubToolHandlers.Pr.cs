@@ -861,19 +861,21 @@ public partial class GitHubToolHandlers {
                 if (!projectResult.Success) projectWarning = $"\n⚠ 添加到 Project #{project} 失败: {projectResult.Error}";
             }
             var auditWarning = await auditTask.ConfigureAwait(false);
+            // PR URL 必须是首行: 终端输出可能被审计/警告段落淹没, AI 与人都需要第一眼拿到位置
+            var prUrl = TryExtractJsonField(result.Body, "html_url") ?? TryExtractJsonField(result.Body, "url");
+            var location = prUrl ?? $"PR #{prNumber}";
             if (auto_merge == true && prNumber > 0 && !string.IsNullOrEmpty(nodeId)) {
                 var autoMergeResult = await EnableAutoMergeAsync(client, nodeId, merge_method, cancellationToken).ConfigureAwait(false);
                 var msg = autoMergeResult.Success
-                    ? $"PR {prNumber} 创建成功，已启用 auto-merge（{autoMergeResult.Method}）"
-                    : $"PR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）";
+                    ? $"{location}\nPR {prNumber} 创建成功，已启用 auto-merge（{autoMergeResult.Method}）"
+                    : $"{location}\nPR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）";
                 if (wait == true && prNumber > 0) {
                     var waitResult = await GhPrWaitCoreAsync(client, owner, repoName, prNumber.ToString(), wait_timeout, null, fail_fast == true, common?.WorkingDir, cancellationToken, null).ConfigureAwait(false);
                     return Ok(msg + projectWarning + auditWarning + fillInfo + "\n\n" + waitResult.GetFirstText());
                 }
                 return Ok(msg + projectWarning + auditWarning + fillInfo);
             }
-            var prUrl = TryExtractJsonField(result.Body, "html_url") ?? TryExtractJsonField(result.Body, "url");
-            var createMsg = prUrl is not null ? $"{prUrl}\nPR 创建成功{projectWarning}{auditWarning}{fillInfo}" : $"PR 创建成功{projectWarning}{auditWarning}{fillInfo}";
+            var createMsg = $"{location}\nPR 创建成功{projectWarning}{auditWarning}{fillInfo}";
             if (wait == true && prNumber > 0) {
                 var waitResult = await GhPrWaitCoreAsync(client, owner, repoName, prNumber.ToString(), wait_timeout, null, fail_fast == true, common?.WorkingDir, cancellationToken, null).ConfigureAwait(false);
                 return Ok(createMsg + "\n\n" + waitResult.GetFirstText());
@@ -895,7 +897,7 @@ public partial class GitHubToolHandlers {
             var auditor = new BranchProtectionAuditor(client, _fs);
             var auditResult = await auditor.AuditAsync(owner, repo, branch, ymlPath, ct).ConfigureAwait(false);
             if (auditResult.IsConsistent) return "";
-            return "\n\n⚠️ 分支保护审计发现差异:\n" + auditResult.BuildReport();
+            return "\n\n⚠️ 分支保护审计发现差异（仅警告, 不影响本次创建; required check 命名以 check suite 注册为准, CI 未跑完时可能误报）:\n" + auditResult.BuildReport();
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "分支保护审计失败(非阻断)");
             return "";

@@ -11,10 +11,10 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
     <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
-    <!-- CA2255: 本地化引导必须随 Infrastructure 程序集加载自动执行（L.T 懒初始化），
+    <!-- 中央登记（JCC9312）: 本地化引导必须随 Infrastructure 程序集加载自动执行（L.T 懒初始化），
          放到上层可执行程序集只有 CLI 宿主生效、其余宿主退化为返回 key（CI storage/cognition 失败实证）。
-         项目级豁免优于散落 #pragma；仅此一处，新增 ModuleInitializer 需复核。 -->
-    <NoWarn>$(NoWarn);CA2255</NoWarn>
+         仅此一处；新增 ModuleInitializer 必须在各自 csproj 同样显式登记并写明理由。 -->
+    <JccAllowModuleInitializer>true</JccAllowModuleInitializer>
   </PropertyGroup>
 
   <ItemGroup>

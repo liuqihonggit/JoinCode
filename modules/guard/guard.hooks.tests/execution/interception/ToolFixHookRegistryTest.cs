@@ -67,10 +67,8 @@ public sealed class ToolFixHookRegistryTest {
     }
 
     [Fact]
-    public async Task RegisterDefaultFixHooks_RegistersThreeDefaultHooks() {
-        await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
-
-        registry.RegisterDefaultFixHooks();
+    public async Task Constructor_InjectsThreeDefaultHooks() {
+        await using var registry = new ToolFixHookRegistry(_healthMonitor.Object, [new Core.Hooks.Execution.FixHooks.GhPrBodyFixHook(), new Core.Hooks.Execution.FixHooks.JsonFixHook(), new Core.Hooks.Execution.FixHooks.GhTimeoutFixHook()]);
 
         var hooks = registry.GetHooks();
         hooks.Should().Contain(h => h.Name == "GhPrBodyFixHook");
@@ -80,8 +78,7 @@ public sealed class ToolFixHookRegistryTest {
 
     [Fact]
     public async Task Unregister_RemovesHookByName() {
-        await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
-        registry.RegisterDefaultFixHooks();
+        await using var registry = new ToolFixHookRegistry(_healthMonitor.Object, [new Core.Hooks.Execution.FixHooks.GhPrBodyFixHook(), new Core.Hooks.Execution.FixHooks.JsonFixHook(), new Core.Hooks.Execution.FixHooks.GhTimeoutFixHook()]);
 
         var removed = registry.Unregister("JsonFixHook");
 

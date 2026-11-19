@@ -3,6 +3,7 @@ namespace Core.Hooks.Execution.FixHooks;
 /// <summary>
 /// GitHub PR Body 修正 Hook — 当 gh pr create 缺少 body 时自动添加
 /// </summary>
+[Register(typeof(IToolFixHook), ServiceLifetime.Singleton)]
 public sealed class GhPrBodyFixHook : IToolFixHook {
     private readonly ILogger<GhPrBodyFixHook>? _logger;
 
@@ -41,6 +42,7 @@ public sealed class GhPrBodyFixHook : IToolFixHook {
 /// <summary>
 /// JSON 格式修正 Hook — 当 JSON 解析失败时调用 LlmJsonHelper.RepairJson 修复
 /// </summary>
+[Register(typeof(IToolFixHook), ServiceLifetime.Singleton)]
 public sealed class JsonFixHook : IToolFixHook {
     private readonly ILogger<JsonFixHook>? _logger;
 
@@ -79,6 +81,7 @@ public sealed class JsonFixHook : IToolFixHook {
 /// <summary>
 /// GitHub 超时修正 Hook — 当 gh 命令超时时自动添加重试
 /// </summary>
+[Register(typeof(IToolFixHook), ServiceLifetime.Singleton)]
 public sealed class GhTimeoutFixHook : IToolFixHook {
     private readonly ILogger<GhTimeoutFixHook>? _logger;
 

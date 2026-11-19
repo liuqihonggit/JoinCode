@@ -447,6 +447,17 @@ consumers:
       - id: vpn-route-guard
         priority: 100
 
+  # TASK100 S2b：工具修正器链 — 顺序唯一来源同守卫链（priority 降序 = 先尝试）。
+  tool-fix-chain:
+    contract: guard
+    nodes:
+      - id: gh-pr-body-fix-hook
+        priority: 300
+      - id: json-fix-hook
+        priority: 200
+      - id: gh-timeout-fix-hook
+        priority: 100
+
   # TASK100 S1：原 tool-dispatch 4 条声明（shell/file/web/code_execution）已删除 ——
   # 无任何工厂、无任何生产消费方（ToolDispatchConsumer 只在测试里 new）。
   # 工具分组开关待 S4 用 capability 契约重建，不接受「声明了但没人装配」的死配置。

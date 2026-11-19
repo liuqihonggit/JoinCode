@@ -299,6 +299,13 @@ public static class DataDrivenPipelineComposition {
         yield return F("command-guard-chain:gh-pr-body-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.GhPrBodyGuard>());
         yield return F("command-guard-chain:gh-timeout-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.GhTimeoutGuard>());
         yield return F("command-guard-chain:vpn-route-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Guards.VpnRouteGuard>());
+
+        // ═══════════════════════════════════════════════════════════
+        // tool-fix-chain — 工具修正器（contract: guard）
+        // ═══════════════════════════════════════════════════════════
+        yield return F("tool-fix-chain:gh-pr-body-fix-hook", sp => sp.GetRequiredService<Core.Hooks.Execution.FixHooks.GhPrBodyFixHook>());
+        yield return F("tool-fix-chain:json-fix-hook", sp => sp.GetRequiredService<Core.Hooks.Execution.FixHooks.JsonFixHook>());
+        yield return F("tool-fix-chain:gh-timeout-fix-hook", sp => sp.GetRequiredService<Core.Hooks.Execution.FixHooks.GhTimeoutFixHook>());
     }
 
     /// <summary>

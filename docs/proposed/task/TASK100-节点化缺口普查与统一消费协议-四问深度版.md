@@ -424,7 +424,7 @@ consumers:
 |---|---|---|
 | 0 | 普查与本文档（含 §11 施工单、§12 分域细则） | ✅ |
 | S1 | 契约字段 + dump 扩展 + 一致性门禁 | ✅ |
-| S2 | guard 域节点化：S2a 守卫链 ✅ / S2b 修正器+沙箱 ⬜ | 🟡 |
+| S2 | guard 域节点化：S2a 守卫链 ✅ / S2b 修正器 ✅ / S2c 沙箱+防御链 ⬜ | 🟡 |
 | S3 | provider + role 节点化 | ⬜ |
 | S4 | 能力 + 命令表面节点化 | ⬜ |
 | S5 | 外部 profile 覆盖 | ⬜ |
@@ -481,3 +481,25 @@ consumers:
 | 零回归 | Guard.Hooks.Tests 598 全绿；Composition.Tests 1117；`tool tree` 635 |
 
 **已知边界**：从 profile 删除某守卫不会让它失效 —— 实现存在但未声明时按安全优先追加到链尾（打点告警），同时 CI 门禁会报「工厂无声明」。即：**运行期绝不静默丢守卫，配置漂移由 CI 拦**。真正的「关闭某守卫」留给 `enabled-when`（S2b 一起做）。
+
+### 14.3 S2b 实施记录（工具修正器链）
+
+| 文件 | 改动 |
+|---|---|
+| `modules/guard/guard.hooks/execution/fix_hooks/ToolFixHooks.cs` | 3 个修正器加 `[Register(typeof(IToolFixHook))]` |
+| `.../execution/core/ToolFixHookRegistry.cs` | 构造注入 `IEnumerable<IToolFixHook>` + `IProfileManager`，`NodeChainOrder` 排序；删除 `RegisterDefaultFixHooks`（硬编码 new 三个）；`Register` 改为「已声明段之后按 priority 降序插入」 |
+| `modules/guard/guard/plugins/FixHooksPlugin.cs` | **删除**（只做 `new` 的插件已无用），同步移除 `McpInitModule` 清单项 |
+| `resources/profiles/base.yaml` | 新增 `tool-fix-chain`（`contract: guard`，3 节点，priority 300/200/100） |
+| `.../DataDrivenPipelineComposition.cs` | 新增 3 个 `tool-fix-chain:*` 工厂 |
+| `ToolFixHookRegistryTest.cs` | 两个用例改为构造注入（`RegisterDefaultFixHooks` 已删） |
+
+**真机验收**
+
+| 项 | 结果 |
+|---|---|
+| `jcc --dump-nodes` | 187 节点 / 88 消费点；`tool-fix-chain [contract=guard, 3 节点]` |
+| 宿主装配（`mcp_serve` + `JCC_DEBUGLOG=1`） | `[ORDER] tool_fix_hooks: GhPrBodyFixHook > JsonFixHook > GhTimeoutFixHook` —— DI 真的注入 3 个、顺序来自 profile |
+| 引擎启动 | 删除 `FixHooksPlugin` 后宿主正常启动（无残留引用） |
+| 零回归 | Guard.Hooks.Tests 598；Composition.Tests 1117；门禁 `[OK]` |
+
+**差评抓到的问题（值得记）**：首次构建后生成注册表仍引用已删除的 `FixHooksPlugin`、且 `IToolFixHook` 一个都没注册 —— 原因是 `Guard.csproj` 未重编，生成器扫的是**旧的 Guard.dll**。重编 Guard → guard.hooks → `Composition -t:Rebuild` 后，`FixHooksPlugin` 残留 0、`IToolFixHook` 注册 12 处正常。**教训与 TASK098 同源：编译成功 ≠ 生成物更新，跨库改动必须确认生成代码内容。**

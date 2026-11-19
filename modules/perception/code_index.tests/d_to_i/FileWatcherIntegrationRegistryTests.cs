@@ -96,6 +96,27 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable {
         await _watcherRegistry.DisposeAsync();
     }
 
+    /// <summary>
+    /// 回归（CI #703 Collection was modified）: Dispose 与注册命令并发时不得枚举崩溃。
+    /// 旧实现在 base.DisposeAsync()（停 Consumer + 等 in-flight）之前就 foreach _watchers，
+    /// 与 Consumer 线程上的 RegisterWatcher 写字典并发 → Dictionary 枚举期修改异常。
+    /// </summary>
+    [Fact]
+    public async Task DisposeAsync_ConcurrentBurstRegistrations_CompletesWithoutCollectionModified() {
+        for (var round = 0; round < 16; round++) {
+            var registry = new CodeIndexerRegistry(_fs, _defaultIndexer);
+            var watcherRegistry = new FileWatcherIntegrationRegistry(registry, _fs);
+            var registrations = Enumerable.Range(0, 4)
+                .Select(i => registry.RegisterAsync($"race_{round}_{i}", $"/workspace/{round}_{i}", CancellationToken.None))
+                .ToArray();
+
+            await watcherRegistry.DisposeAsync();
+
+            await Task.WhenAll(registrations);
+            registry.DisposeSafe();
+        }
+    }
+
     [Fact]
     public async Task AfterDispose_NewRegistrationDoesNotStartWatcher() {
         await _watcherRegistry.DisposeAsync();

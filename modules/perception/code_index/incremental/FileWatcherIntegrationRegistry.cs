@@ -5,7 +5,7 @@ namespace JoinCode.CodeIndex;
 /// <para>订阅 ICodeIndexerRegistry 的 RepoRegistered/RepoUnregistered 事件，按 repo_id 隔离管理 FileWatcherIntegration 实例。</para>
 /// <para>事件处理器用 TrySend(Tell 模式) 投递命令到邮箱，不阻塞、不需要 await。</para>
 /// <para>查询用 SendAsync + AskAwait(Ask 模式)，内置死锁检测+超时守卫。</para>
-/// <para>Dispose: base.DisposeAsync() 等 Consumer 退出后，直接遍历 _watchers 释放(Consumer 已退出，无并发)。</para>
+/// <para>Dispose: 解除订阅 → base.DisposeAsync() 停 Consumer 并清空 in-flight → PostStopAsync 遍历 _watchers 释放(无并发写者)。</para>
 /// </summary>
 [Register(typeof(FileWatcherIntegrationRegistry), ServiceLifetime.Singleton)]
 public sealed class FileWatcherIntegrationRegistry : ActorBase<FileWatcherRegistryCommand, Unit> {
@@ -116,7 +116,10 @@ public sealed class FileWatcherIntegrationRegistry : ActorBase<FileWatcherRegist
     }
 
     /// <summary>
-    /// 释放资源 — 解除事件订阅，等待 Consumer 退出后释放所有 watcher
+    /// 释放资源 — 先解除事件订阅，再交给 base 停止 Consumer 并等待 in-flight；
+    /// watcher 释放放在 <see cref="PostStopAsync"/>（base 保证 Consumer 已退出、in-flight 已清空后才调用）。
+    /// <para>竞态教训（CI #703: Collection was modified）: 旧实现先 foreach _watchers 再 base.DisposeAsync()，
+    /// 而 in-flight 的 RegisterWatcher 仍在 Consumer 线程写字典 → Dispose 与注册并发枚举崩溃。</para>
     /// </summary>
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -124,6 +127,11 @@ public sealed class FileWatcherIntegrationRegistry : ActorBase<FileWatcherRegist
         _registry.RepoRegistered -= OnRepoRegistered;
         _registry.RepoUnregistered -= OnRepoUnregistered;
 
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Consumer 退出且 in-flight 清空后释放所有 watcher — 此时字典无并发写者。</summary>
+    protected override async ValueTask PostStopAsync() {
         foreach (var kvp in _watchers) {
             try {
                 await kvp.Value.StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -133,8 +141,6 @@ public sealed class FileWatcherIntegrationRegistry : ActorBase<FileWatcherRegist
             }
         }
         _watchers.Clear();
-
-        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

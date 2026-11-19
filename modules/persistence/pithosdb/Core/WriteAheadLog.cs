@@ -135,7 +135,7 @@ public sealed class WriteAheadLog : IDisposable
                 bw.Write(key);
                 if (type == WalEntryType.Put)
                 {
-                    bw.Write(value!.Length);
+                    bw.Write(value.Length);
                     bw.Write(value);
                 }
             }

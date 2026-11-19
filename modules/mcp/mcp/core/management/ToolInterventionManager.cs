@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace McpToolDispatch;
 
 /// <summary>
@@ -142,11 +141,10 @@ public sealed class ToolInterventionManager : ServiceEntity {
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task SaveToDiskAsync() {
         try {
-            var dir = Path.GetDirectoryName(_configPath)!;
-            if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
+            var dir = Path.GetDirectoryName(_configPath);
+            if (dir is not null && !_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
             var snapshot = _rules;
             var dict = snapshot.ToDictionary();
             var json = RelaxedJsonSerializer.Serialize(dict, ToolInterventionJsonContext.Default);

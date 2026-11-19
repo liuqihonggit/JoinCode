@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Services.Lsp.Internal;
 
 /// <summary>
@@ -48,9 +47,9 @@ internal sealed class LspServerRegistry {
     /// <summary>
     /// 按文件扩展名查找对应的服务器实例（取扩展名映射中的第一个服务器）。
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public bool TryGetByExtension(string ext, [MaybeNullWhen(false)] out LspServerInstance instance) {
-        instance = null!;
+        instance = null;
         if (!_extensionMap.TryGetValue(ext, out var serverNames) || serverNames.Count == 0)
             return false;
         return _servers.TryGetValue(serverNames[0], out instance);

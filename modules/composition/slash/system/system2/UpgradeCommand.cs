@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -109,7 +108,6 @@ public sealed class UpgradeCommand : ChatCommandBase {
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static async Task ApplyUpdateAsync(IUpgradeService service, Version currentVersion, CancellationToken ct) {
         TerminalHelper.WriteLine("正在获取并下载更新...");
         try {
@@ -128,8 +126,13 @@ public sealed class UpgradeCommand : ChatCommandBase {
                 return;
             }
 
+            if (downloadResult.DownloadedPath is not { } downloadedPath) {
+                TerminalHelper.WriteLine("下载结果缺少文件路径");
+                return;
+            }
+
             TerminalHelper.WriteLine("下载完成，正在安装...");
-            var applyResult = await service.ApplyUpdateAsync(downloadResult.DownloadedPath!, ct).ConfigureAwait(false);
+            var applyResult = await service.ApplyUpdateAsync(downloadedPath, ct).ConfigureAwait(false);
             if (applyResult.Success) {
                 TerminalHelper.WriteLine("更新安装成功! 请重启 jcc 生效");
             } else {

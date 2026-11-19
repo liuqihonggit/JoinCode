@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 // JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
 #pragma warning disable JCC11005
 // JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
@@ -34,7 +33,7 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public DeleteOperationInfo? Detect(string toolName, Dictionary<string, JsonElement>? arguments) {
         if (!DeleteToolNames.Contains(toolName))
             return null;
@@ -42,7 +41,9 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
         if (arguments is null || !arguments.TryGetValue("command", out var cmdEl) || cmdEl.ValueKind != JsonValueKind.String)
             return null;
 
-        var command = cmdEl.GetString()!;
+        var command = cmdEl.GetString();
+        if (command is null) return null;
+
         return DetectDeleteCommand(command);
     }
 

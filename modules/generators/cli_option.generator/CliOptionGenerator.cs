@@ -349,7 +349,7 @@ public sealed class CliOptionGenerator : IIncrementalGenerator {
         foreach (var opt in aliasOptions) {
             var sourceCamel = ToCamelCase(ToFieldName(opt.Name));
             var aliasOf = opt.AliasOf;
-            var targetOpt = !string.IsNullOrEmpty(aliasOf) ? optionsByLongName[aliasOf!].FirstOrDefault() : null;
+            var targetOpt = aliasOf is not null ? optionsByLongName[aliasOf].FirstOrDefault() : null;
             if (targetOpt is null)
                 continue;
             var targetCamel = ToCamelCase(ToFieldName(targetOpt.Name));

@@ -19,7 +19,7 @@ public sealed record KeyChord(KeyShortcut[] Steps)
     /// <param name="text">键序列串（空格分隔）。</param>
     /// <exception cref="FormatException">任一段非法或整体为空。</exception>
     public static KeyChord Parse(string text) =>
-        TryParse(text, out var chord, out var error) ? chord! : throw new FormatException(error);
+        TryParse(text, out var chord, out var error) ? chord : throw new FormatException(error);
 
     /// <summary>
     /// 尝试解析键序列串：整串就是单个空格 → space 键（基准 parser.ts:81-83 quirk：空格是序列分隔符的歧义消解）；
@@ -29,7 +29,7 @@ public sealed record KeyChord(KeyShortcut[] Steps)
     /// <param name="chord">解析结果（失败时为 null）。</param>
     /// <param name="error">失败原因（四要素 + 第几段定位）。</param>
     /// <returns>解析是否成功。</returns>
-    public static bool TryParse(string text, out KeyChord? chord, out string error)
+    public static bool TryParse(string text, [NotNullWhen(true)] out KeyChord? chord, out string error)
     {
         if (text == " ")
         {

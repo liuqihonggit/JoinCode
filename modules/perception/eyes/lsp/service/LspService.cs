@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Services.Lsp;
 
 /// <summary>
@@ -435,10 +434,10 @@ public sealed partial class LspService : ServiceEntity, ILspService {
     /// Location: { uri, range }
     /// LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static LspLocation? DeserializeSingleLocation(JsonNode? node) {
         if (node is not JsonObject) return null;
-        var json = node!.ToJsonString();
+        var json = node.ToJsonString();
 
         // Location: { uri, range }
         var location = RelaxedJsonSerializer.Deserialize(json, LspJsonContext.Default.LspLocation);
@@ -453,7 +452,6 @@ public sealed partial class LspService : ServiceEntity, ILspService {
         return null;
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static List<LspCompletionItem> DeserializeCompletions(JsonNode? result) {
         if (result is null) return [];
 
@@ -462,7 +460,7 @@ public sealed partial class LspService : ServiceEntity, ILspService {
         }
 
         if (result is JsonObject) {
-            var completionList = RelaxedJsonSerializer.Deserialize(result!.ToJsonString(), LspJsonContext.Default.LspCompletionListDto);
+            var completionList = RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspCompletionListDto);
             return completionList?.Items ?? [];
         }
 

@@ -1,4 +1,3 @@
-// JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
 namespace Core.Utils;
 
 /// <summary>
@@ -27,12 +26,16 @@ public sealed class ActorSelection {
     /// <typeparam name="TCommand">命令类型</typeparam>
     /// <param name="msg">消息</param>
     /// <param name="sender">发送者引用(null=无 sender)</param>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "DeadLetter 记录 msg 为 object 非空, 泛型 TCommand 可能可空引用类型")]
+
     public void Tell<TCommand>(TCommand msg, object? sender = null) {
+        if (msg is null) {
+            throw new ArgumentNullException(nameof(msg));
+        }
+
         if (_system.Selection(_path) is IActor<TCommand> actor) {
             actor.Tell(msg, sender);
         } else {
-            _system.EventStream.Publish(new DeadLetter(msg!, sender, _path, "Actor 不存在或类型不匹配"));
+            _system.EventStream.Publish(new DeadLetter(msg, sender, _path, "Actor 不存在或类型不匹配"));
         }
     }
 

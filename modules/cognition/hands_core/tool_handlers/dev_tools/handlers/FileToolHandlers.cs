@@ -1,6 +1,5 @@
 
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Tools.Handlers;
 
 /// <summary>
@@ -34,7 +33,7 @@ public partial class FileToolHandlers : IDisposable {
     /// <param name="fs">文件系统抽象</param>
     /// <param name="context">可选依赖上下文，聚合各服务和逻辑组件</param>
     /// <param name="logger">可选日志记录器</param>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public FileToolHandlers(
         IFileOperationService fileOperationService,
         IFileSystem fs,
@@ -44,12 +43,12 @@ public partial class FileToolHandlers : IDisposable {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _ctx = context ?? new FileToolHandlersContext();
+        // FileOperationConfig fallback: 保证 _ctx.FileOperationConfig 非 null（对齐原 _ctx.FileOperationConfig = context?.FileOperationConfig ?? new()）
+        var fileOperationConfig = _ctx.FileOperationConfig ?? new FileOperationConfig();
+        _ctx = _ctx with { FileOperationConfig = fileOperationConfig };
         _telemetry = new FileTelemetryRecorder(_ctx.TelemetryService);
         _pathResolver = new FilePathResolver(_ctx.SandboxManager);
-        _specialReader = new FileSpecialFormatReader(_fs, _ctx.FileOperationConfig!, _ctx.FileStateCache, _telemetry, _pathResolver, _logger);
-        // FileOperationConfig fallback: 保证 _ctx.FileOperationConfig 非 null（对齐原 _ctx.FileOperationConfig = context?.FileOperationConfig ?? new()）
-        if (_ctx.FileOperationConfig is null)
-            _ctx = _ctx with { FileOperationConfig = new FileOperationConfig() };
+        _specialReader = new FileSpecialFormatReader(_fs, fileOperationConfig, _ctx.FileStateCache, _telemetry, _pathResolver, _logger);
         // WriteDefenseService — 优先从 DI 获取，否则用当前依赖现场构造 node 再注入（测试场景）
         _writeDefense = _ctx.WriteDefenseService
             ?? new WriteDefenseService(

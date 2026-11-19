@@ -895,9 +895,9 @@ public sealed record RgJsonEnvelope(bool Ok, RgJsonResult? Data, string SchemaVe
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 internal sealed partial class RgJsonContext : JsonSerializerContext {
     private static readonly Lazy<RgJsonContext> s_safe = new(() => new RgJsonContext(
-        new JsonSerializerOptions(Default!.Options) {
+        new JsonSerializerOptions(Default.Options) {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            TypeInfoResolver = Default!
+            TypeInfoResolver = Default
         }));
 
     /// <summary>带 UnsafeRelaxedJsonEscaping 的上下文 — 不转义中文等非 ASCII 字符</summary>

@@ -24,7 +24,7 @@ internal static class GitCommandCatalog {
     public static IEnumerable<string> ToolIds => Builders.Keys.OrderBy(id => id, StringComparer.Ordinal);
 
     public static bool TryGet(string toolId, out Func<ArgBag, string> builder) =>
-        Builders.TryGetValue(toolId, out builder!);
+        Builders.TryGetValue(toolId, out builder);
 
     private static string StatusArgs(ArgBag a) => "status --porcelain -b";
 

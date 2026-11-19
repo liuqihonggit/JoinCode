@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Bridge;
 
 /// <summary>
@@ -157,10 +156,11 @@ public sealed class BridgeDeviceTokenService {
     }
 
     /// <summary>保存令牌到安全存储</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task SaveTokenToStorageAsync(string token, CancellationToken ct) {
-        var dir = Path.GetDirectoryName(_authFilePath)!;
-        _fs.CreateDirectory(dir);
+        if (Path.GetDirectoryName(_authFilePath) is { } dir) {
+            _fs.CreateDirectory(dir);
+        }
 
         // 读取现有内容 — 存储 (key, JsonElement) 对
         var data = new Dictionary<string, JsonElement>();

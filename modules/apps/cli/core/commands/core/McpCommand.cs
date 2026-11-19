@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.CliCommands;
 
 /// <summary>
@@ -242,7 +241,6 @@ public sealed class McpCliCommand {
         return result.Host;
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct, int? awaitSeconds = null, string? explicitToken = null) {
         if (!string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(transport, "http", StringComparison.OrdinalIgnoreCase)) {
@@ -309,9 +307,11 @@ public sealed class McpCliCommand {
 
         try {
             if (usedTcp) {
-                await tcpServer!.RunAsync(serveCts.Token).ConfigureAwait(false);
+                var tcp = tcpServer ?? throw new InvalidOperationException("TCP 服务器未初始化");
+                await tcp.RunAsync(serveCts.Token).ConfigureAwait(false);
             } else {
-                await httpServer!.RunAsync(serveCts.Token).ConfigureAwait(false);
+                var http = httpServer ?? throw new InvalidOperationException("HTTP 服务器未初始化");
+                await http.RunAsync(serveCts.Token).ConfigureAwait(false);
             }
         } catch (OperationCanceledException) when (serveCts.Token.IsCancellationRequested) {
             // 优雅退出

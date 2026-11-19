@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -149,9 +148,8 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private bool TryRemoveAgentClients(string key, out List<string> value) {
-        value = null!;
+    private bool TryRemoveAgentClients(string key, [NotNullWhen(true)] out List<string>? value) {
+        value = null;
         var current = _agentClients;
         while (current.ContainsKey(key)) {
             value = current[key];

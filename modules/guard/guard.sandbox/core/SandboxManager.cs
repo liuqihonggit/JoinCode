@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Security.Sandbox;
 
 
@@ -312,9 +311,9 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     /// <summary>
     /// 将卫星进程加入当前 JobObject（若处于进程沙箱中）
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void TryAssignSatelliteToJobObject() {
-        if (_ipcClient!.SatelliteProcessId is not int satellitePid
+        if (_ipcClient is not { } ipcClient
+            || ipcClient.SatelliteProcessId is not int satellitePid
             || _lifecycleActor.ActiveProvider is not ProcessSandboxProvider psp
             || _lifecycleActor.ActiveSandboxId is null) {
             return;
@@ -345,8 +344,11 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<AbstractionsSandboxExecutionResult> ExecuteViaIpcAsync(string command, SandboxExecutionOptions options, CancellationToken ct) {
+        if (_ipcClient is not { } ipcClient) {
+            throw new InvalidOperationException("[GRD002] IPC 客户端未初始化");
+        }
+
         var executionId = Guid.NewGuid().ToString("N")[..16];
         var timeoutSeconds = options.GetTimeoutSeconds();
         var configuredTimeout = TimeSpan.FromSeconds(timeoutSeconds);
@@ -371,7 +373,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             EnvironmentVariables = envVars.Count > 0 ? envVars : []
         };
 
-        var ipcTask = _ipcClient!.ExecuteAsync(request, ct);
+        var ipcTask = ipcClient.ExecuteAsync(request, ct);
 
         try {
             var completedTask = await Task.WhenAny(ipcTask, Task.Delay(configuredTimeout, ct)).ConfigureAwait(false);
@@ -705,9 +707,8 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private bool TryRemoveExecution(string executionId, out SandboxActiveExecution execution) {
-        execution = null!;
+    private bool TryRemoveExecution(string executionId, [NotNullWhen(true)] out SandboxActiveExecution? execution) {
+        execution = null;
         var current = _activeExecutions;
         while (current.ContainsKey(executionId)) {
             execution = current[executionId];

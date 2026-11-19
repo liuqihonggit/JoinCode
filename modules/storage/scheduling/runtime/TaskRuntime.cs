@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Scheduling.Runtime;
 
 
@@ -259,11 +258,12 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         await _persistActor.PersistAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal async Task PersistCoreAsync(CancellationToken cancellationToken) {
-        var persistenceDir = _deps.PersistenceDirectory!;
-        if (!_deps.FileOperationService!.DirectoryExists(persistenceDir)) {
-            _deps.FileOperationService.CreateDirectory(persistenceDir);
+        var fileOp = _deps.FileOperationService;
+        if (fileOp is null || _deps.PersistenceDirectory is not { } persistenceDir) return;
+
+        if (!fileOp.DirectoryExists(persistenceDir)) {
+            fileOp.CreateDirectory(persistenceDir);
         }
 
         var durableTasks = _tasks.Values.Where(t => t.IsDurable).ToList();
@@ -272,11 +272,11 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
 
         var tempPath = filePath + ".tmp";
         try {
-            await _deps.FileOperationService.WriteFileAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
-            await _deps.FileOperationService.MoveFileAsync(tempPath, filePath, overwrite: true, cancellationToken).ConfigureAwait(false);
+            await fileOp.WriteFileAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
+            await fileOp.MoveFileAsync(tempPath, filePath, overwrite: true, cancellationToken).ConfigureAwait(false);
         } catch {
-            if (_deps.FileOperationService.FileExists(tempPath)) {
-                try { await _deps.FileOperationService.DeleteFileAsync(tempPath, cancellationToken).ConfigureAwait(false); } catch (Exception cleanupEx) { _logger?.LogWarning(cleanupEx, "清理临时文件失败: {TempPath}", tempPath); }
+            if (fileOp.FileExists(tempPath)) {
+                try { await fileOp.DeleteFileAsync(tempPath, cancellationToken).ConfigureAwait(false); } catch (Exception cleanupEx) { _logger?.LogWarning(cleanupEx, "清理临时文件失败: {TempPath}", tempPath); }
             }
             throw;
         }
@@ -292,14 +292,18 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return await _persistActor.RecoverTasksAsync(goalId, cancellationToken).ConfigureAwait(false);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal async Task<IReadOnlyList<RuntimeTask>> RecoverTasksCoreAsync(string? goalId, CancellationToken cancellationToken) {
-        var filePath = Path.Combine(_deps.PersistenceDirectory!, "runtime-tasks.json");
-        if (!_deps.FileOperationService!.FileExists(filePath)) {
+        var fileOp = _deps.FileOperationService;
+        if (fileOp is null || _deps.PersistenceDirectory is not { } persistenceDir) {
             return Array.Empty<RuntimeTask>();
         }
 
-        var readResult = await _deps.FileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var filePath = Path.Combine(persistenceDir, "runtime-tasks.json");
+        if (!fileOp.FileExists(filePath)) {
+            return Array.Empty<RuntimeTask>();
+        }
+
+        var readResult = await fileOp.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!readResult.Success) {
             _logger?.LogWarning(L.T(StringKey.RecoverTasksCorruptFileLog), filePath, readResult.ErrorMessage ?? "读取失败");
             return Array.Empty<RuntimeTask>();
@@ -352,11 +356,14 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     /// <summary>
     /// 隔离损坏的持久化文件 — 移动到带时间戳的 .corrupt 后缀，避免反复报错且保留证据
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task QuarantineCorruptFileAsync(string filePath, CancellationToken cancellationToken) {
+        var fileOp = _deps.FileOperationService;
+        if (fileOp is null) return;
+
         try {
             var corruptPath = $"{filePath}.{DateTime.Now:yyyyMMddHHmmss}.corrupt";
-            await _deps.FileOperationService!.MoveFileAsync(filePath, corruptPath, overwrite: false, cancellationToken: cancellationToken)
+            await fileOp.MoveFileAsync(filePath, corruptPath, overwrite: false, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
             _logger?.LogWarning(L.T(StringKey.RecoverTasksCorruptFileLog), corruptPath, "已隔离损坏文件");
         } catch (Exception moveEx) {

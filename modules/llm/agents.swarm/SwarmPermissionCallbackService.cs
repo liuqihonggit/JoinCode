@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -272,9 +271,8 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private bool TryRemovePendingCallback(string key, out SwarmPermissionCallback value) {
-        value = null!;
+    private bool TryRemovePendingCallback(string key, [NotNullWhen(true)] out SwarmPermissionCallback? value) {
+        value = null;
         var current = _pendingCallbacks;
         while (current.TryGetValue(key, out var existing)) {
             value = existing;
@@ -285,9 +283,8 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
         return false;
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private bool TryRemovePendingRequest(string key, out SwarmPermissionRequest value) {
-        value = null!;
+    private bool TryRemovePendingRequest(string key, [NotNullWhen(true)] out SwarmPermissionRequest? value) {
+        value = null;
         var current = _pendingRequests;
         while (current.TryGetValue(key, out var existing)) {
             value = existing;

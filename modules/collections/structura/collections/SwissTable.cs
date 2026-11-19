@@ -3,7 +3,6 @@
 
 
 
-// JCC11003 抑制: 底层泛型集合实现, ! 用于 default(T)/数组槽位的可空抑制, 是 C# 语言限制下的必要用法
 namespace Structura.Collections
 {
     /// <summary>
@@ -503,8 +502,6 @@ namespace Structura.Collections
 
         ICollection IDictionary.Values => Values;
 
-
-        [SuppressMessage("AotSafety", "JCC11003", Justification = "IDictionary 非泛型接口实现, value 经 IfNullAndNullsAreIllegalThenThrow 检查, 编译器无法推断非空")]
         object? IDictionary.this[object key]
         {
             get
@@ -533,7 +530,7 @@ namespace Structura.Collections
                     TKey tempKey = (TKey)key;
                     try
                     {
-                        this[tempKey] = (TValue)value!;
+                        this[tempKey] = CastFromObject(value);
                     }
                     catch (InvalidCastException)
                     {
@@ -547,7 +544,6 @@ namespace Structura.Collections
             }
         }
 
-        [SuppressMessage("AotSafety", "JCC11003", Justification = "IDictionary 非泛型接口实现, value 经 IfNullAndNullsAreIllegalThenThrow 检查, 编译器无法推断非空")]
         void IDictionary.Add(object key, object? value)
         {
             if (key == null)
@@ -562,7 +558,7 @@ namespace Structura.Collections
 
                 try
                 {
-                    Add(tempKey, (TValue)value!);
+                    Add(tempKey, CastFromObject(value));
                 }
                 catch (InvalidCastException)
                 {
@@ -632,7 +628,7 @@ namespace Structura.Collections
             }
             else
             {
-                object[]? objects = array as object[];
+                object?[]? objects = array as object?[];
 
                 if (objects == null)
                 {
@@ -665,7 +661,7 @@ namespace Structura.Collections
         /// <summary>
         /// 将字典条目装箱复制到 object 数组。纯函数:给定字典内容和目标数组,确定性地写入装箱的 KeyValuePair。
         /// </summary>
-        internal void CopyToObjectBox(object[] array, int index)
+        internal void CopyToObjectBox(object?[] array, int index)
         {
             try
             {
@@ -839,8 +835,8 @@ namespace Structura.Collections
             /// <param name="key">要查找或添加的键。</param>
             /// <param name="exists">键已存在时输出 <c>true</c>；新添加时输出 <c>false</c>。</param>
             /// <returns>键对应值的引用。</returns>
-            [SuppressMessage("AotSafety", "JCC11003", Justification = "底层泛型集合实现, bucket.Value/数组槽位对于引用类型是 null, 是 C# 语言限制下的必要用法")]
-            public static ref TValue? GetValueRefOrAddDefault(SwissTable<TKey, TValue> dictionary, TKey key, out bool exists)
+
+            public static ref TValue GetValueRefOrAddDefault(SwissTable<TKey, TValue> dictionary, TKey key, out bool exists)
             {
                 // NOTE: this method is mirrored by SwissTable<TKey, TValue>.TryInsert above.
                 // If you make any changes here, make sure to keep that version in sync as well.
@@ -850,7 +846,7 @@ namespace Structura.Collections
                 if (!Unsafe.IsNullRef(ref bucket))
                 {
                     exists = true;
-                    return ref bucket.Value!;
+                    return ref bucket.Value;
                 }
                 // insert new
                 var hashCode = dictionary.GetHashCodeOfKey(key);
@@ -867,16 +863,26 @@ namespace Structura.Collections
                 Debug.Assert(dictionary.rawTable._entries != null);
                 dictionary.rawTable.record_item_insert_at(index, old_ctrl, hashCode);
                 dictionary.rawTable._entries[index].Key = key;
-                dictionary.rawTable._entries[index].Value = default!;
+                dictionary.rawTable._entries[index].Value = default;
                 dictionary._version++;
                 exists = false;
-                return ref dictionary.rawTable._entries[index].Value!;
+                return ref dictionary.rawTable._entries[index].Value;
             }
         }
 
+        /// <summary>
+        /// object 契约不携带 TValue 的可空性（null 合法性已由 ThrowHelper 校验），
+        /// 此处局部关闭可空分析完成强转，读取端由调用方按字典语义使用。
+        /// </summary>
+#nullable disable
+        private static TValue CastFromObject(object value) => (TValue)value;
+#nullable restore
+
         internal struct Entry
         {
+            [AllowNull]
             internal TKey Key;
+            [AllowNull]
             internal TValue Value;
         }
 
@@ -1115,7 +1121,6 @@ namespace Structura.Collections
             return DispatchFindBucketIndexOfDictionary(this, key);
         }
 
-        [SuppressMessage("AotSafety", "JCC11003", Justification = "底层泛型集合实现, erase 时 default(T) 清理槽位对于引用类型是 null, 是 C# 语言限制下的必要用法")]
         private TValue erase(int index)
         {
             // Attention, we could not just only set mark to `Deleted` to assume it is deleted, the reference is still here, and GC would not collect it.
@@ -1142,12 +1147,12 @@ namespace Structura.Collections
             // TODO: maybe we could remove this branch to improve perf. Or maybe CLR has optimised this.
             if (RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
             {
-                this.rawTable._entries[index].Key = default!;
+                this.rawTable._entries[index].Key = default;
             }
 
             if (RuntimeHelpers.IsReferenceOrContainsReferences<TValue>())
             {
-                this.rawTable._entries[index].Value = default!;
+                this.rawTable._entries[index].Value = default;
             }
 
             return res;
@@ -1468,7 +1473,7 @@ namespace Structura.Collections
                 }
                 else
                 {
-                    object[]? objects = array as object[];
+                    object?[]? objects = array as object?[];
 
                     if (objects == null)
                     {
@@ -1505,7 +1510,8 @@ namespace Structura.Collections
                 private BitMaskUnion _currentBitMask;
                 internal int _currentCtrlOffset;
                 private bool _isValid; // valid when _current has correct value.
-                private TKey? _current;
+                [AllowNull]
+                private TKey _current;
 
                 internal Enumerator(SwissTable<TKey, TValue> dictionary)
                 {
@@ -1547,8 +1553,8 @@ namespace Structura.Collections
                 /// <summary>
                 /// 获取枚举器当前指向的键。
                 /// </summary>
-                [SuppressMessage("AotSafety", "JCC11003", Justification = "泛型枚举器 Current, _current 对于引用类型 default 是 null, 是 C# 语言限制下的必要用法")]
-                public TKey Current => _current!;
+
+                public TKey Current => _current;
 
                 object? IEnumerator.Current
                 {
@@ -1660,7 +1666,6 @@ namespace Structura.Collections
 
             IEnumerator IEnumerable.GetEnumerator() => new Enumerator(_dictionary);
 
-            [SuppressMessage("AotSafety", "JCC11003", Justification = "ValueCollection.CopyTo 非泛型接口实现, item 为 TValue 对于引用类型可能 null, 是 C# 语言限制下的必要用法")]
             void ICollection.CopyTo(Array array, int index)
             {
                 if (array == null)
@@ -1694,7 +1699,7 @@ namespace Structura.Collections
                 }
                 else
                 {
-                    object[]? objects = array as object[];
+                    object?[]? objects = array as object?[];
 
                     if (objects == null)
                     {
@@ -1705,7 +1710,7 @@ namespace Structura.Collections
                     {
                         foreach (var item in this)
                         {
-                            objects[index++] = item!;
+                            objects[index++] = item;
                         }
                     }
                     catch (ArrayTypeMismatchException)
@@ -1731,7 +1736,8 @@ namespace Structura.Collections
                 private BitMaskUnion _currentBitMask;
                 internal int _currentCtrlOffset;
                 private bool _isValid; // valid when _current has correct value.
-                private TValue? _current;
+                [AllowNull]
+                private TValue _current;
 
                 internal Enumerator(SwissTable<TKey, TValue> dictionary)
                 {
@@ -1773,8 +1779,8 @@ namespace Structura.Collections
                 /// <summary>
                 /// 获取枚举器当前指向的值。
                 /// </summary>
-                [SuppressMessage("AotSafety", "JCC11003", Justification = "泛型枚举器 Current, _current 对于引用类型 default 是 null, 是 C# 语言限制下的必要用法")]
-                public TValue Current => _current!;
+
+                public TValue Current => _current;
 
                 object? IEnumerator.Current
                 {

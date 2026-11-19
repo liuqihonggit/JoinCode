@@ -1,5 +1,4 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 #pragma warning disable JCC1017
 namespace McpToolDispatch;
 
@@ -131,7 +130,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 查看 PR diff — 调 REST API 获取 PR 的 diff_url 后下载 patch 文本，支持 name-only/exclude 过滤
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(GitHubToolNameEnumConstants.GhPrDiff, "查看 PR diff(patch 文本,支持 name-only/exclude 过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrDiffAsync(
         [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
@@ -156,7 +155,7 @@ public partial class GitHubToolHandlers {
             var diffResult = await client.SendAsync(HttpMethod.Get, diffUrl, ct: cancellationToken).ConfigureAwait(false);
             if (!diffResult.Success) return Fail(diffResult.Error);
             var diffText = diffResult.Body;
-            if (!string.IsNullOrWhiteSpace(exclude)) diffText = FilterDiffByExclude(diffText, exclude!);
+            if (!string.IsNullOrWhiteSpace(exclude)) diffText = FilterDiffByExclude(diffText, exclude);
             if (name_only == true) diffText = ExtractDiffFileNames(diffText);
             return Ok(diffText);
         }).ConfigureAwait(false);
@@ -367,7 +366,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// GhPrChecks 核心逻辑 — 调 REST API 获取 check-runs,正确处理 skipping 语义(非失败),支持 required 过滤和 fail-fast 标记
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, int? limit, bool forceRefresh = false, bool all = false, CancellationToken ct = default) {
         var number = ParseNumberFromRef(prNumber);
         if (forceRefresh && _cacheService is { } cache)
@@ -393,7 +392,7 @@ public partial class GitHubToolHandlers {
             return Ok(FilterCheckRunFields(checksResult.Body, json_fields));
 
         var requiredContexts = required == true && !string.IsNullOrEmpty(headRef)
-            ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef!, ct).ConfigureAwait(false)
+            ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef, ct).ConfigureAwait(false)
             : null;
 
         var (checks, severityCounts, parseError) = ParseCheckRuns(checksResult.Body, requiredContexts);
@@ -657,7 +656,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// GhPrMerge 核心逻辑 — 支持 squash/merge/rebase + auto-merge/disable-auto + 自定义提交信息 + 可选删除分支
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task<ToolResult> GhPrMergeCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, string? mergeMethod, bool? autoMerge, bool? disableAuto, string? subject, string? body, bool? deleteBranch, CancellationToken ct) {
         var number = ParseNumberFromRef(prNumber);
         var method = string.IsNullOrWhiteSpace(mergeMethod) ? "squash" : mergeMethod;
@@ -674,7 +673,7 @@ public partial class GitHubToolHandlers {
             var (nodeId, nodeErr) = await GetPrNodeIdAsync(client, owner, repoName, number, ct).ConfigureAwait(false);
             if (nodeErr is not null) return Fail(nodeErr);
             var (success, usedMethod, err) = await EnableAutoMergeAsync(client, nodeId, method, ct).ConfigureAwait(false);
-            return success ? Ok($"已为 PR {number} 启用 auto-merge（{usedMethod}）") : Fail(err!);
+            return success ? Ok($"已为 PR {number} 启用 auto-merge（{usedMethod}）") : Fail(err);
         }
         var mergeRequest = new PrMergeRequest { MergeMethod = method, CommitTitle = subject, CommitMessage = body };
         var mergeBody = JsonSerializer.Serialize(mergeRequest, GitHubApiJsonContext.Safe.PrMergeRequest);
@@ -1040,7 +1039,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 编辑 PR — 修改标题/body/base 分支/标签/指派人/审查者/里程碑，调 REST API PATCH /pulls + PATCH /issues + POST/DELETE labels/reviewers/assignees
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone/auto_merge/merge_method)", "github")]
     public async Task<ToolResult> GhPrEditAsync(
         [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
@@ -1130,20 +1129,20 @@ public partial class GitHubToolHandlers {
                 if (!string.IsNullOrWhiteSpace(add_project)) {
                     foreach (var pTitle in ParseCsvToList(add_project)) {
                         var (ok, err) = await AddToProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(remove_project)) {
                     foreach (var pTitle in ParseCsvToList(remove_project)) {
                         var (ok, err) = await RemoveFromProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(attach)) {
                     foreach (var filePath in ParseCsvToList(attach)) {
                         var (assetUrl, err) = await AttachFileAsync(client, owner, repoName, filePath, cancellationToken).ConfigureAwait(false);
-                        if (assetUrl is null) return Fail(err!);
-                        effectiveBody = (effectiveBody ?? "") + $"\n\n![{Path.GetFileNameWithoutExtension(filePath)}]({assetUrl})";
+                        if (assetUrl is null) return Fail(err);
+                        effectiveBody = (effectiveBody ?? "") + $"\n\n[{Path.GetFileNameWithoutExtension(filePath)}]({assetUrl})";
                     }
                     var prBody = JsonSerializer.Serialize(new PrEditRequest { Body = effectiveBody }, GitHubApiJsonContext.Safe.PrEditRequest);
                     var attachResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", prBody, ct: cancellationToken).ConfigureAwait(false);
@@ -1155,7 +1154,7 @@ public partial class GitHubToolHandlers {
                 if (nodeErr is not null) return Fail(nodeErr);
                 var method = string.IsNullOrWhiteSpace(merge_method) ? "squash" : merge_method;
                 var (amSuccess, usedMethod, amErr) = await EnableAutoMergeAsync(client, nodeId, method, cancellationToken).ConfigureAwait(false);
-                if (!amSuccess) return Fail(amErr!);
+                if (!amSuccess) return Fail(amErr);
                 return Ok($"已编辑 PR {number} 并启用 auto-merge（{usedMethod}）");
             }
             return OkBrief("", $"已编辑 PR {number}");

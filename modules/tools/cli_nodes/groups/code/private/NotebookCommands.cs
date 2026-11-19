@@ -157,7 +157,8 @@ internal static class NotebookCommands {
         if (to < 0 || to >= cells.Count)
             throw new ArgumentException($"to_index 超出范围: {to}（当前 {cells.Count} 个单元，合法 0..{cells.Count - 1}）。");
 
-        var cell = cells[from]!;
+        if (cells[from] is not { } cell)
+            throw new ArgumentException($"from_index 指向的单元内容缺失: {from}（当前 {cells.Count} 个单元）。");
         cells.RemoveAt(from);
         cells.Insert(to, cell);
         Save(path, notebook);
@@ -286,7 +287,7 @@ internal static class NotebookCommands {
         File.WriteAllText(path, json + "\n", new UTF8Encoding(false));
     }
 
-    private static JsonArray Cells(JsonObject notebook) => (JsonArray)notebook["cells"]!;
+    private static JsonArray Cells(JsonObject notebook) => (JsonArray)notebook["cells"];
 
     private static JsonObject NewCell(string type, string content, string id) {
         var cell = new JsonObject {
@@ -310,7 +311,7 @@ internal static class NotebookCommands {
             var isLast = i == parts.Length - 1;
             if (isLast && parts[i].Length == 0) break;
             // 用 JsonValue.Create + 数组构造器：JsonArray.Add<T> 在 AOT 下会触发 IL3050/IL2026。
-            values.Add(JsonValue.Create(isLast ? parts[i] : parts[i] + "\n")!);
+            values.Add(JsonValue.Create(isLast ? parts[i] : parts[i] + "\n"));
         }
         return new JsonArray(values.ToArray());
     }

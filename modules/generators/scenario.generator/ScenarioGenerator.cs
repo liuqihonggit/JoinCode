@@ -11,14 +11,14 @@ internal sealed class ScenarioGenerator : AttributeRegistrationGeneratorBase<Sce
     internal override ScenarioEntry? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation) {
         var name = attr.ConstructorArguments.ElementAtOrDefault(0).Value as string;
         var description = attr.ConstructorArguments.ElementAtOrDefault(1).Value as string;
-        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(description))
+        if (name is not { Length: > 0 } || description is not { Length: > 0 })
             return null;
 
         var tools = AttributeScanner.GetStringArrayNamedArg(attr, "Tools");
         var suggestedFlow = AttributeScanner.GetStringNamedArg(attr, "SuggestedFlow") ?? "";
         var tips = AttributeScanner.GetStringNamedArg(attr, "Tips") ?? "";
 
-        return new ScenarioEntry(name!, description!, tools, suggestedFlow, tips);
+        return new ScenarioEntry(name, description, tools, suggestedFlow, tips);
     }
 
     internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<ScenarioEntry> infos) {

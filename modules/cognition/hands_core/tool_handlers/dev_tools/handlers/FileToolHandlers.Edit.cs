@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Tools.Handlers;
 
 public partial class FileToolHandlers {
@@ -315,7 +314,7 @@ public partial class FileToolHandlers {
     /// <param name="replace_all">是否替换所有匹配，默认 true。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>批量编辑结果。</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(FileToolNameEnumConstants.FileBatchEdit, "Batch edit multiple files with the same search-and-replace", "file")]
     public async Task<ToolResult> FileBatchEditAsync(
         [McpToolParameter("String to replace (must match exactly)")] string old_string,
@@ -359,7 +358,7 @@ public partial class FileToolHandlers {
         // 防御被拒绝的文件直接计入失败结果
         var rejectedFiles = defenses
             .Where(d => d.Safety.Rejection is not null)
-            .Select(d => (d.OriginalPath, d.Safety.Rejection!))
+            .Select(d => (d.OriginalPath, Rejection: d.Safety.Rejection ?? throw new InvalidOperationException($"文件 {d.OriginalPath} 防御拒绝结果缺失")))
             .ToList();
 
         // 防御通过的文件执行批量编辑

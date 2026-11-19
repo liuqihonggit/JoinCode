@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Security.Sandbox;
 
 
@@ -143,9 +142,8 @@ public abstract class SandboxProviderBase : ISandboxProvider {
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private bool TryRemoveSandbox(string sandboxId, out SandboxInfo info) {
-        info = null!;
+    private bool TryRemoveSandbox(string sandboxId, [NotNullWhen(true)] out SandboxInfo? info) {
+        info = null;
         var current = _sandboxes;
         while (current.ContainsKey(sandboxId)) {
             info = current[sandboxId];

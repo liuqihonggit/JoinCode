@@ -116,7 +116,11 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
             return;
         }
 
-        _projection = _projector!.Project(_buffer.ToString());
+        if (_projector is not { } projector) {
+            return;
+        }
+
+        _projection = projector.Project(_buffer.ToString());
         _projectionDirty = false;
         _stableLines = null;
         _builtLines = null;
@@ -125,7 +129,9 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
     /// <summary>投影行模型 — 稳定段布局行 + 稳定/尾间 gap 空行（块间空行语义 — 落定替换视觉无跳变）
     /// + 尾纯文本行（未闭合围栏尾 Dim 样式）；空投影兜底 1 空行（高度对齐纯文本空缓冲形态）。</summary>
     private IReadOnlyList<IReadOnlyList<MarkdownSegment>> BuildProjectedLines(int width) {
-        var projection = _projection!;
+        if (_projection is not { } projection) {
+            return [[]];
+        }
         var lines = new List<IReadOnlyList<MarkdownSegment>>(StableLinesFor(width));
         var tail = projection.Tail;
         if (projection.StableBlocks.Count > 0 && tail.Length > 0) {
@@ -154,7 +160,7 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
         }
 
         _stableLines = MarkdownLayout.LayoutWithHighlights(
-            new MarkdownDocument(_projection!.StableBlocks), Math.Max(0, width - ContentIndentCols), null).Lines;
+            new MarkdownDocument(_projection?.StableBlocks ?? []), Math.Max(0, width - ContentIndentCols), null).Lines;
         _stableLinesWidth = width;
         return _stableLines;
     }

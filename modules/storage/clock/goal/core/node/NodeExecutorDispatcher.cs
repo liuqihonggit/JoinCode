@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Goal;
 
 /// <summary>
@@ -72,8 +71,10 @@ internal sealed class AgentNodeExecutor : INodeExecutor {
     }
 
     /// <summary>通过 IAgentService 执行 Agent 节点 — 复用完整基础设施</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task<NodeResult> ExecuteViaAgentServiceAsync(string nodeId, GoalNodePayload payload, string instruction, GraphExecutionContext context, CancellationToken ct) {
+        var agentService = _agentService
+            ?? throw new InvalidOperationException("IAgentService 未注入");
         var spawnOptions = new AgentSpawnOptions {
             Description = payload.Name,
             Prompt = instruction,
@@ -103,11 +104,11 @@ internal sealed class AgentNodeExecutor : INodeExecutor {
         var responseBuilder = new System.Text.StringBuilder();
         var teamMemberAdded = false;
 
-        await foreach (var chunk in _agentService!.RunAgentStreamAsync(spawnOptions, ct).ConfigureAwait(false)) {
-            if (!teamMemberAdded && context.TeamId is not null && !string.IsNullOrEmpty(chunk.AgentId)) {
+        await foreach (var chunk in agentService.RunAgentStreamAsync(spawnOptions, ct).ConfigureAwait(false)) {
+            if (!teamMemberAdded && _teamManager is not null && context.TeamId is not null && !string.IsNullOrEmpty(chunk.AgentId)) {
                 teamMemberAdded = true;
                 try {
-                    await _teamManager!.AddTeamMemberAsync(context.TeamId, chunk.AgentId, ct).ConfigureAwait(false);
+                    await _teamManager.AddTeamMemberAsync(context.TeamId, chunk.AgentId, ct).ConfigureAwait(false);
                 } catch (Exception ex) {
                     _logger?.LogWarning("[GoalGraph] 加入团队失败: {Message}", ex.Message);
                 }

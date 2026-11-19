@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.CodeIndex.Embedding;
 
 /// <summary>
@@ -203,12 +202,12 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
     }
 
     /// <summary>增量写入单个 chunk — 自动打开/复用 LSM 存储，无需显式打开。</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task PersistChunkAsync(string dirPath, string chunkId, float[] vector, ChunkMetadata meta, string hash, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
         ArgumentNullException.ThrowIfNull(chunkId);
         await EnsureStoreOpenAsync(dirPath, ct).ConfigureAwait(false);
-        var store = _incrementalStore!;
+        var store = _incrementalStore ?? throw new InvalidOperationException("增量嵌入存储未初始化");
         var vectorBytes = MemoryMarshal.AsBytes(vector.AsSpan()).ToArray();
         await store.PutAsync(KeyVector(chunkId), vectorBytes, ct).ConfigureAwait(false);
         await store.PutAsync(KeyMeta(chunkId), SerializeMeta(meta), ct).ConfigureAwait(false);
@@ -217,12 +216,12 @@ internal sealed class LsmEmbeddingPersistence : IEmbeddingPersistence {
     }
 
     /// <summary>增量删除单个 chunk — 自动打开/复用 LSM 存储，写入墓碑标记。</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task DeleteChunkAsync(string dirPath, string chunkId, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
         ArgumentNullException.ThrowIfNull(chunkId);
         await EnsureStoreOpenAsync(dirPath, ct).ConfigureAwait(false);
-        var store = _incrementalStore!;
+        var store = _incrementalStore ?? throw new InvalidOperationException("增量嵌入存储未初始化");
         await store.DeleteAsync(KeyVector(chunkId), ct).ConfigureAwait(false);
         await store.DeleteAsync(KeyMeta(chunkId), ct).ConfigureAwait(false);
         await store.DeleteAsync(KeyHash(chunkId), ct).ConfigureAwait(false);

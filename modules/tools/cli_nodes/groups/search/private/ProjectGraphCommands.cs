@@ -74,7 +74,7 @@ internal static partial class ProjectGraphCommands {
                     if (inc.Contains("$")) continue; // 无法解析的其他变量，跳过（与宿主 ResolvePath 返回 null 一致）
                     var full = Path.IsPathRooted(inc.Replace('/', Path.DirectorySeparatorChar))
                         ? Path.GetFullPath(inc)
-                        : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(file)!, inc.Replace('\\', '/')));
+                        : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(file), inc.Replace('\\', '/')));
                     info.Refs.Add(Normalize(full));
                     var key = Normalize(full);
                     if (!refsByTarget.TryGetValue(key, out var list)) refsByTarget[key] = list = [];
@@ -134,8 +134,8 @@ internal static partial class ProjectGraphCommands {
         var projects = BuildGraph(out var byTarget, out _);
         var normalized = Normalize(file);
         // 找拥有该文件的最深层项目
-        var owner = projects.Where(p => normalized.StartsWith(Normalize(Path.GetDirectoryName(p.Path)!) + "/", StringComparison.Ordinal))
-            .OrderByDescending(p => Path.GetDirectoryName(p.Path)!.Length).FirstOrDefault();
+        var owner = projects.Where(p => normalized.StartsWith(Normalize(Path.GetDirectoryName(p.Path)) + "/", StringComparison.Ordinal))
+            .OrderByDescending(p => Path.GetDirectoryName(p.Path).Length).FirstOrDefault();
         if (owner is null) { Console.Out.WriteLine($"文件不属于任何已知项目: {file}"); return Task.FromResult(0); }
         var visited = new HashSet<string>(StringComparer.Ordinal) { Normalize(owner.Path) };
         var queue = new Queue<string>(); queue.Enqueue(Normalize(owner.Path));

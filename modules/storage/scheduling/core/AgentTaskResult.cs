@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Scheduling;
 
 /// <summary>
@@ -97,13 +96,13 @@ public sealed class AgentTaskResult : IAgentTaskResult {
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public T? GetMetadataValue<T>(string key, T? defaultValue = default) {
         if (!_metadata.TryGetValue(key, out var element))
             return defaultValue;
 
         try {
-            if (typeof(T) == typeof(string)) return (T)(object?)element.GetString()!;
+            if (typeof(T) == typeof(string)) return (T?)(object?)element.GetString();
             if (typeof(T) == typeof(int)) return (T)(object)element.GetInt32();
             if (typeof(T) == typeof(long)) return (T)(object)element.GetInt64();
             if (typeof(T) == typeof(double)) return (T)(object)element.GetDouble();

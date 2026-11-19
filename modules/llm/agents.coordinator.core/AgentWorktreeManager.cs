@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -449,9 +448,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private static bool TryRemoveWorktreeSession(string key, out AgentWorktreeSession value) {
-        value = null!;
+    private static bool TryRemoveWorktreeSession(string key, [NotNullWhen(true)] out AgentWorktreeSession? value) {
+        value = null;
         var current = s_worktreeSessions;
         while (current.TryGetValue(key, out var existing)) {
             value = existing;
@@ -471,9 +469,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private bool TryRemoveLifecycleGuard(string key, out WorktreeLifecycleGuard value) {
-        value = null!;
+    private bool TryRemoveLifecycleGuard(string key, [NotNullWhen(true)] out WorktreeLifecycleGuard? value) {
+        value = null;
         var current = _lifecycleGuards;
         while (current.TryGetValue(key, out var existing)) {
             value = existing;

@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.CostTracking;
 
 /// <summary>
@@ -24,16 +23,16 @@ internal sealed class UsageStore {
     }
 
     /// <summary>添加用量记录 — 无锁原子追加到主列表 + 3 个冗余索引</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public void Add(TokenUsageRecord record) {
         ImmutableInterlocked.Update(ref _usageRecords, static (list, r) => list.Add(r), record);
         ImmutableInterlocked.Update(ref _bySessionId, static (dict, r) => {
-            var existing = dict.TryGetValue(r.SessionId, out var list) ? list! : ImmutableList<TokenUsageRecord>.Empty;
+            var existing = dict.TryGetValue(r.SessionId, out var list) ? list : ImmutableList<TokenUsageRecord>.Empty;
             return dict.SetItem(r.SessionId, existing.Add(r));
         }, record);
         var dateKey = record.Timestamp.Date;
         ImmutableInterlocked.Update(ref _byDate, static (dict, arg) => {
-            var existing = dict.TryGetValue(arg.date, out var list) ? list! : ImmutableList<TokenUsageRecord>.Empty;
+            var existing = dict.TryGetValue(arg.date, out var list) ? list : ImmutableList<TokenUsageRecord>.Empty;
             return dict.SetItem(arg.date, existing.Add(arg.record));
         }, (date: dateKey, record));
         ImmutableInterlocked.Update(ref _costByDate, static (dict, arg) => {

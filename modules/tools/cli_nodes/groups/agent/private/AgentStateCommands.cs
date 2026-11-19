@@ -37,7 +37,7 @@ internal static partial class AgentCommands {
         if (!Directory.Exists(TasksDir)) return [];
         return Directory.GetFiles(TasksDir, "task-*.json")
             .Select(f => { try { return JsonNode.Parse(File.ReadAllText(f)) as JsonObject; } catch { return null; } })
-            .Where(t => t is not null).Select(t => t!).ToList();
+            .Where(t => t is not null).Select(t => t).ToList();
     }
     private static string S(JsonObject o, string k) => o.TryGetPropertyValue(k, out var v) ? v?.GetValue<string>() ?? "" : "";
 
@@ -122,7 +122,7 @@ internal static partial class AgentCommands {
         var t = LoadTask(id);
         if (t is null) { Console.Out.WriteLine($"任务不存在: {id}"); return Task.FromResult(0); }
         var deps = t["dependencies"] as JsonArray ?? new JsonArray();
-        if (!deps.Any(d => d?.GetValue<string>() == dep)) deps.Add((JsonNode)JsonValue.Create(dep)!);
+        if (!deps.Any(d => d?.GetValue<string>() == dep)) deps.Add((JsonNode)JsonValue.Create(dep));
         t["dependencies"] = deps;
         SaveTask(t);
         Console.Out.WriteLine($"任务 {id} 依赖 {dep} 已设置");
@@ -186,7 +186,7 @@ internal static partial class AgentCommands {
         try { return JsonNode.Parse(File.ReadAllText(TodoPath)) as JsonArray ?? new JsonArray(); } catch (JsonException) { return new JsonArray(); }
     }
     private static void SaveTodos(JsonArray arr) {
-        Directory.CreateDirectory(Path.GetDirectoryName(TodoPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(TodoPath));
         File.WriteAllText(TodoPath, arr.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
     private static string? FindGitRoot(string start) {
@@ -210,7 +210,7 @@ internal static partial class AgentCommands {
     private static Task<int> TodoListAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var arr = LoadTodos();
         var status = Get(o, "status", "");
-        var items = arr.Where(n => n is JsonObject).Select(n => (JsonObject)n!)
+        var items = arr.Where(n => n is JsonObject).Select(n => (JsonObject)n)
             .Where(t => status.Length == 0 || S(t, "status") == status).ToList();
         var sb = new StringBuilder();
         sb.AppendLine($"Total: {items.Count}  Pending: {items.Count(t => S(t, "status") != "completed")}  Completed: {items.Count(t => S(t, "status") == "completed")}");
@@ -269,7 +269,7 @@ internal static partial class AgentCommands {
         sb.AppendLine("步骤列表:");
         for (var i = 0; i < steps.Count; i++) {
             var p = steps[i] as JsonObject;
-            var icon = S(p!, "Status") switch { "approved" => "✓", "rejected" => "✗", _ => "○" };
+            var icon = S(p, "Status") switch { "approved" => "✓", "rejected" => "✗", _ => "○" };
             sb.AppendLine($"  [{icon}] {i + 1}. {S(p!, "Description")}");
         }
         Console.Out.Write(sb.ToString());

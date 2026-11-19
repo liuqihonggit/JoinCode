@@ -82,7 +82,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         var injectOn = AttributeScanner.GetIntNamedArg(attr, "InjectOn");
         var isDynamic = AttributeScanner.GetBoolNamedArg(attr, "IsDynamic");
 
-        if (string.IsNullOrEmpty(name))
+        if (name is not { Length: > 0 })
             return null;
 
         var hasGetContent = AttributeScanner.HasParameterlessStaticMethod(typeSymbol, "GetContent");
@@ -95,7 +95,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
-            name!,
+            name,
             keywords.ToImmutableArray(),
             regexPattern,
             injectOn,

@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Bridge;
 
 /// <summary>
@@ -60,9 +59,9 @@ internal sealed class BridgeSessionRegistry {
     // ── 遍历 ──
 
     /// <summary>获取所有会话句柄</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public IEnumerable<BridgeSubprocessHandle> GetAllHandles()
-        => _sessions.Values.Where(s => s.Handle is not null).Select(s => s.Handle!);
+        => _sessions.Values.Select(s => s.Handle).OfType<BridgeSubprocessHandle>();
 
     /// <summary>获取所有会话 ID 的快照拷贝</summary>
     public string[] GetAllSessionIds() => _sessions.Keys.ToArray();
@@ -78,11 +77,11 @@ internal sealed class BridgeSessionRegistry {
         => _sessions.Where(kvp => kvp.Value.WorktreePath is not null).Select(kvp => kvp.Key);
 
     /// <summary>获取所有兼容 ID 映射（sessionId → compatId）</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public IEnumerable<KeyValuePair<string, string>> GetAllCompatIds()
         => _sessions
             .Where(kvp => kvp.Value.CompatId is not null)
-            .Select(kvp => new KeyValuePair<string, string>(kvp.Key, kvp.Value.CompatId!));
+            .Select(kvp => new KeyValuePair<string, string>(kvp.Key, kvp.Value.CompatId ?? string.Empty));
 
     /// <summary>获取最近注册的会话（按注册时间最新）</summary>
     public KeyValuePair<string, BridgeSubprocessHandle?>? GetLastSession() {

@@ -82,7 +82,7 @@ internal static class SearchCommands {
             Pattern = Required(o, "pattern", "grep"),
             Root = ResolveDirectory(o.GetValueOrDefault("path")),
             Glob = Nullable(o, "glob"),
-            OutputMode = o.GetValueOrDefault("output_mode", "files_with_matches")!.Trim().ToLowerInvariant(),
+            OutputMode = o.GetValueOrDefault("output_mode", "files_with_matches").Trim().ToLowerInvariant(),
             IgnoreCase = GetBool(o, "case_insensitive", false) || GetBool(o, "-i", false),
             Multiline = GetBool(o, "multiline", false),
             FileType = Nullable(o, "file_type") ?? Nullable(o, "type"),

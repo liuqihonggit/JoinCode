@@ -249,7 +249,7 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable, ICompactAware
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         var row = frame.Y + 2;
         var col = screen.WriteText(row, frame.X, Figures.ToolResultIndent, dim, frame.Right);
-        screen.WriteText(row, col, LastToolInfo!, dim, frame.Right);
+        screen.WriteText(row, col, LastToolInfo, dim, frame.Right);
     }
 
     /// <summary>生效提示（基准 Spinner.tsx:255-259 链，nextTask 通道无消费方暂缺）：
@@ -334,7 +334,7 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable, ICompactAware
         var parts = new List<(string Text, int StyleId)>();
         if (!string.IsNullOrEmpty(SpinnerSuffix))
         {
-            parts.Add((SpinnerSuffix!, dim));
+            parts.Add((SpinnerSuffix, dim));
         }
 
         // 工具执行倒计时 part（TASK079 — bash/powershell 限时工具运行中，剩余秒数逐帧递减；

@@ -333,17 +333,17 @@ public sealed class PithosDb : IDisposable
                         throw new InvalidOperationException(
                             "TTL batch entries require PithosOptions.EnableTtl = true.");
                     return (op.Type, op.Key,
-                        (byte[]?)ValueCodec.EncodeWithExpiry(op.Value!, DateTimeOffset.UtcNow.Add(op.Ttl.Value)));
+                        (byte[]?)ValueCodec.EncodeWithExpiry(op.Value, DateTimeOffset.UtcNow.Add(op.Ttl.Value)));
                 }
                 return (op.Type, op.Key,
-                    (byte[]?)(_options.EnableTtl ? ValueCodec.Encode(op.Value!) : op.Value));
+                    (byte[]?)(_options.EnableTtl ? ValueCodec.Encode(op.Value) : op.Value));
             })
             .ToList();
 
         _wal?.AppendBatch(encoded);
         foreach (var (type, key, value) in encoded)
         {
-            if (type == WalEntryType.Put) view.ActiveMemTable.Put(key, value!);
+            if (type == WalEntryType.Put) view.ActiveMemTable.Put(key, value);
             else view.ActiveMemTable.Delete(key);
         }
         MaybeFlushMemTable(view);
@@ -740,7 +740,7 @@ public sealed class PithosDb : IDisposable
     private void ResetWal()
     {
         var walPath = Path.Combine(_directory, "wal.log");
-        _wal!.Dispose();
+        _wal.Dispose();
         try
         {
             File.Delete(walPath);
@@ -852,7 +852,7 @@ public sealed class PithosDb : IDisposable
         var memTable = Volatile.Read(ref _view).ActiveMemTable;
         foreach (var (type, key, value) in WriteAheadLog.Replay(Path.Combine(_directory, "wal.log")))
         {
-            if (type == WalEntryType.Put) memTable.Put(key, value!);
+            if (type == WalEntryType.Put) memTable.Put(key, value);
             else memTable.Delete(key);
         }
     }

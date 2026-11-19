@@ -162,7 +162,7 @@ internal static class SubagentSelftest
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
-            WorkingDirectory = Path.GetDirectoryName(exe)!,
+            WorkingDirectory = Path.GetDirectoryName(exe),
         };
 
         var process = new System.Diagnostics.Process { StartInfo = startInfo };

@@ -63,7 +63,7 @@ public static partial class ImagePasteDetector
             .Select(line => (Line: line, Match: DetectSingle(line, isWindows)))
             .ToList();
         return new(
-            [.. detected.Where(entry => entry.Match is not null).Select(entry => entry.Match!)],
+            [.. detected.Select(entry => entry.Match).OfType<ImagePasteMatch>()],
             [.. detected.Where(entry => entry.Match is null).Select(entry => entry.Line)]);
     }
 

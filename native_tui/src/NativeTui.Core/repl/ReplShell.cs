@@ -568,8 +568,8 @@ public sealed class ReplShell
     /// <summary>inline（主屏 log-update）渲染模式 — 默认；false = 视口全屏 diff（旧模式）。</summary>
     private readonly bool _inline;
 
-    private Screen _front = null!;
-    private Screen _back = null!;
+    private Screen? _front;
+    private Screen? _back;
     private bool _frontValid;
 
     /// <summary>强制全量重绘标记（S6 任务 8 — ctrl+l 清 Screen 下一帧全量重绘；消费后复位）。</summary>
@@ -2108,10 +2108,16 @@ public sealed class ReplShell
     /// 委托异常按失败入队（写盘错误不打扰渲染循环 — 主循环消费时统一反馈）。</summary>
     private async Task RunExportToFileAsync(string exportText)
     {
+        if (_saveExportAsync is not { } saveExport)
+        {
+            _exportFileResults.Enqueue(null);
+            return;
+        }
+
         string? fileName;
         try
         {
-            fileName = await _saveExportAsync!(exportText).ConfigureAwait(false);
+            fileName = await saveExport(exportText).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
         {
@@ -2647,12 +2653,12 @@ public sealed class ReplShell
     /// 渲染前）返回空投影（尺寸 0 — 交互 no-op 化，防 NRE 防选中陈旧帧内容）。</summary>
     private SelectionScreen BuildSelectionScreen()
     {
-        if (_front is null || !_frontValid)
+        if (_front is not { } front || !_frontValid)
         {
             return new SelectionScreen(static _ => ReadOnlySpan<char>.Empty, 0, 0);
         }
 
-        return new SelectionScreen(FrontLineAt, _front.Cols, _front.Rows);
+        return new SelectionScreen(FrontLineAt, front.Cols, front.Rows);
     }
 
     /// <summary>选区高亮叠加（TASK066 C6 补全 — SelectionState.Bounds 投影到 Screen cell 网格做反色）。
@@ -2690,15 +2696,15 @@ public sealed class ReplShell
     /// SelectionScreen.LineAt 约定；鼠标事件低频，逐行分配可接受）。</summary>
     private ReadOnlySpan<char> FrontLineAt(int row)
     {
-        if (row < 0 || row >= _front.Rows)
+        if (_front is not { } front || row < 0 || row >= front.Rows)
         {
             return ReadOnlySpan<char>.Empty;
         }
 
-        var chars = new char[_front.Cols];
-        for (var col = 0; col < _front.Cols; col++)
+        var chars = new char[front.Cols];
+        for (var col = 0; col < front.Cols; col++)
         {
-            var cell = _front[row, col];
+            var cell = front[row, col];
             var scalar = cell.Value.Value;
             chars[col] = cell.Width == CellWidth.SpacerTail || scalar > 0xFFFF ? ' ' : (char)scalar;
         }
@@ -3627,9 +3633,14 @@ public sealed class ReplShell
     /// <returns>true = vim 已消化（分派链终止）；false = 透传落原编辑链。</returns>
     private bool TryHandleVimKey(KeyPress key)
     {
-        var modeBefore = _vimEngine!.Mode;
+        if (_vimEngine is not { } vimEngine)
+        {
+            return false;
+        }
+
+        var modeBefore = vimEngine.Mode;
         var consumed = key.Kind == KeyKind.Escape ? HandleVimEscape(key) : HandleVimPlainKey(key);
-        if (_vimEngine.Mode != modeBefore)
+        if (vimEngine.Mode != modeBefore)
         {
             RefreshVimFooter();
         }
@@ -3652,13 +3663,18 @@ public sealed class ReplShell
     /// <returns>恒 true — Esc 任意模式被 vim 消费，不落原 Esc 链。</returns>
     private bool HandleVimEscape(KeyPress key)
     {
-        if (_vimEngine!.Mode == VimMode.Insert)
+        if (_vimEngine is not { } vimEngine)
         {
-            DispatchVimEffects(_vimEngine.HandleKey(key));
+            return false;
+        }
+
+        if (vimEngine.Mode == VimMode.Insert)
+        {
+            DispatchVimEffects(vimEngine.HandleKey(key));
             return true;
         }
 
-        _vimEngine.HandleKey(key);
+        vimEngine.HandleKey(key);
         if (IsBusy)
         {
             HandleEscape();
@@ -3679,7 +3695,12 @@ public sealed class ReplShell
     /// <returns>true = vim 已消化；false = 透传落原编辑链。</returns>
     private bool HandleVimPlainKey(KeyPress key)
     {
-        var effects = _vimEngine!.HandleKey(key);
+        if (_vimEngine is not { } vimEngine)
+        {
+            return false;
+        }
+
+        var effects = vimEngine.HandleKey(key);
         if (effects.Count == 1 && effects[0].Kind == VimEffectKind.PassThrough)
         {
             return false;
@@ -4371,7 +4392,12 @@ public sealed class ReplShell
         _view.HelpOpen = _helpOpen;
         ReassertTerminalModesIfIdle();
         EnsureScreens();
-        _back.Clear();
+        if (_back is not { } back || _front is not { } front)
+        {
+            return;
+        }
+
+        back.Clear();
         // A5 接线 — 会话三态归并驱动（waiting(权限/命令对话框挂起) > busy(回合中) > idle）+
         // 标题动画时钟每拍推进（失焦冻结在 AdvanceAnimClock 内截停）
         _terminalStatus?.SetStatus(ComputeSessionStatus());
@@ -4384,8 +4410,8 @@ public sealed class ReplShell
         // TASK066 F3 — 塌缩门控投影（视口模式屏高=终端 rows 才判 rows < 24；inline 不塌 —
         // 基准 isFullscreen 条件，见 ReplView.ViewportRender）
         _view.ViewportRender = !_inline;
-        _view.Render(_back, _theme);
-        ApplySelectionHighlight(_back, _selection);
+        _view.Render(back, _theme);
+        ApplySelectionHighlight(back, _selection);
         if (_inline)
         {
             var viewportRows = _sizeSource.Current.Rows;
@@ -4394,9 +4420,9 @@ public sealed class ReplShell
             // 高度约束）+ frameEnd 走 TranscriptRenderer 视口光标；备用屏无 scrollback，
             // 整屏差分重绘语义与视口独占渲染一致（inline 历史留 scrollback 语义不适用于模态帧）
             var frameEnd = _view.Transcript is { } transcript
-                ? TranscriptRenderer.CursorPos(transcript, _back.Rows)
-                : _view.InputCursorPos(_back.Rows, _back.Cols, _input.CursorCol);
-            var prev = _frontValid ? _front : _prevOverride;
+                ? TranscriptRenderer.CursorPos(transcript, back.Rows)
+                : _view.InputCursorPos(back.Rows, back.Cols, _input.CursorCol);
+            var prev = _frontValid ? front : _prevOverride;
             if (_forceFullReset)
             {
                 _forceFullReset = false;
@@ -4404,7 +4430,7 @@ public sealed class ReplShell
                 prev = _blankPrev;
             }
 
-            var output = _inlineComposer.Compose(prev, _back, viewportRows, _cursor, frameEnd, out _cursor);
+            var output = _inlineComposer.Compose(prev, back, viewportRows, _cursor, frameEnd, out _cursor);
             _prevOverride = null;
             if (output.Length > 0)
             {
@@ -4416,7 +4442,7 @@ public sealed class ReplShell
         }
         else
         {
-            var output = _composer.Compose(_frontValid ? _front : null, _back);
+            var output = _composer.Compose(_frontValid ? front : null, back);
             if (output.Length > 0)
             {
                 _output.Write(output);
@@ -4424,8 +4450,8 @@ public sealed class ReplShell
 
             // 6.13 空帧零输出（基准 diff.length===0 直接 return）— 帧间零变化且
             // 光标位未变时跳过光标定位序列（旧行为恒发 ~8 字节/帧背景流量）
-            var cursorRow = _back.Rows - 1;
-            var cursorCol = Math.Min(_back.Cols, PromptInputBox.PromptWidth + _input.CursorCol + 1);
+            var cursorRow = back.Rows - 1;
+            var cursorCol = Math.Min(back.Cols, PromptInputBox.PromptWidth + _input.CursorCol + 1);
             if (output.Length > 0 || _lastViewportCursor != (cursorRow, cursorCol))
             {
                 _output.Write(Csi.CursorPosition(cursorRow, cursorCol));
@@ -4434,7 +4460,8 @@ public sealed class ReplShell
         }
 
         _output.Flush();
-        (_front, _back) = (_back, _front);
+        _front = back;
+        _back = front;
         _frontValid = true;
     }
 
@@ -4695,8 +4722,13 @@ public sealed class ReplShell
     /// <summary>终端光标落到输入文本行（视口模式 — 0 基 Rows-2 → 1 基 Rows-1），列随编辑偏移。</summary>
     private void PositionCursor()
     {
-        var row = _back.Rows - 1;
-        var col = Math.Min(_back.Cols, PromptInputBox.PromptWidth + _input.CursorCol + 1);
+        if (_back is not { } back)
+        {
+            return;
+        }
+
+        var row = back.Rows - 1;
+        var col = Math.Min(back.Cols, PromptInputBox.PromptWidth + _input.CursorCol + 1);
         _output.Write(Csi.CursorPosition(row, col));
     }
 
@@ -4799,9 +4831,15 @@ public sealed class ReplShell
     /// DrainExternalEditorResults 主循环消费）；委托异常/失败结果静默降级丢弃（对齐 bash 直通容错先例）。</summary>
     private async Task EditInExternalEditorAsync(string originalText)
     {
+        if (_launchExternalEditor is not { } launchEditor)
+        {
+            _externalEditorResults.Enqueue((originalText, null));
+            return;
+        }
+
         try
         {
-            var edited = await _launchExternalEditor!(originalText).ConfigureAwait(false);
+            var edited = await launchEditor(originalText).ConfigureAwait(false);
             _externalEditorResults.Enqueue((originalText, edited));
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
@@ -4847,9 +4885,15 @@ public sealed class ReplShell
     /// DrainClipboardImageResults 主循环消费）；委托异常入队 null 信号（失败通知降级）。</summary>
     private async Task ReadClipboardImageAsync()
     {
+        if (_readClipboardImage is not { } readClipboardImage)
+        {
+            _clipboardImageResults.Enqueue(null);
+            return;
+        }
+
         try
         {
-            var attachment = await _readClipboardImage!().ConfigureAwait(false);
+            var attachment = await readClipboardImage().ConfigureAwait(false);
             _clipboardImageResults.Enqueue(attachment);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)

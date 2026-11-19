@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
@@ -802,7 +801,7 @@ internal static class GitFlagBuilders {
     /// <summary>
     /// git remote show 危险回调 — 位置参数必须是字母数字远程名
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     internal static bool CheckGitRemoteShowDangerous(string command, IReadOnlyList<string> args) {
         string? firstPositionArg = null;
         var positionArgCount = 0;
@@ -813,8 +812,8 @@ internal static class GitFlagBuilders {
                 else break;
             }
         }
-        if (positionArgCount != 1) return true;
-        return !Regex.IsMatch(firstPositionArg!, @"^[a-zA-Z0-9_-]+$");
+        if (positionArgCount != 1 || firstPositionArg is null) return true;
+        return !Regex.IsMatch(firstPositionArg, @"^[a-zA-Z0-9_-]+$");
     }
 
     /// <summary>

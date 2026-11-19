@@ -302,9 +302,14 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     private int RenderPatchRows(Screen screen, Rect frame, Theme theme, int row)
     {
         var renderedRows = RenderedPatchRows;
-        for (var hunkIndex = 0; hunkIndex < (Patch?.Length ?? 0); hunkIndex++)
+        if (Patch is not { } patch)
         {
-            var hunk = Patch![hunkIndex];
+            return row;
+        }
+
+        for (var hunkIndex = 0; hunkIndex < patch.Length; hunkIndex++)
+        {
+            var hunk = patch[hunkIndex];
             if (renderedRows == 0)
             {
                 break;

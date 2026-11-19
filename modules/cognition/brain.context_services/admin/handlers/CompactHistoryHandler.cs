@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Context;
 
 /// <summary>
@@ -92,10 +91,11 @@ public sealed partial class CompactHistoryHandler : ServiceEntity, IChatAdminOpe
     /// <summary>
     /// 压缩后恢复 TODO 任务进度 — 避免压缩导致任务追踪丢失
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task RestoreTodoProgressAsync(IChatContextManager contextManager, CancellationToken ct) {
+        if (_todoService is null) return;
         try {
-            var result = await _todoService!.ListTodosAsync(includeCompleted: true, cancellationToken: ct).ConfigureAwait(false);
+            var result = await _todoService.ListTodosAsync(includeCompleted: true, cancellationToken: ct).ConfigureAwait(false);
             if (!result.Success || result.TotalCount == 0)
                 return;
 

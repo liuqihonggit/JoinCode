@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Bridge;
 
 /// <summary>
@@ -70,7 +69,7 @@ public static class BridgeInboundAttachments {
     /// 并行下载附件到本地，返回 @"path" 引用前缀字符串 — 对齐 TS 端 resolveInboundAttachments
     /// 下载到 ~/.jcc/uploads/{sessionId}/,复用 IBatchDownloader 多线程分片并行
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public static async Task<string> ResolveInboundAttachmentsAsync(
         List<BridgeInboundAttachment> attachments,
         string sessionId,
@@ -91,7 +90,8 @@ public static class BridgeInboundAttachments {
             headers[header.Key] = string.Join(",", header.Value);
         }
 
-        var baseUrl = httpClient.BaseAddress!;
+        var baseUrl = httpClient.BaseAddress
+            ?? throw new InvalidOperationException("Bridge HttpClient 未配置 BaseAddress");
         var items = attachments.ConvertAll(a => new BatchDownloadItem(
             new Uri(baseUrl, $"/api/oauth/files/{a.FileUuid}/content").ToString(),
             Path.Combine(uploadDir, SanitizeFileName(a.FileName)),

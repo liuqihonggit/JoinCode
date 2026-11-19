@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.Abstractions.LLM.Chat;
 
 /// <summary>
@@ -67,7 +66,7 @@ public class CacheBreakDetector {
     /// <param name="modelId">模型 ID（可选）</param>
     /// <param name="fastMode">是否启用快速模式（可选）</param>
     /// <returns>当前请求的状态快照</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public PromptStateSnapshot RecordPromptState(
         ImmutablePrefix prefix,
         string dynamicContent,
@@ -84,7 +83,7 @@ public class CacheBreakDetector {
             ToolCount = prefix.ToolSpecs.Count(),
             ToolNamesHash = ContentHash.ComputeToolNames(prefix.ToolSpecs),
             DynamicContentHash = ContentHash.Compute(dynamicContent),
-            ConversationHash = conversationCount > 0 ? ContentHash.ComputeConversation(conversation!) : string.Empty,
+            ConversationHash = conversation is { Count: > 0 } messages ? ContentHash.ComputeConversation(messages) : string.Empty,
             ConversationCount = conversationCount,
             ToolSpecs = prefix.ToolSpecs.ToList(),
             ModelId = modelId,
@@ -103,7 +102,7 @@ public class CacheBreakDetector {
     /// <param name="currentModelId">当前模型 ID（可选）</param>
     /// <param name="currentFastMode">当前是否启用快速模式（可选）</param>
     /// <returns>缓存破坏检测结果</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public CacheBreakResult CheckCacheBreak(
         PromptStateSnapshot snapshot,
         ImmutablePrefix currentPrefix,
@@ -178,8 +177,9 @@ public class CacheBreakDetector {
         // 唯有既有前缀中的消息被篡改/插入会破坏真实线上前缀，必须上报。
         if (snapshot.ConversationCount > 0
             && !string.IsNullOrEmpty(snapshot.ConversationHash)
-            && (currentConversation?.Count ?? 0) >= snapshot.ConversationCount) {
-            var preserved = currentConversation!.Take(snapshot.ConversationCount).ToList();
+            && currentConversation is { } conversation
+            && conversation.Count >= snapshot.ConversationCount) {
+            var preserved = conversation.Take(snapshot.ConversationCount).ToList();
             var preservedHash = ContentHash.ComputeConversation(preserved);
             if (preservedHash != snapshot.ConversationHash) {
                 return CacheBreakResult.Break(CacheBreakKind.ConversationHistoryChanged,

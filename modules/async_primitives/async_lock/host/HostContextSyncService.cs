@@ -1,4 +1,3 @@
-// JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
 namespace Core.Utils;
 
 /// <summary>
@@ -78,10 +77,13 @@ public sealed class HostContextSyncService : IAsyncDisposable {
     /// <summary>
     /// 主机广播上下文快照 — 序列化为字节，通过传输层广播。
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "BroadcastSnapshotAsync 在 _snapshotProvider 设置后调用, 内部不变量保证非空")]
     private async Task BroadcastSnapshotAsync(CancellationToken ct) {
+        if (_snapshotProvider is not { } snapshotProvider) {
+            return;
+        }
+
         try {
-            var snapshot = _snapshotProvider!();
+            var snapshot = snapshotProvider();
             var json = SerializeSnapshot(snapshot);
             var bytes = Encoding.UTF8.GetBytes(json);
             await _transport.BroadcastAsync(bytes, ct).ConfigureAwait(false);

@@ -563,11 +563,16 @@ public sealed partial class InputBuffer
             _undoStack.RemoveAt(_undoStack.Count - 1);
         }
 
+        if (restore is not { } snapshot)
+        {
+            return false;
+        }
+
         BeginEditText();
         _text.Clear();
-        _text.Append(restore!.Value.Text);
-        CursorCol = Math.Min(restore.Value.CursorCol, restore.Value.Text.Length);
-        _pasteTracker.LoadPasted(restore.Value.PastedContents);
+        _text.Append(snapshot.Text);
+        CursorCol = Math.Min(snapshot.CursorCol, snapshot.Text.Length);
+        _pasteTracker.LoadPasted(snapshot.PastedContents);
         return true;
     }
 

@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.Abstractions.Services;
 
 /// <summary>远程缓存刷新命令标记接口</summary>

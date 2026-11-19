@@ -40,10 +40,10 @@ public sealed class HandleFireAndForgetRule : AnalyzerRuleBase<HandleFireAndForg
                     ReportIfTaskLike(ctx, assignment.Right);
                     break;
                 case InvocationExpressionSyntax invocation:
-                    var symbol = ctx.SemanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+                    if (ctx.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol symbol) break;
                     if (symbol is { Name: "RegisterInFlight" }) break;
                     if (!AotSafetyHelpers.ReturnsTaskLike(symbol)) break;
-                    var calledName = symbol!.ContainingType?.Name is { } tn ? $"{tn}.{symbol.Name}" : symbol.Name;
+                    var calledName = symbol.ContainingType?.Name is { } tn ? $"{tn}.{symbol.Name}" : symbol.Name;
                     ctx.ReportDiagnostic(Diagnostic.Create(Descriptor, invocation.GetLocation(), calledName));
                     break;
             }
@@ -53,9 +53,9 @@ public sealed class HandleFireAndForgetRule : AnalyzerRuleBase<HandleFireAndForg
     private static void ReportIfTaskLike(SyntaxNodeAnalysisContext ctx, ExpressionSyntax expr) {
         var invocation = expr as InvocationExpressionSyntax ?? FindInnermostInvocation(expr);
         if (invocation is null) return;
-        var symbol = ctx.SemanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+        if (ctx.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol symbol) return;
         if (!AotSafetyHelpers.ReturnsTaskLike(symbol)) return;
-        var calledName = symbol!.ContainingType?.Name is { } tn ? $"{tn}.{symbol.Name}" : symbol.Name;
+        var calledName = symbol.ContainingType?.Name is { } tn ? $"{tn}.{symbol.Name}" : symbol.Name;
         ctx.ReportDiagnostic(Diagnostic.Create(Descriptor, invocation.GetLocation(), calledName));
     }
 

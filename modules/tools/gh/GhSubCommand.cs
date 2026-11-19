@@ -34,7 +34,7 @@ internal static class GhSubCommand {
         var cleanArgs = noCache ? args.Where(a => !string.Equals(a, "--no-cache", StringComparison.Ordinal)).ToArray() : args;
         var resolved = GhCommandResolver.Resolve(cleanArgs, out var resolveError);
         if (resolved is null) {
-            TerminalHelper.WriteError(resolveError!);
+            TerminalHelper.WriteError(resolveError);
             return 1;
         }
 
@@ -46,7 +46,7 @@ internal static class GhSubCommand {
         var parameters = GhDispatcher.GetParams(resolved.ToolName);
         var bound = GhArgsBinder.Bind(resolved.Tail, parameters, resolved.ToolName, out var bindError);
         if (bound is null) {
-            TerminalHelper.WriteError(bindError!);
+            TerminalHelper.WriteError(bindError);
             return 1;
         }
 
@@ -70,7 +70,7 @@ internal static class GhSubCommand {
         var parameters = GhDispatcher.GetParams(toolName);
         var bound = GhArgsBinder.Bind(tail, parameters, toolName, out var bindError);
         if (bound is null) {
-            TerminalHelper.WriteError(bindError!);
+            TerminalHelper.WriteError(bindError);
             return 1;
         }
         if (json && !bound.ContainsKey("verbosity")) bound["verbosity"] = "2";

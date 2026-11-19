@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Planning.ToolHandlers;
 
 /// <summary>
@@ -169,7 +168,7 @@ public class PlanModeToolHandlers {
     /// <summary>
     /// 添加计划步骤
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(PlanToolNameEnumConstants.AddPlanStep, "Add a plan step", "plan")]
     public async Task<ToolResult> AddPlanStepAsync(
         [McpToolParameter("Step description")] string description,
@@ -195,11 +194,16 @@ public class PlanModeToolHandlers {
             return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
 
+        if (result.PlanState is not { } planState) {
+            var stateDiag = BuildOperationFailedDiagnostic("add_step", "添加步骤失败", "计划状态缺失");
+            return ToolResultBuilder.Error().WithText(stateDiag.FormattedMessage).WithDiagnostic(stateDiag).Build();
+        }
+
         var response = new System.Text.StringBuilder();
         response.AppendLine("步骤已添加");
-        response.AppendLine($"当前步骤数: {result.PlanState!.Steps.Count}");
+        response.AppendLine($"当前步骤数: {planState.Steps.Count}");
         response.AppendLine();
-        response.AppendLine(FormatStepSummary(result.PlanState.Steps.Last()));
+        response.AppendLine(FormatStepSummary(planState.Steps.Last()));
 
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }

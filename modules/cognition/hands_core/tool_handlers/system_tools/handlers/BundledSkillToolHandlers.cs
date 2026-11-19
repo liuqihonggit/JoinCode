@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Tools.Handlers;
 
 /// <summary>
@@ -164,7 +163,7 @@ public partial class BundledSkillToolHandlers {
     /// <summary>
     /// 调试辅助 - 分析问题并提供诊断建议
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(SkillToolNameEnumConstants.SkillDebug, "Debug assistance, problem diagnosis", "skill")]
     public async Task<ToolResult> SkillDebugAsync(
         [McpToolParameter("Project path or file path")] string path,
@@ -211,7 +210,7 @@ public partial class BundledSkillToolHandlers {
         // 检查常见问题
         response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} Diagnostic suggestions:");
 
-        var searchPath = isDirectory ? path : Path.GetDirectoryName(path)!;
+        var searchPath = isDirectory ? path : (Path.GetDirectoryName(path) ?? path);
         var suggestions = await GetDebugSuggestionsAsync(searchPath, type, error_message, cancellationToken).ConfigureAwait(false);
 
         if (suggestions.Count == 0) {

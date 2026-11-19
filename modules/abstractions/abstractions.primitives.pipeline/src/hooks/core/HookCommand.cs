@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.Abstractions.Hooks;
 
 /// <summary>
@@ -197,8 +196,7 @@ public sealed record FunctionHook : HookCommand {
     /// 回调函数
     /// </summary>
     [JsonIgnore]
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: Callback 由构造方保证赋值, JsonIgnore 不参与反序列化")]
-    public Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; } = null!;
+    public required Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; }
 
     /// <summary>
     /// 错误消息（回调返回 false 时显示）
@@ -225,8 +223,7 @@ public sealed record CallbackHook : HookCommand {
     /// 回调函数
     /// </summary>
     [JsonIgnore]
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: Callback 由构造方保证赋值, JsonIgnore 不参与反序列化")]
-    public Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; } = null!;
+    public required Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; }
 
     /// <summary>
     /// 是否为内部钩子（排除在指标外）

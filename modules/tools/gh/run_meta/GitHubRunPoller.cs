@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace McpToolDispatch;
 
 /// <summary>
@@ -103,16 +102,16 @@ internal static class GitHubRunPoller {
     /// <summary>
     /// 单次 Run 轮询 — IO 操作,返回 (Kind, Value, Error)
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static async Task<(PollOutcomeKind, RunPollData, string?)> PollRunOnceAsync(
         IGitHubApiClient apiClient, string owner, string repo, string runId, CancellationToken ct) {
         var result = await apiClient.SendAsync(
             HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
         if (!result.Success)
-            return (PollOutcomeKind.Error, default!, result.Error);
+            return (PollOutcomeKind.Error, default, result.Error);
 
         var (status, conclusion, statusError) = ParseRunStatus(result.Body);
-        if (statusError is not null) return (PollOutcomeKind.Error, default!, statusError);
+        if (statusError is not null) return (PollOutcomeKind.Error, default, statusError);
         var data = new RunPollData { Status = status ?? "unknown", Conclusion = conclusion, Body = result.Body };
         var kind = status == "completed" ? PollOutcomeKind.Completed : PollOutcomeKind.Continue;
         return (kind, data, null);
@@ -143,14 +142,14 @@ internal static class GitHubRunPoller {
     /// <summary>
     /// 单次 PR checks 轮询 — IO 操作,返回 (Kind, Value, Error)
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static async Task<(PollOutcomeKind, PrPollData, string?)> PollPrChecksOnceAsync(
         IGitHubApiClient apiClient, string owner, string repo, string headSha, CancellationToken ct) {
         var result = await apiClient.SendAsync(
             HttpMethod.Get, $"repos/{owner}/{repo}/commits/{headSha}/check-runs",
             query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
         if (!result.Success)
-            return (PollOutcomeKind.Error, default!, result.Error);
+            return (PollOutcomeKind.Error, default, result.Error);
 
         var (allCompleted, summary, failCount) = ParseCheckRunsStatus(result.Body);
         var data = new PrPollData { Summary = summary, FailCount = failCount, Body = result.Body };
@@ -186,7 +185,7 @@ internal static class GitHubRunPoller {
     /// <summary>
     /// 单次 Run jobs 轮询 — 并行查 run status + jobs,发现 failure job 返回 FailFast
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static async Task<(PollOutcomeKind, JobWatchData, string?)> PollRunJobsOnceAsync(
         IGitHubApiClient apiClient, string owner, string repo, string runId, CancellationToken ct) {
         var runTask = apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct);
@@ -196,11 +195,11 @@ internal static class GitHubRunPoller {
         var runResult = await runTask.ConfigureAwait(false);
         var jobsResult = await jobsTask.ConfigureAwait(false);
 
-        if (!runResult.Success) return (PollOutcomeKind.Error, default!, runResult.Error);
-        if (!jobsResult.Success) return (PollOutcomeKind.Error, default!, jobsResult.Error);
+        if (!runResult.Success) return (PollOutcomeKind.Error, default, runResult.Error);
+        if (!jobsResult.Success) return (PollOutcomeKind.Error, default, jobsResult.Error);
 
         var (runStatus, runConclusion, statusError) = ParseRunStatus(runResult.Body);
-        if (statusError is not null) return (PollOutcomeKind.Error, default!, statusError);
+        if (statusError is not null) return (PollOutcomeKind.Error, default, statusError);
         var (failedJobIds, jobSummary) = ParseJobsForFailure(jobsResult.Body);
 
         var status = runStatus ?? "unknown";

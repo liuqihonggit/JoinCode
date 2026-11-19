@@ -95,7 +95,10 @@ public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : I
         }
         else if (form.Kind == PermissionFormKind.File)
         {
-            RenderIndentedLine(screen, RowFrame(frame, row++), 0, form.FilePath!);
+            if (form.FilePath is { } filePath)
+            {
+                RenderIndentedLine(screen, RowFrame(frame, row++), 0, filePath);
+            }
             if (form.HasPatchSummary)
             {
                 RenderPatchSummary(screen, RowFrame(frame, row++), theme, form.PatchAdded, form.PatchRemoved);

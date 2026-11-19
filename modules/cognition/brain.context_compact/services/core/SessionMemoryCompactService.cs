@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Context.Compact;
 
 /// <summary>
@@ -145,18 +144,17 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
     /// </summary>
     /// <param name="content">新的会话记忆内容</param>
     /// <param name="cancellationToken">取消令牌</param>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task UpdateSessionMemoryAsync(string content, CancellationToken cancellationToken = default) {
         _cachedMemoryContent = content;
 
-        if (_fileSystem is not null) {
-            var path = GetMemoryFilePath();
-            var dir = Path.GetDirectoryName(path)!;
-            if (!_fileSystem.DirectoryExists(dir)) {
-                _fileSystem.CreateDirectory(dir);
-            }
-            await _fileSystem.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(false);
+        if (_fileSystem is null) return;
+
+        var path = GetMemoryFilePath();
+        if (Path.GetDirectoryName(path) is { } dir && !_fileSystem.DirectoryExists(dir)) {
+            _fileSystem.CreateDirectory(dir);
         }
+        await _fileSystem.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(false);
     }
 
     internal void SetMemoryContent(string content) {

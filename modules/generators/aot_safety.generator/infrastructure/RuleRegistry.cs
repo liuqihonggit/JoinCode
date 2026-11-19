@@ -41,7 +41,7 @@ public static class RuleRegistry {
             if (!typeof(IAnalyzerRule).IsAssignableFrom(type)) continue;
             if (!seenTypes.Add(type)) continue;
 
-            var rule = (IAnalyzerRule)Activator.CreateInstance(type)!;
+            var rule = (IAnalyzerRule)Activator.CreateInstance(type);
 
             foreach (var attr in attrs) {
                 if (!byAnalyzer.TryGetValue(attr.AnalyzerId, out var ruleMap)) {

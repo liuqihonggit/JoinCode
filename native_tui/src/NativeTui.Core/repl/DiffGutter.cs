@@ -166,7 +166,7 @@ internal static class DiffGutter
     {
         var maximum = AssignLineNumbers(hunk)
             .Where(static lineNumber => lineNumber is not null)
-            .Select(static lineNumber => lineNumber!.Value)
+            .Select(static lineNumber => lineNumber.GetValueOrDefault())
             .DefaultIfEmpty(0)
             .Max();
         if (TryParseHunkHeader(hunk.Header, out var oldStart, out var oldLines, out var newStart, out var newLines))

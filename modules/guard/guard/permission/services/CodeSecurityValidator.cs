@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Permission;
 
 /// <summary>
@@ -164,11 +163,10 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static ValidationResult ValidateCodeContent(string code, bool allowExternalLibs) {
         var dangerMatch = DangerousPatternAc.FindFirst(code.AsSpan());
         if (dangerMatch is not null) {
-            return ValidationResult.Invalid($"代码包含危险操作: {dangerMatch!.Value.Value}");
+            return ValidationResult.Invalid($"代码包含危险操作: {dangerMatch.Value.Value}");
         }
 
         if (!allowExternalLibs) {

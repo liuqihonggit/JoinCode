@@ -84,8 +84,7 @@ internal static class ModelPickerAssembly
         var historySet = history.ToDictionary(m => m, StringComparer.OrdinalIgnoreCase);
         var inHistory = history
             .Select(h => models.FirstOrDefault(m => string.Equals(m.Id, h, StringComparison.OrdinalIgnoreCase)))
-            .Where(m => m is not null)
-            .Select(m => m!);
+            .OfType<ModelEntry>();
         var notInHistory = models.Where(m => !historySet.ContainsKey(m.Id));
         return inHistory.Concat(notInHistory);
     }

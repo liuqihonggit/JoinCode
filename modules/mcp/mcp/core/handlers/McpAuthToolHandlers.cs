@@ -1,6 +1,5 @@
 
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 // JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
 #pragma warning disable JCC11005
 namespace McpToolDispatch;
@@ -188,7 +187,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 刷新认证令牌
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(McpToolNameEnumConstants.McpAuthRefresh, "Refresh MCP authentication token", "mcp")]
     public async Task<ToolResult> McpAuthRefreshAsync(
         [McpToolParameter("Authentication config name")] string auth_name,

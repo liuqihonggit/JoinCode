@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Security.Sandbox;
 
 /// <summary>
@@ -86,12 +85,11 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
 
     protected override void Handle(ISandboxCommand command, CancellationToken ct) => RegisterInFlight(HandleAsyncImpl(command, ct).AsTask());
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async ValueTask HandleAsyncImpl(ISandboxCommand command, CancellationToken ct) {
         switch (command) {
             case EnterSandboxCmd cmd: {
                 if (IsInSandbox) {
-                    cmd.Tcs.TrySetException(new InvalidOperationException($"[GRD008] 已在 {_activeProvider!.SandboxType} 沙箱中，请先退出再进入新沙箱"));
+                    cmd.Tcs.TrySetException(new InvalidOperationException($"[GRD008] 已在 {_activeProvider?.SandboxType} 沙箱中，请先退出再进入新沙箱"));
                     break;
                 }
 

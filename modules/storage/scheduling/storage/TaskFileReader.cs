@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Scheduling;
 
 /// <summary>
@@ -48,7 +47,7 @@ public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader {
     /// <param name="directoryPath">任务目录路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>任务元数据列表</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task<List<FileTaskMetadata>> ReadAllAsync(
         string directoryPath,
         CancellationToken cancellationToken = default) {
@@ -68,7 +67,7 @@ public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader {
             return await ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
         });
         var results = await Task.WhenAll(readTasks).ConfigureAwait(false);
-        tasks.AddRange(results.Where(t => t != null)!);
+        tasks.AddRange(results.OfType<FileTaskMetadata>());
 
         return tasks;
     }

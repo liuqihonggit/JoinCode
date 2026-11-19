@@ -98,7 +98,7 @@ public sealed class Transaction : IDisposable
         foreach (var (key, (isDelete, value)) in _writes)
         {
             if (isDelete) batch.Delete(key);
-            else batch.Put(key, value!);
+            else batch.Put(key, value);
         }
 
         bool success;

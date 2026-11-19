@@ -1,4 +1,3 @@
-// JCC11003 抑制: 底层泛型集合实现, ! 用于 default(T)/数组槽位的可空抑制, 是 C# 语言限制下的必要用法
 // JCC11005 抑制: JsonConverter.Read 是框架接口实现, 必须返回 T?, 不能改 TryGet 模式
 #pragma warning disable JCC11005
 namespace Structura.Collections;

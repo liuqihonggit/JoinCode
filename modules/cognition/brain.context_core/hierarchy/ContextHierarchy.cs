@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Context;
 
 /// <summary>
@@ -286,7 +285,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     }
 
     /// <summary>Actor 请求-响应(带返回值):TrySend 命令 + await tcs.Task;支持取消</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task<TResult> AskAsync<TResult>(Func<ContextHierarchy, TResult> action, CancellationToken ct) {
         if (_disposed) throw new ObjectDisposedException(nameof(ContextHierarchy));
         ct.ThrowIfCancellationRequested();
@@ -294,7 +293,10 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
         await using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
         if (!_actor.TrySend(new HierarchyActor.Command((self, t) => t.SetResult(action(self)), tcs)))
             throw new ObjectDisposedException(nameof(ContextHierarchy));
-        return (TResult)(await tcs.Task.ConfigureAwait(false))!;
+        var result = await tcs.Task.ConfigureAwait(false);
+        return result is TResult typed
+            ? typed
+            : throw new InvalidOperationException("[ContextHierarchy] Actor 返回值类型不匹配");
     }
 
     /// <summary>

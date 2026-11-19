@@ -218,7 +218,11 @@ public static class Program
         var failures = new List<string>();
         while (BridgeProtocol.TryReadEvent(process.StandardOutput, out var bridgeEvent, out var diagnostic) == BridgeReadResult.Event)
         {
-            received.Add(bridgeEvent!);
+            if (bridgeEvent is { } receivedEvent)
+            {
+                received.Add(receivedEvent);
+            }
+
             if (diagnostic is not null)
             {
                 failures.Add("诊断泄漏: " + diagnostic);
@@ -298,8 +302,12 @@ public static class Program
                     Console.Error.WriteLine(diagnostic);
                     break;
                 default:
-                    HandleEchoRequest(request!, writer);
-                    exit = request is BridgeRequest.Quit;
+                    if (request is { } requestValue)
+                    {
+                        HandleEchoRequest(requestValue, writer);
+                        exit = requestValue is BridgeRequest.Quit;
+                    }
+
                     break;
             }
         }

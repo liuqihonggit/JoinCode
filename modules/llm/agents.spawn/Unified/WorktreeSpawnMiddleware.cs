@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Agents;
 
 /// <summary>
@@ -33,7 +32,7 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
         if (!context.IsMainAgent && context.Agent is not null) {
             var agentId = context.AgentId;
@@ -46,16 +45,20 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
             }
 
             if (!worktreeCreated) {
-                context.Agent!.AddContext("当前选择不创建 worktree，在主工作目录中执行。");
+                context.Agent.AddContext("当前选择不创建 worktree，在主工作目录中执行。");
             }
         }
 
         await next(context, ct).ConfigureAwait(false);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<bool> CreatePerAgentWorktreeAsync(UnifiedSpawnContext context, string agentId, CancellationToken ct) {
         _logger?.LogInformation("[WorktreeSpawn] 为 Agent {AgentId} 创建隔离 Worktree (per-agent)", agentId);
+
+        if (context.Agent is not { } agent) {
+            _logger?.LogWarning("[WorktreeSpawn] 上下文缺少 Agent，降级为普通模式");
+            return false;
+        }
 
         try {
             AgentWorktreeSession? session = null;
@@ -74,7 +77,6 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
             var worktreePath = session.WorktreePath;
             _logger?.LogInformation("[WorktreeSpawn] Agent {AgentId} Worktree 创建成功: {Path}", agentId, worktreePath);
 
-            var agent = context.Agent!;
             agent.Options.WorktreePath = worktreePath;
             agent.Options.WorktreeBranch = session.BranchName;
 
@@ -90,21 +92,25 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<bool> CreateGlobalWorktreeAsync(UnifiedSpawnContext context, string agentId, CancellationToken ct) {
+        if (_worktreeManager is not { } worktreeManager) {
+            _logger?.LogWarning("[WorktreeSpawn] Worktree 管理器不可用，降级为普通模式");
+            return false;
+        }
+
         _logger?.LogInformation("[WorktreeSpawn] 为 Agent {AgentId} 创建 Worktree (全局隔离)", agentId);
 
         try {
-            var worktreeCreated = await _worktreeManager!.CreateWorktreeAsync(agentId, ct).ConfigureAwait(false);
+            var worktreeCreated = await worktreeManager.CreateWorktreeAsync(agentId, ct).ConfigureAwait(false);
             if (!worktreeCreated) {
                 _logger?.LogWarning("[WorktreeSpawn] 创建 Worktree 失败，降级为普通模式 (原 [AGT011] 硬失败改为降级)");
                 return false;
             }
             context.WorktreeCreated = true;
 
-            var session = await _worktreeManager.GetWorktreeSessionAsync(agentId, ct).ConfigureAwait(false);
+            var session = await worktreeManager.GetWorktreeSessionAsync(agentId, ct).ConfigureAwait(false);
             if (session is not null) {
-                context.Agent!.AddContext($"已创建git worktree,路径是:{session.WorktreePath} 已创建git分支:{session.BranchName}");
+                context.Agent?.AddContext($"已创建git worktree,路径是:{session.WorktreePath} 已创建git分支:{session.BranchName}");
             }
             return true;
         } catch (Exception ex) {

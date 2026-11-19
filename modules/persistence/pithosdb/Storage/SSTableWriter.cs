@@ -109,7 +109,7 @@ public sealed class SSTableWriter
                 bw.Write(isTombstone);
                 if (!isTombstone)
                 {
-                    bw.Write(value!.Length);
+                    bw.Write(value.Length);
                     bw.Write(value);
                 }
             }

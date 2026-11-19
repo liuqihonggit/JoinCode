@@ -47,8 +47,7 @@ public sealed class DangerCommandGenerator : IIncrementalGenerator {
                 SymbolEqualityComparer.Default.Equals(a.AttributeClass, attrSymbol));
             if (attr is null) continue;
 
-            var commandName = field.ConstantValue as string;
-            if (string.IsNullOrEmpty(commandName)) continue;
+            if (field.ConstantValue is not string commandName || commandName.Length == 0) continue;
 
             var riskEnum = attr.ConstructorArguments.ElementAtOrDefault(0);
             var levelEnum = attr.ConstructorArguments.ElementAtOrDefault(1);
@@ -57,7 +56,7 @@ public sealed class DangerCommandGenerator : IIncrementalGenerator {
             var riskName = GetEnumMemberName(riskEnum, "None");
             var levelName = GetEnumMemberName(levelEnum, "Unknown");
 
-            results.Add(new CommandInfo(commandName!, riskName, levelName, description));
+            results.Add(new CommandInfo(commandName, riskName, levelName, description));
         }
     }
 
@@ -95,7 +94,7 @@ public sealed class DangerCommandGenerator : IIncrementalGenerator {
         if (enumConstant.Type is not INamedTypeSymbol enumType) return defaultValue;
         var enumValue = (int)enumConstant.Value;
         foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>()) {
-            if (field.HasConstantValue && (int)field.ConstantValue! == enumValue)
+            if (field.HasConstantValue && (int)field.ConstantValue == enumValue)
                 return field.Name;
         }
         return defaultValue;

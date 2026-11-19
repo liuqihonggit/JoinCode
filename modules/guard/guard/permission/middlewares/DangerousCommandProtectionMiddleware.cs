@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Permission;
 
 /// <summary>
@@ -46,7 +45,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         // Bypass 模式：仍需拦截 Dangerous 级（黑灯），其余放行
         // 安全红线: rm -rf /、mkfs、format c: 等整盘/系统级不可逆操作即使在 Bypass 下也必须拒绝
@@ -79,8 +78,8 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             context.Arguments != null &&
             context.Arguments.TryGetValue("path", out var pathEl) &&
             pathEl.ValueKind == JsonValueKind.String) {
-            var path = pathEl.GetString()!;
-            if (PermissionCheckContext.IsSensitivePath(path, context.Config.SensitivePathPatterns)) {
+            var path = pathEl.GetString();
+            if (path is not null && PermissionCheckContext.IsSensitivePath(path, context.Config.SensitivePathPatterns)) {
                 context.Result = ToolPermissionCheckResult.PendingConfirmation(
                     $"工具 '{context.ToolName}' 尝试写入敏感路径 '{path}'，是否批准？");
                 return;
@@ -100,7 +99,12 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             return;
         }
 
-        var command = cmdEl.GetString()!;
+        var command = cmdEl.GetString();
+        if (command is null) {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
+
         var (riskContext, dangerResult) = DetectRisks(context.ToolName, command);
 
         // 保留名清理场景降级 — robocopy /MIR/PURGE + 目标含保留名文件 → Dangerous 降级为 Execution（ADR 0012）
@@ -124,7 +128,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             var shellCmd = riskContext.ShellCommand ?? ShellCommand.Parse(command);
             var guardResult = _caseGuard.Check(shellCmd, _realPathResolver);
             if (guardResult.Blocked) {
-                context.Result = ToolPermissionCheckResult.Rejected(guardResult.Reason!);
+                context.Result = ToolPermissionCheckResult.Rejected(guardResult.Reason ?? "路径大小写与文件系统不一致");
                 return;
             }
         }
@@ -145,7 +149,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// 仅检查 Shell 工具的 Dangerous 级命令，非 Shell 工具的删除操作在 Bypass 下放行
     /// </summary>
     /// <returns>true 表示已拒绝（应短路返回），false 表示放行（应调用 next）</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private bool TryRejectDangerousInBypass(PermissionCheckContext context) {
         if (!context.IsShellOperation(context.ToolName))
             return false;
@@ -155,7 +159,8 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             cmdEl.ValueKind != JsonValueKind.String)
             return false;
 
-        var command = cmdEl.GetString()!;
+        var command = cmdEl.GetString();
+        if (command is null) return false;
 
         // 优先使用统一危险分类器
         if (_dangerClassifier is not null) {

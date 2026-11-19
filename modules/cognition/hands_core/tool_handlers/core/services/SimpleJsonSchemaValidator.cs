@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Tools;
 
 /// <summary>
@@ -166,13 +165,12 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         };
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void ValidateNode(JsonNode? instance, JsonNode? schema, string path, List<ValidationError> errors) {
         if (schema is not JsonObject schemaObj) return;
 
         // Type validation
         if (schemaObj.TryGetPropertyValue("type", out var typeNode)) {
-            ValidateType(instance, typeNode!, path, errors);
+            ValidateType(instance, typeNode, path, errors);
         }
 
         // Enum validation (skip empty enum arrays — they mean "no constraint")
@@ -197,9 +195,8 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private static void ValidateType(JsonNode? instance, JsonNode typeNode, string path, List<ValidationError> errors) {
-        var expectedType = typeNode!.GetValue<string>();
+    private static void ValidateType(JsonNode? instance, JsonNode? typeNode, string path, List<ValidationError> errors) {
+        if (typeNode?.GetValue<string>() is not { } expectedType) return;
         var actualType = GetJsonTypeName(instance);
 
         var typeMatch = expectedType switch {
@@ -226,12 +223,11 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         });
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void ValidateObject(JsonObject instance, JsonObject schema, string path, List<ValidationError> errors) {
         // Required properties
         if (schema.TryGetPropertyValue("required", out var requiredNode) && requiredNode is JsonArray requiredArray) {
             foreach (var req in requiredArray) {
-                var propName = req!.GetValue<string>();
+                if (req?.GetValue<string>() is not { } propName) continue;
                 if (!instance.ContainsKey(propName)) {
                     errors.Add(new ValidationError {
                         Path = $"{path}.{propName}",
@@ -270,12 +266,11 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static void ValidateStringConstraints(JsonNode? instance, JsonObject schema, string path, List<ValidationError> errors) {
         if (instance is not JsonValue value || !value.TryGetValue(out string? strValue)) return;
 
-        if (schema.TryGetPropertyValue("minLength", out var minLengthNode)) {
-            var minLength = minLengthNode!.GetValue<int>();
+        if (schema.TryGetPropertyValue("minLength", out var minLengthNode) && minLengthNode is not null) {
+            var minLength = minLengthNode.GetValue<int>();
             if (strValue.Length < minLength) {
                 errors.Add(new ValidationError {
                     Path = path,
@@ -284,8 +279,8 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
             }
         }
 
-        if (schema.TryGetPropertyValue("maxLength", out var maxLengthNode)) {
-            var maxLength = maxLengthNode!.GetValue<int>();
+        if (schema.TryGetPropertyValue("maxLength", out var maxLengthNode) && maxLengthNode is not null) {
+            var maxLength = maxLengthNode.GetValue<int>();
             if (strValue.Length > maxLength) {
                 errors.Add(new ValidationError {
                     Path = path,
@@ -295,7 +290,6 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static void ValidateNumberConstraints(JsonNode? instance, JsonObject schema, string path, List<ValidationError> errors) {
         if (instance is not JsonValue value) return;
 
@@ -306,8 +300,8 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
 
         if (!numValue.HasValue) return;
 
-        if (schema.TryGetPropertyValue("minimum", out var minimumNode)) {
-            var minimum = minimumNode!.GetValue<double>();
+        if (schema.TryGetPropertyValue("minimum", out var minimumNode) && minimumNode is not null) {
+            var minimum = minimumNode.GetValue<double>();
             if (numValue.Value < minimum) {
                 errors.Add(new ValidationError {
                     Path = path,
@@ -316,8 +310,8 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
             }
         }
 
-        if (schema.TryGetPropertyValue("maximum", out var maximumNode)) {
-            var maximum = maximumNode!.GetValue<double>();
+        if (schema.TryGetPropertyValue("maximum", out var maximumNode) && maximumNode is not null) {
+            var maximum = maximumNode.GetValue<double>();
             if (numValue.Value > maximum) {
                 errors.Add(new ValidationError {
                     Path = path,
@@ -327,10 +321,9 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void ValidateArray(JsonArray instance, JsonObject schema, string path, List<ValidationError> errors) {
-        if (schema.TryGetPropertyValue("minItems", out var minItemsNode)) {
-            var minItems = minItemsNode!.GetValue<int>();
+        if (schema.TryGetPropertyValue("minItems", out var minItemsNode) && minItemsNode is not null) {
+            var minItems = minItemsNode.GetValue<int>();
             if (instance.Count < minItems) {
                 errors.Add(new ValidationError {
                     Path = path,
@@ -339,8 +332,8 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
             }
         }
 
-        if (schema.TryGetPropertyValue("maxItems", out var maxItemsNode)) {
-            var maxItems = maxItemsNode!.GetValue<int>();
+        if (schema.TryGetPropertyValue("maxItems", out var maxItemsNode) && maxItemsNode is not null) {
+            var maxItems = maxItemsNode.GetValue<int>();
             if (instance.Count > maxItems) {
                 errors.Add(new ValidationError {
                     Path = path,

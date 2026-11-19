@@ -1355,3 +1355,18 @@ $ jcc prompt --section tools
 
 粒度差异是有意的：能力级按「功能分类」裁（`todo` 4 个工具），组级按「exe 部署单位」裁（`github` 173 个）。
 前者细，后者粗；两者叠加后，`tool call` 仍可作为调试通道直连执行层，而模型的可见范围由两层共同决定。
+
+### 22.10 生产路径的独立证据（不能只验诊断命令）
+
+`jcc prompt` 走的是 provider 路径，而聊天链路走 `SystemPromptMiddleware` —— 两者都进作用域才是真生效。
+middleware 里加了一行诊断：
+
+```
+（全开）  [PROMPT-GROUP] profile=base 启用工具组 13 个
+（裁剪）  [PROFILE] external override: base <- ...\jcctg\base.yaml
+          [PROMPT-GROUP] profile=base 启用工具组 12 个
+```
+
+`jcc -p "hi"` 是完整引擎装配（假 key 止于 401，但装配与提示词构建全跑完），所以这行出现即为生产链路证据。
+**为什么值得单独验**：只验 `jcc prompt` 会出现「诊断命令按 profile 裁、生产不裁」这种最难发现的偏差 ——
+而这种偏差的方向恰好是「看起来一切都对」。

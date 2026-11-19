@@ -135,8 +135,9 @@ public sealed class WriteAheadLog : IDisposable
                 bw.Write(key);
                 if (type == WalEntryType.Put)
                 {
-                    bw.Write(value!.Length);
-                    bw.Write(value);
+                    var putPayload = value ?? throw new InvalidOperationException("WAL Put 缺少 value");
+                    bw.Write(putPayload.Length);
+                    bw.Write(putPayload);
                 }
             }
         }

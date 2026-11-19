@@ -30,7 +30,7 @@ for (var w = 0; w < warmup; w++) {
     BruteForceSimd(query, vectors, topK);
 }
 var sw = Stopwatch.StartNew();
-List<(int Id, float Score)> simdResult = default!;
+List<(int Id, float Score)> simdResult = default;
 for (var it = 0; it < iterations; it++) {
     simdResult = BruteForceSimd(query, vectors, topK);
 }
@@ -42,7 +42,7 @@ for (var w = 0; w < warmup; w++) {
     BruteForceScalar(query, vectors, topK);
 }
 sw.Restart();
-List<(int Id, float Score)> scalarResult = default!;
+List<(int Id, float Score)> scalarResult = default;
 for (var it = 0; it < iterations; it++) {
     scalarResult = BruteForceScalar(query, vectors, topK);
 }

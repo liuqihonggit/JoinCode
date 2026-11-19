@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.CostTracking;
 
 /// <summary>
@@ -38,8 +37,8 @@ internal sealed class ModelPricing {
     public ModelCostInfo? Get(string model) => _modelCosts.GetValueOrDefault(model);
 
     /// <summary>尝试获取模型定价;存在则返回 true</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    public bool TryGetCost(string model, out ModelCostInfo costInfo) => _modelCosts.TryGetValue(model, out costInfo!);
+
+    public bool TryGetCost(string model, [NotNullWhen(true)] out ModelCostInfo? costInfo) => _modelCosts.TryGetValue(model, out costInfo);
 
     /// <summary>是否包含指定模型的自定义定价</summary>
     public bool Contains(string model) => _modelCosts.ContainsKey(model);

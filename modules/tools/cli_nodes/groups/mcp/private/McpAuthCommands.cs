@@ -39,7 +39,7 @@ internal static class McpAuthCommands {
     }
 
     private static void SaveConfigs(JsonArray configs) {
-        Directory.CreateDirectory(Path.GetDirectoryName(AuthFile)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(AuthFile));
         var root = new JsonObject { ["AuthConfigs"] = configs };
         File.WriteAllText(AuthFile, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
@@ -87,7 +87,7 @@ internal static class McpAuthCommands {
         Upsert(name, e => {
             e["AuthType"] = "OAuth2"; e["ClientId"] = clientId; e["ClientSecret"] = secret; e["TokenUrl"] = tokenUrl;
             e["Scopes"] = new JsonArray(scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(s => (JsonNode)JsonValue.Create(s)!).ToArray());
+                .Select(s => (JsonNode)JsonValue.Create(s)).ToArray());
         });
         Console.Out.WriteLine($"OAuth2 认证「{name}」已配置（token_url: {tokenUrl}）");
         return Task.FromResult(0);

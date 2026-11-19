@@ -9,7 +9,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
         var category = AttributeScanner.GetIntNamedArg(attr, "Category");
         var hasParameters = AttributeScanner.GetBoolNamedArg(attr, "HasParameters");
 
-        if (string.IsNullOrEmpty(toolName))
+        if (toolName is not { Length: > 0 })
             return null;
 
         var hasGetDescription = AttributeScanner.HasParameterlessStaticMethod(typeSymbol, "GetDescription");
@@ -36,7 +36,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
             typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
-            toolName!,
+            toolName,
             category,
             hasParameters,
             contentMethod,

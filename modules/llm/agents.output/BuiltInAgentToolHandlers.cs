@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Agents.ToolHandlers;
 
 /// <summary>
@@ -339,7 +338,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity {
     /// 构建子智能体输出文本 — L0 XML 包装 + L1 直接放 + L2 自摘要 + L3 落盘指针
     /// <para>步3: L0+L3 固定阈值。步4: 接入 L2 自摘要。后续4: 动态预算 R = min(ctxMax/4, fallback)。</para>
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task<string> BuildAgentOutputAsync(string agentId, string output, CancellationToken cancellationToken) {
         if (_outputTruncator is null)
             return output;
@@ -350,7 +349,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity {
         if (_summaryGenerator is not null) {
             var summaryResult = await _summaryGenerator.TrySummarizeAsync(agentId, output, budget, cancellationToken).ConfigureAwait(false);
             if (summaryResult.Status == SubAgentSummaryStatus.Success)
-                return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, summaryResult.Summary!);
+                return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, summaryResult.Summary ?? output);
             if (summaryResult.Status == SubAgentSummaryStatus.NotNeeded)
                 return SubAgentOutputEnvelope.Wrap(agentId, SubAgentEnvelopeState.Completed, summary, output);
         }

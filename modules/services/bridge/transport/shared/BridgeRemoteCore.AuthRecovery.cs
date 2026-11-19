@@ -1,11 +1,12 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Bridge;
 
 /// <summary>
 /// Bridge 远程核心 — 认证恢复相关逻辑（partial）
 /// </summary>
 public static partial class BridgeRemoteCore {
+    private static readonly HttpClient RecoveryHttpClient = new();
+
     #region recoverFromAuthFailure
 
     /// <summary>
@@ -173,7 +174,7 @@ public static partial class BridgeRemoteCore {
     /// <param name="transportFactory">传输工厂</param>
     /// <param name="refresh">令牌刷新调度器</param>
     /// <param name="ct">取消令牌</param>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     internal static void WireTransportCallbacks(
         IReplBridgeTransport transport,
         string sessionId,
@@ -236,7 +237,7 @@ public static partial class BridgeRemoteCore {
         transport.SetOnClose(code => {
             if (code == 401 && !state.AuthRecoveryInFlight) {
                 _ = RecoverFromAuthFailureAsync(
-                    sessionId, parameters, null!, config, logger,
+                    sessionId, parameters, RecoveryHttpClient, config, logger,
                     transport, transportFactory, state, refresh, ct);
             } else if (code != 401) {
                 parameters.OnStateChange?.Invoke(BridgeState.Failed, $"Transport closed (code {code})");

@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Agents;
 
 /// <summary>
@@ -729,14 +728,14 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task RouteWorkerPermissionResponsesAsync(string agentId, CancellationToken ct) {
+        if (_messageBroker is null || _permissionCallbackService is null) return;
         // ct 传入 ReceiveAsync — MailboxBase 底层 ReadAllAsync(ct) 随取消退出；
         // 漏传时无消息场景 Channel 读永不退出（E2E 实测 Host.DisposeAsync WhenAll 永挂 —
         // dumpasync 链：AgentServiceImpl.DisposeAsync → BackgroundTaskActor → 本循环）
-        await foreach (var message in _messageBroker!.ReceiveAsync(agentId, ct).ConfigureAwait(false)) {
+        await foreach (var message in _messageBroker.ReceiveAsync(agentId, ct).ConfigureAwait(false)) {
             if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue()) {
-                await _permissionCallbackService!.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
+                await _permissionCallbackService.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
             }
         }
     }

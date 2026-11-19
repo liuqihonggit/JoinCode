@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.Rg;
 
 /// <summary>
@@ -16,7 +15,7 @@ internal static class RgEngine {
     /// 执行搜索。PLINQ 链式：收集文件 → 并行搜索 → 过滤 → 排序 → 分页。
     /// <para>流式模式（onFileResult 非 null）：每搜完一个文件立即回调输出，跳过排序/分页。</para>
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public static RgOutcome Search(RgQuery q, CancellationToken ct, Action<RgFileResult>? onFileResult = null) {
         ct.ThrowIfCancellationRequested();
 
@@ -78,7 +77,7 @@ internal static class RgEngine {
             .WithDegreeOfParallelism(degree)
             .Select(f => SearchFile(f, regex, q, ct))
             .Where(r => r is not null)
-            .ForAll(r => results.Add(r!));
+            .ForAll(r => results.Add(r));
 
         var orderedResults = ApplySort(results, q.Sort);
         var (paged, appliedLimit, appliedOffset) = ApplyPaging(orderedResults, q.HeadLimit, q.Offset);

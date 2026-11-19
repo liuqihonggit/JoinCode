@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Infrastructure.IO.Services.FileOps;
 
 /// <summary>
@@ -135,7 +134,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task<GrepSearchResult> GrepSearchAsync(
         GrepSearchInput input,
         CancellationToken cancellationToken = default) {
@@ -161,7 +160,8 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 RecordSearchMetrics(SearchToolNameEnumConstants.Grep, 0, false);
                 return GrepSearchResult.FailureResult($"Invalid regular expression: {regexError}");
             }
-            var regex = compiledRegex!;
+            if (compiledRegex is not { } regex)
+                return GrepSearchResult.FailureResult("Invalid regular expression: regex 编译失败");
 
             var filenames = new List<string>();
             var contentLines = new List<string>();
@@ -180,7 +180,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                     if (!readResult.Success) {
                         return null;
                     }
-                    var fileContent = readResult.Content;
+                    var fileContent = readResult.Content ?? string.Empty;
 
                     if (input.OutputMode == SearchOutputMode.Count) {
                         var count = regex.Matches(fileContent).Count;

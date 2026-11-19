@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -212,7 +211,6 @@ public sealed class WorktreeCommand : ChatCommandBase {
         return true;
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task CreateWorktreeAsync(ChatCommandContext context, IAgentWorktreeService worktreeService, string[] args) {
         if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}请指定 Agent ID{AnsiStyleEnumConstants.Reset}");
@@ -228,18 +226,20 @@ public sealed class WorktreeCommand : ChatCommandBase {
         var result = await worktreeService.CreateAgentWorktreeAsync(agentId, null, null, context.CancellationToken).ConfigureAwait(false);
 
         if (result.Success) {
+            var session = result.Session
+                ?? throw new InvalidOperationException("worktree 创建成功但缺少会话信息");
             if (result.Existed) {
                 TerminalHelper.WriteLine($"{TerminalColors.Success}恢复现有 worktree:{AnsiStyleEnumConstants.Reset}");
             } else {
                 TerminalHelper.WriteLine($"{TerminalColors.Success}成功创建 worktree:{AnsiStyleEnumConstants.Reset}");
             }
 
-            TerminalHelper.WriteLine($"  路径: {result.Session!.WorktreePath}");
-            TerminalHelper.WriteLine($"  分支: {result.Session.BranchName}");
-            TerminalHelper.WriteLine($"  Git根: {result.Session.GitRootPath}");
+            TerminalHelper.WriteLine($"  路径: {session.WorktreePath}");
+            TerminalHelper.WriteLine($"  分支: {session.BranchName}");
+            TerminalHelper.WriteLine($"  Git根: {session.GitRootPath}");
 
-            if (result.Session.CreationDurationMs.HasValue) {
-                TerminalHelper.WriteLine($"  耗时: {result.Session.CreationDurationMs}ms");
+            if (session.CreationDurationMs.HasValue) {
+                TerminalHelper.WriteLine($"  耗时: {session.CreationDurationMs}ms");
             }
         } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}创建失败: {result.ErrorMessage}{AnsiStyleEnumConstants.Reset}");

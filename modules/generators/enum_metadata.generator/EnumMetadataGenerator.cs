@@ -243,7 +243,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         sb.AppendLine("    private static readonly SubCommandEntry[] __allEntries = new SubCommandEntry[]");
         sb.AppendLine("    {");
         foreach (var m in subCmdMembers) {
-            var info = m.SubCommandInfo!;
+            if (m.SubCommandInfo is not { } info) continue;
             sb.AppendLine($"        new(\"{EscapeString(m.Value)}\", \"{EscapeString(info.Description)}\", \"{EscapeString(info.Category)}\", {NullableString(info.Example)}, {(info.IsAlias ? "true" : "false")}, {NullableString(info.AliasOf)}, {(info.IsDeprecated ? "true" : "false")}),");
         }
         sb.AppendLine("    };");
@@ -254,7 +254,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         sb.AppendLine();
 
         // 生成 SelfHelpCommands set — 标记了 SelfHelp = true 的子命令名集合
-        var selfHelpValues = subCmdMembers.Where(m => m.SubCommandInfo!.SelfHelp).Select(m => $"\"{EscapeString(m.Value)}\"").ToList();
+        var selfHelpValues = subCmdMembers.Where(m => m.SubCommandInfo is { SelfHelp: true }).Select(m => $"\"{EscapeString(m.Value)}\"").ToList();
         sb.AppendLine("    /// <summary>自行处理 --help 的子命令名集合 — 标记了 [SubCommandInfo(SelfHelp = true)] 的子命令, --help 时由子命令自身渲染帮助</summary>");
         sb.AppendLine($"    public static readonly FrozenSet<string> SelfHelpCommands = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, new string[] {{ {string.Join(", ", selfHelpValues)} }});");
         sb.AppendLine();

@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace IO.Services;
 
 /// <summary>
@@ -67,13 +66,13 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     /// <summary>
     /// 从环境变量创建 UpdateSourceConfig — JCC_UPDATE_SOURCE_TYPE + JCC_UPDATE_MANIFEST_URL
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static UpdateSourceConfig? CreateConfigFromEnv() {
         var sourceTypeEnv = Environment.GetEnvironmentVariable(JccEnvVar.UpdateSourceType.ToValue());
         if (string.IsNullOrEmpty(sourceTypeEnv)) return null;
 
         return new UpdateSourceConfig {
-            SourceType = sourceTypeEnv!,
+            SourceType = sourceTypeEnv,
             ManifestUrl = Environment.GetEnvironmentVariable(JccEnvVar.UpdateManifestUrl.ToValue()),
             Channel = Environment.GetEnvironmentVariable(JccEnvVar.UpdateChannel.ToValue()) ?? "stable",
         };
@@ -168,7 +167,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     }
 
     /// <inheritdoc/>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task<UpdateResult> DownloadUpdateAsync(
         UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress = null,
@@ -185,7 +184,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
             long totalRead;
 
             if (_downloader is not null && !string.IsNullOrEmpty(downloadUrl))
-                totalRead = await DownloadWithDownloaderAsync(downloadUrl!, downloadedPath, entry, progress, ct).ConfigureAwait(false);
+                totalRead = await DownloadWithDownloaderAsync(downloadUrl, downloadedPath, entry, progress, ct).ConfigureAwait(false);
             else
                 totalRead = await DownloadFromStreamAsync(entry, downloadedPath, progress, ct).ConfigureAwait(false);
 
@@ -206,13 +205,14 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     /// <summary>
     /// 多线程分片下载(IDownloader) — 远程源走此路径,复用基建
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task<long> DownloadWithDownloaderAsync(
         string url, string downloadedPath, UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress, CancellationToken ct) {
+        var downloader = _downloader ?? throw new InvalidOperationException("更新下载器未配置");
         var dlProgress = AdaptProgress(progress, entry.SizeBytes);
         var options = new DownloadOptions { MaxThreads = 4, Resume = true };
-        await using var session = _downloader!.StartDownload(url, downloadedPath, options, dlProgress, ct);
+        await using var session = downloader.StartDownload(url, downloadedPath, options, dlProgress, ct);
         var result = await session.WaitForCompletionAsync(ct).ConfigureAwait(false);
         if (!result.Success)
             throw new InvalidOperationException($"下载失败: {result.ErrorMessage}");
@@ -222,12 +222,13 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     /// <summary>
     /// 单线程流式回退 — 本地文件源(LocalFile)或未注入 IDownloader 时走此路径
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task<long> DownloadFromStreamAsync(
         UpdateManifestEntry entry, string downloadedPath,
         IProgress<UpdateDownloadProgress>? progress, CancellationToken ct) {
         long totalRead = 0;
-        await using var sourceStream = await _updateSource!.DownloadAsync(entry, progress, ct).ConfigureAwait(false);
+        var updateSource = _updateSource ?? throw new InvalidOperationException("更新源未配置");
+        await using var sourceStream = await updateSource.DownloadAsync(entry, progress, ct).ConfigureAwait(false);
         await using var fileStream = _fs.Open(downloadedPath, FileMode.Create);
 
         var buffer = new byte[81920];

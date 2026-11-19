@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace McpToolDispatch;
 
 /// <summary>
@@ -95,7 +94,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 创建 Issue — 支持标签/指派人/里程碑/attach/blocked_by/blocking/parent/type(后四项为较新功能提示)，调 REST API POST
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(GitHubToolNameEnumConstants.GhIssueCreate, "创建 Issue(支持标签/指派人/里程碑/attach/blocked_by/blocking/parent/type)", "github")]
     public async Task<ToolResult> GhIssueCreateAsync(
         [McpToolParameter("Issue 标题", Required = true)] string title,
@@ -136,7 +135,7 @@ public partial class GitHubToolHandlers {
             if (project is null) return OkBrief(result.Body, "Issue 创建成功");
             var nodeId = TryExtractNodeId(result.Body, "Issue create");
             if (string.IsNullOrEmpty(nodeId)) return OkBrief(result.Body, "Issue 创建成功");
-            var projectResult = await AddToProjectAsync(client, owner, nodeId!, project.Value, cancellationToken).ConfigureAwait(false);
+            var projectResult = await AddToProjectAsync(client, owner, nodeId, project.Value, cancellationToken).ConfigureAwait(false);
             return OkBrief(result.Body, projectResult.Success ? "Issue 创建成功" : $"Issue 创建成功(但添加到 Project #{project} 失败: {projectResult.Error})");
         }).ConfigureAwait(false);
 
@@ -199,7 +198,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 编辑 Issue — 修改标题/body/标签/指派人/里程碑，调 REST API PATCH + POST/DELETE labels/assignees
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(GitHubToolNameEnumConstants.GhIssueEdit, "编辑 Issue(title/body/body_file/label/add_label/remove_label/assignee/add_assignee/remove_assignee/milestone/remove_milestone/add_project/remove_project/attach/add_sub_issue/remove_sub_issue/parent/remove_parent/add_blocked_by/remove_blocked_by/add_blocking/remove_blocking/type/remove_type)", "github")]
     public async Task<ToolResult> GhIssueEditAsync(
         [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,
@@ -289,19 +288,19 @@ public partial class GitHubToolHandlers {
                 if (!string.IsNullOrWhiteSpace(add_project)) {
                     foreach (var pTitle in ParseCsvToList(add_project)) {
                         var (ok, err) = await AddToProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(remove_project)) {
                     foreach (var pTitle in ParseCsvToList(remove_project)) {
                         var (ok, err) = await RemoveFromProjectByTitleAsync(client, owner, nodeId, pTitle, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(attach)) {
                     foreach (var filePath in ParseCsvToList(attach)) {
                         var (assetUrl, err) = await AttachFileAsync(client, owner, repoName, filePath, cancellationToken).ConfigureAwait(false);
-                        if (assetUrl is null) return Fail(err!);
+                        if (assetUrl is null) return Fail(err);
                         effectiveBody = (effectiveBody ?? "") + $"\n\n![{Path.GetFileNameWithoutExtension(filePath)}]({assetUrl})";
                     }
                     var issueBody = JsonSerializer.Serialize(new IssueEditRequest { Body = effectiveBody }, GitHubApiJsonContext.Safe.IssueEditRequest);
@@ -313,7 +312,7 @@ public partial class GitHubToolHandlers {
                         var childNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(childNum), cancellationToken).ConfigureAwait(false);
                         if (string.IsNullOrEmpty(childNodeId)) return Fail($"无法获取子 Issue {childNum} 的 node_id");
                         var (ok, err) = await AddSubIssueGraphQLAsync(client, nodeId, childNodeId, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(remove_sub_issue)) {
@@ -321,28 +320,28 @@ public partial class GitHubToolHandlers {
                         var childNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(childNum), cancellationToken).ConfigureAwait(false);
                         if (string.IsNullOrEmpty(childNodeId)) return Fail($"无法获取子 Issue {childNum} 的 node_id");
                         var (ok, err) = await RemoveSubIssueGraphQLAsync(client, nodeId, childNodeId, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(parent)) {
                     var parentNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(parent), cancellationToken).ConfigureAwait(false);
                     if (string.IsNullOrEmpty(parentNodeId)) return Fail($"无法获取父 Issue {parent} 的 node_id");
                     var (ok, err) = await AddSubIssueGraphQLAsync(client, parentNodeId, nodeId, cancellationToken).ConfigureAwait(false);
-                    if (!ok) return Fail(err!);
+                    if (!ok) return Fail(err);
                 }
                 if (remove_parent == true) {
                     var (parentId, parentErr) = await GetIssueParentIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
                     if (parentErr is not null) return Fail(parentErr);
                     if (string.IsNullOrEmpty(parentId)) return Fail($"Issue {number} 没有父 issue。如需设置父 issue，使用 --parent <number>");
                     var (ok, err) = await RemoveSubIssueGraphQLAsync(client, parentId, nodeId, cancellationToken).ConfigureAwait(false);
-                    if (!ok) return Fail(err!);
+                    if (!ok) return Fail(err);
                 }
                 if (!string.IsNullOrWhiteSpace(add_blocked_by)) {
                     foreach (var blockingNum in ParseCsvToList(add_blocked_by)) {
                         var blockingNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockingNum), cancellationToken).ConfigureAwait(false);
                         if (string.IsNullOrEmpty(blockingNodeId)) return Fail($"无法获取 Issue {blockingNum} 的 node_id。可能原因: ① Issue 不存在 ② Token 缺少 repo scope");
                         var (ok, err) = await AddBlockedByGraphQLAsync(client, nodeId, blockingNodeId, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(remove_blocked_by)) {
@@ -350,7 +349,7 @@ public partial class GitHubToolHandlers {
                         var blockingNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockingNum), cancellationToken).ConfigureAwait(false);
                         if (string.IsNullOrEmpty(blockingNodeId)) return Fail($"无法获取 Issue {blockingNum} 的 node_id。可能原因: ① Issue 不存在 ② Token 缺少 repo scope");
                         var (ok, err) = await RemoveBlockedByGraphQLAsync(client, nodeId, blockingNodeId, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(add_blocking)) {
@@ -358,7 +357,7 @@ public partial class GitHubToolHandlers {
                         var blockedNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockedNum), cancellationToken).ConfigureAwait(false);
                         if (string.IsNullOrEmpty(blockedNodeId)) return Fail($"无法获取 Issue {blockedNum} 的 node_id。可能原因: ① Issue 不存在 ② Token 缺少 repo scope");
                         var (ok, err) = await AddBlockedByGraphQLAsync(client, blockedNodeId, nodeId, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(remove_blocking)) {
@@ -366,7 +365,7 @@ public partial class GitHubToolHandlers {
                         var blockedNodeId = await GetIssueNodeIdAsync(client, owner, repoName, ParseNumberFromRef(blockedNum), cancellationToken).ConfigureAwait(false);
                         if (string.IsNullOrEmpty(blockedNodeId)) return Fail($"无法获取 Issue {blockedNum} 的 node_id。可能原因: ① Issue 不存在 ② Token 缺少 repo scope");
                         var (ok, err) = await RemoveBlockedByGraphQLAsync(client, blockedNodeId, nodeId, cancellationToken).ConfigureAwait(false);
-                        if (!ok) return Fail(err!);
+                        if (!ok) return Fail(err);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(type)) {
@@ -374,11 +373,11 @@ public partial class GitHubToolHandlers {
                     if (typeErr is not null) return Fail(typeErr);
                     if (string.IsNullOrEmpty(typeId)) return Fail($"未找到 issue 类型 \"{type}\"。可能原因: ① 仓库未配置 issue types（在仓库 Settings → Issues → Issue types 中添加） ② 类型名称不存在");
                     var (ok, err) = await SetIssueTypeAsync(client, nodeId, typeId, cancellationToken).ConfigureAwait(false);
-                    if (!ok) return Fail(err!);
+                    if (!ok) return Fail(err);
                 }
                 if (remove_type == true) {
                     var (ok, err) = await RemoveIssueTypeAsync(client, nodeId, cancellationToken).ConfigureAwait(false);
-                    if (!ok) return Fail(err!);
+                    if (!ok) return Fail(err);
                 }
             }
             return OkBrief("", $"已编辑 Issue {number}");

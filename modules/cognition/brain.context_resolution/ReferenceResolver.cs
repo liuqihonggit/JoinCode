@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Context.Resolution;
 
 /// <summary>
@@ -109,7 +108,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task<IReadOnlyList<CodeReference>> FindMatchingFilesAsync(
         string description,
         ReferenceResolutionOptions? options = null,
@@ -167,7 +166,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
             });
 
             var globResults = await Task.WhenAll(globTasks).ConfigureAwait(false);
-            results.AddRange(globResults.Where(r => r != null)!);
+            results.AddRange(globResults.OfType<CodeReference>());
 
             // 3. 尝试 Grep 搜索（在文件内容中查找）
             if (results.Count == 0) {

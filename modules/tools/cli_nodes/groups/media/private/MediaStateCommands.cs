@@ -243,7 +243,7 @@ internal static partial class MediaCommands {
         var history = state.ZoomHistory.ToList();
         history.Add(new SceneZoomEntry(depth, cell, quadrant - 1, DateTimeOffset.UtcNow));
         var updated = state with { CurrentDepth = depth, CurrentCellCode = cell, ZoomHistory = history, LastAction = back ? "zoom_back" : "zoom" };
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
         File.WriteAllText(path, JsonSerializer.Serialize(updated, SceneStateJsonContext.Default.SceneState));
         Console.Out.WriteLine($"场景 {sceneId} 缩放到 {cell}（depth={depth}{(back ? ", back" : "")}）");
         return Task.FromResult(0);

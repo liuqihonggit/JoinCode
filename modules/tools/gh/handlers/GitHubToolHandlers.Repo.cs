@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace McpToolDispatch;
 
 /// <summary>
@@ -245,7 +244,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 精简仓库列表 JSON — 只保留关键字段，去掉冗余 URL，便于人类浏览和 AI 解析；支持 source/fork/topic 客户端过滤
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static string SummarizeRepoList(string json, bool? source = null, bool? fork = null, string? topic = null) {
         var topicSet = topic?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
         try {
@@ -260,7 +259,7 @@ public partial class GitHubToolHandlers {
                 if (topicSet is { Count: > 0 } && repo.TryGetProperty("topics", out var topicsEl) && topicsEl.ValueKind == JsonValueKind.Array) {
                     var hasAnyTopic = false;
                     foreach (var t in topicsEl.EnumerateArray()) {
-                        if (t.ValueKind == JsonValueKind.String && topicSet.Contains(t.GetString()!)) { hasAnyTopic = true; break; }
+                        if (t.ValueKind == JsonValueKind.String && topicSet.Contains(t.GetString())) { hasAnyTopic = true; break; }
                     }
                     if (!hasAnyTopic) continue;
                 }

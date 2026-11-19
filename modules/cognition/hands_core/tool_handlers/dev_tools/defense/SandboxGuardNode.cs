@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Tools.Handlers;
 
 /// <summary>
@@ -30,14 +29,16 @@ public sealed class SandboxGuardNode {
     /// <param name="ct">取消令牌</param>
     /// <returns>沙箱内绝对路径</returns>
     /// <exception cref="UnauthorizedAccessException">路径越出沙箱范围</exception>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async ValueTask<string> ResolvePathAsync(string path, CancellationToken ct) {
         if (_sandboxManager is null || !_sandboxManager.IsInSandbox) return path;
         var sandboxId = _sandboxManager.CurrentSandboxId;
         if (sandboxId is null) return path;
 
+        var provider = _sandboxManager.ActiveProvider
+            ?? throw new InvalidOperationException("沙箱管理器缺少活跃提供者");
         var resolvedPath = _sandboxManager.ResolvePath(path, sandboxId);
-        var isInSandbox = await _sandboxManager.ActiveProvider!.IsPathInSandboxAsync(resolvedPath, sandboxId, ct).ConfigureAwait(false);
+        var isInSandbox = await provider.IsPathInSandboxAsync(resolvedPath, sandboxId, ct).ConfigureAwait(false);
         if (!isInSandbox)
             throw new UnauthorizedAccessException($"Path '{path}' is outside the sandbox scope");
         return resolvedPath;

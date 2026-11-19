@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Configuration;
 
 /// <summary>
@@ -53,9 +52,9 @@ public sealed class UpdateSourceConfig {
     /// <summary>
     /// 获取有效的清单地址 — 优先配置值，回退到 JccEndpointsResolver
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public string GetManifestUrl() =>
-        !string.IsNullOrEmpty(ManifestUrl) ? ManifestUrl! : JccEndpointsResolver.UpdateManifestUrl;
+        !string.IsNullOrEmpty(ManifestUrl) ? ManifestUrl : JccEndpointsResolver.UpdateManifestUrl;
 
     /// <summary>
     /// 获取有效的通道 — 优先配置值，回退到 JccEndpointsResolver

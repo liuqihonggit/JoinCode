@@ -210,7 +210,7 @@ internal static partial class CodeCommands {
         var entries = Directory.GetFiles(RecallDir, "*.json").Select(f => {
             try { return JsonSerializer.Deserialize(File.ReadAllText(f), CodeJsonContext.Default.FoldEntry); }
             catch (JsonException) { return null; }
-        }).Where(e => e is not null).Select(e => e!).ToList();
+        }).Where(e => e is not null).Select(e => e).ToList();
         if (entries.Count == 0) { Console.Out.WriteLine("No folded archives found. Archives are created automatically when conversation history is folded or compacted."); return Task.FromResult(0); }
         var sb = new StringBuilder();
         sb.AppendLine($"Found {entries.Count} folded archive(s):");

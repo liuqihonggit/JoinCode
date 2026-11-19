@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.CodeIndex.Persistence;
 
 /// <summary>
@@ -412,14 +411,13 @@ internal sealed record IndexSnapshot {
         };
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal IndexSnapshot InsertDependencyEdges(IReadOnlyList<DependencyEdge> deps) {
         if (deps.Count == 0) return this;
 
         var depEdges = DepEdges.AddRange(deps);
         var depsBySource = AddBatchToListIndex(DepsBySource, deps, d => d.SourceSymbol);
         var depsByTarget = AddBatchToListIndex(DepsByTarget, deps, d => d.TargetSymbol);
-        var depsByFile = AddBatchToListIndex(DepsByFile, deps.Where(d => !string.IsNullOrEmpty(d.SourceFilePath)), d => d.SourceFilePath!);
+        var depsByFile = AddBatchToListIndex(DepsByFile, deps.Where(d => !string.IsNullOrEmpty(d.SourceFilePath)), d => d.SourceFilePath ?? string.Empty);
 
         return this with {
             DepEdges = depEdges,

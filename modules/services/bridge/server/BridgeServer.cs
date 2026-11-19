@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Bridge;
 
 
@@ -187,7 +186,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
     /// <summary>
     /// 处理 WebSocket 连接
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private async Task HandleWebSocketAsync(HttpListenerContext context, CancellationToken cancellationToken) {
         var clientId = Guid.NewGuid().ToString("N")[..8];
 
@@ -199,9 +198,9 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
             _logger?.LogInformation("[BridgeServer] 客户端 {ClientId} 已连接", clientId);
 
             // Verify JWT token if available
-            var token = _jwtService is null ? null : context.Request.Headers["Authorization"]?.Replace("Bearer ", "");
-            if (!string.IsNullOrEmpty(token)) {
-                var validationResult = _jwtService!.ValidateToken(token);
+            var token = context.Request.Headers["Authorization"]?.Replace("Bearer ", "");
+            if (_jwtService is { } jwtService && !string.IsNullOrEmpty(token)) {
+                var validationResult = jwtService.ValidateToken(token);
                 if (!validationResult.IsValid) {
                     _logger?.LogWarning("[BridgeServer] 客户端 JWT 验证失败: {Error}", validationResult.Error);
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Authentication failed", cancellationToken).ConfigureAwait(false);

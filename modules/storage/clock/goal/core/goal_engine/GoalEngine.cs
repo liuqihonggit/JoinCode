@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 // JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
 #pragma warning disable JCC11005
 namespace Core.Goal;
@@ -20,10 +19,10 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private readonly Task _consumerTask;
     private readonly ILogger<GoalEngine>? _logger;
     private readonly IClockService _clock;
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private readonly IServiceProvider _serviceProvider = null!;
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
+
+    private readonly IServiceProvider? _serviceProvider;
+
+    private readonly IGoalGraphTemplateRegistry? _templateRegistry = null;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
     private volatile GoalState? _state;
@@ -99,10 +98,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             return;
         }
 
+        var serviceProvider = _serviceProvider
+            ?? throw new InvalidOperationException("[GoalEngine] 缺少 IServiceProvider");
         _graphEngine = new GoalGraphEngine(
             _kernel,
             _evaluator,
-            _serviceProvider,
+            serviceProvider,
             logger: null,
             heartbeat: _heartbeat,
             clock: _clock);

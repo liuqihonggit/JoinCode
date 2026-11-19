@@ -176,7 +176,7 @@ public partial class GitHubToolHandlers {
 
     /// <summary>列出 YAML 顶层 key-value 对（跳过注释和空行），支持 host 嵌套</summary>
     private static List<(string Key, string Value)> ListYamlEntries(string content, string? host)
-        => string.IsNullOrWhiteSpace(host) ? ListTopLevelEntries(content) : ListHostEntries(content, host!);
+        => string.IsNullOrWhiteSpace(host) ? ListTopLevelEntries(content) : ListHostEntries(content, host);
 
     /// <summary>列出顶层 key-value — 跳过注释/空行/缩进行，只取冒号分隔的顶层键</summary>
     private static List<(string Key, string Value)> ListTopLevelEntries(string content) {

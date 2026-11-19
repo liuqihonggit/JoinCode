@@ -99,7 +99,7 @@ public static class AttributeScanner {
 
     private static string? GetEnumValueName(INamedTypeSymbol enumType, int enumValue) {
         foreach (var member in enumType.GetMembers()) {
-            if (member is IFieldSymbol { HasConstantValue: true } field && (int)field.ConstantValue! == enumValue) {
+            if (member is IFieldSymbol { HasConstantValue: true } field && (int)field.ConstantValue == enumValue) {
                 var enumValueAttr = field.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "EnumValueAttribute");
                 if (enumValueAttr is not null && enumValueAttr.ConstructorArguments.Length > 0 && enumValueAttr.ConstructorArguments[0].Value is string val)
                     return val;

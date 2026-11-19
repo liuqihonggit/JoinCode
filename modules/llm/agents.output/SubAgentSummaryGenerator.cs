@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Agents;
 
 /// <summary>
@@ -107,16 +106,19 @@ public sealed partial class SubAgentSummaryGenerator : ServiceEntity {
         return new SubAgentSummaryResult(SubAgentSummaryStatus.Success, summary);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<string?> CallWithRetriesAsync(
         string agentId,
         string output,
         int maxOutputTokens,
         CancellationToken cancellationToken) {
+        if (_client is not { } client) {
+            return null;
+        }
+
         var maxAttempts = Math.Max(1, _config.MaxRetries + 1);
         for (var attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                var result = await _client!.SummarizeAsync(output, agentId, maxOutputTokens, cancellationToken).ConfigureAwait(false);
+                var result = await client.SummarizeAsync(output, agentId, maxOutputTokens, cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrEmpty(result))
                     return result;
 

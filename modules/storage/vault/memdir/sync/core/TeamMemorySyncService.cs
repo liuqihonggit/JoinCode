@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Memdir.Sync;
 
 /// <summary>
@@ -11,7 +10,7 @@ public sealed record StartSyncCmd(TaskCompletionSource Tcs) : ITeamMemorySyncCom
 /// <summary>停止同步命令。</summary>
 public sealed record StopSyncCmd(TaskCompletionSource Tcs) : ITeamMemorySyncCommand;
 /// <summary>同步指定文件或全部文件的命令。</summary>
-public sealed record SyncCmd(string? FilePath, TaskCompletionSource Tcs) : ITeamMemorySyncCommand;
+public sealed record SyncCmd(string? FilePath, TaskCompletionSource? Tcs) : ITeamMemorySyncCommand;
 /// <summary>解决冲突命令 — 对指定文件应用给定解决策略。</summary>
 public sealed record ResolveConflictCmd(string FilePath, SyncConflictResolution Resolution, TaskCompletionSource<SyncConflictResolution> Tcs) : ITeamMemorySyncCommand;
 /// <summary>文件变更命令。</summary>
@@ -45,6 +44,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     private readonly ITelemetryService? _telemetryService;
     private readonly TeamMemorySyncOptions _options;
     private readonly IFileSystem _fs;
+    private readonly IFileOperationService _fileOperationService;
     private readonly ConcurrentDictionary<string, SyncFileEntry> _localEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, SyncFileEntry> _remoteEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly MiddlewarePipeline<SyncStartContext>? _startPipeline;
@@ -72,6 +72,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         IClockService? clock = null)
         : base() {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
@@ -149,7 +150,6 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         _watcher.EnableRaisingEvents = true;
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task StartDirectAsync(CancellationToken ct) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (_isRunning) { _logger?.LogDebug(L.T(StringKey.VaultLogSyncAlreadyRunning)); return; }
@@ -162,21 +162,20 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
             await _scanner.ScanRemoteAsync(ct).ConfigureAwait(false);
 
         if (_options.EnableFileWatching) InitializeWatcher();
-        if (_options.EnableAutoSync) Timers.StartPeriodicTimer("sync", new SyncCmd(null, null!), TimeSpan.Zero, _options.SyncInterval);
+        if (_options.EnableAutoSync) Timers.StartPeriodicTimer("sync", new SyncCmd(null, null), TimeSpan.Zero, _options.SyncInterval);
 
         _isRunning = true;
         _logger?.LogInformation(L.T(StringKey.VaultLogSyncStarted), _options.WatchPath);
         RecordSyncMetrics("start", true);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task StartViaPipelineAsync(CancellationToken ct) {
         var pipeline = _startPipeline;
         if (pipeline is null) return;
 
         var ctx = new SyncStartContext {
             FileSystem = _fs,
-            FileOperationService = null!,
+            FileOperationService = _fileOperationService,
             Options = _options,
             CancellationToken = ct,
             IsDisposed = Volatile.Read(ref _disposed) != 0,
@@ -184,7 +183,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
             LocalEntries = _localEntries,
             RemoteEntries = _remoteEntries,
             SyncHistory = _eventLog.History,
-            StartAutoSync = () => Timers.StartPeriodicTimer("sync", new SyncCmd(null, null!), TimeSpan.Zero, _options.SyncInterval),
+            StartAutoSync = () => Timers.StartPeriodicTimer("sync", new SyncCmd(null, null), TimeSpan.Zero, _options.SyncInterval),
         };
 
         await pipeline.ExecuteAsync(ctx, ct).ConfigureAwait(false);

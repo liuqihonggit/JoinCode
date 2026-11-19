@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.CliCommands;
 
 /// <summary>
@@ -13,7 +12,7 @@ internal static class McpCallCommand {
     /// 参数名是否合法改由宿主内对着工具参数表判定 —— 那时才知道该工具真实有哪些参数，
     /// 比在 CLI 层一刀切拒绝要准确。</para>
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var reservedOptions = CliArgCliOptionConstants.AllOptionNames
             .Union(ToolCallArgCliOptionConstants.AllOptionNames)
@@ -43,6 +42,6 @@ internal static class McpCallCommand {
                 kvArgs = argsJson is null ? allPositional[1..] : null;
             }
         }
-        return await McpCliCommand.ExecuteCallAsync(toolName!, argsJson, kvArgs, flagArgs, argsFile, argsStdin, json, vendor, model, ct).ConfigureAwait(false);
+        return await McpCliCommand.ExecuteCallAsync(toolName, argsJson, kvArgs, flagArgs, argsFile, argsStdin, json, vendor, model, ct).ConfigureAwait(false);
     }
 }

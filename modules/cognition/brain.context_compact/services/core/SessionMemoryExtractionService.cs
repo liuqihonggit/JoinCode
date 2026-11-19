@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Context.Compact;
 
 /// <summary>
@@ -29,12 +28,12 @@ public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISes
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task<string> InitializeSessionMemoryFileAsync(CancellationToken cancellationToken = default) {
         var path = GetMemoryFilePath();
-        var dir = Path.GetDirectoryName(path)!;
+        var dir = Path.GetDirectoryName(path);
 
-        if (!_fileSystem.DirectoryExists(dir)) {
+        if (dir is not null && !_fileSystem.DirectoryExists(dir)) {
             _fileSystem.CreateDirectory(dir);
         }
 

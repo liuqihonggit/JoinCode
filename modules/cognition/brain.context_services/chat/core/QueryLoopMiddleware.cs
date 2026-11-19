@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 #pragma warning disable JCC11003
 namespace Core.Context;
 
@@ -320,9 +319,12 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         MessageList historySnapshot, ChatMiddlewareContext context, IterationState iterState,
         int totalToolCalls, [EnumeratorCancellation] CancellationToken ct) {
 
+        var concurrencyClassifier = _concurrencyClassifier
+            ?? throw new InvalidOperationException("[QueryLoopMiddleware] 流式工具执行缺少并发分类器");
+
         IStreamingToolExecutor streamingExecutor = UseActorToolExecutor
-            ? new StreamingToolExecutorActor(_toolHandler, _concurrencyClassifier!, context, MaxConcurrency, _logger, ct)
-            : new StreamingToolExecutor(_toolHandler, _concurrencyClassifier!, context, MaxConcurrency, _logger, ct);
+            ? new StreamingToolExecutorActor(_toolHandler, concurrencyClassifier, context, MaxConcurrency, _logger, ct)
+            : new StreamingToolExecutor(_toolHandler, concurrencyClassifier, context, MaxConcurrency, _logger, ct);
 
         await foreach (var evt in _llmHandler.InvokeLLMAsync(
             historySnapshot, context.ExecutionSettings, context, totalToolCalls, iterState,

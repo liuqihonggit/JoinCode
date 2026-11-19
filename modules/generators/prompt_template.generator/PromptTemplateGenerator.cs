@@ -11,7 +11,7 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         var contentMember = AttributeScanner.GetStringNamedArg(attr, "ContentMember") ?? "";
         var hasParameters = AttributeScanner.GetBoolNamedArg(attr, "HasParameters");
 
-        if (string.IsNullOrEmpty(name))
+        if (name is not { Length: > 0 })
             return null;
 
         var (categoryName, groupName) = ResolveCategoryInfo(compilation, categoryInt);
@@ -51,7 +51,7 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
             typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
-            name!,
+            name,
             categoryInt,
             categoryName,
             groupName,
@@ -153,8 +153,8 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
     private static string InferClassName(List<PromptTemplateInfo> infos) {
         var groupNames = infos.Select(i => i.GroupName).Where(g => g is not null).Distinct().ToList();
 
-        if (groupNames.Count == 1)
-            return groupNames[0]!;
+        if (groupNames.Count == 1 && groupNames[0] is { } only)
+            return only;
 
         return groupNames.FirstOrDefault() ?? "PromptTemplates";
     }

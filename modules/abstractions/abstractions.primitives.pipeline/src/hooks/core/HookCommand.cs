@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.Abstractions.Hooks;
 
 /// <summary>
@@ -193,12 +192,16 @@ public sealed record FunctionHook : HookCommand {
     /// </summary>
     public required string Id { get; init; }
 
+    private Func<HookInput, CancellationToken, Task<HookResult>>? _callback;
+
     /// <summary>
     /// 回调函数
     /// </summary>
     [JsonIgnore]
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: Callback 由构造方保证赋值, JsonIgnore 不参与反序列化")]
-    public Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; } = null!;
+    public Func<HookInput, CancellationToken, Task<HookResult>> Callback {
+        get => _callback ?? throw new InvalidOperationException("[FunctionHook] Callback 必须由构造方赋值");
+        init => _callback = value;
+    }
 
     /// <summary>
     /// 错误消息（回调返回 false 时显示）
@@ -221,12 +224,16 @@ public sealed record FunctionHook : HookCommand {
 public sealed record CallbackHook : HookCommand {
     public override string Type => HookTypeEnumConstants.Callback;
 
+    private Func<HookInput, CancellationToken, Task<HookResult>>? _callback;
+
     /// <summary>
     /// 回调函数
     /// </summary>
     [JsonIgnore]
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: Callback 由构造方保证赋值, JsonIgnore 不参与反序列化")]
-    public Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; } = null!;
+    public Func<HookInput, CancellationToken, Task<HookResult>> Callback {
+        get => _callback ?? throw new InvalidOperationException("[CallbackHook] Callback 必须由构造方赋值");
+        init => _callback = value;
+    }
 
     /// <summary>
     /// 是否为内部钩子（排除在指标外）

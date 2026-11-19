@@ -217,7 +217,7 @@ internal sealed class LeveledCompactor
                     {
                         var (decoded, dropped) = ValueCodec.DecodeForCompaction(value);
                         if (dropped) keep = false;
-                        else userValue = decoded!;
+                        else userValue = decoded ?? throw new InvalidOperationException("[Compaction] TTL 解码返回空值但未标记丢弃");
                     }
 
                     if (keep && (filter is null || filter.ShouldKeep(key, userValue)))

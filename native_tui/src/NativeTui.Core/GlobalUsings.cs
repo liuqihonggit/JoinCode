@@ -5,6 +5,7 @@ global using System.Text;
 global using System.Collections.Concurrent;
 global using System.Threading.Channels;
 global using System.Diagnostics;
+global using System.Diagnostics.CodeAnalysis;
 global using NativeTui.Core.Ansi;
 global using NativeTui.Core.Animation;
 global using NativeTui.Core.Bridge;

@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Tools.Handlers;
 
 /// <summary>
@@ -27,7 +26,7 @@ public sealed partial class ConfigToolHandlers {
     /// 获取配置设置值。
     /// 对齐 TS: ConfigTool.call — value === undefined → GET
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(ConfigToolNameEnumConstants.ConfigGet, "Get a configuration setting value", "config", ConcurrencySafe = true)]
     public async Task<ToolResult> ConfigGetAsync(
         [McpToolParameter("The setting key (e.g., \"theme\", \"model\", \"permissions.defaultMode\")")] string setting,
@@ -42,7 +41,8 @@ public sealed partial class ConfigToolHandlers {
                     .Build();
             }
 
-            var config = ConfigKeyRegistry.Get(setting)!;
+            var config = ConfigKeyRegistry.Get(setting)
+                ?? throw new InvalidOperationException($"配置键已通过支持性校验但未注册: {setting}");
             // 存储源取自唯一清单 ConfigKeyRegistry（对齐 TS supportedSettings.ts 的 source 字段）
             var source = ConfigKeyRegistry.SourceOf(setting);
             var currentValue = await _configService.GetAsync(setting, source, cancellationToken).ConfigureAwait(false);
@@ -65,7 +65,7 @@ public sealed partial class ConfigToolHandlers {
     /// 对齐 TS: ConfigTool.call — value provided → SET
     /// 包含：boolean 强转 → options 校验 → validateOnWrite → 写入
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     [McpTool(ConfigToolNameEnumConstants.ConfigSet, "Set a configuration setting value", "config")]
     public async Task<ToolResult> ConfigSetAsync(
         [McpToolParameter("The setting key")] string setting,
@@ -81,7 +81,8 @@ public sealed partial class ConfigToolHandlers {
                     .Build();
             }
 
-            var config = ConfigKeyRegistry.Get(setting)!;
+            var config = ConfigKeyRegistry.Get(setting)
+                ?? throw new InvalidOperationException($"配置键已通过支持性校验但未注册: {setting}");
             var finalValue = value;
 
             // 对齐 TS: boolean 强转

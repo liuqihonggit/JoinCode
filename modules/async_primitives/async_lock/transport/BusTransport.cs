@@ -1,4 +1,3 @@
-// JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
 namespace Core.Utils;
 
 /// <summary>
@@ -137,8 +136,11 @@ public sealed class BusTransport : ITransportTopology {
         return Task.CompletedTask;
     }
 
-        [SuppressMessage("AotSafety", "JCC11003", Justification = "StartSlaveAsync 在 StartAsync 设置 _role 后调用, 内部不变量保证非空")]
-        private async Task StartSlaveAsync(CancellationToken ct) {
+    private async Task StartSlaveAsync(CancellationToken ct) {
+        if (_role is not { } role) {
+            throw new InvalidOperationException("StartSlaveAsync requires elected role");
+        }
+
         _slaveClient = NamedPipeFactory.CreateClient(_pipeName);
 
         await _slaveClient.ConnectAsync(ct).ConfigureAwait(false);
@@ -151,12 +153,12 @@ public sealed class BusTransport : ITransportTopology {
         var handshake = BinaryProtocol.Encode(
             MessageType.Control,
             ProcessId,
-            _role!.HostProcessId,
+            role.HostProcessId,
             Encoding.UTF8.GetBytes($"BUS_SLAVE:{ProcessId}"));
         await _slaveClient.WriteAsync(handshake, ct).ConfigureAwait(false);
 
         _logger?.LogInformation("BusTransport: SLAVE connected to host {Host} (pid={Pid})",
-            _role.HostProcessId, ProcessId);
+            role.HostProcessId, ProcessId);
 
         _slaveReceiveTask = Task.Run(() => SlaveReceiveLoopAsync(_cts.Token));
     }

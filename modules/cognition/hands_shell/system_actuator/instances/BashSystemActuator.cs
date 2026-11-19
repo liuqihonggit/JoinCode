@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Services.SystemActuator;
 
 /// <summary>
@@ -65,7 +64,6 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
         return capability;
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static string ResolveShellPathStatic(IFileSystem fs, ILogger? logger) {
         if (!OperatingSystem.IsWindows()) return "bash";
 
@@ -73,10 +71,10 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
         if (!string.IsNullOrEmpty(envPath) && fs.FileExists(envPath)) return envPath;
 
         var gitPath = FindExecutableStatic(fs, logger, "git.exe", excludeCurrentDir: true);
-        if (gitPath is not null) {
-            var bashFromGit = Path.Combine(
-                Path.GetDirectoryName(Path.GetDirectoryName(gitPath))!,
-                "bin", "bash.exe");
+        var gitDir = gitPath is null ? null : Path.GetDirectoryName(gitPath);
+        var gitRoot = gitDir is null ? null : Path.GetDirectoryName(gitDir);
+        if (gitRoot is not null) {
+            var bashFromGit = Path.Combine(gitRoot, "bin", "bash.exe");
             if (fs.FileExists(bashFromGit))
                 return bashFromGit;
         }
@@ -100,7 +98,6 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
         return match.Success ? match.Groups[1].Value : "unknown";
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static string? FindExecutableStatic(IFileSystem fs, ILogger? logger, string executable, bool excludeCurrentDir = true) {
         try {
             var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions {
@@ -124,9 +121,9 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
             var cwd = fs.GetCurrentDirectory().ToLowerInvariant();
             foreach (var candidate in paths) {
                 var normalized = Path.GetFullPath(candidate.Trim()).ToLowerInvariant();
-                var dir = Path.GetDirectoryName(normalized)!;
-                if (!dir.Equals(cwd, StringComparison.OrdinalIgnoreCase) &&
-                    !normalized.StartsWith(cwd + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                var dir = Path.GetDirectoryName(normalized);
+                if (dir is null || (!dir.Equals(cwd, StringComparison.OrdinalIgnoreCase) &&
+                    !normalized.StartsWith(cwd + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
                     return candidate.Trim();
             }
             return null;

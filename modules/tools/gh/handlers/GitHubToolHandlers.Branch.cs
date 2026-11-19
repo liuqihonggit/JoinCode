@@ -303,10 +303,10 @@ public partial class GitHubToolHandlers {
                 using var refDoc = JsonDocument.Parse(refResult.Body);
                 effectiveSha = refDoc.RootElement.GetProperty("object").GetProperty("sha").GetString();
             }
-            var body = new CreateBranchRequest($"refs/heads/{branch}", effectiveSha!);
+            var body = new CreateBranchRequest($"refs/heads/{branch}", effectiveSha);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/git/refs", body: JsonSerializer.Serialize(body, GitHubApiJsonContext.Safe.CreateBranchRequest), ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_branch_create", $"repos/{owner}/{repoName}/git/refs"));
-            return Ok($"分支 '{branch}' 已创建(SHA: {effectiveSha![..7]})");
+            return Ok($"分支 '{branch}' 已创建(SHA: {effectiveSha[..7]})");
         }).ConfigureAwait(false);
 
     /// <summary>删除分支 — 调 DELETE /repos/{o}/{r}/git/refs/heads/{branch}</summary>

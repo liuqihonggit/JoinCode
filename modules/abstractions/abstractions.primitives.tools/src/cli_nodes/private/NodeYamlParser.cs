@@ -127,8 +127,7 @@ internal static class NodeYamlParser {
         map.Children.Keys
             .OfType<YamlScalarNode>()
             .Select(key => key.Value)
-            .Where(key => key is not null)
-            .Select(key => key!)
+            .OfType<string>()
             .ToHashSet(StringComparer.Ordinal);
 
     private static CliToolEntry ParseToolEntry(YamlMappingNode map, string source, string nodeId) {
@@ -195,7 +194,7 @@ internal static class NodeYamlParser {
         return node switch {
             YamlSequenceNode seq => seq.Children.Select(child => child.ToString()).ToArray(),
             YamlScalarNode scalar when !string.IsNullOrWhiteSpace(scalar.Value) =>
-                scalar.Value!.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+                scalar.Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
             _ => []
         };
     }

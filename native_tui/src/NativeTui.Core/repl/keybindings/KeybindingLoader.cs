@@ -155,13 +155,13 @@ public static class KeybindingLoader
                 continue;
             }
 
-            if (ReservedShortcuts.ReservedReason(chord!) is { } reason)
+            if (ReservedShortcuts.ReservedReason(chord) is { } reason)
             {
                 errors.Add(KeybindingError.ReservedKey(context, action, keyText, reason));
                 continue;
             }
 
-            chords.Add(chord!);
+            chords.Add(chord);
         }
 
         return chords;

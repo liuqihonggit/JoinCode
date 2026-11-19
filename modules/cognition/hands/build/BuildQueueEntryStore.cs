@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Services.Build;
 
 /// <summary>
@@ -30,9 +29,9 @@ internal sealed class BuildQueueEntryStore {
     /// <summary>
     /// 查找条目。
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    public bool TryGetEntry(string buildId, out BuildQueueEntry entry)
-        => _entries.TryGetValue(buildId, out entry!);
+
+    public bool TryGetEntry(string buildId, [NotNullWhen(true)] out BuildQueueEntry? entry)
+        => _entries.TryGetValue(buildId, out entry);
 
     /// <summary>
     /// 查找等待句柄。

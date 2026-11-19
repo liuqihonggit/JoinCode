@@ -1,4 +1,3 @@
-// JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
 namespace Core.Utils;
 
 /// <summary>
@@ -219,8 +218,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable {
         } catch (OperationCanceledException) { }
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "泛型邮箱 TryRead 返回 false 时 out 参数 default(T) 对于引用类型是 null, 是 C# 语言限制下的必要用法")]
-    internal bool TryReadByPriority(out TCommand cmd, out MessagePriority priority) {
+    internal bool TryReadByPriority([MaybeNullWhen(false)] out TCommand cmd, out MessagePriority priority) {
         if (_highChannel.Reader.TryRead(out var highCmd)) {
             cmd = highCmd;
             priority = MessagePriority.High;
@@ -236,7 +234,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable {
             priority = MessagePriority.Low;
             return true;
         }
-        cmd = default!;
+        cmd = default;
         priority = default;
         return false;
     }

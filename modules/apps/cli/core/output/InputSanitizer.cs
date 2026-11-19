@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.Cli.Output;
 
 /// <summary>
@@ -28,14 +27,14 @@ public static class InputSanitizer {
     /// 检查路径是否包含穿越模式
     /// </summary>
     /// <returns>如果路径安全返回 null，否则返回错误描述</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public static string? ValidatePath(string path) {
         if (string.IsNullOrWhiteSpace(path))
             return "路径不能为空";
 
         var match = PathTraversalAc.FindFirst(path.AsSpan());
         if (match is not null)
-            return $"路径包含非法穿越模式: {match!.Value.Value}";
+            return $"路径包含非法穿越模式: {match.Value.Value}";
 
         return null;
     }
@@ -75,7 +74,7 @@ public static class InputSanitizer {
     /// 检查命令参数是否包含注入风险
     /// 防范 shell 注入：分号、管道符、反引号、$() 等
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public static string? ValidateShellArgument(string argument) {
         if (string.IsNullOrEmpty(argument))
             return null;
@@ -88,7 +87,7 @@ public static class InputSanitizer {
         // 检查明显的 shell 注入模式（仅警告，不阻止 — 因为有些参数合法包含这些字符）
         var match = ShellInjectionAc.FindFirst(argument.AsSpan());
         if (match is not null)
-            return $"参数可能包含 shell 注入模式: {match!.Value.Value}";
+            return $"参数可能包含 shell 注入模式: {match.Value.Value}";
 
         return null;
     }

@@ -71,7 +71,7 @@ internal static partial class SystemCommands {
         sb.AppendLine("## 文件错误修复建议");
         sb.AppendLine($"路径: {path}");
         sb.AppendLine($"存在: {(File.Exists(path) ? "是" : "否")}");
-        var dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path));
         sb.AppendLine($"父目录存在: {(Directory.Exists(dir) ? "是" : "否")}");
         if (File.Exists(path)) sb.AppendLine($"大小: {new FileInfo(path).Length} 字节，只读: {new FileInfo(path).IsReadOnly}");
         sb.AppendLine();
@@ -137,7 +137,7 @@ internal static partial class SystemCommands {
     private static void SaveRuleNodes(JsonArray rules) {
         var path = RulesPathOrNull()
             ?? throw new InvalidOperationException("当前目录不在 git 工作区内，规则文件无处落脚（宿主此时也不会加载规则）。请先 git init 或在仓库内执行。");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
         File.WriteAllText(path, rules.ToJsonString());
     }
 

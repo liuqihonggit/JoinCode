@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.CodeIndex;
 
 /// <summary>
@@ -135,14 +134,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <para>下载后重新初始化 EmbeddingIndex + BuildIndexStoreList。</para>
     /// <para>已初始化/无 HttpClient/下载失败时静默降级（保持原行为）。</para>
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task EnsureEmbeddingModelAsync(CancellationToken ct = default) {
         EnsureEmbeddingIndexLazy();
         if (_embeddingIndex is not null) return;
         if (_httpClient is null) return;
         try {
             var downloader = new EmbeddingModelDownloader(_logger as ILogger<EmbeddingModelDownloader>);
-            await using var rangeDownloader = new RangeDownloader(_httpClient!, _fs);
+            await using var rangeDownloader = new RangeDownloader(_httpClient, _fs);
             await downloader.EnsureAsync(EmbeddingModelDownloader.DefaultTargetDir, _fs, _httpClient, rangeDownloader, ct).ConfigureAwait(false);
             TryInitEmbeddingIndex(_fs, _logger);
             BuildIndexStoreList();
@@ -893,7 +892,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 解析 worktree .git 指针文件内容 — 格式: "gitdir: /path/to/main/.git/worktrees/w1"
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: Path.GetDirectoryName 对有效路径返回非空")]
+
     private async Task<string?> ParseGitFileAsync(string gitFilePath) {
         try {
             var content = (await _fs.ReadAllText(gitFilePath).ConfigureAwait(false)).Trim();
@@ -901,7 +900,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             if (content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
                 var gitDir = content[prefix.Length..].Trim();
                 if (!Path.IsPathRooted(gitDir)) {
-                    gitDir = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(gitFilePath)!, gitDir));
+                    var gitFileDir = Path.GetDirectoryName(gitFilePath)
+                        ?? throw new InvalidOperationException($"git 文件路径缺少父目录: {gitFilePath}");
+                    gitDir = Path.GetFullPath(Path.Combine(gitFileDir, gitDir));
                 }
                 return gitDir;
             }

@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Tools.Handlers;
 
 /// <summary>
@@ -27,7 +26,7 @@ internal sealed class FilePathResolver {
     }
 
     /// <summary>解析沙箱路径 — 非沙箱环境直接返回原路径</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task<string> ResolveSandboxPathAsync(string path, CancellationToken cancellationToken) {
         if (_sandboxManager == null || !_sandboxManager.IsInSandbox) {
             return path;
@@ -38,8 +37,10 @@ internal sealed class FilePathResolver {
             return path;
         }
 
+        var provider = _sandboxManager.ActiveProvider
+            ?? throw new InvalidOperationException("沙箱管理器缺少活跃提供者");
         var resolvedPath = _sandboxManager.ResolvePath(path, sandboxId);
-        var isInSandbox = await _sandboxManager.ActiveProvider!.IsPathInSandboxAsync(resolvedPath, sandboxId, cancellationToken).ConfigureAwait(false);
+        var isInSandbox = await provider.IsPathInSandboxAsync(resolvedPath, sandboxId, cancellationToken).ConfigureAwait(false);
         if (!isInSandbox) {
             throw new UnauthorizedAccessException($"Path '{path}' is outside the sandbox scope");
         }

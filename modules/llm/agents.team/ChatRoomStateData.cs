@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -6,8 +5,8 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 public sealed class ChatRoomStateData {
     /// <summary>团队/聊天室信息</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    public TeamInfo Info { get; set; } = null!;
+
+    public TeamInfo? Info { get; set; }
 
     /// <summary>成员 ID 列表</summary>
     public List<string> Members { get; set; } = [];
@@ -41,7 +40,7 @@ public sealed class ChatRoomStateData {
     /// <summary>从 DTO 恢复 ChatRoomState（不可变集合 + WithMessages 构建双索引）</summary>
     public ChatRoomState ToState() {
         var state = new ChatRoomState {
-            Info = Info,
+            Info = Info ?? throw new InvalidOperationException("团队状态缺少 Info，无法恢复 ChatRoomState"),
             Members = Members.ToImmutableHamTSet(),
             SessionId = SessionId,
             AllowedPaths = AllowedPaths.ToImmutableHamT(p => p.Path),

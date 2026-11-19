@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Tools.Handlers;
 
 /// <summary>
@@ -31,7 +30,7 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
     public int Order => OrderIndex.Default.OrderOf("agent_tool_middlewares", nameof(AgentStreamExecutionMiddleware));
 
     /// <inheritdoc />
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct) {
         var spawnOptions = context.SpawnOptions ?? new AgentSpawnOptions {
             Description = context.Description,
@@ -76,7 +75,8 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
                 switch (chunk.Type) {
                     case AgentStreamChunkType.Content:
                     context.ContentBuilder.Append(chunk.Content);
-                    channel?.Emit(BuildChunkEvent(chunk, agentId)!);
+                    if (BuildChunkEvent(chunk, agentId) is { } chunkEvent)
+                        channel?.Emit(chunkEvent);
                     break;
                     case AgentStreamChunkType.ThinkingStart:
                     case AgentStreamChunkType.Thinking:
@@ -89,11 +89,13 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
                     case AgentStreamChunkType.ToolCallStart:
                     // 工具调用开始 — 对齐 TS onProgress({type:'agent_progress'})
                     _logger?.LogDebug("[AgentStreamExecution] Agent {AgentId} calling tool: {ToolName}", chunk.AgentId, chunk.ToolName);
-                    channel?.Emit(BuildChunkEvent(chunk, agentId)!);
+                    if (BuildChunkEvent(chunk, agentId) is { } toolCallEvent)
+                        channel?.Emit(toolCallEvent);
                     break;
                     case AgentStreamChunkType.ToolCallEnd:
                     case AgentStreamChunkType.ToolProgress:
-                    channel?.Emit(BuildChunkEvent(chunk, agentId)!);
+                    if (BuildChunkEvent(chunk, agentId) is { } toolProgressEvent)
+                        channel?.Emit(toolProgressEvent);
                     break;
                     case AgentStreamChunkType.Complete:
                     context.ExecutionTimeMs = chunk.ExecutionTimeMs;

@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -28,7 +27,7 @@ public sealed class CommitCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         // 渐进式披露:首次调用返回说明不执行,二次确认执行(SessionId 为空时跳过,兼容测试)
         var sessionId = context.SessionId;
@@ -46,7 +45,8 @@ public sealed class CommitCommand : ChatCommandBase {
         TerminalHelper.WriteLine($"{TerminalColors.Muted}正在创建提交...{AnsiStyleEnumConstants.Reset}");
 
         var fs = context.GetCommandServices().FileSystem;
-        var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)!;
+        var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)
+            ?? throw new InvalidOperationException("IGitCommandRunner 未注册");
         var status = await RunGitCommandAsync("status --porcelain", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(status)) {
             // 对齐 TS: 不创建空提交

@@ -76,11 +76,14 @@ public sealed class BridgeEventPump : IDisposable
 
             if (result == BridgeReadResult.Skipped)
             {
-                _diagnostics.Enqueue(diagnostic!);
+                if (diagnostic is { } skipped)
+                {
+                    _diagnostics.Enqueue(skipped);
+                }
             }
-            else
+            else if (bridgeEvent is { } parsed)
             {
-                _events.Enqueue(bridgeEvent!);
+                _events.Enqueue(parsed);
             }
         }
     }

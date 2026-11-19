@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Security.Services;
 
 /// <summary>
@@ -93,11 +92,14 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     /// <summary>
     /// LLM 深度分类 — 发送侧查询让 LLM 判断命令安全性
     /// </summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<ClassificationResult?> ClassifyWithLlmAsync(
         ClassificationRequest request,
         ClassificationResult stage1,
         CancellationToken ct) {
+        if (_queryEngine is not { } queryEngine) {
+            return null;
+        }
+
         var command = GetCommandString(request);
         if (string.IsNullOrEmpty(command)) {
             return null;
@@ -106,7 +108,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         var prompt = BuildClassificationPrompt(command, request.ToolName);
 
         try {
-            var response = await _queryEngine!.ExecuteQueryAsync(prompt, ct).ConfigureAwait(false);
+            var response = await queryEngine.ExecuteQueryAsync(prompt, ct).ConfigureAwait(false);
             var result = ParseLlmResponse(response, stage1);
 
             _logger?.LogDebug("[LlmAutoModeClassifier] LLM 分类: {Classification} -> {Action} ({Reason})",

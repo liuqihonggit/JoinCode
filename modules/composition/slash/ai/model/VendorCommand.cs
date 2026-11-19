@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -14,7 +13,7 @@ public sealed class VendorCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数与工作流配置</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var config = context.GetCommandServices().WorkflowConfig;
@@ -54,9 +53,11 @@ public sealed class VendorCommand : ChatCommandBase {
         // 目录缺失（精简启动）降级：默认模型保持原值不跟随（TASK065 补测代理登记 bug —
         // 原 [APP003] 未捕获异常传播 REPL，对齐 ModelCommand/EffortCommand 降级先例）
         var defaultModelId = ResolveCatalog(context)?.GetDefaultModelForProvider(targetValue) ?? string.Empty;
-        var newProvider = config.Provider! with {
+        var currentProvider = config.Provider
+            ?? throw new InvalidOperationException("WorkflowConfig 缺少 Provider 配置");
+        var newProvider = currentProvider with {
             Vendor = targetValue,
-            ModelId = string.IsNullOrEmpty(defaultModelId) ? config.Provider!.ModelId : defaultModelId,
+            ModelId = string.IsNullOrEmpty(defaultModelId) ? currentProvider.ModelId : defaultModelId,
         };
         config = config with { Provider = newProvider };
         context.GetCommandServices().WorkflowConfig = config;

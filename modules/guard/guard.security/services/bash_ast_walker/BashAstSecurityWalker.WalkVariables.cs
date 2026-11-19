@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.Abstractions.Security.Shell;
 
 public sealed partial class BashAstSecurityWalker {
@@ -110,7 +109,6 @@ public sealed partial class BashAstSecurityWalker {
             ? new StringOrTooComplex(VarPlaceholder)
             : new StringOrTooComplex(TooComplexNode(node));
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static StringOrTooComplex ResolveSimpleExpansion(
         Node node, Dictionary<string, string> varScope, bool insideString) {
         string? varName = null;
@@ -149,7 +147,7 @@ public sealed partial class BashAstSecurityWalker {
                 return new StringOrTooComplex(VarPlaceholder);
         }
 
-        return new StringOrTooComplex(TooComplexNode(node)!);
+        return new StringOrTooComplex(TooComplexNode(node));
     }
 
     private static BashAstSecurityResult? WalkDeclarationCommand(

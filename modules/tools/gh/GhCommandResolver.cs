@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace JoinCode.Gh;
 
 /// <summary>
@@ -313,7 +312,7 @@ internal static class GhArgsBinder {
     }
 
     /// <summary>绑定非 -- 前缀 token — 短选项/裸 key=value/位置参数</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static bool BindNonDashToken(
         string[] tail, ref int i, string token, string toolName, IReadOnlyList<GhParam> parameters,
         Dictionary<string, GhParam> byName, Dictionary<string, string> result,
@@ -350,7 +349,7 @@ internal static class GhArgsBinder {
         => token.Length >= 2 && token[0] == '-' && (token[1] == '-' || char.IsLetter(token[1]));
 
     /// <summary>绑定 -- 前缀 token — --key=value / --key value / 别名 / 全局穿透</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static bool BindDashToken(
         string[] tail, ref int i, string token, string toolName, IReadOnlyList<GhParam> parameters,
         Dictionary<string, GhParam> byName, Dictionary<string, string> result, out string? error) {
@@ -527,7 +526,7 @@ internal static class GhArgsBinder {
 
     /// <summary>尝试绑定系统 gh CLI 别名 — 成功返回 true 并更新 result/i，失败设 error 返回 false</summary>
     /// <param name="inlineValue">--key=value 形式的内联值（已由调用方剥离），null 表示无内联值。</param>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static bool TryBindAlias(string key, string toolName, string[] tail, ref int i,
         Dictionary<string, string> result, string token, string? inlineValue, out string? error) {
         error = null;
@@ -535,7 +534,7 @@ internal static class GhArgsBinder {
             return false;
         switch (alias.Kind) {
             case AliasKind.FixedValue:
-                result[alias.TargetKey] = alias.FixedValue!;
+                result[alias.TargetKey] = alias.FixedValue;
                 return true;
             case AliasKind.RenameOnly:
                 result[alias.TargetKey] = inlineValue ?? "true";
@@ -722,7 +721,7 @@ internal static class GhArgsBinder {
            ?? (ShortOptionMap.TryGetValue(toolName, out var group) ? group.Resolve(shortKey) : null);
 
     /// <summary>尝试绑定系统 gh CLI 短选项 — 成功返回 true 并更新 result/i，失败返回 false（不设 error，fall through 到位置参数）</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     private static bool TryBindShortOption(string token, string toolName, string[] tail, ref int i,
         Dictionary<string, string> result, Dictionary<string, GhParam> byName, out string? error) {
         error = null;
@@ -731,7 +730,7 @@ internal static class GhArgsBinder {
         if (ResolveGhShortOptionAlias(shortKey, toolName) is { } shortAlias) {
             switch (shortAlias.Kind) {
                 case AliasKind.FixedValue:
-                    result[shortAlias.TargetKey] = shortAlias.FixedValue!;
+                    result[shortAlias.TargetKey] = shortAlias.FixedValue;
                     return true;
                 case AliasKind.RenameOnly:
                     result[shortAlias.TargetKey] = shortInline ?? "true";

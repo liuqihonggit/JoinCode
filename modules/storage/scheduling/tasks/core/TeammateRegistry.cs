@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Scheduling.Tasks;
 
 /// <summary>
@@ -28,9 +27,9 @@ internal sealed class TeammateRegistry {
     }
 
     /// <summary>移除 teammate — 同时移除状态和通道,返回是否成功</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public bool TryRemove(string teammateId, [MaybeNullWhen(false)] out TeammateState state, out Channel<CoordinatorMessage>? channel) {
-        if (_activeTeammates.TryRemove(teammateId, out state!)) {
+        if (_activeTeammates.TryRemove(teammateId, out state)) {
             _pendingMessages.TryRemove(teammateId, out channel);
             return true;
         }
@@ -40,14 +39,14 @@ internal sealed class TeammateRegistry {
     }
 
     /// <summary>尝试获取 teammate 状态</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public bool TryGetState(string teammateId, [MaybeNullWhen(false)] out TeammateState state)
-        => _activeTeammates.TryGetValue(teammateId, out state!);
+        => _activeTeammates.TryGetValue(teammateId, out state);
 
     /// <summary>尝试获取 teammate 消息通道</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public bool TryGetChannel(string teammateId, [MaybeNullWhen(false)] out Channel<CoordinatorMessage> channel)
-        => _pendingMessages.TryGetValue(teammateId, out channel!);
+        => _pendingMessages.TryGetValue(teammateId, out channel);
 
     /// <summary>是否包含指定 teammate</summary>
     public bool Contains(string teammateId)

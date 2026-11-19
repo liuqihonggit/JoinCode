@@ -161,7 +161,7 @@ internal static partial class MediaCommands {
         sb.AppendLine($"图片摘要: {result.Summary}");
         sb.AppendLine($"标签数: {result.Labels?.Count ?? 0}");
         for (var i = 0; i < (result.Labels?.Count ?? 0); i++) {
-            var label = result.Labels![i];
+            var label = result.Labels[i];
             sb.AppendLine($"  [{i + 1}] {label.Label} — {label.Description}");
             if (label.SuggestedAttributes?.Count > 0) sb.AppendLine($"      可下钻属性: {string.Join(", ", label.SuggestedAttributes)}");
         }

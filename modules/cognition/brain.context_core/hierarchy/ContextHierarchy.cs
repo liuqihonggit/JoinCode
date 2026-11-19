@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Context;
 
 /// <summary>
@@ -22,15 +21,13 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     private sealed class HierarchyActor(ContextHierarchy owner, ILogger? logger)
         : ActorBase<HierarchyActor.Command, Unit>(logger: logger) {
 
-        /// <summary>命令 — 携带操作委托和回复通道</summary>
-        public sealed class Command(Action<ContextHierarchy, TaskCompletionSource<object?>> execute, TaskCompletionSource<object?> tcs) {
-            public readonly Action<ContextHierarchy, TaskCompletionSource<object?>> Execute = execute;
-            public readonly TaskCompletionSource<object?> Tcs = tcs;
+        /// <summary>命令 — 携带操作委托；结果由闭包捕获的泛型 TCS 回传（无装箱、无类型检查）</summary>
+        public sealed class Command(Action<ContextHierarchy> execute) {
+            public readonly Action<ContextHierarchy> Execute = execute;
         }
 
         protected override void Handle(Command command, CancellationToken ct) {
-            try { command.Execute(owner, command.Tcs); }
-            catch (Exception ex) { command.Tcs.TrySetException(ex); }
+            command.Execute(owner);
         }
     }
 
@@ -278,23 +275,28 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     private async Task AskAsync(Action<ContextHierarchy> action, CancellationToken ct) {
         if (_disposed) throw new ObjectDisposedException(nameof(ContextHierarchy));
         ct.ThrowIfCancellationRequested();
-        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
-        if (!_actor.TrySend(new HierarchyActor.Command((self, t) => { action(self); t.SetResult(null); }, tcs)))
+        if (!_actor.TrySend(new HierarchyActor.Command(self => {
+                try { action(self); tcs.TrySetResult(); }
+                catch (Exception ex) { tcs.TrySetException(ex); }
+            })))
             throw new ObjectDisposedException(nameof(ContextHierarchy));
         await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>Actor 请求-响应(带返回值):TrySend 命令 + await tcs.Task;支持取消</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<TResult> AskAsync<TResult>(Func<ContextHierarchy, TResult> action, CancellationToken ct) {
         if (_disposed) throw new ObjectDisposedException(nameof(ContextHierarchy));
         ct.ThrowIfCancellationRequested();
-        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource<TResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         await using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
-        if (!_actor.TrySend(new HierarchyActor.Command((self, t) => t.SetResult(action(self)), tcs)))
+        if (!_actor.TrySend(new HierarchyActor.Command(self => {
+                try { tcs.TrySetResult(action(self)); }
+                catch (Exception ex) { tcs.TrySetException(ex); }
+            })))
             throw new ObjectDisposedException(nameof(ContextHierarchy));
-        return (TResult)(await tcs.Task.ConfigureAwait(false))!;
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>

@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Goal;
 
 /// <summary>
@@ -55,11 +54,11 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry {
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public Task<IReadOnlyList<GoalState>> ListActiveGoalsAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult<IReadOnlyList<GoalState>>(_engines.Values
-            .Where(e => e.CurrentState is not null)
-            .Select(e => e.CurrentState!)
+            .Select(e => e.CurrentState)
+            .OfType<GoalState>()
             .ToList());
     }
 

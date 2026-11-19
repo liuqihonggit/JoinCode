@@ -129,7 +129,7 @@ internal static partial class ToolsCommands {
         var type = Get(o, "verify_type", "all");
         var filter = Get(o, "test_filter", "");
         var checks = new List<(string name, bool ok, string msg)>();
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
         if (type is "syntax" or "all") {
             var ext = Path.GetExtension(path).ToLowerInvariant();
             var (exe, args) = ext switch {
@@ -139,7 +139,7 @@ internal static partial class ToolsCommands {
                 _ => ("", Array.Empty<string>())
             };
             if (exe.Length > 0) {
-                var r = await RunProcAsync(exe, args, ext == ".cs" ? Path.GetDirectoryName(Path.GetFullPath(path))! : Directory.GetCurrentDirectory(), ct).ConfigureAwait(false);
+                var r = await RunProcAsync(exe, args, ext == ".cs" ? Path.GetDirectoryName(Path.GetFullPath(path)) : Directory.GetCurrentDirectory(), ct).ConfigureAwait(false);
                 checks.Add(("syntax", r.exit == 0, r.exit == 0 ? $"{ext} syntax OK" : r.err.Trim()));
             }
         }

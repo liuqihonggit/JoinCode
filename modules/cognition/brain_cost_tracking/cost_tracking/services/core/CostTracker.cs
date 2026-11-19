@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.CostTracking;
 
 /// <summary>
@@ -218,7 +217,6 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
 
     private decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0) => _pricing.CalculateCost(model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens);
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal CostStatistics CalculateStatistics(IReadOnlyList<TokenUsageRecord> records) {
         if (records.Count == 0) {
             return new CostStatistics();
@@ -233,7 +231,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
         var cacheSavings = records
             .Where(r => r.CacheReadTokens > 0 && _pricing.TryGetCost(r.Model, out var costInfo))
             .Sum(r => {
-                var costInfo = _pricing.Get(r.Model)!;
+                if (_pricing.Get(r.Model) is not { } costInfo) return 0m;
                 var normalCost = (r.CacheReadTokens / 1000m) * costInfo.PromptCostPer1KTokens;
                 var cacheCost = (r.CacheReadTokens / 1000m) * costInfo.PromptCostPer1KTokens * 0.1m;
                 return normalCost - cacheCost;

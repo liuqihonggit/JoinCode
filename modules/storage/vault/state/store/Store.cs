@@ -1,5 +1,4 @@
 
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace State;
 
 /// <summary>
@@ -7,6 +6,7 @@ namespace State;
 /// 使用不可变数据结构 + 无锁原子操作确保线程安全
 /// </summary>
 public partial class Store<TState> : IStore<TState>, IDisposable where TState : notnull {
+    [AllowNull]
     private TState _currentState;
     private ImmutableHamTSet<StateChangedHandler<TState>> _subscribers = ImmutableHamTSet<StateChangedHandler<TState>>.Empty;
     private readonly IStorePersistence<TState>? _persistence;
@@ -55,10 +55,11 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AOT", "JCC11003", Justification = "泛型原子操作底层模式:default!作为CompareExchange标记值,TState可能是引用类型")]
     public TState GetState() {
-        return Interlocked.CompareExchange(ref _currentState, default!, default!);
+        return ReadState();
     }
+
+    private TState ReadState() => Interlocked.CompareExchange(ref _currentState, default, default);
 
     /// <inheritdoc />
     public Task<TState> GetStateAsync(CancellationToken cancellationToken = default) {
@@ -66,12 +67,11 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AOT", "JCC11003", Justification = "泛型原子操作底层模式:default!作为CompareExchange标记值,TState可能是引用类型")]
     public void SetState(Func<TState, TState> updater) {
         ThrowIfDisposed();
 
         while (true) {
-            var oldState = Interlocked.CompareExchange(ref _currentState, default!, default!);
+            var oldState = ReadState();
             var newState = updater(oldState);
 
             if (ReferenceEquals(oldState, newState)) {
@@ -92,12 +92,11 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
-    [SuppressMessage("AOT", "JCC11003", Justification = "泛型原子操作底层模式:default!作为CompareExchange标记值,TState可能是引用类型")]
     public async Task SetStateAsync(Func<TState, Task<TState>> updater, CancellationToken cancellationToken = default) {
         ThrowIfDisposed();
 
         while (true) {
-            var oldState = Interlocked.CompareExchange(ref _currentState, default!, default!);
+            var oldState = ReadState();
             var newState = await updater(oldState).ConfigureAwait(false);
 
             if (ReferenceEquals(oldState, newState)) {

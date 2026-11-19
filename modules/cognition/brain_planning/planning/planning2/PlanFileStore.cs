@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Planning;
 
 /// <summary>
@@ -81,7 +80,7 @@ internal sealed class PlanFileStore {
     // ── 实例方法 ──
 
     /// <summary>清理旧计划文件（返回清理数量）</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public int CleanupOldFiles(int maxAgeDays = 30) {
         var plansDir = PlanSlugGenerator.GetPlansDirectory();
         if (!_fs.DirectoryExists(plansDir)) {
@@ -97,8 +96,8 @@ internal sealed class PlanFileStore {
                     var lastWriteTime = _fs.GetLastWriteTimeUtc(filePath);
                     if (lastWriteTime < cutoff) {
                         var deletedPath = GetDeletedPath(filePath, _clock.GetUtcNow());
-                        var deletedDir = Path.GetDirectoryName(deletedPath)!;
-                        if (!_fs.DirectoryExists(deletedDir)) {
+                        var deletedDir = Path.GetDirectoryName(deletedPath);
+                        if (deletedDir is not null && !_fs.DirectoryExists(deletedDir)) {
                             _fs.CreateDirectory(deletedDir);
                         }
                         _fs.MoveFile(filePath, deletedPath);
@@ -128,7 +127,7 @@ internal sealed class PlanFileStore {
     }
 
     /// <summary>保存活跃 plan 状态到文件</summary>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+
     public async Task SaveActivePlanStateAsync(string planId, string? sessionSlug, PlanState plan, CancellationToken cancellationToken) {
         var filePath = GetActivePlanStateFilePath();
         var state = new PersistablePlanState {
@@ -138,8 +137,8 @@ internal sealed class PlanFileStore {
         };
 
         try {
-            var dir = Path.GetDirectoryName(filePath)!;
-            if (!_fs.DirectoryExists(dir))
+            var dir = Path.GetDirectoryName(filePath);
+            if (dir is not null && !_fs.DirectoryExists(dir))
                 _fs.CreateDirectory(dir);
             var json = RelaxedJsonSerializer.Serialize(state, PlanJsonContext.Default);
             await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);

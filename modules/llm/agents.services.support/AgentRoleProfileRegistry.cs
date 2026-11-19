@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 // JCC10009 抑制: 存量元组 key, 后续改为字符串 key
 #pragma warning disable JCC10009
 namespace Core.Agents;
@@ -111,12 +110,11 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// 获取所有可用的执行变体
     /// </summary>
     /// <returns>去重并排序后的执行变体集合</returns>
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public IEnumerable<ExecutorVariant> GetAvailableVariants() {
         EnsureCustomLoaded();
         return _snapshot.Profiles
             .Where(p => p.Variant.HasValue)
-            .Select(p => p.Variant!.Value)
+            .Select(p => p.Variant.GetValueOrDefault())
             .Distinct()
             .OrderBy(v => v);
     }

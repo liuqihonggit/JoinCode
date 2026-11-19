@@ -48,10 +48,10 @@ public sealed class DisposeMethodFireAndForgetRule : AnalyzerRuleBase<DisposeMet
 
             if (invocation is null) continue;
 
-            var calledSymbol = ctx.SemanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
+            if (ctx.SemanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol calledSymbol) continue;
             if (!AotSafetyHelpers.ReturnsTaskLike(calledSymbol)) continue;
 
-            var calledName = calledSymbol!.ContainingType?.Name is { } tn ? $"{tn}.{calledSymbol.Name}" : calledSymbol.Name;
+            var calledName = calledSymbol.ContainingType?.Name is { } tn ? $"{tn}.{calledSymbol.Name}" : calledSymbol.Name;
             ctx.ReportDiagnostic(Diagnostic.Create(Descriptor, invocation.GetLocation(), methodSymbol.Name, calledName));
         }
     }

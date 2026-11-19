@@ -537,9 +537,76 @@ consumers:
       - id: docker-sandbox-provider
         priority: 100
 
+  # TASK100 S4：引擎可选能力（contract: capability — 存在即提供，彼此不互斥）。
+  # 删掉一条 = 对应服务在 EngineServiceContext 里为 null + 对应插件不加载。
+  # 未声明整段消费点 = 全开（向后兼容）；声明了 = 白名单。
+  # 只登记真有消费点的能力 —— vision 等没有可选服务被引擎消费的能力不登记（避免假节点）。
+  capabilities:
+    contract: capability
+    nodes:
+      - id: goal
+        priority: 700
+      - id: todo
+        priority: 600
+      - id: task
+        priority: 500
+      - id: cron
+        priority: 400
+      - id: memdir
+        priority: 300
+      - id: dream
+        priority: 200
+      - id: code-index
+        priority: 100
+
+  # TASK100 S4：CLI 入口子命令（contract: command-group — 分类聚合，各命令互不干扰）。
+  # 此前 20 个 CliSubCommand 散在三处：枚举 / ApplicationBuilder 的 2 个 if / 路由器的 16 个 case。
+  # 节点化后这张表就是 CLI 的命令表面：删掉一条，命令即从 CLI 消失（报「未在当前 profile 启用」）。
+  # 未声明整段消费点 = 全开（向后兼容）；声明了 = 白名单。
+  # ID 规则：CliSubCommand 枚举名称 kebab 化（不是 [EnumValue]，后者是 mcp_call 这种命令行字面量）。
+  cli-commands:
+    contract: command-group
+    nodes:
+      - id: schema
+        priority: 100
+      - id: config-print
+        priority: 200
+      - id: remote-control
+        priority: 300
+      - id: mcp-call
+        priority: 400
+      - id: mcp-list
+        priority: 500
+      - id: mcp-schema
+        priority: 600
+      - id: mcp-search
+        priority: 700
+      - id: mcp-serve
+        priority: 800
+      - id: slash-call
+        priority: 900
+      - id: slash-list
+        priority: 1000
+      - id: slash-schema
+        priority: 1100
+      - id: rg
+        priority: 1200
+      - id: gh
+        priority: 1300
+      - id: bridge-serve
+        priority: 1400
+      - id: tool
+        priority: 1500
+      - id: prompt
+        priority: 1600
+      - id: experience
+        priority: 1700
+      - id: probe
+        priority: 1800
+
   # TASK100 S1：原 tool-dispatch 4 条声明（shell/file/web/code_execution）已删除 ——
   # 无任何工厂、无任何生产消费方（ToolDispatchConsumer 只在测试里 new）。
-  # 工具分组开关待 S4 用 capability 契约重建，不接受「声明了但没人装配」的死配置。
+  # 工具分组的启停要等 635 工具那层接上 capability-aware 注册表（清单第 7 项），此处不预先造死声明。
   command-dispatch:
     nodes:
       - id: 会话-command

@@ -424,10 +424,10 @@ consumers:
 |---|---|---|
 | 0 | 普查与本文档（含 §11 施工单、§12 分域细则） | ✅ |
 | S1 | 契约字段 + dump 扩展 + 一致性门禁 | ✅ |
-| S2 | guard 域节点化：S2a 守卫链 ✅ / S2b 修正器 ✅ / S2c 沙箱 🟡 | 🟡 |
-| S3 | provider + role 节点化 | ⬜ |
-| S4 | 能力 + 命令表面节点化 | ⬜ |
-| S5 | 外部 profile 覆盖 | ⬜ |
+| S2 | guard 域节点化：S2a 守卫链 ✅ / S2b 修正器 ✅ / S2c 沙箱 ✅ | ✅ |
+| S3 | provider + role 节点化 | ✅ |
+| S4 | 能力 + 命令表面节点化 | ✅ |
+| S5 | 外部 profile 覆盖 | ✅ |
 
 ### 14.1 S1 实施记录
 
@@ -811,8 +811,136 @@ JCC_PROFILE_DIR=D:\no\such\dir jcc --dump-nodes
 
 **行为未退化**：`format C: /q` 仍被 `dangerous-command` 拒绝、未闭合引号仍被 `strict-parse` 拒绝。
 
-### 17.6 已知缺口（诚实记录）
+### 17.6 已知缺口（已于 S4 查清并关闭）
 
-本轮之后 `[ORDER] sandbox_providers` / `[ORDER] bash-defense-chain` 这类打点在 `mcp_call` 路径下**看不到了**
-（`[LLM]` / `[ROLES]` 仍在）。行为本身已验证未退化（拦截仍生效、dump 顺序仍来自 profile），
-但「哪一层吞掉了这些诊断行」还没查清，已列为待办 —— 不能因为「验收当时看到过」就当作一直可见。
+原记录：本轮之后 `[ORDER] sandbox_providers` / `[ORDER] bash-defense-chain` 这类打点在 `mcp_call` 路径下**看不到了**
+（`[LLM]` / `[ROLES]` 仍在）。
+
+**S4 结论：不是被吞掉，是那些服务在 `mcp_call` 进程里从来没被构造。**
+
+证据（同一次真机运行 `jcc -p "hi"`，走完整引擎装配）：
+
+```
+[ORDER] sandbox_providers(profile): bubblewrap > process > soft > docker
+[ORDER] bash-defense-chain: dangerous-command > strict-parse > retained-device > redirect-whitelist > git-push-ci-guard > argv-hash
+[ORDER] command_guards: GitCommitGuard > DriveProtectionGuard > ... > VpnRouteGuard
+```
+
+根因：`bash` 工具属于「独立 exe 实现」（`jcc-tool-shell.exe`），`jcc mcp_call bash` 只是把参数转给子进程，
+jcc 自己的 `ShellCommandInterceptionMiddleware` / `SandboxManager` / `BashDefenseService` 一次都没被解析 ——
+它们的 ctor 打点当然不会出现。`[LLM]`/`[ROLES]` 之所以在，是因为那两条在容器构建/插件加载时就跑了。
+
+判据（以后别再误判）：**打点缺失先问「这个对象在当前路径上会不会被构造」**，而不是先怀疑日志层。
+`mcp_call` 是「子进程代理」路径，凡是活在宿主管道里的服务都不该期待在那里出现。
+
+
+---
+
+## 18. S4：能力（capability）与命令表面（command-group）
+
+### 18.1 这两种契约为什么一起做（它们的共同点与中间件相反）
+
+中间件、守卫都是「按顺序叠加」——节点之间互相影响，顺序是语义的一部分。
+`capability` 与 `command-group` 是另一类：**节点之间互不影响，问的只是「它在不在」**。
+把这两类硬塞进顺序模型会得到一堆 priority 无意义的声明；反过来，把「在不在」也当成顺序问题，
+就会出现「关掉一个能力」需要删 6 行、且不知道删干净没有。
+
+两者还共享同一个坑：**只声明不消费就是死配置**。S1 删掉的 `tool-dispatch` 4 条就是标本。
+所以 S4 的验收不是「dump 里看得到」，而是「改 profile → 真机行为真的变了」。
+
+### 18.2 先抽一个语义基元：`ConsumerDeclaration`
+
+新增 `modules/abstractions/composition/node/profile/ConsumerDeclaration.cs`，只有三条规则：
+
+| 情形 | 语义 |
+|---|---|
+| profile 里没有这个消费点 | **全开**（老 profile 不必逐条补声明） |
+| 消费点存在 | **白名单**：只有列出的节点启用 |
+| 需要顺序时 | `OrderedIds()` 按 priority 降序给一份确定顺序 |
+
+CLI 门禁、能力视图都只调这一个入口 —— 否则「CLI 认为全开、引擎认为全关」是迟早的事。
+
+### 18.3 命令表面：20 个枚举值 → 18 个节点
+
+**原状**：`CliSubCommand`（20 值）、`ApplicationBuilder` 的 2 个 `if`（schema / remote-control 家族）、
+`FlatSubCommandRouter` 的 16 个 `case`。三处各自新增，谁也不知道少没少。
+
+**改法**：
+
+1. `CliCommandNodes.cs`：`ICliCommandNode`（`Command` + `Aliases` + `ExecuteAsync`）+ 18 个节
+   点类，每个 `[NodeFactory("cli-commands", id)]` + `[Register]`，执行体全部委托**既有**实现（热路径零改动）。
+2. 节点 ID = **枚举名称 kebab 化**（`McpCall` → `mcp-call`）。不用 `[EnumValue]`：那是命令行字面量
+   （`mcp_call` 带下划线），拿它当 ID 会污染 kebab 约定 —— 同一个坑 S3 角色域踩过一次。
+3. 别名（`rc`/`remote`）不是节点，是节点的 `Aliases`：否则三条命令会被算成三个节点。
+4. `ApplicationBuilder.RunSubCommandAsync` 变成「枚举 → 节点表 → profile 门禁 → 执行」，`switch` 与 `if` 全删。
+5. `FlatSubCommandRouter` 只保留解析工具（位置参数/未知选项/输出格式），`TryExecuteAsync` 删除。
+
+**未启用 ≠ 未知**（这是可运维性的关键区别）：
+
+```
+$ jcc probe                                    # 正常
+[PROBE-H0] 真实请求 60 次 → allow=30 deny=30 ...
+$ JCC_PROFILE_DIR=<去掉 probe 的 profile> jcc probe
+子命令 'probe' 未在当前 profile 启用（profile=base，消费点=cli-commands，节点=probe）。
+  恢复用法: 在 resources/profiles/base.yaml 的 cli-commands 里加回 '- id: probe'。
+（退出码 2 = ConfigurationError）
+```
+
+**一个必须处理的结构问题**：生成器对 Exe 只扫自身程序集，而命令执行器是 CLI 里的 `internal static`，
+搬不到下游库。于是 CLI 程序集自己的 `NodeFactoryCatalog_Jcc` 不在装配层（Composition）的目录里 ——
+`--dump-nodes` 必须**显式合并**这两段，否则 18 条声明会全被报成「声明无工厂」。
+这不是绕过门禁，而是让门禁看见「实现住在哪一层」。
+
+### 18.4 能力：从「属性存在」变成「节点存在」
+
+**原状**：`EngineServiceContext` 26 个可选属性无条件 `GetService<T>()`；`McpInitModule` 硬编码 6 个插件。
+于是「headless 关掉 todo/dream」只能改代码。
+
+**改法**：
+
+1. `CapabilityNodes.cs`（Composition 程序集）：7 个节点
+   `goal / todo / task / cron / memdir / dream / code-index`，各带 `[NodeFactory("capabilities", id)]`。
+2. `CapabilitySet`（`[Register]` 单例）：每次判断都读 `IProfileManager.Current` 而非快照 ——
+   profile 支持运行期切换，快照会把切换变成「下次启动才生效」。无 profile 的轻量宿主走 `AllEnabled`，历史行为不变。
+3. `EngineServiceContext.FromServiceProvider`：goal/todo/task/cron/memdir/dream 六个能力各自门禁；
+   未启用解析为 `null`，消费方天然走「能力不可用」分支，而不是拿到服务却装作没有。
+4. `McpInitModule.StartPluginLoads`：`DreamPlugin` ← `dream`，`CSharpLanguagePlugin` ← `code-index`；
+   其余 4 个插件（Telemetry / AgentRoles / LlmProviders / McpInit）属装配骨架，不做能力。
+
+**双面真机验证**（`jcc -p "hi"` 走完整引擎装配，假 key 止于 401，但装配全跑完）：
+
+```
+（全开）  [CAPS] todo=on task=on cron=on goal=on memdir=on dream=on code-index=on
+          [CAPS-PLUGIN] dream=load code-index=load
+（裁剪）  [PROFILE] external override: base <- ...\jccprof\base.yaml
+          [CAPS] todo=off task=on cron=on goal=on memdir=on dream=off code-index=on
+          [CAPS-PLUGIN] dream=skip code-index=load
+```
+
+`[CAPS]` 这一行本身就是交付物之一：配置到底生效了没，不该靠读 yaml 猜。
+
+### 18.5 三个坑（都值得记住）
+
+| 坑 | 表现 | 判据/处置 |
+|---|---|---|
+| 陈旧产物冒充「我的 bug」 | `jcc mcp_list` 报 `Could not load type 'Core.Utils.AsyncLock'` | 那次只重编了上游，下游 DLL 还是 TASK099 之前的。带依赖重编一次即消失 —— **局部编译会让旧产物在运行期报「类型不存在」**，别先怀疑自己刚改的代码 |
+| 能力注册了但没有消费点 | 想到 `vision` 时没有 `IVisionService` 之类可选服务被引擎消费 | 只登记「真有消费方」的能力。登记 `vision` 只会造一条假节点 —— 假节点比缺节点更糟 |
+| `internal static` 执行器搬不进宽闭包 | 门禁报 18 条「声明无工厂」 | 不是放宽门禁，而是把 CLI 的生成目录显式并入 dump 的工厂清单 |
+
+### 18.6 验收数字与仍未做的部分
+
+- `--dump-nodes`：**238 节点 / 112 消费点**；契约分布 `capability=4, command-group=4, guard=12, middleware=80, provider=8, role=4`
+  —— **六个契约值全部有活的消费点**，第 ④ 条判据（改配置不重编）从此对每一类扩展点成立。
+- `--verify` 三项全 `[OK]`；`Verify-NodeConsistency.py` `[OK] 238 节点 / 112 消费点`；
+  `Verify-ExplicitOrder` / `Verify-RegistrationOrder` / `Verify-ToolNodes`（635）/ `Verify-HonestyChecklist` 全绿。
+- 真机：18 条子命令逐条走过（`schema`/`config-print`/`mcp_*`/`slash_*`/`tool`/`prompt`/`experience`/`probe`）；
+  `rg`/`gh` 已正确路由到节点，但本机 Debug 目录没有 `jcc-rg.exe`/`jcc-gh.exe`（需 `Pack-ToolNodes.ps1` 打包，与本次改动无关）。
+
+**未做（诚实记录）**：
+
+1. **工具面 gating**：`capabilities` 目前只门禁服务与插件。`todo` 工具仍会出现在工具表里
+   （`TodoToolHandlers` 是 `[McpToolDispatch]` 生成的静态注册，`ITodoService` 在 DI 里也还在）。
+   「profile 去掉 todo → todo 工具不出现」属清单第 7 项（635 工具 / capability-aware 注册表），
+   与 S4 的 5、6 两项不是同一层，不在这里假装做完。
+2. `vision` 未注册（见 18.5）。
+3. 帮助文本仍由 `[SubCommandInfo]` 生成，未改成从节点表读 —— 二者目前一致，但仍是两处描述。

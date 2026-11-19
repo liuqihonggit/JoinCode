@@ -255,7 +255,13 @@ class Program {
         // G5: 真机展示 NodeRegistry 从编译期工厂 catalog 自动归纳的节点数 ——
         // 与 profile 配置节点交叉核对；空容器只用于读取归纳结果，不解析任何服务。
         var emptySp = new Microsoft.Extensions.DependencyInjection.ServiceCollection().BuildServiceProvider();
-        var factories = Pipelines.DataDrivenPipelineComposition.BuildNodeFactories().ToArray();
+        // 工厂清单 = 装配层宽闭包（Composition）+ 本程序集自己的目录。
+        // 为什么两段：生成器对 Exe 只扫自身程序集，而 cli-commands 节点的实现就在本程序集
+        // （命令执行器是 internal static，无法搬到下游库）；装配层的闭包看不到它们，
+        // 不合并就会把 18 条声明全部报成「声明无工厂」。
+        var factories = Pipelines.DataDrivenPipelineComposition.BuildNodeFactories()
+            .Concat(Core.DependencyInjection.NodeFactoryCatalog_Jcc.Create())
+            .ToArray();
         var registry = Composition.NodeRegistry.NodeRegistry.BuildFromCatalog(emptySp, factories);
 
         if (!json) {

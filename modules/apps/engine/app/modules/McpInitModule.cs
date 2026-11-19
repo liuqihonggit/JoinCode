@@ -78,16 +78,31 @@ public sealed class McpInitModule : IAppModule {
     /// 插件并行加载清单（逻辑独立，IToolRegistry 线程安全 — WhenAll 墙钟语义）。
     /// TASK100：FixHooksPlugin / SandboxProvidersPlugin 均已删除 —— 三个修正器改由 DI 收集（[Register(typeof(IToolFixHook))]）
     /// + profile 的 tool-fix-chain 决定顺序，不再需要一个只做 new 的插件。
+    /// TASK100 S4：Dream / CSharpLanguage 两个插件改由 profile 消费点 <c>capabilities</c> 决定是否加载 ——
+    /// 此前「关掉 dream」只能改代码；现在删一条 profile 声明即可（headless 环境尤其需要）。
     /// </summary>
-    private static Task[] StartPluginLoads(IServiceProvider services, ILogger? logger, CancellationToken ct) =>
-    [
-        LoadPluginSafeAsync<JoinCode.Dream.DreamPlugin>("DreamPlugin", services, logger, ct),
-        LoadPluginSafeAsync<Core.Telemetry.TelemetryPlugin>("TelemetryPlugin", services, logger, ct),
-        LoadPluginSafeAsync<Core.Agents.AgentRolesPlugin>("AgentRolesPlugin", services, logger, ct),
-        LoadPluginSafeAsync<JoinCode.CodeIndex.CSharpLanguagePlugin>("CSharpLanguagePlugin", services, logger, ct),
-        LoadPluginSafeAsync<JoinCode.Llm.Plugins.LlmProvidersPlugin>("LlmProvidersPlugin", services, logger, ct),
-        LoadPluginSafeAsync<JoinCode.Mcp.Plugins.McpInitPlugin>("McpInitPlugin", services, logger, ct),
-    ];
+    private static Task[] StartPluginLoads(IServiceProvider services, ILogger? logger, CancellationToken ct) {
+        var capabilities = services.GetService<Composition.NodeRegistry.CapabilitySet>()
+            ?? Composition.NodeRegistry.CapabilitySet.AllEnabled;
+
+        var dreamOn = capabilities.IsEnabled(Composition.NodeRegistry.CapabilityNodes.Dream);
+        var codeIndexOn = capabilities.IsEnabled(Composition.NodeRegistry.CapabilityNodes.CodeIndex);
+        Diag.WriteLine($"[CAPS-PLUGIN] dream={(dreamOn ? "load" : "skip")} code-index={(codeIndexOn ? "load" : "skip")}");
+
+        var loads = new List<Task>(6) {
+            LoadPluginSafeAsync<Core.Telemetry.TelemetryPlugin>("TelemetryPlugin", services, logger, ct),
+            LoadPluginSafeAsync<Core.Agents.AgentRolesPlugin>("AgentRolesPlugin", services, logger, ct),
+            LoadPluginSafeAsync<JoinCode.Llm.Plugins.LlmProvidersPlugin>("LlmProvidersPlugin", services, logger, ct),
+            LoadPluginSafeAsync<JoinCode.Mcp.Plugins.McpInitPlugin>("McpInitPlugin", services, logger, ct)
+        };
+
+        if (dreamOn)
+            loads.Add(LoadPluginSafeAsync<JoinCode.Dream.DreamPlugin>("DreamPlugin", services, logger, ct));
+        if (codeIndexOn)
+            loads.Add(LoadPluginSafeAsync<JoinCode.CodeIndex.CSharpLanguagePlugin>("CSharpLanguagePlugin", services, logger, ct));
+
+        return [.. loads];
+    }
 
     /// <summary>
     /// 安全加载工作流插件（八插件公共路径 — 原八个 SafeAsync 方法收敛）：

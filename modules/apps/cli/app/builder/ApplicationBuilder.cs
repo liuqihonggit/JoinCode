@@ -13,51 +13,70 @@ public static class ApplicationBuilder {
         CliSubCommandExtensions.FromValue(arg) is not null;
 
     /// <summary>
-    /// 执行子命令
+    /// 执行子命令 — TASK100 S4：命令表面由节点表驱动，不再有 <c>if</c> / <c>switch</c> 分支树。
+    /// <para>
+    /// 流程：枚举值 → 节点（含别名）→ profile 门禁 → 节点执行。
+    /// 未启用与未知是两种不同的错误：前者说明「这条命令存在但当前 profile 裁掉了」，
+    /// 后者说明字面量本身就不存在 —— 混成一句会让裁剪变成难查的谜。
+    /// </para>
     /// </summary>
     public static async Task<int> RunSubCommandAsync(string[] args) {
         var subCommand = CliSubCommandExtensions.FromValue(args[0]);
+        var node = subCommand is null ? null : CliCommandNodes.For(subCommand.Value);
+        if (node is null)
+            return CliCommandNodes.UnknownSubCommand(args);
 
-        if (subCommand is CliSubCommand.RemoteControl or CliSubCommand.Rc or CliSubCommand.Remote) {
-            var bridgeFs = IO.FileSystem.FileSystemFactory.Create();
-            var bridgeProcessService = new IO.ProcessService.PhysicalProcessService(
-                new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider()));
-
-            // 构建 Bridge Guard 服务容器 — 让生产环境真正启用 Guard 检查
-            // 决策: 独立 DI 容器+手动注册最小服务集，避免引入完整 Host 初始化开销
-            // 替代方案: 调用 AddJoinCodeCompositionAutoRegisteredServices（已否决，会注册大量无关服务）
-            await using var bridgeServices = BuildBridgeGuardServices(bridgeFs);
-
-            var command = new ChatCommands.Bridge.BridgeMainCommand(
-                services: bridgeServices,
-                fs: bridgeFs,
-                processService: bridgeProcessService,
-                policyService: bridgeServices.GetService<IRemotePolicyService>(),
-                tokenStorage: bridgeServices.GetService<ITokenStorage>(),
-                configService: bridgeServices.GetService<IConfigurationService>(),
-                logger: bridgeServices.GetService<ILogger<ChatCommands.Bridge.BridgeMainCommand>>());
-            var bridgeArgs = args.Length > 1 ? args[1..] : [];
-            return await command.ExecuteAsync(bridgeArgs).ConfigureAwait(false);
+        if (!CliCommandGate.IsEnabled(node.NodeId)) {
+            TerminalHelper.WriteError(
+                $"子命令 '{args[0]}' 未在当前 profile 启用（profile={CliCommandGate.ProfileName}，" +
+                $"消费点={CliCommandNodes.ConsumerId}，节点={node.NodeId}）。");
+            TerminalHelper.WriteError(
+                $"  恢复用法: 在 resources/profiles/{CliCommandGate.ProfileName}.yaml 的 cli-commands 里加回 '- id: {node.NodeId}'。");
+            return (int)ExitCode.ConfigurationError;
         }
 
-        // schema 子命令 — 输出 CLI 参数定义 JSON（对齐架构指南可发现性：Schema 自省）
-        if (subCommand == CliSubCommand.Schema) {
-            var props = CliArgSchema.Properties.Select(p => new Cli.Output.CliSchemaPropertyDto(
-                p.Name, p.ShortName, p.Description, p.Type, p.AcceptsValue, p.RiskLevel, p.Category, p.Example)).ToArray();
-            var result = new Cli.Output.CliSchemaResult(props);
-            System.Console.WriteLine(Cli.Output.CliOutputEnvelope<Cli.Output.CliSchemaResult>.Success(result).ToJsonString());
-            return 0;
-        }
+        return await node.ExecuteAsync(args, CancellationToken.None).ConfigureAwait(false);
+    }
 
-        // 扁平元动词子命令 — ADR 0069: mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve/slash_call/slash_list/slash_schema/doctor
-        if (subCommand is not null) {
-            var flatResult = await FlatSubCommandRouter.TryExecuteAsync(subCommand.Value, args, CancellationToken.None).ConfigureAwait(false);
-            if (flatResult is not null)
-                return flatResult.Value;
-        }
+    /// <summary>
+    /// 远程控制子命令（remote-control / rc / remote）— 从 <see cref="RunSubCommandAsync"/> 原样搬出，
+    /// 由 <see cref="RemoteControlCliCommandNode"/> 调用；行为零改动。
+    /// </summary>
+    /// <param name="args">原始参数。</param>
+    /// <returns>退出码。</returns>
+    internal static async Task<int> ExecuteRemoteControlAsync(string[] args) {
+        var bridgeFs = IO.FileSystem.FileSystemFactory.Create();
+        var bridgeProcessService = new IO.ProcessService.PhysicalProcessService(
+            new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider()));
 
-        TerminalHelper.WriteError($"未知子命令: {args[0]}（用 jcc --help 查看可用命令）");
-        return 1;
+        // 构建 Bridge Guard 服务容器 — 让生产环境真正启用 Guard 检查
+        // 决策: 独立 DI 容器+手动注册最小服务集，避免引入完整 Host 初始化开销
+        // 替代方案: 调用 AddJoinCodeCompositionAutoRegisteredServices（已否决，会注册大量无关服务）
+        await using var bridgeServices = BuildBridgeGuardServices(bridgeFs);
+
+        var command = new ChatCommands.Bridge.BridgeMainCommand(
+            services: bridgeServices,
+            fs: bridgeFs,
+            processService: bridgeProcessService,
+            policyService: bridgeServices.GetService<IRemotePolicyService>(),
+            tokenStorage: bridgeServices.GetService<ITokenStorage>(),
+            configService: bridgeServices.GetService<IConfigurationService>(),
+            logger: bridgeServices.GetService<ILogger<ChatCommands.Bridge.BridgeMainCommand>>());
+        var bridgeArgs = args.Length > 1 ? args[1..] : [];
+        return await command.ExecuteAsync(bridgeArgs).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// schema 子命令 — 输出 CLI 参数定义 JSON（对齐架构指南可发现性：Schema 自省）。
+    /// 由 <see cref="SchemaCliCommandNode"/> 调用；行为零改动。
+    /// </summary>
+    /// <returns>退出码 0。</returns>
+    internal static int ExecuteSchemaCommand() {
+        var props = CliArgSchema.Properties.Select(p => new Cli.Output.CliSchemaPropertyDto(
+            p.Name, p.ShortName, p.Description, p.Type, p.AcceptsValue, p.RiskLevel, p.Category, p.Example)).ToArray();
+        var result = new Cli.Output.CliSchemaResult(props);
+        System.Console.WriteLine(Cli.Output.CliOutputEnvelope<Cli.Output.CliSchemaResult>.Success(result).ToJsonString());
+        return 0;
     }
 
     /// <summary>

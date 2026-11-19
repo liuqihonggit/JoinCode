@@ -192,11 +192,16 @@ public sealed record FunctionHook : HookCommand {
     /// </summary>
     public required string Id { get; init; }
 
+    private Func<HookInput, CancellationToken, Task<HookResult>>? _callback;
+
     /// <summary>
     /// 回调函数
     /// </summary>
     [JsonIgnore]
-    public required Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; }
+    public Func<HookInput, CancellationToken, Task<HookResult>> Callback {
+        get => _callback ?? throw new InvalidOperationException("[FunctionHook] Callback 必须由构造方赋值");
+        init => _callback = value;
+    }
 
     /// <summary>
     /// 错误消息（回调返回 false 时显示）
@@ -219,11 +224,16 @@ public sealed record FunctionHook : HookCommand {
 public sealed record CallbackHook : HookCommand {
     public override string Type => HookTypeEnumConstants.Callback;
 
+    private Func<HookInput, CancellationToken, Task<HookResult>>? _callback;
+
     /// <summary>
     /// 回调函数
     /// </summary>
     [JsonIgnore]
-    public required Func<HookInput, CancellationToken, Task<HookResult>> Callback { get; init; }
+    public Func<HookInput, CancellationToken, Task<HookResult>> Callback {
+        get => _callback ?? throw new InvalidOperationException("[CallbackHook] Callback 必须由构造方赋值");
+        init => _callback = value;
+    }
 
     /// <summary>
     /// 是否为内部钩子（排除在指标外）

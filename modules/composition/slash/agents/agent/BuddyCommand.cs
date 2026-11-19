@@ -23,7 +23,7 @@ public sealed class BuddyCommand : ChatCommandBase {
         TerminalHelper.WriteLine(buddy.AsciiArt);
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"  {buddy.Name} ({buddy.Species})");
-        TerminalHelper.WriteLine($"  稀有度: {buddy.Rarity}{(buddy.Shiny ? " ✨闪亮" : "")}");
+        TerminalHelper.WriteLine($"  稀有度: {buddy.Rarity}{(buddy.Shiny ? " ✨闪亮!" : "")}");
         TerminalHelper.WriteLine($"  眼睛: {buddy.Eye}  帽子: {(string.IsNullOrEmpty(buddy.Hat) ? "无" : buddy.Hat)}");
 
         return Task.FromResult(ChatCommandResult.Continue());

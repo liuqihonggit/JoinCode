@@ -26,12 +26,8 @@ public sealed class MemoryCommand : ChatCommandBase {
             await EditMemoryFileAsync(args, context).ConfigureAwait(false);
             break;
             case MemorySubCommandEnumConstants.Open:
-            {
-                var processService = ChatCommandBase.GetService<IProcessService>(context)
-                    ?? throw new InvalidOperationException("IProcessService 未注册");
-                await OpenMemoryDirectoryAsync(context.GetCommandServices().FileSystem, processService).ConfigureAwait(false);
-                break;
-            }
+            await OpenMemoryDirectoryAsync(context.GetCommandServices().FileSystem, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
+            break;
             case MemorySubCommandEnumConstants.Add:
             await AddMemoryAsync(context, args).ConfigureAwait(false);
             break;
@@ -159,7 +155,7 @@ public sealed class MemoryCommand : ChatCommandBase {
         await OpenInEditorAsync(userPath, ChatCommandBase.GetService<IProcessService>(context)).ConfigureAwait(false);
     }
 
-    private static async Task OpenMemoryDirectoryAsync(IFileSystem fs, IProcessService processService) {
+    private static async Task OpenMemoryDirectoryAsync(IFileSystem fs, IProcessService? processService) {
         var memDir = Path.Combine(AppDataConstants.Paths.JccDirectory, "memories");
         DirectoryHelper.EnsureDirectoryExists(fs, memDir);
 
@@ -167,6 +163,9 @@ public sealed class MemoryCommand : ChatCommandBase {
             TerminalHelper.WriteLine($"{TerminalColors.Info}{L.T(StringKey.HostMemoryDirLabel, memDir)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
+
+        if (processService is null)
+            throw new InvalidOperationException("IProcessService 未注册");
 
         try {
             await processService.OpenAsync(memDir).ConfigureAwait(false);

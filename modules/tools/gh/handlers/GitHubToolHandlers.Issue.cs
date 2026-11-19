@@ -301,7 +301,7 @@ public partial class GitHubToolHandlers {
                     foreach (var filePath in ParseCsvToList(attach)) {
                         var (assetUrl, err) = await AttachFileAsync(client, owner, repoName, filePath, cancellationToken).ConfigureAwait(false);
                         if (assetUrl is null) return Fail(err);
-                        effectiveBody = (effectiveBody ?? "") + $"\n\n[{Path.GetFileNameWithoutExtension(filePath)}]({assetUrl})";
+                        effectiveBody = (effectiveBody ?? "") + $"\n\n![{Path.GetFileNameWithoutExtension(filePath)}]({assetUrl})";
                     }
                     var issueBody = JsonSerializer.Serialize(new IssueEditRequest { Body = effectiveBody }, GitHubApiJsonContext.Safe.IssueEditRequest);
                     var attachResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/issues/{number}", issueBody, ct: cancellationToken).ConfigureAwait(false);

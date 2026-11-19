@@ -107,7 +107,7 @@ public sealed class SSTableWriter
                 bw.Write(key);
                 bool isTombstone = value is null;
                 bw.Write(isTombstone);
-                if (!isTombstone)
+                if (value is not null)
                 {
                     bw.Write(value.Length);
                     bw.Write(value);

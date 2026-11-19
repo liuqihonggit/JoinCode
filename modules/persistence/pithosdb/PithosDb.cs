@@ -327,23 +327,24 @@ public sealed class PithosDb : IDisposable
             .Select(op =>
             {
                 if (op.Type != WalEntryType.Put) return (op.Type, op.Key, op.Value);
+                var putValue = op.Value ?? throw new InvalidOperationException("WAL Put 条目缺少 value");
                 if (op.Ttl.HasValue)
                 {
                     if (!_options.EnableTtl)
                         throw new InvalidOperationException(
                             "TTL batch entries require PithosOptions.EnableTtl = true.");
                     return (op.Type, op.Key,
-                        (byte[]?)ValueCodec.EncodeWithExpiry(op.Value, DateTimeOffset.UtcNow.Add(op.Ttl.Value)));
+                        (byte[]?)ValueCodec.EncodeWithExpiry(putValue, DateTimeOffset.UtcNow.Add(op.Ttl.Value)));
                 }
                 return (op.Type, op.Key,
-                    (byte[]?)(_options.EnableTtl ? ValueCodec.Encode(op.Value) : op.Value));
+                    (byte[]?)(_options.EnableTtl ? ValueCodec.Encode(putValue) : putValue));
             })
             .ToList();
 
         _wal?.AppendBatch(encoded);
         foreach (var (type, key, value) in encoded)
         {
-            if (type == WalEntryType.Put) view.ActiveMemTable.Put(key, value);
+            if (type == WalEntryType.Put) view.ActiveMemTable.Put(key, value ?? throw new InvalidOperationException("WAL Put 条目缺少 value"));
             else view.ActiveMemTable.Delete(key);
         }
         MaybeFlushMemTable(view);
@@ -740,7 +741,7 @@ public sealed class PithosDb : IDisposable
     private void ResetWal()
     {
         var walPath = Path.Combine(_directory, "wal.log");
-        _wal.Dispose();
+        _wal?.Dispose();
         try
         {
             File.Delete(walPath);
@@ -852,8 +853,11 @@ public sealed class PithosDb : IDisposable
         var memTable = Volatile.Read(ref _view).ActiveMemTable;
         foreach (var (type, key, value) in WriteAheadLog.Replay(Path.Combine(_directory, "wal.log")))
         {
-            if (type == WalEntryType.Put) memTable.Put(key, value);
-            else memTable.Delete(key);
+            if (type != WalEntryType.Put) {
+                memTable.Delete(key);
+                continue;
+            }
+            memTable.Put(key, value ?? throw new InvalidOperationException("WAL Put 条目缺少 value"));
         }
     }
 

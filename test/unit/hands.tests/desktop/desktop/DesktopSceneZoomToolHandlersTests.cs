@@ -1,7 +1,8 @@
 namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
-/// DesktopSceneZoomToolHandlers 单元测试 — AC-03 链路推荐 zoom → zoom/detect
+/// DesktopSceneZoomToolHandlers 单元测试 — AC-03 链路推荐 zoom → zoom/detect。
+/// <para>断言走 JsonAssert 语义路径（不依赖紧凑排版与非 ASCII 转义）。</para>
 /// </summary>
 public sealed class DesktopSceneZoomToolHandlersTests {
     /// <summary>AC-03: 看不清时 suggested_next 含 desktop_zoom</summary>
@@ -15,13 +16,10 @@ public sealed class DesktopSceneZoomToolHandlersTests {
         var result = await handler.ZoomAsync("sc_test", 2);
 
         result.IsError.Should().BeFalse();
-        using var doc = JsonDocument.Parse(result.GetFirstText() ?? throw new InvalidOperationException("工具结果缺少文本"));
-        var root = doc.RootElement;
-        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+        var text = TextOf(result);
+        JsonAssert.AssertArrayContains(text, "suggested_next",
             e => e.GetProperty("tool").GetString() == "desktop_zoom");
-        var reasons = root.GetProperty("suggested_next").EnumerateArray()
-            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
-        reasons.Should().Contain(r => r.Contains("继续", StringComparison.Ordinal));
+        JsonAssert.AssertAnyStringContains(text, "suggested_next", "reason", "继续");
     }
 
     /// <summary>AC-03: 看清时 suggested_next 含 desktop_detect</summary>
@@ -35,12 +33,13 @@ public sealed class DesktopSceneZoomToolHandlersTests {
         var result = await handler.ZoomAsync("sc_test", 3);
 
         result.IsError.Should().BeFalse();
-        using var doc = JsonDocument.Parse(result.GetFirstText() ?? throw new InvalidOperationException("工具结果缺少文本"));
-        var root = doc.RootElement;
-        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+        var text = TextOf(result);
+        JsonAssert.AssertArrayContains(text, "suggested_next",
             e => e.GetProperty("tool").GetString() == "desktop_detect");
-        var reasons = root.GetProperty("suggested_next").EnumerateArray()
-            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
-        reasons.Should().Contain(r => r.Contains("识别", StringComparison.Ordinal));
+        JsonAssert.AssertAnyStringContains(text, "suggested_next", "reason", "识别");
     }
+
+    /// <summary>提取工具结果首个文本 — 缺失即抛异常（替代 null-forgiving）。</summary>
+    private static string TextOf(ToolResult result) =>
+        result.GetFirstText() ?? throw new InvalidOperationException("工具结果缺少文本内容");
 }

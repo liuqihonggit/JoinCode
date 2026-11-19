@@ -56,8 +56,8 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 |----------|--------|:------:|:------:|
 | A1 构建默认覆盖 UI 域 + inner log 错误透出 | `Build-AllDomains.ps1`、CI 本地排障 | ✅ | ✅ 默认全量 4 target（solution/native_tui/native_gui×2）全绿（`.xxx/logs/b7/a1_full_default.log`，exit 0）；错误透出上限 15→30 + 无直接 error 行时显式提示查看日志 |
 | A2 CI UI 域编译 job | `.github/workflows/ci-build.yml`（`build / Build UI`，windows-latest） | ✅ | ❌ 待下一次 PR 实测；**仓库保护需人工把 `build / Build UI` 加入 required status checks（需管理员操作）** |
-| B1 JsonAssert 帮助器 | 测试项目模板（Desktop 场景先行） | ❌ | ❌ |
-| B2 排版断言分析器 | 测试项目 | ❌ | ❌ |
+| B1 JsonAssert 帮助器 | 测试项目模板（Desktop 场景先行） | ✅ | ✅ `test/unit/testing.common/asserts/JsonAssert.cs` 语义断言（Parse/Get 路径/字符串/布尔/整数/数组包含）；自测 `JsonAssertTests` 8/8；Desktop 场景 3 文件 9 测试迁移后 30/30 绿（`--filter FullyQualifiedName~DesktopScene`） |
+| B2 排版断言分析器 | 测试项目 | ✅ | ✅ `JsonLayoutAssertionRule`（JCC9311，仅测试项目，Info 级）；分析器测试 5/5（正例 2 + 反例 3）；AotSafety.Tests 全量 267/267；真机 `dotnet build guard.config.tests -p:ErrorLog` SARIF 命中存量 9 处排版断言（level=note 不破坏 TreatWarningsAsErrors）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
 | B3 RetryableFact 模板 + CI Flaky 分层 | AsyncLock.Tests、CI workflows | ❌ | ❌ |
 | C1-C6 jcc 工具改造 | `jcc gh` 各子命令、`mcp_list/mcp_schema` | ❌ | ❌ |
 | D1 ModuleInitializer 中央开关与登记门禁 | `Directory.Build.props`、门禁脚本 | ❌ | ❌ |
@@ -98,3 +98,18 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 <!-- 原因: slnx 是 CI Pack 流程（JoinCode.Pack.slnx）与本地测试矩阵的输入，改动影响面大；脚本层聚合零风险且可保留 -Domains 按域模式 -->
 <!-- 替代方案: 并入 slnx（影响 CI 缓存键与 pack 流程）；单独脚本 Build-AllUI.ps1（多一个入口，易漏用）——均否决 -->
 <!-- 验证: 默认命令 4 target 全绿（a1_full_default.log）；YAML 校验通过 -->
+
+### B 批（2026-11-20 完成）
+
+- B1 `Testing.Common/asserts/JsonAssert.cs`：零依赖语义 JSON 断言（`Parse` 带片段报错；`Get` 支持 `a.b[0].c` 点路径 + 索引；`AssertString/AssertBool/AssertInt`；`AssertArrayContains/AssertAnyStringContains`）。`Testing.Common/GlobalUsings.cs` 增加 `System.Text.Json`。
+  - 迁移：`DesktopSceneDetectClickTests`（5）、`DesktopSceneZoomToolHandlersTests`（2）、`DesktopSceneLookToolHandlersTests`（2）全部改为路径/值断言，移除 `SuppressMessage`。
+  - 验收：`Hands.Tests --filter DesktopScene` 30/30；`JsonAssertTests` 8/8。
+- B2 `JsonLayoutAssertionRule`（JCC9311，AnalyzerId=`JsonSerializerAot`）：仅当 `ProjectContext.IsTest` 注册；命中 FluentAssertions `StringAssertions.Contain` / xunit `Assert.Contains` 字符串字面量含 `"key": value`（冒号后空格）排版特征，建议改用 JsonAssert。
+  - 验收：`JsonLayoutAssertionRuleTests` 5/5；AotSafety.Tests 全量 267/267；真机构建 `guard.config.tests` SARIF 命中既有 9 处（`ConfigFileEncodingTests` 1、`ConfigKeyPathsTests` 8），Info 不阻塞编译；jcc.exe `--selftest-tui` HOST SELFTEST OK。
+  - 存量 9 处暂不强制迁移（规则 Info 级，渐进清理）。
+
+<!-- 🤖 Auto Decision: 2026-11-20 TASK101-B -->
+<!-- 决策: JCC9311 定为 Info 级 + 仅测试项目注册；测试用单规则包装器（RuleRegistry.Get）而非整组 JsonSerializerAot 规则 -->
+<!-- 原因: 存量 9 处排版断言若直接 Warning 会被 TreatWarningsAsErrors 全部打红，阻塞无关改动；只包装 JCC9311 避免 JCC1017 等规则在测试源码里干扰期望诊断 -->
+<!-- 替代方案: Warning 级并立即迁移 9 处（扩大本批范围、风险后移）；xunit Assert 与 FluentAssertions 分两条规则（同一根因拆散校验口径）——均否决 -->
+<!-- 验证: 267/267 单测 + SARIF 真机命中 9 处 + exe selftest 通过 -->

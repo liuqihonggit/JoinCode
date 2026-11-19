@@ -1,7 +1,8 @@
 namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
-/// DesktopSceneLookToolHandlers 单元测试 — AC-02 链路推荐 look → zoom
+/// DesktopSceneLookToolHandlers 单元测试 — AC-02 链路推荐 look → zoom。
+/// <para>断言走 JsonAssert 语义路径（不依赖紧凑排版与非 ASCII 转义）。</para>
 /// </summary>
 public sealed class DesktopSceneLookToolHandlersTests {
     /// <summary>AC-02: 调 desktop_look 成功后返回 suggested_next 含 desktop_zoom</summary>
@@ -16,14 +17,11 @@ public sealed class DesktopSceneLookToolHandlersTests {
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText() ?? throw new InvalidOperationException("工具结果缺少文本");
-        using var doc = JsonDocument.Parse(text);
-        var root = doc.RootElement;
-        root.TryGetProperty("scene_id", out _).Should().BeTrue("返回应含 scene_id");
-        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+        using var doc = JsonAssert.Parse(text);
+        JsonAssert.Get(doc.RootElement, "scene_id");
+        JsonAssert.AssertArrayContains(text, "suggested_next",
             e => e.GetProperty("tool").GetString() == "desktop_zoom");
-        var reasons = root.GetProperty("suggested_next").EnumerateArray()
-            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
-        reasons.Should().Contain(r => r.Contains("缩小", StringComparison.Ordinal));
+        JsonAssert.AssertAnyStringContains(text, "suggested_next", "reason", "缩小");
     }
 
     /// <summary>AC-02: 传入 sceneId 时返回中携带该 sceneId</summary>
@@ -37,6 +35,7 @@ public sealed class DesktopSceneLookToolHandlersTests {
         var result = await handler.LookAsync("sc_test_001");
 
         result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("sc_test_001");
+        JsonAssert.AssertString(result.GetFirstText() ?? throw new InvalidOperationException("工具结果缺少文本"),
+            "scene_id", "sc_test_001");
     }
 }

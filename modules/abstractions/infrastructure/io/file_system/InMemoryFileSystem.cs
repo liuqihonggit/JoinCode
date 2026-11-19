@@ -624,7 +624,6 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
     /// <summary>
     /// 内存文件流 — 写入时更新 InMemoryFileSystem
     /// </summary>
-#pragma warning disable JCC9103 // Stream 基类要求同时实现 IDisposable 和 IAsyncDisposable
     private sealed class InMemoryFileStream : Stream {
         private readonly InMemoryFileSystem _fs;
         private readonly string _path;

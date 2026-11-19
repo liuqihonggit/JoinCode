@@ -126,5 +126,6 @@ namespace Core.Bridge;
 [JsonSerializable(typeof(BridgeTextBlockDto))]
 [JsonSerializable(typeof(BridgeRequestIdDto))]
 [JsonSerializable(typeof(BridgeInboundMessageFieldsDto))]
+[JsonSerializable(typeof(List<BridgeEventEnvelope>))]
 // BridgeNdjsonActivity, BridgeNdjsonActivityType 已迁移到 JoinCode.Transport.Bridge (NdjsonActivity, NdjsonActivityType)
 internal partial class BridgeJsonContext : JsonSerializerContext;

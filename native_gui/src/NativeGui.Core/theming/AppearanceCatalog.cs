@@ -9,10 +9,8 @@ public sealed class AppearanceCatalog {
 
     /// <summary>从嵌入配置加载，不依赖当前工作目录。</summary>
     public static AppearanceCatalog Load() {
-#pragma warning disable JCC9104 // Assembly manifest resource is synchronously read in constructor; no asynchronous IO.
         using var stream = typeof(AppearanceCatalog).Assembly.GetManifestResourceStream("JoinCode.Gui.Appearance.json")
             ?? throw new InvalidOperationException("Missing appearance catalog.");
-#pragma warning restore JCC9104
         using var reader = new System.IO.StreamReader(stream);
         return RelaxedJsonSerializer.Deserialize(reader.ReadToEnd(), Persistence.GuiJsonContext.Default.AppearanceCatalog)
             ?? throw new InvalidOperationException("Invalid appearance catalog.");

@@ -10,8 +10,9 @@ public interface IHotFileWatchdog {
     /// </summary>
     /// <param name="filePath">被改的文件路径</param>
     /// <param name="changerId">修改者 ID</param>
-    /// <returns>告警信息（需要告警时），null=无需告警</returns>
-    HotFileAlert? CheckChange(string filePath, string changerId);
+    /// <param name="alert">告警信息（需要告警时非 null）</param>
+    /// <returns>true=需要告警；false=无需告警</returns>
+    bool TryGetChange(string filePath, string changerId, [NotNullWhen(true)] out HotFileAlert? alert);
 
     /// <summary>
     /// 批量检查文件变更

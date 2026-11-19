@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 
-#pragma warning disable CA1810 // Initialize reference type static fields inline
 
 namespace Structura.Collections
 {

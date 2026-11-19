@@ -644,8 +644,8 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
                 _logger?.LogDebug(L.T(StringKey.VaultLogDeleteMemory), ageInfo.MemoryId);
             } else if (_optional?.AgeCalculator != null) {
                 // 使用 IMemoryAgeCalculator 判断是否应该归档
-                var memory = _memoryStore.GetMemory(ageInfo.MemoryId);
-                if (memory != null && _optional.AgeCalculator.ShouldArchive(memory)) {
+                if (_memoryStore.TryGetMemory(ageInfo.MemoryId, out var memory)
+                    && _optional.AgeCalculator.ShouldArchive(memory)) {
                     await ArchiveMemoryAsync(ageInfo.MemoryId, ct).ConfigureAwait(false);
                     result.ArchivedCount++;
                     result.ProcessedIds.Add(ageInfo.MemoryId);

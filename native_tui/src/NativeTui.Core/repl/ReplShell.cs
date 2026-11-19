@@ -1082,7 +1082,7 @@ public sealed class ReplShell
     public bool ConfirmCommand(string message)
     {
         BeginCommandConfirm(message);
-        return _commandDialog.WaitConfirm().GetAwaiter().GetResult();
+        return _commandDialog.WaitConfirm().GetAwaiter().GetResult();  // style-allow: sync-block — REPL 输入同步契约: UI 线程同步等待对话框结果
     }
 
     /// <summary>
@@ -1092,7 +1092,7 @@ public sealed class ReplShell
     public string? PromptCommand(string message)
     {
         BeginCommandPrompt(message);
-        return _commandDialog.WaitPrompt().GetAwaiter().GetResult();
+        return _commandDialog.WaitPrompt().GetAwaiter().GetResult();  // style-allow: sync-block — REPL 输入同步契约: UI 线程同步等待对话框结果
     }
 
     /// <summary>
@@ -1103,7 +1103,7 @@ public sealed class ReplShell
     public string? ReadPasswordCommand(string message)
     {
         BeginCommandPrompt(message, InputRequestKind.Password);
-        return _commandDialog.WaitPrompt().GetAwaiter().GetResult();
+        return _commandDialog.WaitPrompt().GetAwaiter().GetResult();  // style-allow: sync-block — REPL 输入同步契约: UI 线程同步等待对话框结果
     }
 
     /// <summary>挂起命令确认对话框（插入滚动区，模态路由生效）。</summary>

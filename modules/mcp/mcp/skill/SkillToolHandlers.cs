@@ -1,8 +1,6 @@
 
 
 
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace McpToolDispatch;
 
 /// <summary>
@@ -78,9 +76,9 @@ public class SkillToolHandlers {
         if (!string.IsNullOrEmpty(args)) {
             parameters = LlmJsonHelper.Deserialize(args, ContractsJsonContext.Default.DictionaryStringJsonElement, out var repairHint, _logger);
             if (parameters is null) {
-                using var doc = JsonDocument.Parse($"{{\"args\":{JsonSerializer.Serialize(args, McpToolDispatchJsonContext.Default.String)}}}");
+                using var doc = JsonDocument.Parse(JsonSerializer.Serialize(args, McpToolDispatchJsonContext.Default.String));
                 parameters = new Dictionary<string, JsonElement> {
-                    ["args"] = doc.RootElement.GetProperty("args").Clone()
+                    ["args"] = doc.RootElement.Clone()
                 };
             } else if (!string.IsNullOrEmpty(repairHint)) {
                 _logger?.LogDebug("[Skill] args JSON 已修复: {RepairHint}", repairHint);

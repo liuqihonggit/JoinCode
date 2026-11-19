@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Tools.Handlers;
 
 /// <summary>
@@ -33,20 +31,22 @@ public sealed class DesktopSceneLookToolHandlers {
 
         var capture = await _captureService.CaptureWithGridAsync(newSceneId, 2, cancellationToken).ConfigureAwait(false);
 
-        var json = $$"""
-            {
-              "scene_id": "{{newSceneId}}",
-              "screenshot": "{{capture.RenderedBase64}}",
-              "image_width": {{capture.ImageWidth}},
-              "image_height": {{capture.ImageHeight}},
-              "depth": {{capture.Depth}},
-              "suggested_next": [{
-                "tool": "desktop_zoom",
-                "reason": "截图已建四叉树网格，选目标所在象限缩小",
-                "params_hint": "quadrant: 1=左上 2=右上 3=左下 4=右下"
-              }]
-            }
-            """;
-        return ToolResultBuilder.Success().WithText(json).Build();
+        var result = new DesktopLookResult {
+            SceneId = newSceneId,
+            Screenshot = capture.RenderedBase64,
+            ImageWidth = capture.ImageWidth,
+            ImageHeight = capture.ImageHeight,
+            Depth = capture.Depth,
+            SuggestedNext = [
+                new DesktopSuggestedNext {
+                    Tool = "desktop_zoom",
+                    Reason = "截图已建四叉树网格，选目标所在象限缩小",
+                    ParamsHint = "quadrant: 1=左上 2=右上 3=左下 4=右下"
+                }
+            ]
+        };
+        return ToolResultBuilder.Success()
+            .WithText(JsonSerializer.Serialize(result, DesktopSceneToolJsonContext.Default.DesktopLookResult))
+            .Build();
     }
 }

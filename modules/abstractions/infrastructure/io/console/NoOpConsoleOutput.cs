@@ -14,7 +14,10 @@ public sealed class NoOpConsoleOutput : IConsoleOutput {
     /// <inheritdoc/>
     public void WriteWarning(string message) { }
     /// <inheritdoc/>
-    public string? Prompt(string message) => null;
+    public bool TryGetPrompt(string message, [NotNullWhen(true)] out string? input) {
+        input = null;
+        return false;
+    }
     /// <inheritdoc/>
     public bool Confirm(string message) => false;
     /// <inheritdoc/>

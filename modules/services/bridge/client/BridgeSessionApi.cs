@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Bridge;
 
 /// <summary>
@@ -116,14 +114,15 @@ public static class BridgeSessionApi {
             return "[]";
         }
 
-        var sb = new StringBuilder(events.Length * 64);
-        sb.Append('[');
-        for (var i = 0; i < events.Length; i++) {
-            if (i > 0) sb.Append(',');
-            sb.Append("{\"type\":\"event\",\"data\":").Append(events[i]).Append('}');
+        var envelopes = new List<BridgeEventEnvelope>(events.Length);
+        foreach (var evt in events) {
+            envelopes.Add(new BridgeEventEnvelope {
+                Type = "event",
+                Data = JsonSerializer.Deserialize(evt, BridgeJsonContext.Default.JsonElement),
+            });
         }
-        sb.Append(']');
-        return sb.ToString();
+
+        return JsonSerializer.Serialize(envelopes, BridgeJsonContext.Default.ListBridgeEventEnvelope);
     }
 
     #endregion

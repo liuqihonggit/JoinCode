@@ -146,7 +146,7 @@ public sealed partial class FastModeService : ActorBase<FastModeCommand, FastMod
     private T QuerySync<T>(Func<TaskCompletionSource<T>, FastModeCommand> factory) {
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         TrySend(factory(tcs));
-        return tcs.Task.GetAwaiter().GetResult();
+        return tcs.Task.GetAwaiter().GetResult();  // style-allow: sync-block — 同步属性契约: FastMode 状态在同步 getter 中等待首次刷新
     }
 }
 

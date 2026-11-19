@@ -246,7 +246,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
             _coneOrchestrator.GetRole(AgentRole.Prosecutor) is { } prosCone) {
             var latestProsFragments = prosCone.ActiveFragmentIds.Take(3).ToList();
             foreach (var fragId in latestProsFragments) {
-                _coneOrchestrator.TransferFragment(AgentRole.Prosecutor, AgentRole.Defender, fragId);
+                _coneOrchestrator.TryTransferFragment(AgentRole.Prosecutor, AgentRole.Defender, fragId, out _);
             }
         }
 
@@ -268,7 +268,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
             _coneOrchestrator.GetRole(AgentRole.Defender) is { } defCone2) {
             var latestDefFragments = defCone2.ActiveFragmentIds.Take(3).ToList();
             foreach (var fragId in latestDefFragments) {
-                _coneOrchestrator.TransferFragment(AgentRole.Defender, AgentRole.Judge, fragId);
+                _coneOrchestrator.TryTransferFragment(AgentRole.Defender, AgentRole.Judge, fragId, out _);
             }
         }
 
@@ -402,7 +402,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
     /// </summary>
     public ObservationFragment? ExpandFragment(AgentRole role, string fragmentId, string triggerCondition) {
         var cone = _coneOrchestrator.GetRole(role);
-        return cone?.ExpandFragment(fragmentId, triggerCondition);
+        return cone is not null && cone.TryExpandFragment(fragmentId, triggerCondition, out var fragment) ? fragment : null;
     }
 
     private bool IsBudgetExhausted() {

@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -249,14 +247,17 @@ internal sealed class LegacyConsoleOutput : JoinCode.Abstractions.Interfaces.ICo
     public void WriteWarning(string message) => TerminalHelper.WriteLine($"{TerminalColors.Warning}{message}{AnsiStyleEnumConstants.Reset}");
     /// <summary>提示用户输入。</summary>
     /// <param name="message">提示信息。</param>
-    public string? Prompt(string message) {
-        // 非交互模式或测试环境返回 null，避免无限等待
+    /// <param name="input">用户输入；非交互模式或测试环境为 null。</param>
+    /// <returns>true=读取到输入；false=非交互模式。</returns>
+    public bool TryGetPrompt(string message, [NotNullWhen(true)] out string? input) {
+        // 非交互模式或测试环境返回 false，避免无限等待
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
-            return null;
-        } else {
-            TerminalHelper.WriteRaw(message);
-            return TerminalHelper.ReadLine();
+            input = null;
+            return false;
         }
+        TerminalHelper.WriteRaw(message);
+        input = TerminalHelper.ReadLine();
+        return input is not null;
     }
     /// <summary>请求用户确认。</summary>
     /// <param name="message">提示信息。</param>

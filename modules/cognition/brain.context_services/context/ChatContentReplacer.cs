@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Context;
 
 /// <summary>
@@ -46,11 +44,15 @@ public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentRep
 
     /// <summary>
     /// 对齐 TS provisionContentReplacementState — 初始化内容替换状态
-    /// 功能开关关闭时返回 null，query 会跳过整个预算执行
+    /// 功能开关关闭（或服务未注入）时返回 false，query 会跳过整个预算执行
     /// </summary>
-    public ContentReplacementState? ProvisionState(IReadOnlyList<ApiMessage>? initialMessages = null) {
-        if (_contentReplacementService is null) return null;
-        return _contentReplacementService.ProvisionContentReplacementState(initialMessages);
+    /// <param name="state">新建或重建的内容替换状态</param>
+    /// <param name="initialMessages">初始消息列表（可选）</param>
+    /// <returns>状态可用返回 true</returns>
+    public bool TryProvisionState(out ContentReplacementState? state, IReadOnlyList<ApiMessage>? initialMessages = null) {
+        state = null;
+        if (_contentReplacementService is null) return false;
+        return _contentReplacementService.TryProvisionContentReplacementState(out state, initialMessages);
     }
 
     /// <summary>

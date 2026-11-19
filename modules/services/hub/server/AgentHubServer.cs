@@ -369,7 +369,7 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         }
 
         var authKey = ConfigLoader.LoadStoredApiKeyAsync(entry.Name, FileSystemFactory.Create())
-            .GetAwaiter().GetResult();
+            .GetAwaiter().GetResult();  // style-allow: sync-block — 同步 HTTP 处理契约: Hub 同步处理器等待异步结果
         if (!string.IsNullOrEmpty(authKey)) return authKey;
 
         return string.Empty;
@@ -388,7 +388,7 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         }
 
         var authKey = ConfigLoader.LoadStoredApiKeyAsync(profile.Provider ?? string.Empty, FileSystemFactory.Create())
-            .GetAwaiter().GetResult();
+            .GetAwaiter().GetResult();  // style-allow: sync-block — 同步 HTTP 处理契约: Hub 同步处理器等待异步结果
         if (!string.IsNullOrEmpty(authKey)) return authKey;
 
         return string.Empty;

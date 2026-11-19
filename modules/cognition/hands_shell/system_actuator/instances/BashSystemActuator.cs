@@ -234,7 +234,7 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
             if (output is null || string.IsNullOrWhiteSpace(output)) return null;
 
             var snapshotPath = Path.Combine(SnapshotDir, $"snapshot-bash-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.sh");
-            fs.WriteAllText(snapshotPath, output).GetAwaiter().GetResult();
+            fs.WriteAllText(snapshotPath, output).GetAwaiter().GetResult();  // style-allow: sync-block — 进程回执同步刷新: 输出快照在回调内同步落盘
 
             logger?.LogDebug("Bash 环境快照已创建: {Path}, Size={Size}", snapshotPath, output.Length);
             RotateSnapshots(fs, logger);

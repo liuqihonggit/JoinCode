@@ -186,8 +186,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// </summary>
     private DeleteOperationInfo? DetectDeleteOperation(PermissionCheckContext context) {
         for (var i = 0; i < _deleteDetectors.Count; i++) {
-            var info = _deleteDetectors[i].Detect(context.ToolName, context.Arguments);
-            if (info is not null)
+            if (_deleteDetectors[i].TryDetect(context.ToolName, context.Arguments, out var info))
                 return info;
         }
 

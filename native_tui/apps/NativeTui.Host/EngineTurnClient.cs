@@ -202,7 +202,7 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
         }
 
         try {
-            command.Completion.Task.GetAwaiter().GetResult();
+            command.Completion.Task.GetAwaiter().GetResult();  // style-allow: sync-block — TUI 引擎同步回合契约: 回合完成信号在同步路径等待
         } catch (Exception ex) {
             Debug.WriteLine($"[EngineTurnClient] 回合命令处理失败: {ex.Message}");
         }

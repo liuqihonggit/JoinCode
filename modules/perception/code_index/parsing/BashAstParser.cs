@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.CodeIndex.Ast;
 
 /// <summary>
@@ -22,23 +20,31 @@ public sealed partial class BashAstParser : IDisposable {
     }
 
     /// <summary>
-    /// 解析 bash 命令为 AST 根节点
+    /// 尝试解析 bash 命令为 AST 根节点
     /// </summary>
-    /// <param name="command">bash 命令字符串（超过 10000 字符返回 null）</param>
-    /// <returns>AST 根节点；解析失败或空命令返回 null</returns>
-    public Node? Parse(string command) {
+    /// <param name="command">bash 命令字符串（超过 10000 字符直接失败）</param>
+    /// <param name="root">AST 根节点</param>
+    /// <returns>解析成功返回 true；空命令、超长或解析失败返回 false</returns>
+    public bool TryParse(string command, [NotNullWhen(true)] out Node? root) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        if (string.IsNullOrEmpty(command) || command.Length > 10_000)
-            return null;
+        if (string.IsNullOrEmpty(command) || command.Length > 10_000) {
+            root = null;
+            return false;
+        }
 
         try {
             var tree = _parser.Parse(command);
-            if (tree is null) return null;
+            if (tree is null) {
+                root = null;
+                return false;
+            }
             _trees.Add(tree);
-            return tree.RootNode;
+            root = tree.RootNode;
+            return true;
         } catch {
-            return null;
+            root = null;
+            return false;
         }
     }
 
@@ -59,8 +65,7 @@ public sealed partial class BashAstParser : IDisposable {
     /// <param name="command">bash 命令字符串</param>
     /// <returns>安全解析结果（Simple/ParseUnavailable/TooComplex）</returns>
     public BashAstSecurityResult ParseForSecurity(string command) {
-        var root = Parse(command);
-        if (root is null)
+        if (!TryParse(command, out var root))
             return new BashAstSecurityResult.ParseUnavailable("tree-sitter 解析失败");
 
         if (HasErrorNode(root))

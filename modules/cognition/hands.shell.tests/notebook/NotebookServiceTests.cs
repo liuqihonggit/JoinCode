@@ -260,21 +260,23 @@ public sealed class NotebookServiceTests : IDisposable {
     }
 
     [Fact]
-    public void GetCellContent_ReturnsSourceText() {
+    public void TryGetCellContent_ReturnsSourceText() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "hello");
 
-        var content = _service.GetCellContent(doc, 0);
+        var found = _service.TryGetCellContent(doc, 0, out var content);
 
+        found.Should().BeTrue();
         content.Should().Be("hello");
     }
 
     [Fact]
-    public void GetCellContent_InvalidIndex_ReturnsNull() {
+    public void TryGetCellContent_InvalidIndex_ReturnsFalse() {
         var doc = _service.Create();
 
-        var content = _service.GetCellContent(doc, 0);
+        var found = _service.TryGetCellContent(doc, 0, out var content);
 
+        found.Should().BeFalse();
         content.Should().BeNull();
     }
 

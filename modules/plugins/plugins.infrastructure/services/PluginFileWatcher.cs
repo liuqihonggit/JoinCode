@@ -111,7 +111,7 @@ public sealed class PluginFileWatcher : IAsyncDisposable {
     /// </summary>
     internal void LoadPluginFromYaml(string yamlPath) {
         try {
-            var yamlContent = _fs.ReadAllText(yamlPath).GetAwaiter().GetResult();
+            var yamlContent = _fs.ReadAllText(yamlPath).GetAwaiter().GetResult();  // style-allow: sync-block — 文件监视事件同步回调: FileSystemWatcher 事件内同步读取 YAML
             var config = ParseYaml(yamlContent);
 
             if (string.IsNullOrWhiteSpace(config.Name) || string.IsNullOrWhiteSpace(config.NodeId)) {

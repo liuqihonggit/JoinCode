@@ -23,8 +23,8 @@ public sealed partial class MicrocompactMiddleware : ServiceEntity, ICompactMidd
         var preCompactTokens = _microcompactService.EstimateMessageTokens(context.Request.Messages);
         context.PreCompactTokens = preCompactTokens;
 
-        var timeBasedResult = _microcompactService.TimeBasedCompact(context.Request.Messages);
-        if (timeBasedResult is not null && timeBasedResult.TokensSaved > 0) {
+        if (_microcompactService.TryGetTimeBasedCompact(context.Request.Messages, out var timeBasedResult)
+            && timeBasedResult.TokensSaved > 0) {
             var saved = timeBasedResult.TokensSaved;
             context.Result = new CompactResult {
                 Compacted = true,

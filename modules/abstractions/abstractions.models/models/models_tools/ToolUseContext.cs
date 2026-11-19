@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
@@ -136,8 +134,8 @@ public sealed class ToolUseContext {
     /// 生成压缩保留附件 — 对齐 TS createSkillAttachmentIfNeeded
     /// 按调用时间降序排列，截断保留（5K token/技能, 25K总预算）
     /// </summary>
-    public string? BuildInvokedSkillsAttachment(int maxTokensPerSkill = 5000, int totalTokenBudget = 25000) {
-        if (_invokedSkills.Count == 0) return null;
+    public string BuildInvokedSkillsAttachment(int maxTokensPerSkill = 5000, int totalTokenBudget = 25000) {
+        if (_invokedSkills.Count == 0) return string.Empty;
 
         var ordered = _invokedSkills.Values
             .OrderByDescending(s => s.InvokedAt)
@@ -167,7 +165,7 @@ public sealed class ToolUseContext {
             totalTokens += entryTokens;
         }
 
-        return sb.Length > 0 ? sb.ToString() : null;
+        return sb.ToString();
     }
 
     /// <summary>

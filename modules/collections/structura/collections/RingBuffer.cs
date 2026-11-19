@@ -16,12 +16,11 @@ public sealed class RingBuffer<T> {
     private PaddedInt _consumerHead;
     private int _cachedProducerTail;
 
-#pragma warning disable 0169
+    // 缓存行填充: 泛型类型嵌套结构禁用 Explicit 布局(CLR 运行期不可加载),用 Sequential+Size 撑到 64 字节
+    [StructLayout(LayoutKind.Sequential, Size = 64)]
     private struct PaddedInt {
         internal int Value;
-        private readonly long _p1, _p2, _p3, _p4, _p5, _p6, _p7;
     }
-#pragma warning restore 0169
 
     /// <summary>
     /// 初始化队列

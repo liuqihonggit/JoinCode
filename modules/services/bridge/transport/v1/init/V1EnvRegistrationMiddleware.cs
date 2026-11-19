@@ -20,7 +20,7 @@ internal sealed partial class V1EnvRegistrationMiddleware : ServiceEntity, IMidd
             GetAccessToken = ctx.Parameters.GetAccessToken,
             OnAuth401 = ctx.Parameters.OnAuth401,
             GetTrustedDeviceToken = ctx.Parameters.GetTrustedDeviceToken is not null
-                ? () => ctx.Parameters.GetTrustedDeviceToken().GetAwaiter().GetResult()
+                ? () => ctx.Parameters.GetTrustedDeviceToken().GetAwaiter().GetResult()  // style-allow: sync-block — 同步委托契约: 设备令牌提供者回调为同步签名
                 : null,
         });
 

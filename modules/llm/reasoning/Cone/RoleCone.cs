@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.Reasoning.Cone;
 
 /// <summary>
@@ -67,23 +65,29 @@ public sealed class RoleCone {
     }
 
     /// <summary>
-    /// 按条件展开某个片段（渐进式披露）
+    /// 尝试按条件展开某个片段（渐进式披露）
     /// </summary>
-    public ObservationFragment? ExpandFragment(string fragmentId, string triggerCondition) {
-        if (!_allFragments.TryGetValue(fragmentId, out var fragment))
-            return null;
+    /// <param name="fragmentId">片段标识</param>
+    /// <param name="triggerCondition">触发条件</param>
+    /// <param name="fragment">展开的片段</param>
+    /// <returns>片段存在且条件匹配返回 true</returns>
+    public bool TryExpandFragment(string fragmentId, string triggerCondition, [NotNullWhen(true)] out ObservationFragment? fragment) {
+        fragment = null;
+        if (!_allFragments.TryGetValue(fragmentId, out var found))
+            return false;
 
         if (triggerCondition == "*" ||
-            string.IsNullOrEmpty(fragment.ExpandCondition) ||
-            fragment.ExpandCondition.Contains(triggerCondition, StringComparison.OrdinalIgnoreCase)) {
-            fragment.IsExpanded = true;
+            string.IsNullOrEmpty(found.ExpandCondition) ||
+            found.ExpandCondition.Contains(triggerCondition, StringComparison.OrdinalIgnoreCase)) {
+            found.IsExpanded = true;
             if (!_activeFragmentIds.Contains(fragmentId)) {
                 _activeFragmentIds.Add(fragmentId);
             }
-            return fragment;
+            fragment = found;
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     /// <summary>

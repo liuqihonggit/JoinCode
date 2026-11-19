@@ -84,11 +84,9 @@ public sealed class ConsolePresentationAdapter : PresentationAdapterBase, IStrea
 
     /// <inheritdoc />
     public override Task<string> RequestInputAsync(string? prompt, CancellationToken ct = default) {
-        if (prompt is not null) {
-            var result = _output.Prompt(prompt);
-            return Task.FromResult(result ?? string.Empty);
-        }
-        return Task.FromResult(string.Empty);
+        if (prompt is null || !_output.TryGetPrompt(prompt, out var input))
+            return Task.FromResult(string.Empty);
+        return Task.FromResult(input);
     }
 
     /// <inheritdoc />

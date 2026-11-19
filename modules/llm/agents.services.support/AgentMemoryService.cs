@@ -181,7 +181,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     private string GetLocalAgentMemoryDir(string dirName) {
         var remoteDir = Environment.GetEnvironmentVariable(JccEnvVar.RemoteMemoryDir.ToValue());
         if (!string.IsNullOrEmpty(remoteDir)) {
-            var gitRoot = GitWorkspaceResolver.FindGitRootAsync(_cwd, _fs, default).GetAwaiter().GetResult() ?? _cwd;
+            var gitRoot = GitWorkspaceResolver.FindGitRootAsync(_cwd, _fs, default).GetAwaiter().GetResult() ?? _cwd;  // style-allow: sync-block — 同步目录解析契约: 记忆目录在同步路径内解析仓库根
             var sanitizedGitRoot = SanitizePathSegment(gitRoot);
             return Path.Combine(remoteDir, "projects", sanitizedGitRoot, AgentMemoryLocalSubdir, dirName) + Path.DirectorySeparatorChar;
         }

@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Context;
 
 /// <summary>
@@ -138,49 +136,55 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     private const int SbCheckInterval = 50;
 
     /// <summary>
-    /// ILoopDetectionStrategy.CheckTextLoop — 串行漏斗: OutputLoop(廉价)→LogicFingerprint(中等)→ShannonEntropy(昂贵)
+    /// ILoopDetectionStrategy.TryGetTextLoop — 串行漏斗: OutputLoop(廉价)→LogicFingerprint(中等)→ShannonEntropy(昂贵)
     /// 前面触发就不跑后续更昂贵的检测器,降低平均检测成本
     /// </summary>
-    public LoopInterventionResult? CheckTextLoop(string text) {
+    /// <param name="text">响应文本</param>
+    /// <param name="result">检测到循环时的干预结果</param>
+    /// <returns>检测到循环返回 true</returns>
+    public bool TryGetTextLoop(string text, [NotNullWhen(true)] out LoopInterventionResult? result) {
+        result = null;
         if (string.IsNullOrEmpty(text))
-            return null;
+            return false;
 
         _journal.Record("guardian_check_text", _sessionId, _conversationTurn, _toolCallCount,
             new Dictionary<string, string> { ["text_len"] = text.Length.ToString() });
 
         var outputResult = _outputLoopDetector.Detect(text);
         if (outputResult.IsLoopDetected) {
-            _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: OutputLoop 触发: 重复{Count}次",
+            _logger?.LogWarning("[InformationEntropyGuardian] TryGetTextLoop: OutputLoop 触发: 重复{Count}次",
                 outputResult.RepeatCount);
             _journal.OnLoopDetected(
                 "OutputLoop", _sessionId, _conversationTurn, _toolCallCount,
                 outputResult.LoopTriggerCount,
                 $"输出文本循环(重复{outputResult.RepeatCount}次)",
                 textSnippet: outputResult.RepeatedPattern);
-            return new LoopInterventionResult(
+            result = new LoopInterventionResult(
                 outputResult.LoopTriggerCount,
                 0,
                 $"输出文本循环(重复{outputResult.RepeatCount}次)");
+            return true;
         }
 
         var fpResult = _logicFingerprintDetector.Record(text);
         if (fpResult.IsLoopDetected) {
-            _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: LogicFingerprint 触发: 指纹={FP}, 命中{Count}次",
+            _logger?.LogWarning("[InformationEntropyGuardian] TryGetTextLoop: LogicFingerprint 触发: 指纹={FP}, 命中{Count}次",
                 fpResult.Fingerprint, fpResult.HitCount);
             _journal.OnLoopDetected(
                 "LogicFingerprint", _sessionId, _conversationTurn, _toolCallCount,
                 fpResult.TriggerCount,
                 $"逻辑指纹循环(命中{fpResult.HitCount}次)",
                 textSnippet: text);
-            return new LoopInterventionResult(
+            result = new LoopInterventionResult(
                 fpResult.TriggerCount,
                 0,
                 $"逻辑指纹循环(命中{fpResult.HitCount}次)");
+            return true;
         }
 
         var entropyResult = _shannonEntropyDetector.Record(text);
         if (entropyResult.IsLoopDetected) {
-            _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: ShannonEntropy 触发: 熵={Entropy:F3}, 连续下降{Streak}轮",
+            _logger?.LogWarning("[InformationEntropyGuardian] TryGetTextLoop: ShannonEntropy 触发: 熵={Entropy:F3}, 连续下降{Streak}轮",
                 entropyResult.CurrentEntropy, entropyResult.DeclineStreak);
             _journal.OnLoopDetected(
                 "ShannonEntropy", _sessionId, _conversationTurn, _toolCallCount,
@@ -188,19 +192,25 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
                 $"信息熵减循环(熵={entropyResult.CurrentEntropy:F3},连续下降{entropyResult.DeclineStreak}轮)",
                 entropy: entropyResult.CurrentEntropy,
                 textSnippet: text);
-            return new LoopInterventionResult(
+            result = new LoopInterventionResult(
                 entropyResult.TriggerCount,
                 0,
                 $"信息熵减循环(熵={entropyResult.CurrentEntropy:F3},连续下降{entropyResult.DeclineStreak}轮)");
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     /// <summary>
-    /// ILoopDetectionStrategy.CheckToolCallLoop — 运行 ToolCallSequence 检测
+    /// ILoopDetectionStrategy.TryGetToolCallLoop — 运行 ToolCallSequence 检测
     /// </summary>
-    public LoopInterventionResult? CheckToolCallLoop(string toolName, Dictionary<string, JsonElement>? arguments) {
+    /// <param name="toolName">工具名称</param>
+    /// <param name="arguments">工具参数</param>
+    /// <param name="result">检测到循环时的干预结果</param>
+    /// <returns>检测到循环返回 true</returns>
+    public bool TryGetToolCallLoop(string toolName, Dictionary<string, JsonElement>? arguments, [NotNullWhen(true)] out LoopInterventionResult? result) {
+        result = null;
         _journal.Record("guardian_check_tool", _sessionId, _conversationTurn, _toolCallCount,
             new Dictionary<string, string> { ["tool_name"] = toolName });
 
@@ -208,19 +218,20 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
         var seqResult = _toolCallSequenceDetector.Record(toolName, argsFingerprint);
 
         if (seqResult.IsLoopDetected) {
-            _logger?.LogWarning("[InformationEntropyGuardian] CheckToolCallLoop: ToolCallSequence 触发: {Pattern}, 重复{Count}次, 参数匹配={ArgsMatch}",
+            _logger?.LogWarning("[InformationEntropyGuardian] TryGetToolCallLoop: ToolCallSequence 触发: {Pattern}, 重复{Count}次, 参数匹配={ArgsMatch}",
                 seqResult.RepeatedPattern, seqResult.RepeatCount, seqResult.ArgsMatched);
             _journal.OnLoopDetected(
                 "ToolCallSequence", _sessionId, _conversationTurn, _toolCallCount,
                 seqResult.TriggerCount,
                 seqResult.RepeatedPattern ?? "工具调用序列循环");
-            return new LoopInterventionResult(
+            result = new LoopInterventionResult(
                 seqResult.TriggerCount,
                 0,
                 seqResult.RepeatedPattern ?? "工具调用序列循环");
+            return true;
         }
 
-        return null;
+        return false;
     }
 
     /// <summary>

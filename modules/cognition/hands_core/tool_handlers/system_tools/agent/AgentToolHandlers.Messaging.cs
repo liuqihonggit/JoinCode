@@ -74,9 +74,9 @@ public sealed partial class AgentToolHandlers {
                 : await _agentService.SendMessageToAgentAsync(to, message, cancellationToken).ConfigureAwait(false);
 
             if (!sent) {
-                var dryState = TryLoadDryRunState(to);
+                var dryState = await TryLoadDryRunStateAsync(to).ConfigureAwait(false);
                 if (dryState is not null) {
-                    AppendDryRunMessage(to, message, summary);
+                    await AppendDryRunMessageAsync(to, message, summary).ConfigureAwait(false);
                     var dryMsg = summary is not null
                         ? $"Message sent to {to}: {summary}"
                         : $"Message sent to {to}";
@@ -196,9 +196,9 @@ public sealed partial class AgentToolHandlers {
         }
 
         try {
-            var dryState = TryLoadDryRunState(agentId);
+            var dryState = await TryLoadDryRunStateAsync(agentId).ConfigureAwait(false);
             if (dryState is not null) {
-                AppendDryRunMessage(agentId, userInput, "forwarded_user_input");
+                await AppendDryRunMessageAsync(agentId, userInput, "forwarded_user_input").ConfigureAwait(false);
                 return ToolResultBuilder.Success()
                     .WithText($"用户输入已转发给子代理 {agentId}")
                     .Build();

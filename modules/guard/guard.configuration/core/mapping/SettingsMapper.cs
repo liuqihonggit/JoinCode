@@ -155,7 +155,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
 
     private WorkflowConfig ApplyProviderSettings(WorkflowConfig config, SettingsJson? settings) {
         var current = settings?.Current;
-        var profile = settings?.GetActiveProfile();
+        var profile = settings is not null && settings.TryGetActiveProfile(out var activeProfile) ? activeProfile : null;
         var provider = config.Provider;
 
         if (profile is not null) {

@@ -34,9 +34,7 @@ public class ToolSchemaProperty {
     /// <summary>获取枚举值列表。</summary>
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-#pragma warning disable JCC11002
     public List<string>? Enum { get; init; }
-#pragma warning restore JCC11002
 
     /// <summary>获取默认值。</summary>
     [JsonPropertyName("default")]

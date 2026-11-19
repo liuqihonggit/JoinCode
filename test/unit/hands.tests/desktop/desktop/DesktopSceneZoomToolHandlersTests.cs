@@ -15,9 +15,13 @@ public sealed class DesktopSceneZoomToolHandlersTests {
         var result = await handler.ZoomAsync("sc_test", 2);
 
         result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().Contain("desktop_zoom");
-        text.Should().Contain("继续");
+        using var doc = JsonDocument.Parse(result.GetFirstText() ?? throw new InvalidOperationException("工具结果缺少文本"));
+        var root = doc.RootElement;
+        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+            e => e.GetProperty("tool").GetString() == "desktop_zoom");
+        var reasons = root.GetProperty("suggested_next").EnumerateArray()
+            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
+        reasons.Should().Contain(r => r.Contains("继续", StringComparison.Ordinal));
     }
 
     /// <summary>AC-03: 看清时 suggested_next 含 desktop_detect</summary>
@@ -31,8 +35,12 @@ public sealed class DesktopSceneZoomToolHandlersTests {
         var result = await handler.ZoomAsync("sc_test", 3);
 
         result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().Contain("desktop_detect");
-        text.Should().Contain("识别");
+        using var doc = JsonDocument.Parse(result.GetFirstText() ?? throw new InvalidOperationException("工具结果缺少文本"));
+        var root = doc.RootElement;
+        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+            e => e.GetProperty("tool").GetString() == "desktop_detect");
+        var reasons = root.GetProperty("suggested_next").EnumerateArray()
+            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
+        reasons.Should().Contain(r => r.Contains("识别", StringComparison.Ordinal));
     }
 }

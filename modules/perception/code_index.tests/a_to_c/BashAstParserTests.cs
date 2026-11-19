@@ -5,10 +5,10 @@ public class BashAstParserTests {
     [Fact]
     public void Parse_SimpleCommand_ReturnsCorrectArgv() {
         using var parser = new BashAstParser();
-        var root = parser.Parse("echo hello world");
-        Assert.NotNull(root);
+        Assert.True(parser.TryParse("echo hello world", out var root));
+        var astRoot = root ?? throw new InvalidOperationException("解析应成功");
 
-        var commands = BashAstParser.ExtractSimpleCommands(root);
+        var commands = BashAstParser.ExtractSimpleCommands(astRoot);
         Assert.Single(commands);
         Assert.Equal("echo", commands[0].Argv[0]);
         Assert.Equal("hello", commands[0].Argv[1]);
@@ -18,10 +18,10 @@ public class BashAstParserTests {
     [Fact]
     public void Parse_Pipeline_ReturnsTwoCommands() {
         using var parser = new BashAstParser();
-        var root = parser.Parse("cat file.txt | grep pattern");
-        Assert.NotNull(root);
+        Assert.True(parser.TryParse("cat file.txt | grep pattern", out var root));
+        var astRoot = root ?? throw new InvalidOperationException("解析应成功");
 
-        var commands = BashAstParser.ExtractSimpleCommands(root);
+        var commands = BashAstParser.ExtractSimpleCommands(astRoot);
         Assert.Equal(2, commands.Count);
         Assert.Equal("cat", commands[0].Argv[0]);
         Assert.Equal("grep", commands[1].Argv[0]);
@@ -30,10 +30,10 @@ public class BashAstParserTests {
     [Fact]
     public void Parse_AndOrChain_ReturnsThreeCommands() {
         using var parser = new BashAstParser();
-        var root = parser.Parse("cd /repo && make build || echo failed");
-        Assert.NotNull(root);
+        Assert.True(parser.TryParse("cd /repo && make build || echo failed", out var root));
+        var astRoot = root ?? throw new InvalidOperationException("解析应成功");
 
-        var commands = BashAstParser.ExtractSimpleCommands(root);
+        var commands = BashAstParser.ExtractSimpleCommands(astRoot);
         Assert.Equal(3, commands.Count);
         Assert.Equal("cd", commands[0].Argv[0]);
         Assert.Equal("make", commands[1].Argv[0]);
@@ -43,10 +43,10 @@ public class BashAstParserTests {
     [Fact]
     public void Parse_Redirect_ExtractsRedirects() {
         using var parser = new BashAstParser();
-        var root = parser.Parse("echo hello > output.txt");
-        Assert.NotNull(root);
+        Assert.True(parser.TryParse("echo hello > output.txt", out var root));
+        var astRoot = root ?? throw new InvalidOperationException("解析应成功");
 
-        var commands = BashAstParser.ExtractSimpleCommands(root);
+        var commands = BashAstParser.ExtractSimpleCommands(astRoot);
         Assert.Single(commands);
         Assert.Equal("echo", commands[0].Argv[0]);
         Assert.NotEmpty(commands[0].Redirects);
@@ -55,10 +55,10 @@ public class BashAstParserTests {
     [Fact]
     public void Parse_VariableAssignment_ExtractsEnvVars() {
         using var parser = new BashAstParser();
-        var root = parser.Parse("VAR=value echo hello");
-        Assert.NotNull(root);
+        Assert.True(parser.TryParse("VAR=value echo hello", out var root));
+        var astRoot = root ?? throw new InvalidOperationException("解析应成功");
 
-        var commands = BashAstParser.ExtractSimpleCommands(root);
+        var commands = BashAstParser.ExtractSimpleCommands(astRoot);
         Assert.Single(commands);
         Assert.Equal("echo", commands[0].Argv[0]);
         Assert.NotEmpty(commands[0].EnvVars);
@@ -68,10 +68,10 @@ public class BashAstParserTests {
     [Fact]
     public void Parse_CommandSubstitution_Detected() {
         using var parser = new BashAstParser();
-        var root = parser.Parse("echo $(date)");
-        Assert.NotNull(root);
+        Assert.True(parser.TryParse("echo $(date)", out var root));
+        var astRoot = root ?? throw new InvalidOperationException("解析应成功");
 
-        var commands = BashAstParser.ExtractSimpleCommands(root);
+        var commands = BashAstParser.ExtractSimpleCommands(astRoot);
         Assert.Single(commands);
         // $(date) should appear in argv
         Assert.True(commands[0].Argv.Length >= 2);
@@ -80,37 +80,37 @@ public class BashAstParserTests {
     [Fact]
     public void Parse_QuotedString_StripsQuotes() {
         using var parser = new BashAstParser();
-        var root = parser.Parse("echo 'hello world'");
-        Assert.NotNull(root);
+        Assert.True(parser.TryParse("echo 'hello world'", out var root));
+        var astRoot = root ?? throw new InvalidOperationException("解析应成功");
 
-        var commands = BashAstParser.ExtractSimpleCommands(root);
+        var commands = BashAstParser.ExtractSimpleCommands(astRoot);
         Assert.Single(commands);
         Assert.Equal("echo", commands[0].Argv[0]);
         Assert.Equal("hello world", commands[0].Argv[1]);
     }
 
     [Fact]
-    public void Parse_EmptyInput_ReturnsNull() {
+    public void Parse_EmptyInput_ReturnsFalse() {
         using var parser = new BashAstParser();
-        var result = parser.Parse("");
+        Assert.False(parser.TryParse("", out var result));
         Assert.Null(result);
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void Parse_NullInput_ReturnsNull() {
+    public void Parse_NullInput_ReturnsFalse() {
         using var parser = new BashAstParser();
-        var result = parser.Parse(null!);
+        Assert.False(parser.TryParse(null!, out var result));
         Assert.Null(result);
     }
 
     [Fact]
     public void Parse_DangerousRm_ExtractsArgv() {
         using var parser = new BashAstParser();
-        var root = parser.Parse("rm -rf /");
-        Assert.NotNull(root);
+        Assert.True(parser.TryParse("rm -rf /", out var root));
+        var astRoot = root ?? throw new InvalidOperationException("解析应成功");
 
-        var commands = BashAstParser.ExtractSimpleCommands(root);
+        var commands = BashAstParser.ExtractSimpleCommands(astRoot);
         Assert.Single(commands);
         Assert.Equal("rm", commands[0].Argv[0]);
         Assert.Equal("-rf", commands[0].Argv[1]);
@@ -120,10 +120,10 @@ public class BashAstParserTests {
     [Fact]
     public void Parse_ComplexPipeline_ExtractsAllCommands() {
         using var parser = new BashAstParser();
-        var root = parser.Parse("find . -name '*.cs' | xargs grep 'TODO' | sort | uniq -c");
-        Assert.NotNull(root);
+        Assert.True(parser.TryParse("find . -name '*.cs' | xargs grep 'TODO' | sort | uniq -c", out var root));
+        var astRoot = root ?? throw new InvalidOperationException("解析应成功");
 
-        var commands = BashAstParser.ExtractSimpleCommands(root);
+        var commands = BashAstParser.ExtractSimpleCommands(astRoot);
         Assert.Equal(4, commands.Count);
         Assert.Equal("find", commands[0].Argv[0]);
         Assert.Equal("xargs", commands[1].Argv[0]);

@@ -272,7 +272,7 @@ public sealed class EngineApplicationBuilder {
         }
 
         // 从服务端 /v1/models 获取可用模型列表，优先使用 --vendor 筛选和用户配置的模型
-        var configuredModel = settings?.GetActiveProfile()?.Model;
+        var configuredModel = settings is not null && settings.TryGetActiveProfile(out var activeProfile) ? activeProfile.Model : null;
         try {
             config = await FetchHubModelsAsync(config, configuredModel, modelConfigLoader, options.Vendor).ConfigureAwait(false);
         } catch (Exception ex) {

@@ -124,7 +124,10 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     public virtual bool IsCompoundAuthFormat(string apiKey) => false;
 
     /// <inheritdoc />
-    public virtual string? ExtractApiKeyFromCompound(string apiKey) => null;
+    public virtual bool TryExtractApiKeyFromCompound(string apiKey, [NotNullWhen(true)] out string? extractedApiKey) {
+        extractedApiKey = null;
+        return false;
+    }
 
     /// <inheritdoc />
     public virtual bool SupportsOAuth => false;

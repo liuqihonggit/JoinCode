@@ -1,32 +1,29 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Host.Tests.Queue;
 
 /// <summary>
 /// CommandQueue 单元测试 — 验证优先级排序、FIFO、线程安全、快照。
 /// </summary>
 public class CommandQueueTests {
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Enqueue_Dequeue_SingleItem_ReturnsItem() {
         using var queue = new CommandQueue();
         var cmd = new QueuedCommand("hello", CommandOrigin.User, QueuePriority.Next);
 
         queue.Enqueue(cmd);
-        var dequeued = queue.Dequeue();
+        var dequeued = DequeueOrThrow(queue);
 
-        Assert.NotNull(dequeued);
-        Assert.Equal("hello", dequeued!.Content);
+        Assert.Equal("hello", dequeued.Content);
         Assert.Equal(0, queue.Count);
     }
 
     [Fact]
     public void Dequeue_EmptyQueue_ReturnsNull() {
         using var queue = new CommandQueue();
-        Assert.Null(queue.Dequeue());
+        Assert.False(queue.TryDequeue(out var dequeued));
+        Assert.Null(dequeued);
         Assert.Equal(0, queue.Count);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Dequeue_PriorityOrder_NowBeforeNextBeforeLater() {
         using var queue = new CommandQueue();
@@ -34,12 +31,11 @@ public class CommandQueueTests {
         queue.Enqueue(new QueuedCommand("next", CommandOrigin.User, QueuePriority.Next));
         queue.Enqueue(new QueuedCommand("now", CommandOrigin.PermissionResponse, QueuePriority.Now));
 
-        Assert.Equal("now", queue.Dequeue()!.Content);
-        Assert.Equal("next", queue.Dequeue()!.Content);
-        Assert.Equal("later", queue.Dequeue()!.Content);
+        Assert.Equal("now", DequeueOrThrow(queue).Content);
+        Assert.Equal("next", DequeueOrThrow(queue).Content);
+        Assert.Equal("later", DequeueOrThrow(queue).Content);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Dequeue_SamePriority_FifoOrder() {
         using var queue = new CommandQueue();
@@ -47,12 +43,11 @@ public class CommandQueueTests {
         queue.Enqueue(new QueuedCommand("second", CommandOrigin.User, QueuePriority.Next));
         queue.Enqueue(new QueuedCommand("third", CommandOrigin.User, QueuePriority.Next));
 
-        Assert.Equal("first", queue.Dequeue()!.Content);
-        Assert.Equal("second", queue.Dequeue()!.Content);
-        Assert.Equal("third", queue.Dequeue()!.Content);
+        Assert.Equal("first", DequeueOrThrow(queue).Content);
+        Assert.Equal("second", DequeueOrThrow(queue).Content);
+        Assert.Equal("third", DequeueOrThrow(queue).Content);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Dequeue_MixedPriority_NowAlwaysFirst() {
         using var queue = new CommandQueue();
@@ -60,9 +55,9 @@ public class CommandQueueTests {
         queue.Enqueue(new QueuedCommand("next2", CommandOrigin.User, QueuePriority.Next));
         queue.Enqueue(new QueuedCommand("now1", CommandOrigin.PermissionResponse, QueuePriority.Now));
 
-        Assert.Equal("now1", queue.Dequeue()!.Content);
-        Assert.Equal("next1", queue.Dequeue()!.Content);
-        Assert.Equal("next2", queue.Dequeue()!.Content);
+        Assert.Equal("now1", DequeueOrThrow(queue).Content);
+        Assert.Equal("next1", DequeueOrThrow(queue).Content);
+        Assert.Equal("next2", DequeueOrThrow(queue).Content);
     }
 
     [Fact]
@@ -74,10 +69,10 @@ public class CommandQueueTests {
         queue.Enqueue(new QueuedCommand("b", CommandOrigin.User, QueuePriority.Later));
         Assert.Equal(2, queue.Count);
 
-        queue.Dequeue();
+        Assert.True(queue.TryDequeue(out _));
         Assert.Equal(1, queue.Count);
 
-        queue.Dequeue();
+        Assert.True(queue.TryDequeue(out _));
         Assert.Equal(0, queue.Count);
     }
 
@@ -115,7 +110,7 @@ public class CommandQueueTests {
         Assert.Equal(producerCount * itemsPerProducer, queue.Count);
 
         var consumed = 0;
-        while (queue.Dequeue() is not null)
+        while (queue.TryDequeue(out _))
             consumed++;
 
         Assert.Equal(producerCount * itemsPerProducer, consumed);
@@ -204,4 +199,8 @@ public class CommandQueueTests {
         Assert.Contains("a", contents);
         Assert.Contains("b", contents);
     }
+
+    /// <summary>出队并断言非空 — TryDequeue 返回 false 即抛异常。</summary>
+    private static QueuedCommand DequeueOrThrow(CommandQueue queue) =>
+        queue.TryDequeue(out var cmd) ? cmd : throw new InvalidOperationException("队列非空时应能出队");
 }

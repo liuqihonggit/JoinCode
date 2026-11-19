@@ -933,7 +933,8 @@ public class ActorBaseTest {
         await using var system = new ActorSystem();
         var actor = system.ActorOf(Props.Create(() => new DisposableTestActor()), "my-actor");
         actor.Should().NotBeNull();
-        system.Selection("my-actor").Should().BeSameAs(actor);
+        Assert.True(system.TryGetSelection("my-actor", out var selected));
+        selected.Should().BeSameAs(actor);
     }
 
     /// <summary>Receptionist Register/Find 服务发现(Akka 对齐)</summary>

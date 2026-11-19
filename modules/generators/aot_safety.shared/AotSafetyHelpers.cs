@@ -326,7 +326,7 @@ public static class AotSafetyHelpers {
     }
 
     private static bool IsProtectedByEarlyReturnInBlock(SyntaxNode node, BlockSyntax block) {
-        var statement = FindAncestorStatement(node);
+        var statement = FindDirectChildStatement(node, block);
         if (statement is null) return false;
 
         var nodeIndex = block.Statements.IndexOf(statement);
@@ -343,10 +343,13 @@ public static class AotSafetyHelpers {
         return false;
     }
 
-    private static StatementSyntax? FindAncestorStatement(SyntaxNode node) {
-        var current = node.Parent;
+    /// <summary>
+    /// 找到 node 在指定 block 内的直接子语句（可能相隔多层嵌套，如循环体内的调用）。
+    /// </summary>
+    private static StatementSyntax? FindDirectChildStatement(SyntaxNode node, BlockSyntax block) {
+        var current = node;
         while (current is not null) {
-            if (current is StatementSyntax statement)
+            if (current.Parent == block && current is StatementSyntax statement)
                 return statement;
             current = current.Parent;
         }

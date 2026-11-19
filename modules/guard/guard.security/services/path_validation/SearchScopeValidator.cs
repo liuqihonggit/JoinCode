@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
@@ -49,13 +47,14 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
     private volatile FrozenSet<string> _mergedExcessivePathPrefixes = BuiltInExcessivePathPrefixes;
 
     /// <inheritdoc/>
-    public SearchScopeValidationResult? Validate(ShellCommand command, string workingDirectory) {
+    public bool TryValidate(ShellCommand command, string workingDirectory, [NotNullWhen(true)] out SearchScopeValidationResult? result) {
+        result = null;
         if (!_enabled) {
-            return null;
+            return false;
         }
 
         if (!SearchCommands.Contains(command.CommandName)) {
-            return null;
+            return false;
         }
 
         var risks = new List<string>();
@@ -69,16 +68,17 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
         }
 
         if (risks.Count == 0) {
-            return null;
+            return false;
         }
 
         var details = string.Join("; ", risks);
         var suggestion = BuildSuggestion(command.CommandName, risks.Count > 0 && dangerousFlagDetails != null);
 
-        return new SearchScopeValidationResult(
+        result = new SearchScopeValidationResult(
             CommandRisk.ExcessiveSearchScope,
             details,
             suggestion);
+        return true;
     }
 
     /// <summary>

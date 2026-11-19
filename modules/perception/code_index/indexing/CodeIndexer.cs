@@ -279,7 +279,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         // Phase D: 并行提取符号
         var phaseDSw = Stopwatch.StartNew();
-        var extractionResults = ParallelExtractAll(filesToIndex, ct);
+        var extractionResults = await ParallelExtractAllAsync(filesToIndex, ct).ConfigureAwait(false);
         phaseDSw.Stop();
         Console.Error.WriteLine($"[code-index] Phase D 提取: {filesToIndex.Count} 文件 ({phaseDSw.ElapsedMilliseconds}ms)");
 
@@ -391,7 +391,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _projectDependencyGraph.InvalidateCache();
     }
 
-    private List<ExtractionResult> ParallelExtractAll(
+    private async Task<List<ExtractionResult>> ParallelExtractAllAsync(
         List<(string FilePath, string SourceCode, string Hash)> files, CancellationToken ct) {
         if (files.Count == 0) return [];
 
@@ -435,7 +435,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 }
             }, ct);
         }
-        Task.WhenAll(tasks).GetAwaiter().GetResult();
+        await Task.WhenAll(tasks).ConfigureAwait(false);
 
         return [.. results];
     }

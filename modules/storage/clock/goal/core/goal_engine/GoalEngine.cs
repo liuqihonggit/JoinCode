@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Goal;
 
 
@@ -14,6 +12,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;
     private readonly IGoalHeartbeat _heartbeat;
+    // style-allow: unbounded — Actor 命令邮箱,命令处理器内部再投递命令时有界会自锁
     private readonly Channel<GoalEngineCommand> _commandChannel = Channel.CreateUnbounded<GoalEngineCommand>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly Task _consumerTask;
@@ -47,19 +46,23 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     /// <summary>
     /// 获取 Goal 进度快照 — 从 DAG 节点状态计算已完成/总数/当前执行节点名。
-    /// 未构建 Graph 或未启动时返回 null。
+    /// 未构建 Graph 或未启动时返回 false。
     /// </summary>
-    public GoalProgress? GetGoalProgress() {
-        if (_goalGraph is null) return null;
+    /// <param name="progress">进度快照；返回 false 时为 null</param>
+    /// <returns>true 表示存在可读取的进度，false 表示未构建 Graph</returns>
+    public bool TryGetGoalProgress([NotNullWhen(true)] out GoalProgress? progress) {
+        progress = null;
+        if (_goalGraph is null) return false;
         var nodes = _goalGraph.Dag.Nodes.Values.ToList();
-        if (nodes.Count == 0) return null;
+        if (nodes.Count == 0) return false;
         var completed = nodes.Count(n => n.Payload.Status is GoalNodeStatus.Completed or GoalNodeStatus.Failed or GoalNodeStatus.Skipped);
         var running = nodes.FirstOrDefault(n => n.Payload.Status == GoalNodeStatus.Running);
-        return new GoalProgress {
+        progress = new GoalProgress {
             CompletedNodes = completed,
             TotalNodes = nodes.Count,
             CurrentNodeName = running?.Payload.Name
         };
+        return true;
     }
 
     /// <summary>
@@ -266,8 +269,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             heartbeat: _heartbeat,
             clock: _clock);
 
-        var template = _templateRegistry?.FindMatch(objective);
-        if (template is not null) {
+        if (_templateRegistry is not null && _templateRegistry.TryFindMatch(objective, out var template)) {
             _goalGraph = template.BuildGraph(_graphEngine, objective);
             _logger?.LogInformation("[GoalEngine] 匹配到 Graph 模板: {TemplateName} → {GraphName}", template.Name, _goalGraph.Name);
             return;

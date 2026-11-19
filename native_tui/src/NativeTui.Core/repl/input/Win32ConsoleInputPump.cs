@@ -11,6 +11,7 @@ namespace NativeTui.Core.Repl;
 /// </summary>
 public sealed class Win32ConsoleInputPump : IInputPump, IDisposable
 {
+    // style-allow: unbounded — 键盘输入不可丢弃,读线程 TryWrite 不能阻塞控制台输入
     private readonly Channel<KeyPress> _keys = Channel.CreateUnbounded<KeyPress>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
     private readonly CancellationTokenSource _cts = new();

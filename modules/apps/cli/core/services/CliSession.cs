@@ -130,7 +130,7 @@ public sealed class CliSession {
         System.Collections.Generic.IReadOnlyList<string>? toolNames = null;
         if (agentMode) {
             try {
-                var toolInfos = _toolRegistry.GetAllToolInfosAsync().GetAwaiter().GetResult();
+                var toolInfos = _toolRegistry.GetAllToolInfosAsync().GetAwaiter().GetResult();  // style-allow: sync-block — 会话同步初始化契约: 启动期一次性拉取工具与代理清单
                 toolNames = toolInfos.Select(t => t.Name).OrderBy(n => n).ToList();
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[CliSession] 获取工具列表失败，system/init tools 将为空");
@@ -150,7 +150,7 @@ public sealed class CliSession {
             try {
                 var agentService = optionalServices.ServiceProvider.GetService<IAgentService>();
                 if (agentService is not null) {
-                    var agentTypes = agentService.GetAvailableAgentTypesAsync().GetAwaiter().GetResult();
+                    var agentTypes = agentService.GetAvailableAgentTypesAsync().GetAwaiter().GetResult();  // style-allow: sync-block — 会话同步初始化契约: 启动期一次性拉取工具与代理清单
                     agents = agentTypes.Select(a => a.Name).OrderBy(n => n).ToList();
                 }
             } catch (Exception ex) {

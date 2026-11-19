@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Goal;
 
 
@@ -105,14 +103,14 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
         ArgumentNullException.ThrowIfNull(constraints);
         var constraintsText = BuildAnalyzerConstraintsText(constraints);
 
-        return $$$"""
+        return """
             You are a task decomposition analyst for a parallel agent system. Your job is to determine whether a given objective can be split into independent or partially-dependent subtasks that can execute in parallel.
 
             OBJECTIVE:
-            {{{objective}}}
+            @@OBJECTIVE@@
 
             CONSTRAINTS:
-            {{{constraintsText}}}
+            @@CONSTRAINTS@@
 
             THINKING CHAIN (follow this order strictly):
             Step 1 — Analyze decomposability: Can the objective be split into 2-8 parallel subtasks?
@@ -178,7 +176,8 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
             }
             ```
             If isDecomposable is false, subTasks should be an empty array.
-            """;
+            """.Replace("@@OBJECTIVE@@", objective, StringComparison.Ordinal)
+               .Replace("@@CONSTRAINTS@@", constraintsText, StringComparison.Ordinal);
     }
 
     /// <summary>

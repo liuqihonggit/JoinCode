@@ -1,4 +1,3 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 ﻿
 namespace Core.Tests.Context.Compression;
 
@@ -34,32 +33,27 @@ public class CompressionStrategyFactoryTests {
         _factory.HasStrategyFor(ContentType.Text).Should().BeFalse();
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void GetStrategy_CodeContent_ShouldReturnCodeCompressor() {
+    public void TryGetStrategy_CodeContent_ShouldReturnCodeCompressor() {
         var code = "public class Test { public void Method() { var x = 1; Console.WriteLine(x); } }";
-        var strategy = _factory.GetStrategy(code, ContentType.Code);
-
-        strategy.Should().NotBeNull();
-        strategy!.Name.Should().Be("CodeContentCompressor");
+        Assert.True(_factory.TryGetStrategy(code, ContentType.Code, out var strategy));
+        var selected = strategy ?? throw new InvalidOperationException("Code 策略应已注册");
+        selected.Name.Should().Be("CodeContentCompressor");
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void GetStrategy_DialogueContent_ShouldReturnDialogueCompressor() {
+    public void TryGetStrategy_DialogueContent_ShouldReturnDialogueCompressor() {
         var dialogue = @"User: Hello, how are you today?
 Assistant: Hi! I'm doing great, thank you for asking.
 User: Can you help me with a coding problem?
 Assistant: Of course! I'd be happy to help. What do you need assistance with?";
-        var strategy = _factory.GetStrategy(dialogue, ContentType.Dialogue);
-
-        strategy.Should().NotBeNull();
-        strategy!.Name.Should().Be("DialogueCompressor");
+        Assert.True(_factory.TryGetStrategy(dialogue, ContentType.Dialogue, out var strategy));
+        var selected = strategy ?? throw new InvalidOperationException("Dialogue 策略应已注册");
+        selected.Name.Should().Be("DialogueCompressor");
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void GetStrategy_ReferenceIndexContent_ShouldReturnReferenceCompressor() {
+    public void TryGetStrategy_ReferenceIndexContent_ShouldReturnReferenceCompressor() {
         var content = @"文件: Test.cs
 class Test
 method Method1
@@ -67,16 +61,15 @@ method Method1
 文件: Another.cs
 class Another
 method AnotherMethod";
-        var strategy = _factory.GetStrategy(content, ContentType.ReferenceIndex);
-
-        strategy.Should().NotBeNull();
-        strategy!.Name.Should().Be("ReferenceIndexCompressor");
+        Assert.True(_factory.TryGetStrategy(content, ContentType.ReferenceIndex, out var strategy));
+        var selected = strategy ?? throw new InvalidOperationException("ReferenceIndex 策略应已注册");
+        selected.Name.Should().Be("ReferenceIndexCompressor");
     }
 
     [Fact]
-    public void GetStrategy_NoMatchingStrategy_ShouldReturnNull() {
+    public void TryGetStrategy_NoMatchingStrategy_ShouldReturnFalse() {
         var content = "Some content";
-        var strategy = _factory.GetStrategy(content, ContentType.Text);
+        _factory.TryGetStrategy(content, ContentType.Text, out var strategy).Should().BeFalse();
 
         strategy.Should().BeNull();
     }

@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.Services;
 
 /// <summary>
@@ -49,18 +47,20 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput {
         _logger?.LogWarning("{Message}", message);
     }
 
-    /// <summary>在控制台显示提示并等待用户输入；非交互环境返回 null</summary>
+    /// <summary>在控制台显示提示并等待用户输入；非交互环境返回 false</summary>
     /// <param name="message">提示文本</param>
-    /// <returns>用户输入的响应；非交互或输入重定向时返回 null</returns>
-    public string? Prompt(string message) {
+    /// <param name="input">用户输入的响应；非交互或输入重定向时为 null</param>
+    /// <returns>true=读取到输入；false=非交互/输入重定向/流末尾</returns>
+    public bool TryGetPrompt(string message, [NotNullWhen(true)] out string? input) {
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected) {
             System.Console.WriteLine(message);
-            return null;
+            input = null;
+            return false;
         }
         System.Console.Write(message);
-        var response = Cli.TerminalHelper.ReadLine();
-        _logger?.LogDebug("Prompt: {Message}, Response: {Response}", message, response);
-        return response;
+        input = Cli.TerminalHelper.ReadLine();
+        _logger?.LogDebug("Prompt: {Message}, Response: {Response}", message, input);
+        return input is not null;
     }
 
     /// <summary>显示 y/N 确认提示并解析用户响应；非交互环境返回 false</summary>

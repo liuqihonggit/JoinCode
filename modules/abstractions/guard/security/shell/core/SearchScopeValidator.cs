@@ -6,12 +6,13 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// </summary>
 public interface ISearchScopeValidator {
     /// <summary>
-    /// 验证命令的搜索范围是否安全
+    /// 尝试验证命令的搜索范围是否安全
     /// </summary>
     /// <param name="command">解析后的 Shell 命令</param>
     /// <param name="workingDirectory">当前工作目录</param>
-    /// <returns>验证结果：安全返回 null，不安全返回风险详情</returns>
-    SearchScopeValidationResult? Validate(ShellCommand command, string workingDirectory);
+    /// <param name="result">不安全时的风险详情</param>
+    /// <returns>存在搜索范围风险返回 true；安全返回 false</returns>
+    bool TryValidate(ShellCommand command, string workingDirectory, [NotNullWhen(true)] out SearchScopeValidationResult? result);
 }
 
 /// <summary>

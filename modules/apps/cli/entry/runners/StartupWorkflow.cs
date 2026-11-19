@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Entry;
+namespace JoinCode.Entry;
 
 /// <summary>
 /// CLI 启动工作流 — 交互式 Onboarding/信任确认（ADR 0143 表现层留宿主；配置文件初始化已提取至引擎 EngineConfigInitializer）
@@ -129,10 +129,9 @@ internal static class StartupWorkflow {
         if (config is not null) {
             var p = config.Provider;
             var newApiKey = credentials;
-            // 多态：通过 IProviderDefinition.IsCompoundAuthFormat + ExtractApiKeyFromCompound 解析复合格式
+            // 多态：通过 IProviderDefinition.IsCompoundAuthFormat + TryExtractApiKeyFromCompound 解析复合格式
             if (definition is not null && definition.IsCompoundAuthFormat(credentials)) {
-                var extractedKey = definition.ExtractApiKeyFromCompound(credentials);
-                newApiKey = extractedKey ?? credentials;
+                newApiKey = definition.TryExtractApiKeyFromCompound(credentials, out var extractedKey) ? extractedKey : credentials;
             }
 
             var newEndpoint = endpoint ?? p.Endpoint;
@@ -151,10 +150,12 @@ internal static class StartupWorkflow {
             };
         }
 
-        // 多态：通过 IProviderDefinition.IsCompoundAuthFormat + ExtractApiKeyFromCompound 保存到文件
+        // 多态：通过 IProviderDefinition.IsCompoundAuthFormat + TryExtractApiKeyFromCompound 保存到文件
         if (definition is not null && definition.IsCompoundAuthFormat(credentials)) {
-            var extractedKey = definition.ExtractApiKeyFromCompound(credentials);
-            await ConfigLoader.SaveApiKeyToJccAsync(provider, extractedKey ?? credentials, fs).ConfigureAwait(false);
+            await ConfigLoader.SaveApiKeyToJccAsync(
+                provider,
+                definition.TryExtractApiKeyFromCompound(credentials, out var extractedKey) ? extractedKey : credentials,
+                fs).ConfigureAwait(false);
             if (endpoint is not null) {
                 await ConfigLoader.SaveSettingToSettingsJsonAsync("endpoint", endpoint, fs).ConfigureAwait(false);
             }

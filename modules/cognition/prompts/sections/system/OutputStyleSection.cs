@@ -47,7 +47,7 @@ public static class OutputStyleSection {
             return null;
 
         var loader = new OutputStyleLoader(options.FileSystem, userDir, projectDir);
-        var styles = loader.LoadAsync().GetAwaiter().GetResult();
+        var styles = loader.LoadAsync().GetAwaiter().GetResult();  // style-allow: sync-block — 同步提示词章节契约: Dynamic() 同步委托按轮重读风格配置
         return styles.FirstOrDefault(s => string.Equals(s.Name, styleName, StringComparison.OrdinalIgnoreCase))?.Prompt;
     }
 

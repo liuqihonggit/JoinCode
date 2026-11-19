@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Configuration.Providers;
 
 /// <summary>
@@ -78,11 +76,21 @@ public sealed class AzureProviderDefinition : IProviderDefinition {
     };
 
     /// <inheritdoc />
-    public string? ExtractApiKeyFromCompound(string apiKey) {
+    public bool TryExtractApiKeyFromCompound(string apiKey, [NotNullWhen(true)] out string? extractedApiKey) {
+        extractedApiKey = null;
+        Dictionary<string, string>? data;
         try {
-            var data = RelaxedJsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
-            return data?.GetValueOrDefault("apiKey");
-        } catch { return null; }
+            data = RelaxedJsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
+        } catch (Exception) {
+            return false;
+        }
+
+        if (data is null || !data.TryGetValue("apiKey", out var key) || string.IsNullOrEmpty(key)) {
+            return false;
+        }
+
+        extractedApiKey = key;
+        return true;
     }
 
     /// <inheritdoc />

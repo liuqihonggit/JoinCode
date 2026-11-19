@@ -40,7 +40,7 @@ public sealed class SystemPromptSection {
     /// 创建缓存的系统提示词部分（异步计算）
     /// </summary>
     public static SystemPromptSection Cached(string name, Func<Task<string?>> computeAsync) {
-        return new SystemPromptSection(name, () => computeAsync().GetAwaiter().GetResult(), computeAsync, cacheBreak: false);
+        return new SystemPromptSection(name, () => computeAsync().GetAwaiter().GetResult(), computeAsync, cacheBreak: false);  // style-allow: sync-block — 同步访问器契约: Dynamic() 需要 Func<string?> 同步委托, 异步值走 ComputeValueTaskAsync
     }
 
     /// <summary>
@@ -54,6 +54,6 @@ public sealed class SystemPromptSection {
     /// 创建动态的系统提示词部分（异步计算，每轮重新计算）
     /// </summary>
     public static SystemPromptSection Dynamic(string name, Func<Task<string?>> computeAsync) {
-        return new SystemPromptSection(name, () => computeAsync().GetAwaiter().GetResult(), computeAsync, cacheBreak: true);
+        return new SystemPromptSection(name, () => computeAsync().GetAwaiter().GetResult(), computeAsync, cacheBreak: true);  // style-allow: sync-block — 同步访问器契约: Dynamic() 需要 Func<string?> 同步委托, 异步值走 ComputeValueTaskAsync
     }
 }

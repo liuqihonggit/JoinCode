@@ -1,5 +1,3 @@
-// JCC11005 抑制: Selection 返回 null 表示 Actor 不存在, 是 Actor 路径寻址的合理语义
-#pragma warning disable JCC11005
 namespace Core.Utils;
 
 /// <summary>
@@ -48,10 +46,8 @@ public sealed class ActorSystem : IAsyncDisposable {
     /// 路径寻址 — 按 actorId 返回注册的 Actor 实例。
     /// <para>路径格式: "actorId"(顶层) 或 "parent/child"(未来扩展层级寻址)。</para>
     /// </summary>
-    public IAsyncDisposable? Selection(string path) {
-        if (_actors.TryGetValue(path, out var actor)) return actor;
-        return null;
-    }
+    public bool TryGetSelection(string path, [NotNullWhen(true)] out IAsyncDisposable? actor)
+        => _actors.TryGetValue(path, out actor);
 
     /// <summary>
     /// 创建 ActorSelection — 通过路径寻址 Actor,支持 Tell/Identify(Akka 对齐)。

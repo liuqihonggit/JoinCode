@@ -345,7 +345,11 @@ internal sealed class GitHubRunLogFilterRunner {
 
         // 多 job: Channel 并行合并(Actor 邮箱模型),每个 job 走缓存
         // 并发限制参数化,避免 GitHub API 二级限速(对齐旧系统 TryDownloadJobsAsync)
-        var channel = Channel.CreateUnbounded<string>();
+        var channel = Channel.CreateBounded<string>(new BoundedChannelOptions(1024) {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = true,
+            SingleWriter = false,
+        });
         var writer = channel.Writer;
         var nextJobIndex = -1;
 
@@ -634,7 +638,11 @@ internal sealed class GitHubRunLogFilterRunner {
         int maxConcurrency, bool wantRefresh, CancellationToken ct) {
         if (jobIds.Count == 0) return (new(), "");
 
-        var channel = Channel.CreateUnbounded<(long jobId, List<TestFailureInfo> failures, long elapsedMs)>();
+        var channel = Channel.CreateBounded<(long jobId, List<TestFailureInfo> failures, long elapsedMs)>(new BoundedChannelOptions(256) {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = true,
+            SingleWriter = false,
+        });
         var writer = channel.Writer;
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var nextJobIndex2 = -1;

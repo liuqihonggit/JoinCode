@@ -28,7 +28,7 @@ public sealed class BridgeEventPump : IDisposable
     public void Start() => _thread.Start();
 
     /// <summary>阻塞等待泵完成（无超时 — 测试与 Dispose 路径使用；引擎退出 → stdout Eof 后返回）。</summary>
-    public void Wait() => _completed.Task.GetAwaiter().GetResult();
+    public void Wait() => _completed.Task.GetAwaiter().GetResult();  // style-allow: sync-block — 事件泵同步等待契约: Wait() 同步阻塞至完成信号
 
     /// <summary>排空事件队列（返回本次取出的全部事件，再调用返回空）。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() => Drain(_events);

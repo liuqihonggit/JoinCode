@@ -437,7 +437,7 @@ public static class Program {
                         return ("（工具注册表不可用）", 0, 0);
                     }
 
-                    var tools = toolRegistry.GetAllToolsAsync().GetAwaiter().GetResult()
+                    var tools = toolRegistry.GetAllToolsAsync().GetAwaiter().GetResult()  // style-allow: sync-block — TUI 宿主同步装配契约: 启动期一次性拉取工具与提示词
                         .OrderBy(t => t.Value.Category, StringComparer.OrdinalIgnoreCase)
                         .ThenBy(t => t.Key, StringComparer.Ordinal)
                         .ToList();
@@ -467,7 +467,7 @@ public static class Program {
                     {
                         foreach (var section in promptProvider.GetSections())
                         {
-                            var content = section.ComputeValueTaskAsync().GetAwaiter().GetResult();
+                            var content = section.ComputeValueTaskAsync().GetAwaiter().GetResult();  // style-allow: sync-block — TUI 宿主同步装配契约: 启动期一次性拉取工具与提示词
                             if (!string.IsNullOrWhiteSpace(content))
                             {
                                 sb.AppendLine($"── {section.Name} ──");

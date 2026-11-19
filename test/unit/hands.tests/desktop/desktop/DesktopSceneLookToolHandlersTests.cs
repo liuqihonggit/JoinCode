@@ -15,12 +15,15 @@ public sealed class DesktopSceneLookToolHandlersTests {
         var result = await handler.LookAsync();
 
         result.IsError.Should().BeFalse();
-        var text = result.GetFirstText();
-        text.Should().NotBeNull();
-        text.Should().Contain("scene_id");
-        text.Should().Contain("desktop_zoom");
-        text.Should().Contain("quadrant");
-        text.Should().Contain("缩小");
+        var text = result.GetFirstText() ?? throw new InvalidOperationException("工具结果缺少文本");
+        using var doc = JsonDocument.Parse(text);
+        var root = doc.RootElement;
+        root.TryGetProperty("scene_id", out _).Should().BeTrue("返回应含 scene_id");
+        root.GetProperty("suggested_next").EnumerateArray().Should().Contain(
+            e => e.GetProperty("tool").GetString() == "desktop_zoom");
+        var reasons = root.GetProperty("suggested_next").EnumerateArray()
+            .Select(e => e.GetProperty("reason").GetString() ?? string.Empty).ToList();
+        reasons.Should().Contain(r => r.Contains("缩小", StringComparison.Ordinal));
     }
 
     /// <summary>AC-02: 传入 sceneId 时返回中携带该 sceneId</summary>

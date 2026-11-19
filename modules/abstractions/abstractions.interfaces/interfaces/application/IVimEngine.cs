@@ -67,14 +67,6 @@ public sealed class VimKeyResult {
 }
 
 /// <summary>
-/// Vim 命令事件参数
-/// </summary>
-public sealed class VimCommandEventArgs : EventArgs {
-    /// <summary>获取命令文本。</summary>
-    public required string Command { get; init; }
-}
-
-/// <summary>
 /// Vim 引擎接口 — CLI 简化版
 /// </summary>
 public interface IVimEngine {
@@ -148,5 +140,4 @@ public interface IVimEngine {
     bool ReplayMacro(char register, StringBuilder input, ref int cursorPosition);
 
     event EventHandler<VimMode>? ModeChanged;
-    event EventHandler<VimCommandEventArgs>? CommandExecuted;
 }

@@ -7,8 +7,9 @@ public sealed class ConeOrchestratorEdgeCaseTests {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Defender, 5);
 
-        var result = orchestrator.TransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "f1");
+        var ok = orchestrator.TryTransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "f1", out var result);
 
+        Assert.False(ok);
         Assert.Null(result);
     }
 
@@ -20,8 +21,9 @@ public sealed class ConeOrchestratorEdgeCaseTests {
         var cone = orchestrator.GetRole(AgentRole.Prosecutor)!;
         cone.AddFragment(CreateFragment("f1", AgentRole.Prosecutor));
 
-        var result = orchestrator.TransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "f1");
+        var ok = orchestrator.TryTransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "f1", out var result);
 
+        Assert.False(ok);
         Assert.Null(result);
     }
 
@@ -31,8 +33,9 @@ public sealed class ConeOrchestratorEdgeCaseTests {
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         orchestrator.RegisterRole(AgentRole.Defender, 5);
 
-        var result = orchestrator.TransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "missing");
+        var ok = orchestrator.TryTransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "missing", out var result);
 
+        Assert.False(ok);
         Assert.Null(result);
     }
 
@@ -58,13 +61,14 @@ public sealed class ConeOrchestratorEdgeCaseTests {
             ExpandCondition = "cross_role_review",
         });
 
-        var result = orchestrator.TransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "f1");
+        var ok = orchestrator.TryTransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "f1", out var result);
 
-        Assert.NotNull(result);
-        Assert.Equal(AgentRole.Defender, result.RoleChain);
-        Assert.Equal(0.5, result.Fingerprint.Confidence, precision: 2);
-        Assert.Contains("Prosecutor", result.FoldedSummary);
-        Assert.Contains("f1", result.BackReferences);
+        Assert.True(ok);
+        var actual = result ?? throw new InvalidOperationException("跨角色传递应成功");
+        Assert.Equal(AgentRole.Defender, actual.RoleChain);
+        Assert.Equal(0.5, actual.Fingerprint.Confidence, precision: 2);
+        Assert.Contains("Prosecutor", actual.FoldedSummary);
+        Assert.Contains("f1", actual.BackReferences);
     }
 
     [Fact]

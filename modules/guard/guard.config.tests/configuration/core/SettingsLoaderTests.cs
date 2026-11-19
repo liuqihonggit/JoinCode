@@ -82,9 +82,9 @@ public class SettingsLoaderTests : IDisposable {
         // Then: 项目设置覆盖用户设置 — profile 指向 anthropic
         result.Current.Should().NotBeNull();
         result.Current!.Profile.Should().Be("anthropic");
-        var activeProfile = result.GetActiveProfile();
-        activeProfile.Should().NotBeNull();
-        activeProfile!.Model.Should().Be(DefaultAnthropicModelId);
+        result.TryGetActiveProfile(out var activeProfile).Should().BeTrue();
+        var resolvedProfile = activeProfile ?? throw new InvalidOperationException("激活预设应存在");
+        resolvedProfile.Model.Should().Be(DefaultAnthropicModelId);
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -200,9 +200,9 @@ public class SettingsLoaderTests : IDisposable {
         // Then: 项目设置仍可用
         result.Current.Should().NotBeNull();
         result.Current!.Profile.Should().Be("anthropic");
-        var activeProfile = result.GetActiveProfile();
-        activeProfile.Should().NotBeNull();
-        activeProfile!.Model.Should().Be(DefaultAnthropicModelId);
+        result.TryGetActiveProfile(out var activeProfile).Should().BeTrue();
+        var resolvedProfile = activeProfile ?? throw new InvalidOperationException("激活预设应存在");
+        resolvedProfile.Model.Should().Be(DefaultAnthropicModelId);
     }
 
     #endregion
@@ -229,9 +229,9 @@ public class SettingsLoaderTests : IDisposable {
         loaded!.Current.Should().NotBeNull();
         loaded.Current!.Profile.Should().Be("openai");
         loaded.Current.FastMode.Should().BeTrue();
-        var activeProfile = loaded.GetActiveProfile();
-        activeProfile.Should().NotBeNull();
-        activeProfile!.Model.Should().Be(DefaultOpenAiModelId);
+        loaded.TryGetActiveProfile(out var activeProfile).Should().BeTrue();
+        var resolvedProfile = activeProfile ?? throw new InvalidOperationException("激活预设应存在");
+        resolvedProfile.Model.Should().Be(DefaultOpenAiModelId);
     }
 
     #endregion

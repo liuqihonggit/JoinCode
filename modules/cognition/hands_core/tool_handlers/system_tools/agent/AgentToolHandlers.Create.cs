@@ -113,13 +113,13 @@ public sealed partial class AgentToolHandlers {
     /// <summary>
     /// 从 ~/.jcc/agents/{agentId}.json 加载 dry-run agent 状态
     /// </summary>
-    private DryRunAgentState? TryLoadDryRunState(string agentId) {
+    private async Task<DryRunAgentState?> TryLoadDryRunStateAsync(string agentId) {
         var statePath = Path.Combine(
             AppDataConstants.Paths.AgentsDirectory, $"{agentId}.json");
         if (!_fs.FileExists(statePath))
             return null;
         try {
-            var json = _fs.ReadAllText(statePath).GetAwaiter().GetResult();
+            var json = await _fs.ReadAllText(statePath).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.DryRunAgentState);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to load dry-run agent state for {AgentId}", agentId);
@@ -130,7 +130,7 @@ public sealed partial class AgentToolHandlers {
     /// <summary>
     /// 列出 ~/.jcc/agents/ 目录下所有 dry-run agent 状态文件
     /// </summary>
-    private List<DryRunAgentState> ListDryRunAgents() {
+    private async Task<List<DryRunAgentState>> ListDryRunAgentsAsync() {
         var stateDir = AppDataConstants.Paths.AgentsDirectory;
         if (!_fs.DirectoryExists(stateDir))
             return [];
@@ -139,7 +139,7 @@ public sealed partial class AgentToolHandlers {
             if (file.EndsWith(".messages.json", StringComparison.OrdinalIgnoreCase))
                 continue;
             try {
-                var json = _fs.ReadAllText(file).GetAwaiter().GetResult();
+                var json = await _fs.ReadAllText(file).ConfigureAwait(false);
                 var state = RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.DryRunAgentState);
                 if (state is not null)
                     result.Add(state);
@@ -153,12 +153,12 @@ public sealed partial class AgentToolHandlers {
     /// <summary>
     /// 保存 dry-run agent 状态到 ~/.jcc/agents/{agentId}.json
     /// </summary>
-    private void TrySaveDryRunState(DryRunAgentState state) {
+    private async Task SaveDryRunStateAsync(DryRunAgentState state) {
         var stateDir = AppDataConstants.Paths.AgentsDirectory;
         _fs.CreateDirectory(stateDir);
         var statePath = Path.Combine(stateDir, $"{state.Id}.json");
         try {
-            _fs.WriteAllText(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default)).GetAwaiter().GetResult();
+            await _fs.WriteAllText(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default)).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to save dry-run agent state for {AgentId}", state.Id);
         }
@@ -167,14 +167,14 @@ public sealed partial class AgentToolHandlers {
     /// <summary>
     /// 追加 dry-run agent 消息到 ~/.jcc/agents/{agentId}.messages.json
     /// </summary>
-    private void AppendDryRunMessage(string agentId, string content, string? summary) {
+    private async Task AppendDryRunMessageAsync(string agentId, string content, string? summary) {
         var msgDir = AppDataConstants.Paths.AgentsDirectory;
         _fs.CreateDirectory(msgDir);
         var msgPath = Path.Combine(msgDir, $"{agentId}.messages.json");
         var msgs = new List<DryRunAgentMessage>();
         if (_fs.FileExists(msgPath)) {
             try {
-                var existing = _fs.ReadAllText(msgPath).GetAwaiter().GetResult();
+                var existing = await _fs.ReadAllText(msgPath).ConfigureAwait(false);
                 var loaded3 = RelaxedJsonSerializer.Deserialize(existing, DryRunAgentStateJsonContext.Default.ListDryRunAgentMessage);
                 if (loaded3 is not null)
                     msgs = [.. loaded3];
@@ -184,7 +184,7 @@ public sealed partial class AgentToolHandlers {
         }
         msgs.Add(new DryRunAgentMessage { Content = content, Summary = summary, Timestamp = _clock.GetUtcNow() });
         try {
-            _fs.WriteAllText(msgPath, RelaxedJsonSerializer.Serialize(msgs, DryRunAgentStateJsonContext.Default)).GetAwaiter().GetResult();
+            await _fs.WriteAllText(msgPath, RelaxedJsonSerializer.Serialize(msgs, DryRunAgentStateJsonContext.Default)).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to save dry-run messages for {AgentId}", agentId);
         }
@@ -193,13 +193,13 @@ public sealed partial class AgentToolHandlers {
     /// <summary>
     /// 从 ~/.jcc/agents/{agentId}.messages.json 加载 dry-run agent 消息
     /// </summary>
-    private List<DryRunAgentMessage>? TryLoadDryRunMessages(string agentId) {
+    private async Task<List<DryRunAgentMessage>?> TryLoadDryRunMessagesAsync(string agentId) {
         var msgPath = Path.Combine(
             AppDataConstants.Paths.AgentsDirectory, $"{agentId}.messages.json");
         if (!_fs.FileExists(msgPath))
             return null;
         try {
-            var json = _fs.ReadAllText(msgPath).GetAwaiter().GetResult();
+            var json = await _fs.ReadAllText(msgPath).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.ListDryRunAgentMessage)?.ToList();
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to load dry-run messages for {AgentId}", agentId);

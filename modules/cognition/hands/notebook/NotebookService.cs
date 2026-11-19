@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Services.Notebook;
 
 /// <summary>
@@ -293,12 +291,14 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService {
     }
 
     /// <inheritdoc />
-    public string? GetCellContent(NotebookDocument notebook, int index) {
+    public bool TryGetCellContent(NotebookDocument notebook, int index, [NotNullWhen(true)] out string? content) {
+        content = null;
         if (index < 0 || index >= notebook.Cells.Count) {
-            return null;
+            return false;
         }
 
-        return notebook.Cells[index].SourceText;
+        content = notebook.Cells[index].SourceText;
+        return true;
     }
 
     /// <inheritdoc />

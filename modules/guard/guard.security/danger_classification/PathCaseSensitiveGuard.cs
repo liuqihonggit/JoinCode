@@ -38,8 +38,7 @@ public sealed class PathCaseSensitiveGuard {
         if (string.IsNullOrEmpty(targetPath))
             return PathCaseGuardResult.Pass;
 
-        var realPath = resolver.GetRealPath(targetPath);
-        if (realPath is null)
+        if (!resolver.TryGetRealPath(targetPath, out var realPath))
             return PathCaseGuardResult.Pass;
 
         var targetLeaf = PathNormalizer.GetLeafName(targetPath);

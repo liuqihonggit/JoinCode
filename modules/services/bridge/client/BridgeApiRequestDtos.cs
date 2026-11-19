@@ -87,7 +87,7 @@ internal sealed class BridgeDeviceTokenResponse {
 }
 
 /// <summary>Bridge 创建代码会话请求体 — POST /v1/code/sessions</summary>
-internal sealed class BridgeCreateCodeSessionRequest {
+internal sealed record BridgeCreateCodeSessionRequest {
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -95,10 +95,8 @@ internal sealed class BridgeCreateCodeSessionRequest {
     [JsonPropertyName("bridge")]
     public object? Bridge { get; init; } = new();
     /// <summary>标签列表(可选,null 时 WhenWritingNull 忽略)</summary>
-#pragma warning disable JCC11002
     [JsonPropertyName("tags")]
     public List<string>? Tags { get; init; }
-#pragma warning restore JCC11002
 }
 
 /// <summary>Bridge 代码会话响应 — 提取 session.id</summary>
@@ -251,7 +249,7 @@ internal sealed class BridgePermissionRequestDto {
 }
 
 /// <summary>Bridge 权限请求体</summary>
-internal sealed class BridgePermissionRequestBodyDto {
+internal sealed record BridgePermissionRequestBodyDto {
     /// <summary>子类型(固定 permission_request)</summary>
     [JsonPropertyName("subtype")]
     public string Subtype { get; init; } = "permission_request";
@@ -265,13 +263,21 @@ internal sealed class BridgePermissionRequestBodyDto {
     [JsonPropertyName("description")]
     public required string Description { get; init; }
     /// <summary>权限建议列表(可选)</summary>
-#pragma warning disable JCC11002
     [JsonPropertyName("permission_suggestions")]
     public List<BridgePermissionSuggestionDto>? PermissionSuggestions { get; init; }
-#pragma warning restore JCC11002
     /// <summary>被阻止的路径(可选)</summary>
     [JsonPropertyName("blocked_path")]
     public string? BlockedPath { get; init; }
+}
+
+/// <summary>Bridge 会话事件信封 — events 数组元素，data 为原始 JSON</summary>
+internal sealed record BridgeEventEnvelope {
+    /// <summary>类型(固定 event)</summary>
+    [JsonPropertyName("type")]
+    public required string Type { get; init; }
+    /// <summary>事件数据</summary>
+    [JsonPropertyName("data")]
+    public required JsonElement Data { get; init; }
 }
 
 /// <summary>Bridge 权限建议</summary>

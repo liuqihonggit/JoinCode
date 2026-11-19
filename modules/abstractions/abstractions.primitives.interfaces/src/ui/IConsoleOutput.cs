@@ -27,7 +27,10 @@ public interface IConsoleOutput {
     /// <summary>
     /// 提示用户输入
     /// </summary>
-    string? Prompt(string message);
+    /// <param name="message">提示文本</param>
+    /// <param name="input">用户输入（读取成功时非 null）</param>
+    /// <returns>true=读取到输入；false=非交互/输入重定向/流末尾</returns>
+    bool TryGetPrompt(string message, [NotNullWhen(true)] out string? input);
 
     /// <summary>
     /// 提示用户确认

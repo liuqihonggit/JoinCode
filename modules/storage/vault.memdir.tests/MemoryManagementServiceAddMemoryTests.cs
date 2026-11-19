@@ -85,8 +85,9 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable {
         var result = await _sut.ArchiveMemoryAsync(memoryId).ConfigureAwait(true);
 
         result.Should().BeTrue();
-        var memory = _store.GetMemory(memoryId);
-        memory!.IsArchived.Should().BeTrue();
+        _store.TryGetMemory(memoryId, out var memory).Should().BeTrue();
+        var archived = memory ?? throw new InvalidOperationException("归档后记忆应存在");
+        archived.IsArchived.Should().BeTrue();
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -98,9 +99,10 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable {
         var result = await _sut.RestoreMemoryAsync(memoryId).ConfigureAwait(true);
 
         result.Should().BeTrue();
-        var memory = _store.GetMemory(memoryId);
-        memory!.IsArchived.Should().BeFalse();
-        memory.ArchivedAt.Should().BeNull();
+        _store.TryGetMemory(memoryId, out var memory).Should().BeTrue();
+        var restored = memory ?? throw new InvalidOperationException("恢复后记忆应存在");
+        restored.IsArchived.Should().BeFalse();
+        restored.ArchivedAt.Should().BeNull();
     }
 
     [Fact]

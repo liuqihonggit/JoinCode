@@ -1,6 +1,4 @@
 
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Configuration;
 
 /// <summary>
@@ -116,8 +114,8 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
             var dir = Path.Combine(root, ModeSubDir);
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
             var path = Path.Combine(dir, ModeFileName);
-            var enabledAtStr = _enabledAt.HasValue ? $"\"{_enabledAt.Value:O}\"" : "null";
-            var json = $$"""{"isEnabled":{{_isEnabled.ToString().ToLowerInvariant()}},"enabledAt":{{enabledAtStr}}}""";
+            var state = new BriefModeStateDto { IsEnabled = _isEnabled, EnabledAt = _enabledAt };
+            var json = JsonSerializer.Serialize(state, BriefModeJsonContext.Default.BriefModeStateDto);
             await _fs.WriteAllText(path, json).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning("Brief mode 状态保存失败: {Message}", ex.Message);

@@ -175,7 +175,6 @@ public sealed class BridgeJwtServiceTests {
         result.Should().BeFalse();
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetClaims_ShouldReturnPayload_WhenTokenIsValid() {
         // Arrange
@@ -183,14 +182,15 @@ public sealed class BridgeJwtServiceTests {
         var token = sut.GenerateToken("client-009");
 
         // Act
-        var claims = sut.GetClaims(token);
+        var parsed = sut.TryGetClaims(token, out var claims);
 
         // Assert
-        claims.Should().NotBeNull();
-        claims!.Sub.Should().Be("client-009");
-        claims.Iss.Should().Be("JccBridge");
-        claims.Iat.Should().BeGreaterThan(0);
-        claims.Exp.Should().BeGreaterThan(claims.Iat);
+        parsed.Should().BeTrue();
+        var actual = claims ?? throw new InvalidOperationException("Token claims 应解析成功");
+        actual.Sub.Should().Be("client-009");
+        actual.Iss.Should().Be("JccBridge");
+        actual.Iat.Should().BeGreaterThan(0);
+        actual.Exp.Should().BeGreaterThan(actual.Iat);
     }
 
     [Fact]
@@ -200,9 +200,10 @@ public sealed class BridgeJwtServiceTests {
         var invalidToken = "invalid.token.value";
 
         // Act
-        var claims = sut.GetClaims(invalidToken);
+        var parsed = sut.TryGetClaims(invalidToken, out var claims);
 
         // Assert
+        parsed.Should().BeFalse();
         claims.Should().BeNull();
     }
 

@@ -186,7 +186,7 @@ public sealed class BridgeMainCommand {
         var apiClient = new BridgeApiClient(httpClient, new BridgeApiOptions {
             BaseUrl = baseUrl,
             ApiKey = accessToken,
-            GetAccessToken = () => GetAccessTokenAsync().GetAwaiter().GetResult(),
+            GetAccessToken = () => GetAccessTokenAsync().GetAwaiter().GetResult(),  // style-allow: sync-block — 同步委托契约: Bridge 宿主注入的令牌/对话框回调为同步签名
         });
 
         // 创建子进程生成器
@@ -205,10 +205,10 @@ public sealed class BridgeMainCommand {
             FileSystem = _fs,
             PointerService = pointerService,
             WorkingDirectory = Environment.CurrentDirectory,
-            GetAccessToken = () => GetAccessTokenAsync().GetAwaiter().GetResult(),
+            GetAccessToken = () => GetAccessTokenAsync().GetAwaiter().GetResult(),  // style-allow: sync-block — 同步委托契约: Bridge 宿主注入的令牌/对话框回调为同步签名
             GetBaseUrl = () => baseUrl,
-            CheckRemoteDialogAccepted = () => CheckRemoteDialogAcceptedAsync().GetAwaiter().GetResult(),
-            MarkRemoteDialogSeen = () => MarkRemoteDialogSeenAsync().GetAwaiter().GetResult(),
+            CheckRemoteDialogAccepted = () => CheckRemoteDialogAcceptedAsync().GetAwaiter().GetResult(),  // style-allow: sync-block — 同步委托契约: Bridge 宿主注入的令牌/对话框回调为同步签名
+            MarkRemoteDialogSeen = () => MarkRemoteDialogSeenAsync().GetAwaiter().GetResult(),  // style-allow: sync-block — 同步委托契约: Bridge 宿主注入的令牌/对话框回调为同步签名
             PermissionMode = args.PermissionMode,
         };
     }

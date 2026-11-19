@@ -1,5 +1,3 @@
-// JCC1017 抑制: 提示词正文内嵌 JSON 示例, 非序列化用途
-#pragma warning disable JCC1017
 namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 
 /// <summary>
@@ -55,16 +53,19 @@ public static class ConfigToolPrompt {
 - 布尔设置只接受 true/false；其余设置只接受列出的选项，写错会被拒绝并返回允许值。
 - model 的候选模型用 model_search 查询；写入即对后续请求生效。
 - 只有列出的键可改；不在列表里的键一律视为未知设置。
-
-## 示例
-- 获取主题：{{ ""setting"": ""theme"" }}
-- 设置深色主题：{{ ""setting"": ""theme"", ""value"": ""dark"" }}
-- 启用 vim 模式：{{ ""setting"": ""editorMode"", ""value"": ""vim"" }}
-- 启用调试日志：{{ ""setting"": ""debuglog"", ""value"": true }}
-- 更改模型：{{ ""setting"": ""model"", ""value"": ""deepseek-v3"" }}
-- 更改权限模式：{{ ""setting"": ""permissions.defaultMode"", ""value"": ""plan"" }}
-";
+" + ExamplesSection;
     }
+
+    private const string ExamplesSection = """
+
+        ## 示例
+        - 获取主题：{ "setting": "theme" }
+        - 设置深色主题：{ "setting": "theme", "value": "dark" }
+        - 启用 vim 模式：{ "setting": "editorMode", "value": "vim" }
+        - 启用调试日志：{ "setting": "debuglog", "value": true }
+        - 更改模型：{ "setting": "model", "value": "deepseek-v3" }
+        - 更改权限模式：{ "setting": "permissions.defaultMode", "value": "plan" }
+        """;
 
     private static string DescribeSetting(string key, ConfigSetting setting) {
         var sb = new StringBuilder("- ");

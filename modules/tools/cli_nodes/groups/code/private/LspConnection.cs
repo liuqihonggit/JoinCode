@@ -22,6 +22,7 @@ internal sealed class LspConnection : IAsyncDisposable {
     private readonly Stream _toServer;
     private readonly Stream _fromServer;
     // 单写者邮箱：并发的请求/通知只入队，由唯一写循环按到达顺序整帧写出
+    // style-allow: unbounded — LSP 单写者邮箱,请求线程投递后立即返回,有界会让请求线程等待写循环
     private readonly Channel<WriteCommand> _writeQueue = Channel.CreateUnbounded<WriteCommand>(new UnboundedChannelOptions {
         SingleReader = true,
         SingleWriter = false,

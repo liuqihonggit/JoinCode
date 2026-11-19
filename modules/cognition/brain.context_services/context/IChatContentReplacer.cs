@@ -7,7 +7,10 @@ public interface IChatContentReplacer {
     /// <summary>
     /// 初始化内容替换状态
     /// </summary>
-    ContentReplacementState? ProvisionState(IReadOnlyList<ApiMessage>? initialMessages = null);
+    /// <param name="state">新建或重建的内容替换状态</param>
+    /// <param name="initialMessages">初始消息列表（可选）</param>
+    /// <returns>状态可用返回 true</returns>
+    bool TryProvisionState(out ContentReplacementState? state, IReadOnlyList<ApiMessage>? initialMessages = null);
 
     /// <summary>
     /// 持久化超大工具结果

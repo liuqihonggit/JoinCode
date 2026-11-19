@@ -40,24 +40,36 @@ consumers:
       - id: save-context-mw
         priority: 700
 
-  preprocess-pipeline:
+  # TASK100 S9（§25）：preprocess 拆成 analyze / prepare 两个消费点。
+  # 拆的原因：生产真正执行的那条 preprocess 链是 DI 集合自建的（GetServices<IAnalyze...> /
+  # GetServices<IPrepare...>），不看 profile —— 合并成一个消费点时，
+  # 「裁掉某个中间件」会在两阶段之间产生歧义（哪个阶段裁？）。
+  # 拆开后两条链各自受 profile 治理，与其余 pipeline 的做法一致。
+  preprocess-analyze-pipeline:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
         config:
-          pipeline-name: Preprocess
+          pipeline-name: PreprocessAnalyze
       - id: keyword-injection-mw
         priority: 100
       - id: synonym-injection-mw
         priority: 200
+
+  preprocess-prepare-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+        config:
+          pipeline-name: PreprocessPrepare
       - id: system-prompt-mw
-        priority: 300
+        priority: 100
       - id: reminder-injection-mw
-        priority: 400
+        priority: 200
       - id: tool-listing-injection-mw
-        priority: 500
+        priority: 300
       - id: lsp-diagnostic-mw
-        priority: 600
+        priority: 400
 
   chatinit-pipeline:
     nodes:

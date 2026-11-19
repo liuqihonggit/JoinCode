@@ -259,9 +259,30 @@ class Program {
         // 为什么两段：生成器对 Exe 只扫自身程序集，而 cli-commands 节点的实现就在本程序集
         // （命令执行器是 internal static，无法搬到下游库）；装配层的闭包看不到它们，
         // 不合并就会把 18 条声明全部报成「声明无工厂」。
-        var factories = Pipelines.DataDrivenPipelineComposition.BuildNodeFactories()
+        // TASK100 S8（§24.2）：合并走 NodeServiceResolver.BuildWithFallback —— 与运行期装配
+        // 同一个函数（手写优先、catalog 兜底），否则「诊断看到的」与「运行时装配的」又成两份真相。
+        // 两份来源分别留一份，门禁才能核对「实例型节点由手写负责、声明型节点由 catalog 负责」。
+        var manualFactories = Pipelines.DataDrivenPipelineComposition.BuildLocalNodeFactories()
+            .GroupBy(static kv => kv.Key, StringComparer.Ordinal)
+            .ToDictionary(static g => g.Key, static g => g.First().Value, StringComparer.Ordinal);
+        var catalogFactories = Core.DependencyInjection.NodeFactoryContribution.Create()
             .Concat(Core.DependencyInjection.NodeFactoryCatalog_Jcc.Create())
+            .GroupBy(static kv => kv.Key, StringComparer.Ordinal)
+            .ToDictionary(static g => g.Key, static g => g.First().Value, StringComparer.Ordinal);
+        var factories = Composition.NodeRegistry.NodeServiceResolver
+            .BuildWithFallback(manualFactories, catalogFactories)
+            .Factories
             .ToArray();
+        var factorySources = manualFactories.Keys
+            .Union(catalogFactories.Keys, StringComparer.Ordinal)
+            .ToDictionary(
+                key => key,
+                key => (manualFactories.ContainsKey(key), catalogFactories.ContainsKey(key)) switch {
+                    (true, true) => "both",
+                    (true, false) => "handwritten",
+                    _ => "catalog"
+                },
+                StringComparer.Ordinal);
         var registry = Composition.NodeRegistry.NodeRegistry.BuildFromCatalog(emptySp, factories);
 
         if (!json) {
@@ -357,7 +378,12 @@ class Program {
             DuplicateInExclusiveConsumer: exclusiveDuplicates.Order(StringComparer.Ordinal).ToArray());
 
         if (json) {
-            var report = new NodeDumpReportDto(registry.NodeCount, consumerReports.Count, consumerReports.ToArray(), verification);
+            var report = new NodeDumpReportDto(
+                registry.NodeCount,
+                consumerReports.Count,
+                consumerReports.ToArray(),
+                verification,
+                factorySources);
             Cli.TerminalHelper.WriteLine(System.Text.Json.JsonSerializer.Serialize(report, NodeDumpJsonContext.Default.NodeDumpReportDto));
             return verify && !verification.IsConsistent ? 1 : 0;
         }

@@ -70,7 +70,8 @@ internal static class CommandTestHarness
             Task.FromResult(Project());
 
         public Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(
-            string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default)
+            string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default,
+            bool failFastOnMissing = false)
             where T : class =>
             Task.FromResult<IReadOnlyList<T>>(Project().OfType<T>().ToList());
 

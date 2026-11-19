@@ -187,6 +187,22 @@ public sealed class NodeRegistry : INodeRegistry {
         return nodeId;
     }
 
+    /// <summary>
+    /// TASK097 §15（H3）：节点元数据 <c>meta.required-capabilities</c> 参与路由 —— 任一必需能力
+    /// 在当前 profile 未开则跳过该节点。与 feature flag 关闭同类语义（设计内跳过，不算解析失败，
+    /// 不触发 S10 的 failFastOnMissing）。判定唯一真相是 <see cref="CapabilityNodes.IsEnabled"/>，
+    /// 与插件加载/能力视图同源，避免第二套能力开关。
+    /// </summary>
+    internal static bool RequiredCapabilitiesSatisfied(ResolvedNodeEntry nodeEntry, ResolvedProfile profile) {
+        var declared = NodeMetadata.FromConfig(nodeEntry.Config);
+        if (declared is null || declared.RequiredCapabilities.Length == 0) return true;
+        foreach (var capability in declared.RequiredCapabilities) {
+            if (!CapabilityNodes.IsEnabled(profile, capability))
+                return false;
+        }
+        return true;
+    }
+
     /// <summary>获取指定消费点的所有节点（按 Profile 配置和 Priority 排序，检查 enabled-when feature flag）</summary>
     public async Task<IReadOnlyList<INode>> GetNodesForConsumerAsync(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig)) return [];
@@ -199,6 +215,8 @@ public sealed class NodeRegistry : INodeRegistry {
                     nodeEntry.EnabledWhenFeatureFlag, cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (!isEnabled) continue;
             }
+            // H3：必需能力未开 → 设计内跳过（与 feature flag 同类，不算装配失败）。
+            if (!RequiredCapabilitiesSatisfied(nodeEntry, profile)) continue;
             var key = LookupKey(consumerId, nodeEntry.Id);
             if (nodes.TryGetValue(key, out var entry)) {
                 // G4 真实注入链：metadata 来自该 Profile 节点的 meta.* 保留键，
@@ -217,7 +235,18 @@ public sealed class NodeRegistry : INodeRegistry {
     }
 
     /// <summary>获取指定消费点的所有服务实例（类型安全版本，检查 enabled-when feature flag）</summary>
-    public async Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) where T : class {
+    /// <param name="consumerId">消费点 ID。</param>
+    /// <param name="profile">已解析的 profile。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <param name="failFastOnMissing">
+    /// 解析不到实例时是否抛错（TASK100 S10 / §25.7）。默认 false = 记 Warning 并跳过；
+    /// 实例型消费点应传 true —— 那里的节点缺失等于「整批功能静默消失」。
+    /// </param>
+    public async Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(
+        string consumerId,
+        ResolvedProfile profile,
+        CancellationToken cancellationToken = default,
+        bool failFastOnMissing = false) where T : class {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig)) return [];
         var resolver = _services.GetService<NodeServiceResolver>();
         var result = new List<T>();
@@ -229,11 +258,22 @@ public sealed class NodeRegistry : INodeRegistry {
                     nodeEntry.EnabledWhenFeatureFlag, cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (!isEnabled) continue;
             }
+            // H3：必需能力未开 → 设计内跳过（与 feature flag 同类，不算装配失败）。
+            if (!RequiredCapabilitiesSatisfied(nodeEntry, profile)) continue;
             if (resolver is not null && resolver.TryResolve<T>(consumerId, nodeEntry.Id, _services, out var service)) {
                 result.Add(service);
             } else if (nodes.TryGetValue(LookupKey(consumerId, nodeEntry.Id), out var entry) && entry.CreateNode(_services) is Node<T> typedNode) {
                 result.Add(typedNode.Service);
             } else {
+                // TASK100 S10（§25.7）：过去这里只记 Warning 就把节点丢掉 ——
+                // 在 command-dispatch / prompt-assembly 这类消费点上，丢一个节点 =
+                // 斜杠命令整批消失 / 提示词整组段落不见，现象与原因相隔很远。
+                if (failFastOnMissing) {
+                    throw new InvalidOperationException(
+                        $"节点装配失败: consumer='{consumerId}', node='{nodeEntry.Id}', " +
+                        $"期望类型='{typeof(T).Name}' — 既没有匹配的工厂，节点本身也不携带实例。" +
+                        "该节点已被 profile 声明却无法实例化；宁可启动失败，也不要静默少一块功能。");
+                }
                 _logger?.LogWarning("Node '{NodeId}' in consumer '{ConsumerId}' could not be resolved for service type '{ServiceType}'", nodeEntry.Id, consumerId, typeof(T).Name);
             }
         }

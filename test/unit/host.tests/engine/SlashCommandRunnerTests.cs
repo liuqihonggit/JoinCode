@@ -39,7 +39,7 @@ public sealed class SlashCommandRunnerTests {
         var node = new CommandCategoryNode($"{category.ToValue()}-command", category, new[] { probe });
         var mock = new Mock<INodeRegistry>();
         mock.Setup(r => r.GetServicesForConsumerAsync<CommandCategoryNode>(
-            "command-dispatch", It.IsAny<ResolvedProfile>(), It.IsAny<CancellationToken>()))
+            "command-dispatch", It.IsAny<ResolvedProfile>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync(new[] { node });
         return mock.Object;
     }
@@ -75,7 +75,7 @@ public sealed class SlashCommandRunnerTests {
     public async Task RunAsync_UnknownCommand_WhenNotInNodeRegistry() {
         var mockRegistry = new Mock<INodeRegistry>();
         mockRegistry.Setup(r => r.GetServicesForConsumerAsync<CommandCategoryNode>(
-            "command-dispatch", It.IsAny<ResolvedProfile>(), It.IsAny<CancellationToken>()))
+            "command-dispatch", It.IsAny<ResolvedProfile>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync(Array.Empty<CommandCategoryNode>());
         using var provider = MinimalServices()
             .AddSingleton(mockRegistry.Object)
@@ -85,5 +85,36 @@ public sealed class SlashCommandRunnerTests {
         var result = await SlashCommandRunner.RunAsync("/probe-di", provider);
 
         Assert.False(result.Handled);
+    }
+
+    /// <summary>
+    /// TASK100 S10 / §25.7 D6 — command-dispatch 是实例型消费点：节点解析不到必须 fail-fast。
+    /// <para>这里用<b>真实</b> NodeRegistry（不是 mock）：幽灵节点没有任何工厂。修复前
+    /// registry 只记一条 Warning 就把它丢掉，Runner 拿到空清单 → 整类斜杠命令静默消失。</para>
+    /// </summary>
+    [Fact]
+    public async Task RunAsync_Throws_WhenDeclaredCommandCategoryNodeCannotBeResolved() {
+        var realRegistry = JoinCode.Composition.NodeRegistry.NodeRegistry.Build(new EmptyServiceProvider());
+        var profile = new ResolvedProfile("ghost", new Dictionary<string, ResolvedConsumerConfig> {
+            ["command-dispatch"] = new("command-dispatch", [
+                new ResolvedNodeEntry("ghost-command", 100, null, FrozenDictionary<string, string>.Empty)
+            ])
+        }.ToFrozenDictionary(StringComparer.Ordinal));
+        var profileManager = new Mock<IProfileManager>();
+        profileManager.SetupGet(m => m.Current).Returns(profile);
+
+        using var provider = MinimalServices()
+            .AddSingleton<INodeRegistry>(realRegistry)
+            .AddSingleton(profileManager.Object)
+            .BuildServiceProvider();
+
+        Func<Task> act = async () => await SlashCommandRunner.RunAsync("/help", provider);
+
+        var assertion = await act.Should().ThrowAsync<InvalidOperationException>();
+        assertion.Which.Message.Should().Contain("command-dispatch").And.Contain("ghost-command");
+    }
+
+    private sealed class EmptyServiceProvider : IServiceProvider {
+        public object? GetService(Type serviceType) => null;
     }
 }

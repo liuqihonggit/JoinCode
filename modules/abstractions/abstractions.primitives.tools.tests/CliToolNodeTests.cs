@@ -450,6 +450,51 @@ public sealed class CliToolNodeTests {
         Assert.Contains("继承失败", resolved.Summary);
     }
 
+    // ===== G2 生产落地（TASK097 §14）: node.inherit.yaml 叠加 =====
+
+    [Fact]
+    public void ApplyOverlay_DeclaredFieldsWin_OmittedFieldsInheritedFromBaseline() {
+        // 生成器全量重写 node.yaml；人工差异放 node.inherit.yaml 只写要改的字段。
+        var baseline = NodeManifestLoader.LoadNodeFromText(ParentYaml, "search/node.yaml");
+        const string overlayYaml = """
+            id: base_search
+            tags: [search, overlay-only]
+            parameters:
+              - name: head_limit
+                default: "50"
+            """;
+        var overlay = NodeManifestLoader.LoadOverlayFromText(overlayYaml, "search/node.inherit.yaml");
+
+        var merged = CliNodeInheritanceResolver.ApplyOverlay(overlay, baseline);
+
+        // 显式字段覆盖；省略的 name/summary/category/exe/examples 从基准继承。
+        Assert.Equal(["search", "overlay-only"], merged.Tags);
+        Assert.Equal("jcc-base-search", merged.Name);
+        Assert.Equal("搜索类工具基类", merged.Summary);
+        Assert.Equal("jcc-base-search.exe", merged.Exe);
+        Assert.Contains("jcc-base-search", Assert.Single(merged.Examples));
+        // parameters 按 name 合并：子只写 default，父的 type/description/required 不能退化。
+        var headLimit = Assert.Single(merged.Parameters, p => p.Name == "head_limit");
+        Assert.Equal("50", headLimit.Default);
+        Assert.Equal("integer", headLimit.Type);
+        Assert.Equal("最多条数", headLimit.Description);
+        Assert.Contains(merged.Parameters, p => p.Name == "pattern");
+    }
+
+    [Fact]
+    public void ApplyOverlay_IdMismatch_ThrowsWithActionableMessage() {
+        var baseline = NodeManifestLoader.LoadNodeFromText(ParentYaml, "search/node.yaml");
+        var overlay = NodeManifestLoader.LoadOverlayFromText(
+            "id: wrong_group\ntags: [x]\n", "search/node.inherit.yaml");
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => CliNodeInheritanceResolver.ApplyOverlay(overlay, baseline));
+
+        Assert.Contains("wrong_group", ex.Message);
+        Assert.Contains("base_search", ex.Message);
+        Assert.Contains("正确写法", ex.Message);
+    }
+
     private static CliToolDescriptor MakeNode(string id, string category, string summary, string[] tags) =>
         new() { Id = id, Name = id, Summary = summary, Category = category, Tags = tags, Exe = id + ".exe" };
 }

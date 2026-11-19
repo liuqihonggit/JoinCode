@@ -24,6 +24,26 @@ public static class CliNodeInheritanceResolver {
     }
 
     /// <summary>
+    /// 叠加：把 <c>node.inherit.yaml</c>（人工维护的差异）覆写到 <c>node.yaml</c>（生成器全量重写的基准）上。
+    /// <para>与 <see cref="Resolve"/> 共用同一套 <see cref="Merge"/> 语义 —— 「省略即继承」只写一份，
+    /// 不在加载层再写第二份合并逻辑（否则两份实现迟早漂移）。</para>
+    /// <para>叠加文件的 id 必须与基准 id 一致：它描述的是同一个节点，不是新节点；
+    /// 想指向别的父节点请用 <c>inherits</c>，叠加后 <see cref="ResolveAll"/> 会继续解析那条链。</para>
+    /// </summary>
+    /// <param name="overlay">叠加文件解析出的差异声明。</param>
+    /// <param name="baseline">同目录 node.yaml 的基准声明。</param>
+    /// <exception cref="InvalidOperationException">id 不一致 —— 叠加叠到别的组上。</exception>
+    public static CliToolDescriptor ApplyOverlay(CliToolDescriptor overlay, CliToolDescriptor baseline) {
+        if (!string.Equals(overlay.Id, baseline.Id, StringComparison.OrdinalIgnoreCase)) {
+            throw new InvalidOperationException(
+                $"CLI 节点叠加文件 id='{overlay.Id}' 与同目录 node.yaml 的 id='{baseline.Id}' 不一致。" +
+                "CliNodeInheritanceResolver 在叠加层拦截（叠加描述的是同一个节点的差异，不是新节点）。" +
+                $"正确写法: 把叠加文件的 id 改成 '{baseline.Id}'；要指向别的父节点请用 inherits 字段。");
+        }
+        return Merge(overlay, baseline);
+    }
+
+    /// <summary>
     /// 批量解析：目录扫描后调用。单个节点继承失败不拖垮整棵树 —— stderr 报错并保留原节点，
     /// 让下钻仍能看见该工具，只是没继承到父属性（与 NodeManifestLoader 的损坏清单容错一致）。
     /// </summary>

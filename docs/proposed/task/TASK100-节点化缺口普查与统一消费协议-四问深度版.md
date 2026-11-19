@@ -6,6 +6,27 @@
 
 ---
 
+> ## ⚠️ 状态澄清（2026-11-20，读前必看）
+>
+> **§0「一句话结论」、§1.3 数字表、§3 根因，以及顶部「本文只做普查与方案，不含实施」，
+> 全部是 2026-11-19 开工时的历史快照** —— 描述的是「当时缺什么」，不是当前状态。
+> S1–S5 的实施记录在 §14–§20，S6–S10 的实施与断裂点修复在 §21–§25。
+>
+> | 历史快照（§0 / §3） | 当前状态（以文末为准） |
+> |---|---|
+> | 「节点体系只覆盖了中间件一种形态」 | 六类契约全有节点：**252 节点 / 120 消费点**（最近一次 `--dump-nodes --json` 实测） |
+> | 「其余六类可扩展点一个节点都不是」 | guard / provider / role / capability / command-group 均已节点化（§12–§19） |
+> | 「Capabilities/RequiredCapabilities 是只写不读的死字段」 | `RequiredCapabilities` 已参与节点路由（TASK097 §15 H3），`EnabledWhenFeatureFlag`/`Priority` 早有消费 |
+> | 176 节点 / 669 放置 / 165 声明 | 开工基线数字；当前以 `--dump-nodes --json` **现算**为准，勿手抄 |
+> | 「本文不含实施」 | S1–S10 全部实施并真机验收，F1–F6 断裂点全修（§14–§25） |
+>
+> **「万物皆节点」的准确口径**：§9 明确**不追求字面完成** —— 渲染/UI/终端层、纯库是叶子不是装配单元，
+> 635 工具契约不动，不引入 `NodeBase`。说「节点化已落地」指的是**六类可扩展点按 §1.1 四判据全部闭合、
+> 真实消费方接回 profile 治理、六道门禁在 CI 守着**；**不等于**「仓库里所有代码都是节点」。
+> 判据③「dump 可见」还须配真机 `[ORDER] middleware <consumer>:` 打点数对账 —— 只声明不装配等于没治理。
+
+---
+
 ## 0. 一句话结论
 
 **节点体系只覆盖了「中间件」这一种形态。**
@@ -1552,3 +1573,436 @@ var profile = CliProfileGate.CurrentExplicit
 - **`--live` 依赖已编译的 jcc**：CI 里接在 `Build jcc` 之后；本地不传 `--live` 时完全退化为纯静态门禁。
 - **能力裁剪的风险面没变**：`capabilities` 关掉后对应服务为 `null`，消费方必须自己空判 ——
   S4 的 6 个消费点已经这么做，本节没有新增消费方。
+
+## 24. S8：节点工厂的两份真相（断裂点普查与修复）
+
+### 24.1 这一节为什么存在
+
+S1–S7 把六类契约（`middleware` / `guard` / `provider` / `role` / `capability` / `command-group`）
+都接上了活消费点，`--dump-nodes --verify` 三项全绿。但「全绿」说的是**声明 ↔ 编译期工厂目录**这一层，
+不是**声明 ↔ 运行期真正装配出来的那一层**。这两层用的不是同一份数据，而这件事此前没有任何地方写着。
+
+普查方法（三步，全部可复算）：
+
+```bash
+# 1) 声明侧：base profile 的全部节点
+jcc --dump-nodes --json > nodes.json
+# 2) 运行期侧：手写工厂清单的键
+grep -o 'yield return F("[^"]*"' modules/composition/pipelines/registration/DataDrivenPipelineComposition.cs
+# 3) 差集（插值键 command-dispatch:{categoryId} 按 15 个 category 展开）
+```
+
+| 口径 | 数量 | 来源 |
+|---|---|---|
+| 声明侧（`--dump-nodes`，base） | **251** | 消费点 × 节点 |
+| ├ 实例型（`middleware` 176 + `guard` 17） | 193 | 由运行期解析器造实例 |
+| └ 声明型（`provider` 11 + `role` 9 + `capability` 20 + `command-group` 18） | 58 | 消费点自己读表判定 |
+| **运行期手写工厂**（`BuildNodeFactories()`） | **193** | **恰好 = 实例型节点数**：零冗余、零缺失 |
+| **编译期 catalog**（`[NodeFactory]` 标注生成物） | **58** | **恰好 = 声明型节点数**：Composition 40（role 9 / capability 20 / provider 11）+ CLI 18（command-group） |
+
+> ⚠️ **本节第一版把 catalog 写成 251，是错的。** 写完初稿后做了负向实验
+> （临时删掉一条手写工厂行，看 catalog 能否兜底），实验**失败** —— 追查生成物才发现：
+> 生成器是**按程序集各生成一份**的，`Composition` 那份只有 40 条（全是声明型），
+> 实例型节点的类型大多**没有** `[NodeFactory]` 标注，它们的工厂只存在于手写清单。
+> 修正后的口径见上表：**手写 = 实例型，catalog = 声明型**，两份清单恰好互补、互不重叠。
+> 记这一笔是因为「两份真相」这个说法本身没错，错的是「哪两份、各多少」——
+> 而这份数字是后面所有门禁的判据。
+
+**这 58 个不是 bug**：它们是**声明型节点** —— 消费点自己读表判定（角色白名单、能力开关、命令门禁、
+provider 定义），本来就不该有 DI 实例。其余 193 个是**实例型节点**，必须由运行期解析器造出来。
+
+### 24.2 断裂点 F1：新增实例型节点漏改手写清单 = 运行期静默失效（高危）
+
+**机制**：`BuildNodeFactories()` 是运行期唯一的工厂来源（`DataDrivenPipelineComposition.cs:344`）：
+
+```csharp
+services.AddSingleton<NodeServiceResolver>(_ => NodeServiceResolver.Build(BuildNodeFactories()));
+```
+
+而 `--dump-nodes` 与 `Verify-NodeConsistency.py` 比对的是**编译期 catalog**。
+两者恰好互补（手写 = 实例型，catalog = 声明型），**但它们之间的边界无人看守**。
+
+**后果**：给某个 middleware 消费点新增一个节点、却忘了在 `BuildNodeFactories()` 里加一行 ——
+门禁全绿（声明有、工厂有），`--dump-nodes` 正常显示，profile 也能启用它，
+但运行期 `ResolveMiddlewares` 解析不到实例，只记一条 Warning 就**把这个中间件静默跳过**：
+
+```csharp
+if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware)) {
+    result.Add(middleware);
+} else {
+    logger.LogWarning("中间件解析跳过: ... 该中间件将被静默跳过", ...);
+}
+```
+
+在安全域（`command-guard-chain` / `bash-defense-chain` / `tool-fix-chain`），
+「少一个守卫」的表现是**放行了一个本该被拦的命令** —— 这类故障的形态是「静默变宽松」，
+比崩溃难查得多。
+
+这直接违反 §8 验收标准第 6 条：「任一新增扩展点**不再需要**改 `BuildNodeFactories()`」。
+S1 声称已达成（生成器聚合了目录），实际只改了**诊断侧**，运行期侧原封不动。
+
+### 24.3 断裂点 F2：22 条参数化工厂在两侧不等价（潜伏）
+
+手写清单里有 22 条工厂不是 `GetRequiredService<T>()`，而是带参数的构造：
+
+```
+CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-pipeline")        （13 条：每个 pipeline 一份）
+CreateStreamRateLimit<ChatMiddlewareContext, ChatStreamEvent>(sp, "chat-pipeline", "stream-rate-limit-mw", 30, 60)
+CreateRateLimit<QueryMiddlewareContext>(sp, "query-pipeline", "query-rate-limit-mw", 60, 6)
+CreateTimeout<WebContext>(sp, "web-pipeline", "web-timeout-mw", 30)
+CreateRetry<WebContext>(sp, "web-pipeline", "web-retry-mw", 2, ex => ex is HttpRequestException)
+CreateCircuitBreaker<WebContext>(sp, "web-pipeline", "web-circuit-breaker-mw", 5, 30)
+CreateTimeout<SkillContext>(sp, "skill-pipeline", "skill-timeout-mw", 60)
+CreateTimeout<CodeContext>(sp, "code-pipeline", "code-timeout-mw", 120)
+```
+
+catalog 侧对同样的键生成的是 `sp => sp.GetRequiredService<T>()` —— **不等价**：
+consumer 名与限流/重试参数（30/60、2 次、5 次/30 秒）会消失。
+目前没人拿 catalog 跑这些节点，所以问题潜伏；但它是一枚定时炸弹：
+只要有人把运行期解析器切到 catalog，安全链的限流参数会静默变成默认值。
+
+**结论**：合并两份清单时必须让**手写版本优先**，且「合并」不等于「替换」。
+
+### 24.4 断裂点 F3：`ToolDispatchConsumer` 是没有消费方的死类
+
+§5 第 8 项删掉了 `base.yaml` 里 4 条 `tool-dispatch:*` 死声明，但消费点类本身留在原地：
+
+```csharp
+public sealed class ToolDispatchConsumer : INodeConsumer {
+    public ToolDispatchConsumer(string consumerId = "tool-dispatch") { ... }
+}
+```
+
+生产代码里**没有任何一处实例化它**（只有 `ConsumerTest.cs` 在测）。
+`--dump-nodes` 的消费点列表里也没有 `tool-dispatch`。
+一个「节点化」工程里留着一个不指向任何消费方的消费点类，等于宣告「节点化已经做完了」却留着反例。
+
+### 24.5 断裂点 F4：文档没写清「两类节点的消费路径」
+
+251 个节点里，193 个是「实例型」（要 DI 造实例、经 `NodeServiceResolver` 解析），
+58 个是「声明型」（消费点自己读表）。文档从头到尾只说「节点」，没有区分这两条路径。
+读者据此会推出错误结论，例如「`--dump-nodes` 里 251 个节点都应该在运行期被构造出来」。
+
+### 24.6 断裂点清单（本节要修的，逐项打勾）
+
+- [x] **C1 运行期 resolver 与诊断同源**：`NodeServiceResolver.BuildWithFallback(手写, catalog)` ——
+      手写优先（保住 22 条参数化工厂的限流/重试参数），catalog 兜底
+      （新式节点只要带 `[NodeFactory]` 标注就不必再改手写清单）。
+      验收：运行期 resolver 键集 = 233（显式登记 193 + catalog 40），
+      `--dump-nodes` 键集 = 251（再并 CLI 的 18 条 command-group，运行期不需要），
+      手写 193 条的实例类型与行为不变。
+      **实际改动比原计划小**：装配文件第 326 行原本就合并了 catalog，
+      C1 把它显式化（`BuildLocalNodeFactories` / `BuildNodeFactories` 分离），
+      并让 `--dump-nodes` 输出**逐键来源表**（见 §24.8）。
+- [x] **C2 装配漏项 fail-fast**：解析不到实例时不再只记 Warning，而是抛错并指出
+      `consumer:nodeId`；同时区分「feature flag 关闭」（设计内跳过）与「工厂缺失」（异常）。
+      验收：四个 profile（base/ci/headless/sdk）全链路装配 0 失败；
+      负向实测（删掉一条手写登记）→ 立即抛出带 `consumer:nodeId` 的错误，而不是静默跳过。
+- [x] **C3 死代码清理**：`ToolDispatchConsumer` 无消费方，归档而非留在原地冒充扩展点。
+      验收：文件归档到 `.xxx/ToolDispatchConsumer.20261120021423.del`（项目约定不删文件）；
+      3 条对应测试删除；`Composition.Tests` 1119 → **1116 通过**（差值恰为删掉的 3 条）。
+      顺带核实：另外 3 个 `INodeConsumer` 实现（`CommandDispatchConsumer` / `PipelineConsumer` /
+      `PromptAssemblyConsumer`）也都只在测试里被实例化 —— 生产代码直接用 `NodeRegistry` 的
+      `GetNodesForConsumerAsync` / `GetServicesForConsumerAsync`。它们不是断裂点（消费点真实存在），
+      但说明「消费点有两套入口」，记在 §24.8。
+- [x] **C4 交叉门禁**：实例型节点必须至少有一处运行期工厂（手写 ∪ catalog），
+      声明型节点必须在 catalog、且不得出现在手写清单；门禁同时输出两类覆盖统计。
+      验收：新增 `non_deliverables_tools/scripts/Verify-NodeFactoryCoverage.py`，已接 `ci-unit-tests.yml`。
+      两条负向实测都让它变红：
+      ```
+      [FAIL] chat-pipeline:ghost-node-never-registered —— 被 profile 声明，
+             但既无显式登记也无 catalog 工厂（运行期会静默跳过）
+      [FAIL] tool-groups:media —— 声明型节点（contract=capability）却登记在显式清单里，
+             两份真相：声明型节点应由 catalog 提供元数据，不进 DI 工厂清单
+      ```
+      第一条用 `JCC_PROFILE_DIR` 指向改了磁盘 yaml 的目录触发（无需重编），
+      第二条临时往装配文件插一行 `F("tool-groups:media", ...)` 触发（改完即恢复）。
+- [x] **C5 文档补齐两类节点的消费路径**（§24.5 收口）——
+      见 §24.8：实例型 / 声明型对照表、来源表读法、**新增节点的操作规程**（按类型分开做），
+      以及「节点 ≠ DI 服务」这条判据（§24.1 第一版就是漏了它才把数字算错）。
+
+### 24.7 一条必须写下来的负向实验
+
+C1 的第一版设计假设「catalog 覆盖了全部节点，所以删掉手写行它能兜底」。
+**实验证伪了这个假设**：
+
+```
+# 临时删掉 chatinit-pipeline:context-load-mw 的手写行，重编，真机跑
+[ORDER] middleware chatinit-pipeline: ...（手写行已被删）
+中间件装配失败: consumer='chatinit-pipeline', node='context-load-mw',
+                期望类型='IMiddleware`1' — NodeServiceResolver 找不到匹配工厂。
+```
+
+追查生成物才看清真相：**生成器按程序集各生成一份 catalog**，
+`Composition` 那份只有 40 条（全是声明型节点）；实例型节点的类型大多没有 `[NodeFactory]` 标注，
+它们的工厂只存在于手写清单。所以「catalog 兜底」只对**新式节点**成立，对历史节点不成立。
+
+这条实验的价值不在于「证明了 C1 有用」，而在于它把 §24.1 的数字从错的改成对的
+（见 §24.1 的警示框）。**如果只做静态阅读就下结论，这张表会一直错下去** ——
+错的方向恰好是「看起来更整齐」的那一边。
+
+### 24.8 两类节点的消费路径（收口 §24.5）
+
+「节点」这个词此前一直混着两种东西，导致 §24.1 一开始就把数字算错。补上这张表：
+
+| | 实例型 | 声明型 |
+|---|---|---|
+| 契约 | `middleware`（176）、`guard`（17） | `provider`（11）、`role`（9）、`capability`（20）、`command-group`（18） |
+| 节点总数 | **193** | **58** |
+| 工厂来源 | 装配文件**显式登记**（`BuildLocalNodeFactories()`） | 编译期 **catalog**（`[NodeFactory]` 标注生成物） |
+| 运行期怎么被消费 | `NodeServiceResolver` 按 `consumerId:nodeId` 解析出实例，塞进 pipeline / 守卫链 | 消费点**自己读表**判定（角色白名单、能力开关、命令门禁、provider 定义） |
+| 有 DI 实例吗 | 有 | **没有**（也不该有） |
+| 装配失败的表现 | 过去：记一条 Warning 后**静默跳过**；现在：**抛错并指出 `consumer:nodeId`** | 不适用 |
+
+判据：**「节点」≠「DI 服务」**。声明型节点也有 `INode`、也进注册表、也在 `--dump-nodes` 里出现，
+但它们从头到尾不需要一个实例 —— 消费点拿到的只是「这条声明 + 它的 config」。
+把它们和实例型混在一起数，就会得出「251 个节点都该被构造出来」这种错误结论
+（§24.1 第一版就是这么错的）。
+
+**来源表怎么读**：`--dump-nodes --json` 现在多了一个 `factorySources` 字段，
+逐键标注 `handwritten` / `catalog` / `both`。当前实测：
+
+```
+middleware（实例型）: handwritten=176      guard（实例型）: handwritten=17
+capability（声明型）: catalog=20           command-group（声明型）: catalog=18
+provider（声明型）:   catalog=11           role（声明型）:        catalog=9
+```
+
+一一对应，零例外 —— 这正是 §24.1 说的「手写 = 实例型、catalog = 声明型」。
+
+**新增节点的操作规程**（按类型分开，别再混着做）：
+
+| 新增什么 | 必须做什么 | 不做什么 |
+|---|---|---|
+| 一个中间件 / 守卫 | 装配文件里 `F("consumer:node", ...)` 显式登记；profile 里声明 | 不要指望 catalog 兜底（老节点没标注，靠不住） |
+| 一个能力 / 命令 / 角色 / provider | 类型上加 `[NodeFactory("consumer", "node")]`；profile 里声明 | 不要写进显式登记清单（门禁会红：两份真相） |
+| 参数化工厂（限流/超时/重试） | 只能走显式登记（catalog 表达不了参数） | 不要指望 `GetRequiredService<T>()` 等价 |
+
+**顺带记一笔**：4 个 `INodeConsumer` 实现（`ToolDispatchConsumer` / `CommandDispatchConsumer` /
+`PipelineConsumer` / `PromptAssemblyConsumer`）在生产代码里**一个都没被实例化** ——
+生产侧一律直接调 `NodeRegistry.GetNodesForConsumerAsync` / `GetServicesForConsumerAsync`。
+它们是薄包装（构造 + 转调 registry），作为「消费点接口长什么样」的样板留着有价值，
+但也说明**消费点有两套入口**：一套是接口实现，一套是 registry 上的方法。
+本节不统一这两套入口（那是一次 API 收敛，超出 S8 范围），只把事实记下来。
+`ToolDispatchConsumer` 的问题是更硬的一条：它指向的 `tool-dispatch` 消费点**在 profile 里根本不存在**
+（§5 第 8 项删掉死声明时就该一起清掉），所以归档了它。
+
+## 25. S9：preprocess 链绕过 profile 治理（断裂点 F5）
+
+### 25.1 怎么发现的
+
+S8 结束时我列了一份「运行期实际装配了什么」的清单（真机 `[ORDER]` 打点），
+把它和 `--dump-nodes` 的消费点清单对了一遍，发现**有 6 条声明型 pipeline 在真机上没有装配记录**：
+
+```
+真机打点有：chat / chatinit / chatadmin / permission / settings / unified-spawn / fork /
+             web / shell / skill / code / tool-execution / agent-tool （13 条 middleware）
+真机打点无：preprocess / compact / query / dream / agent-dispose / prompt-assembly
+```
+
+其中 `compact`（上下文压缩）、`query`（单次查询）、`dream`（空闲期）、
+`agent-dispose`（agent 释放）本来就只在对应场景才跑，**打点缺失是正常的**。
+但 `preprocess` 不正常 —— 它是**每条消息都要走的前置处理**。
+
+### 25.2 实证：preprocess 的 profile 声明完全不生效
+
+往 `preprocess-pipeline` 消费点注入一个**根本不存在**的节点，然后跑真机：
+
+```bash
+# .tmp_report/prof_test/base.yaml 里 preprocess-pipeline 末尾加了 ghost-preprocess-node
+JCC_PROFILE_DIR=.tmp_report/prof_test jcc -p "hi"
+# 输出：[PROMPT-GROUP] profile=base 启用工具组 13 个
+#       —— 没有任何「装配失败」
+```
+
+对照 S8 的 C2（装配漏项 fail-fast）：**别的 pipeline 注入幽灵节点会当场抛错，
+preprocess 注入幽灵节点连眼皮都不抬**。
+
+一个节点被声明了却毫无反应，只有一种解释：**这条声明管的不是真正在跑的那条链**。
+
+### 25.3 根因：生产有两条 preprocess 链，profile 只管了没跑的那条
+
+| | 链 A（profile 管得到） | 链 B（生产真在跑） |
+|---|---|---|
+| 怎么建 | `BuildTaskPipeline<PreprocessContext>(sp, "preprocess-pipeline")` → `ResolveMiddlewares` → 按 profile 的 priority 装配 | `ServiceRegistration.Brain.cs` 里 `sp.GetServices<IAnalyzePreprocessMiddleware>()` / `GetServices<IPreparePreprocessMiddleware>()` → **按 DI 注册顺序**自建两条 `PipelineBuilder` |
+| 消费方 | `MiddlewarePipeline<PreprocessContext>` 这个 DI 服务 —— **生产无人注入** | `IChatPreprocessor` → `ChatPreprocessor` → `PreChatMiddleware` / `CleanupInjectionsMiddleware`（每条消息都走） |
+| profile 裁剪 | 生效 | **完全不生效** |
+| `crash-snapshot-mw` | 声明了 | **链里根本没有** → 崩溃快照保护在 preprocess 阶段一直是失效的 |
+
+`ChatPreprocessor` 的构造函数明明收两个 `MiddlewarePipeline<PreprocessContext>` 参数，
+但注册时传的是自己建的两条链 —— 于是 DI 里那条**数据驱动的** `MiddlewarePipeline<PreprocessContext>`
+注册了却没人注入，是一条**注册了但无消费方的死链**。
+
+### 25.4 影响（四条，按严重度）
+
+1. **profile 裁剪中间件在 preprocess 上是假的**：在 `preprocess-pipeline` 里删掉某个中间件，
+   生产照跑不误。这让「profile 能裁剪中间件」这个承诺出现一个静默的例外。
+2. **顺序不可控**：链 B 的顺序由 DI 收集顺序决定，与 profile 的 priority 无关 ——
+   同一份 profile 在不同构建顺序下可能得到不同的 preprocess 行为。
+3. **崩溃快照保护缺失**：`crash-snapshot-mw` 声明了 7 个月，实际从未在 preprocess 阶段生效。
+4. **与 §5 第 8 项同类**：`tool-dispatch` 死声明是「声明了没有实现」，这里是「声明了没有消费方」——
+   而我们的门禁（`Verify-NodeConsistency`）只比对「声明 ↔ 工厂」，**看不见消费方**。
+
+### 25.5 修法：把 preprocess 拆成两个消费点，让真链走 profile
+
+链 B 的两阶段语义（analyze → prepare）必须保留，所以不能简单合并成一条。
+最小且正确的做法：
+
+1. profile 把 `preprocess-pipeline` 拆成 `preprocess-analyze-pipeline` 与 `preprocess-prepare-pipeline`，
+   各自声明节点；`crash-snapshot-mw` 两条链各一份（与其它 pipeline 的惯例一致）。
+2. `BuildLocalNodeFactories()` 把 7 条实例型登记按新键重挂（crash-snapshot 变两条）。
+3. `ServiceRegistration.Brain.cs` 的 `IChatPreprocessor` 注册改为**从 profile 解析两个消费点**，
+   用 `INodeRegistry.GetServicesForConsumerAsync<IMiddleware<PreprocessContext>>`，
+   保留 analyze / prepare 两条链的切分；解析不到节点时同样 fail-fast（与 C2 一致）。
+4. 数据驱动的 `MiddlewarePipeline<PreprocessContext>` 注册随之删除（避免再留一条无消费方的死链）。
+
+### 25.6 本节清单（逐项打勾）
+
+- [x] **D1 profile 拆两个消费点**：`preprocess-analyze-pipeline` / `preprocess-prepare-pipeline`，
+      节点按 analyze / prepare 接口归属重新分配，`crash-snapshot-mw` 两条链各一份。
+      验收：base 3+5、ci 2+4、headless 3+5、sdk 2+4（crash-snapshot 在 ci/sdk 被 excludes 裁掉，
+      **这次裁剪是真的生效了** —— 旧链里它连跑都没跑过）。
+- [x] **D2 实例型登记改键**：`BuildLocalNodeFactories()` 里 7 条 preprocess 登记按新消费点重挂
+      （crash-snapshot 变两条，共 8 条）。测试断言同步更新（crash-snapshot 消费点数 17 → 18）。
+- [x] **D3 真链走 profile**：`IChatPreprocessor` 注册改为按 profile 解析两个消费点
+      （`INodeRegistry.GetServicesForConsumerAsync`），解析数与声明数不符时 **fail-fast**。
+      验收：注入幽灵节点 → 运行期立刻抛错（见 D5），不再是 §25.2 的「毫无反应」。
+- [x] **D4 死链清理**：删除无消费方的 `MiddlewarePipeline<PreprocessContext>` 注册
+      （生产侧；测试侧 `TestPipelineRegistration` 的手写链保留，测试专用）。
+- [x] **D5 验收**：真机 `[ORDER] middleware preprocess-analyze-pipeline: ...` 与
+      `preprocess-prepare-pipeline: ...` 出现且**节点数与 profile 声明一致**（四个 profile 逐一核对）；
+      再注入幽灵节点 → **当场 fail-fast**：
+      ```
+      [MAIN] 未捕获异常: System.InvalidOperationException: 消费点 'preprocess-analyze-pipeline'
+      声明了 4 个中间件，实际只解析出 3 个 —— 节点工厂缺失或类型与消费点期望不符。
+      宁可启动失败，也不要静默少一道中间件。
+      ```
+      §25.2 的负向结果被翻过来了。
+
+### 25.7 同类残留 F6：registry 解析失败只 warning，静默跳过
+
+S9 修的是「preprocess 链没走 profile」。修的过程中还看到一条**同源的残留路径**：
+
+`NodeRegistry.GetServicesForConsumerAsync<T>` 的最后一个分支（既没有工厂、节点本身也不带实例时）
+只记一条 Warning 就把节点丢掉：
+
+```csharp
+} else {
+    _logger?.LogWarning("Node '{NodeId}' in consumer '{ConsumerId}' could not be resolved for service type '{ServiceType}'", ...);
+}
+```
+
+C2（§24.2）把 pipeline 那条路径升级成了 fail-fast，但 **registry 这条路径没有**。
+今天有两个生产调用点走它：
+
+| 调用点 | 消费点 | 节点类型 | 解析失败的后果 |
+|---|---|---|---|
+| `SlashCommandRunner` | `command-dispatch`（15 个 category 节点） | `CommandCategoryNode` | 斜杠命令**整批消失**（没有报错） |
+| `SystemPromptMiddleware` | `prompt-assembly`（3 个段落组节点） | `PromptSectionCategoryNode` | 提示词**少掉整组段落**（系统提示词悄悄变短） |
+
+这两处都是「整批节点一起丢」的形态 —— 现象是「某个功能/某段提示词不见了」，
+而人会去查提示词、去查配置，不会想到是节点工厂没解析出来。
+
+**修法**：给 `GetServicesForConsumerAsync<T>` 加 `failFastOnMissing` 参数（默认 false 保持兼容），
+实例型消费点的调用点传 true → 解析不到就抛错并指出 `consumer:nodeId` 与期望类型。
+「feature flag 关闭」仍按设计跳过（那是 registry 内部的显式分支，不是解析失败），两者不混淆。
+生产侧共 **3 个** `GetServicesForConsumerAsync` 调用点：`ServiceRegistration.Brain`（S9 已开）、
+`SlashCommandRunner`、`SystemPromptMiddleware`（本次开）。
+
+#### 25.7.1 验收实证（S10 施工完毕）
+
+| 项 | 结果 |
+|---|---|
+| 编译 | `Build-AllDomains.ps1 -Changed` 7 个项目全绿 —— 接口新增可选参数后，全部实现者（含两处测试替身、Moq Setup）都同步了签名 |
+| 回归测试 | Composition.Tests 20（含新增 `NodeRegistryFailFastTest` 4 条）、Host.Tests 3、NativeTui.Host.Tests 140，全通过 |
+| 真机正向 | `OPENAI_API_KEY=sk-dummy-probe JCC_ALLOW_DIRECT_FALLBACK=1 jcc -p "hi"` → `[PROMPT-GROUP] profile=base 启用工具组 13 个`：开着 fail-fast 照常装配，没有误伤 |
+| 真机负向 | `JCC_PROFILE_DIR` 外部 profile 往 `prompt-assembly` 注入 `ghost-prompt-node` → 当场抛 `节点装配失败: consumer='prompt-assembly', node='ghost-prompt-node', 期望类型='PromptSectionCategoryNode'`，`[PROMPT-GROUP]` 不再打印（解析在打点之前就失败） |
+| command-dispatch | CLI 非交互入口不可达（`-p "/help"` 被当普通 prompt 发给 LLM），改由 `Host.Tests` 用**真实 `NodeRegistry` + 真实 `SlashCommandRunner`** 覆盖：幽灵 `ghost-command` 必须抛 `InvalidOperationException`，且消息带消费点与节点 ID |
+| 门禁 | 新增 `Verify-FailFastConsumers.py`：登记全部 3 个生产调用点、锁 `failFastOnMissing: true`、锁接口/实现默认值 `false` 与真实抛错分支；负向实验删掉 `SlashCommandRunner` 的开关 → 退出码 1 并指名该文件（源文件随即原样恢复） |
+| CI | `ci-unit-tests.yml` 新增 step `Verify instance consumers resolve with fail-fast` |
+
+「由调用方决定」最怕新增消费点时忘传 —— 所以门禁把「所有生产调用点必须登记并判定性质」
+也一并锁住：新增一处 `.GetServicesForConsumerAsync<...>` 而没进登记表，CI 直接红。
+
+**收尾普查（F7 是否存在）**：`NodeRegistry.GetNodesForConsumerAsync` 里也有同款
+「找不到节点 → 记 Warning 跳过」的分支。但它只被三个 `INodeConsumer` 实现
+（`PipelineConsumer` / `CommandDispatchConsumer` / `PromptAssemblyConsumer`）调用，
+而全仓对这三者的引用**只有测试在 `new`，生产没有任何注入或枚举点** ——
+该分支在生产不可达，不构成新断裂点。判据与 S8 归档 `ToolDispatchConsumer` 一致：
+看的是「有没有真实消费方」，不是「代码长得像不像有问题」。
+
+至此 §24.6 / §25.6 / §25.8 三张清单全部打勾，F1–F6 六个断裂点闭合。
+
+### 25.8 本节补充清单
+
+- [x] **D6 registry 解析失败 fail-fast**：`GetServicesForConsumerAsync<T>` 加 `failFastOnMissing`，
+      `SlashCommandRunner`（command-dispatch）与 `SystemPromptMiddleware`（prompt-assembly）传 true。
+
+### 25.9 CI 首轮红：两条根因与修复（run 44593691987 / PR #704）
+
+S8–S10 推上 CI 后有两个 job 红，二者根因互不相关 —— 一个是本次改造**真实漏掉的宿主注册点**，
+一个是与本次改造无关、被 CI 时序放大的**队列竞态**。
+
+#### 25.9.1 `e2e / E2E - Sync Integration`（8/22 失败）— preprocess 链在测试宿主里无工厂
+
+**现象**：`ChatServiceTests` 全部在 `CreateChatServiceAsync()` 炸掉，异常原文：
+
+```
+System.InvalidOperationException : 节点装配失败: consumer='preprocess-analyze-pipeline',
+node='crash-snapshot-mw', 期望类型='IMiddleware`1'
+  at NodeRegistry.GetServicesForConsumerAsync[T](...)
+  at ServiceRegistration.ResolvePreprocessChainAsync(...)
+```
+
+**根因**：S9 把 preprocess 两条链从「DI 集合自建（`GetServices<IAnalyzePreprocessMiddleware>()`）」
+改成「按 profile 经 `NodeServiceResolver` 解析」。生产 `AddDataDrivenPipelines` 会注册
+`NodeServiceResolver`，但测试宿主 `AddTestPipelines` 只注册了 `NodeProfileResolver` /
+`INodeRegistry` / `IProfileManager`，**漏了 `NodeServiceResolver`** ——
+于是 profile 声明的节点全部解析不到，S10 的 fail-fast 如实报错。
+
+这正是 fail-fast 想要暴露的形态：旧代码只记 Warning 跳过，测试会「绿着少一道中间件」。
+
+**修法**：把「节点工厂解析器」的组装口径提成 `DataDrivenPipelineComposition.AddNodeServiceResolver()`，
+生产 `AddDataDrivenPipelines` 与测试 `AddTestPipelines` 共用同一份 catalog（编译期 catalog 为底、
+手写清单为覆盖层），消除两套注册漂移。
+
+| 验证 | 结果 |
+|---|---|
+| 修前复现 | `dotnet test test/mock/sync.integration.tests --filter ChatServiceTests` → 5/5 失败，异常与 CI 逐字一致 |
+| 修后 | sync.integration 全量 **22/22 通过** |
+| 回归面 | Pipelines.Tests 61、Composition.Tests 1120、integration.tests（Mcp 冒烟 11）全绿；`Verify-FailFastConsumers.py` / `Verify-NodeFactoryCoverage.py` / `Verify-NodeConsistency.py` 全 OK |
+
+#### 25.9.2 `unit-tests / Unit - gui-core`（1/409 失败）— mode=queue 入队与轮次收尾的孤儿队列竞态
+
+**现象**：`DshGoalsTests.Goals_RoundsStarted_IncrementedByTurnAcceptance` 偶发 5s 超时
+（`WaitAsync(5s)` 等第二轮 `turn/start` 超时）；同一提交在 25 分钟前的 w3 运行里是绿的，
+本次 PR 也没改 `native_gui/` —— 属被 CI 负载放大的既有竞态。
+
+**根因**（`DshTurnRunner.StartAsync` busy 分支）：
+
+```
+T1(请求线程): TryBeginTurn → null（本轮在跑）
+T2(本轮收尾): EndTurn → StartQueued（队列为空，拉了个寂寞）
+T1(请求线程): Queue(...)  ← 这一项再也没有人拉 → 永远悬着
+```
+
+`mode=queue` 的输入在「判定 busy」与「真正入队」之间撞上收尾，就会变成孤儿：
+现象是排队输入消失，直到下一条输入才被带出来（测试里表现为 `turn/start turn=2` 永不到来）。
+
+**证据链**：在 busy→入队之间插 200ms 探针后，该测试 100% 复现同一超时（探针构建生效后
+压力运行连续红）；随后新增确定性回归测试 `DshQueuePumpTests`，
+用内部接缝 `QueueEnqueueGate` 把窗口钉死 —— 去掉修复后该测试同样超时，恢复后通过。
+
+**修法**：
+
+1. 入队后**自己再拉一次**（`QueueWhileBusyAsync`）—— 本轮仍在跑时自拉无害（队首留在队列），
+   本轮已收尾时自拉立即开下一轮，窗口消失。
+2. `StartQueued` 改为「先 peek → 占用成功才出队」，并把「出队失败」从「塞回队尾」改为「保留队首」：
+   入队自拉会让 `StartQueued` 频繁在 busy 状态下被调用，旧写法每次都会把队首转到队尾，
+   破坏 `session/updateQueue` 的入队顺序语义。
+
+| 验证 | 结果 |
+|---|---|
+| 红测试 | 新增 `DshQueuePumpTests.QueueEnqueuedWhileTurnFinishes_IsStartedInsteadOfOrphaned`：删掉自拉 → `TimeoutException`（与 CI 同栈）；恢复 → 通过 |
+| 压力 | 修复后该用例 + `Goals_RoundsStarted` 连跑 **40 轮 0 失败** |
+| 回归面 | gui-core 全量 **410/410**（含新增 1 条）通过；`DshUpdateQueueTests` / `DshSteerInputTests` 队列语义未变 |

@@ -1,0 +1,8 @@
+# G2 节点继承的生产样本（TASK097 §14）
+# 本文件由人工维护 —— 生成器只重写同目录 node.yaml，绝不碰本文件。
+# 只写要改的字段：Name/Summary/Category/Exe/Parameters/Tools 等一律从 node.yaml 继承。
+# 这里给 web 组补一个搜索关键词，验证 jcc tool find 能命中差异字段。
+id: web
+tags: [download, web, fetch, browser]
+examples:
+  - jcc-tool-web web_fetch --url https://example.com

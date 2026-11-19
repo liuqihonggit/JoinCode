@@ -8,6 +8,28 @@
 
 ---
 
+> ## ⚠️ 状态澄清（2026-11-20，读前必看）
+>
+> **§0「一句话结论」与 §3「缺口清单」的 🔴/🟡 标记，是 2026-11-19 开工时的历史快照** ——
+> 描述的是「当时缺什么」。当前状态以 **§13.7 总判定** 与 **§14 / §15 的补充落地** 为准。
+>
+> | 历史快照（§0 / §3） | 当前状态（以文末为准） |
+> |---|---|
+> | §0「继承只做了一半」 | G1–G7 全部闭合（§13.7）；另有 §14 描述层继承生产落地、§15 生命周期注册 + 能力路由 |
+> | §3 G1 🔴「`Register()` 直接抛 `NotSupportedException`」 | 已实现可逆注册（§12），并接入插件装卸真生命周期（§15 H2：`[NODE-BRIDGE] register/unregister`） |
+> | §3 G2 🔴「节点级继承为空」 | 机制闭合（§10）+ 生产样本 `groups/web/node.inherit.yaml`（§14 E2–E4），`tool help/find` 真机吃到叠加字段 |
+> | §3 G4 🟡「metadata 名不副实」 | 配置注入闭合（§11）；`EnabledWhenFeatureFlag`/`Priority` 早有消费，`RequiredCapabilities` 在 §15 H3 接入路由 |
+> | §0「要么缺失、要么直接抛异常」 | **已不成立**，勿再据此判断现状 |
+>
+> **「节点皆可继承」的准确口径**：继承落在**描述层**（`node.yaml` ↔ `node.inherit.yaml`）、
+> **config 层**（`DeltaComposer`）与**经验层**（G6）；AOT + 13 个独立 exe 的约束下，
+> **不做运行期类型加载、不让 exe 去读 `node.yaml`**（TASK100 §9 同口径）。
+> 插件节点注册表是「节点唯一真相」，但**当前不预设消费点**（§15.6 边界）——
+> 这是用户裁决的架构选择（「架构对就行，不为找消费端过度设计」），**不是待修缺口**。
+> 不要把「Registered 一个插件节点」说成「已解决某个业务功能」。
+
+---
+
 ## 0. 一句话结论
 
 **骨架已搭好，"继承"只做了一半。** DSG048 标称 P1–P8 全部完成，但代码实况是：数据级继承（Profile）+ 节点统一抽象（INode/NodeRegistry）确实落地；而字面意义上的「节点级属性继承」「运行期可逆注册」要么缺失、要么直接抛异常。文档标签不能替代实际行为。
@@ -474,3 +496,160 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 ### 13.7 TASK097 总判定
 
 G1–G7 全部缺口闭合：G2/G4（阶段1）、G5/G1（阶段2）、G3（零代码）、G6（经验继承 + H₀ 红线，两轮差评修复）、G7（CI 验证步骤 + run #55 AOT/RTR 产物真机署名）。每阶段真机 exe 验收，单元测试仅作回归网。用户核心诉求「DSH 万物皆节点 + Harness² 可继承 → 节点继承」落地为：**节点可继承描述（G2）+ 节点自动归纳与可逆装卸（G5/G1）+ 经验可跨任务选择性复用且绝不继承成品（G6）**。
+
+---
+
+## 14. G2 生产落地：继承机制不再空转（2026-11-20）
+
+### 14.1 现状：机制全绿，生产零使用
+
+TASK097 §13.7 宣布 G2 闭合，指的是**机制**闭合：`CliNodeInheritanceResolver` 有逐字段合并、环检测、深度上限、失败保留节点，
+`CliToolNodeTests` 有 8 条单测，`fixtures/inheritance/` 有真机夹具。但把机制接到生产数据上：
+
+| 核对项 | 实测结果 |
+|---|---|
+| 生产 `node.yaml` 总数 | 15（13 分组 + sample + rg） |
+| 其中声明 `inherits:` 的 | **0** |
+| `LoadNodesFromDirectory` 的 `ResolveAll(nodes)` | 对生产数据 **no-op** |
+
+也就是说：`jcc tool tree/find/help` 每天走的那条路，继承代码执行了，但没有任何节点真的继承了什么。
+"节点皆可继承"在那一刻只是**能力**，不是**事实**。
+
+### 14.2 不能硬塞：13 组之间没有可继承内容
+
+曾考虑让某几个分组互相继承，实测否掉：
+
+```
+634 个工具 id，跨组重复的 id 数 = 0
+13 组 node.yaml 的公共字段只有 parameters: []（全空）
+name/exe/category 都是 `<category>` 机械派生，没有父子关系
+```
+
+强行造一个 `_base` 让 13 组继承，只会把"每个文件自己写一遍"变成"每个文件自己写一遍 + 一行 inherits"，
+没有减少任何重复 —— 那是给门禁和文档交差，不是落地。
+
+### 14.3 真断裂点：生成器承诺的叠加文件不存在
+
+`scripts/migrate_mcp_tools_to_cli_nodes.py` 的继承护栏原文：
+
+> 分组 'X' 的 node.yaml 含手写 inherits 声明，生成器拒绝覆写。
+> 处理: ① 把继承声明迁到 `node.inherit.yaml` 叠加文件；或 ② 在 render_group_index 中保留 inherits。
+
+生成器**明确承诺了 `node.inherit.yaml` 这个叠加文件**，但：
+- 全仓没有任何 `node.inherit.yaml`；
+- `NodeManifestLoader` 只扫 `node.yaml`，叠加文件放了也不会被读；
+- 选②让生成器保留 inherits 更糟——生成器全量重写会把叠加的相对路径字段一起冲掉。
+
+于是继承在生产里只剩一条路：**用户自己另起目录、复制一份完整 node.yaml、手改**——
+那不是继承，那是分叉。这就是"做来干嘛"的真实答案：接口留了，路没通。
+
+### 14.4 修法：叠加文件成为生产继承的唯一入口
+
+```
+<group>/
+  node.yaml            ← 生成器每次全量重写（自动生成，勿手改）
+  node.inherit.yaml    ← 人工维护，只写差异（新增，生成器绝不碰）
+```
+
+语义（与 Harness² write_tree 一致：**子只写要改的字段**）：
+
+1. `node.inherit.yaml` 用同一套 `NodeYamlParser` 解析，可写 `inherits: <父节点 id>`；
+2. 未声明的字段从同目录 `node.yaml` 继承，已声明的逐字段覆盖；
+3. `parameters` 按 name 合并、`tools` 按 id 合并（复用 `CliNodeInheritanceResolver` 现有合并语义，不写第二份）；
+4. 叠加结果再进目录级 `ResolveAll`，所以 `node.inherit.yaml` 的 `inherits` 仍可指向跨目录父节点；
+5. 生成器护栏改写：不再拒绝 `node.inherit.yaml`，改为校验其 `id` 与所在组一致（防止叠加到别的组上）。
+
+**验收判据**（不是"代码里有 inherits"，而是）：
+
+- 真实生产 `node.inherit.yaml` 至少一份，改父节点字段后 `jcc tool tree/help` 的输出跟着变；
+- 生成器重跑后叠加文件逐字节不变；
+- 删除叠加文件后产物回到原状（可回滚）。
+
+### 14.5 本节清单（逐项打勾，一次一项）
+
+- [x] **E1 文档先记录**：本节写清现状、为何不能硬塞、叠加文件方案与验收判据。
+- [x] **E2 叠加加载**：`NodeManifestLoader.LoadNodesFromDirectory` 读取 `node.inherit.yaml` 并与 `node.yaml` 叠加，复用现有合并语义。
+- [x] **E3 生成器护栏**：允许叠加文件共存 + id 一致性校验；生产样本落一份真实 `node.inherit.yaml`。
+- [x] **E4 真机验收**：改父字段 → `jcc tool tree/help` 跟着变；删叠加文件回原状；生成器重跑不冲掉。
+- [x] **E5 门禁与收尾**：`Verify-CliNodeInheritance.py` + CI；逐项打勾；提交（不推、不建 PR）。
+
+### 14.6 验收实证（E2–E4 施工后）
+
+| 项 | 实证 |
+|---|---|
+| 单测 | `ApplyOverlay_DeclaredFieldsWin_OmittedFieldsInheritedFromBaseline`：显式 tags 覆盖、省略的 name/summary/exe 从基准继承、parameters 按 name 合并后 `type=integer/description` 未退化；`ApplyOverlay_IdMismatch_ThrowsWithActionableMessage` 报出两侧 id 与正确写法。红→绿：先因 parser 把差异文件当完整节点（缺 name）报红，改用显式 `ParseOverlay` API 后转绿。 |
+| 生成器重跑 | `python scripts/migrate_mcp_tools_to_cli_nodes.py --scan . --out modules/tools/cli_nodes/groups --category web` 后叠加文件 SHA256 不变；负向把叠加 `id` 改成 `not_web` → 生成器退出码 1 并指名正确写法。 |
+| 真机正向 | `jcc tool help web` 显示叠加的 `标签: download, web, fetch, browser`（基准只有 download, web）与叠加的 examples 行；`jcc tool find overlay-probe`（叠加独有关键词，summary 里没有）命中 web 节点。 |
+| 真机负向 | 移走叠加文件后 `jcc tool help web` 标签回到 `download, web`；`jcc tool find overlay-probe` 报「未找到匹配的 CLI 工具节点」。叠加文件恢复后再次命中。 |
+| 门禁 | 新增 `Verify-CliNodeInheritance.py`（静态 + `--live` 对账）接入 `ci-unit-tests.yml`；负向把 `id` 改成 `web_typo` → 退出码 1 并指名两侧 id，源文件随即原样恢复。 |
+
+**边界（不得宣称超出）**：叠加是**节点描述层**的继承（`node.yaml` ↔ `node.inherit.yaml`），
+不是工具执行层的继承 —— 13 个分组 exe 运行时走编译好的 C#，不读 node.yaml。
+本落地让 `jcc tool tree/find/help` 的下钻自省真实吃到继承，并给外部自定义节点提供了
+"只写差异、父节点放同目录"的生产通路；没有改动 635 个工具的调用契约。
+
+---
+
+## 15. G1 可逆注册与 metadata 路由的生产落地（2026-11-20）
+
+### 15.1 先修正上一轮的判断（调研比口号可靠）
+
+上一轮对用户的回答里说「可逆注册无生产调用方、metadata 无路由消费端」。**这句话一半错**：
+
+| 字段/机制 | 上一轮说法 | 真实现状（逐行核对） |
+|---|---|---|
+| `EnabledWhenFeatureFlag` | 无消费端 | **已有**：`NodeRegistry.cs:196-200 / 237-241` 用 `IFeatureFlagService.IsEnabledAsync` 过滤；`ServiceRegistration.Brain.cs:93` 核对声明数 |
+| `Priority` | 无消费端 | **已有**：`NodeRegistry.cs:195 / 236` 排序 |
+| `Version/Dependencies/Capabilities/RequiredCapabilities` | 无消费端 | ✅ 确认空转：只在 dump DTO 出现，无任何决策读它 |
+| `RegistrationHandle` | 无生产调用方 | 生产代码有，但只在 `Program.cs:298-320` 的 `--dump-nodes` **自检**里演示注册/替换/回滚；业务路径零调用 |
+
+所以剩下两件真正的工作是：**(a) 让 Capabilities/RequiredCapabilities 参与路由**；**(b) 让 RegistrationHandle 服务一个真实业务链路**。
+
+### 15.2 G1 的真实场景已经存在：插件加载/卸载
+
+DSH `ctx.effect()` 的原生语义是「插件安装时注册它提供的扩展点，卸载时逆序回滚」。本仓已有现成的同构链路：
+
+- `IPluginManager` 有 `PluginLoaded` / `PluginUnloading` 事件（`plugins.infrastructure/interfaces/IPluginManager.cs:21-23`）；
+- `ServiceRegistration.Skills.cs:36-58` 已订阅这两个事件，加载时 `RegisterPluginSkillsAsync`、卸载时 `UnregisterPluginSkillsAsync`；
+- 但**节点注册表完全没订阅** —— 插件带来的节点能力在 `INodeRegistry` 里既不可见，也谈不上回滚。
+
+这就是 G1 的真正落点：不新造事件、不新造生命周期，把 `INodeRegistry.Register` 接在插件加载事件上，把返回的 `RegistrationHandle` 存进按插件名索引的表，卸载时逆序 `Dispose()`。
+
+### 15.3 路由消费端：RequiredCapabilities
+
+`NodeMetadata.FromConfig` 已经能从 profile 的 `meta.required-capabilities` 解析出字段（`NodeMetadata.cs:36`），但没人读。接法：
+
+1. `NodeRegistry.GetNodesForConsumerAsync` / `GetServicesForConsumerAsync` 在 feature-flag 判定之后、节点解析之前，检查 `nodeEntry` 的 `meta.required-capabilities`；
+2. 用现成的 `CapabilitySet.IsEnabled(id)` 判定（能力在 profile 里的开关是唯一真相，不另立一套）；
+3. 任一必需能力未开 → **按设计跳过**（与 feature flag 关闭同类，不算「解析失败」，不触发 S10 的 `failFastOnMissing`）；
+4. 零回归：当前所有生产节点的 `required-capabilities` 为空，过滤是 no-op。
+
+### 15.4 验收判据（不是「代码里有」，而是真机行为）
+
+- **G1**：真机加载/卸载一个插件，`JCC_DEBUGLOG=1` 能看到 `[NODE-BRIDGE] register/unregister` 打点；`INodeRegistry.TryGetNode` 在加载后能取到该插件节点、卸载后取不到；LIFO 顺序有打点证据。
+- **路由**：给某个消费点节点临时加 `meta.required-capabilities: [dream]`，在 `ci` profile（dream 已关）下该节点被裁掉、在 `base` 下出现；负向实验证明门禁会红。
+- **零回归**：四个 profile 的现有节点数不变（生产节点无 required-capabilities）。
+
+### 15.5 本节清单（逐项打勾，一次一项）
+
+- [x] **H1 文档先记录**：本节写清调研修正、插件事件这一真实场景、路由接法与验收判据。
+- [x] **H2 G1 接插件事件**：`PluginNodeBridge` 订阅 `PluginLoaded/PluginUnloading`，加载时 `INodeRegistry.Register`、卸载时 `RegistrationHandle` 逆序回滚；打点 + 真机证明。
+- [x] **H3 RequiredCapabilities 路由**：两个解析入口按能力开关过滤；与 feature flag 同类语义、零回归。
+- [x] **H4 验收实证**：单测 + 真机正负向（加载/卸载、ci vs base 能力开关）；生成器/现有门禁不回退。
+- [x] **H5 门禁与收尾**：门禁锁住「桥接必须走 Register/Dispose 而非自建表」；文档逐项打勾；提交（不推、不建 PR）。
+
+### 15.6 验收实证（H2/H3 施工后）
+
+| 项 | 实证 |
+|---|---|
+| 编译 | `Composition.csproj` 与 `JoinCode.csproj` 全绿、0 警告。踩坑两处均已按项目约定修正：`lock` 触发 JCC4008 → 改不可变快照 + CAS；局部 `RegistrationHandle` 触发 JCC9305 → 改为内联传参转移所有权。 |
+| 单测 | `NodeBridgeAndCapabilityTest` 5 条全绿：插件加载注册节点（NodeId=`plugin:demo-plugin`、`Metadata.Version=plugin`）、卸载回滚、重复加载 LIFO 全撤；能力未声明=保留、profile 开启=保留、profile 关闭=两个解析入口都跳过。连同 S10 的回归共 25 条绿。 |
+| 真机 H2 正向 | 聊天入口（完整宿主）`JCC_DEBUGLOG=1` 打出 `[NODE-BRIDGE] register plugin='McpInit'/'Dream'/'CSharpLanguage'` —— 插件加载真的触发了节点注册，打点在真生命周期事件上。 |
+| 真机 H2 盲点记录 | `mcp_serve`（`SkipChatServices=true` 轻量宿主）不接线桥接（`McpInitModule` 的 `if (!skipChat)` 内），符合设计 —— 该路径不需要插件节点表，不是 bug。 |
+| 真机 H3 正负向 | 临时 profile 给 `keyword-injection-mw` 注入 `meta.required-capabilities: dream`：dream 开 → `[ORDER] preprocess-analyze-pipeline` 含 `KeywordInjectionMiddleware`（3 节点）；从 capabilities 去掉 dream → 该节点消失（2 节点），且**无**「声明了 3 个只解析出 2 个」的误报（declared 计数同源修正生效）。 |
+| 门禁 | 新增 `Verify-NodeBridgeCapability.py`（桥接 Register/Dispose、真事件、两入口过滤、声明数同源）接 CI；负向删掉 `handle.Dispose()` → 退出码 1 并指名原因，源文件随即原样恢复。 |
+
+**边界（不得宣称超出）**：本轮让 G1 的 `RegistrationHandle` 首次进入真实生命周期（插件装卸），
+H3 让 `meta.required-capabilities` 首次参与节点路由。但按用户裁决「没有消费点很正常，架构要对就行」，
+注册的插件节点**当前不预设消费点** —— 注册表是节点唯一真相，消费点将来读哪类节点由 profile 决定。
+不把它说成「已解决某个业务功能」，也不再为找消费端过度设计。

@@ -47,7 +47,10 @@ public static class SlashCommandRunner {
         var nodeRegistry = services.GetRequiredService<INodeRegistry>();
         var profileManager = services.GetRequiredService<IProfileManager>();
         var categoryNodes = await nodeRegistry.GetServicesForConsumerAsync<CommandCategoryNode>(
-            "command-dispatch", profileManager.Current, cancellationToken).ConfigureAwait(false);
+            "command-dispatch", profileManager.Current, cancellationToken,
+            // TASK100 S10（§25.7）：command-dispatch 是实例型消费点 —— 少解析一个节点 =
+            // 整类斜杠命令静默消失。宁可启动失败。
+            failFastOnMissing: true).ConfigureAwait(false);
 
         var commandRegistry = new ChatCommandRegistry();
         foreach (var node in categoryNodes) {

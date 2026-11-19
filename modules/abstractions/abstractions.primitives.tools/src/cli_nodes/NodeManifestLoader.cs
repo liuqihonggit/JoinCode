@@ -11,6 +11,9 @@ public static class NodeManifestLoader {
     private const string BaseManifestName = "base.yaml";
     private const string NodeFileName = "node.yaml";
 
+    /// <summary>G2 生产落地（TASK097 §14）：人工维护的差异文件，与生成器全量重写的 node.yaml 同目录共存。</summary>
+    private const string OverlayFileName = "node.inherit.yaml";
+
     /// <summary>解析 base.yaml 文本。</summary>
     public static BaseToolManifest LoadBaseFromText(string yaml, string source = "<text>") =>
         NodeYamlParser.ParseBase(yaml, source);
@@ -40,6 +43,13 @@ public static class NodeManifestLoader {
         LoadNodeFromText(File.ReadAllText(path), path);
 
     /// <summary>
+    /// 解析叠加文件（node.inherit.yaml）的差异声明 —— 只要求 id，name/summary 可省略。
+    /// 通过显式 API 而非按文件名猜：避免把"允许缺 name"的口子开到生产 node.yaml 上。
+    /// </summary>
+    public static CliToolDescriptor LoadOverlayFromText(string yaml, string source) =>
+        NodeYamlParser.ParseOverlay(yaml, source);
+
+    /// <summary>
     /// 递归扫描目录树下所有 node.yaml — CLI 层下钻探索的数据源。
     /// 目录结构即分类，不需要 MCP 分组协议。
     /// </summary>
@@ -47,12 +57,36 @@ public static class NodeManifestLoader {
         if (!Directory.Exists(root)) return Array.Empty<CliToolDescriptor>();
         var nodes = Directory.EnumerateFiles(root, NodeFileName, SearchOption.AllDirectories)
             .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(TryLoadNode)
+            .Select(LoadWithOverlay)
             .OfType<CliToolDescriptor>()
             .ToArray();
         // G2: 目录内所有 node.yaml 互为继承池 —— 子节点的 inherits 在这里解析成最终属性。
-        // 13 个真实分组都没有 inherits，ResolveAll 对它们是 no-op，零回归。
+        // 叠加文件已在上一步合入基准；这里的 ResolveAll 继续解析 inherits 链（两者共用 Merge 语义）。
         return CliNodeInheritanceResolver.ResolveAll(nodes);
+    }
+
+    /// <summary>
+    /// 加载一个 node.yaml，并在同目录存在 <c>node.inherit.yaml</c> 时把差异叠加到基准上。
+    /// <para>叠加失败不拖垮扫描 —— 保留基准节点并 stderr 报错（与 <see cref="TryLoadNode"/> 的损坏清单容错同口径）：
+    /// 下钻仍能看见该工具，只是没吃到人工差异。</para>
+    /// </summary>
+    private static CliToolDescriptor? LoadWithOverlay(string nodePath) {
+        var baseline = TryLoadNode(nodePath);
+        if (baseline is null) return null;
+
+        var overlayPath = Path.Combine(Path.GetDirectoryName(nodePath) ?? string.Empty, OverlayFileName);
+        if (!File.Exists(overlayPath)) return baseline;
+
+        try {
+            var overlay = LoadOverlayFromText(File.ReadAllText(overlayPath), overlayPath);
+            return CliNodeInheritanceResolver.ApplyOverlay(overlay, baseline);
+        } catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException) {
+            Console.Error.WriteLine(
+                $"跳过 CLI 节点叠加文件 '{overlayPath}'（NodeManifestLoader 目录扫描层拦截）：{ex.Message}");
+            Console.Error.WriteLine(
+                "修复方式: 确认叠加文件的 id 与同目录 node.yaml 一致，且 YAML 转义正确；保留基准节点继续下钻。");
+            return baseline;
+        }
     }
 
     /// <summary>

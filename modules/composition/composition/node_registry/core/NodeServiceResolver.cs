@@ -18,6 +18,33 @@ public sealed class NodeServiceResolver {
     }
 
     /// <summary>
+    /// 构建解析器：<paramref name="overrides"/> 优先，<paramref name="fallback"/> 只补缺。
+    /// <para>
+    /// TASK100 S8（§24.2 / §24.3）：运行期过去只吃「手写清单」，而 <c>--dump-nodes</c> 与门禁吃
+    /// 「编译期 catalog」—— 两份真相。新增 <c>[NodeFactory]</c> 却忘了改手写清单时，
+    /// 门禁全绿而运行期静默跳过该中间件（安全域表现为「少一道守卫」）。
+    /// </para>
+    /// <para>
+    /// 合并规则必须是「手写优先」而不是「catalog 替换」：22 条参数化工厂
+    /// （<c>CreateCrashSnapshot</c> / <c>CreateRateLimit</c> / <c>CreateRetry</c> …）在 catalog 侧
+    /// 只会生成 <c>GetRequiredService&lt;T&gt;()</c>，会丢掉 consumer 名与限流/重试参数（§24.3）。
+    /// 覆盖层保持原行为，catalog 只负责兜底新增节点。
+    /// </para>
+    /// </summary>
+    /// <param name="overrides">优先来源（手写 / 参数化工厂）。</param>
+    /// <param name="fallback">兜底来源（编译期 catalog）。</param>
+    public static NodeServiceResolver BuildWithFallback(
+        IEnumerable<KeyValuePair<string, Func<IServiceProvider, object>>> overrides,
+        IEnumerable<KeyValuePair<string, Func<IServiceProvider, object>>> fallback) {
+        var merged = new Dictionary<string, Func<IServiceProvider, object>>(StringComparer.Ordinal);
+        foreach (var kv in overrides) merged[kv.Key] = kv.Value;
+        foreach (var kv in fallback) {
+            if (!merged.ContainsKey(kv.Key)) merged[kv.Key] = kv.Value;
+        }
+        return new NodeServiceResolver(merged.ToFrozenDictionary(StringComparer.Ordinal));
+    }
+
+    /// <summary>
     /// 编译期确定的工厂 catalog（G5 节点自动归纳的唯一数据源，只读暴露）。
     /// 与 <c>NodeRegistry.BuildFromCatalog</c> 共用同一份，不另生成第二套节点清单。
     /// </summary>

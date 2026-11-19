@@ -20,18 +20,6 @@ public sealed class ConsumerTest {
     }
 
     [Fact]
-    public void ToolDispatchConsumer_DefaultConsumerId() {
-        var consumer = new ToolDispatchConsumer();
-        consumer.ConsumerId.Should().Be("tool-dispatch");
-    }
-
-    [Fact]
-    public void ToolDispatchConsumer_CustomConsumerId() {
-        var consumer = new ToolDispatchConsumer("custom-tool-dispatch");
-        consumer.ConsumerId.Should().Be("custom-tool-dispatch");
-    }
-
-    [Fact]
     public void CommandDispatchConsumer_DefaultConsumerId() {
         var consumer = new CommandDispatchConsumer();
         consumer.ConsumerId.Should().Be("command-dispatch");
@@ -65,18 +53,6 @@ public sealed class ConsumerTest {
 
         nodes.Should().HaveCount(2);
         nodes.Select(n => n.NodeId).Should().BeEquivalentTo(["node-a", "node-b"]);
-    }
-
-    [Fact]
-    public async Task ToolDispatchConsumer_ResolveNodesAsync_DelegatesToRegistry() {
-        var consumer = new ToolDispatchConsumer();
-        var profile = MakeResolvedProfile("base", ("tool-dispatch", ["shell", "file"]));
-        var registry = MakeRegistry("shell", "file");
-
-        var nodes = await consumer.ResolveNodesAsync(registry, profile);
-
-        nodes.Should().HaveCount(2);
-        nodes.Select(n => n.NodeId).Should().BeEquivalentTo(["shell", "file"]);
     }
 
     [Fact]
@@ -264,7 +240,11 @@ public sealed class ConsumerTest {
         public RegistrationHandle Register(string nodeId, Func<IServiceProvider, NodeMetadata?, INode> factory) =>
             throw new NotSupportedException("测试替身不支持运行期注册");
 
-        public Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) where T : class =>
+        public Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(
+            string consumerId,
+            ResolvedProfile profile,
+            CancellationToken cancellationToken = default,
+            bool failFastOnMissing = false) where T : class =>
             throw new NotImplementedException();
     }
 

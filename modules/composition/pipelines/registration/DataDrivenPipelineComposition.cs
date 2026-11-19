@@ -28,6 +28,29 @@ public static class DataDrivenPipelineComposition {
     /// 同一节点ID在不同消费点中可能对应不同的泛型实例
     /// </summary>
     public static IEnumerable<KeyValuePair<string, Func<IServiceProvider, object>>> BuildNodeFactories() {
+        foreach (var local in BuildLocalNodeFactories()) {
+            yield return local;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // 分布式贡献（TASK100）：域内 [NodeFactory] → 生成器静态目录 → 此处转发。
+        // 目录由 Composition 持有（本程序集编译闭包看不到全部实现域，实证见 §12.8）。
+        // ═══════════════════════════════════════════════════════════
+        foreach (var contributed in Core.DependencyInjection.NodeFactoryContribution.Create()) {
+            yield return contributed;
+        }
+    }
+
+    /// <summary>
+    /// 构建**本文件显式登记**的节点工厂（不含分布式贡献目录）。
+    /// <para>
+    /// TASK100 S8（§24.1）：运行期工厂其实是两份来源 —— 本文件显式登记的实例型节点，
+    /// 与 <c>[NodeFactory]</c> 生成目录里的声明型节点。两者边界此前没有机器可判的标记，
+    /// 于是「新增实例型节点漏登记」只能等运行期静默跳过才发现。
+    /// 拆出本方法后，<c>--dump-nodes</c> 能逐键标注来源，门禁据此核对。
+    /// </para>
+    /// </summary>
+    public static IEnumerable<KeyValuePair<string, Func<IServiceProvider, object>>> BuildLocalNodeFactories() {
         // ═══════════════════════════════════════════════════════════
         // chat-pipeline (Stream) — IStreamMiddleware<ChatMiddlewareContext, ChatStreamEvent>
         // ═══════════════════════════════════════════════════════════
@@ -47,15 +70,22 @@ public static class DataDrivenPipelineComposition {
         yield return F("chat-pipeline:save-context-mw", sp => sp.GetRequiredService<SaveContextMiddleware>());
 
         // ═══════════════════════════════════════════════════════════
-        // preprocess-pipeline — IMiddleware<PreprocessContext>
+        // preprocess-analyze-pipeline / preprocess-prepare-pipeline — IMiddleware<PreprocessContext>
         // ═══════════════════════════════════════════════════════════
-        yield return F("preprocess-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-pipeline"));
-        yield return F("preprocess-pipeline:keyword-injection-mw", sp => sp.GetRequiredService<KeywordInjectionMiddleware>());
-        yield return F("preprocess-pipeline:synonym-injection-mw", sp => sp.GetRequiredService<SynonymInjectionMiddleware>());
-        yield return F("preprocess-pipeline:system-prompt-mw", sp => sp.GetRequiredService<SystemPromptMiddleware>());
-        yield return F("preprocess-pipeline:reminder-injection-mw", sp => sp.GetRequiredService<ReminderInjectionMiddleware>());
-        yield return F("preprocess-pipeline:tool-listing-injection-mw", sp => sp.GetRequiredService<ToolListingInjectionMiddleware>());
-        yield return F("preprocess-pipeline:lsp-diagnostic-mw", sp => sp.GetRequiredService<LspDiagnosticMiddleware>());
+        // preprocess-analyze-pipeline — IMiddleware<PreprocessContext>（分析阶段）
+        // TASK100 S9（§25）：原来 7 个 preprocess 节点挂在一个消费点上，但生产真正执行的
+        // 是 DI 集合自建的两条链（analyze / prepare），profile 声明完全管不到它 ——
+        // 实证见 §25.2：注入幽灵节点运行期毫无反应。拆成两个消费点后，真链才受 profile 治理。
+        yield return F("preprocess-analyze-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-analyze-pipeline"));
+        yield return F("preprocess-analyze-pipeline:keyword-injection-mw", sp => sp.GetRequiredService<KeywordInjectionMiddleware>());
+        yield return F("preprocess-analyze-pipeline:synonym-injection-mw", sp => sp.GetRequiredService<SynonymInjectionMiddleware>());
+
+        // preprocess-prepare-pipeline — IMiddleware<PreprocessContext>（准备阶段）
+        yield return F("preprocess-prepare-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-prepare-pipeline"));
+        yield return F("preprocess-prepare-pipeline:system-prompt-mw", sp => sp.GetRequiredService<SystemPromptMiddleware>());
+        yield return F("preprocess-prepare-pipeline:reminder-injection-mw", sp => sp.GetRequiredService<ReminderInjectionMiddleware>());
+        yield return F("preprocess-prepare-pipeline:tool-listing-injection-mw", sp => sp.GetRequiredService<ToolListingInjectionMiddleware>());
+        yield return F("preprocess-prepare-pipeline:lsp-diagnostic-mw", sp => sp.GetRequiredService<LspDiagnosticMiddleware>());
 
         // ═══════════════════════════════════════════════════════════
         // chatinit-pipeline — IMiddleware<ChatInitContext>
@@ -319,15 +349,29 @@ public static class DataDrivenPipelineComposition {
         yield return F("bash-defense-chain:git-push-ci-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("git-push-ci-guard"));
         yield return F("bash-defense-chain:argv-hash", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("argv-hash"));
 
-        // ═══════════════════════════════════════════════════════════
-        // 分布式贡献（TASK100）：域内 [NodeFactory] → 生成器静态目录 → 此处转发。
-        // 目录由 Composition 持有（本程序集编译闭包看不到全部实现域，实证见 §12.8）。
-        // ═══════════════════════════════════════════════════════════
-        foreach (var contributed in Core.DependencyInjection.NodeFactoryContribution.Create()) {
-            yield return contributed;
-        }
-
     }
+
+    /// <summary>
+    /// 注册节点工厂解析器 —— 生产（<see cref="AddDataDrivenPipelines"/>）与测试宿主
+    /// （<c>AddTestPipelines</c>）共用这一份组装口径。
+    /// <para>
+    /// TASK100 S8（§24.2）：过去只吃手写清单，新增 [NodeFactory] 节点若忘了改手写清单，
+    /// 门禁与 --dump-nodes 都绿、运行期却静默跳过该中间件。现在以编译期 catalog 为底、
+    /// 手写清单为覆盖层（手写优先，保住 22 条参数化工厂的限流/重试参数）。
+    /// </para>
+    /// <para>
+    /// TASK100 S9（§25）：preprocess 两条链改为按 profile 经 <see cref="NodeServiceResolver"/>
+    /// 解析后，凡是要装配 <c>IChatPreprocessor</c> 的宿主都必须注册本解析器 —— 否则
+    /// profile 声明的节点全部解析不到，链装配直接 fail-fast（测试宿主只注册 NodeRegistry
+    /// 就属于这一类缺口，实证见 sync.integration ChatServiceTests）。
+    /// </para>
+    /// </summary>
+    /// <param name="services">DI 容器</param>
+    /// <returns>已注册解析器的 <see cref="IServiceCollection"/> 实例。</returns>
+    public static IServiceCollection AddNodeServiceResolver(this IServiceCollection services) =>
+        services.AddSingleton<NodeServiceResolver>(_ => NodeServiceResolver.BuildWithFallback(
+            BuildNodeFactories(),
+            Core.DependencyInjection.NodeFactoryContribution.Create()));
 
     /// <summary>
     /// 数据驱动的管道组装 — 从 YAML Profile 配置组装所有16条管道
@@ -340,8 +384,8 @@ public static class DataDrivenPipelineComposition {
         // 注册基础中间件服务（新旧路径共享）
         services.RegisterBaseMiddlewareServices();
 
-        // 注册 NodeServiceResolver
-        services.AddSingleton<NodeServiceResolver>(_ => NodeServiceResolver.Build(BuildNodeFactories()));
+        // 注册 NodeServiceResolver（与测试宿主共用同一口径，见 AddNodeServiceResolver）
+        services.AddNodeServiceResolver();
 
         // 注册 IProfileManager + ResolvedProfile（DSG049: 运行期 Profile 动态切换）
         services.AddSingleton<IProfileManager>(sp => {
@@ -400,10 +444,11 @@ public static class DataDrivenPipelineComposition {
         // ═══════════════════════════════════════════════════════════
 
         // Preprocess 预处理管道
-        services.AddSingleton<MiddlewarePipeline<PreprocessContext>>(sp =>
-            SubscribePipelineRebuild(sp,
-                BuildTaskPipeline<PreprocessContext>(sp, "preprocess-pipeline"),
-                "preprocess-pipeline"));
+        // TASK100 S9（§25.4）：这条注册**没有消费方** —— 生产真正跑的 preprocess 链是
+        // IChatPreprocessor 内部按 profile 解析的两条链（analyze / prepare）。
+        // 留着它等于「注册了但没人注入」的死链，与 §24.8 记的 tool-dispatch 是同一类问题，
+        // 只是方向相反（那个没有实现，这个没有消费方）。
+        // 两条链的构建见 ServiceRegistration.Brain.cs 的 ResolvePreprocessChainAsync。
 
         // ChatInit 聊天初始化管道
         services.AddSingleton<MiddlewarePipeline<ChatInitContext>>(sp =>
@@ -605,12 +650,21 @@ public static class DataDrivenPipelineComposition {
             if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware)) {
                 result.Add(middleware);
             } else {
-                logger.LogWarning(
-                    "中间件解析跳过: consumer='{ConsumerId}', node='{NodeId}', type='{MiddlewareType}' — " +
-                    "NodeServiceResolver 未找到匹配的工厂注册，该中间件将被静默跳过",
-                    consumerId, nodeEntry.Id, typeof(TMiddleware).Name);
+                // TASK100 S8（§24.2 / C2）：过去这里只记一条 Warning 就把中间件静默跳过 ——
+                // 在安全域等于「少一道守卫」，现象是放行而非报错，最难查。
+                // 现在升级为 fail-fast：消息里给出 consumer:nodeId 与期望类型，直接指向 profile 声明。
+                var message =
+                    $"中间件装配失败: consumer='{consumerId}', node='{nodeEntry.Id}', " +
+                    $"期望类型='{typeof(TMiddleware).Name}' — NodeServiceResolver 找不到匹配工厂。" +
+                    "该节点已被 profile 声明但无法实例化（多半是新增 [NodeFactory] 后漏了运行期工厂，" +
+                    "或工厂返回的类型与消费点期望不符）。";
+                logger.LogError("{Message}", message);
+                throw new InvalidOperationException(message);
             }
         }
+        // 装配结果可观测：每个 pipeline 实际装上哪些中间件（打点只在 debug 日志下输出）。
+        JoinCode.Abstractions.Utils.Diagnostics.Diag.WriteLine(
+            $"[ORDER] middleware {consumerId}: {string.Join(" > ", result.Select(static m => m.GetType().Name))}");
         return result;
     }
 

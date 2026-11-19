@@ -9,11 +9,18 @@ namespace JoinCode.Cli;
 /// <param name="ConsumerCount">消费点总数（跨 profile 去重前）。</param>
 /// <param name="Consumers">每个 profile 的消费点与节点明细。</param>
 /// <param name="Verification">一致性校验结果。</param>
+/// <param name="FactorySources">
+/// 每个 `consumer:nodeId` 的工厂来源：<c>handwritten</c>（装配文件里显式登记）、
+/// <c>catalog</c>（编译期 `[NodeFactory]` 生成物）、<c>both</c>（两处都有，运行期取显式登记）。
+/// TASK100 S8（§24.1）：显式登记恰好覆盖实例型节点、catalog 恰好覆盖声明型节点，
+/// 两者的边界必须能被机器核对 —— 这份来源表就是判据。
+/// </param>
 internal sealed record NodeDumpReportDto(
     int NodeCount,
     int ConsumerCount,
     NodeDumpConsumerDto[] Consumers,
-    NodeDumpVerificationDto Verification
+    NodeDumpVerificationDto Verification,
+    IReadOnlyDictionary<string, string> FactorySources
 );
 
 /// <summary>单个消费点的 dump 明细。</summary>

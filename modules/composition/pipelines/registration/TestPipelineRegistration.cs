@@ -21,6 +21,10 @@ public static class TestPipelineRegistration {
             var initial = resolver.Resolve("base");
             return new Composition.NodeRegistry.ProfileManager(resolver, initial);
         });
+        // TASK100 S9（§25）：preprocess 两条链按 profile 经 NodeServiceResolver 解析。
+        // 这里必须与生产 AddDataDrivenPipelines 注册同一份 catalog —— 只注册 NodeRegistry
+        // 会让 profile 声明的节点全部解析不到，IChatPreprocessor 装配直接 fail-fast。
+        services.AddNodeServiceResolver();
 
         services.AddSingleton(sp => new MetricsMiddleware<WebContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<SkillContext>(sp.GetService<ITelemetryService>()));

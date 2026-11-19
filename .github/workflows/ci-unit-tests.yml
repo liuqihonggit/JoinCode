@@ -189,6 +189,32 @@ jobs:
       - name: Verify node contracts and declaration↔factory consistency
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-NodeConsistency.py
+      # 节点工厂来源分类：实例型（middleware/guard）必须显式登记，声明型
+      # （provider/role/capability/command-group）必须来自 [NodeFactory] catalog。
+      # 缺这一步的后果是「新增节点两处都漏登记 → 运行期静默跳过」——
+      # 尤其在安全域，症状是少一道守卫而不是报错。
+      - name: Verify node factory source classification (instance vs declared)
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-NodeFactoryCoverage.py
+      # 实例型消费点（preprocess 两条链 / command-dispatch / prompt-assembly）必须显式
+      # 开启 failFastOnMissing。缺这一步的后果是「profile 声明了节点但工厂漏登记 →
+      # 运行期只记 Warning 就丢掉」，症状是整批命令消失或提示词悄悄变短。
+      # 新增调用点若没在本门禁登记并判定性质，直接报红。
+      - name: Verify instance consumers resolve with fail-fast
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-FailFastConsumers.py
+      # G1 可逆注册 + metadata 能力路由（TASK097 §15）：插件装卸必须走 INodeRegistry.Register/
+      # Dispose，能力过滤必须在两个解析入口与声明数校验处同源。缺这一步的机制会重新空转：
+      # 桥接自建平行表、或「能力关闭」被误判成「节点装配失败」。
+      - name: Verify plugin node bridge and capability routing
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-NodeBridgeCapability.py
+      # G2 节点继承的生产落地（TASK097 §14）：node.inherit.yaml 叠加文件必须真的影响
+      # jcc tool help/find 的下钻输出。缺这一步的后果是「生成器承诺的叠加文件没人读」，
+      # 机制有单测、生产却零继承 —— 文件存在但没生效。
+      - name: Verify CLI node overlay inheritance takes effect
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-CliNodeInheritance.py --live=artifacts/bin/JoinCode/Debug/net10.0
       # 工具组三方一致：cli_groups.yaml ↔ ToolGroupDeclaration ↔ base.yaml。
       # 缺这一步的后果是「profile 声明了一个永不存在的组」或「某个组永远关不掉」，
       # 而两种情况在 --dump-nodes 里都只是少一行/多一行，人眼很难发现。

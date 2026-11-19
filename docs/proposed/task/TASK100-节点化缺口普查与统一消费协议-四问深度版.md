@@ -1061,6 +1061,12 @@ ComposeToolFilter(cliFilter, gate)
 | `jcc mcp serve` 在裁剪 profile 下也少工具 | 组合过滤不特判 `SkipToolFilter` | profile 是配置意愿，优先级高于「CLI 侧只留 `gh_*`」的性能优化；若需要全量，profile 里声明全部能力即可 |
 | 工具树 `jcc tool tree` 仍显示 635 | 它读 `modules/tools/cli_nodes/groups` 的**声明目录**，不是运行时注册表 | 两者本就不同层：635 = 声明（含 388 个独立 exe），368 = 宿主实际可注册（`[McpToolDispatch]`） |
 
+补充一个数字关系（容易被「635」误导）：生成物里 `github` 分类只有 **1** 个条目，而 `tool tree` 的
+github 组有 173 个 —— 那 173 个是独立 exe 的 CLI 节点，经 `jcc gh` / `tool call` 直达，
+**不在宿主注册表，也就不在能力门禁覆盖范围内**。所以本节的 59 个是「Agent 可见工具」的裁剪量，
+不是「635 全量」的裁剪量。388 个 exe 工具多数不属于这 7 个能力（github/media/slash 等），
+按能力归类对它们没有语义。
+
 ### 19.8 零回归数字
 
 - `--dump-nodes`：**238 节点 / 112 消费点**不变（本轮不加节点）；`--verify` 三项 `[OK]`。

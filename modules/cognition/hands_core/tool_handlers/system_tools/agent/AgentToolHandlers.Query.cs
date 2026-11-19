@@ -52,7 +52,7 @@ public sealed partial class AgentToolHandlers {
 
         var agent = await _agentService.GetAgentAsync(agent_id, cancellationToken).ConfigureAwait(false);
 
-        if (agent == null && TryLoadDryRunState(agent_id) is { } dryState) {
+        if (agent == null && await TryLoadDryRunStateAsync(agent_id).ConfigureAwait(false) is { } dryState) {
             var dryResponse = new System.Text.StringBuilder();
             dryResponse.AppendLine($"Agent status: {dryState.Status}");
             dryResponse.AppendLine($"Agent ID: {dryState.Id}");
@@ -125,11 +125,11 @@ public sealed partial class AgentToolHandlers {
         var success = await _agentService.StopAgentAsync(agent_id, cancellationToken).ConfigureAwait(false);
 
         if (!success) {
-            var dryState = TryLoadDryRunState(agent_id);
+            var dryState = await TryLoadDryRunStateAsync(agent_id).ConfigureAwait(false);
             if (dryState is not null) {
                 dryState.Status = "stopped";
                 dryState.CompletedAt = _clock.GetUtcNow();
-                TrySaveDryRunState(dryState);
+                await SaveDryRunStateAsync(dryState).ConfigureAwait(false);
 
                 var stopMessage = dryState.IsolationMode == AgentIsolationMode.Worktree.ToValue()
                     ? $"Agent {agent_id} stopped (dry-run, worktree kept — use worktree_remove to clean up)"
@@ -174,7 +174,7 @@ public sealed partial class AgentToolHandlers {
             var response = new System.Text.StringBuilder();
 
             if (runningList.Count == 0) {
-                var dryAgents = ListDryRunAgents();
+                var dryAgents = await ListDryRunAgentsAsync().ConfigureAwait(false);
                 if (dryAgents.Count > 0) {
                     response.AppendLine(L.T(StringKey.AgentRunningCount, dryAgents.Count));
                     response.AppendLine();
@@ -236,7 +236,7 @@ public sealed partial class AgentToolHandlers {
             var messages = (await _agentService.GetAgentMessagesAsync(agent_id, cancellationToken).ConfigureAwait(false)).ToList();
 
             if (messages.Count == 0) {
-                var dryMsgs = TryLoadDryRunMessages(agent_id);
+                var dryMsgs = await TryLoadDryRunMessagesAsync(agent_id).ConfigureAwait(false);
                 if (dryMsgs is not null && dryMsgs.Count > 0) {
                     var dryResponse = new System.Text.StringBuilder();
                     dryResponse.AppendLine($"Pending messages for agent {agent_id}: {dryMsgs.Count}");

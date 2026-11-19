@@ -47,7 +47,7 @@ internal static class ModelPickerAssembly
     {
         var fastMode = services.GetService<IFastModeService>();
         fastMode?.SetPrimaryModel(modelId);
-        services.GetService<IConfigurationService>()?.SetAsync("model", modelId).GetAwaiter().GetResult();
+        services.GetService<IConfigurationService>()?.SetAsync("model", modelId).GetAwaiter().GetResult();  // style-allow: sync-block — TUI 输入同步契约: 模型选择器在 UI 线程同步写配置
 
         if (fastMode is { IsFastModeActive: true })
         {
@@ -66,7 +66,7 @@ internal static class ModelPickerAssembly
     {
         try
         {
-            var raw = services.GetService<IConfigurationService>()?.GetAsync("modelHistory").GetAwaiter().GetResult();
+            var raw = services.GetService<IConfigurationService>()?.GetAsync("modelHistory").GetAwaiter().GetResult();  // style-allow: sync-block — TUI 输入同步契约: 模型选择器在 UI 线程同步写配置
             return string.IsNullOrEmpty(raw)
                 ? []
                 : raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
@@ -109,7 +109,7 @@ internal static class ModelPickerAssembly
                 history = history.Take(20).ToList();
             }
 
-            configService.SetAsync("modelHistory", string.Join(",", history)).GetAwaiter().GetResult();
+            configService.SetAsync("modelHistory", string.Join(",", history)).GetAwaiter().GetResult();  // style-allow: sync-block — TUI 输入同步契约: 模型选择器在 UI 线程同步写配置
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException)
         {
@@ -146,7 +146,7 @@ internal static class ModelPickerAssembly
             settings.EffortLevel = MapCoreEffort(applied);
         }
 
-        services.GetService<IConfigurationService>()?.SetAsync("effortLevel", applied.ToLowercaseName()).GetAwaiter().GetResult();
+        services.GetService<IConfigurationService>()?.SetAsync("effortLevel", applied.ToLowercaseName()).GetAwaiter().GetResult();  // style-allow: sync-block — TUI 输入同步契约: 模型选择器在 UI 线程同步写配置
     }
 
     /// <summary>引擎 EffortLevel → Core 档位（Auto → null）。</summary>

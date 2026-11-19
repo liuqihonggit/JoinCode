@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.Vision.Quadtree;
 
 /// <summary>
@@ -33,10 +31,11 @@ public sealed partial class QuadtreeEncoder : IQuadtreeAnnotator {
         return new QuadtreeGrid(cells, imageWidth, imageHeight, depth);
     }
 
-    /// <summary>查询格子的八方位邻居编码（同层），边界外返回 null</summary>
-    public string? GetNeighbor(string cellCode, CardinalDirection direction, int imageWidth, int imageHeight, int depth) {
+    /// <summary>查询格子的八方位邻居编码（同层），边界外返回 false</summary>
+    public bool TryGetNeighbor(string cellCode, CardinalDirection direction, int imageWidth, int imageHeight, int depth, [NotNullWhen(true)] out string? neighbor) {
         ArgumentException.ThrowIfNullOrWhiteSpace(cellCode);
         if (depth < 0) throw new ArgumentException("[VIS004] 层数不能为负", nameof(depth));
+        neighbor = null;
 
         var (col, row) = DecodeToGrid(cellCode);
         var size = 1 << depth;
@@ -44,8 +43,9 @@ public sealed partial class QuadtreeEncoder : IQuadtreeAnnotator {
         var ncol = col + dcol;
         var nrow = row + drow;
 
-        if (ncol < 0 || nrow < 0 || ncol >= size || nrow >= size) return null;
-        return EncodeFromGrid(ncol, nrow, depth);
+        if (ncol < 0 || nrow < 0 || ncol >= size || nrow >= size) return false;
+        neighbor = EncodeFromGrid(ncol, nrow, depth);
+        return true;
     }
 
     /// <summary>批量染色格子（更新 alpha 值），返回新网格实例</summary>

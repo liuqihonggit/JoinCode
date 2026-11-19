@@ -273,8 +273,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
             sb.AppendLine("### 关联记忆");
 
             foreach (var memoryId in relatedMemoryIds) {
-                var memory = _memoryStore.GetMemory(memoryId);
-                if (memory != null) {
+                if (_memoryStore.TryGetMemory(memoryId, out var memory)) {
                     var contentPreview = memory.Content[..Math.Min(80, memory.Content.Length)];
                     sb.AppendLine($"- [{memory.Type}] {contentPreview}");
                 }

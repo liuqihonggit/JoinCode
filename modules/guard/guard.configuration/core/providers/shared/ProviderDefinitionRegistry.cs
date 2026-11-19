@@ -31,7 +31,7 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
     /// <para>CLI 环境 SynchronizationContext 为 null，.GetAwaiter().GetResult() 不会死锁。</para>
     /// </summary>
     public static ProviderDefinitionRegistry Create(IModelConfigLoader modelConfigLoader, IFileSystem? fs = null, ILogger? logger = null) {
-        return CreateAsync(modelConfigLoader, fs, logger).GetAwaiter().GetResult();
+        return CreateAsync(modelConfigLoader, fs, logger).GetAwaiter().GetResult();  // style-allow: sync-block — 同步注册表工厂契约: Create() 由同步装配路径调用
     }
 
     /// <summary>

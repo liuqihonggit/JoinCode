@@ -12,5 +12,22 @@ namespace Core.Hooks.Configuration;
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSerializable(typeof(HookHttpPayload))]
 [JsonSerializable(typeof(HookDecision))]
+[JsonSerializable(typeof(AgentHookResponseExample))]
 [JsonSerializable(typeof(string))]
 public partial class HooksJsonContext : JsonSerializerContext;
+
+/// <summary>代理验证钩子期望响应示例 — 提示词内嵌 JSON 示例的唯一数据源</summary>
+public sealed record AgentHookResponseExample {
+    /// <summary>决策(allow/block/ask)</summary>
+    [JsonPropertyName("decision")]
+    public string Decision { get; init; } = "allow";
+    /// <summary>详细理由</summary>
+    [JsonPropertyName("reason")]
+    public string Reason { get; init; } = "detailed explanation";
+    /// <summary>是否继续</summary>
+    [JsonPropertyName("continue")]
+    public bool Continue { get; init; } = true;
+    /// <summary>置信度 0.0-1.0</summary>
+    [JsonPropertyName("confidence")]
+    public double Confidence { get; init; } = 0.9;
+}

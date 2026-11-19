@@ -1,5 +1,3 @@
-// JCC10009 抑制: 存量元组 key, 后续改为字符串 key
-#pragma warning disable JCC10009
 namespace Core.Agents;
 
 
@@ -18,9 +16,11 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// <summary>
     /// 单一不可变快照 — Profiles 是唯一数据源，ProfileMap/RoleIndex 从它派生
     /// </summary>
+    private readonly record struct ProfileKey(AgentRole Role, ExecutorVariant? Variant);
+
     private sealed record RoleRegistrySnapshot(
         ImmutableList<AgentRoleProfile> Profiles,
-        FrozenDictionary<(AgentRole, ExecutorVariant?), AgentRoleProfile> ProfileMap,
+        FrozenDictionary<ProfileKey, AgentRoleProfile> ProfileMap,
         FrozenDictionary<AgentRole, ImmutableList<AgentRoleProfile>> RoleIndex) {
         /// <summary>空快照</summary>
         public static RoleRegistrySnapshot Empty { get; } = Build([]);
@@ -91,7 +91,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// <returns>匹配的角色 Profile；未找到时返回 null</returns>
     public AgentRoleProfile? GetProfile(AgentRole role, ExecutorVariant? variant = null) {
         EnsureCustomLoaded();
-        return _snapshot.ProfileMap.TryGetValue((role, variant), out var profile) ? profile : null;
+        return _snapshot.ProfileMap.TryGetValue(new ProfileKey(role, variant), out var profile) ? profile : null;
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         if (Interlocked.CompareExchange(ref _customLoaded, 1, 0) != 0) return;
 
         try {
-            var definitions = _definitionProvider.GetAgentDefinitionsAsync().GetAwaiter().GetResult();
+            var definitions = _definitionProvider.GetAgentDefinitionsAsync().GetAwaiter().GetResult();  // style-allow: sync-block — 同步缓存装载契约: 首次访问在同步 ensure 内装载角色定义
             while (true) {
                 var current = _snapshot;
                 var profiles = current.Profiles;
@@ -194,11 +194,11 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         }
     }
 
-    private static FrozenDictionary<(AgentRole, ExecutorVariant?), AgentRoleProfile> BuildProfileMap(
+    private static FrozenDictionary<ProfileKey, AgentRoleProfile> BuildProfileMap(
         ImmutableList<AgentRoleProfile> profiles) {
-        var builder = new Dictionary<(AgentRole, ExecutorVariant?), AgentRoleProfile>();
+        var builder = new Dictionary<ProfileKey, AgentRoleProfile>();
         foreach (var p in profiles) {
-            builder.TryAdd((p.Role, p.Variant), p);
+            builder.TryAdd(new ProfileKey(p.Role, p.Variant), p);
         }
         return builder.ToFrozenDictionary();
     }

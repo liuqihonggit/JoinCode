@@ -115,6 +115,6 @@ public sealed class ParallelQuery<T> : IReadOnlyList<T> {
                 }
             });
         }
-        Task.WhenAll(tasks).GetAwaiter().GetResult();
+        Task.WhenAll(tasks).GetAwaiter().GetResult();  // style-allow: sync-block — 同步并行辅助契约: 供同步调用方聚合并行任务
     }
 }

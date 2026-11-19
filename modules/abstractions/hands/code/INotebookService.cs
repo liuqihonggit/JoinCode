@@ -58,7 +58,7 @@ public interface INotebookService {
     /// <summary>
     /// 获取单元格内容
     /// </summary>
-    string? GetCellContent(NotebookDocument notebook, int index);
+    bool TryGetCellContent(NotebookDocument notebook, int index, [NotNullWhen(true)] out string? content);
 
     /// <summary>
     /// 列出所有单元格

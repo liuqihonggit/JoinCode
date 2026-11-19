@@ -14,8 +14,9 @@ public interface IGoalGraphTemplateRegistry {
     /// 根据目标描述查找匹配的模板
     /// </summary>
     /// <param name="objective">目标描述</param>
-    /// <returns>匹配的模板，无匹配返回 null</returns>
-    GoalGraphTemplate? FindMatch(string objective);
+    /// <param name="template">匹配的模板；返回 false 时为 null</param>
+    /// <returns>true 表示找到匹配模板，false 表示无匹配</returns>
+    bool TryFindMatch(string objective, [NotNullWhen(true)] out GoalGraphTemplate? template);
 
     /// <summary>
     /// 获取全部已注册模板的快照拷贝

@@ -34,6 +34,7 @@ public sealed partial class AgentRegistry {
             PendingMessages = 0
         };
         _agents[agentId] = info;
+        // style-allow: unbounded — 每 Agent 独立邮箱,投递方是 HTTP 请求线程,发送方不能等待消费
         _mailboxes[agentId] = Channel.CreateUnbounded<AgentMessageRequest>();
         _logger?.LogInformation("[AgentRegistry] Agent 注册: {AgentId} (capabilities={Caps})",
             agentId, capabilities is null ? "none" : string.Join(",", capabilities));

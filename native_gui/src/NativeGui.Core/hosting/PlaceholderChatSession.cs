@@ -32,7 +32,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     private static string ResolveCurrentVendor(IConfigurationService? configService) {
         if (configService is not null) {
             try {
-                var profile = configService.GetAsync("profile", CancellationToken.None).GetAwaiter().GetResult();
+                var profile = configService.GetAsync("profile", CancellationToken.None).GetAwaiter().GetResult();  // style-allow: sync-block — 同步会话契约: 占位会话同步读取配置
                 if (!string.IsNullOrWhiteSpace(profile))
                     return profile;
             } catch (Exception ex) { System.Console.Error.WriteLine($"[PlaceholderChatSession] 读取 settings.json profile 失败: {ex.Message}"); }

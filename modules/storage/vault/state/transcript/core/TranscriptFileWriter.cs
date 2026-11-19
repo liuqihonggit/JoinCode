@@ -37,7 +37,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
 
             try {
                 var probePath = Path.Combine(_sessionsDirectory, $".probe_{Guid.NewGuid():N}");
-                _fs.WriteAllText(probePath, "p").GetAwaiter().GetResult();
+                _fs.WriteAllText(probePath, "p").GetAwaiter().GetResult();  // style-allow: sync-block — 同步探针契约: 转录可用性探针同步写入
                 if (_fs.FileExists(probePath)) _fs.DeleteFile(probePath);
                 _isFileSystemRestricted = false;
             } catch {

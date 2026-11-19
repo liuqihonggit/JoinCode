@@ -51,8 +51,8 @@ public sealed class AsyncGate {
         bool acquired;
         try {
             acquired = timeout.HasValue
-                ? previous.Task.Wait(timeout.Value)
-                : previous.Task.Wait(Timeout.InfiniteTimeSpan);
+                ? previous.Task.Wait(timeout.Value)  // style-allow: sync-block — 闸门同步语义: 同步 WaitPrevious 按设计阻塞等待前序任务完成
+                : previous.Task.Wait(Timeout.InfiniteTimeSpan);  // style-allow: sync-block — 闸门同步语义: 同步 WaitPrevious 按设计阻塞等待前序任务完成
         } catch (AggregateException ex) {
             Diag.WriteLine($"[AsyncGate] 前序持有者异常,继续当前获取: {ex.InnerException?.Message}");
             acquired = true;

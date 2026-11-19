@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Tools.Handlers;
 
 /// <summary>
@@ -29,25 +27,25 @@ public sealed class DesktopSceneDetectToolHandlers {
         CancellationToken cancellationToken = default) {
         var detection = await _detectService.DetectAsync(sceneId, cancellationToken).ConfigureAwait(false);
 
-        var elementsJson = string.Join(", ", detection.Elements.Select(e =>
-            "{ \"type\": \"" + e.Type + "\", \"label\": \"" + e.Label + "\", \"cell\": \"" + e.CellCode + "\" }"));
+        var elements = detection.Elements
+            .Select(e => new DesktopDetectedElementDto { Type = e.Type, Label = e.Label, Cell = e.CellCode })
+            .ToList();
 
-        var suggestions = new List<string>();
+        var suggestions = new List<DesktopSuggestedNext>();
         foreach (var e in detection.Elements) {
             if (e.Type == "button")
-                suggestions.Add("{ \"tool\": \"desktop_click\", \"reason\": \"识别到按钮，点击\" }");
+                suggestions.Add(new DesktopSuggestedNext { Tool = "desktop_click", Reason = "识别到按钮，点击" });
             if (e.Type == "input")
-                suggestions.Add("{ \"tool\": \"desktop_type\", \"reason\": \"识别到输入框，输入文字\" }");
+                suggestions.Add(new DesktopSuggestedNext { Tool = "desktop_type", Reason = "识别到输入框，输入文字" });
         }
-        var suggestedNextJson = string.Join(", ", suggestions);
 
-        var json = $$"""
-            {
-              "scene_id": "{{sceneId}}",
-              "elements": [{{elementsJson}}],
-              "suggested_next": [{{suggestedNextJson}}]
-            }
-            """;
-        return ToolResultBuilder.Success().WithText(json).Build();
+        var result = new DesktopDetectResult {
+            SceneId = sceneId,
+            Elements = elements,
+            SuggestedNext = suggestions
+        };
+        return ToolResultBuilder.Success()
+            .WithText(JsonSerializer.Serialize(result, DesktopSceneToolJsonContext.Default.DesktopDetectResult))
+            .Build();
     }
 }

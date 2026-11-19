@@ -1,5 +1,3 @@
-// JCC9203 抑制: 存量释放函数超时, 后续异步化改造
-#pragma warning disable JCC9203
 namespace JoinCode.Transport.Bridge;
 
 /// <summary>
@@ -55,7 +53,8 @@ public sealed class SseBridgeTransport : IBridgeTransport {
 
         if (_receiveTask is not null) {
             try {
-                await _receiveTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+                // 释放语义: 不设超时, _cts 已取消, 接收循环会自然退出
+                await _receiveTask.ConfigureAwait(false);
             } catch (OperationCanceledException) {
             }
         }

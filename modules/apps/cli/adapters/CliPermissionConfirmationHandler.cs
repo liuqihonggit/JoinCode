@@ -51,7 +51,7 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
             var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             _confirmationGate?.SetPending(tcs);
 
-            var input = tcs.Task.GetAwaiter().GetResult();
+            var input = tcs.Task.GetAwaiter().GetResult();  // style-allow: sync-block — 同步确认契约: 权限确认接口同步返回用户选择
 
             _confirmationGate?.Clear();
 

@@ -2,7 +2,6 @@ namespace Infrastructure.Windows.JobObject;
 
 // cgroup 是 Linux 内核虚拟文件系统，用 SafeFileIO 统一 FileShare.ReadWrite 避免并发冲突
 // Directory.*/File.Exists 保留直接调用（cgroup 是内核接口，不适合 IFileSystem 抽象）
-#pragma warning disable JCC9002
 
 
 /// <summary>

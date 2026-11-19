@@ -44,11 +44,11 @@ internal sealed class DshSerialMailbox : IAsyncDisposable {
 
     /// <summary>同步执行一个独占操作并取回结果（调用方为非消费者线程）</summary>
     /// <param name="operation">在消费者线程执行的操作</param>
-    internal T Run<T>(Func<T> operation) => RunAsync(() => Task.FromResult(operation())).GetAwaiter().GetResult();
+    internal T Run<T>(Func<T> operation) => RunAsync(() => Task.FromResult(operation())).GetAwaiter().GetResult();  // style-allow: sync-block — 串行邮箱同步门面: UI 线程按序执行不可 await
 
     /// <summary>同步执行一个独占操作（调用方为非消费者线程）</summary>
     /// <param name="operation">在消费者线程执行的操作</param>
-    internal void Run(Action operation) => RunAsync(() => { operation(); return Task.FromResult(true); }).GetAwaiter().GetResult();
+    internal void Run(Action operation) => RunAsync(() => { operation(); return Task.FromResult(true); }).GetAwaiter().GetResult();  // style-allow: sync-block — 串行邮箱同步门面: UI 线程按序执行不可 await
 
     private async Task EnqueueAsync(Func<Task> command) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);

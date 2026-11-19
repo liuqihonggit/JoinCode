@@ -84,38 +84,38 @@ public sealed class QuadtreeEncoderTests {
 
     [Fact]
     public void GetNeighbor_East_ReturnsEastNeighbor() {
-        var neighbor = _encoder.GetNeighbor("L0.2", CardinalDirection.E, 100, 100, 1);
+        _encoder.TryGetNeighbor("L0.2", CardinalDirection.E, 100, 100, 1, out var neighbor).Should().BeTrue();
         neighbor.Should().Be("L0.3");
     }
 
     [Fact]
     public void GetNeighbor_South_ReturnsSouthNeighbor() {
-        var neighbor = _encoder.GetNeighbor("L0.2", CardinalDirection.S, 100, 100, 1);
+        _encoder.TryGetNeighbor("L0.2", CardinalDirection.S, 100, 100, 1, out var neighbor).Should().BeTrue();
         neighbor.Should().Be("L0.0");
     }
 
     [Fact]
     public void GetNeighbor_NorthAtBoundary_ReturnsNull() {
-        var neighbor = _encoder.GetNeighbor("L0.2", CardinalDirection.N, 100, 100, 1);
+        _encoder.TryGetNeighbor("L0.2", CardinalDirection.N, 100, 100, 1, out var neighbor).Should().BeFalse();
         neighbor.Should().BeNull();
     }
 
     [Fact]
     public void GetNeighbor_WestAtBoundary_ReturnsNull() {
-        var neighbor = _encoder.GetNeighbor("L0.2", CardinalDirection.W, 100, 100, 1);
+        _encoder.TryGetNeighbor("L0.2", CardinalDirection.W, 100, 100, 1, out var neighbor).Should().BeFalse();
         neighbor.Should().BeNull();
     }
 
     [Fact]
     public void GetNeighbor_DiagonalSE_ReturnsDiagonalNeighbor() {
-        var neighbor = _encoder.GetNeighbor("L0.2", CardinalDirection.SE, 100, 100, 1);
+        _encoder.TryGetNeighbor("L0.2", CardinalDirection.SE, 100, 100, 1, out var neighbor).Should().BeTrue();
         neighbor.Should().Be("L0.1");
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetNeighbor_Depth2_TraversesCorrectly() {
-        var neighbor = _encoder.GetNeighbor("L0.2.1", CardinalDirection.E, 100, 100, 2);
+        _encoder.TryGetNeighbor("L0.2.1", CardinalDirection.E, 100, 100, 2, out var neighbor).Should().BeTrue();
         neighbor.Should().NotBeNull();
         var (col, row) = QuadtreeEncoder.DecodeToGrid(neighbor!);
         var (origCol, origRow) = QuadtreeEncoder.DecodeToGrid("L0.2.1");

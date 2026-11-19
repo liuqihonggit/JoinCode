@@ -183,10 +183,10 @@ public partial class GitHubToolHandlers {
         var lines = new List<string>();
         var iter = pipeline.RunAsync(ctx, SplitLinesAsync(output), default).GetAsyncEnumerator();
         try {
-            while (iter.MoveNextAsync().GetAwaiter().GetResult())
+            while (iter.MoveNextAsync().GetAwaiter().GetResult())  // style-allow: sync-block — 同步迭代器契约: API 分页迭代在同步循环内推进
                 lines.Add(iter.Current);
         } finally {
-            iter.DisposeAsync().GetAwaiter().GetResult();
+            iter.DisposeAsync().GetAwaiter().GetResult();  // style-allow: sync-block — 同步迭代器契约: API 分页迭代在同步循环内推进
         }
         return string.Join('\n', lines);
     }

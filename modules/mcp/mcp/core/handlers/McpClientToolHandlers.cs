@@ -72,8 +72,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
 
             // 优先使用 auth_name 查询已配置的认证
             if (!string.IsNullOrWhiteSpace(auth_name) && _deps.AuthToolHandlers != null) {
-                var authConfig = _deps.AuthToolHandlers.GetAuthConfig(auth_name);
-                if (authConfig == null) {
+                if (!_deps.AuthToolHandlers.TryGetAuthConfig(auth_name, out var authConfig)) {
                     return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
                 }
                 config = new McpServerConnectionConfig {

@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Tools.Handlers;
 
 /// <summary>
@@ -25,20 +23,23 @@ public sealed class SecretGuardNode {
     }
 
     /// <summary>
-    /// 检查内容是否包含团队密钥。
+    /// 尝试检测内容是否包含团队密钥。
     /// 对齐 TS: FileWriteTool.ts L157 / FileEditTool.ts L144 — checkTeamMemSecrets。
     /// </summary>
     /// <param name="filePath">文件路径（沙箱解析后）</param>
     /// <param name="content">待检测内容；null 表示跳过（如纯删除行不引入新内容）</param>
-    /// <returns>null 表示安全，错误消息表示检测到密钥</returns>
-    public string? CheckSecrets(string filePath, string? content) {
+    /// <param name="violation">检测到密钥时的错误消息</param>
+    /// <returns>检测到密钥返回 true；安全或跳过返回 false</returns>
+    public bool TryGetSecretViolation(string filePath, string? content, [NotNullWhen(true)] out string? violation) {
+        violation = null;
         if (content is null || _guard is null)
-            return null;
+            return false;
 
-        var error = _guard.CheckTeamMemSecrets(filePath, content);
-        if (error is not null)
-            _logger?.LogWarning("团队密钥检测命中: {FilePath}", filePath);
+        if (!_guard.TryGetTeamMemSecretViolation(filePath, content, out var error))
+            return false;
 
-        return error;
+        _logger?.LogWarning("团队密钥检测命中: {FilePath}", filePath);
+        violation = error;
+        return true;
     }
 }

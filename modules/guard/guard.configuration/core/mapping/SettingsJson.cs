@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Configuration;
 
 /// <summary>
@@ -64,12 +62,16 @@ public sealed class SettingsJson {
     }
 
     /// <summary>
-    /// 获取当前激活的供应商预设 — 从 current.profile 指向 vendor 字典的键
+    /// 尝试获取当前激活的供应商预设 — 从 current.profile 指向 vendor 字典的键
     /// </summary>
-    public ProfileSettings? GetActiveProfile() {
-        if (Current is null || string.IsNullOrEmpty(Current.Profile)) return null;
-        if (Vendor is null || !Vendor.TryGetValue(Current.Profile, out var profile)) return null;
-        return profile;
+    /// <param name="profile">命中的供应商预设</param>
+    /// <returns>找到返回 true</returns>
+    public bool TryGetActiveProfile([NotNullWhen(true)] out ProfileSettings? profile) {
+        profile = null;
+        if (Current is null || string.IsNullOrEmpty(Current.Profile)) return false;
+        if (Vendor is null || !Vendor.TryGetValue(Current.Profile, out var found)) return false;
+        profile = found;
+        return true;
     }
 
     private static Dictionary<string, ProfileSettings>? MergeVendorDictionaries(

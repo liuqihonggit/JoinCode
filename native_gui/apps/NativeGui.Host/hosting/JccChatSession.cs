@@ -704,10 +704,10 @@ internal sealed class JccChatSession : IJccChatSession {
         return count;
     }
 
-    /// <summary>获取 Goal 进度快照 — 委托 GoalEngine.GetGoalProgress</summary>
+    /// <summary>获取 Goal 进度快照 — 委托 GoalEngine.TryGetGoalProgress</summary>
     public Task<GoalProgress?> GetGoalProgressAsync(CancellationToken cancellationToken = default) {
         var goalEngine = _services.GetService<Core.Goal.GoalEngine>();
-        return Task.FromResult(goalEngine?.GetGoalProgress());
+        return Task.FromResult(goalEngine is not null && goalEngine.TryGetGoalProgress(out var progress) ? progress : null);
     }
 
     /// <summary>

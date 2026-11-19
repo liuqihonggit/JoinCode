@@ -1,7 +1,5 @@
 
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace McpToolDispatch;
 
 /// <summary>
@@ -300,13 +298,17 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     }
 
     /// <summary>
-    /// 根据认证名称获取 McpAuthConfig — 用于 Agent 内联 MCP 服务器认证
+    /// 根据认证名称尝试获取 McpAuthConfig — 用于 Agent 内联 MCP 服务器认证
     /// </summary>
-    public McpAuthConfig? GetAuthConfig(string authName) {
+    /// <param name="authName">认证名称</param>
+    /// <param name="config">认证配置</param>
+    /// <returns>认证配置存在且类型受支持返回 true</returns>
+    public bool TryGetAuthConfig(string authName, [NotNullWhen(true)] out McpAuthConfig? config) {
+        config = null;
         if (!_authProviders.TryGetValue(authName, out var provider))
-            return null;
+            return false;
 
-        return provider.AuthType switch {
+        config = provider.AuthType switch {
             McpAuthType.ApiKey => new McpAuthConfig {
                 Type = McpAuthType.ApiKey,
                 ApiKey = provider is ApiKeyAuthProvider keyProvider ? keyProvider.ApiKey : null
@@ -322,6 +324,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
             },
             _ => null
         };
+        return config is not null;
     }
 
     private async Task PersistAuthConfigAsync(string authName, McpAuthConfigType authType, CancellationToken ct) {

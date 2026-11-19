@@ -193,7 +193,9 @@ internal sealed class DshWorkspaceFilesService(DshSessionStore sessions, IFileSy
         var watcher = fs.Watch(absolutePath);
         watcher.IncludeSubdirectories = false;
         watcher.EnableRaisingEvents = true;
-        var frames = Channel.CreateUnbounded<JsonElement>(new UnboundedChannelOptions {
+        // 帧携带文件最新版本,容量有界 + 丢最旧:编辑器重连拿到最新版本即可收敛
+        var frames = Channel.CreateBounded<JsonElement>(new BoundedChannelOptions(512) {
+            FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
             SingleWriter = false,
         });

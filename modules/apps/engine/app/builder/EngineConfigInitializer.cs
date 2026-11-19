@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON 模板, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace JoinCode.App.Builder;
 
 /// <summary>
@@ -32,41 +30,41 @@ public static class EngineConfigInitializer {
     }
 
     private static string BuildDefaultSettingsTemplate(IModelConfigLoader? modelConfigLoader) {
-        var sb = new StringBuilder();
-        sb.AppendLine("{");
-        sb.AppendLine("  // 当前供应商 — 由 Hub 服务端管理，客户端不需手动配置");
-        sb.AppendLine("  // \"provider\": \"test-provider\",");
-        sb.AppendLine();
-        sb.AppendLine("  // 模型 ID，可用 /model 命令切换");
-        sb.AppendLine("  // \"model\": \"test-model\",");
-        sb.AppendLine();
-        sb.AppendLine("  // 推理努力级别: low | medium | high");
-        sb.AppendLine("  //%20\"effortLevel\": \"high\",");
-        sb.AppendLine();
-        sb.AppendLine("  // 快速模式：使用轻量模型处理简单任务");
-        sb.AppendLine("  // \"fastMode\": false,");
-        sb.AppendLine();
-        sb.AppendLine("  // 默认 Shell: powershell | bash | cmd");
-        sb.AppendLine("  // \"defaultShell\": \"powershell\",");
-        sb.AppendLine();
-        sb.AppendLine("  // 语言: zh-CN | en-US");
-        sb.AppendLine("  // \"language\": \"zh-CN\",");
-        sb.AppendLine();
-        sb.AppendLine("  // 自动记忆：自动将重要信息保存到记忆文件");
-        sb.AppendLine("  // \"autoMemoryEnabled\": true");
-        sb.Append('}');
-        return sb.ToString();
+        return """
+            {
+              // 当前供应商 — 由 Hub 服务端管理，客户端不需手动配置
+              // "provider": "test-provider",
+
+              // 模型 ID，可用 /model 命令切换
+              // "model": "test-model",
+
+              // 推理努力级别: low | medium | high
+              //%20"effortLevel": "high",
+
+              // 快速模式：使用轻量模型处理简单任务
+              // "fastMode": false,
+
+              // 默认 Shell: powershell | bash | cmd
+              // "defaultShell": "powershell",
+
+              // 语言: zh-CN | en-US
+              // "language": "zh-CN",
+
+              // 自动记忆：自动将重要信息保存到记忆文件
+              // "autoMemoryEnabled": true
+            }
+            """;
     }
 
     private static string BuildDefaultAuthTemplate() {
-        var sb = new StringBuilder();
-        sb.AppendLine("{");
-        sb.AppendLine("  // API Key 存储 — 由 Hub 服务端管理，客户端不需手动配置");
-        sb.AppendLine("  // 键名为 Provider 名称，值为对应的 API Key");
-        sb.AppendLine("  //");
-        sb.AppendLine("  // 示例:");
-        sb.AppendLine("  // \"test-provider\": \"your-api-key\"");
-        sb.Append('}');
-        return sb.ToString();
+        return """
+            {
+              // API Key 存储 — 由 Hub 服务端管理，客户端不需手动配置
+              // 键名为 Provider 名称，值为对应的 API Key
+              //
+              // 示例:
+              // "test-provider": "your-api-key"
+            }
+            """;
     }
 }

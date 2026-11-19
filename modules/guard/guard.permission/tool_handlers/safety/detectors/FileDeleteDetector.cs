@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Permission;
 
 /// <summary>
@@ -9,15 +7,18 @@ namespace Core.Permission;
 [Register(typeof(IDeleteOperationDetector), ServiceLifetime.Singleton)]
 public sealed partial class FileDeleteDetector : ServiceEntity, IDeleteOperationDetector {
     /// <inheritdoc />
-    public DeleteOperationInfo? Detect(string toolName, Dictionary<string, JsonElement>? arguments) {
-        if (!string.Equals(toolName, FileToolNameEnumConstants.FileDelete, StringComparison.OrdinalIgnoreCase))
-            return null;
+    public bool TryDetect(string toolName, Dictionary<string, JsonElement>? arguments, [NotNullWhen(true)] out DeleteOperationInfo? info) {
+        if (!string.Equals(toolName, FileToolNameEnumConstants.FileDelete, StringComparison.OrdinalIgnoreCase)) {
+            info = null;
+            return false;
+        }
 
         var filePath = PermissionCheckContext.ExtractPathFromArguments(arguments ?? new());
 
-        return new DeleteOperationInfo {
+        info = new DeleteOperationInfo {
             TargetPath = filePath,
             SourceDescription = "file_delete 工具"
         };
+        return true;
     }
 }

@@ -145,7 +145,7 @@ public sealed partial class ReplService : ServiceEntity, IReplService {
         var candidates = GetCandidateExecutables(primaryName, language);
 
         foreach (var candidate in candidates) {
-            var fullPath = _processService.FindExecutableAsync(candidate).GetAwaiter().GetResult();
+            var fullPath = _processService.FindExecutableAsync(candidate).GetAwaiter().GetResult();  // style-allow: sync-block — 同步探测契约: 终端可执行文件探测处于同步初始化路径
             if (fullPath != null) {
                 return fullPath;
             }

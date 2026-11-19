@@ -8,7 +8,7 @@ internal static class Program {
     [STAThread]
     public static int Main(string[] args) {
         if (args.Contains("--dsh-smoke"))
-            return WebHost.DshSmokeRunner.RunAsync().GetAwaiter().GetResult();
+            return WebHost.DshSmokeRunner.RunAsync().GetAwaiter().GetResult();  // style-allow: sync-block — GUI 宿主进程入口: Main 同步等待 WebHost 生命周期
 
         App.LogDiag($"[Main] entry");
         var exitCode = BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

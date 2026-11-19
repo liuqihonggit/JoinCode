@@ -1,12 +1,12 @@
-// JCC10009 抑制: 存量元组 key, 后续改为字符串 key
-#pragma warning disable JCC10009
 namespace Core.Memdir;
 
 /// <summary>
 /// 团队内存路径存储 — 管理 TeamMemoryPath 的 CRUD 与持久化（.jcc/memory/team-paths.json）
 /// </summary>
 internal sealed class TeamMemoryPathStore {
-    private readonly Dictionary<(string TeamId, string Path), TeamMemoryPath> _teamMemoryPaths = new();
+    private readonly Dictionary<TeamMemoryPathKey, TeamMemoryPath> _teamMemoryPaths = new();
+
+    private readonly record struct TeamMemoryPathKey(string TeamId, string Path);
     private readonly IPersistencePipeline? _persistencePipeline;
     private readonly IFileSystem? _fs;
     private readonly ILogger? _logger;
@@ -32,9 +32,9 @@ internal sealed class TeamMemoryPathStore {
     public async Task AddTeamMemoryPathCoreAsync(string teamId, string path, bool isShared, List<string>? allowedAgents, CancellationToken ct) {
         await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
         // 移除已存在的相同路径
-        _teamMemoryPaths.Remove((teamId, path));
+        _teamMemoryPaths.Remove(new TeamMemoryPathKey(teamId, path));
 
-        _teamMemoryPaths[(teamId, path)] = new TeamMemoryPath {
+        _teamMemoryPaths[new TeamMemoryPathKey(teamId, path)] = new TeamMemoryPath {
             TeamId = teamId,
             Path = path,
             IsShared = isShared,
@@ -71,7 +71,7 @@ internal sealed class TeamMemoryPathStore {
     /// </summary>
     public async Task<bool> RemoveTeamMemoryPathCoreAsync(string teamId, string path, CancellationToken ct) {
         await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
-        var removed = _teamMemoryPaths.Remove((teamId, path));
+        var removed = _teamMemoryPaths.Remove(new TeamMemoryPathKey(teamId, path));
         if (removed) {
             _logger?.LogInformation(L.T(StringKey.VaultLogRemoveTeamPath), teamId, path);
             await SaveTeamPathsAsync(ct).ConfigureAwait(false);
@@ -113,7 +113,7 @@ internal sealed class TeamMemoryPathStore {
             var list = RelaxedJsonSerializer.Deserialize<List<TeamMemoryPath>>(json, MemdirJsonContext.Default);
             if (list is null) return;
             foreach (var tp in list) {
-                _teamMemoryPaths[(tp.TeamId, tp.Path)] = tp;
+                _teamMemoryPaths[new TeamMemoryPathKey(tp.TeamId, tp.Path)] = tp;
             }
             _logger?.LogDebug("已加载 {Count} 条团队内存路径 from {Path}", list.Count, path);
         } catch (Exception ex) {

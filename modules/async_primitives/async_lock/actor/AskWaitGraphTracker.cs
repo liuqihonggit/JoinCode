@@ -1,5 +1,3 @@
-// JCC11005 抑制: EnterScope 返回 null 表示不在等待图作用域内, 是 Actor Ask 模式的合理语义
-#pragma warning disable JCC11005
 namespace Core.Utils;
 
 /// <summary>
@@ -28,7 +26,7 @@ internal sealed class AskWaitGraphTracker {
     /// <param name="selfId">当前 Actor ID</param>
     /// <returns>等待图作用域(Dispose 恢复父图);null=无需加边</returns>
     /// <exception cref="ActorCyclicAskException">等待图检测到环 — 循环 Ask 死锁</exception>
-    public WaitGraphScope? EnterScope(string? callerId, string selfId) {
+    internal WaitGraphScope? EnterScope(string? callerId, string selfId) {
         if (callerId is null || callerId == selfId) return null;
         var previousGraph = _waitGraph.Value;
         var graph = Clone(previousGraph);

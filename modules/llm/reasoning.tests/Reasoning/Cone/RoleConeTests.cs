@@ -33,10 +33,11 @@ public sealed class RoleConeTests {
         cone.AddFragment(CreateFragment("f2", AgentRole.Prosecutor));
         cone.AddFragment(CreateFragment("f3", AgentRole.Prosecutor));
 
-        var expanded = cone.ExpandFragment("f1", "cross_role_review");
+        var ok = cone.TryExpandFragment("f1", "cross_role_review", out var expanded);
 
-        Assert.NotNull(expanded);
-        Assert.True(expanded.IsExpanded);
+        Assert.True(ok);
+        var actual = expanded ?? throw new InvalidOperationException("片段应展开成功");
+        Assert.True(actual.IsExpanded);
         Assert.Contains("f1", cone.ActiveFragmentIds);
     }
 
@@ -46,8 +47,9 @@ public sealed class RoleConeTests {
         var f1 = CreateFragment("f1", AgentRole.Prosecutor, expandCondition: "specific_trigger");
         cone.AddFragment(f1);
 
-        var result = cone.ExpandFragment("f1", "wrong_trigger");
+        var ok = cone.TryExpandFragment("f1", "wrong_trigger", out var result);
 
+        Assert.False(ok);
         Assert.Null(result);
     }
 
@@ -58,10 +60,11 @@ public sealed class RoleConeTests {
         cone.AddFragment(f1);
         f1.IsExpanded = false;
 
-        var result = cone.ExpandFragment("f1", "*");
+        var ok = cone.TryExpandFragment("f1", "*", out var result);
 
-        Assert.NotNull(result);
-        Assert.True(result.IsExpanded);
+        Assert.True(ok);
+        var actual = result ?? throw new InvalidOperationException("通配条件应展开片段");
+        Assert.True(actual.IsExpanded);
     }
 
     [Fact]

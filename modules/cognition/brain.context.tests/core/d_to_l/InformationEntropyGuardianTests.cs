@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 public sealed class InformationEntropyGuardianTests {
     private readonly InformationEntropyGuardian _sut = new(
@@ -46,11 +46,12 @@ public sealed class InformationEntropyGuardianTests {
 
         var longText = new string('A', 50) + "中间不同内容" + new string('B', 50);
 
-        guardian.CheckTextLoop(longText);
-        guardian.CheckTextLoop(longText);
+        guardian.TryGetTextLoop(longText, out _);
+        guardian.TryGetTextLoop(longText, out _);
 
-        var result = guardian.CheckTextLoop(longText);
+        var detected = guardian.TryGetTextLoop(longText, out var result);
 
+        Assert.True(detected);
         Assert.NotNull(result);
     }
 
@@ -58,8 +59,9 @@ public sealed class InformationEntropyGuardianTests {
     public void CheckTextLoop_NoLoop_ReturnsNull() {
         var text = "这是一段正常的文本。";
 
-        var result = _sut.CheckTextLoop(text);
+        var detected = _sut.TryGetTextLoop(text, out var result);
 
+        Assert.False(detected);
         Assert.Null(result);
     }
 
@@ -73,25 +75,27 @@ public sealed class InformationEntropyGuardianTests {
         using var doc2 = JsonDocument.Parse("\"TODO\"");
 
         for (var i = 0; i < 6; i++) {
-            guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement> {
+            guardian.TryGetToolCallLoop("Read", new Dictionary<string, JsonElement> {
                 ["file_path"] = doc1.RootElement.Clone()
-            });
-            guardian.CheckToolCallLoop("Grep", new Dictionary<string, JsonElement> {
+            }, out _);
+            guardian.TryGetToolCallLoop("Grep", new Dictionary<string, JsonElement> {
                 ["pattern"] = doc2.RootElement.Clone()
-            });
+            }, out _);
         }
 
-        var result = guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement> {
+        var detected = guardian.TryGetToolCallLoop("Read", new Dictionary<string, JsonElement> {
             ["file_path"] = doc1.RootElement.Clone()
-        });
+        }, out var result);
 
+        Assert.True(detected);
         Assert.NotNull(result);
     }
 
     [Fact]
     public void CheckToolCallLoop_NoLoop_ReturnsNull() {
-        var result = _sut.CheckToolCallLoop("Read", null);
+        var detected = _sut.TryGetToolCallLoop("Read", null, out var result);
 
+        Assert.False(detected);
         Assert.Null(result);
     }
 
@@ -140,10 +144,11 @@ public sealed class InformationEntropyGuardianTests {
         var pattern = "重复的输出内容段落。";
         var text = "前置" + string.Concat(Enumerable.Repeat(pattern, 3));
 
-        var result = guardian.CheckTextLoop(text);
+        var detected = guardian.TryGetTextLoop(text, out var result);
 
-        Assert.NotNull(result);
-        Assert.Contains("输出文本循环", result.Reason);
+        Assert.True(detected);
+        var actual = result ?? throw new InvalidOperationException("应检测到输出文本循环");
+        Assert.Contains("输出文本循环", actual.Reason);
     }
 
     [Fact]
@@ -167,15 +172,17 @@ public sealed class InformationEntropyGuardianTests {
             ["file_path"] = doc.RootElement.Clone()
         };
 
-        var result = guardian.CheckToolCallLoop("Read", args);
+        var detected = guardian.TryGetToolCallLoop("Read", args, out var result);
 
+        Assert.False(detected);
         Assert.Null(result);
     }
 
     [Fact]
     public void CheckToolCallLoop_NullArguments_DoesNotThrow() {
-        var result = _sut.CheckToolCallLoop("Read", null);
+        var detected = _sut.TryGetToolCallLoop("Read", null, out var result);
 
+        Assert.False(detected);
         Assert.Null(result);
     }
 
@@ -194,15 +201,16 @@ public sealed class InformationEntropyGuardianTests {
         var veryLow = new string('a', 90) + new string('b', 10);
         var evenLower = new string('a', 500) + new string('b', 10);
 
-        guardian.CheckTextLoop(high);
-        guardian.CheckTextLoop(medium);
-        guardian.CheckTextLoop(low);
-        guardian.CheckTextLoop(veryLow);
+        guardian.TryGetTextLoop(high, out _);
+        guardian.TryGetTextLoop(medium, out _);
+        guardian.TryGetTextLoop(low, out _);
+        guardian.TryGetTextLoop(veryLow, out _);
 
-        var result = guardian.CheckTextLoop(evenLower);
+        var detected = guardian.TryGetTextLoop(evenLower, out var result);
 
-        Assert.NotNull(result);
-        Assert.Contains("信息熵减", result.Reason);
+        Assert.True(detected);
+        var actual = result ?? throw new InvalidOperationException("应检测到信息熵减循环");
+        Assert.Contains("信息熵减", actual.Reason);
     }
 
     [Fact]
@@ -216,13 +224,14 @@ public sealed class InformationEntropyGuardianTests {
         var medium = string.Concat(Enumerable.Range(0, 5).SelectMany(i => new string((char)('a' + i), 8)));
         var low = new string('a', 30) + new string('b', 10);
 
-        guardian.CheckTextLoop(high);
-        guardian.CheckTextLoop(medium);
-        guardian.CheckTextLoop(low);
+        guardian.TryGetTextLoop(high, out _);
+        guardian.TryGetTextLoop(medium, out _);
+        guardian.TryGetTextLoop(low, out _);
 
         guardian.Reset();
 
-        var result = guardian.CheckTextLoop(low);
+        var detected = guardian.TryGetTextLoop(low, out var result);
+        Assert.False(detected);
         Assert.Null(result);
     }
 }

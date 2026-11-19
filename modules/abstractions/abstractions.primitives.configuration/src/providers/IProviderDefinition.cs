@@ -142,9 +142,15 @@ public interface IProviderDefinition {
     bool IsCompoundAuthFormat(string apiKey) => false;
 
     /// <summary>
-    /// 从复合格式凭证中提取 API Key（如 Azure 的 JSON 对象中的 apiKey 字段）
+    /// 尝试从复合格式凭证中提取 API Key（如 Azure 的 JSON 对象中的 apiKey 字段）
     /// </summary>
-    string? ExtractApiKeyFromCompound(string apiKey) => null;
+    /// <param name="apiKey">复合格式凭证</param>
+    /// <param name="extractedApiKey">提取出的 API Key</param>
+    /// <returns>提取成功返回 true</returns>
+    bool TryExtractApiKeyFromCompound(string apiKey, [NotNullWhen(true)] out string? extractedApiKey) {
+        extractedApiKey = null;
+        return false;
+    }
 
     /// <summary>
     /// 登录/初始配置时是否需要交互式收集 Endpoint — 替代 `if (provider == "azure")` 硬编码

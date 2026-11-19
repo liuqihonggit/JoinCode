@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 
 [ToolPrompt(ToolName = TeamToolName.TeamCreate, Category = ToolPromptCategory.Agent)]
@@ -7,7 +5,7 @@ public static class TeamCreateToolPrompt {
     public const string ToolName = TeamToolNameEnumConstants.TeamCreate;
 
     /// <summary>获取 TeamCreate 工具提示词。</summary>
-    public static string Prompt { get; } = $$"""
+    public static string Prompt { get; } = TeamPromptTemplate.Render("""
         # TeamCreate
 
         ## 何时使用
@@ -21,13 +19,13 @@ public static class TeamCreateToolPrompt {
 
         ## 为队友选择代理类型
 
-        当通过 {{AgentToolNameEnumConstants.Agent}} 工具生成队友时，根据代理完成任务所需的工具选择 `subagent_type`。每种代理类型都有不同的可用工具集 —— 将代理与工作匹配：
+        当通过 @@AGENT@@ 工具生成队友时，根据代理完成任务所需的工具选择 `subagent_type`。每种代理类型都有不同的可用工具集 —— 将代理与工作匹配：
 
         - **只读代理**（例如，Explore、Plan）不能编辑或写入文件。只分配给他们研究、搜索或规划任务。永远不要分配给他们实施工作。
         - **全功能代理**（例如，通用）可以访问所有工具，包括文件编辑、写入和 bash。将这些用于需要进行更改的任务。
-        - **自定义代理** 在 `~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.AgentsFolderName}}/` 中定义可能有自己的工具限制。检查他们的描述以了解他们能做什么和不能做什么。
+        - **自定义代理** 在 `~/@@APPDATA@@/@@AGENTS_FOLDER@@/` 中定义可能有自己的工具限制。检查他们的描述以了解他们能做什么和不能做什么。
 
-        在为队友选择 `subagent_type` 之前，始终查看 {{AgentToolNameEnumConstants.Agent}} 工具提示中列出的代理类型描述及其可用工具。
+        在为队友选择 `subagent_type` 之前，始终查看 @@AGENT@@ 工具提示中列出的代理类型描述及其可用工具。
 
         创建一个新团队来协调多个代理在一个项目上的工作。团队与任务列表有 1:1 的对应关系（Team = TaskList）。
 
@@ -39,18 +37,18 @@ public static class TeamCreateToolPrompt {
         ```
 
         这会创建：
-        - 团队文件位于 `~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.TeamsFolderName}}/{team-name}/config.json`
-        - 相应的任务列表目录位于 `~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.TasksFolderName}}/{team-name}/`
+        - 团队文件位于 `~/@@APPDATA@@/@@TEAMS_FOLDER@@/{team-name}/config.json`
+        - 相应的任务列表目录位于 `~/@@APPDATA@@/@@TASKS_FOLDER@@/{team-name}/`
 
         ## 团队工作流
 
         1. **使用 TeamCreate 创建团队** - 这会同时创建团队及其任务列表
         2. **使用 Task 工具创建任务**（TaskCreate、TaskList 等）- 它们自动使用团队的任务列表
-        3. **使用 {{AgentToolNameEnumConstants.Agent}} 工具生成队友**，带上 `team_name` 和 `name` 参数来创建加入团队的队友
+        3. **使用 @@AGENT@@ 工具生成队友**，带上 `team_name` 和 `name` 参数来创建加入团队的队友
         4. **使用 TaskUpdate 并设置 `owner` 分配任务** 给空闲的队友
         5. **队友处理分配的任务** 并通过 TaskUpdate 标记完成
         6. **队友在回合之间进入空闲状态** - 每次回合后，队友自动进入空闲状态并发送通知。重要：对空闲队友要有耐心！不要评论他们的空闲状态，直到它实际影响你的工作。
-        7. **关闭你的团队** - 当任务完成时，通过 {{AgentToolNameEnumConstants.AgentSendMessage}} 并设置 `message: {type: "shutdown_request"}` 优雅地关闭你的队友。
+        7. **关闭你的团队** - 当任务完成时，通过 @@SEND_MESSAGE@@ 并设置 `message: {type: "shutdown_request"}` 优雅地关闭你的队友。
 
         ## 任务所有权
 
@@ -82,7 +80,7 @@ public static class TeamCreateToolPrompt {
         ## 发现团队成员
 
         队友可以读取团队配置文件以发现其他团队成员：
-        - **团队配置位置**：`~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.TeamsFolderName}}/{team-name}/config.json`
+        - **团队配置位置**：`~/@@APPDATA@@/@@TEAMS_FOLDER@@/{team-name}/config.json`
 
         配置文件包含每个队友的 `members` 数组：
         - `name`：人类可读的名称（**始终使用这个** 进行消息传递和任务分配）
@@ -95,12 +93,12 @@ public static class TeamCreateToolPrompt {
 
         读取团队配置的示例：
         ```
-        使用 {{FileToolNameEnumConstants.FileRead}} 工具读取 ~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.TeamsFolderName}}/{team-name}/config.json
+        使用 @@FILE_READ@@ 工具读取 ~/@@APPDATA@@/@@TEAMS_FOLDER@@/{team-name}/config.json
         ```
 
         ## 任务列表协调
 
-        团队在 `~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.TasksFolderName}}/{team-name}/` 共享一个所有队友都可以访问的任务列表。
+        团队在 `~/@@APPDATA@@/@@TASKS_FOLDER@@/{team-name}/` 共享一个所有队友都可以访问的任务列表。
 
         队友应该：
         1. 定期检查 TaskList，**特别是在完成每个任务后**，以查找可用工作或查看新解除阻塞的任务
@@ -112,11 +110,11 @@ public static class TeamCreateToolPrompt {
 
         **与团队通信的重要说明**：
         - 不要使用终端工具查看团队的活动；始终向队友发送消息（记住，通过名称引用他们）。
-        - 如果你不使用 {{AgentToolNameEnumConstants.AgentSendMessage}} 工具，你的团队听不到你的声音。如果你正在响应他们，始终向队友发送消息。
+        - 如果你不使用 @@SEND_MESSAGE@@ 工具，你的团队听不到你的声音。如果你正在响应他们，始终向队友发送消息。
         - 不要发送结构化 JSON 状态消息，如 `{"type":"idle",...}` 或 `{"type":"task_completed",...}`。当你需要向队友发送消息时，只需用纯文本通信。
         - 使用 TaskUpdate 标记任务完成。
         - 如果你是团队中的代理，当你停止时，系统会自动向团队负责人发送空闲通知。
-        """;
+        """);
 }
 
 [ToolPrompt(ToolName = TeamToolName.TeamDelete, Category = ToolPromptCategory.Agent)]
@@ -124,20 +122,35 @@ public static class TeamDeleteToolPrompt {
     public const string ToolName = TeamToolNameEnumConstants.TeamDelete;
 
     /// <summary>获取 TeamDelete 工具提示词。</summary>
-    public static string Prompt { get; } = $$"""
+    public static string Prompt { get; } = TeamPromptTemplate.Render("""
         # TeamDelete
 
         当群体工作完成时移除团队和任务目录。
 
         此操作：
-        - 移除团队目录（`~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.TeamsFolderName}}/{team-name}/`）
-        - 移除任务目录（`~/{{AppDataConstants.AppDataFolder}}/{{AppDataConstants.TasksFolderName}}/{team-name}/`）
+        - 移除团队目录（`~/@@APPDATA@@/@@TEAMS_FOLDER@@/{team-name}/`）
+        - 移除任务目录（`~/@@APPDATA@@/@@TASKS_FOLDER@@/{team-name}/`）
         - 从当前会话中清除团队上下文
 
         **重要**：如果团队仍有活动成员，TeamDelete 将失败。首先优雅地终止队友，然后在所有队友关闭后调用 TeamDelete。
 
         当所有队友完成他们的工作并且你想清理团队资源时使用此工具。团队名称自动从当前会话的团队上下文中确定。
-        """;
+        """);
+}
+
+/// <summary>团队提示词模板渲染 — 占位符替换工具名/目录常量，避免提示词正文内的 JSON 示例触发内插字符串。</summary>
+internal static class TeamPromptTemplate {
+    /// <summary>替换模板中的 @@ 占位符为实际常量值。</summary>
+    /// <param name="template">提示词模板。</param>
+    /// <returns>渲染后的提示词。</returns>
+    public static string Render(string template) => template
+        .Replace("@@AGENT@@", AgentToolNameEnumConstants.Agent, StringComparison.Ordinal)
+        .Replace("@@SEND_MESSAGE@@", AgentToolNameEnumConstants.AgentSendMessage, StringComparison.Ordinal)
+        .Replace("@@FILE_READ@@", FileToolNameEnumConstants.FileRead, StringComparison.Ordinal)
+        .Replace("@@APPDATA@@", AppDataConstants.AppDataFolder, StringComparison.Ordinal)
+        .Replace("@@AGENTS_FOLDER@@", AppDataConstants.AgentsFolderName, StringComparison.Ordinal)
+        .Replace("@@TEAMS_FOLDER@@", AppDataConstants.TeamsFolderName, StringComparison.Ordinal)
+        .Replace("@@TASKS_FOLDER@@", AppDataConstants.TasksFolderName, StringComparison.Ordinal);
 }
 
 [ToolPrompt(ToolName = SystemToolName.ToolSearch, Category = ToolPromptCategory.Agent)]

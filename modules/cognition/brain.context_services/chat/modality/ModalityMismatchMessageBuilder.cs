@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Context.Modality;
 
 /// <summary>
@@ -62,7 +60,12 @@ public static class ModalityMismatchMessageBuilder {
         sb.AppendLine("步骤2 — 创建子代理执行任务：");
         sb.AppendLine("  从 ModelSearch 结果中选择合适的模型，记录其 modelId。");
         sb.AppendLine("  调用 Agent 工具创建子代理：");
-        sb.AppendLine($"    {{\"description\": \"处理{missingDesc}\", \"prompt\": \"<用户原始请求>\", \"model\": \"<查到的modelId>\"}}");
+        sb.Append("    ");
+        sb.AppendLine(JsonSerializer.Serialize(new AgentToolCallExampleDto {
+            Description = $"处理{missingDesc}",
+            Prompt = "<用户原始请求>",
+            Model = "<查到的modelId>"
+        }, ChatServiceJsonContext.Default.AgentToolCallExampleDto));
         sb.AppendLine("  子代理会在目标模型上执行任务，结果返回当前对话，当前上下文完整保留。");
         sb.AppendLine();
         sb.AppendLine("重要：不要使用 /model 切换模型（会丢失当前对话上下文）。正确做法是使用 Agent 工具创建子代理。");

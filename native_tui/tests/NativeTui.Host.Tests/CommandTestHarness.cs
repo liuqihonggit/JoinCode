@@ -61,6 +61,10 @@ internal static class CommandTestHarness
             return node is not null;
         }
 
+        /// <summary>桩不接受运行期节点注册 — 节点由命令注册表实时投影。</summary>
+        public RegistrationHandle Register(string nodeId, Func<IServiceProvider, NodeMetadata?, INode> factory) =>
+            new(dispose: static () => { }, replace: static _ => { });
+
         public Task<IReadOnlyList<INode>> GetNodesForConsumerAsync(
             string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) =>
             Task.FromResult(Project());

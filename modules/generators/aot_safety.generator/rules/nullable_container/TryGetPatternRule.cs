@@ -38,6 +38,8 @@ public sealed class TryGetPatternRule : AnalyzerRuleBase<TryGetPatternRule> {
         var method = (MethodDeclarationSyntax)ctx.Node;
         if (!method.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword))) return;
         if (method.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))) return;
+        // override 方法的签名由基类决定(如 JsonConverter<T>.Read), 无法改为 TryGet 模式
+        if (method.Modifiers.Any(m => m.IsKind(SyntaxKind.OverrideKeyword))) return;
 
         if (method.ReturnType is not NullableTypeSyntax nullableType) return;
         if (IsContainerType(nullableType.ElementType)) return;

@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Infrastructure.IO;
 
 /// <summary>
@@ -28,10 +26,14 @@ public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutpu
     }
 
     /// <inheritdoc/>
-    public string? Prompt(string message) {
+    public bool TryGetPrompt(string message, [NotNullWhen(true)] out string? input) {
         System.Console.Write(message);
-        if (System.Console.IsInputRedirected) return null;
-        return System.Console.ReadLine();
+        if (System.Console.IsInputRedirected) {
+            input = null;
+            return false;
+        }
+        input = System.Console.ReadLine();
+        return input is not null;
     }
 
     /// <inheritdoc/>
@@ -49,8 +51,6 @@ public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutpu
         System.Console.ResetColor();
     }
 
-#pragma warning disable JCC2002 // ReadPassword 是同步交互方法，已检查 IsInputRedirected
-#pragma warning disable JCC5001 // ReadPassword 是同步方法，无法使用 async Task.Delay
     /// <inheritdoc/>
     public string ReadPassword(string prompt) {
         System.Console.Write(prompt);
@@ -70,6 +70,4 @@ public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutpu
         System.Console.WriteLine();
         return password.ToString();
     }
-#pragma warning restore JCC2002
-#pragma warning restore JCC5001
 }

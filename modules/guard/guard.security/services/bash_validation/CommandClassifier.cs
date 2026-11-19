@@ -68,17 +68,15 @@ public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifie
                 pathValidationOnly.Message);
         }
 
-        if (_searchScopeValidator is not null) {
-            var scopeResult = _searchScopeValidator.Validate(command, workingDirectory);
-            if (scopeResult is not null) {
-                risks.Add(scopeResult.Risk);
-                return new CommandClassification(
-                    CommandCategory.ExcessiveSearchScope,
-                    risks,
-                    scopeResult.Details + (scopeResult.Suggestion is not null
-                        ? $"。建议: {scopeResult.Suggestion}"
-                        : string.Empty));
-            }
+        if (_searchScopeValidator is not null
+            && _searchScopeValidator.TryValidate(command, workingDirectory, out var scopeResult)) {
+            risks.Add(scopeResult.Risk);
+            return new CommandClassification(
+                CommandCategory.ExcessiveSearchScope,
+                risks,
+                scopeResult.Details + (scopeResult.Suggestion is not null
+                    ? $"。建议: {scopeResult.Suggestion}"
+                    : string.Empty));
         }
 
         return new CommandClassification(CommandCategory.Unknown, risks);

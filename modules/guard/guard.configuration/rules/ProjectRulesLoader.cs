@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Configuration;
 
 /// <summary>
@@ -258,9 +256,12 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
     }
 
     /// <summary>
-    /// 获取首个命中的规则文件完整路径 — 未找到返回 null
+    /// 尝试获取首个命中的规则文件完整路径
     /// </summary>
-    public string? GetRulesFilePath(string? workingDirectory = null) {
+    /// <param name="workingDirectory">起始工作目录（默认当前目录）</param>
+    /// <param name="filePath">命中的规则文件完整路径</param>
+    /// <returns>找到返回 true；未找到返回 false</returns>
+    public bool TryGetRulesFilePath(string? workingDirectory, out string? filePath) {
         var basePath = workingDirectory ?? _fs.GetCurrentDirectory();
         var currentDirPath = _fs.GetFullPath(basePath);
 
@@ -268,7 +269,8 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
             foreach (var relativePath in GetRulesFilePaths()) {
                 var fullPath = Path.Combine(currentDirPath, relativePath);
                 if (_fs.FileExists(fullPath)) {
-                    return fullPath;
+                    filePath = fullPath;
+                    return true;
                 }
             }
 
@@ -277,7 +279,8 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
                 if (_fs.DirectoryExists(fullDirPath)) {
                     var mdFiles = _fs.GetFiles(fullDirPath, "*.md", SearchOption.AllDirectories);
                     if (mdFiles.Length > 0) {
-                        return mdFiles[0];
+                        filePath = mdFiles[0];
+                        return true;
                     }
                 }
             }
@@ -289,7 +292,8 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
         foreach (var relativePath in UserRulesFilePaths) {
             var fullPath = Path.Combine(appDataRoot, relativePath);
             if (_fs.FileExists(fullPath)) {
-                return fullPath;
+                filePath = fullPath;
+                return true;
             }
         }
 
@@ -298,12 +302,14 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
             if (_fs.DirectoryExists(fullDirPath)) {
                 var mdFiles = _fs.GetFiles(fullDirPath, "*.md", SearchOption.AllDirectories);
                 if (mdFiles.Length > 0) {
-                    return mdFiles[0];
+                    filePath = mdFiles[0];
+                    return true;
                 }
             }
         }
 
-        return null;
+        filePath = null;
+        return false;
     }
 
 }

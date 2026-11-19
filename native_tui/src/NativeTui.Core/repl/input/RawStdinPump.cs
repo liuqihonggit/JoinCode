@@ -182,7 +182,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
 
         try
         {
-            _commands.Writer.WriteAsync(command, _cts.Token).AsTask().GetAwaiter().GetResult();
+            _commands.Writer.WriteAsync(command, _cts.Token).AsTask().GetAwaiter().GetResult();  // style-allow: sync-block — stdin 泵同步契约: 原始输入线程同步写命令并等待完成
         }
         catch (Exception ex) when (ex is ChannelClosedException or OperationCanceledException)
         {
@@ -195,7 +195,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Post(new PumpCommand(Text: null, Pump: true, Completion: completion));
-        completion.Task.GetAwaiter().GetResult();
+        completion.Task.GetAwaiter().GetResult();  // style-allow: sync-block — stdin 泵同步契约: 原始输入线程同步写命令并等待完成
         return !_keys.Reader.Completion.IsCompleted || _keys.Reader.Count > 0;
     }
 
@@ -272,7 +272,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Post(new PumpCommand(text, Pump: true, Completion: completion));
-        completion.Task.GetAwaiter().GetResult();
+        completion.Task.GetAwaiter().GetResult();  // style-allow: sync-block — stdin 泵同步契约: 原始输入线程同步写命令并等待完成
     }
 
     /// <summary>解析命令 — Text=追加字符，Pump=续投 pending，Completion=两条命令的同步屏障。</summary>

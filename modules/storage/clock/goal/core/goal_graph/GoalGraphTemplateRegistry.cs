@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Goal;
 
 /// <summary>
@@ -16,13 +14,17 @@ public sealed class GoalGraphTemplateRegistry : ServiceEntity, IGoalGraphTemplat
     }
 
     /// <inheritdoc />
-    public GoalGraphTemplate? FindMatch(string objective) {
+    public bool TryFindMatch(string objective, [NotNullWhen(true)] out GoalGraphTemplate? template) {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
-        foreach (var template in Volatile.Read(ref _templates).Values) {
-            if (template.MatchesObjective(objective))
-                return template;
+        foreach (var candidate in Volatile.Read(ref _templates).Values) {
+            if (candidate.MatchesObjective(objective)) {
+                template = candidate;
+                return true;
+            }
         }
-        return null;
+
+        template = null;
+        return false;
     }
 
     /// <inheritdoc />

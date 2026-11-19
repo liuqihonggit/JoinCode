@@ -47,8 +47,10 @@ public sealed class GraphExecutionContext : IAsyncDisposable {
 
     /// <summary>
     /// 节点完成信号 — 无锁唤醒通道。每个节点完成时写入一个标记,循环在 batch 为空时带超时等待并排空。
+    /// 信号语义可合并:容量 1 丢弃写,读者排空 ReadyQueue 后不丢失任何节点状态。
     /// </summary>
-    public Channel<bool> NodeCompletedSignal { get; } = Channel.CreateUnbounded<bool>(new UnboundedChannelOptions {
+    public Channel<bool> NodeCompletedSignal { get; } = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) {
+        FullMode = BoundedChannelFullMode.DropWrite,
         SingleReader = true,
         SingleWriter = false
     });

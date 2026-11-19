@@ -213,7 +213,7 @@ public sealed class ResponsesTokenDetails {
 // === Responses API input item DTO（替代手写 JSON 拼接） ===
 
 /// <summary>Responses API input item — message/function_call_output/function_call/reasoning 统一 DTO</summary>
-public sealed class ResponsesInputItemDto {
+public sealed record ResponsesInputItemDto {
     /// <summary>类型(message/function_call_output/function_call/reasoning)</summary>
     [JsonPropertyName("type")]
     public string Type { get; init; } = "";
@@ -224,9 +224,7 @@ public sealed class ResponsesInputItemDto {
     /// <summary>内容数组(message/reasoning 时用)</summary>
     [JsonPropertyName("content")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-#pragma warning disable JCC11002
     public List<ResponsesInputContentDto>? Content { get; init; }
-#pragma warning restore JCC11002
     /// <summary>调用 ID(function_call_output/function_call 时用)</summary>
     [JsonPropertyName("call_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -257,7 +255,7 @@ public sealed class ResponsesInputContentDto {
 }
 
 /// <summary>JSON Schema DTO（BuildParameters 用）</summary>
-internal sealed class JsonSchemaDto {
+internal sealed record JsonSchemaDto {
     /// <summary>类型(固定 object)</summary>
     [JsonPropertyName("type")]
     public string Type { get; init; } = "object";
@@ -267,9 +265,7 @@ internal sealed class JsonSchemaDto {
     /// <summary>必填字段列表(可选)</summary>
     [JsonPropertyName("required")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-#pragma warning disable JCC11002
     public List<string>? Required { get; init; }
-#pragma warning restore JCC11002
 }
 
 /// <summary>JSON Schema 属性 DTO</summary>

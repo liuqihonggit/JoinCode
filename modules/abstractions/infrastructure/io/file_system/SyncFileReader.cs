@@ -7,26 +7,26 @@ namespace IO.FileSystem;
 public static class SyncFileReader {
     /// <summary>同步读取文件全部文本（阻塞调用，仅用于无法 async 的上下文）</summary>
     public static string ReadAllText(IFileSystem fs, string path) {
-        return fs.ReadAllText(path).GetAwaiter().GetResult();
+        return fs.ReadAllText(path).GetAwaiter().GetResult();  // style-allow: sync-block — 显式同步文件 API: 该类即为同步读取适配层
     }
 
     /// <summary>同步读取文件全部字节（阻塞调用，仅用于无法 async 的上下文）</summary>
     public static byte[] ReadAllBytes(IFileSystem fs, string path) {
-        return fs.ReadAllBytes(path).GetAwaiter().GetResult();
+        return fs.ReadAllBytes(path).GetAwaiter().GetResult();  // style-allow: sync-block — 显式同步文件 API: 该类即为同步读取适配层
     }
 
     /// <summary>同步执行返回字符串的异步操作（阻塞调用，仅用于无法 async 的上下文）</summary>
     public static string RunString(Func<Task<string>> func) {
-        return func().GetAwaiter().GetResult();
+        return func().GetAwaiter().GetResult();  // style-allow: sync-block — 显式同步文件 API: 该类即为同步读取适配层
     }
 
     /// <summary>同步执行返回可空字符串的异步操作（阻塞调用，仅用于无法 async 的上下文）</summary>
     public static string? RunStringNullable(Func<Task<string?>> func) {
-        return func().GetAwaiter().GetResult();
+        return func().GetAwaiter().GetResult();  // style-allow: sync-block — 显式同步文件 API: 该类即为同步读取适配层
     }
 
     /// <summary>同步等待 ValueTask&lt;string&gt; 完成（阻塞调用，仅用于无法 async 的上下文）</summary>
     public static string RunValueTask(ValueTask<string> vt) {
-        return vt.GetAwaiter().GetResult();
+        return vt.GetAwaiter().GetResult();  // style-allow: sync-block — 显式同步文件 API: 该类即为同步读取适配层
     }
 }

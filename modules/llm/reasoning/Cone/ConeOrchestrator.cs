@@ -1,5 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace JoinCode.Reasoning.Cone;
 
 /// <summary>
@@ -33,14 +31,20 @@ public sealed class ConeOrchestrator {
     public IReadOnlyDictionary<AgentRole, RoleCone> GetAllRoles() => _roles;
 
     /// <summary>
-    /// 角色A向角色B传递一个片段（跨视锥通信）— 传递的是摘要而非原文，模拟现实沟通损耗
+    /// 尝试角色A向角色B传递一个片段（跨视锥通信）— 传递的是摘要而非原文，模拟现实沟通损耗
     /// </summary>
-    public ObservationFragment? TransferFragment(AgentRole fromRole, AgentRole toRole, string fragmentId) {
-        if (!_roles.TryGetValue(fromRole, out var fromCone)) return null;
-        if (!_roles.TryGetValue(toRole, out var toCone)) return null;
-        if (!fromCone.AllFragments.TryGetValue(fragmentId, out var fragment)) return null;
+    /// <param name="fromRole">来源角色</param>
+    /// <param name="toRole">目标角色</param>
+    /// <param name="fragmentId">片段标识</param>
+    /// <param name="transferred">传递后的新片段</param>
+    /// <returns>两个角色均已注册且片段存在返回 true</returns>
+    public bool TryTransferFragment(AgentRole fromRole, AgentRole toRole, string fragmentId, [NotNullWhen(true)] out ObservationFragment? transferred) {
+        transferred = null;
+        if (!_roles.TryGetValue(fromRole, out var fromCone)) return false;
+        if (!_roles.TryGetValue(toRole, out var toCone)) return false;
+        if (!fromCone.AllFragments.TryGetValue(fragmentId, out var fragment)) return false;
 
-        var transferred = new ObservationFragment {
+        transferred = new ObservationFragment {
             FragmentId = Guid.NewGuid().ToString("N")[..8],
             SourceItemId = fragment.SourceItemId,
             RoleChain = toRole,
@@ -57,7 +61,7 @@ public sealed class ConeOrchestrator {
         };
 
         toCone.AddFragment(transferred);
-        return transferred;
+        return true;
     }
 
     /// <summary>

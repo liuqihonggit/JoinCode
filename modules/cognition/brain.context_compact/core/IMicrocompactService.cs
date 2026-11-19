@@ -18,14 +18,16 @@ public interface IMicrocompactService {
         int keepRecent = 5);
 
     /// <summary>
-    /// 时间间隔微压缩 — 当对话空闲超过阈值时触发
+    /// 尝试执行时间间隔微压缩 — 当对话空闲超过阈值时触发
     /// </summary>
     /// <param name="messages">原始消息列表</param>
+    /// <param name="result">时间间隔压缩结果</param>
     /// <param name="gapThresholdMinutes">空闲时间阈值（分钟）</param>
     /// <param name="keepRecent">保留最近 N 个工具结果</param>
-    /// <returns>时间间隔压缩结果；不满足条件时返回 null</returns>
-    TimeBasedMicrocompactResult? TimeBasedCompact(
+    /// <returns>实际执行了压缩返回 true</returns>
+    bool TryGetTimeBasedCompact(
         IReadOnlyList<ApiMessage> messages,
+        [NotNullWhen(true)] out TimeBasedMicrocompactResult? result,
         int gapThresholdMinutes = 60,
         int keepRecent = 5);
 

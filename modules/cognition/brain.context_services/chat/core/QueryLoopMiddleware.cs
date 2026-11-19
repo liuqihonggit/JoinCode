@@ -1,4 +1,3 @@
-#pragma warning disable JCC11003
 namespace Core.Context;
 
 /// <summary>
@@ -353,8 +352,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         for (var idx = 0; idx < toolCalls.Count; idx++) {
             var toolCall = toolCalls[idx];
             var currentArgs = JsonArgumentParser.Parse(toolCall.Arguments);
-            var toolLoop = _loopDetectionStrategy.CheckToolCallLoop(toolCall.Name, currentArgs);
-            if (toolLoop is not null) {
+            if (_loopDetectionStrategy.TryGetToolCallLoop(toolCall.Name, currentArgs, out var toolLoop)) {
                 yield return ChatStreamEvent.LoopDetected(toolLoop.TriggerCount, toolLoop.ToolCallCount, toolLoop.Reason);
             }
 
@@ -438,8 +436,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         for (var idx = 0; idx < toolCalls.Count; idx++) {
             var toolCall = toolCalls[idx];
             var currentArgs = JsonArgumentParser.Parse(toolCall.Arguments);
-            var toolLoop = _loopDetectionStrategy.CheckToolCallLoop(toolCall.Name, currentArgs);
-            if (toolLoop is not null) {
+            if (_loopDetectionStrategy.TryGetToolCallLoop(toolCall.Name, currentArgs, out var toolLoop)) {
                 yield return ChatStreamEvent.LoopDetected(toolLoop.TriggerCount, toolLoop.ToolCallCount, toolLoop.Reason);
             }
 
@@ -455,9 +452,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
             try {
                 // 排空等待已确认任务完成（含异常态），同步读取仅为在原 try/catch 内触发原异常语义
-#pragma warning disable JCC3006
                 toolCallResult = await execTask.ConfigureAwait(false);
-#pragma warning restore JCC3006
             } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                 await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
                 throw;
@@ -523,8 +518,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         var events = new List<ChatStreamEvent>();
         var aiResponse = iterState.FullResponse.ToString();
 
-        var textLoop = _loopDetectionStrategy.CheckTextLoop(aiResponse);
-        if (textLoop is not null) {
+        if (_loopDetectionStrategy.TryGetTextLoop(aiResponse, out var textLoop)) {
             Diag.WriteLine("[LOOP] 逻辑指纹循环已触发");
             events.Add(ChatStreamEvent.LoopDetected(textLoop.TriggerCount, textLoop.ToolCallCount, textLoop.Reason));
         }

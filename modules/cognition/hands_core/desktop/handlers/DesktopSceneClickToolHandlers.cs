@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Tools.Handlers;
 
 /// <summary>
@@ -42,33 +40,22 @@ public sealed class DesktopSceneClickToolHandlers {
             await _stateStore.SaveAsync(newState, cancellationToken).ConfigureAwait(false);
         }
 
-        if (!op.Succeeded) {
-            var errorJson = $$"""
-                {
-                  "scene_id": "{{sceneId}}",
-                  "succeeded": false,
-                  "error": "{{op.Error}}",
-                  "suggested_next": [{
-                    "tool": "desktop_look",
-                    "reason": "点击失败，重新截图确认目标位置"
-                  }]
-                }
-                """;
-            return ToolResultBuilder.Success().WithText(errorJson).Build();
-        }
-
-        var json = $$"""
-            {
-              "scene_id": "{{sceneId}}",
-              "succeeded": true,
-              "x": {{x}},
-              "y": {{y}},
-              "suggested_next": [{
-                "tool": "desktop_look",
-                "reason": "点击完成，重新截图查看结果或继续下一步"
-              }]
+        var suggestedNext = new[] {
+            new DesktopSuggestedNext {
+                Tool = "desktop_look",
+                Reason = op.Succeeded ? "点击完成，重新截图查看结果或继续下一步" : "点击失败，重新截图确认目标位置"
             }
-            """;
-        return ToolResultBuilder.Success().WithText(json).Build();
+        };
+        var result = new DesktopClickResult {
+            SceneId = sceneId,
+            Succeeded = op.Succeeded,
+            X = op.Succeeded ? x : null,
+            Y = op.Succeeded ? y : null,
+            Error = op.Succeeded ? null : op.Error,
+            SuggestedNext = suggestedNext
+        };
+        return ToolResultBuilder.Success()
+            .WithText(JsonSerializer.Serialize(result, DesktopSceneToolJsonContext.Default.DesktopClickResult))
+            .Build();
     }
 }

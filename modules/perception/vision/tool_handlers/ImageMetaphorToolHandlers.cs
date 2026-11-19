@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace JoinCode.Vision.ToolHandlers;
 
 /// <summary>
@@ -121,7 +119,13 @@ public class ImageMetaphorToolHandlers {
         return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 
-    private static string DescribeSystemPrompt => $$"""
+    private static string DescribeSystemPrompt =>
+        DescribeSystemPromptTemplate.Replace("@@LANG@@", LocalLanguageDetector.GetNativeLanguageName(L.CurrentLanguage), StringComparison.Ordinal);
+
+    private static string DrillDownSystemPrompt =>
+        DrillDownSystemPromptTemplate.Replace("@@LANG@@", LocalLanguageDetector.GetNativeLanguageName(L.CurrentLanguage), StringComparison.Ordinal);
+
+    private const string DescribeSystemPromptTemplate = """
         You are an image analysis expert. Analyze the image and return a JSON description.
         Return format:
         ```json
@@ -140,11 +144,11 @@ public class ImageMetaphorToolHandlers {
         1. summary: one sentence describing the image content
         2. labels: main objects/regions/concepts in the image
         3. suggested_attributes: attributes that can be further explored (e.g., brand, color, state, quantity)
-        4. Return all text content in {{LocalLanguageDetector.GetNativeLanguageName(L.CurrentLanguage)}}
+        4. Return all text content in @@LANG@@
         5. Return JSON only, no extra explanation
         """;
 
-    private static string DrillDownSystemPrompt => $$"""
+    private const string DrillDownSystemPromptTemplate = """
         You are an image analysis expert. Analyze the detailed attributes of the specified label in the image.
         Return format:
         ```json
@@ -162,7 +166,7 @@ public class ImageMetaphorToolHandlers {
         2. confidence: confidence score 0..1
         3. suggested_next: sub-targets that can be further drilled down
         4. has_more: whether there are more attributes to explore
-        5. Return all text content in {{LocalLanguageDetector.GetNativeLanguageName(L.CurrentLanguage)}}
+        5. Return all text content in @@LANG@@
         6. Return JSON only, no extra explanation
         """;
 }

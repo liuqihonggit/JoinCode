@@ -37,12 +37,13 @@ public sealed class ConeOrchestratorTests {
         };
         prosCone.AddFragment(fragment);
 
-        var transferred = orchestrator.TransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "f1");
+        var ok = orchestrator.TryTransferFragment(AgentRole.Prosecutor, AgentRole.Defender, "f1", out var transferred);
 
-        Assert.NotNull(transferred);
-        Assert.Equal(AgentRole.Defender, transferred.RoleChain);
-        Assert.InRange(transferred.Fingerprint.Confidence, 0.8 * 0.9 - 0.01, 0.8 * 0.9 + 0.01);
-        Assert.Contains("f1", transferred.BackReferences);
+        Assert.True(ok);
+        var actual = transferred ?? throw new InvalidOperationException("跨角色传递应成功");
+        Assert.Equal(AgentRole.Defender, actual.RoleChain);
+        Assert.InRange(actual.Fingerprint.Confidence, 0.8 * 0.9 - 0.01, 0.8 * 0.9 + 0.01);
+        Assert.Contains("f1", actual.BackReferences);
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

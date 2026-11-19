@@ -1,5 +1,3 @@
-// JCC9203 抑制: 存量释放函数超时, 后续异步化改造
-#pragma warning disable JCC9203
 namespace Core.Bridge;
 
 /// <summary>
@@ -190,8 +188,9 @@ public sealed class BridgeWorkPollLoop : ServiceEntity {
 
         if (_loopTask is not null) {
             try {
-                await _loopTask.WaitAsync(ct).ConfigureAwait(false);
+                await _loopTask.ConfigureAwait(false);
             } catch (OperationCanceledException) {
+                _logger?.LogDebug("[BridgeWorkPollLoop] 轮询循环已取消");
             }
         }
 

@@ -186,7 +186,9 @@ public sealed class DirectFileIORule : IAnalyzerRule {
                typeName.Contains("InMemoryFileSystem", StringComparison.Ordinal) ||
                typeName.Contains("SimpleFileReader", StringComparison.Ordinal) ||
                typeName.Contains("FileReader", StringComparison.Ordinal) ||
-               typeName.Contains("FileOperationService", StringComparison.Ordinal);
+               typeName.Contains("FileOperationService", StringComparison.Ordinal) ||
+               // SafeFileIO 是静态上下文(Program.Main/诊断日志/崩溃处理)的物理 IO 出口, 本身就是文件系统实现
+               typeName.Contains("SafeFileIO", StringComparison.Ordinal);
     }
 
     private static bool IsInDeprecatedOrGeneratedCode(SyntaxNodeAnalysisContext ctx) {

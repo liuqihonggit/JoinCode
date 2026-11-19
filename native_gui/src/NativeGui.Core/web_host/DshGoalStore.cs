@@ -184,7 +184,7 @@ internal sealed class DshGoalStore(IFileSystem fs, string? filePath = null) {
             if (!fs.FileExists(_filePath)) {
                 return;
             }
-            var json = fs.ReadAllTextAsync(_filePath, CancellationToken.None).GetAwaiter().GetResult();
+            var json = fs.ReadAllTextAsync(_filePath, CancellationToken.None).GetAwaiter().GetResult();  // style-allow: sync-block — 同步存储契约: 目标存储在同步读写路径内
             var document = RelaxedJsonSerializer.Deserialize(json, DshJsonContext.Default.DshGoalsDocument);
             if (document?.Goals is { Count: > 0 } goals) {
                 _goals = new Dictionary<string, DshGoalDocument>(goals, StringComparer.Ordinal);

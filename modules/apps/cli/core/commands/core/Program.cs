@@ -807,7 +807,7 @@ class Program {
                     Environment.ProcessId
                 )
             );
-            SafeFileIO.WriteAllText(jsonPath, JsonSerializer.Serialize(dto, Cli.Output.CliOutputJsonContext.Default.CrashDumpSnapshotDto)).GetAwaiter().GetResult();
+            SafeFileIO.WriteAllText(jsonPath, JsonSerializer.Serialize(dto, Cli.Output.CliOutputJsonContext.Default.CrashDumpSnapshotDto)).GetAwaiter().GetResult();  // style-allow: sync-block — CLI 崩溃转储同步收尾: 进程退出前同步落盘
         } catch (Exception jsonEx) { Diag.WriteError("[CrashDump] 写入 JSON 快照失败", jsonEx); }
 
         // 2. 人类可读文本快照
@@ -835,7 +835,7 @@ class Program {
                 txt.AppendLine();
             }
 
-            SafeFileIO.WriteAllText(txtPath, txt.ToString()).GetAwaiter().GetResult();
+            SafeFileIO.WriteAllText(txtPath, txt.ToString()).GetAwaiter().GetResult();  // style-allow: sync-block — CLI 崩溃转储同步收尾: 进程退出前同步落盘
         } catch (Exception txtEx) { Diag.WriteError("[CrashDump] 写入文本快照失败", txtEx); }
 
         // 3. stderr 输出（仅 UnhandledException，避免 pipe 阻塞）

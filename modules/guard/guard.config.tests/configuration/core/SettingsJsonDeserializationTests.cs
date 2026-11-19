@@ -277,10 +277,10 @@ public class SettingsJsonDeserializationTests {
             Current = new CurrentSettings { Profile = "sensenova" },
         };
 
-        var profile = settings.GetActiveProfile();
-        profile.Should().NotBeNull();
-        profile!.Provider.Should().Be("sensenova");
-        profile.Model.Should().Be("sensenova-6.7-flash-lite");
+        settings.TryGetActiveProfile(out var profile).Should().BeTrue();
+        var activeProfile = profile ?? throw new InvalidOperationException("激活预设应存在");
+        activeProfile.Provider.Should().Be("sensenova");
+        activeProfile.Model.Should().Be("sensenova-6.7-flash-lite");
     }
 
     [Fact]
@@ -292,7 +292,7 @@ public class SettingsJsonDeserializationTests {
             Current = new CurrentSettings { Profile = "nonexistent" },
         };
 
-        settings.GetActiveProfile().Should().BeNull();
+        settings.TryGetActiveProfile(out _).Should().BeFalse();
     }
 
     #endregion

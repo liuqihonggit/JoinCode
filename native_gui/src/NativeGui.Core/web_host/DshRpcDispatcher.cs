@@ -1151,7 +1151,7 @@ internal sealed class DshRpcDispatcher {
     }
 
     /// <summary>同步终端处理器包装</summary>
-    private DshRpcResult TerminalSync(Func<JsonElement> action) => TerminalAsync(() => Task.FromResult(action())).GetAwaiter().GetResult();
+    private DshRpcResult TerminalSync(Func<JsonElement> action) => TerminalAsync(() => Task.FromResult(action())).GetAwaiter().GetResult();  // style-allow: sync-block — RPC 同步分发契约: 终端同步入口等待串行执行
 
     /// <summary>校验会话 ID（缺失 → 引导错误）</summary>
     private static string RequireSession(string? sessionId, string method) =>

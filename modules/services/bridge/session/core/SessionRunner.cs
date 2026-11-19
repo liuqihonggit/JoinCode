@@ -1,6 +1,4 @@
 
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Bridge;
 
 /// <summary>
@@ -362,20 +360,25 @@ public sealed partial class BridgeSessionRunner : ServiceEntity {
     }
 
     /// <summary>
-    /// 创建会话快照（用于崩溃恢复）
+    /// 尝试创建会话快照（用于崩溃恢复）
     /// </summary>
     /// <param name="sessionId">会话标识</param>
-    /// <returns>会话快照，会话不存在返回 null</returns>
-    public BridgeSessionSnapshot? CreateSnapshot(string sessionId) {
+    /// <param name="snapshot">会话快照</param>
+    /// <returns>会话存在返回 true</returns>
+    public bool TryCreateSnapshot(string sessionId, [NotNullWhen(true)] out BridgeSessionSnapshot? snapshot) {
         var session = GetSession(sessionId);
-        if (session is null) return null;
+        if (session is null) {
+            snapshot = null;
+            return false;
+        }
 
-        return new BridgeSessionSnapshot {
+        snapshot = new BridgeSessionSnapshot {
             SessionId = session.SessionId,
             ClientId = session.ClientId,
             State = session.Status,
             CapturedAt = _timeProvider.GetUtcNow()
         };
+        return true;
     }
 
     /// <summary>

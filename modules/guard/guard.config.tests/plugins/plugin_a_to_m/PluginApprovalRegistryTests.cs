@@ -136,15 +136,14 @@ public sealed class PluginApprovalRegistryTests {
         Assert.False(removed);
     }
 
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void PendingRequestFor_FindsPendingByPluginId() {
         var registry = new PluginApprovalRegistry();
         registry.ArmRequest("plugin-x");
         var req2 = registry.ArmRequest("plugin-y");
-        var found = registry.PendingRequestFor("plugin-y");
-        Assert.NotNull(found);
-        Assert.Equal(req2.RequestId, found!.RequestId);
+        Assert.True(registry.TryGetPendingRequestFor("plugin-y", out var found));
+        var pending = found ?? throw new InvalidOperationException("plugin-y 应有待审批请求");
+        Assert.Equal(req2.RequestId, pending.RequestId);
     }
 
     [Fact]
@@ -152,14 +151,14 @@ public sealed class PluginApprovalRegistryTests {
         var registry = new PluginApprovalRegistry();
         var req = registry.ArmRequest("plugin-z");
         registry.Approve(req.RequestId);
-        var found = registry.PendingRequestFor("plugin-z");
+        Assert.False(registry.TryGetPendingRequestFor("plugin-z", out var found));
         Assert.Null(found);
     }
 
     [Fact]
     public void PendingRequestFor_NonExistentPlugin_ReturnsNull() {
         var registry = new PluginApprovalRegistry();
-        var found = registry.PendingRequestFor("nonexistent");
+        Assert.False(registry.TryGetPendingRequestFor("nonexistent", out var found));
         Assert.Null(found);
     }
 

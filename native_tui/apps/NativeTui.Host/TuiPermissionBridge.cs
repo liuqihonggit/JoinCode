@@ -24,7 +24,7 @@ public class TuiPermissionBridge {
             return PermissionConfirmAction.Deny;
 
         shell.BeginPermissionRequest(toolName, confirmationPrompt);
-        var choice = shell.Permission.Wait().GetAwaiter().GetResult();
+        var choice = shell.Permission.Wait().GetAwaiter().GetResult();  // style-allow: sync-block — TUI 权限同步桥: UI 线程同步等待用户选择
         return choice switch {
             PermissionChoice.Allow => PermissionConfirmAction.Allow,
             PermissionChoice.AlwaysAllow => PermissionConfirmAction.AlwaysAllow,

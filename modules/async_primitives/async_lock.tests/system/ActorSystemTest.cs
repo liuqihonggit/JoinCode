@@ -11,13 +11,15 @@ public class ActorSystemTest {
         var actor = new DisposableTestActor();
         system.Register("my-actor", actor);
 
-        system.Selection("my-actor").Should().BeSameAs(actor);
+        Assert.True(system.TryGetSelection("my-actor", out var selected));
+        selected.Should().BeSameAs(actor);
     }
 
     [Fact]
     public async Task Select_Unregistered_ReturnsNull() {
         await using var system = new ActorSystem();
-        system.Selection("nope").Should().BeNull();
+        Assert.False(system.TryGetSelection("nope", out var selected));
+        selected.Should().BeNull();
     }
 
     [Fact]
@@ -27,7 +29,8 @@ public class ActorSystemTest {
         system.Register("a1", actor);
 
         system.Unregister("a1").Should().BeTrue();
-        system.Selection("a1").Should().BeNull();
+        Assert.False(system.TryGetSelection("a1", out var selected));
+        selected.Should().BeNull();
     }
 
     [Fact]

@@ -1,7 +1,3 @@
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
-// JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11005
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -115,22 +111,34 @@ internal sealed class TeamRegistry {
     /// <summary>
     /// 按 sessionId 查找团队房间 — O(1) 冗余索引查找 + 一致性验证。
     /// </summary>
-    public ChatRoomState? FindRoomBySessionId(string sessionId) {
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="room">命中的团队房间</param>
+    /// <returns>找到返回 true</returns>
+    public bool TryGetRoomBySessionId(string sessionId, [NotNullWhen(true)] out ChatRoomState? room) {
         if (_bySessionId.TryGetValue(sessionId, out var teamId)
-            && _rooms.TryGetValue(teamId, out var room)
-            && room.SessionId == sessionId)
-            return room;
-        return null;
+            && _rooms.TryGetValue(teamId, out var found)
+            && found.SessionId == sessionId) {
+            room = found;
+            return true;
+        }
+        room = null;
+        return false;
     }
 
     /// <summary>
     /// 按团队名称查找团队信息 — O(1) 冗余索引查找(忽略大小写)。
     /// </summary>
-    public TeamInfo? FindTeamByName(string teamName) {
+    /// <param name="teamName">团队名称</param>
+    /// <param name="info">命中的团队信息</param>
+    /// <returns>找到返回 true</returns>
+    public bool TryGetTeamByName(string teamName, [NotNullWhen(true)] out TeamInfo? info) {
         var nameKey = teamName.ToLowerInvariant();
         if (_byTeamName.TryGetValue(nameKey, out var teamId)
-            && _rooms.TryGetValue(teamId, out var room))
-            return room.Info;
-        return null;
+            && _rooms.TryGetValue(teamId, out var room)) {
+            info = room.Info;
+            return true;
+        }
+        info = null;
+        return false;
     }
 }

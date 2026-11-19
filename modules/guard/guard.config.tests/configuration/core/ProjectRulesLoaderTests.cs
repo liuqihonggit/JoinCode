@@ -131,7 +131,7 @@ public sealed class ProjectRulesLoaderTests {
         SetupFile("AGENTS.md", "content");
         await using var loader = CreateLoader();
 
-        var path = loader.GetRulesFilePath(BaseDir);
+        Assert.True(loader.TryGetRulesFilePath(BaseDir, out var path));
 
         Assert.Equal(Path.Combine(Path.GetFullPath(BaseDir), "AGENTS.md"), path);
     }
@@ -143,7 +143,7 @@ public sealed class ProjectRulesLoaderTests {
         _fs.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(false);
         await using var loader = new ProjectRulesLoader(_fs.Object);
 
-        var path = loader.GetRulesFilePath(BaseDir);
+        Assert.False(loader.TryGetRulesFilePath(BaseDir, out var path));
 
         Assert.Null(path);
     }

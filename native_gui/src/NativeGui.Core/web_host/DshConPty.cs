@@ -28,6 +28,7 @@ internal interface IDshPty : IAsyncDisposable {
 /// 只在 Windows 上可用；非 Windows 返回 <see cref="PlatformNotSupportedException"/>，由上层转成引导错误。
 /// </summary>
 internal sealed partial class DshConPty : IDshPty {
+    // style-allow: unbounded — 终端写邮箱,调用方同步等待写入完成,有界会与写泵互相等待
     private readonly Channel<(byte[] Bytes, TaskCompletionSource<Exception?> Completion)> _writes =
         Channel.CreateUnbounded<(byte[] Bytes, TaskCompletionSource<Exception?> Completion)>(
             new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
@@ -99,7 +100,7 @@ internal sealed partial class DshConPty : IDshPty {
         if (!_writes.Writer.TryWrite((Encoding.UTF8.GetBytes(data), completion))) {
             throw new ObjectDisposedException(nameof(DshConPty));
         }
-        if (completion.Task.GetAwaiter().GetResult() is { } error) {
+        if (completion.Task.GetAwaiter().GetResult() is { } error) {  // style-allow: sync-block — PTY 同步关闭契约: 释放路径同步等待完成信号
             throw new IOException($"写入终端失败：{error.Message}", error);
         }
     }

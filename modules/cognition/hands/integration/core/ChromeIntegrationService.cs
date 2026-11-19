@@ -34,7 +34,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     public bool IsExtensionInstalled {
         get {
             try {
-                return Task.Run(() => _processService.FindExecutableAsync("chrome")).GetAwaiter().GetResult() != null;
+                return Task.Run(() => _processService.FindExecutableAsync("chrome")).GetAwaiter().GetResult() != null;  // style-allow: sync-block — 同步探测属性: 集成可用性在同步 getter 内探测外部可执行文件
             } catch {
                 return false;
             }
@@ -59,7 +59,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
         // 单飞初始化：0=未开始 1=进行中 2=完成；进行中时并发调用直接返回默认值（与原 TryLock 空转语义一致）
         if (Volatile.Read(ref _initState) == 2) return;
         if (Interlocked.CompareExchange(ref _initState, 1, 0) != 0) return;
-        try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); } catch { _isDefaultEnabled = false; }
+        try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); } catch { _isDefaultEnabled = false; }  // style-allow: sync-block — 同步探测属性: 集成可用性在同步 getter 内探测外部可执行文件
         Volatile.Write(ref _initState, 2);
     }
 

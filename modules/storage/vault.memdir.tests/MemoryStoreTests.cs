@@ -170,17 +170,17 @@ public class MemoryStoreTests : IDisposable {
         var memoryId = allMemories.First().Id;
 
         // Act
-        var memory = _store.GetMemory(memoryId);
+        _store.TryGetMemory(memoryId, out var memory).Should().BeTrue();
 
         // Assert
-        memory.Should().NotBeNull();
-        memory!.Content.Should().Contain("Test memory for get");
+        var stored = memory ?? throw new InvalidOperationException("记忆应存在");
+        stored.Content.Should().Contain("Test memory for get");
     }
 
     [Fact]
     public void GetMemory_NonExistent_ShouldReturnNull() {
         // Act
-        var memory = _store.GetMemory("nonexistent_id");
+        _store.TryGetMemory("nonexistent_id", out var memory).Should().BeFalse();
 
         // Assert
         memory.Should().BeNull();
@@ -222,9 +222,10 @@ public class MemoryStoreTests : IDisposable {
 
         // Assert
         result.Should().BeTrue();
-        var archived = _store.GetMemory(memory.Id);
-        archived!.IsArchived.Should().BeTrue();
-        archived.ArchivedAt.Should().NotBeNull();
+        _store.TryGetMemory(memory.Id, out var archived).Should().BeTrue();
+        var archivedEntry = archived ?? throw new InvalidOperationException("归档后记忆应存在");
+        archivedEntry.IsArchived.Should().BeTrue();
+        archivedEntry.ArchivedAt.Should().NotBeNull();
     }
 
     [Fact]
@@ -249,9 +250,10 @@ public class MemoryStoreTests : IDisposable {
 
         // Assert
         result.Should().BeTrue();
-        var restored = _store.GetMemory(memory.Id);
-        restored!.IsArchived.Should().BeFalse();
-        restored.ArchivedAt.Should().BeNull();
+        _store.TryGetMemory(memory.Id, out var restored).Should().BeTrue();
+        var restoredEntry = restored ?? throw new InvalidOperationException("恢复后记忆应存在");
+        restoredEntry.IsArchived.Should().BeFalse();
+        restoredEntry.ArchivedAt.Should().BeNull();
     }
 
     [Fact]
@@ -332,10 +334,11 @@ public class MemoryStoreTests : IDisposable {
 
         // Act
         _store.Search("Access count test");
-        var afterSearch = _store.GetMemory(memory.Id);
+        _store.TryGetMemory(memory.Id, out var afterSearch).Should().BeTrue();
 
         // Assert
-        afterSearch!.AccessCount.Should().BeGreaterThan(initialCount);
+        var accessed = afterSearch ?? throw new InvalidOperationException("记忆应存在");
+        accessed.AccessCount.Should().BeGreaterThan(initialCount);
     }
 
     [Fact]
@@ -524,7 +527,7 @@ public class MemoryStoreTests : IDisposable {
     [Fact]
     [Trait("Category", "Deterministic")]
     public void GetMemory_NullId_ThrowsArgumentNullException() {
-        var act = () => _store.GetMemory(null!);
+        var act = () => _store.TryGetMemory(null!, out _);
         act.Should().Throw<ArgumentNullException>().WithParameterName("id");
     }
 
@@ -533,7 +536,7 @@ public class MemoryStoreTests : IDisposable {
     [InlineData("   ")]
     [Trait("Category", "Deterministic")]
     public void GetMemory_EmptyOrWhitespaceId_ThrowsArgumentException(string id) {
-        var act = () => _store.GetMemory(id);
+        var act = () => _store.TryGetMemory(id, out _);
         act.Should().Throw<ArgumentException>().WithParameterName("id");
     }
 

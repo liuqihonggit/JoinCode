@@ -256,9 +256,9 @@ public class ConfigLoader {
         var definition = _registry.TryGet(provider);
         if (definition is not null && definition.IsCompoundAuthFormat(apiKey)) {
             var compoundData = RelaxedJsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
-            return definition.ExtractApiKeyFromCompound(apiKey)
-                ?? compoundData?.GetValueOrDefault("apiKey", string.Empty)
-                ?? string.Empty;
+            return definition.TryExtractApiKeyFromCompound(apiKey, out var extractedKey)
+                ? extractedKey
+                : compoundData?.GetValueOrDefault("apiKey", string.Empty) ?? string.Empty;
         }
 
         return apiKey;

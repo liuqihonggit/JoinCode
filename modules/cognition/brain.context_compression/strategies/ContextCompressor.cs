@@ -42,8 +42,7 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
                 return CreateNoCompressionResult(content, contentType, stopwatch.ElapsedMilliseconds);
             }
 
-            var strategy = _strategyFactory.GetStrategy(content, contentType);
-            if (strategy == null) {
+            if (!_strategyFactory.TryGetStrategy(content, contentType, out var strategy)) {
                 return CreateErrorResult(
                     content,
                     contentType,
@@ -144,9 +143,9 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
         ContentType contentType,
         CompressionOptions? options = null) {
         var effectiveOptions = options ?? _defaultOptions;
-        var strategy = _strategyFactory.GetStrategy(content, contentType);
-
-        return strategy?.EstimateCompressionRatio(content, effectiveOptions) ?? 1.0;
+        return _strategyFactory.TryGetStrategy(content, contentType, out var strategy)
+            ? strategy.EstimateCompressionRatio(content, effectiveOptions)
+            : 1.0;
     }
 
     private CompressionResult CreateNoCompressionResult(

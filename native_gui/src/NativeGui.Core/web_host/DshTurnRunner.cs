@@ -45,13 +45,33 @@ internal sealed class DshTurnRunner {
                 return TrySteer(engine, request.SessionId, text);
             }
             if (string.Equals(request.Mode, "queue", StringComparison.Ordinal)) {
-                Queue(request.SessionId, NewPending(request.RequestId, text));
+                await QueueWhileBusyAsync(engine, request, text).ConfigureAwait(false);
                 return null;
             }
             return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送。选项：①轮内注入请在请求里带 mode=steer；②排队等下一轮请用 mode=queue；③停止当前轮用 session/cancel");
         }
         await BeginTurnAsync(engine, request.SessionId, NewPending(request.RequestId, text), turn);
         return null;
+    }
+
+    /// <summary>
+    /// 本轮进行中的排队受理：入队后**自己再拉一次**。
+    /// <para>
+    /// 竞态：判定 busy 之后、真正入队之前，本轮可能刚好收尾 —— 收尾侧的
+    /// <see cref="StartQueued"/> 已经拉过一遍空队列，若入队后不再自拉，这一项就永远悬着
+    /// （现象：mode=queue 的输入消失，直到下一条输入才被带出来）。
+    /// 本轮仍在跑时自拉是无害的：队首留在队列里，等收尾再拉。
+    /// </para>
+    /// </summary>
+    /// <param name="engine">引擎会话</param>
+    /// <param name="request">prompt 参数</param>
+    /// <param name="text">已校验文本</param>
+    private async Task QueueWhileBusyAsync(Hosting.IJccChatSession engine, DshSessionPromptArgs request, string text) {
+        if (QueueEnqueueGate is { } gate) {
+            await gate().ConfigureAwait(false);
+        }
+        Queue(request.SessionId, NewPending(request.RequestId, text));
+        StartQueued(engine, request.SessionId);
     }
 
     /// <summary>
@@ -119,18 +139,47 @@ internal sealed class DshTurnRunner {
     private static PendingPrompt NewPending(string requestId, string text) =>
         new(Guid.NewGuid().ToString("N"), requestId, text);
 
-    /// <summary>轮次收尾后启动下一条排队输入（无排队则返回）</summary>
+    /// <summary>
+    /// 测试接缝：<c>mode=queue</c> 判定 busy 之后、真正入队之前的挂起点。
+    /// 用于确定性地复现「入队瞬间本轮刚好收尾」的竞态（收尾侧 StartQueued 已拉过空队列），
+    /// 避免只靠 sleep 去撞时序。生产路径为 null。
+    /// </summary>
+    internal Func<Task>? QueueEnqueueGate { get; set; }
+
+    /// <summary>
+    /// 拉起队首：本轮空闲则占用一轮并开跑，仍在跑则把这一项留在队列里等收尾再拉。
+    /// <para>
+    /// 先 peek 再占用、占用成功才出队（而不是「先出队，占不到再塞回去」）——后者在每次
+    /// 入队自拉时都会把队首转到队尾，破坏 <c>updateQueue</c> 的入队顺序语义。
+    /// </para>
+    /// </summary>
+    /// <param name="engine">引擎会话</param>
+    /// <param name="sessionId">会话 ID</param>
     private void StartQueued(Hosting.IJccChatSession engine, string sessionId) {
-        var prompt = _queueActor.Run(() =>
-            _pending.TryGetValue(sessionId, out var queue) && queue.TryDequeue(out var dequeued) ? dequeued : null);
-        if (prompt is null) {
-            return;
+        while (true) {
+            var head = _queueActor.Run(() =>
+                _pending.TryGetValue(sessionId, out var queue) && queue.TryPeek(out var prompt) ? prompt : null);
+            if (head is null) {
+                return;
+            }
+            if (_services.Streams.TryBeginTurn(sessionId) is not { } turn) {
+                return;
+            }
+            var dequeued = _queueActor.Run(() => {
+                if (!_pending.TryGetValue(sessionId, out var queue) || !queue.TryPeek(out var current)) {
+                    return false;
+                }
+                // 队首在 peek 与出队之间可能被编辑（ItemId 不变）或移除（ItemId 变了）：
+                // 只有仍是同一项才出队，避免把已被移除的输入拿去开轮。
+                return string.Equals(current.ItemId, head.ItemId, StringComparison.Ordinal) && queue.TryDequeue(out _);
+            });
+            if (dequeued) {
+                _ = BeginTurnAsync(engine, sessionId, head, turn);
+                return;
+            }
+            // 队首已被移除：释放刚占用的轮次，重新取队首（队列已变短，循环必然收敛）。
+            _services.Streams.EndTurn(sessionId);
         }
-        if (_services.Streams.TryBeginTurn(sessionId) is not { } turn) {
-            Queue(sessionId, prompt);
-            return;
-        }
-        _ = BeginTurnAsync(engine, sessionId, prompt, turn);
     }
 
     /// <summary>后台跑一轮生成：成功落助手消息，停止/失败各自落对应收尾（异常只记日志，不让进程崩）</summary>

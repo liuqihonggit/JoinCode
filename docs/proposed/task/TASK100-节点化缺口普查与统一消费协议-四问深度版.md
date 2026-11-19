@@ -1916,3 +1916,72 @@ C2（§24.2）把 pipeline 那条路径升级成了 fail-fast，但 **registry �
 
 - [x] **D6 registry 解析失败 fail-fast**：`GetServicesForConsumerAsync<T>` 加 `failFastOnMissing`，
       `SlashCommandRunner`（command-dispatch）与 `SystemPromptMiddleware`（prompt-assembly）传 true。
+
+### 25.9 CI 首轮红：两条根因与修复（run 44593691987 / PR #704）
+
+S8–S10 推上 CI 后有两个 job 红，二者根因互不相关 —— 一个是本次改造**真实漏掉的宿主注册点**，
+一个是与本次改造无关、被 CI 时序放大的**队列竞态**。
+
+#### 25.9.1 `e2e / E2E - Sync Integration`（8/22 失败）— preprocess 链在测试宿主里无工厂
+
+**现象**：`ChatServiceTests` 全部在 `CreateChatServiceAsync()` 炸掉，异常原文：
+
+```
+System.InvalidOperationException : 节点装配失败: consumer='preprocess-analyze-pipeline',
+node='crash-snapshot-mw', 期望类型='IMiddleware`1'
+  at NodeRegistry.GetServicesForConsumerAsync[T](...)
+  at ServiceRegistration.ResolvePreprocessChainAsync(...)
+```
+
+**根因**：S9 把 preprocess 两条链从「DI 集合自建（`GetServices<IAnalyzePreprocessMiddleware>()`）」
+改成「按 profile 经 `NodeServiceResolver` 解析」。生产 `AddDataDrivenPipelines` 会注册
+`NodeServiceResolver`，但测试宿主 `AddTestPipelines` 只注册了 `NodeProfileResolver` /
+`INodeRegistry` / `IProfileManager`，**漏了 `NodeServiceResolver`** ——
+于是 profile 声明的节点全部解析不到，S10 的 fail-fast 如实报错。
+
+这正是 fail-fast 想要暴露的形态：旧代码只记 Warning 跳过，测试会「绿着少一道中间件」。
+
+**修法**：把「节点工厂解析器」的组装口径提成 `DataDrivenPipelineComposition.AddNodeServiceResolver()`，
+生产 `AddDataDrivenPipelines` 与测试 `AddTestPipelines` 共用同一份 catalog（编译期 catalog 为底、
+手写清单为覆盖层），消除两套注册漂移。
+
+| 验证 | 结果 |
+|---|---|
+| 修前复现 | `dotnet test test/mock/sync.integration.tests --filter ChatServiceTests` → 5/5 失败，异常与 CI 逐字一致 |
+| 修后 | sync.integration 全量 **22/22 通过** |
+| 回归面 | Pipelines.Tests 61、Composition.Tests 1120、integration.tests（Mcp 冒烟 11）全绿；`Verify-FailFastConsumers.py` / `Verify-NodeFactoryCoverage.py` / `Verify-NodeConsistency.py` 全 OK |
+
+#### 25.9.2 `unit-tests / Unit - gui-core`（1/409 失败）— mode=queue 入队与轮次收尾的孤儿队列竞态
+
+**现象**：`DshGoalsTests.Goals_RoundsStarted_IncrementedByTurnAcceptance` 偶发 5s 超时
+（`WaitAsync(5s)` 等第二轮 `turn/start` 超时）；同一提交在 25 分钟前的 w3 运行里是绿的，
+本次 PR 也没改 `native_gui/` —— 属被 CI 负载放大的既有竞态。
+
+**根因**（`DshTurnRunner.StartAsync` busy 分支）：
+
+```
+T1(请求线程): TryBeginTurn → null（本轮在跑）
+T2(本轮收尾): EndTurn → StartQueued（队列为空，拉了个寂寞）
+T1(请求线程): Queue(...)  ← 这一项再也没有人拉 → 永远悬着
+```
+
+`mode=queue` 的输入在「判定 busy」与「真正入队」之间撞上收尾，就会变成孤儿：
+现象是排队输入消失，直到下一条输入才被带出来（测试里表现为 `turn/start turn=2` 永不到来）。
+
+**证据链**：在 busy→入队之间插 200ms 探针后，该测试 100% 复现同一超时（探针构建生效后
+压力运行连续红）；随后新增确定性回归测试 `DshQueuePumpTests`，
+用内部接缝 `QueueEnqueueGate` 把窗口钉死 —— 去掉修复后该测试同样超时，恢复后通过。
+
+**修法**：
+
+1. 入队后**自己再拉一次**（`QueueWhileBusyAsync`）—— 本轮仍在跑时自拉无害（队首留在队列），
+   本轮已收尾时自拉立即开下一轮，窗口消失。
+2. `StartQueued` 改为「先 peek → 占用成功才出队」，并把「出队失败」从「塞回队尾」改为「保留队首」：
+   入队自拉会让 `StartQueued` 频繁在 busy 状态下被调用，旧写法每次都会把队首转到队尾，
+   破坏 `session/updateQueue` 的入队顺序语义。
+
+| 验证 | 结果 |
+|---|---|
+| 红测试 | 新增 `DshQueuePumpTests.QueueEnqueuedWhileTurnFinishes_IsStartedInsteadOfOrphaned`：删掉自拉 → `TimeoutException`（与 CI 同栈）；恢复 → 通过 |
+| 压力 | 修复后该用例 + `Goals_RoundsStarted` 连跑 **40 轮 0 失败** |
+| 回归面 | gui-core 全量 **410/410**（含新增 1 条）通过；`DshUpdateQueueTests` / `DshSteerInputTests` 队列语义未变 |

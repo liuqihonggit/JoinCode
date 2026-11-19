@@ -11,5 +11,6 @@ global using System.Collections.Immutable;
 global using System.IO.Pipes;
 global using System.Text;
 global using System.Threading.Channels;
+global using Testing.Common;
 global using Xunit;
 global using Xunit.Abstractions;

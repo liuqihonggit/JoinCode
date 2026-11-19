@@ -58,7 +58,7 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 | A2 CI UI 域编译 job | `.github/workflows/ci-build.yml`（`build / Build UI`，windows-latest） | ✅ | ❌ 待下一次 PR 实测；**仓库保护需人工把 `build / Build UI` 加入 required status checks（需管理员操作）** |
 | B1 JsonAssert 帮助器 | 测试项目模板（Desktop 场景先行） | ✅ | ✅ `test/unit/testing.common/asserts/JsonAssert.cs` 语义断言（Parse/Get 路径/字符串/布尔/整数/数组包含）；自测 `JsonAssertTests` 8/8；Desktop 场景 3 文件 9 测试迁移后 30/30 绿（`--filter FullyQualifiedName~DesktopScene`） |
 | B2 排版断言分析器 | 测试项目 | ✅ | ✅ `JsonLayoutAssertionRule`（JCC9311，仅测试项目，Info 级）；分析器测试 5/5（正例 2 + 反例 3）；AotSafety.Tests 全量 267/267；真机 `dotnet build guard.config.tests -p:ErrorLog` SARIF 命中存量 9 处排版断言（level=note 不破坏 TreatWarningsAsErrors）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
-| B3 RetryableFact 模板 + CI Flaky 分层 | AsyncLock.Tests、CI workflows | ❌ | ❌ |
+| B3 RetryableFact 模板 + CI Flaky 分层 | AsyncLock.Tests、CI workflows | ✅ | ✅ `Testing.Common/retry/FlakyRetry.cs`（RunUntilAsync/RunAsync，耗尽聚合报错，取消直抛）；`FlakyRetryTests` 5/5；AskWithRetry 两例迁移后 12/12；`Category=Flaky` 15/15、默认过滤 541（556−15）；`ci-unit-tests.yml` 加 `Category!=Flaky`；新增 `ci-flaky-nightly.yml`（UTC 06:30 + workflow_dispatch，YAML 校验通过，首次夜跑待合并后观察）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
 | C1-C6 jcc 工具改造 | `jcc gh` 各子命令、`mcp_list/mcp_schema` | ❌ | ❌ |
 | D1 ModuleInitializer 中央开关与登记门禁 | `Directory.Build.props`、门禁脚本 | ❌ | ❌ |
 
@@ -113,3 +113,14 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 <!-- 原因: 存量 9 处排版断言若直接 Warning 会被 TreatWarningsAsErrors 全部打红，阻塞无关改动；只包装 JCC9311 避免 JCC1017 等规则在测试源码里干扰期望诊断 -->
 <!-- 替代方案: Warning 级并立即迁移 9 处（扩大本批范围、风险后移）；xunit Assert 与 FluentAssertions 分两条规则（同一根因拆散校验口径）——均否决 -->
 <!-- 验证: 267/267 单测 + SARIF 真机命中 9 处 + exe selftest 通过 -->
+
+- B3 `Testing.Common/retry/FlakyRetry.cs`：`RunUntilAsync(Func<Task<bool>>, failureMessage, maxAttempts)` + `RunAsync(Func<Task>)`；瞬态异常视为失败继续重试，`OperationCanceledException` 直抛，耗尽后抛 `InvalidOperationException` 聚合每次尝试原因（含 InnerException）。
+  - 迁移：`AskWithRetryTest` 两例手写 16 轮循环改为 `FlakyRetry.RunUntilAsync(..., maxAttempts: 16)`，断言口径（前缀 + CallCount）不变；`MailboxBase` 一例已在 B7 用语义等待（WaitAsync 10s）根治，不需要重试模板。
+  - CI：`ci-unit-tests.yml` 测试过滤改为 `Category!=Integration&Category!=Benchmark&Category!=Flaky`；新增 `ci-flaky-nightly.yml`（schedule UTC 06:30 + workflow_dispatch，复用 ci-build 产物 + setup-test-env，`--filter Category=Flaky`，TRX 保留 14 天）。
+  - 验收：`FlakyRetryTests` 5/5；`AskWithRetry` 12/12；`Category=Flaky` 15/15；默认过滤 541 = 总数 556 − Flaky 15；YAML 校验通过；jcc.exe `--selftest-tui` HOST SELFTEST OK。
+
+<!-- 🤖 Auto Decision: 2026-11-20 TASK101-B3 -->
+<!-- 决策: 落地 FlakyRetry 静态模板而非 RetryableFactAttribute；Flaky 标记仍用 [Trait("Category","Flaky")] 显式声明 -->
+<!-- 原因: xunit v2 的 FactAttribute 子类无法注入 Trait（发现器只认 TraitAttribute），想靠特性自动完成"标记+重试"必须自研 test framework（重且易碎）；把重试循环收进一个静态方法和保留 Trait 是最小可靠组合 -->
+<!-- 替代方案: 自研 XunitTestCase discoverer（维护成本远超收益）；只在文档里约定"手写 for 循环"（就是现在要消除的重复）——均否决 -->
+<!-- 验证: 5+12+15 测试全绿；默认过滤数与 Flaky 数精确互补 -->

@@ -1,0 +1,63 @@
+name: CI Nightly - Flaky Tests
+
+on:
+  schedule:
+    - cron: '30 6 * * *'  # 每日 UTC 06:30 — 紧随 uncovered 夜跑
+  workflow_dispatch: {}
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Debug
+
+jobs:
+  build:
+    name: Build + Pack
+    uses: ./.github/workflows/ci-build.yml
+
+  # PR CI 用 Category!=Flaky 排除的偶发用例如实跑在这里, 不允许借 Trait 逃逸。
+  # 新增 Flaky 用例的项目加进 matrix 即可（过滤条件不变）。
+  flaky:
+    name: Flaky - ${{ matrix.domain }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - domain: async_primitives
+            csprojs: modules/async_primitives/async_lock.tests/AsyncLock.Tests.csproj
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-test-env
+      - name: Test - Category=Flaky
+        shell: bash
+        run: |
+          set -e
+          for proj in ${{ matrix.csprojs }}; do
+            echo "=== Building: $proj ==="
+            dotnet build "$proj" -c Debug --nologo -m \
+              -p:UsePackedComponents=true \
+              -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          done
+          for proj in ${{ matrix.csprojs }}; do
+            name=$(basename "$proj" .csproj)
+            echo "=== Flaky tests: $proj ==="
+            dotnet test "$proj" -c Debug --nologo --no-build \
+              -p:UsePackedComponents=true \
+              -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+              --filter "Category=Flaky" \
+              --logger "console;verbosity=normal" \
+              --logger "trx;LogFileName=$name.flaky.trx"
+          done
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: flaky-test-results-${{ matrix.domain }}
+          path: '**/*.flaky.trx'
+          retention-days: 14

@@ -36,6 +36,8 @@ public enum ProjectType {
 /// </summary>
 public sealed class ProjectContext {
     public ProjectType ProjectType { get; set; } = ProjectType.Unknown;
+    /// <summary>非测试程序集是否已中央登记 ModuleInitializer（csproj &lt;JccAllowModuleInitializer&gt;true），JCC9312 消费。</summary>
+    public bool AllowModuleInitializer { get; set; }
     public bool IsLibrary => ProjectType == ProjectType.Library;
     public bool IsTest => ProjectType == ProjectType.Test;
     public bool IsUi => ProjectType == ProjectType.Ui;
@@ -45,13 +47,20 @@ public sealed class ProjectContext {
 
     public static ProjectContext From(Compilation compilation, AnalyzerConfigOptionsProvider optionsProvider) {
         var raw = "";
+        var allowModuleInitializer = false;
         foreach (var tree in compilation.SyntaxTrees) {
-            if (optionsProvider.GetOptions(tree).TryGetValue("build_property.ProjectType", out var value)) {
+            var options = optionsProvider.GetOptions(tree);
+            if (raw.Length == 0 && options.TryGetValue("build_property.ProjectType", out var value)) {
                 raw = value ?? "";
-                break;
             }
+            if (!allowModuleInitializer
+                && options.TryGetValue("build_property.JccAllowModuleInitializer", out var allow)
+                && bool.TryParse(allow, out var parsed)) {
+                allowModuleInitializer = parsed;
+            }
+            if (raw.Length > 0 && allowModuleInitializer) break;
         }
-        return new ProjectContext { ProjectType = ParseProjectType(raw) };
+        return new ProjectContext { ProjectType = ParseProjectType(raw), AllowModuleInitializer = allowModuleInitializer };
     }
 
     private static ProjectType ParseProjectType(string raw) {

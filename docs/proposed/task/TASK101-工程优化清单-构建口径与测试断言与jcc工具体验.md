@@ -60,7 +60,7 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 | B2 排版断言分析器 | 测试项目 | ✅ | ✅ `JsonLayoutAssertionRule`（JCC9311，仅测试项目，Info 级）；分析器测试 5/5（正例 2 + 反例 3）；AotSafety.Tests 全量 267/267；真机 `dotnet build guard.config.tests -p:ErrorLog` SARIF 命中存量 9 处排版断言（level=note 不破坏 TreatWarningsAsErrors）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
 | B3 RetryableFact 模板 + CI Flaky 分层 | AsyncLock.Tests、CI workflows | ✅ | ✅ `Testing.Common/retry/FlakyRetry.cs`（RunUntilAsync/RunAsync，耗尽聚合报错，取消直抛）；`FlakyRetryTests` 5/5；AskWithRetry 两例迁移后 12/12；`Category=Flaky` 15/15、默认过滤 541（556−15）；`ci-unit-tests.yml` 加 `Category!=Flaky`；新增 `ci-flaky-nightly.yml`（UTC 06:30 + workflow_dispatch，YAML 校验通过，首次夜跑待合并后观察）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
 | C1-C6 jcc 工具改造 | `jcc gh` 各子命令、`mcp_list/mcp_schema` | ✅ | ✅ C1 单测（URL 首行 ×2）；C2 exe 实测 `gh branch audit-protection`: 22 匹配 / 0 误报 stale / 检出 2 个真实缺失 check；C3 exe 实测 `run wait --timeout 25 --interval 2`: 每轮进度行 + 超时 exit 3；C4 exe 实测 0 结果带过滤提示与可用 event 值；C5 exe 实测 mcp_list meta.note + mcp_schema gh_* 引导；C6 exe 实测 `gh --version` exit 0。C1 未真实建 PR（可由随后用户的 PR 自然覆盖） |
-| D1 ModuleInitializer 中央开关与登记门禁 | `Directory.Build.props`、门禁脚本 | ❌ | ❌ |
+| D1 ModuleInitializer 中央开关与登记门禁 | `Directory.Build.props`、门禁脚本 | ✅ | ✅ 根 NoWarn 全局接管 CA2255 + `CompilerVisibleProperty JccAllowModuleInitializer`；`ProjectContext.AllowModuleInitializer`；JCC9312（非测试未登记报 Warning=错，测试放行）；Infrastructure 登记 `JccAllowModuleInitializer=true`；18 份测试 AssemblyInfo 的 CA2255 pragma 全部移除。验收：分析器 270/270；真机负对照（`.xxx/jcc9312_probe` 未登记 → error JCC9312，登记后 0）；guard.config.tests / Infrastructure 0 错误；jcc.exe `--selftest-tui` HOST SELFTEST OK |
 
 ## 4. 风险与回滚
 
@@ -143,3 +143,17 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 <!-- 原因: 两套 check 名口径（裸值 vs 全名）正是误报根因，保留旧解析只会复发；合并注册表需主进程跨 exe 拉取 172 工具，启动开销与双源漂移都比一句说明更贵 -->
 <!-- 替代方案: 审计侧继续按裸 matrix 名比对并特判独立 job（把误报知识写进比对器）；mcp_list 实调 jcc-gh 填充 --list-tools（跨进程 + 缓存一致性）——均否决 -->
 <!-- 验证: audit 实测 22 匹配 0 误报；mcp_list/schema 实测带 note/引导；793 单测全绿 -->
+
+### D 批（2026-11-20 完成）
+
+- D1 治理三层：① 根 `Directory.Build.props` 全局 `<NoWarn>...;CA2255</NoWarn>`（附治理说明）+ `CompilerVisibleProperty JccAllowModuleInitializer`；② `ProjectContext.AllowModuleInitializer`（读取 `build_property.JccAllowModuleInitializer`）；③ 新规则 `ModuleInitializerGovernanceRule`（JCC9312，Warning）：非测试程序集未登记 → 报错，测试程序集默认放行，已登记放行。
+  - 登记：`Infrastructure.csproj` 由项目级 `NoWarn CA2255` 改为 `<JccAllowModuleInitializer>true</JccAllowModuleInitializer>`（注释即登记理由）。
+  - 清理：18 份测试 `AssemblyInfo.cs` 的 `#pragma warning disable/restore CA2255` 全部移除（中央 NoWarn 接管）。
+  - 验收：`ModuleInitializerGovernanceRuleTests` 3/3（未登记报/测试放行/登记放行）、AotSafety.Tests 270/270；真机负对照 `.xxx/jcc9312_probe`：未登记 → `error JCC9312`，加开关 → 0 命中；guard.config.tests 与 Infrastructure 真机编译 0 错误；jcc.exe `--selftest-tui` HOST SELFTEST OK。
+  - 全仓编译（A1 脚本 4 target）顺带暴露 native_gui 存量红：`DshInteractionProtocol.cs` 字段默认值硬编码 `"positive"` 撞 JCC10007（PR #494 遗留），已改用 `DshFeedbackRating.Positive.ToValue()`；全仓重跑 exit 0。
+
+<!-- 🤖 Auto Decision: 2026-11-20 TASK101-D1 -->
+<!-- 决策: 用"根级 NoWarn + JCC9312 自定义规则"接管 CA2255，而不是继续项目级/admin 手工 NoWarn -->
+<!-- 原因: CA2255 无法区分"测试引导惯例"与"库作者误用"；中央豁免 + 自定义规则可把判定口径集中（测试放行/非测试登记），并把登记理由固化为 csproj 可见开关，替代 18 份文件各自的 pragma 说明 -->
+<!-- 替代方案: 保留 CA2255 原生告警并给每项目 NoWarn（就是当前的散落状态）；脚本 grep 门禁（只能事后检查，无法在编译期定位到具体方法）——均否决 -->
+<!-- 验证: 负对照真机报错/登记后静默；270 分析器测试全绿 -->

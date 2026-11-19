@@ -189,6 +189,12 @@ jobs:
       - name: Verify node contracts and declaration↔factory consistency
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-NodeConsistency.py
+      # 工具组三方一致：cli_groups.yaml ↔ ToolGroupDeclaration ↔ base.yaml。
+      # 缺这一步的后果是「profile 声明了一个永不存在的组」或「某个组永远关不掉」，
+      # 而两种情况在 --dump-nodes 里都只是少一行/多一行，人眼很难发现。
+      - name: Verify tool group ids across yaml / declaration / profile
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-ToolGroupNodes.py
       - name: Verify GUI session boots with the declared order
         shell: pwsh
         run: |

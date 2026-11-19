@@ -737,14 +737,29 @@ def main() -> int:
         target_dir.mkdir(parents=True, exist_ok=True)
         help_path = target_dir / "help.txt"
         index_path = target_dir / "node.yaml"
-        # G2 节点继承护栏：本生成器全量重写 node.yaml，会静默冲掉手写的 inherits。
-        # 一旦有分组真的采用继承，必须先显式处理（迁到叠加文件或让生成器保留字段），不允许数据无声丢失。
+        # G2 节点继承护栏（TASK097 §14）：node.yaml 是本脚本的生成物，全量重写；
+        # 人工差异必须放同目录 node.inherit.yaml —— 本脚本绝不写它，NodeManifestLoader 会叠加。
+        # 手写 inherits 到 node.yaml 必拒，否则下次生成静默丢失继承关系。
         if index_path.exists() and re.search(r"^\s*inherits\s*:", index_path.read_text(encoding="utf-8"), re.MULTILINE):
             raise SystemExit(
                 f"分组 '{category}' 的 node.yaml 含手写 inherits 声明，生成器拒绝覆写"
                 f"（否则继承关系会静默丢失）。\n"
-                f"处理: ① 把继承声明迁到 node.inherit.yaml 叠加文件；或 ② 在本脚本的 render_group_index 中保留 inherits。"
+                f"处理: 把继承声明迁到同目录 node.inherit.yaml —— 生成器不碰该文件，"
+                f"NodeManifestLoader 会把它的差异叠加到 node.yaml 上。"
             )
+        # 叠加文件校验：它描述的是同一个节点的差异，id 必须与所在组一致；
+        # 否则下钻树会显示错 ID / 叠加到别的组上。生成器只校验、不改写。
+        overlay_path = target_dir / "node.inherit.yaml"
+        if overlay_path.exists():
+            overlay_text = overlay_path.read_text(encoding="utf-8", errors="replace")
+            overlay_id = re.search(r"^id:\s*(.+)$", overlay_text, re.MULTILINE)
+            found_id = overlay_id.group(1).strip().strip('"') if overlay_id else ""
+            if found_id != category:
+                raise SystemExit(
+                    f"分组 '{category}' 的 node.inherit.yaml id='{found_id}' 与组名不一致。\n"
+                    f"处理: 把叠加文件的 id 改成 '{category}'（叠加描述的是同一节点的差异，不是新节点）；"
+                    f"要指向别的父节点请用 inherits 字段。"
+                )
         help_path.write_text(render_group_help(category, exe, unique), encoding="utf-8")
         local_ids = collect_local_ids(target_dir)
         unknown = local_ids - {t["id"] for t in unique}

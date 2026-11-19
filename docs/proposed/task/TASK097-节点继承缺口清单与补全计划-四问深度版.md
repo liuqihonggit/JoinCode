@@ -474,3 +474,94 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 ### 13.7 TASK097 总判定
 
 G1–G7 全部缺口闭合：G2/G4（阶段1）、G5/G1（阶段2）、G3（零代码）、G6（经验继承 + H₀ 红线，两轮差评修复）、G7（CI 验证步骤 + run #55 AOT/RTR 产物真机署名）。每阶段真机 exe 验收，单元测试仅作回归网。用户核心诉求「DSH 万物皆节点 + Harness² 可继承 → 节点继承」落地为：**节点可继承描述（G2）+ 节点自动归纳与可逆装卸（G5/G1）+ 经验可跨任务选择性复用且绝不继承成品（G6）**。
+
+---
+
+## 14. G2 生产落地：继承机制不再空转（2026-11-20）
+
+### 14.1 现状：机制全绿，生产零使用
+
+TASK097 §13.7 宣布 G2 闭合，指的是**机制**闭合：`CliNodeInheritanceResolver` 有逐字段合并、环检测、深度上限、失败保留节点，
+`CliToolNodeTests` 有 8 条单测，`fixtures/inheritance/` 有真机夹具。但把机制接到生产数据上：
+
+| 核对项 | 实测结果 |
+|---|---|
+| 生产 `node.yaml` 总数 | 15（13 分组 + sample + rg） |
+| 其中声明 `inherits:` 的 | **0** |
+| `LoadNodesFromDirectory` 的 `ResolveAll(nodes)` | 对生产数据 **no-op** |
+
+也就是说：`jcc tool tree/find/help` 每天走的那条路，继承代码执行了，但没有任何节点真的继承了什么。
+"节点皆可继承"在那一刻只是**能力**，不是**事实**。
+
+### 14.2 不能硬塞：13 组之间没有可继承内容
+
+曾考虑让某几个分组互相继承，实测否掉：
+
+```
+634 个工具 id，跨组重复的 id 数 = 0
+13 组 node.yaml 的公共字段只有 parameters: []（全空）
+name/exe/category 都是 `<category>` 机械派生，没有父子关系
+```
+
+强行造一个 `_base` 让 13 组继承，只会把"每个文件自己写一遍"变成"每个文件自己写一遍 + 一行 inherits"，
+没有减少任何重复 —— 那是给门禁和文档交差，不是落地。
+
+### 14.3 真断裂点：生成器承诺的叠加文件不存在
+
+`scripts/migrate_mcp_tools_to_cli_nodes.py` 的继承护栏原文：
+
+> 分组 'X' 的 node.yaml 含手写 inherits 声明，生成器拒绝覆写。
+> 处理: ① 把继承声明迁到 `node.inherit.yaml` 叠加文件；或 ② 在 render_group_index 中保留 inherits。
+
+生成器**明确承诺了 `node.inherit.yaml` 这个叠加文件**，但：
+- 全仓没有任何 `node.inherit.yaml`；
+- `NodeManifestLoader` 只扫 `node.yaml`，叠加文件放了也不会被读；
+- 选②让生成器保留 inherits 更糟——生成器全量重写会把叠加的相对路径字段一起冲掉。
+
+于是继承在生产里只剩一条路：**用户自己另起目录、复制一份完整 node.yaml、手改**——
+那不是继承，那是分叉。这就是"做来干嘛"的真实答案：接口留了，路没通。
+
+### 14.4 修法：叠加文件成为生产继承的唯一入口
+
+```
+<group>/
+  node.yaml            ← 生成器每次全量重写（自动生成，勿手改）
+  node.inherit.yaml    ← 人工维护，只写差异（新增，生成器绝不碰）
+```
+
+语义（与 Harness² write_tree 一致：**子只写要改的字段**）：
+
+1. `node.inherit.yaml` 用同一套 `NodeYamlParser` 解析，可写 `inherits: <父节点 id>`；
+2. 未声明的字段从同目录 `node.yaml` 继承，已声明的逐字段覆盖；
+3. `parameters` 按 name 合并、`tools` 按 id 合并（复用 `CliNodeInheritanceResolver` 现有合并语义，不写第二份）；
+4. 叠加结果再进目录级 `ResolveAll`，所以 `node.inherit.yaml` 的 `inherits` 仍可指向跨目录父节点；
+5. 生成器护栏改写：不再拒绝 `node.inherit.yaml`，改为校验其 `id` 与所在组一致（防止叠加到别的组上）。
+
+**验收判据**（不是"代码里有 inherits"，而是）：
+
+- 真实生产 `node.inherit.yaml` 至少一份，改父节点字段后 `jcc tool tree/help` 的输出跟着变；
+- 生成器重跑后叠加文件逐字节不变；
+- 删除叠加文件后产物回到原状（可回滚）。
+
+### 14.5 本节清单（逐项打勾，一次一项）
+
+- [x] **E1 文档先记录**：本节写清现状、为何不能硬塞、叠加文件方案与验收判据。
+- [x] **E2 叠加加载**：`NodeManifestLoader.LoadNodesFromDirectory` 读取 `node.inherit.yaml` 并与 `node.yaml` 叠加，复用现有合并语义。
+- [x] **E3 生成器护栏**：允许叠加文件共存 + id 一致性校验；生产样本落一份真实 `node.inherit.yaml`。
+- [x] **E4 真机验收**：改父字段 → `jcc tool tree/help` 跟着变；删叠加文件回原状；生成器重跑不冲掉。
+- [x] **E5 门禁与收尾**：`Verify-CliNodeInheritance.py` + CI；逐项打勾；提交（不推、不建 PR）。
+
+### 14.6 验收实证（E2–E4 施工后）
+
+| 项 | 实证 |
+|---|---|
+| 单测 | `ApplyOverlay_DeclaredFieldsWin_OmittedFieldsInheritedFromBaseline`：显式 tags 覆盖、省略的 name/summary/exe 从基准继承、parameters 按 name 合并后 `type=integer/description` 未退化；`ApplyOverlay_IdMismatch_ThrowsWithActionableMessage` 报出两侧 id 与正确写法。红→绿：先因 parser 把差异文件当完整节点（缺 name）报红，改用显式 `ParseOverlay` API 后转绿。 |
+| 生成器重跑 | `python scripts/migrate_mcp_tools_to_cli_nodes.py --scan . --out modules/tools/cli_nodes/groups --category web` 后叠加文件 SHA256 不变；负向把叠加 `id` 改成 `not_web` → 生成器退出码 1 并指名正确写法。 |
+| 真机正向 | `jcc tool help web` 显示叠加的 `标签: download, web, fetch, browser`（基准只有 download, web）与叠加的 examples 行；`jcc tool find overlay-probe`（叠加独有关键词，summary 里没有）命中 web 节点。 |
+| 真机负向 | 移走叠加文件后 `jcc tool help web` 标签回到 `download, web`；`jcc tool find overlay-probe` 报「未找到匹配的 CLI 工具节点」。叠加文件恢复后再次命中。 |
+| 门禁 | 新增 `Verify-CliNodeInheritance.py`（静态 + `--live` 对账）接入 `ci-unit-tests.yml`；负向把 `id` 改成 `web_typo` → 退出码 1 并指名两侧 id，源文件随即原样恢复。 |
+
+**边界（不得宣称超出）**：叠加是**节点描述层**的继承（`node.yaml` ↔ `node.inherit.yaml`），
+不是工具执行层的继承 —— 13 个分组 exe 运行时走编译好的 C#，不读 node.yaml。
+本落地让 `jcc tool tree/find/help` 的下钻自省真实吃到继承，并给外部自定义节点提供了
+"只写差异、父节点放同目录"的生产通路；没有改动 635 个工具的调用契约。

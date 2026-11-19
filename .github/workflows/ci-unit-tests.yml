@@ -203,6 +203,12 @@ jobs:
       - name: Verify instance consumers resolve with fail-fast
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-FailFastConsumers.py
+      # G2 节点继承的生产落地（TASK097 §14）：node.inherit.yaml 叠加文件必须真的影响
+      # jcc tool help/find 的下钻输出。缺这一步的后果是「生成器承诺的叠加文件没人读」，
+      # 机制有单测、生产却零继承 —— 文件存在但没生效。
+      - name: Verify CLI node overlay inheritance takes effect
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-CliNodeInheritance.py --live=artifacts/bin/JoinCode/Debug/net10.0
       # 工具组三方一致：cli_groups.yaml ↔ ToolGroupDeclaration ↔ base.yaml。
       # 缺这一步的后果是「profile 声明了一个永不存在的组」或「某个组永远关不掉」，
       # 而两种情况在 --dump-nodes 里都只是少一行/多一行，人眼很难发现。

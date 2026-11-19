@@ -15,7 +15,7 @@ internal static class NodeYamlParser {
         var version = ReadScalar(root, "version") ?? "1";
         var tools = ReadSequence(root, "tools")
             .OfType<YamlMappingNode>()
-            .Select(map => ParseDescriptor(map, source))
+            .Select(map => ParseDescriptor(map, source, requireIdentity: true))
             .ToArray();
         if (tools.Length == 0)
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 未定义任何基础工具");
@@ -25,7 +25,15 @@ internal static class NodeYamlParser {
     }
 
     internal static CliToolDescriptor ParseNode(string yaml, string source) =>
-        ParseDescriptor(ParseRoot(yaml, source), source);
+        ParseDescriptor(ParseRoot(yaml, source), source, requireIdentity: true);
+
+    /// <summary>
+    /// 解析叠加文件（node.inherit.yaml）—— 它是**差异**而不是完整节点：id 必填，
+    /// name/summary 可省略（由同目录 node.yaml 通过 CliNodeInheritanceResolver.ApplyOverlay 补齐）。
+    /// 与 <see cref="ParseNode"/> 分开，避免把"允许缺 name"的口子开到生产真节点上。
+    /// </summary>
+    internal static CliToolDescriptor ParseOverlay(string yaml, string source) =>
+        ParseDescriptor(ParseRoot(yaml, source), source, requireIdentity: false);
 
     /// <summary>
     /// 解析 cli_groups.yaml —— 首轮提示词的分组索引。
@@ -81,7 +89,12 @@ internal static class NodeYamlParser {
         return root;
     }
 
-    private static CliToolDescriptor ParseDescriptor(YamlMappingNode map, string source) {
+    /// <param name="map">YAML mapping 节点（单个节点声明）。</param>
+    /// <param name="source">来源文件路径，用于报错定位。</param>
+    /// <param name="requireIdentity">
+    /// true = 完整节点，name/summary 必填（除非声明 inherits）；false = 叠加差异，只要求 id。
+    /// </param>
+    private static CliToolDescriptor ParseDescriptor(YamlMappingNode map, string source, bool requireIdentity) {
         var id = ReadScalar(map, "id");
         var name = ReadScalar(map, "name");
         var summary = ReadScalar(map, "summary");
@@ -89,10 +102,12 @@ internal static class NodeYamlParser {
         if (string.IsNullOrWhiteSpace(id))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 存在缺少 id 的节点");
         // G2「省略即继承」：声明 inherits 的子节点只写差异，name/summary 可交给 CliNodeInheritanceResolver 从父继承。
-        // 不声明 inherits 时仍强制必填 —— 提示词里出现一个没有说明的 exe，等于让模型对着未知命令行猜。
-        if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(inherits))
+        // 叠加文件同理（requireIdentity=false）：它是差异，不要求 name/summary。
+        // 完整节点不声明 inherits 时仍强制必填 —— 提示词里出现一个没有说明的 exe，等于让模型对着未知命令行猜。
+        var mayOmitIdentity = !requireIdentity || !string.IsNullOrWhiteSpace(inherits);
+        if (!mayOmitIdentity && string.IsNullOrWhiteSpace(name))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 节点 '{id}' 缺少 name");
-        if (string.IsNullOrWhiteSpace(summary) && string.IsNullOrWhiteSpace(inherits))
+        if (!mayOmitIdentity && string.IsNullOrWhiteSpace(summary))
             throw new InvalidOperationException($"CLI 节点清单 '{source}' 节点 '{id}' 缺少 summary");
 
         var exe = ReadScalar(map, "exe");

@@ -537,9 +537,112 @@ consumers:
       - id: docker-sandbox-provider
         priority: 100
 
-  # TASK100 S1：原 tool-dispatch 4 条声明（shell/file/web/code_execution）已删除 ——
-  # 无任何工厂、无任何生产消费方（ToolDispatchConsumer 只在测试里 new）。
-  # 工具分组开关待 S4 用 capability 契约重建，不接受「声明了但没人装配」的死配置。
+  # TASK100 S4：引擎可选能力（contract: capability — 存在即提供，彼此不互斥）。
+  # 删掉一条 = 对应服务在 EngineServiceContext 里为 null + 对应插件不加载。
+  # 未声明整段消费点 = 全开（向后兼容）；声明了 = 白名单。
+  # 只登记真有消费点的能力 —— vision 等没有可选服务被引擎消费的能力不登记（避免假节点）。
+  capabilities:
+    contract: capability
+    nodes:
+      - id: goal
+        priority: 700
+      - id: todo
+        priority: 600
+      - id: task
+        priority: 500
+      - id: cron
+        priority: 400
+      - id: memdir
+        priority: 300
+      - id: dream
+        priority: 200
+      - id: code-index
+        priority: 100
+
+  # TASK100 S4：CLI 入口子命令（contract: command-group — 分类聚合，各命令互不干扰）。
+  # 此前 20 个 CliSubCommand 散在三处：枚举 / ApplicationBuilder 的 2 个 if / 路由器的 16 个 case。
+  # 节点化后这张表就是 CLI 的命令表面：删掉一条，命令即从 CLI 消失（报「未在当前 profile 启用」）。
+  # 未声明整段消费点 = 全开（向后兼容）；声明了 = 白名单。
+  # ID 规则：CliSubCommand 枚举名称 kebab 化（不是 [EnumValue]，后者是 mcp_call 这种命令行字面量）。
+  cli-commands:
+    contract: command-group
+    nodes:
+      - id: schema
+        priority: 100
+      - id: config-print
+        priority: 200
+      - id: remote-control
+        priority: 300
+      - id: mcp-call
+        priority: 400
+      - id: mcp-list
+        priority: 500
+      - id: mcp-schema
+        priority: 600
+      - id: mcp-search
+        priority: 700
+      - id: mcp-serve
+        priority: 800
+      - id: slash-call
+        priority: 900
+      - id: slash-list
+        priority: 1000
+      - id: slash-schema
+        priority: 1100
+      - id: rg
+        priority: 1200
+      - id: gh
+        priority: 1300
+      - id: bridge-serve
+        priority: 1400
+      - id: tool
+        priority: 1500
+      - id: prompt
+        priority: 1600
+      - id: experience
+        priority: 1700
+      - id: probe
+        priority: 1800
+
+  # TASK100 S6：独立工具 exe 组（contract: capability — 存在即提供，彼此不互斥）。
+  # 13 个组 = resources/tools/cli_groups.yaml 的组，含 388 个不经宿主的隔离工具。
+  # 删掉一条的后果是三处同时生效：首轮提示词不再列出该组、jcc tool tree/find 看不到、
+  # jcc tool call 报「未在当前 profile 启用」（退出码 2）。而不是只在某一层悄悄少几个工具。
+  # 未声明整段消费点 = 全开（向后兼容）；声明了 = 白名单。ID 必须与 cli_groups.yaml 的组 ID 逐一相同，
+  # 由 Verify-ToolGroupNodes.py 双向核对。
+  tool-groups:
+    contract: capability
+    nodes:
+      - id: agent
+        priority: 100
+      - id: code
+        priority: 200
+      - id: file
+        priority: 300
+      - id: git
+        priority: 400
+      - id: github
+        priority: 500
+      - id: mcp
+        priority: 600
+      - id: media
+        priority: 700
+      - id: search
+        priority: 800
+      - id: shell
+        priority: 900
+      - id: slash
+        priority: 1000
+      - id: system
+        priority: 1100
+      - id: tools
+        priority: 1200
+      - id: web
+        priority: 1300
+
+  # 历史：S1 曾删除原 tool-dispatch 4 条声明（shell/file/web/code_execution）——
+  # 无工厂、无生产消费方。工具面的启停现在由上面两段承担：
+  # capabilities 管宿主注册的 368 个工具（按分类），tool-groups 管 13 个 exe 组的 388 个隔离工具。
   command-dispatch:
     nodes:
       - id: 会话-command

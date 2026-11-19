@@ -1,6 +1,11 @@
 name: ci
 inherits: headless
 excludes:
+  # 注意：excludes 按「节点 ID」排除，而节点 ID 是全局命名空间 —— 不是「按消费点」。
+  # `web` 同时是 web-pipeline 里一个中间件的 ID 和 tool-groups 里一个工具组的 ID，
+  # 因此这一条会同时排掉两处（web-pipeline 少 1 个节点，tool-groups 少 web 组）。
+  # 对 CI 来说这正好是想要的结果：不装 web 抓取工具组，所以保留同义；
+  # 但若将来要把「工具组 web」和「中间件 web」分开控制，需要给 excludes 加 consumer 限定。
   - web
   - audit-log-mw
   - crash-snapshot-mw

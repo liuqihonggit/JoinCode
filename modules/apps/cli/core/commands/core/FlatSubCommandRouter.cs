@@ -1,53 +1,14 @@
 namespace JoinCode.CliCommands;
 
 /// <summary>
-/// 扁平元动词子命令路由器 — 处理 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve/slash_call/slash_list/slash_schema/doctor/rg/gh 等元命令。
+/// 扁平元动词子命令的公共支撑 — 位置参数/选项扫描/未知选项检测/输出格式判定。
 /// <para>ADR: 0069 — 扁平元动词风格，位置参数为主，不经过 System.CommandLine 嵌套子命令。</para>
+/// <para>
+/// TASK100 S4：此处的 16 个 <c>case</c> 已删除 —— 命令分发改由节点表
+/// （<see cref="CliCommandNodes"/>）驱动，本类只保留各子命令共用的解析工具。
+/// </para>
 /// </summary>
 internal static class FlatSubCommandRouter {
-    /// <summary>
-    /// 尝试执行扁平元命令；非元命令返回 null 交还调用方处理。
-    /// <para>全穿透架构 — 不在全局层拦截子命令参数，各子命令内部用
-    /// <see cref="DetectUnknownOptions"/> 自行验证（传入自己的合法选项集合）。</para>
-    /// </summary>
-    public static async Task<int?> TryExecuteAsync(CliSubCommand subCommand, string[] args, CancellationToken ct) {
-        switch (subCommand) {
-            case CliSubCommand.McpCall:
-            return await McpCallCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.McpList:
-            return await McpListCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.McpSchema:
-            return await McpSchemaCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.McpSearch:
-            return await McpSearchCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.McpServe:
-            return await McpServeCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.SlashCall:
-            return await SlashCallExecutor.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.SlashList:
-            return await SlashListExecutor.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.SlashSchema:
-            return await SlashSchemaExecutor.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.Rg:
-            return await RgSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.Gh:
-            return await GhSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.BridgeServe:
-            return await BridgeServeCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.ConfigPrint:
-            return await ConfigPrintCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.Tool:
-            return await CliToolCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.Prompt:
-            return await PromptPrintCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.Experience:
-            return await ExperienceCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.Probe:
-            return await ProbeCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
-            default:
-            return null;
-        }
-    }
 
     internal static string? GetPositional(string[] args, int index) {
         var positionalIndex = 0;

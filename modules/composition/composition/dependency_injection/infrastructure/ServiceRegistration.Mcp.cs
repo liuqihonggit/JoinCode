@@ -24,8 +24,14 @@ public static partial class ServiceRegistration {
         services.AddSingleton<Func<IMcpToolRegistry, IServiceProvider, CancellationToken, Task<IMcpToolRegistry>>>(
             async (registry, sp, ct) => {
                 var toolFilter = sp.GetService<Func<string, bool>>();
-                var sw = PerfTimer.Start($"  RegisterAll (filter={toolFilter is not null})");
-                var result = await GeneratedToolHandlerRegistration_JoinCode_Composition.RegisterAllMcpToolDispatchAsync(registry, sp, ct, toolFilter).ConfigureAwait(false);
+                // TASK100 S4 收尾：能力声明同时治理工具表 —— 关掉 todo 不该只剩「服务为 null 但工具还在」。
+                // 两个过滤条件是「与」：既有的 CLI 过滤（SkipChatServices 只留 gh_*）不能被能力门禁绕过，
+                // 反过来也一样。两者都全开时返回 null，让生成代码走「不过滤」快路径（零回归）。
+                var gate = sp.GetService<ToolCapabilityGate>();
+                var effectiveFilter = ComposeToolFilter(toolFilter, gate);
+                Diag.WriteLine($"[TOOL-GATE] {gate?.Describe() ?? "gate=absent"} filter={(effectiveFilter is null ? "none" : "active")}");
+                var sw = PerfTimer.Start($"  RegisterAll (filter={effectiveFilter is not null})");
+                var result = await GeneratedToolHandlerRegistration_JoinCode_Composition.RegisterAllMcpToolDispatchAsync(registry, sp, ct, effectiveFilter).ConfigureAwait(false);
                 sw?.Stop();
                 return result;
             });
@@ -58,6 +64,27 @@ public static partial class ServiceRegistration {
         // PromptConfig — [Register] 自动注册（DI 构造函数接收 IToolCategoryProvider）
 
         return services;
+    }
+
+    /// <summary>
+    /// 组合两个工具过滤条件（CLI 层与能力层）—— 二者是「与」关系，任一层不放行即不注册。
+    /// <para>
+    /// 都全开时返回 <see langword="null"/>：生成代码据此走「不过滤」快路径，
+    /// 未配置能力裁剪的宿主因此与改动前逐字节等价。
+    /// </para>
+    /// </summary>
+    /// <param name="cliFilter">既有 CLI 过滤（如 <c>SkipChatServices</c> 只留 <c>gh_*</c>）；可为 <see langword="null"/>。</param>
+    /// <param name="gate">能力门禁；为 <see langword="null"/> 表示宿主未装配能力视图。</param>
+    /// <returns>组合后的过滤委托；无需过滤时为 <see langword="null"/>。</returns>
+    private static Func<string, bool>? ComposeToolFilter(Func<string, bool>? cliFilter, ToolCapabilityGate? gate) {
+        if (gate is null || !gate.HasActiveFilter)
+            return cliFilter;
+
+        var activeGate = gate;
+        if (cliFilter is null)
+            return activeGate.IsToolEnabled;
+
+        return name => cliFilter(name) && activeGate.IsToolEnabled(name);
     }
 
     /// <summary>

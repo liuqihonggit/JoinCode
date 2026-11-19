@@ -72,6 +72,9 @@ public static class ToolsSection {
     /// 追加「有哪些 exe」的目录段落 —— 一条 item 内含多行，避免逐行加前缀把缩进撑成五层。
     /// <para>没有索引（资源缺失或生成失败）时退化为一句指引，而不是让提示词里出现一个空的清单标题：
     /// 空标题会让模型以为「没有工具可用」。</para>
+    /// <para>TASK100 S6：组清单按当前 profile 的 <c>tool-groups</c> 消费点裁剪。此前这里恒列全部 13 组，
+    /// 于是「profile 关掉 github 组」只关了 CLI 侧，模型仍被告知有它 —— 提示词是这些 exe 的唯一入口，
+    /// 不裁就等于没关。数字（组数/工具数/隔离数）按裁剪后的集合重算：留着全量数字会与行数自相矛盾。</para>
     /// </summary>
     private static void AddGroupCatalog(List<string> items) {
         var index = CliGroupIndex.LoadDefault();
@@ -80,10 +83,24 @@ public static class ToolsSection {
             return;
         }
 
-        var header = $"其余能力不在首轮 tools 清单里，而是分装在 {index.GroupCount} 个独立 exe 里（共 {index.ToolCount} 个工具，"
-            + $"其中 {index.IsolatedToolCount} 个不经过宿主直接执行）。每个 exe 的 `-h` 就是它的说明书 —— 先按定位挑组，再按需读，不要预先整段读：";
-        var lines = index.Groups
+        var enabled = PromptToolGroupScope.Enabled;
+        var keep = enabled is null ? null : new HashSet<string>(enabled, StringComparer.Ordinal);
+        var groups = index.Groups
+            .Where(group => keep is null || keep.Contains(group.Id))
             .OrderBy(group => group.Id, StringComparer.Ordinal)
+            .ToArray();
+
+        if (groups.Length == 0) {
+            // 「全被裁」与「索引缺失」是两件事：前者是配置意愿，后者是打包问题，提示词里不能混成一句。
+            items.Add("当前 profile 未启用任何独立工具组 —— 只用首轮 tools 清单里的工具，不要假设其它命令存在。");
+            return;
+        }
+
+        var toolCount = groups.Sum(group => group.ToolCount);
+        var isolatedCount = groups.Sum(group => group.IsolatedCount);
+        var header = $"其余能力不在首轮 tools 清单里，而是分装在 {groups.Length} 个独立 exe 里（共 {toolCount} 个工具，"
+            + $"其中 {isolatedCount} 个不经过宿主直接执行）。每个 exe 的 `-h` 就是它的说明书 —— 先按定位挑组，再按需读，不要预先整段读：";
+        var lines = groups
             .Select(group => $"   - {group.Id}（{group.Exe}，{group.ToolCount} 个）{group.Blurb}");
 
         items.Add(header + Environment.NewLine + string.Join(Environment.NewLine, lines));

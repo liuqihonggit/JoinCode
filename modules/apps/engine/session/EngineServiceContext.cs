@@ -60,6 +60,12 @@ public sealed record EngineServiceContext {
 
     /// <summary>
     /// 从 DI 容器解析所有可选服务
+    /// <para>
+    /// TASK100 S4：可选能力（goal/todo/task/cron/memdir/dream）不再无条件解析 ——
+    /// 由 profile 消费点 <c>capabilities</c>（contract: capability）决定。
+    /// 未声明的能力解析为 <see langword="null"/>，消费方因此天然走「能力不可用」分支，
+    /// 而不是拿到一个能用的服务却假装它不存在。
+    /// </para>
     /// </summary>
     public static EngineServiceContext FromServiceProvider(
         IServiceProvider? sp,
@@ -67,11 +73,24 @@ public sealed record EngineServiceContext {
         IGoalRegistry? goalRegistry = null,
         ICronTaskStore? cronTaskStore = null,
         BridgeClient? bridgeClient = null,
-        WorkflowConfig? workflowConfig = null) => new() {
-            GoalEngine = goalEngine,
-            GoalRegistry = goalRegistry ?? sp?.GetService<IGoalRegistry>(),
-            CronTaskStore = cronTaskStore,
-            DreamTaskRegistry = sp?.GetService<JoinCode.Dream.Persistence.IDreamTaskRegistry>(),
+        WorkflowConfig? workflowConfig = null) {
+        var capabilities = sp?.GetService<Composition.NodeRegistry.CapabilitySet>()
+            ?? Composition.NodeRegistry.CapabilitySet.AllEnabled;
+        // 真机可见：配置到底生效了没，不该靠读 yaml 猜。
+        Diag.WriteLine($"[CAPS] {capabilities.Describe()}");
+
+        var goalOn = capabilities.IsEnabled(Composition.NodeRegistry.CapabilityNodes.Goal);
+        var cronOn = capabilities.IsEnabled(Composition.NodeRegistry.CapabilityNodes.Cron);
+        var dreamOn = capabilities.IsEnabled(Composition.NodeRegistry.CapabilityNodes.Dream);
+        var todoOn = capabilities.IsEnabled(Composition.NodeRegistry.CapabilityNodes.Todo);
+        var taskOn = capabilities.IsEnabled(Composition.NodeRegistry.CapabilityNodes.Task);
+        var memdirOn = capabilities.IsEnabled(Composition.NodeRegistry.CapabilityNodes.Memdir);
+
+        return new() {
+            GoalEngine = goalOn ? goalEngine : null,
+            GoalRegistry = goalOn ? goalRegistry ?? sp?.GetService<IGoalRegistry>() : null,
+            CronTaskStore = cronOn ? cronTaskStore : null,
+            DreamTaskRegistry = dreamOn ? sp?.GetService<JoinCode.Dream.Persistence.IDreamTaskRegistry>() : null,
             BridgeClient = bridgeClient,
             WorkflowConfig = workflowConfig,
             SimpleModeService = sp?.GetService<ISimpleModeService>(),
@@ -81,9 +100,9 @@ public sealed record EngineServiceContext {
             HookConfigurationManager = sp?.GetService<IHookConfigurationManager>(),
             PluginManager = sp?.GetService<IPluginManager>(),
             ExecutionSettingsProvider = sp?.GetService<IExecutionSettingsProvider>(),
-            MemoryManagementService = sp?.GetService<IMemoryManagementService>(),
-            TaskService = sp?.GetService<ITaskService>(),
-            TodoService = sp?.GetService<ITodoService>(),
+            MemoryManagementService = memdirOn ? sp?.GetService<IMemoryManagementService>() : null,
+            TaskService = taskOn ? sp?.GetService<ITaskService>() : null,
+            TodoService = todoOn ? sp?.GetService<ITodoService>() : null,
             UsageTracker = sp?.GetService<IUsageTracker>(),
             PermissionManager = sp?.GetService<IAgentPermissionManager>(),
             ServiceProvider = sp,
@@ -95,4 +114,5 @@ public sealed record EngineServiceContext {
             FileOperationTracker = sp?.GetService<IFileOperationTracker>(),
             SessionTagService = sp?.GetService<ISessionTagService>(),
         };
+    }
 }

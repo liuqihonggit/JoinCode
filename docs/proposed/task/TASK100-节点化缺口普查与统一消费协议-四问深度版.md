@@ -424,10 +424,10 @@ consumers:
 |---|---|---|
 | 0 | 普查与本文档（含 §11 施工单、§12 分域细则） | ✅ |
 | S1 | 契约字段 + dump 扩展 + 一致性门禁 | ✅ |
-| S2 | guard 域节点化：S2a 守卫链 ✅ / S2b 修正器 ✅ / S2c 沙箱 🟡 | 🟡 |
-| S3 | provider + role 节点化 | ⬜ |
-| S4 | 能力 + 命令表面节点化 | ⬜ |
-| S5 | 外部 profile 覆盖 | ⬜ |
+| S2 | guard 域节点化：S2a 守卫链 ✅ / S2b 修正器 ✅ / S2c 沙箱 ✅ | ✅ |
+| S3 | provider + role 节点化 | ✅ |
+| S4 | 能力 + 命令表面节点化 | ✅ |
+| S5 | 外部 profile 覆盖 | ✅ |
 
 ### 14.1 S1 实施记录
 
@@ -811,8 +811,562 @@ JCC_PROFILE_DIR=D:\no\such\dir jcc --dump-nodes
 
 **行为未退化**：`format C: /q` 仍被 `dangerous-command` 拒绝、未闭合引号仍被 `strict-parse` 拒绝。
 
-### 17.6 已知缺口（诚实记录）
+### 17.6 已知缺口（已于 S4 查清并关闭）
 
-本轮之后 `[ORDER] sandbox_providers` / `[ORDER] bash-defense-chain` 这类打点在 `mcp_call` 路径下**看不到了**
-（`[LLM]` / `[ROLES]` 仍在）。行为本身已验证未退化（拦截仍生效、dump 顺序仍来自 profile），
-但「哪一层吞掉了这些诊断行」还没查清，已列为待办 —— 不能因为「验收当时看到过」就当作一直可见。
+原记录：本轮之后 `[ORDER] sandbox_providers` / `[ORDER] bash-defense-chain` 这类打点在 `mcp_call` 路径下**看不到了**
+（`[LLM]` / `[ROLES]` 仍在）。
+
+**S4 结论：不是被吞掉，是那些服务在 `mcp_call` 进程里从来没被构造。**
+
+证据（同一次真机运行 `jcc -p "hi"`，走完整引擎装配）：
+
+```
+[ORDER] sandbox_providers(profile): bubblewrap > process > soft > docker
+[ORDER] bash-defense-chain: dangerous-command > strict-parse > retained-device > redirect-whitelist > git-push-ci-guard > argv-hash
+[ORDER] command_guards: GitCommitGuard > DriveProtectionGuard > ... > VpnRouteGuard
+```
+
+根因：`bash` 工具属于「独立 exe 实现」（`jcc-tool-shell.exe`），`jcc mcp_call bash` 只是把参数转给子进程，
+jcc 自己的 `ShellCommandInterceptionMiddleware` / `SandboxManager` / `BashDefenseService` 一次都没被解析 ——
+它们的 ctor 打点当然不会出现。`[LLM]`/`[ROLES]` 之所以在，是因为那两条在容器构建/插件加载时就跑了。
+
+判据（以后别再误判）：**打点缺失先问「这个对象在当前路径上会不会被构造」**，而不是先怀疑日志层。
+`mcp_call` 是「子进程代理」路径，凡是活在宿主管道里的服务都不该期待在那里出现。
+
+
+---
+
+## 18. S4：能力（capability）与命令表面（command-group）
+
+### 18.1 这两种契约为什么一起做（它们的共同点与中间件相反）
+
+中间件、守卫都是「按顺序叠加」——节点之间互相影响，顺序是语义的一部分。
+`capability` 与 `command-group` 是另一类：**节点之间互不影响，问的只是「它在不在」**。
+把这两类硬塞进顺序模型会得到一堆 priority 无意义的声明；反过来，把「在不在」也当成顺序问题，
+就会出现「关掉一个能力」需要删 6 行、且不知道删干净没有。
+
+两者还共享同一个坑：**只声明不消费就是死配置**。S1 删掉的 `tool-dispatch` 4 条就是标本。
+所以 S4 的验收不是「dump 里看得到」，而是「改 profile → 真机行为真的变了」。
+
+### 18.2 先抽一个语义基元：`ConsumerDeclaration`
+
+新增 `modules/abstractions/composition/node/profile/ConsumerDeclaration.cs`，只有三条规则：
+
+| 情形 | 语义 |
+|---|---|
+| profile 里没有这个消费点 | **全开**（老 profile 不必逐条补声明） |
+| 消费点存在 | **白名单**：只有列出的节点启用 |
+| 需要顺序时 | `OrderedIds()` 按 priority 降序给一份确定顺序 |
+
+CLI 门禁、能力视图都只调这一个入口 —— 否则「CLI 认为全开、引擎认为全关」是迟早的事。
+
+### 18.3 命令表面：20 个枚举值 → 18 个节点
+
+**原状**：`CliSubCommand`（20 值）、`ApplicationBuilder` 的 2 个 `if`（schema / remote-control 家族）、
+`FlatSubCommandRouter` 的 16 个 `case`。三处各自新增，谁也不知道少没少。
+
+**改法**：
+
+1. `CliCommandNodes.cs`：`ICliCommandNode`（`Command` + `Aliases` + `ExecuteAsync`）+ 18 个节
+   点类，每个 `[NodeFactory("cli-commands", id)]` + `[Register]`，执行体全部委托**既有**实现（热路径零改动）。
+2. 节点 ID = **枚举名称 kebab 化**（`McpCall` → `mcp-call`）。不用 `[EnumValue]`：那是命令行字面量
+   （`mcp_call` 带下划线），拿它当 ID 会污染 kebab 约定 —— 同一个坑 S3 角色域踩过一次。
+3. 别名（`rc`/`remote`）不是节点，是节点的 `Aliases`：否则三条命令会被算成三个节点。
+4. `ApplicationBuilder.RunSubCommandAsync` 变成「枚举 → 节点表 → profile 门禁 → 执行」，`switch` 与 `if` 全删。
+5. `FlatSubCommandRouter` 只保留解析工具（位置参数/未知选项/输出格式），`TryExecuteAsync` 删除。
+
+**未启用 ≠ 未知**（这是可运维性的关键区别）：
+
+```
+$ jcc probe                                    # 正常
+[PROBE-H0] 真实请求 60 次 → allow=30 deny=30 ...
+$ JCC_PROFILE_DIR=<去掉 probe 的 profile> jcc probe
+子命令 'probe' 未在当前 profile 启用（profile=base，消费点=cli-commands，节点=probe）。
+  恢复用法: 在 resources/profiles/base.yaml 的 cli-commands 里加回 '- id: probe'。
+（退出码 2 = ConfigurationError）
+```
+
+**一个必须处理的结构问题**：生成器对 Exe 只扫自身程序集，而命令执行器是 CLI 里的 `internal static`，
+搬不到下游库。于是 CLI 程序集自己的 `NodeFactoryCatalog_Jcc` 不在装配层（Composition）的目录里 ——
+`--dump-nodes` 必须**显式合并**这两段，否则 18 条声明会全被报成「声明无工厂」。
+这不是绕过门禁，而是让门禁看见「实现住在哪一层」。
+
+### 18.4 能力：从「属性存在」变成「节点存在」
+
+**原状**：`EngineServiceContext` 26 个可选属性无条件 `GetService<T>()`；`McpInitModule` 硬编码 6 个插件。
+于是「headless 关掉 todo/dream」只能改代码。
+
+**改法**：
+
+1. `CapabilityNodes.cs`（Composition 程序集）：7 个节点
+   `goal / todo / task / cron / memdir / dream / code-index`，各带 `[NodeFactory("capabilities", id)]`。
+2. `CapabilitySet`（`[Register]` 单例）：每次判断都读 `IProfileManager.Current` 而非快照 ——
+   profile 支持运行期切换，快照会把切换变成「下次启动才生效」。无 profile 的轻量宿主走 `AllEnabled`，历史行为不变。
+3. `EngineServiceContext.FromServiceProvider`：goal/todo/task/cron/memdir/dream 六个能力各自门禁；
+   未启用解析为 `null`，消费方天然走「能力不可用」分支，而不是拿到服务却装作没有。
+4. `McpInitModule.StartPluginLoads`：`DreamPlugin` ← `dream`，`CSharpLanguagePlugin` ← `code-index`；
+   其余 4 个插件（Telemetry / AgentRoles / LlmProviders / McpInit）属装配骨架，不做能力。
+
+**双面真机验证**（`jcc -p "hi"` 走完整引擎装配，假 key 止于 401，但装配全跑完）：
+
+```
+（全开）  [CAPS] todo=on task=on cron=on goal=on memdir=on dream=on code-index=on
+          [CAPS-PLUGIN] dream=load code-index=load
+（裁剪）  [PROFILE] external override: base <- ...\jccprof\base.yaml
+          [CAPS] todo=off task=on cron=on goal=on memdir=on dream=off code-index=on
+          [CAPS-PLUGIN] dream=skip code-index=load
+```
+
+`[CAPS]` 这一行本身就是交付物之一：配置到底生效了没，不该靠读 yaml 猜。
+
+### 18.5 三个坑（都值得记住）
+
+| 坑 | 表现 | 判据/处置 |
+|---|---|---|
+| 陈旧产物冒充「我的 bug」 | `jcc mcp_list` 报 `Could not load type 'Core.Utils.AsyncLock'` | 那次只重编了上游，下游 DLL 还是 TASK099 之前的。带依赖重编一次即消失 —— **局部编译会让旧产物在运行期报「类型不存在」**，别先怀疑自己刚改的代码 |
+| 能力注册了但没有消费点 | 想到 `vision` 时没有 `IVisionService` 之类可选服务被引擎消费 | 只登记「真有消费方」的能力。登记 `vision` 只会造一条假节点 —— 假节点比缺节点更糟 |
+| `internal static` 执行器搬不进宽闭包 | 门禁报 18 条「声明无工厂」 | 不是放宽门禁，而是把 CLI 的生成目录显式并入 dump 的工厂清单 |
+
+### 18.6 验收数字与仍未做的部分
+
+- `--dump-nodes`：**238 节点 / 112 消费点**；契约分布 `capability=4, command-group=4, guard=12, middleware=80, provider=8, role=4`
+  —— **六个契约值全部有活的消费点**，第 ④ 条判据（改配置不重编）从此对每一类扩展点成立。
+- `--verify` 三项全 `[OK]`；`Verify-NodeConsistency.py` `[OK] 238 节点 / 112 消费点`；
+  `Verify-ExplicitOrder` / `Verify-RegistrationOrder` / `Verify-ToolNodes`（635）/ `Verify-HonestyChecklist` 全绿。
+- 真机：18 条子命令逐条走过（`schema`/`config-print`/`mcp_*`/`slash_*`/`tool`/`prompt`/`experience`/`probe`）；
+  `rg`/`gh` 已正确路由到节点，但本机 Debug 目录没有 `jcc-rg.exe`/`jcc-gh.exe`（需 `Pack-ToolNodes.ps1` 打包，与本次改动无关）。
+
+**未做（诚实记录）**：
+
+1. **工具面 gating**：`capabilities` 目前只门禁服务与插件。`todo` 工具仍会出现在工具表里
+   （`TodoToolHandlers` 是 `[McpToolDispatch]` 生成的静态注册，`ITodoService` 在 DI 里也还在）。
+   「profile 去掉 todo → todo 工具不出现」属清单第 7 项（635 工具 / capability-aware 注册表），
+   与 S4 的 5、6 两项不是同一层，不在这里假装做完。
+2. `vision` 未注册（见 18.5）。
+3. 帮助文本仍由 `[SubCommandInfo]` 生成，未改成从节点表读 —— 二者目前一致，但仍是两处描述。
+
+---
+
+## 19. S4 收尾：能力打通到工具注册表（清单第 7 项）
+
+### 19.1 上一轮留下的「只关一半」
+
+§18.6 未做第 1 项写的就是这件事：`profile` 里去掉 `todo`，`ITodoService` 确实为 `null`，
+但 `todo` 工具还挂在工具表上 —— 调进去才发现服务不在。配置看起来生效了，实际只生效在某一层，
+这类「半生效」比完全不生效更难查：现象是「工具报错」，而人会去查工具，不会去查 profile。
+
+所以这一轮不加新契约、不加新节点、不加新 profile 词汇，只把 **`capabilities` 的消费深度**补齐：
+同一条声明，现在同时治理 **服务解析 / 插件加载 / 工具注册** 三层。
+
+### 19.2 数据从哪来（不改生成器）
+
+关键发现：源码生成器早就生成了 `GetAvailableToolCategories()`（分类 → 工具清单），
+而它算分类用的正是 `tool.Category ?? handler.DisplayName` —— 与 `[McpToolDispatch(ToolCategory.Xxx)]`
+的 `[EnumValue]` 字符串同一坐标系。于是「工具名 → 分类」可以直接反查，不必：
+
+- 不必改生成器（635 条映射不新增生成代码）；
+- 不必反射（分类在编译期已知）；
+- 不必读 `modules/tools/cli_nodes/groups/*/node.yaml`（Composition 禁触盘，JCC9001）。
+
+新增 `CapabilityToolCategories`：分类 → 治理它的能力（6 条），并把生成物翻成两张只读索引
+（`CategoryByTool`、能力 → 工具数）。
+
+### 19.3 只登记真被治理的分类
+
+| 能力 | 工具分类 | 工具数 |
+|---|---|---|
+| `goal` | `goal` | 3 |
+| `todo` | `todo` | 4 |
+| `task` | `task` | 12 |
+| `cron` | `cron` | 4 |
+| `memdir` | `memory` | 13 |
+| `code-index` | `code_index` | 23 |
+| `dream` | —— | 0 |
+
+合计 **59**。`dream` 不进表：它是引擎后台任务，没有暴露工具 ——
+填一条假映射会让「关掉 dream 工具却没少」变成新的谜题，宁可留空并在 dump 里不标注。
+
+### 19.4 过滤怎么接（与既有 CLI 过滤是「与」关系）
+
+`ServiceRegistration.Mcp.cs` 里原本只有一条来自 `EngineApplicationBuilder` 的 `toolFilter`
+（`SkipChatServices` 时只留 `gh_*`）。现在组合成：
+
+```csharp
+ComposeToolFilter(cliFilter, gate)
+  = gate 全开        → 原样返回 cliFilter
+  = cliFilter 为空   → gate.IsToolEnabled
+  = 两者都有          → name => cliFilter(name) && gate.IsToolEnabled(name)
+```
+
+**都全开时返回 `null`** —— 生成代码据此走「不过滤」快路径，未配置能力裁剪的宿主与改动前逐字节等价
+（真机 `filter=none`、工具数 368 与改动前一致，就是这条的证据）。
+
+三条保守规则防「静默少工具」：生成物里查不到的工具 → 放行；分类不归任何能力 → 放行；
+分类被多个能力共享 → 任一开启即放行。
+
+### 19.5 真机验收（账目必须对得上）
+
+`jcc -p "hi"` 走完整引擎装配（假 key 止于 401，但装配全跑完）：
+
+```
+（基线）  [TOOL-GATE] indexed=368 off=[-] blocked=0 samples=[-] filter=none
+          MCP Tool Handlers 注册完成，共 368 个工具
+
+（只关 todo）
+          [TOOL-GATE] indexed=368 off=[todo] blocked=4 filter=active
+          samples=[complete_step,todo_update,todo_list,todo_write]
+          MCP Tool Handlers 注册完成，共 364 个工具          ← 368-4
+
+（关 6 项：goal/todo/task/cron/memdir/code-index）
+          [TOOL-GATE] indexed=368 off=[goal,todo,task,cron,memdir,code-index] blocked=59 filter=active
+          samples=[memory_team_status,memory_scan,search_callers,search_project_nugets,memory_daily_log_get,task_update]
+          MCP Tool Handlers 注册完成，共 309 个工具          ← 368-59
+```
+
+`blocked` 与实际减少数**逐次相等**（4/4、59/59）—— 这不是巧合，是同一份索引算出来的；
+若两处各算一遍，迟早会出现「说裁了 59、实际裁了 57」。工具总数 368 与生成物条目数、去重后工具数
+三者一致（368/368/0 重复），说明索引没有漏项也没有重叠。
+
+行为闭环（同一 profile 下）：
+
+| 入口 | 结果 |
+|---|---|
+| `jcc mcp_list` | 309 条，`category=todo` 的工具 0 个 |
+| `jcc mcp_call todo_write` | `未找到工具: todo_write（用 jcc mcp_list 查看已注册工具）` |
+| `jcc mcp_call read file_path=...` | 正常返回文件内容 |
+
+### 19.6 `--dump-nodes` 看得见治理面
+
+节点自省新增 `[tools=N]`（只对 capability 契约、且 N>0 时输出）：
+
+```
+消费点: capabilities  [contract=capability, 7 节点]
+  - code-index (priority=100) [tools=23]
+  - dream (priority=200)
+  - memdir (priority=300) [tools=13]
+  - cron (priority=400) [tools=4]
+  - task (priority=500) [tools=12]
+  - todo (priority=600) [tools=4]
+  - goal (priority=700) [tools=3]
+```
+
+7 个数加起来 59，与 `[TOOL-GATE] blocked=59` 同源。`dream` 没有标注 —— 它确实不治理工具面，
+不写 `tools=0` 是因为那看起来像「这个节点坏了」，而事实是「这个能力没有工具面」。
+
+### 19.7 明确的边界（不假装）
+
+| 边界 | 事实 | 为什么这样 |
+|---|---|---|
+| `jcc tool call <工具>` 仍能执行被裁工具 | 该通道是 CLI 直连执行层（`jcc-tool-*.exe` / 本地执行），不经宿主 `IToolRegistry` | 它是调试/自检通道，`tool call` 的语义就是「绕过宿主直接打执行层」；能力门禁管的是 Agent 能看到与能调用的工具面 |
+| `jcc mcp serve` 在裁剪 profile 下也少工具 | 组合过滤不特判 `SkipToolFilter` | profile 是配置意愿，优先级高于「CLI 侧只留 `gh_*`」的性能优化；若需要全量，profile 里声明全部能力即可 |
+| 工具树 `jcc tool tree` 仍显示 635 | 它读 `modules/tools/cli_nodes/groups` 的**声明目录**，不是运行时注册表 | 两者本就不同层：635 = 声明（含 388 个独立 exe），368 = 宿主实际可注册（`[McpToolDispatch]`） |
+
+补充一个数字关系（容易被「635」误导）：生成物里 `github` 分类只有 **1** 个条目，而 `tool tree` 的
+github 组有 173 个 —— 那 173 个是独立 exe 的 CLI 节点，经 `jcc gh` / `tool call` 直达，
+**不在宿主注册表，也就不在能力门禁覆盖范围内**。所以本节的 59 个是「Agent 可见工具」的裁剪量，
+不是「635 全量」的裁剪量。388 个 exe 工具多数不属于这 7 个能力（github/media/slash 等），
+按能力归类对它们没有语义。
+
+### 19.8 零回归数字
+
+- `--dump-nodes`：**238 节点 / 112 消费点**不变（本轮不加节点）；`--verify` 三项 `[OK]`。
+- `Verify-NodeConsistency`（238/112）、`Verify-ExplicitOrder`、`Verify-RegistrationOrder`、
+  `Verify-ToolNodes`（635「声明与现实一致」）、`Verify-HonestyChecklist`、`Verify-NoLockPrimitives` 全绿。
+- `Composition.Tests` 1117 通过；Composition / CLI 编译 0 警告 0 错误。
+- `Verify-StyleGate` 存量 247 条不变，新增/修改文件零新增违规。
+- 真机：基线 368 工具且 `filter=none`（与改动前一致）；只关 todo 364；关 6 项 309；`mcp_call` 闭环三态。
+
+---
+
+## 20. 帮助文本与节点表同源（§18.6 未做第 3 项）
+
+### 20.1 上一轮只是「执行时」认得 profile，帮助还不认
+
+S4 让命令分发按 `cli-commands` 门禁判启停，但帮助文本仍由 `[SubCommandInfo]` 生成的静态表输出。
+真机（外部 profile 删掉 `probe`）：
+
+```
+$ jcc -h 融合门禁
+融合门禁:
+  probe    行为对比门禁 — ...
+$ jcc -h probe
+probe — 行为对比门禁 — ...
+```
+
+而执行 `jcc probe` 会报「未在当前 profile 启用」。—— 用户看到命令、点进去才被拒，等于两次浪费。
+这不是「潜在的隐患」，是当场可见的不一致。
+
+### 20.2 改法：给生成的帮助方法加一个可见性参数
+
+`EnumMetadataGenerator` 生成的 `CliSubCommandHelpText` 四个方法
+（`GetCategories` / `GetByCategory` / `GetByCommand` / `GetHelp`）各加一个
+`Func<string, bool>? isEnabled = null`（默认 `null` = 全开，历史行为不变），并生成一个私有判定：
+
+```csharp
+private static bool __IsVisible(SubCommandEntry e, Func<string, bool>? isEnabled)
+    => isEnabled is null || isEnabled(e.IsAlias ? (e.AliasOf ?? e.Command) : e.Command);
+```
+
+**别名跟随主命令**：`rc` / `remote` 不是独立节点，`remote-control` 被裁掉时它们也该消失。
+
+三处细节都是「不做就会错」的：
+
+1. **分类判定也要用过滤后的集合** —— 否则某个分类的命令全被裁掉后，它仍被当成「已知分类」返回一张空表。
+   `GetHelp` 里改的是 `Any(e => 分类匹配 && __IsVisible(...))`，不是只过滤列表。
+2. **未启用 ≠ 未知** —— `GetByCommand` 对不可见命令返回
+   「命令 'probe' 未在当前 profile 启用（cli-commands 消费点未声明该节点）」，而不是「未知命令」。
+   两者处置方式完全不同：前者去改 profile，后者去查拼写。
+3. **默认参数保兼容** —— 四个方法都带默认值，其它调用方零改动。
+
+### 20.3 踩到的坑：帮助用的是「字面量」，节点用的是「kebab」
+
+第一版直接传 `CliCommandGate.IsEnabled`（按节点 ID 判），真机结果是**只删了 `probe`，却少了 4 个分类 10 条命令**：
+
+```
+（应只剩 10 类，实际 6 类）
+  缺失: MCP 工具(5) 引擎服务(1) 斜杠命令(3) 融合门禁(1)
+```
+
+原因：帮助表里的命令名是 CLI 字面量（`mcp_call` 带下划线），节点 ID 是枚举名 kebab（`mcp-call`）。
+`isEnabled("mcp_call")` 在白名单语义下当然是 `false`。
+
+修法不是「把节点 ID 改成下划线」（会污染 S4 定下的 kebab 约定，S3 角色域已经踩过一次），
+而是在门禁里加一层换算，且**只在这一处换算**：
+
+```csharp
+public static bool IsEnabledLiteral(string literal) {
+    var command = CliSubCommandExtensions.FromValue(literal);
+    if (command is null) return true;              // 未识别字面量交给常规「未知命令」路径
+    var node = CliCommandNodes.For(command.Value);
+    return node is null || IsEnabled(node.NodeId);
+}
+```
+
+一句话记：**同一个概念出现两套词（字面量 / kebab）时，换算点必须只有一处，且要在最靠近「词」的那层做。**
+
+### 20.4 真机三态 + 别名（外部 profile 驱动，无重编译）
+
+| 场景 | 期望 | 实测 |
+|---|---|---|
+| 全开 `-h sub` | 10 个分类 | 10 个（含融合门禁） |
+| 全开 `-h probe` | 命令详情 + 示例 | 正常 |
+| 删 `probe` → `-h sub` | 融合门禁分类消失 | 9 类，融合门禁不在 |
+| 删 `probe` → `-h 融合门禁` | `未知主题` | `未知主题: 融合门禁` |
+| 删 `probe` → `-h probe` | 未启用提示 | `命令 'probe' 未在当前 profile 启用…` |
+| 删 `probe` → `jcc probe` | 未启用 + 恢复用法 | 与帮助同一句措辞 |
+| 删 `remote-control` → `-h rc` / `-h remote` | 别名随主命令消失 | 两者都报「未在当前 profile 启用」 |
+
+### 20.5 零回归
+
+- 生成器改动向后兼容（默认参数），全仓只有 `ApplicationBuilder` 两处调用，均已改为传门禁。
+- `--dump-nodes` **238 / 112** 不变，`--verify` 三项 `[OK]`；`tool tree` 635 不变。
+- NodeConsistency / ExplicitOrder / RegistrationOrder / HonestyChecklist / NoLockPrimitives 全绿；
+  Composition.Tests 1117 通过；Composition / Utils / CLI 编译 0 警告。
+
+**仍未统一的一处（诚实记录）**：`-h options` 的参数表来自 `CliArg` 特性（`CliArgParser.GetHelpText`），
+与 `cli-commands` 消费点是两个体系 —— 参数级的启停目前没有节点语义，也不该硬套（参数不是命令）。
+
+---
+
+## 21. 运行期 Profile 切换的真实作用域（核实，并修正提示）
+
+### 21.1 为什么要查这件事
+
+S4 写 `CapabilitySet` 时给的理由是「每次读 `IProfileManager.Current`、不快照，保证运行期切换生效」。
+**不快照只是必要条件，不是充分条件**：如果消费点本身在启动时只求值一次，读多少次 `Current` 都没用。
+这句话如果不核实，就是一句听起来很对、实际无从验证的声明 —— 而这类声明比「没做」更容易误导。
+
+### 21.2 代码证据（谁真的订阅了切换）
+
+```
+$ grep -rn "ProfileSwitching +=" modules
+DataDrivenPipelineComposition.cs:568   Task 管道重建
+DataDrivenPipelineComposition.cs:584   Stream 管道重建
+```
+
+只有这两处。其余各层都是**构造/启动时求值**：
+
+| 层 | 求值时机 | 切换后 |
+|---|---|---|
+| Task / Stream 中间件管道 | 订阅 `ProfileSwitching` 后重建 | ✅ 跟随 |
+| 命令守卫链 `CommandInterceptionDispatcher._guards` | 构造函数 `NodeChainOrder.Order` | ❌ 不变 |
+| 工具修正器链 `ToolFixHookRegistry._hooks` | 构造函数 | ❌ 不变 |
+| bash 防御链 `BashDefenseService._chain` | 构造函数 `OrderChain` | ❌ 不变 |
+| 沙箱降级链 `SandboxManager._fallbackOrder` | 构造时 `BuildFallbackOrder` | ❌ 不变 |
+| 能力（服务解析 / 插件加载 / 工具注册） | 启动时（DI 解析、插件加载、`RegisterAll`） | ❌ 不变 |
+| 命令表面（`cli-commands`） | 每次进程启动时判定 | ❌ 本进程内不变 |
+
+### 21.3 修正提示（不改行为，只改说法）
+
+`/profile` 切换成功后原本只有一句「管道中间件列表已动态重建」—— 准确，但容易被读成「整条链路都换了」。
+现在分两行说清楚：
+
+```
+已切换 Profile: base → headless
+已重建: Task / Stream 中间件管道（订阅了 ProfileSwitching）
+仍按启动时求值（改动需重启）: 能力（服务/插件/工具表）、命令表面、守卫/修正器/沙箱/防御链顺序
+```
+
+真机（`jcc slash_call /profile {"arguments":"headless"}`）即上述三行；`/profile list` 四个 profile 正常。
+
+### 21.4 为什么不把其余层也做成动态
+
+- **服务解析**是 DI 的本质：`GetService<T>` 返回 `null` 之后不会因为换了 profile 又变回来。
+  要做就得重解析整个 `EngineServiceContext`，而它被几十个消费者持有 —— 那是一次重启，不是一次切换。
+- **工具注册**可以做成 `ClearAsync` + 重新 `RegisterAll`，但运行中清空工具表会让并发中的工具调用拿不到 handler。
+- **链顺序**（守卫/防御/修正器/沙箱）技术上可以每次请求重算，但那等于把「启动时确定性」换成「每请求读一次配置」——
+  而这些链是安全边界，顺序抖动比「要重启」危险得多。
+
+结论：**「要重启」不是实现缺陷，是这类配置的正确语义**。真正要做的是把它说清楚，而不是假装热更新。
+
+---
+
+## 22. S6：388 个隔离工具（工具组）纳入 profile 治理
+
+### 22.1 上一轮「做完了」的地方，恰好漏掉了模型真正的入口
+
+S4 收尾把 `capabilities` 打通到宿主工具注册表，368 个工具能按分类裁。但模型用工具的链路是两条：
+
+```
+① 首轮提示词：「其余能力分装在 13 个独立 exe 里（共 635 个工具）」→ 告诉模型有哪些组
+② bash：jcc tool tree / find / help / call                        → 真正执行
+```
+
+两条都不认 profile。于是「裁剪」只裁了模型看不见的那一半，而看得见的那一半（388 个隔离工具）原样保留。
+更糟的是提示词里那句 **「上面这些组就是能力的全部范围 —— 组里搜不到才是真没有」**：
+profile 关掉 `todo` 之后，模型仍被告知存在 `search` 组，去 `tool find` 还能搜到 `search_callers`，
+调进去才报「未找到工具」（宿主的分类门禁在最后一步才拦住）。
+
+**结论：一个能力门禁若只覆盖「宿主注册表」这一层，而模型的主要入口在另一层，那它就只是半个门禁。**
+而「半个门禁」比没有更危险：它让人以为已经关掉了。
+
+### 22.2 ID 放在哪一层：三份清单，一处真相
+
+工具组的名字有三个天然来源，必须让它们指向同一份：
+
+| 位置 | 内容 | 谁读 |
+|---|---|---|
+| `resources/tools/cli_groups.yaml` | 13 组：id / exe / 工具数 / blurb | 提示词渲染（`CliGroupIndex`）、`tool tree` |
+| `ToolGroupDeclaration.cs`（抽象层） | 13 个 ID 常量 + `AllNodeIds` + `EnabledIds` | 提示词层、CLI 层、装配层 |
+| `base.yaml` 的 `tool-groups` 消费点 | 13 条节点声明 | `--dump-nodes` / 节点注册表 |
+
+**为什么 ID 常量住在抽象层而不是和节点类放一起**：节点类需要 `[NodeFactory]`，只能住装配层 `Composition`；
+而提示词层只引用 `Abstractions.Composition`，看不到装配层。若把 ID 写在节点类里，
+提示词就只能按 yaml 全量渲染 —— profile 门禁在提示词侧直接失效（而这正是本单元要修的东西）。
+
+三处一致性由 `Verify-ToolGroupNodes.py` 双向核对（`cli_groups.yaml` ↔ `ToolGroupDeclaration` ↔ `base.yaml`）。
+负向验证：把 yaml 里 `web` 改名成 `web-renamed`，门禁同时报
+「只在 cli_groups.yaml: web-renamed」与「只在 ToolGroupDeclaration: web」，退出码 1；恢复后转绿。
+
+### 22.3 契约不加值，消费点加一个
+
+工具组与 S4 的 `capability` 结构同构：**不问顺序，只问在不在**。所以不新增第 7 个契约值，
+只新增消费点 `tool-groups`（`contract: capability`）。这是「契约是语义、消费点是实例」的第一次复用 ——
+同一个 `capability` 之下，`capabilities` 管引擎能力（服务/插件/工具分类），`tool-groups` 管工具 exe 组。
+
+### 22.4 提示词侧怎么拿到 profile：不给 `PromptConfigSnapshot` 塞字段
+
+`ToolsSection` 是 static class，拿不到 DI。项目已有的通道是 `PromptConfigSnapshot`
+（AsyncLocal 作用域，`SystemPromptMiddleware` 与 `DefaultSystemPromptProvider` 都在用）。
+
+**但这次不能复用它**：`PromptConfigSnapshot.Current` 被 10+ 个段落读（Brief / Memory / TeamTools / Companion …），
+而生产聊天走的是 `SystemPromptMiddleware` 路径 —— 那条路径**从来没有进入过作用域**，
+于是那些段落读到的全是 `Default`。若我为了让 tools 段拿到 profile 而在 middleware 里
+`EnterScope(真实 options)`，等于顺手改变了另外十几个段落的生产行为（BriefSection 会真的渲染、
+MemorySection 会真的读文件）—— 那是另一个改动的风险，不该混进来。
+
+所以单独开一个只装一个值的槽 `PromptToolGroupScope`（`AsyncLocal<IReadOnlyList<string>?>`，null = 全开），
+只由「知道当前 profile 的两处」进入：
+
+- `SystemPromptMiddleware.InvokeAsync`（生产链路）
+- `PromptPrintCommand`（诊断链路 —— 走 provider 路径，必须自己开，否则打印的提示词比真实发送的多列几组）
+
+`jcc prompt` 因此仍然是可信的自省入口，而不是「大致相同」。
+
+### 22.5 CLI 侧四处同时生效（而不是只在 tree 里少一行）
+
+| 入口 | 裁剪后行为 |
+|---|---|
+| `jcc tool tree` | 只列启用的组；末尾加 `[TOOL-GROUP] profile=base 未启用 1 组: media（…加回即恢复）` |
+| `jcc tool find <关键词>` | 命中集不含被裁组；同样补那行诊断（搜不到最容易误判成「工具不存在」） |
+| `jcc tool help <组>` | 「工具组 'media' 未在当前 profile 启用（profile=base，消费点=tool-groups）」+ 恢复用法 |
+| `jcc tool call <组> <工具>` | 同上措辞，退出码 2；**未启用 ≠ 未知**（前者改 profile，后者查拼写） |
+
+`call` 的实现顺序很关键：**用全量节点解析目标，再对解析出的组判门禁**。
+反过来先过滤，被裁组会报「未找到工具」—— 把使用者指向错误的方向。
+
+### 22.6 真机证据（外部 profile，无重编译）
+
+去掉 `media` 组（60 个工具）：
+
+```
+$ jcc tool tree
+共 12 组 / 575 个工具，独立 exe 实现 328（61%…）
+[TOOL-GROUP] profile=base 未启用 1 组: media（消费点 tool-groups；在 profile 里加回该组即恢复）
+    （全开对照：共 13 组 / 635 个工具，独立 exe 实现 388）
+
+$ jcc tool help media
+工具组 'media' 未在当前 profile 启用（profile=base，消费点=tool-groups，节点=media）。
+恢复用法: 在 profile 的 tool-groups 里加回 '- id: media'。
+
+$ jcc tool call mouse_click          → 上面同一句，退出码 2
+$ jcc tool call media mouse_click    （全开）→ 走到执行层：mouse_click 缺少必填参数 --x
+
+$ jcc prompt --section tools
+（全开）分装在 13 个独立 exe 里（共 635 个工具，其中 388 个不经过宿主直接执行）
+        jcc-tool-agent … jcc-tool-media … jcc-tool-web（13 行）
+（裁剪）分装在 12 个独立 exe 里（共 575 个工具，其中 328 个…）
+        jcc-tool-agent … jcc-tool-web（12 行，media 消失，其余顺序不变）
+```
+
+`635 - 60 = 575`、`388 - 60 = 328` 两处都逐位对上 —— 数字来自同一份集合，不是分别四舍五入。
+
+### 22.7 撞出来的真结论：节点 ID 是全局命名空间
+
+加完 `tool-groups` 后 `--dump-nodes` 出现怪事：`base` 与 `headless` 是 13 节点，
+`ci` 与 `sdk` 是 **12** 节点，少的都是 `web`。
+
+原因不是 bug，是 `ci.yaml` / `sdk.yaml` 里既有的 `excludes: [web]`：
+**`excludes` 按节点 ID 排除，不区分消费点**。`web` 同时是 web-pipeline 的一个中间件和 tool-groups 的一个组，
+一条 excludes 同时命中两处（web-pipeline 也从 12 降到 11，可对照验证）。
+
+对 CI 来说这个结果恰好是想要的（CI 不装 web 抓取组），所以保留原状，但把这件事写进了两个 profile 的注释里 ——
+否则下一个人看到「ci 少一个组」会当 bug 去修，修完反而破坏 web-pipeline 的既有裁剪。
+
+**教训**：节点 ID 一旦全局唯一，跨消费点复用同一个词就会产生隐形耦合。
+若将来需要分开控制，正确做法是给 `excludes` 加 consumer 限定（`shell-pipeline:web`），
+而不是给工具组改名 —— 改 ID 会让「组名 = CLI 组名 = 节点 ID」这个简化失效，又回到「两套词一处换算」的老坑。
+
+### 22.8 门禁与数字
+
+- `--dump-nodes`：**251 节点 / 116 消费点**（+13 节点、+1 消费点）；契约分布
+  `capability=8, command-group=4, guard=12, middleware=80, provider=8, role=4`。
+- `--verify` 三项 `[OK]`；`Verify-NodeConsistency`（251/116）、`Verify-ToolGroupNodes`（13 组三方一致）、
+  `Verify-ExplicitOrder`、`Verify-RegistrationOrder`、`Verify-ToolNodes`（635 / 13 组「声明与现实一致」）、
+  `Verify-HonestyChecklist`、`Verify-NoLockPrimitives` 全绿；Composition.Tests 通过。
+- 编译：Abstractions.Composition / Composition / Prompts / Brain.ContextServices / CLI 全部 **0 警告 0 错误**。
+
+### 22.9 明确边界（与 S4 收尾那条并不冲突）
+
+| 通道 | 受哪层门禁 | 说明 |
+|---|---|---|
+| `IToolRegistry`（368 个 `[McpToolDispatch]` 工具） | `capabilities`（分类级） | `jcc tool call` 直连执行层时**不受**此门禁约束（调试通道，§19.7） |
+| 13 个 exe 组（635 声明 / 388 隔离） | `tool-groups`（组级） | 这一层**连 `tool call` 一起拦** —— 因为「组」本身就是配置单位，绕过它等于绕过半个 profile |
+
+粒度差异是有意的：能力级按「功能分类」裁（`todo` 4 个工具），组级按「exe 部署单位」裁（`github` 173 个）。
+前者细，后者粗；两者叠加后，`tool call` 仍可作为调试通道直连执行层，而模型的可见范围由两层共同决定。
+
+### 22.10 生产路径的独立证据（不能只验诊断命令）
+
+`jcc prompt` 走的是 provider 路径，而聊天链路走 `SystemPromptMiddleware` —— 两者都进作用域才是真生效。
+middleware 里加了一行诊断：
+
+```
+（全开）  [PROMPT-GROUP] profile=base 启用工具组 13 个
+（裁剪）  [PROFILE] external override: base <- ...\jcctg\base.yaml
+          [PROMPT-GROUP] profile=base 启用工具组 12 个
+```
+
+`jcc -p "hi"` 是完整引擎装配（假 key 止于 401，但装配与提示词构建全跑完），所以这行出现即为生产链路证据。
+**为什么值得单独验**：只验 `jcc prompt` 会出现「诊断命令按 profile 裁、生产不裁」这种最难发现的偏差 ——
+而这种偏差的方向恰好是「看起来一切都对」。

@@ -53,7 +53,10 @@ public sealed class ProfileCommand : ChatCommandBase {
         try {
             await profileManager.SwitchAsync(targetName, ct).ConfigureAwait(false);
             TerminalHelper.WriteLine($"{TerminalColors.Success}已切换 Profile: {currentName} → {targetName}{AnsiStyleEnumConstants.Reset}");
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}管道中间件列表已动态重建{AnsiStyleEnumConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}已重建: Task / Stream 中间件管道（订阅了 ProfileSwitching）{AnsiStyleEnumConstants.Reset}");
+            // 诚实提示：DI 服务解析、插件加载、工具注册、各条守卫/防御链的顺序都在启动时求值，
+            // 换 profile 不会让它们回头。只说「已重建」会让人以为整条链路都换了。
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}仍按启动时求值（改动需重启）: 能力（服务/插件/工具表）、命令表面、守卫/修正器/沙箱/防御链顺序{AnsiStyleEnumConstants.Reset}");
         } catch (Exception ex) {
             ChatCommandBase.HandleError("Profile 切换", ex);
         }

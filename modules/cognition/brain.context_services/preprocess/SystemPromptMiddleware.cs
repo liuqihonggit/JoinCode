@@ -30,6 +30,14 @@ public sealed partial class SystemPromptMiddleware : ServiceEntity, IPreparePrep
         var categoryNodes = await _nodeRegistry.GetServicesForConsumerAsync<PromptSectionCategoryNode>(
             "prompt-assembly", _profileManager.Current, ct).ConfigureAwait(false);
         var allSections = categoryNodes.SelectMany(n => n.Sections).ToList();
+
+        // 工具组清单是唯一随 profile 变、又只影响 tools 段落的输入：段落是 static class，
+        // 拿不到 DI，所以经 AsyncLocal 作用域传进去。这里也正是一处「知道当前 profile」的地方。
+        // 全开时 EnabledIds 返回 13 个组本身，不是空集 —— 空集在段落里会被读成「一组都没有」。
+        var enabledGroups = JoinCode.Abstractions.Composition.Profile.ToolGroupDeclaration.EnabledIds(_profileManager.Current);
+        Diag.WriteLine($"[PROMPT-GROUP] profile={_profileManager.Current.Name} 启用工具组 {enabledGroups.Count} 个");
+        using var toolGroupScope = PromptToolGroupScope.Enter(enabledGroups);
+
         await using var builder = new SystemPromptBuilder();
         builder.AddSections(allSections);
         var (staticPrefix, dynamicSuffix) = await builder.BuildPartitionedAsync().ConfigureAwait(false);

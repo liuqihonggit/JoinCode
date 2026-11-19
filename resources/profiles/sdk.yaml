@@ -1,6 +1,7 @@
 name: sdk
 inherits: headless
 excludes:
+  # 同 ci.yaml：`web` 同时命中 web-pipeline 的中间件与 tool-groups 的工具组（节点 ID 全局唯一）。
   - web
   - crash-snapshot-mw
   - audit-log-mw

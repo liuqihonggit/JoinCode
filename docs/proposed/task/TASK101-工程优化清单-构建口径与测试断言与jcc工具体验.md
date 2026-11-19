@@ -54,8 +54,8 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
-| A1 构建默认覆盖 UI 域 + inner log 错误透出 | `Build-AllDomains.ps1`、CI 本地排障 | ❌ | ❌ |
-| A2 CI UI 域编译 job | `.github/workflows/ci-build.yml` | ❌ | ❌ |
+| A1 构建默认覆盖 UI 域 + inner log 错误透出 | `Build-AllDomains.ps1`、CI 本地排障 | ✅ | ✅ 默认全量 4 target（solution/native_tui/native_gui×2）全绿（`.xxx/logs/b7/a1_full_default.log`，exit 0）；错误透出上限 15→30 + 无直接 error 行时显式提示查看日志 |
+| A2 CI UI 域编译 job | `.github/workflows/ci-build.yml`（`build / Build UI`，windows-latest） | ✅ | ❌ 待下一次 PR 实测；**仓库保护需人工把 `build / Build UI` 加入 required status checks（需管理员操作）** |
 | B1 JsonAssert 帮助器 | 测试项目模板（Desktop 场景先行） | ❌ | ❌ |
 | B2 排版断言分析器 | 测试项目 | ❌ | ❌ |
 | B3 RetryableFact 模板 + CI Flaky 分层 | AsyncLock.Tests、CI workflows | ❌ | ❌ |
@@ -83,3 +83,18 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 <!-- 原因: A/B 是 PR #700 两次 CI 红的直接根因（UI 域漏编译、排版断言连锁红），优先消除回归温床；C 是体验/排障效率问题不阻塞交付；D 依赖 B3/门禁基建落地后再做 -->
 <!-- 替代方案: 直接开修（证据已足，但跨 6 个工具链子项需先对齐范围与验收口径）；只修 A1（B2 不防回归，同类红会复发）——均否决 -->
 <!-- 验证: 文档阶段未实施；实施后按四列验收表逐项补命令/exe 证据 -->
+
+## 7. 实施记录
+
+### A 批（2026-11-20 完成）
+
+- A1 `Build-AllDomains.ps1`：默认全量改为 4 个 target（JoinCode.slnx + native_tui.slnx + NativeGui.Core.Tests + NativeGui.Host.Tests），失败时统一 result 表 + exit 1；错误透出上限 15→30，无直接 error 行时提示"可能被 MSB4181/级联掩盖，查看日志"。
+  - 验收：默认命令 exit 0，4 target 全绿（`.xxx/logs/b7/a1_full_default.log`）。
+- A2 `ci-build.yml` 新增 `build-ui` job（windows-latest，构建 native_tui.slnx + NativeGui.Host.Tests.csproj），YAML 语法校验通过。
+  - 待办（需管理员）：将 `build / Build UI` 加入 main 分支保护 required checks，否则 job 失败不阻塞 auto-merge。
+
+<!-- 🤖 Auto Decision: 2026-11-20 TASK101-A -->
+<!-- 决策: A1 在 PowerShell 脚本内合并默认目标，而不是把 UI 域并入 JoinCode.slnx -->
+<!-- 原因: slnx 是 CI Pack 流程（JoinCode.Pack.slnx）与本地测试矩阵的输入，改动影响面大；脚本层聚合零风险且可保留 -Domains 按域模式 -->
+<!-- 替代方案: 并入 slnx（影响 CI 缓存键与 pack 流程）；单独脚本 Build-AllUI.ps1（多一个入口，易漏用）——均否决 -->
+<!-- 验证: 默认命令 4 target 全绿（a1_full_default.log）；YAML 校验通过 -->

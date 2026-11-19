@@ -189,6 +189,13 @@ jobs:
       - name: Verify node contracts and declaration↔factory consistency
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-NodeConsistency.py
+      # 节点工厂来源分类：实例型（middleware/guard）必须显式登记，声明型
+      # （provider/role/capability/command-group）必须来自 [NodeFactory] catalog。
+      # 缺这一步的后果是「新增节点两处都漏登记 → 运行期静默跳过」——
+      # 尤其在安全域，症状是少一道守卫而不是报错。
+      - name: Verify node factory source classification (instance vs declared)
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-NodeFactoryCoverage.py
       # 工具组三方一致：cli_groups.yaml ↔ ToolGroupDeclaration ↔ base.yaml。
       # 缺这一步的后果是「profile 声明了一个永不存在的组」或「某个组永远关不掉」，
       # 而两种情况在 --dump-nodes 里都只是少一行/多一行，人眼很难发现。

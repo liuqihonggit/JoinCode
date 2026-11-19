@@ -28,6 +28,29 @@ public static class DataDrivenPipelineComposition {
     /// 同一节点ID在不同消费点中可能对应不同的泛型实例
     /// </summary>
     public static IEnumerable<KeyValuePair<string, Func<IServiceProvider, object>>> BuildNodeFactories() {
+        foreach (var local in BuildLocalNodeFactories()) {
+            yield return local;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // 分布式贡献（TASK100）：域内 [NodeFactory] → 生成器静态目录 → 此处转发。
+        // 目录由 Composition 持有（本程序集编译闭包看不到全部实现域，实证见 §12.8）。
+        // ═══════════════════════════════════════════════════════════
+        foreach (var contributed in Core.DependencyInjection.NodeFactoryContribution.Create()) {
+            yield return contributed;
+        }
+    }
+
+    /// <summary>
+    /// 构建**本文件显式登记**的节点工厂（不含分布式贡献目录）。
+    /// <para>
+    /// TASK100 S8（§24.1）：运行期工厂其实是两份来源 —— 本文件显式登记的实例型节点，
+    /// 与 <c>[NodeFactory]</c> 生成目录里的声明型节点。两者边界此前没有机器可判的标记，
+    /// 于是「新增实例型节点漏登记」只能等运行期静默跳过才发现。
+    /// 拆出本方法后，<c>--dump-nodes</c> 能逐键标注来源，门禁据此核对。
+    /// </para>
+    /// </summary>
+    public static IEnumerable<KeyValuePair<string, Func<IServiceProvider, object>>> BuildLocalNodeFactories() {
         // ═══════════════════════════════════════════════════════════
         // chat-pipeline (Stream) — IStreamMiddleware<ChatMiddlewareContext, ChatStreamEvent>
         // ═══════════════════════════════════════════════════════════
@@ -319,14 +342,6 @@ public static class DataDrivenPipelineComposition {
         yield return F("bash-defense-chain:git-push-ci-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("git-push-ci-guard"));
         yield return F("bash-defense-chain:argv-hash", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("argv-hash"));
 
-        // ═══════════════════════════════════════════════════════════
-        // 分布式贡献（TASK100）：域内 [NodeFactory] → 生成器静态目录 → 此处转发。
-        // 目录由 Composition 持有（本程序集编译闭包看不到全部实现域，实证见 §12.8）。
-        // ═══════════════════════════════════════════════════════════
-        foreach (var contributed in Core.DependencyInjection.NodeFactoryContribution.Create()) {
-            yield return contributed;
-        }
-
     }
 
     /// <summary>
@@ -341,7 +356,12 @@ public static class DataDrivenPipelineComposition {
         services.RegisterBaseMiddlewareServices();
 
         // 注册 NodeServiceResolver
-        services.AddSingleton<NodeServiceResolver>(_ => NodeServiceResolver.Build(BuildNodeFactories()));
+        // TASK100 S8（§24.2）：过去只吃手写清单，新增 [NodeFactory] 节点若忘了改手写清单，
+        // 门禁与 --dump-nodes 都绿、运行期却静默跳过该中间件。现在以编译期 catalog 为底、
+        // 手写清单为覆盖层（手写优先，保住 22 条参数化工厂的限流/重试参数）。
+        services.AddSingleton<NodeServiceResolver>(_ => NodeServiceResolver.BuildWithFallback(
+            BuildNodeFactories(),
+            Core.DependencyInjection.NodeFactoryContribution.Create()));
 
         // 注册 IProfileManager + ResolvedProfile（DSG049: 运行期 Profile 动态切换）
         services.AddSingleton<IProfileManager>(sp => {
@@ -605,12 +625,21 @@ public static class DataDrivenPipelineComposition {
             if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware)) {
                 result.Add(middleware);
             } else {
-                logger.LogWarning(
-                    "中间件解析跳过: consumer='{ConsumerId}', node='{NodeId}', type='{MiddlewareType}' — " +
-                    "NodeServiceResolver 未找到匹配的工厂注册，该中间件将被静默跳过",
-                    consumerId, nodeEntry.Id, typeof(TMiddleware).Name);
+                // TASK100 S8（§24.2 / C2）：过去这里只记一条 Warning 就把中间件静默跳过 ——
+                // 在安全域等于「少一道守卫」，现象是放行而非报错，最难查。
+                // 现在升级为 fail-fast：消息里给出 consumer:nodeId 与期望类型，直接指向 profile 声明。
+                var message =
+                    $"中间件装配失败: consumer='{consumerId}', node='{nodeEntry.Id}', " +
+                    $"期望类型='{typeof(TMiddleware).Name}' — NodeServiceResolver 找不到匹配工厂。" +
+                    "该节点已被 profile 声明但无法实例化（多半是新增 [NodeFactory] 后漏了运行期工厂，" +
+                    "或工厂返回的类型与消费点期望不符）。";
+                logger.LogError("{Message}", message);
+                throw new InvalidOperationException(message);
             }
         }
+        // 装配结果可观测：每个 pipeline 实际装上哪些中间件（打点只在 debug 日志下输出）。
+        JoinCode.Abstractions.Utils.Diagnostics.Diag.WriteLine(
+            $"[ORDER] middleware {consumerId}: {string.Join(" > ", result.Select(static m => m.GetType().Name))}");
         return result;
     }
 

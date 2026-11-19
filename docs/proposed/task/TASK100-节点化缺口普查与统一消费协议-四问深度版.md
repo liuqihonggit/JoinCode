@@ -1552,3 +1552,216 @@ var profile = CliProfileGate.CurrentExplicit
 - **`--live` 依赖已编译的 jcc**：CI 里接在 `Build jcc` 之后；本地不传 `--live` 时完全退化为纯静态门禁。
 - **能力裁剪的风险面没变**：`capabilities` 关掉后对应服务为 `null`，消费方必须自己空判 ——
   S4 的 6 个消费点已经这么做，本节没有新增消费方。
+
+## 24. S8：节点工厂的两份真相（断裂点普查与修复）
+
+### 24.1 这一节为什么存在
+
+S1–S7 把六类契约（`middleware` / `guard` / `provider` / `role` / `capability` / `command-group`）
+都接上了活消费点，`--dump-nodes --verify` 三项全绿。但「全绿」说的是**声明 ↔ 编译期工厂目录**这一层，
+不是**声明 ↔ 运行期真正装配出来的那一层**。这两层用的不是同一份数据，而这件事此前没有任何地方写着。
+
+普查方法（三步，全部可复算）：
+
+```bash
+# 1) 声明侧：base profile 的全部节点
+jcc --dump-nodes --json > nodes.json
+# 2) 运行期侧：手写工厂清单的键
+grep -o 'yield return F("[^"]*"' modules/composition/pipelines/registration/DataDrivenPipelineComposition.cs
+# 3) 差集（插值键 command-dispatch:{categoryId} 按 15 个 category 展开）
+```
+
+| 口径 | 数量 | 来源 |
+|---|---|---|
+| 声明侧（`--dump-nodes`，base） | **251** | 消费点 × 节点 |
+| ├ 实例型（`middleware` 176 + `guard` 17） | 193 | 由运行期解析器造实例 |
+| └ 声明型（`provider` 11 + `role` 9 + `capability` 20 + `command-group` 18） | 58 | 消费点自己读表判定 |
+| **运行期手写工厂**（`BuildNodeFactories()`） | **193** | **恰好 = 实例型节点数**：零冗余、零缺失 |
+| **编译期 catalog**（`[NodeFactory]` 标注生成物） | **58** | **恰好 = 声明型节点数**：Composition 40（role 9 / capability 20 / provider 11）+ CLI 18（command-group） |
+
+> ⚠️ **本节第一版把 catalog 写成 251，是错的。** 写完初稿后做了负向实验
+> （临时删掉一条手写工厂行，看 catalog 能否兜底），实验**失败** —— 追查生成物才发现：
+> 生成器是**按程序集各生成一份**的，`Composition` 那份只有 40 条（全是声明型），
+> 实例型节点的类型大多**没有** `[NodeFactory]` 标注，它们的工厂只存在于手写清单。
+> 修正后的口径见上表：**手写 = 实例型，catalog = 声明型**，两份清单恰好互补、互不重叠。
+> 记这一笔是因为「两份真相」这个说法本身没错，错的是「哪两份、各多少」——
+> 而这份数字是后面所有门禁的判据。
+
+**这 58 个不是 bug**：它们是**声明型节点** —— 消费点自己读表判定（角色白名单、能力开关、命令门禁、
+provider 定义），本来就不该有 DI 实例。其余 193 个是**实例型节点**，必须由运行期解析器造出来。
+
+### 24.2 断裂点 F1：新增实例型节点漏改手写清单 = 运行期静默失效（高危）
+
+**机制**：`BuildNodeFactories()` 是运行期唯一的工厂来源（`DataDrivenPipelineComposition.cs:344`）：
+
+```csharp
+services.AddSingleton<NodeServiceResolver>(_ => NodeServiceResolver.Build(BuildNodeFactories()));
+```
+
+而 `--dump-nodes` 与 `Verify-NodeConsistency.py` 比对的是**编译期 catalog**。
+两者恰好互补（手写 = 实例型，catalog = 声明型），**但它们之间的边界无人看守**。
+
+**后果**：给某个 middleware 消费点新增一个节点、却忘了在 `BuildNodeFactories()` 里加一行 ——
+门禁全绿（声明有、工厂有），`--dump-nodes` 正常显示，profile 也能启用它，
+但运行期 `ResolveMiddlewares` 解析不到实例，只记一条 Warning 就**把这个中间件静默跳过**：
+
+```csharp
+if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware)) {
+    result.Add(middleware);
+} else {
+    logger.LogWarning("中间件解析跳过: ... 该中间件将被静默跳过", ...);
+}
+```
+
+在安全域（`command-guard-chain` / `bash-defense-chain` / `tool-fix-chain`），
+「少一个守卫」的表现是**放行了一个本该被拦的命令** —— 这类故障的形态是「静默变宽松」，
+比崩溃难查得多。
+
+这直接违反 §8 验收标准第 6 条：「任一新增扩展点**不再需要**改 `BuildNodeFactories()`」。
+S1 声称已达成（生成器聚合了目录），实际只改了**诊断侧**，运行期侧原封不动。
+
+### 24.3 断裂点 F2：22 条参数化工厂在两侧不等价（潜伏）
+
+手写清单里有 22 条工厂不是 `GetRequiredService<T>()`，而是带参数的构造：
+
+```
+CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-pipeline")        （13 条：每个 pipeline 一份）
+CreateStreamRateLimit<ChatMiddlewareContext, ChatStreamEvent>(sp, "chat-pipeline", "stream-rate-limit-mw", 30, 60)
+CreateRateLimit<QueryMiddlewareContext>(sp, "query-pipeline", "query-rate-limit-mw", 60, 6)
+CreateTimeout<WebContext>(sp, "web-pipeline", "web-timeout-mw", 30)
+CreateRetry<WebContext>(sp, "web-pipeline", "web-retry-mw", 2, ex => ex is HttpRequestException)
+CreateCircuitBreaker<WebContext>(sp, "web-pipeline", "web-circuit-breaker-mw", 5, 30)
+CreateTimeout<SkillContext>(sp, "skill-pipeline", "skill-timeout-mw", 60)
+CreateTimeout<CodeContext>(sp, "code-pipeline", "code-timeout-mw", 120)
+```
+
+catalog 侧对同样的键生成的是 `sp => sp.GetRequiredService<T>()` —— **不等价**：
+consumer 名与限流/重试参数（30/60、2 次、5 次/30 秒）会消失。
+目前没人拿 catalog 跑这些节点，所以问题潜伏；但它是一枚定时炸弹：
+只要有人把运行期解析器切到 catalog，安全链的限流参数会静默变成默认值。
+
+**结论**：合并两份清单时必须让**手写版本优先**，且「合并」不等于「替换」。
+
+### 24.4 断裂点 F3：`ToolDispatchConsumer` 是没有消费方的死类
+
+§5 第 8 项删掉了 `base.yaml` 里 4 条 `tool-dispatch:*` 死声明，但消费点类本身留在原地：
+
+```csharp
+public sealed class ToolDispatchConsumer : INodeConsumer {
+    public ToolDispatchConsumer(string consumerId = "tool-dispatch") { ... }
+}
+```
+
+生产代码里**没有任何一处实例化它**（只有 `ConsumerTest.cs` 在测）。
+`--dump-nodes` 的消费点列表里也没有 `tool-dispatch`。
+一个「节点化」工程里留着一个不指向任何消费方的消费点类，等于宣告「节点化已经做完了」却留着反例。
+
+### 24.5 断裂点 F4：文档没写清「两类节点的消费路径」
+
+251 个节点里，193 个是「实例型」（要 DI 造实例、经 `NodeServiceResolver` 解析），
+58 个是「声明型」（消费点自己读表）。文档从头到尾只说「节点」，没有区分这两条路径。
+读者据此会推出错误结论，例如「`--dump-nodes` 里 251 个节点都应该在运行期被构造出来」。
+
+### 24.6 断裂点清单（本节要修的，逐项打勾）
+
+- [x] **C1 运行期 resolver 与诊断同源**：`NodeServiceResolver.BuildWithFallback(手写, catalog)` ——
+      手写优先（保住 22 条参数化工厂的限流/重试参数），catalog 兜底
+      （新式节点只要带 `[NodeFactory]` 标注就不必再改手写清单）。
+      验收：运行期 resolver 键集 = 233（显式登记 193 + catalog 40），
+      `--dump-nodes` 键集 = 251（再并 CLI 的 18 条 command-group，运行期不需要），
+      手写 193 条的实例类型与行为不变。
+      **实际改动比原计划小**：装配文件第 326 行原本就合并了 catalog，
+      C1 把它显式化（`BuildLocalNodeFactories` / `BuildNodeFactories` 分离），
+      并让 `--dump-nodes` 输出**逐键来源表**（见 §24.8）。
+- [x] **C2 装配漏项 fail-fast**：解析不到实例时不再只记 Warning，而是抛错并指出
+      `consumer:nodeId`；同时区分「feature flag 关闭」（设计内跳过）与「工厂缺失」（异常）。
+      验收：四个 profile（base/ci/headless/sdk）全链路装配 0 失败；
+      负向实测（删掉一条手写登记）→ 立即抛出带 `consumer:nodeId` 的错误，而不是静默跳过。
+- [x] **C3 死代码清理**：`ToolDispatchConsumer` 无消费方，归档而非留在原地冒充扩展点。
+      验收：文件归档到 `.xxx/ToolDispatchConsumer.20261120021423.del`（项目约定不删文件）；
+      3 条对应测试删除；`Composition.Tests` 1119 → **1116 通过**（差值恰为删掉的 3 条）。
+      顺带核实：另外 3 个 `INodeConsumer` 实现（`CommandDispatchConsumer` / `PipelineConsumer` /
+      `PromptAssemblyConsumer`）也都只在测试里被实例化 —— 生产代码直接用 `NodeRegistry` 的
+      `GetNodesForConsumerAsync` / `GetServicesForConsumerAsync`。它们不是断裂点（消费点真实存在），
+      但说明「消费点有两套入口」，记在 §24.8。
+- [x] **C4 交叉门禁**：实例型节点必须至少有一处运行期工厂（手写 ∪ catalog），
+      声明型节点必须在 catalog、且不得出现在手写清单；门禁同时输出两类覆盖统计。
+      验收：新增 `non_deliverables_tools/scripts/Verify-NodeFactoryCoverage.py`，已接 `ci-unit-tests.yml`。
+      两条负向实测都让它变红：
+      ```
+      [FAIL] chat-pipeline:ghost-node-never-registered —— 被 profile 声明，
+             但既无显式登记也无 catalog 工厂（运行期会静默跳过）
+      [FAIL] tool-groups:media —— 声明型节点（contract=capability）却登记在显式清单里，
+             两份真相：声明型节点应由 catalog 提供元数据，不进 DI 工厂清单
+      ```
+      第一条用 `JCC_PROFILE_DIR` 指向改了磁盘 yaml 的目录触发（无需重编），
+      第二条临时往装配文件插一行 `F("tool-groups:media", ...)` 触发（改完即恢复）。
+- [x] **C5 文档补齐两类节点的消费路径**（§24.5 收口）——
+      见 §24.8：实例型 / 声明型对照表、来源表读法、**新增节点的操作规程**（按类型分开做），
+      以及「节点 ≠ DI 服务」这条判据（§24.1 第一版就是漏了它才把数字算错）。
+
+### 24.7 一条必须写下来的负向实验
+
+C1 的第一版设计假设「catalog 覆盖了全部节点，所以删掉手写行它能兜底」。
+**实验证伪了这个假设**：
+
+```
+# 临时删掉 chatinit-pipeline:context-load-mw 的手写行，重编，真机跑
+[ORDER] middleware chatinit-pipeline: ...（手写行已被删）
+中间件装配失败: consumer='chatinit-pipeline', node='context-load-mw',
+                期望类型='IMiddleware`1' — NodeServiceResolver 找不到匹配工厂。
+```
+
+追查生成物才看清真相：**生成器按程序集各生成一份 catalog**，
+`Composition` 那份只有 40 条（全是声明型节点）；实例型节点的类型大多没有 `[NodeFactory]` 标注，
+它们的工厂只存在于手写清单。所以「catalog 兜底」只对**新式节点**成立，对历史节点不成立。
+
+这条实验的价值不在于「证明了 C1 有用」，而在于它把 §24.1 的数字从错的改成对的
+（见 §24.1 的警示框）。**如果只做静态阅读就下结论，这张表会一直错下去** ——
+错的方向恰好是「看起来更整齐」的那一边。
+
+### 24.8 两类节点的消费路径（收口 §24.5）
+
+「节点」这个词此前一直混着两种东西，导致 §24.1 一开始就把数字算错。补上这张表：
+
+| | 实例型 | 声明型 |
+|---|---|---|
+| 契约 | `middleware`（176）、`guard`（17） | `provider`（11）、`role`（9）、`capability`（20）、`command-group`（18） |
+| 节点总数 | **193** | **58** |
+| 工厂来源 | 装配文件**显式登记**（`BuildLocalNodeFactories()`） | 编译期 **catalog**（`[NodeFactory]` 标注生成物） |
+| 运行期怎么被消费 | `NodeServiceResolver` 按 `consumerId:nodeId` 解析出实例，塞进 pipeline / 守卫链 | 消费点**自己读表**判定（角色白名单、能力开关、命令门禁、provider 定义） |
+| 有 DI 实例吗 | 有 | **没有**（也不该有） |
+| 装配失败的表现 | 过去：记一条 Warning 后**静默跳过**；现在：**抛错并指出 `consumer:nodeId`** | 不适用 |
+
+判据：**「节点」≠「DI 服务」**。声明型节点也有 `INode`、也进注册表、也在 `--dump-nodes` 里出现，
+但它们从头到尾不需要一个实例 —— 消费点拿到的只是「这条声明 + 它的 config」。
+把它们和实例型混在一起数，就会得出「251 个节点都该被构造出来」这种错误结论
+（§24.1 第一版就是这么错的）。
+
+**来源表怎么读**：`--dump-nodes --json` 现在多了一个 `factorySources` 字段，
+逐键标注 `handwritten` / `catalog` / `both`。当前实测：
+
+```
+middleware（实例型）: handwritten=176      guard（实例型）: handwritten=17
+capability（声明型）: catalog=20           command-group（声明型）: catalog=18
+provider（声明型）:   catalog=11           role（声明型）:        catalog=9
+```
+
+一一对应，零例外 —— 这正是 §24.1 说的「手写 = 实例型、catalog = 声明型」。
+
+**新增节点的操作规程**（按类型分开，别再混着做）：
+
+| 新增什么 | 必须做什么 | 不做什么 |
+|---|---|---|
+| 一个中间件 / 守卫 | 装配文件里 `F("consumer:node", ...)` 显式登记；profile 里声明 | 不要指望 catalog 兜底（老节点没标注，靠不住） |
+| 一个能力 / 命令 / 角色 / provider | 类型上加 `[NodeFactory("consumer", "node")]`；profile 里声明 | 不要写进显式登记清单（门禁会红：两份真相） |
+| 参数化工厂（限流/超时/重试） | 只能走显式登记（catalog 表达不了参数） | 不要指望 `GetRequiredService<T>()` 等价 |
+
+**顺带记一笔**：4 个 `INodeConsumer` 实现（`ToolDispatchConsumer` / `CommandDispatchConsumer` /
+`PipelineConsumer` / `PromptAssemblyConsumer`）在生产代码里**一个都没被实例化** ——
+生产侧一律直接调 `NodeRegistry.GetNodesForConsumerAsync` / `GetServicesForConsumerAsync`。
+它们是薄包装（构造 + 转调 registry），作为「消费点接口长什么样」的样板留着有价值，
+但也说明**消费点有两套入口**：一套是接口实现，一套是 registry 上的方法。
+本节不统一这两套入口（那是一次 API 收敛，超出 S8 范围），只把事实记下来。
+`ToolDispatchConsumer` 的问题是更硬的一条：它指向的 `tool-dispatch` 消费点**在 profile 里根本不存在**
+（§5 第 8 项删掉死声明时就该一起清掉），所以归档了它。

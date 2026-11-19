@@ -16,17 +16,19 @@ public sealed class DataDrivenPipelineCompositionTest {
     public void BuildNodeFactories_ContainsPreprocessPipelineCrashSnapshot() {
         var factories = DataDrivenPipelineComposition.BuildNodeFactories().ToDictionary();
 
-        factories.Should().ContainKey("preprocess-pipeline:crash-snapshot-mw");
+        factories.Should().ContainKey("preprocess-analyze-pipeline:crash-snapshot-mw");
+        factories.Should().ContainKey("preprocess-prepare-pipeline:crash-snapshot-mw");
     }
 
     [Fact]
-    public void BuildNodeFactories_ContainsAll17ConsumerCrashSnapshots() {
+    public void BuildNodeFactories_ContainsAll18ConsumerCrashSnapshots() {
         var factories = DataDrivenPipelineComposition.BuildNodeFactories().ToDictionary();
 
         var crashKeys = factories.Keys.Where(k => k.Contains("crash-snapshot")).ToList();
-        crashKeys.Should().HaveCount(17);
+        crashKeys.Should().HaveCount(18);
         crashKeys.Should().Contain("chat-pipeline:stream-crash-snapshot-mw");
-        crashKeys.Should().Contain("preprocess-pipeline:crash-snapshot-mw");
+        crashKeys.Should().Contain("preprocess-analyze-pipeline:crash-snapshot-mw");
+        crashKeys.Should().Contain("preprocess-prepare-pipeline:crash-snapshot-mw");
         crashKeys.Should().Contain("chatinit-pipeline:crash-snapshot-mw");
         crashKeys.Should().Contain("chatadmin-pipeline:crash-snapshot-mw");
         crashKeys.Should().Contain("compact-pipeline:crash-snapshot-mw");
@@ -48,7 +50,8 @@ public sealed class DataDrivenPipelineCompositionTest {
     public void BuildNodeFactories_SameNodeIdDifferentConsumer_HasDifferentFactories() {
         var factories = DataDrivenPipelineComposition.BuildNodeFactories().ToDictionary();
 
-        factories.Should().ContainKey("preprocess-pipeline:crash-snapshot-mw");
+        factories.Should().ContainKey("preprocess-analyze-pipeline:crash-snapshot-mw");
+        factories.Should().ContainKey("preprocess-prepare-pipeline:crash-snapshot-mw");
         factories.Should().ContainKey("chatinit-pipeline:crash-snapshot-mw");
         factories.Should().ContainKey("chatadmin-pipeline:crash-snapshot-mw");
     }

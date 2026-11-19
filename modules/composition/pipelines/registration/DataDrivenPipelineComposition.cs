@@ -70,15 +70,22 @@ public static class DataDrivenPipelineComposition {
         yield return F("chat-pipeline:save-context-mw", sp => sp.GetRequiredService<SaveContextMiddleware>());
 
         // ═══════════════════════════════════════════════════════════
-        // preprocess-pipeline — IMiddleware<PreprocessContext>
+        // preprocess-analyze-pipeline / preprocess-prepare-pipeline — IMiddleware<PreprocessContext>
         // ═══════════════════════════════════════════════════════════
-        yield return F("preprocess-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-pipeline"));
-        yield return F("preprocess-pipeline:keyword-injection-mw", sp => sp.GetRequiredService<KeywordInjectionMiddleware>());
-        yield return F("preprocess-pipeline:synonym-injection-mw", sp => sp.GetRequiredService<SynonymInjectionMiddleware>());
-        yield return F("preprocess-pipeline:system-prompt-mw", sp => sp.GetRequiredService<SystemPromptMiddleware>());
-        yield return F("preprocess-pipeline:reminder-injection-mw", sp => sp.GetRequiredService<ReminderInjectionMiddleware>());
-        yield return F("preprocess-pipeline:tool-listing-injection-mw", sp => sp.GetRequiredService<ToolListingInjectionMiddleware>());
-        yield return F("preprocess-pipeline:lsp-diagnostic-mw", sp => sp.GetRequiredService<LspDiagnosticMiddleware>());
+        // preprocess-analyze-pipeline — IMiddleware<PreprocessContext>（分析阶段）
+        // TASK100 S9（§25）：原来 7 个 preprocess 节点挂在一个消费点上，但生产真正执行的
+        // 是 DI 集合自建的两条链（analyze / prepare），profile 声明完全管不到它 ——
+        // 实证见 §25.2：注入幽灵节点运行期毫无反应。拆成两个消费点后，真链才受 profile 治理。
+        yield return F("preprocess-analyze-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-analyze-pipeline"));
+        yield return F("preprocess-analyze-pipeline:keyword-injection-mw", sp => sp.GetRequiredService<KeywordInjectionMiddleware>());
+        yield return F("preprocess-analyze-pipeline:synonym-injection-mw", sp => sp.GetRequiredService<SynonymInjectionMiddleware>());
+
+        // preprocess-prepare-pipeline — IMiddleware<PreprocessContext>（准备阶段）
+        yield return F("preprocess-prepare-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-prepare-pipeline"));
+        yield return F("preprocess-prepare-pipeline:system-prompt-mw", sp => sp.GetRequiredService<SystemPromptMiddleware>());
+        yield return F("preprocess-prepare-pipeline:reminder-injection-mw", sp => sp.GetRequiredService<ReminderInjectionMiddleware>());
+        yield return F("preprocess-prepare-pipeline:tool-listing-injection-mw", sp => sp.GetRequiredService<ToolListingInjectionMiddleware>());
+        yield return F("preprocess-prepare-pipeline:lsp-diagnostic-mw", sp => sp.GetRequiredService<LspDiagnosticMiddleware>());
 
         // ═══════════════════════════════════════════════════════════
         // chatinit-pipeline — IMiddleware<ChatInitContext>
@@ -420,10 +427,11 @@ public static class DataDrivenPipelineComposition {
         // ═══════════════════════════════════════════════════════════
 
         // Preprocess 预处理管道
-        services.AddSingleton<MiddlewarePipeline<PreprocessContext>>(sp =>
-            SubscribePipelineRebuild(sp,
-                BuildTaskPipeline<PreprocessContext>(sp, "preprocess-pipeline"),
-                "preprocess-pipeline"));
+        // TASK100 S9（§25.4）：这条注册**没有消费方** —— 生产真正跑的 preprocess 链是
+        // IChatPreprocessor 内部按 profile 解析的两条链（analyze / prepare）。
+        // 留着它等于「注册了但没人注入」的死链，与 §24.8 记的 tool-dispatch 是同一类问题，
+        // 只是方向相反（那个没有实现，这个没有消费方）。
+        // 两条链的构建见 ServiceRegistration.Brain.cs 的 ResolvePreprocessChainAsync。
 
         // ChatInit 聊天初始化管道
         services.AddSingleton<MiddlewarePipeline<ChatInitContext>>(sp =>

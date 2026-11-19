@@ -1765,3 +1765,95 @@ provider（声明型）:   catalog=11           role（声明型）:        cata
 本节不统一这两套入口（那是一次 API 收敛，超出 S8 范围），只把事实记下来。
 `ToolDispatchConsumer` 的问题是更硬的一条：它指向的 `tool-dispatch` 消费点**在 profile 里根本不存在**
 （§5 第 8 项删掉死声明时就该一起清掉），所以归档了它。
+
+## 25. S9：preprocess 链绕过 profile 治理（断裂点 F5）
+
+### 25.1 怎么发现的
+
+S8 结束时我列了一份「运行期实际装配了什么」的清单（真机 `[ORDER]` 打点），
+把它和 `--dump-nodes` 的消费点清单对了一遍，发现**有 6 条声明型 pipeline 在真机上没有装配记录**：
+
+```
+真机打点有：chat / chatinit / chatadmin / permission / settings / unified-spawn / fork /
+             web / shell / skill / code / tool-execution / agent-tool （13 条 middleware）
+真机打点无：preprocess / compact / query / dream / agent-dispose / prompt-assembly
+```
+
+其中 `compact`（上下文压缩）、`query`（单次查询）、`dream`（空闲期）、
+`agent-dispose`（agent 释放）本来就只在对应场景才跑，**打点缺失是正常的**。
+但 `preprocess` 不正常 —— 它是**每条消息都要走的前置处理**。
+
+### 25.2 实证：preprocess 的 profile 声明完全不生效
+
+往 `preprocess-pipeline` 消费点注入一个**根本不存在**的节点，然后跑真机：
+
+```bash
+# .tmp_report/prof_test/base.yaml 里 preprocess-pipeline 末尾加了 ghost-preprocess-node
+JCC_PROFILE_DIR=.tmp_report/prof_test jcc -p "hi"
+# 输出：[PROMPT-GROUP] profile=base 启用工具组 13 个
+#       —— 没有任何「装配失败」
+```
+
+对照 S8 的 C2（装配漏项 fail-fast）：**别的 pipeline 注入幽灵节点会当场抛错，
+preprocess 注入幽灵节点连眼皮都不抬**。
+
+一个节点被声明了却毫无反应，只有一种解释：**这条声明管的不是真正在跑的那条链**。
+
+### 25.3 根因：生产有两条 preprocess 链，profile 只管了没跑的那条
+
+| | 链 A（profile 管得到） | 链 B（生产真在跑） |
+|---|---|---|
+| 怎么建 | `BuildTaskPipeline<PreprocessContext>(sp, "preprocess-pipeline")` → `ResolveMiddlewares` → 按 profile 的 priority 装配 | `ServiceRegistration.Brain.cs` 里 `sp.GetServices<IAnalyzePreprocessMiddleware>()` / `GetServices<IPreparePreprocessMiddleware>()` → **按 DI 注册顺序**自建两条 `PipelineBuilder` |
+| 消费方 | `MiddlewarePipeline<PreprocessContext>` 这个 DI 服务 —— **生产无人注入** | `IChatPreprocessor` → `ChatPreprocessor` → `PreChatMiddleware` / `CleanupInjectionsMiddleware`（每条消息都走） |
+| profile 裁剪 | 生效 | **完全不生效** |
+| `crash-snapshot-mw` | 声明了 | **链里根本没有** → 崩溃快照保护在 preprocess 阶段一直是失效的 |
+
+`ChatPreprocessor` 的构造函数明明收两个 `MiddlewarePipeline<PreprocessContext>` 参数，
+但注册时传的是自己建的两条链 —— 于是 DI 里那条**数据驱动的** `MiddlewarePipeline<PreprocessContext>`
+注册了却没人注入，是一条**注册了但无消费方的死链**。
+
+### 25.4 影响（四条，按严重度）
+
+1. **profile 裁剪中间件在 preprocess 上是假的**：在 `preprocess-pipeline` 里删掉某个中间件，
+   生产照跑不误。这让「profile 能裁剪中间件」这个承诺出现一个静默的例外。
+2. **顺序不可控**：链 B 的顺序由 DI 收集顺序决定，与 profile 的 priority 无关 ——
+   同一份 profile 在不同构建顺序下可能得到不同的 preprocess 行为。
+3. **崩溃快照保护缺失**：`crash-snapshot-mw` 声明了 7 个月，实际从未在 preprocess 阶段生效。
+4. **与 §5 第 8 项同类**：`tool-dispatch` 死声明是「声明了没有实现」，这里是「声明了没有消费方」——
+   而我们的门禁（`Verify-NodeConsistency`）只比对「声明 ↔ 工厂」，**看不见消费方**。
+
+### 25.5 修法：把 preprocess 拆成两个消费点，让真链走 profile
+
+链 B 的两阶段语义（analyze → prepare）必须保留，所以不能简单合并成一条。
+最小且正确的做法：
+
+1. profile 把 `preprocess-pipeline` 拆成 `preprocess-analyze-pipeline` 与 `preprocess-prepare-pipeline`，
+   各自声明节点；`crash-snapshot-mw` 两条链各一份（与其它 pipeline 的惯例一致）。
+2. `BuildLocalNodeFactories()` 把 7 条实例型登记按新键重挂（crash-snapshot 变两条）。
+3. `ServiceRegistration.Brain.cs` 的 `IChatPreprocessor` 注册改为**从 profile 解析两个消费点**，
+   用 `INodeRegistry.GetServicesForConsumerAsync<IMiddleware<PreprocessContext>>`，
+   保留 analyze / prepare 两条链的切分；解析不到节点时同样 fail-fast（与 C2 一致）。
+4. 数据驱动的 `MiddlewarePipeline<PreprocessContext>` 注册随之删除（避免再留一条无消费方的死链）。
+
+### 25.6 本节清单（逐项打勾）
+
+- [x] **D1 profile 拆两个消费点**：`preprocess-analyze-pipeline` / `preprocess-prepare-pipeline`，
+      节点按 analyze / prepare 接口归属重新分配，`crash-snapshot-mw` 两条链各一份。
+      验收：base 3+5、ci 2+4、headless 3+5、sdk 2+4（crash-snapshot 在 ci/sdk 被 excludes 裁掉，
+      **这次裁剪是真的生效了** —— 旧链里它连跑都没跑过）。
+- [x] **D2 实例型登记改键**：`BuildLocalNodeFactories()` 里 7 条 preprocess 登记按新消费点重挂
+      （crash-snapshot 变两条，共 8 条）。测试断言同步更新（crash-snapshot 消费点数 17 → 18）。
+- [x] **D3 真链走 profile**：`IChatPreprocessor` 注册改为按 profile 解析两个消费点
+      （`INodeRegistry.GetServicesForConsumerAsync`），解析数与声明数不符时 **fail-fast**。
+      验收：注入幽灵节点 → 运行期立刻抛错（见 D5），不再是 §25.2 的「毫无反应」。
+- [x] **D4 死链清理**：删除无消费方的 `MiddlewarePipeline<PreprocessContext>` 注册
+      （生产侧；测试侧 `TestPipelineRegistration` 的手写链保留，测试专用）。
+- [x] **D5 验收**：真机 `[ORDER] middleware preprocess-analyze-pipeline: ...` 与
+      `preprocess-prepare-pipeline: ...` 出现且**节点数与 profile 声明一致**（四个 profile 逐一核对）；
+      再注入幽灵节点 → **当场 fail-fast**：
+      ```
+      [MAIN] 未捕获异常: System.InvalidOperationException: 消费点 'preprocess-analyze-pipeline'
+      声明了 4 个中间件，实际只解析出 3 个 —— 节点工厂缺失或类型与消费点期望不符。
+      宁可启动失败，也不要静默少一道中间件。
+      ```
+      §25.2 的负向结果被翻过来了。

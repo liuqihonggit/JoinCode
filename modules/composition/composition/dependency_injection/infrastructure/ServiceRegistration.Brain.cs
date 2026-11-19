@@ -89,8 +89,11 @@ public static partial class ServiceRegistration {
             .GetServicesForConsumerAsync<IMiddleware<PreprocessContext>>(consumerId, profile, default, failFastOnMissing: true)
             .ConfigureAwait(false);
 
-        // 声明数与解析数必须一致（feature flag 关闭的节点由 registry 自行跳过，不在此处计数）。
-        var declared = consumerConfig.Nodes.Count(n => n.EnabledWhenFeatureFlag is null);
+        // 声明数与解析数必须一致。feature flag 关闭、meta.required-capabilities 未满足的节点
+        // 都由 registry 自行跳过（TASK097 §15 H3），计数口径必须与 registry 的过滤逻辑同源，
+        // 否则「能力关闭」会被误判成「节点工厂缺失」而启动失败。
+        var declared = consumerConfig.Nodes.Count(n =>
+            n.EnabledWhenFeatureFlag is null && NodeRegistry.RequiredCapabilitiesSatisfied(n, profile));
         if (middlewares.Count != declared) {
             throw new InvalidOperationException(
                 $"消费点 '{consumerId}' 声明了 {declared} 个中间件，实际只解析出 {middlewares.Count} 个 —— " +

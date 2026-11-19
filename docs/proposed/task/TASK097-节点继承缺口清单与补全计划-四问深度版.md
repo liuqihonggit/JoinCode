@@ -565,3 +565,69 @@ name/exe/category 都是 `<category>` 机械派生，没有父子关系
 不是工具执行层的继承 —— 13 个分组 exe 运行时走编译好的 C#，不读 node.yaml。
 本落地让 `jcc tool tree/find/help` 的下钻自省真实吃到继承，并给外部自定义节点提供了
 "只写差异、父节点放同目录"的生产通路；没有改动 635 个工具的调用契约。
+
+---
+
+## 15. G1 可逆注册与 metadata 路由的生产落地（2026-11-20）
+
+### 15.1 先修正上一轮的判断（调研比口号可靠）
+
+上一轮对用户的回答里说「可逆注册无生产调用方、metadata 无路由消费端」。**这句话一半错**：
+
+| 字段/机制 | 上一轮说法 | 真实现状（逐行核对） |
+|---|---|---|
+| `EnabledWhenFeatureFlag` | 无消费端 | **已有**：`NodeRegistry.cs:196-200 / 237-241` 用 `IFeatureFlagService.IsEnabledAsync` 过滤；`ServiceRegistration.Brain.cs:93` 核对声明数 |
+| `Priority` | 无消费端 | **已有**：`NodeRegistry.cs:195 / 236` 排序 |
+| `Version/Dependencies/Capabilities/RequiredCapabilities` | 无消费端 | ✅ 确认空转：只在 dump DTO 出现，无任何决策读它 |
+| `RegistrationHandle` | 无生产调用方 | 生产代码有，但只在 `Program.cs:298-320` 的 `--dump-nodes` **自检**里演示注册/替换/回滚；业务路径零调用 |
+
+所以剩下两件真正的工作是：**(a) 让 Capabilities/RequiredCapabilities 参与路由**；**(b) 让 RegistrationHandle 服务一个真实业务链路**。
+
+### 15.2 G1 的真实场景已经存在：插件加载/卸载
+
+DSH `ctx.effect()` 的原生语义是「插件安装时注册它提供的扩展点，卸载时逆序回滚」。本仓已有现成的同构链路：
+
+- `IPluginManager` 有 `PluginLoaded` / `PluginUnloading` 事件（`plugins.infrastructure/interfaces/IPluginManager.cs:21-23`）；
+- `ServiceRegistration.Skills.cs:36-58` 已订阅这两个事件，加载时 `RegisterPluginSkillsAsync`、卸载时 `UnregisterPluginSkillsAsync`；
+- 但**节点注册表完全没订阅** —— 插件带来的节点能力在 `INodeRegistry` 里既不可见，也谈不上回滚。
+
+这就是 G1 的真正落点：不新造事件、不新造生命周期，把 `INodeRegistry.Register` 接在插件加载事件上，把返回的 `RegistrationHandle` 存进按插件名索引的表，卸载时逆序 `Dispose()`。
+
+### 15.3 路由消费端：RequiredCapabilities
+
+`NodeMetadata.FromConfig` 已经能从 profile 的 `meta.required-capabilities` 解析出字段（`NodeMetadata.cs:36`），但没人读。接法：
+
+1. `NodeRegistry.GetNodesForConsumerAsync` / `GetServicesForConsumerAsync` 在 feature-flag 判定之后、节点解析之前，检查 `nodeEntry` 的 `meta.required-capabilities`；
+2. 用现成的 `CapabilitySet.IsEnabled(id)` 判定（能力在 profile 里的开关是唯一真相，不另立一套）；
+3. 任一必需能力未开 → **按设计跳过**（与 feature flag 关闭同类，不算「解析失败」，不触发 S10 的 `failFastOnMissing`）；
+4. 零回归：当前所有生产节点的 `required-capabilities` 为空，过滤是 no-op。
+
+### 15.4 验收判据（不是「代码里有」，而是真机行为）
+
+- **G1**：真机加载/卸载一个插件，`JCC_DEBUGLOG=1` 能看到 `[NODE-BRIDGE] register/unregister` 打点；`INodeRegistry.TryGetNode` 在加载后能取到该插件节点、卸载后取不到；LIFO 顺序有打点证据。
+- **路由**：给某个消费点节点临时加 `meta.required-capabilities: [dream]`，在 `ci` profile（dream 已关）下该节点被裁掉、在 `base` 下出现；负向实验证明门禁会红。
+- **零回归**：四个 profile 的现有节点数不变（生产节点无 required-capabilities）。
+
+### 15.5 本节清单（逐项打勾，一次一项）
+
+- [x] **H1 文档先记录**：本节写清调研修正、插件事件这一真实场景、路由接法与验收判据。
+- [x] **H2 G1 接插件事件**：`PluginNodeBridge` 订阅 `PluginLoaded/PluginUnloading`，加载时 `INodeRegistry.Register`、卸载时 `RegistrationHandle` 逆序回滚；打点 + 真机证明。
+- [x] **H3 RequiredCapabilities 路由**：两个解析入口按能力开关过滤；与 feature flag 同类语义、零回归。
+- [x] **H4 验收实证**：单测 + 真机正负向（加载/卸载、ci vs base 能力开关）；生成器/现有门禁不回退。
+- [x] **H5 门禁与收尾**：门禁锁住「桥接必须走 Register/Dispose 而非自建表」；文档逐项打勾；提交（不推、不建 PR）。
+
+### 15.6 验收实证（H2/H3 施工后）
+
+| 项 | 实证 |
+|---|---|
+| 编译 | `Composition.csproj` 与 `JoinCode.csproj` 全绿、0 警告。踩坑两处均已按项目约定修正：`lock` 触发 JCC4008 → 改不可变快照 + CAS；局部 `RegistrationHandle` 触发 JCC9305 → 改为内联传参转移所有权。 |
+| 单测 | `NodeBridgeAndCapabilityTest` 5 条全绿：插件加载注册节点（NodeId=`plugin:demo-plugin`、`Metadata.Version=plugin`）、卸载回滚、重复加载 LIFO 全撤；能力未声明=保留、profile 开启=保留、profile 关闭=两个解析入口都跳过。连同 S10 的回归共 25 条绿。 |
+| 真机 H2 正向 | 聊天入口（完整宿主）`JCC_DEBUGLOG=1` 打出 `[NODE-BRIDGE] register plugin='McpInit'/'Dream'/'CSharpLanguage'` —— 插件加载真的触发了节点注册，打点在真生命周期事件上。 |
+| 真机 H2 盲点记录 | `mcp_serve`（`SkipChatServices=true` 轻量宿主）不接线桥接（`McpInitModule` 的 `if (!skipChat)` 内），符合设计 —— 该路径不需要插件节点表，不是 bug。 |
+| 真机 H3 正负向 | 临时 profile 给 `keyword-injection-mw` 注入 `meta.required-capabilities: dream`：dream 开 → `[ORDER] preprocess-analyze-pipeline` 含 `KeywordInjectionMiddleware`（3 节点）；从 capabilities 去掉 dream → 该节点消失（2 节点），且**无**「声明了 3 个只解析出 2 个」的误报（declared 计数同源修正生效）。 |
+| 门禁 | 新增 `Verify-NodeBridgeCapability.py`（桥接 Register/Dispose、真事件、两入口过滤、声明数同源）接 CI；负向删掉 `handle.Dispose()` → 退出码 1 并指名原因，源文件随即原样恢复。 |
+
+**边界（不得宣称超出）**：本轮让 G1 的 `RegistrationHandle` 首次进入真实生命周期（插件装卸），
+H3 让 `meta.required-capabilities` 首次参与节点路由。但按用户裁决「没有消费点很正常，架构要对就行」，
+注册的插件节点**当前不预设消费点** —— 注册表是节点唯一真相，消费点将来读哪类节点由 profile 决定。
+不把它说成「已解决某个业务功能」，也不再为找消费端过度设计。

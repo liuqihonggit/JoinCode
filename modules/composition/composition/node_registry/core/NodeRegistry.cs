@@ -187,6 +187,22 @@ public sealed class NodeRegistry : INodeRegistry {
         return nodeId;
     }
 
+    /// <summary>
+    /// TASK097 §15（H3）：节点元数据 <c>meta.required-capabilities</c> 参与路由 —— 任一必需能力
+    /// 在当前 profile 未开则跳过该节点。与 feature flag 关闭同类语义（设计内跳过，不算解析失败，
+    /// 不触发 S10 的 failFastOnMissing）。判定唯一真相是 <see cref="CapabilityNodes.IsEnabled"/>，
+    /// 与插件加载/能力视图同源，避免第二套能力开关。
+    /// </summary>
+    internal static bool RequiredCapabilitiesSatisfied(ResolvedNodeEntry nodeEntry, ResolvedProfile profile) {
+        var declared = NodeMetadata.FromConfig(nodeEntry.Config);
+        if (declared is null || declared.RequiredCapabilities.Length == 0) return true;
+        foreach (var capability in declared.RequiredCapabilities) {
+            if (!CapabilityNodes.IsEnabled(profile, capability))
+                return false;
+        }
+        return true;
+    }
+
     /// <summary>获取指定消费点的所有节点（按 Profile 配置和 Priority 排序，检查 enabled-when feature flag）</summary>
     public async Task<IReadOnlyList<INode>> GetNodesForConsumerAsync(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig)) return [];
@@ -199,6 +215,8 @@ public sealed class NodeRegistry : INodeRegistry {
                     nodeEntry.EnabledWhenFeatureFlag, cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (!isEnabled) continue;
             }
+            // H3：必需能力未开 → 设计内跳过（与 feature flag 同类，不算装配失败）。
+            if (!RequiredCapabilitiesSatisfied(nodeEntry, profile)) continue;
             var key = LookupKey(consumerId, nodeEntry.Id);
             if (nodes.TryGetValue(key, out var entry)) {
                 // G4 真实注入链：metadata 来自该 Profile 节点的 meta.* 保留键，
@@ -240,6 +258,8 @@ public sealed class NodeRegistry : INodeRegistry {
                     nodeEntry.EnabledWhenFeatureFlag, cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (!isEnabled) continue;
             }
+            // H3：必需能力未开 → 设计内跳过（与 feature flag 同类，不算装配失败）。
+            if (!RequiredCapabilitiesSatisfied(nodeEntry, profile)) continue;
             if (resolver is not null && resolver.TryResolve<T>(consumerId, nodeEntry.Id, _services, out var service)) {
                 result.Add(service);
             } else if (nodes.TryGetValue(LookupKey(consumerId, nodeEntry.Id), out var entry) && entry.CreateNode(_services) is Node<T> typedNode) {

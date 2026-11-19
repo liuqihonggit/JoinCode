@@ -55,6 +55,12 @@ public static partial class ServiceRegistration {
                     logger?.LogWarning("[PluginSkillBridge] UnregisterPluginSkills failed for {PluginName}: {Error}", pluginName, ex.Message);
                 }
             };
+
+            // G1（TASK097 §15）：插件加载/卸载时向 INodeRegistry 注册/回滚插件节点（DSH ctx.effect 语义）。
+            // 与技能桥共用同一对事件、同一时序 —— 装什么撤什么由注册表的 RegistrationHandle 兑现。
+            var nodeBridge = serviceProvider.GetRequiredService<PluginNodeBridge>();
+            pm.PluginLoaded += (_, pluginName) => nodeBridge.OnPluginLoaded(pluginName);
+            pm.PluginUnloading += (_, pluginName) => nodeBridge.OnPluginUnloading(pluginName);
         }
     }
 }

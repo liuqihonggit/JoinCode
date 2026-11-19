@@ -1159,3 +1159,56 @@ public static bool IsEnabledLiteral(string literal) {
 
 **仍未统一的一处（诚实记录）**：`-h options` 的参数表来自 `CliArg` 特性（`CliArgParser.GetHelpText`），
 与 `cli-commands` 消费点是两个体系 —— 参数级的启停目前没有节点语义，也不该硬套（参数不是命令）。
+
+---
+
+## 21. 运行期 Profile 切换的真实作用域（核实，并修正提示）
+
+### 21.1 为什么要查这件事
+
+S4 写 `CapabilitySet` 时给的理由是「每次读 `IProfileManager.Current`、不快照，保证运行期切换生效」。
+**不快照只是必要条件，不是充分条件**：如果消费点本身在启动时只求值一次，读多少次 `Current` 都没用。
+这句话如果不核实，就是一句听起来很对、实际无从验证的声明 —— 而这类声明比「没做」更容易误导。
+
+### 21.2 代码证据（谁真的订阅了切换）
+
+```
+$ grep -rn "ProfileSwitching +=" modules
+DataDrivenPipelineComposition.cs:568   Task 管道重建
+DataDrivenPipelineComposition.cs:584   Stream 管道重建
+```
+
+只有这两处。其余各层都是**构造/启动时求值**：
+
+| 层 | 求值时机 | 切换后 |
+|---|---|---|
+| Task / Stream 中间件管道 | 订阅 `ProfileSwitching` 后重建 | ✅ 跟随 |
+| 命令守卫链 `CommandInterceptionDispatcher._guards` | 构造函数 `NodeChainOrder.Order` | ❌ 不变 |
+| 工具修正器链 `ToolFixHookRegistry._hooks` | 构造函数 | ❌ 不变 |
+| bash 防御链 `BashDefenseService._chain` | 构造函数 `OrderChain` | ❌ 不变 |
+| 沙箱降级链 `SandboxManager._fallbackOrder` | 构造时 `BuildFallbackOrder` | ❌ 不变 |
+| 能力（服务解析 / 插件加载 / 工具注册） | 启动时（DI 解析、插件加载、`RegisterAll`） | ❌ 不变 |
+| 命令表面（`cli-commands`） | 每次进程启动时判定 | ❌ 本进程内不变 |
+
+### 21.3 修正提示（不改行为，只改说法）
+
+`/profile` 切换成功后原本只有一句「管道中间件列表已动态重建」—— 准确，但容易被读成「整条链路都换了」。
+现在分两行说清楚：
+
+```
+已切换 Profile: base → headless
+已重建: Task / Stream 中间件管道（订阅了 ProfileSwitching）
+仍按启动时求值（改动需重启）: 能力（服务/插件/工具表）、命令表面、守卫/修正器/沙箱/防御链顺序
+```
+
+真机（`jcc slash_call /profile {"arguments":"headless"}`）即上述三行；`/profile list` 四个 profile 正常。
+
+### 21.4 为什么不把其余层也做成动态
+
+- **服务解析**是 DI 的本质：`GetService<T>` 返回 `null` 之后不会因为换了 profile 又变回来。
+  要做就得重解析整个 `EngineServiceContext`，而它被几十个消费者持有 —— 那是一次重启，不是一次切换。
+- **工具注册**可以做成 `ClearAsync` + 重新 `RegisterAll`，但运行中清空工具表会让并发中的工具调用拿不到 handler。
+- **链顺序**（守卫/防御/修正器/沙箱）技术上可以每次请求重算，但那等于把「启动时确定性」换成「每请求读一次配置」——
+  而这些链是安全边界，顺序抖动比「要重启」危险得多。
+
+结论：**「要重启」不是实现缺陷，是这类配置的正确语义**。真正要做的是把它说清楚，而不是假装热更新。

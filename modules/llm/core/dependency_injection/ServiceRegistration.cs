@@ -12,28 +12,25 @@ public static partial class ServiceRegistration {
     /// </summary>
     internal static void EnsureDefaultProvidersRegistered() {
         if (Interlocked.CompareExchange(ref s_providersRegistered, 1, 0) != 0) return;
-        s_factory.RegisterProvider(ProtocolKind.Anthropic,
-            (config, http, logger, fs, executor) => new AnthropicQueryService(config, http, logger, fs, executor));
-        s_factory.RegisterProvider(ProtocolKind.Azure,
-            (config, http, logger, fs, executor) => new AzureQueryService(config, http, logger, fs, executor));
-        s_factory.RegisterProvider(ProtocolKind.Agnes,
-            (config, http, logger, fs, executor) => new AgnesQueryService(config, http, logger, fs, executor));
-        s_factory.RegisterProvider(ProtocolKind.OpenAiResponses,
-            (config, http, logger, fs, executor) => new ResponsesQueryService(config, http, logger, fs, executor));
-        s_factory.RegisterProvider(ProtocolKind.Jev,
-            (config, http, logger, fs, executor) => new JevQueryService(config, http, logger, fs, executor));
-        s_factory.RegisterProvider(ProtocolKind.Hub,
-            (config, http, logger, fs, executor) => new Api.Chat.HubQueryService(
-                new Api.Chat.HubTransportConfig {
-                    Endpoint = config.Definition?.DefaultEndpoint ?? "http://localhost:3457",
-                    ModelId = config.ModelId,
-                    AgentId = config.AgentId,
-                },
-                config.ApiKey,
-                logger as ILogger<Api.Chat.HubQueryService>,
-                executor));
+
+        // TASK100 S3：清单只来自 LlmProviderNodes.All —— 这里与 LlmProvidersPlugin 曾各写一遍同一份表。
+        foreach (var node in Api.LLM.QueryServices.Nodes.LlmProviderNodes.All) {
+            s_factory.RegisterProvider(node.Kind, node.Create);
+        }
         s_factory.RegisterDefault(
             (config, http, logger, fs, executor) => new OpenAIQueryService(config, http, logger, fs, executor));
+
+        Diag.WriteLine($"[LLM] providers registered: {string.Join(", ", Api.LLM.QueryServices.Nodes.LlmProviderNodes.AllNodeIds)} (+ default)");
+    }
+
+    /// <summary>
+    /// 撤销全部供应商注册并允许重新注册 — 插件卸载时调用，使「卸载 → 重新加载」真的可逆。
+    /// </summary>
+    internal static void ResetProviders() {
+        foreach (var node in Api.LLM.QueryServices.Nodes.LlmProviderNodes.All) {
+            s_factory.UnregisterProvider(node.Kind);
+        }
+        Interlocked.Exchange(ref s_providersRegistered, 0);
     }
 
     /// <summary>添加 LLM 服务到 DI 容器。</summary>
@@ -108,6 +105,10 @@ public static partial class ServiceRegistration {
     }
 
     private static IQueryService CreateQueryService(IServiceProvider sp, ProviderConfig providerConfig) {
+        // TASK100 S3：profile 的 llm-providers 声明是启用集合；未声明该协议就明确拒绝，
+        // 而不是落到 default factory 把 A 协议的配置按 B 协议发出去。
+        sp.GetService<Api.LLM.QueryServices.Nodes.LlmProviderDeclaration>()?.AssertEnabled(providerConfig.ProtocolKind);
+
         var logger = sp.GetService<ILogger<IQueryService>>();
         var fs = sp.GetService<IFileSystem>();
         var resilientExecutor = CreateLlmResilientExecutor(sp);

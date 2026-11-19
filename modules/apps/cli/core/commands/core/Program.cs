@@ -92,15 +92,21 @@ class Program {
                 return await App.Builder.ApplicationBuilder.RunSubCommandAsync(ReorderSubCommandToFront(args, idx)).ConfigureAwait(false);
 
             // 4. 参数解析 → CommandLineOptions（后续全部使用 options，不再传递原始 args）
+            // TASK100: --dump-nodes 是纯诊断命令，先于参数解析处理 —— --json / --verify 是它私有的
+            // 修饰符，不进入全局选项表（否则会被判为未知选项而无法用于 CI 门禁）。
+            if (Array.IndexOf(args, "--dump-nodes") >= 0) return DumpNodesInfo(
+                json: Array.IndexOf(args, "--json") >= 0,
+                verify: Array.IndexOf(args, "--verify") >= 0);
+
             var swParse = PerfTimer.Start("ParseArgs");
             options = App.Builder.ApplicationBuilder.ParseArgs(args);
             swParse?.Stop();
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(GetHelpTopic(args)); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
-            // --dump-nodes / --dump-profile: 诊断命令 — 输出后直接退出
-            if (options.DumpNodes) return DumpNodesInfo();
+            // --dump-profile: 诊断命令 — 输出后直接退出
             if (options.DumpProfile is not null) return DumpProfileInfo(options.DumpProfile);
+
 
             // 早期超时计时器已完成使命（子命令路由已过），主路径计时器接管 — 避免双重超时输出
             earlyAwaitTimer?.Dispose();
@@ -242,24 +248,25 @@ class Program {
     /// <summary>
     /// --dump-nodes: 输出所有 Profile 中定义的节点列表（诊断用）
     /// </summary>
-    private static int DumpNodesInfo() {
-        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources();
+    private static int DumpNodesInfo(bool json = false, bool verify = false) {
+        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources(fileSystem: new IO.FileSystem.PhysicalFileSystem());
         var resolver = new Composition.NodeRegistry.NodeProfileResolver(profiles);
-
-        Cli.TerminalHelper.WriteLine("═══ 已注册节点列表 ═══");
-        Cli.TerminalHelper.WriteLine();
 
         // G5: 真机展示 NodeRegistry 从编译期工厂 catalog 自动归纳的节点数 ——
         // 与 profile 配置节点交叉核对；空容器只用于读取归纳结果，不解析任何服务。
         var emptySp = new Microsoft.Extensions.DependencyInjection.ServiceCollection().BuildServiceProvider();
-        var registry = Composition.NodeRegistry.NodeRegistry.BuildFromCatalog(
-            emptySp, Pipelines.DataDrivenPipelineComposition.BuildNodeFactories());
-        Cli.TerminalHelper.WriteLine($"NodeRegistry 自动归纳: {registry.NodeCount} 个节点（来自编译期工厂 catalog，无需手工登记）");
-        Cli.TerminalHelper.WriteLine();
+        var factories = Pipelines.DataDrivenPipelineComposition.BuildNodeFactories().ToArray();
+        var registry = Composition.NodeRegistry.NodeRegistry.BuildFromCatalog(emptySp, factories);
 
-        // G1: 真机自检 —— debug 日志下跑一次完整 注册→替换→卸载，验证逆序回滚与打点顺序。
-        // 走的是生产 NodeRegistry.Register/Replace/Dispose 同一条代码路径（不是单测替身）。
-        if (Environment.GetEnvironmentVariable("JCC_DEBUGLOG") == "1") {
+        if (!json) {
+            Cli.TerminalHelper.WriteLine("═══ 已注册节点列表 ═══");
+            Cli.TerminalHelper.WriteLine();
+            Cli.TerminalHelper.WriteLine($"NodeRegistry 自动归纳: {registry.NodeCount} 个节点（来自编译期工厂 catalog，无需手工登记）");
+            Cli.TerminalHelper.WriteLine();
+        }
+
+        // G1 + TASK098 自检只在文本模式的 debug 日志下跑，避免污染 --json 输出。
+        if (!json && Environment.GetEnvironmentVariable("JCC_DEBUGLOG") == "1") {
             var probe = Composition.NodeRegistry.NodeRegistry.BuildFromCatalog(emptySp, []);
             var h1 = probe.Register("probe", (_, _) => new ProbeNode("first"));
             var h2 = probe.Register("probe", (_, _) => new ProbeNode("second"));
@@ -292,13 +299,37 @@ class Program {
             Cli.TerminalHelper.WriteLine();
         }
 
-        foreach (var profileName in profiles.Keys.Order()) {
-            var resolved = resolver.Resolve(profileName);
-            Cli.TerminalHelper.WriteLine($"Profile: {profileName}");
+        // ── TASK100：profile 声明 ↔ 工厂 catalog 的三方比对 ──
+        var declaredKeys = new HashSet<string>(StringComparer.Ordinal);
+        var exclusiveDuplicates = new List<string>();
+        var consumerReports = new List<NodeDumpConsumerDto>();
+        var contractCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
-            foreach (var (consumerId, consumerConfig) in resolved.Consumers.OrderBy(kv => kv.Key)) {
-                Cli.TerminalHelper.WriteLine($"  消费点: {consumerId}");
-                foreach (var node in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
+        foreach (var profileName in profiles.Keys.Order(StringComparer.Ordinal)) {
+            var resolved = resolver.Resolve(profileName);
+            if (!json) Cli.TerminalHelper.WriteLine($"Profile: {profileName}");
+
+            foreach (var (consumerId, consumerConfig) in resolved.Consumers.OrderBy(kv => kv.Key, StringComparer.Ordinal)) {
+                foreach (var node in consumerConfig.Nodes) declaredKeys.Add($"{consumerId}:{node.Id}");
+
+                // 互斥契约（provider/role）内同一 ID 出现两次必然是配置错误。
+                if (consumerConfig.Contract is Abstractions.Composition.Profile.NodeContract.Provider or Abstractions.Composition.Profile.NodeContract.Role) {
+                    foreach (var duplicate in consumerConfig.Nodes.GroupBy(n => n.Id, StringComparer.Ordinal).Where(g => g.Count() > 1))
+                        exclusiveDuplicates.Add($"{profileName}:{consumerId}:{duplicate.Key}");
+                }
+
+                contractCounts[consumerConfig.Contract] = contractCounts.GetValueOrDefault(consumerConfig.Contract) + 1;
+
+                var ordered = consumerConfig.Nodes.OrderBy(n => n.Priority).ToArray();
+                consumerReports.Add(new NodeDumpConsumerDto(
+                    profileName, consumerId, consumerConfig.Contract,
+                    ordered.Select(n => new NodeDumpEntryDto(n.Id, n.Priority, n.EnabledWhenFeatureFlag, n.Config)).ToArray()));
+
+                if (json) continue;
+
+                // 契约直接写在消费点行首 —— 一眼能看出这个消费点是叠加、互斥还是存在即提供。
+                Cli.TerminalHelper.WriteLine($"  消费点: {consumerId}  [contract={consumerConfig.Contract}, {ordered.Length} 节点]");
+                foreach (var node in ordered) {
                     var flag = node.EnabledWhenFeatureFlag is not null ? $" [flag:{node.EnabledWhenFeatureFlag}]" : "";
                     // G4: metadata 从 profile config 的 meta.* 保留键注入 —— 真机可见配置真实值，
                     // 未声明的节点不占位（保持诊断输出简洁）。
@@ -310,11 +341,41 @@ class Program {
                     Cli.TerminalHelper.WriteLine($"    - {node.Id} (priority={node.Priority}){flag}{metaText}");
                 }
             }
-            Cli.TerminalHelper.WriteLine();
+            if (!json) Cli.TerminalHelper.WriteLine();
+        }
+
+        var factoryKeys = factories.Select(f => f.Key).ToHashSet(StringComparer.Ordinal);
+        var verification = new NodeDumpVerificationDto(
+            DeclaredWithoutFactory: declaredKeys.Except(factoryKeys, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
+            FactoryWithoutDeclaration: factoryKeys.Except(declaredKeys, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
+            DuplicateInExclusiveConsumer: exclusiveDuplicates.Order(StringComparer.Ordinal).ToArray());
+
+        if (json) {
+            var report = new NodeDumpReportDto(registry.NodeCount, consumerReports.Count, consumerReports.ToArray(), verification);
+            Cli.TerminalHelper.WriteLine(System.Text.Json.JsonSerializer.Serialize(report, NodeDumpJsonContext.Default.NodeDumpReportDto));
+            return verify && !verification.IsConsistent ? 1 : 0;
+        }
+
+        Cli.TerminalHelper.WriteLine($"契约分布: {string.Join(", ", contractCounts.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}={kv.Value}"))}");
+        Cli.TerminalHelper.WriteLine();
+
+        if (verify) {
+            Cli.TerminalHelper.WriteLine("═══ 节点一致性校验 ═══");
+            Cli.TerminalHelper.WriteLine($"  声明无工厂: {FormatViolations(verification.DeclaredWithoutFactory)}");
+            Cli.TerminalHelper.WriteLine($"  工厂无声明: {FormatViolations(verification.FactoryWithoutDeclaration)}");
+            Cli.TerminalHelper.WriteLine($"  互斥契约内重复: {FormatViolations(verification.DuplicateInExclusiveConsumer)}");
+            Cli.TerminalHelper.WriteLine(verification.IsConsistent
+                ? "  结果: [OK] 声明 ↔ 工厂 ↔ 契约 三方一致"
+                : "  结果: [FAIL] 存在不一致 —— 死声明要接上或删除，孤儿工厂要登记到 profile");
+            return verification.IsConsistent ? 0 : 1;
         }
 
         return 0;
     }
+
+    /// <summary>一致性违规列表格式化 — 空列表输出 [OK]。</summary>
+    private static string FormatViolations(string[] items) =>
+        items.Length == 0 ? "[OK] none" : $"[FAIL] {string.Join(", ", items)}";
 
     /// <summary>TASK098 融合自检辅助：从 profile 读限流阈值，读不到给占位符。</summary>
     private static void FusionMax(Abstractions.Composition.Profile.ResolvedProfile profile, out string value) {
@@ -342,7 +403,7 @@ class Program {
     /// --dump-profile: 输出指定 Profile 的解析结果（诊断用）
     /// </summary>
     private static int DumpProfileInfo(string profileName) {
-        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources();
+        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources(fileSystem: new IO.FileSystem.PhysicalFileSystem());
         var resolver = new Composition.NodeRegistry.NodeProfileResolver(profiles);
 
         if (!profiles.ContainsKey(profileName)) {

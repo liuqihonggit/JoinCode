@@ -23,7 +23,7 @@ internal static class ProbeCommand {
         }
 
         var adoptCue = FlatSubCommandRouter.GetOptionValue(args, AdoptOption);
-        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources();
+        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources(fileSystem: new IO.FileSystem.PhysicalFileSystem());
 
         // 骨架 = YAML 继承链解析结果（TASK097 G5）；这一步不含任何经验，是干净的 H₀ 基底。
         var skeleton = new Composition.NodeRegistry.NodeProfileResolver(profiles).Resolve("base");

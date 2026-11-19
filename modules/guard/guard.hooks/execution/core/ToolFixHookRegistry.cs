@@ -12,34 +12,38 @@ namespace Core.Hooks.Execution;
 /// </summary>
 [Register(typeof(ToolFixHookRegistry), ServiceLifetime.Singleton)]
 public sealed partial class ToolFixHookRegistry : ServiceEntity {
-    private readonly List<IToolFixHook> _hooks = [];
+    /// <summary>修正器链在 profile 中的消费点 ID（contract: guard）。</summary>
+    public const string ConsumerId = "tool-fix-chain";
+
+    private readonly List<IToolFixHook> _hooks;
     private readonly IToolHealthMonitor _healthMonitor;
     private readonly ILogger<ToolFixHookRegistry>? _logger;
     private readonly int _threshold;
+    private readonly int _declaredCount;
 
     /// <summary>
     /// 构造工具修正 Hook 注册表
+    /// <para>TASK100：修正器由 DI 收集（各实现标 <c>[Register(typeof(IToolFixHook))]</c>），
+    /// 执行顺序由 profile 消费点 <c>tool-fix-chain</c> 决定；不再硬编码 <c>new</c> 三个。</para>
     /// </summary>
     /// <param name="healthMonitor">工具健康监控器,提供错误计数与自动修正判定</param>
+    /// <param name="hooks">DI 收集的修正器；为 null 时为空链（单测/无宿主场景）</param>
+    /// <param name="profiles">Profile 管理器(可选) — 提供修正器链顺序声明</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="threshold">触发自动修正的连续失败次数阈值,默认 3 次</param>
     public ToolFixHookRegistry(
         IToolHealthMonitor healthMonitor,
+        IEnumerable<IToolFixHook>? hooks = null,
+        JoinCode.Abstractions.Composition.IProfileManager? profiles = null,
         ILogger<ToolFixHookRegistry>? logger = null,
         int threshold = 3) {
         _healthMonitor = healthMonitor ?? throw new ArgumentNullException(nameof(healthMonitor));
+        _hooks = JoinCode.Abstractions.Composition.NodeChainOrder.Order(
+            hooks ?? [], profiles, ConsumerId, static h => h.Name, static h => h.Priority, "工具修正器").ToList();
+        _declaredCount = _hooks.Count;
         _logger = logger;
         _threshold = threshold;
-    }
-
-    /// <summary>
-    /// 注册默认修正器 — GhPrBodyFixHook + JsonFixHook + GhTimeoutFixHook
-    /// <para>由 FixHooksPlugin 在 InitializeAsync 中调用,实现万物皆插件(ADR 0098)</para>
-    /// </summary>
-    public void RegisterDefaultFixHooks() {
-        Register(new FixHooks.GhPrBodyFixHook());
-        Register(new FixHooks.JsonFixHook());
-        Register(new FixHooks.GhTimeoutFixHook());
+        Diag.WriteLine($"[ORDER] tool_fix_hooks: {string.Join(" > ", _hooks.Select(static h => h.Name))}");
     }
 
     /// <summary>
@@ -55,11 +59,15 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity {
     }
 
     /// <summary>
-    /// 注册修正器
+    /// 注册修正器 — 运行期动态追加（插件/测试）。
+    /// <para>profile 声明的保留在前（顺序由 tool-fix-chain 决定），动态追加的按 Priority 降序插在其后，
+    /// 保证「先声明者先尝试」与「同段内高位次优先」两条语义同时成立。</para>
     /// </summary>
     public void Register(IToolFixHook hook) {
         ArgumentNullException.ThrowIfNull(hook);
-        _hooks.Add(hook);
+        var index = _hooks.Count;
+        while (index > _declaredCount && _hooks[index - 1].Priority < hook.Priority) index--;
+        _hooks.Insert(index, hook);
         _logger?.LogDebug("注册工具修正器: {Name} (位次: {Priority})", hook.Name, hook.Priority);
     }
 
@@ -79,9 +87,8 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity {
             return new ToolFixResult { Success = false, Description = "错误次数未达阈值" };
         }
 
-        // 按注册顺序表依次尝试修正（resources/orders.yaml 的 tool_fix_hooks 列表）
-        foreach (var hook in _hooks.OrderByDescending(static h => h.Priority)) {
-            Diag.WriteLine($"[ORDER] tool_fix_hooks: {hook.Name} (位次 {hook.Priority})");
+        // 顺序在构造期由 profile 决定（tool-fix-chain），Register 追加的排在其后。
+        foreach (var hook in _hooks) {
             if (!hook.CanFix(toolName, error)) continue;
 
             try {

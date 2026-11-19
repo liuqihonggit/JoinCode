@@ -5,7 +5,9 @@ namespace Core.Security.Sandbox.Providers;
 /// 软沙箱提供者 — 通过路径重定向实现文件系统隔离,不依赖容器/虚拟化
 /// 沙箱外路径自动重定向到沙箱根目录下,符号链接逃逸时降级重定向
 /// </summary>
+[NodeFactory("sandbox-providers", "soft-sandbox-provider")]
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
+[Register(typeof(ISandboxProvider), ServiceLifetime.Singleton)]
 public sealed partial class SoftSandboxProvider : SandboxProviderBase {
     /// <inheritdoc />
     public override SandboxType SandboxType => SandboxType.Soft;

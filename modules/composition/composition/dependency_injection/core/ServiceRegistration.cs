@@ -82,10 +82,45 @@ public static partial class ServiceRegistration {
         // Node Plugin Architecture (DSG048): 注册 NodeRegistry + NodeProfileResolver
         sw = PerfTimer.Start("    AddNodeRegistry");
         services.AddSingleton<NodeProfileResolver>(sp => {
-            var profiles = NodeProfileLoader.LoadFromResources();
+            var profiles = NodeProfileLoader.LoadFromResources(fileSystem: sp.GetService<IFileSystem>());
             return new NodeProfileResolver(profiles);
         });
         services.AddSingleton<INodeRegistry>(sp => NodeRegistry.Build(sp));
+        sw?.Stop();
+
+        // TASK100 S3：把 profile 的 llm-providers 声明注入 LLM 层（启用集合）。
+        // 装配层负责读 profile；LLM 层只认「启用集合」这一个纯数据契约，不需要认识 IProfileManager。
+        sw = PerfTimer.Start("    AddLlmProviderDeclaration");
+        services.AddSingleton(sp => {
+            var profiles = sp.GetService<JoinCode.Abstractions.Composition.IProfileManager>();
+            if (profiles is null)
+                return Api.LLM.QueryServices.Nodes.LlmProviderDeclaration.AllEnabled;
+
+            var consumerId = Api.LLM.QueryServices.Nodes.LlmProviderNodes.ConsumerId;
+            if (!profiles.Current.Consumers.TryGetValue(consumerId, out var consumer) || consumer.Nodes.Count == 0)
+                return Api.LLM.QueryServices.Nodes.LlmProviderDeclaration.AllEnabled;
+
+            var declaredIds = consumer.Nodes.Select(static node => node.Id).ToArray();
+            Diag.WriteLine($"[LLM] provider declaration from profile '{consumerId}': {string.Join(", ", declaredIds)}");
+            return Api.LLM.QueryServices.Nodes.LlmProviderDeclaration.FromDeclaredIds(declaredIds);
+        });
+        sw?.Stop();
+
+        // TASK100 S3：角色启用集合同样由装配层读 profile 后注入（role 契约，同 role+variant 互斥）。
+        sw = PerfTimer.Start("    AddAgentRoleDeclaration");
+        services.AddSingleton(sp => {
+            var profiles = sp.GetService<JoinCode.Abstractions.Composition.IProfileManager>();
+            if (profiles is null)
+                return JoinCode.Abstractions.Models.Agent.AgentRoleDeclaration.AllEnabled;
+
+            var consumerId = JoinCode.Abstractions.Models.Agent.AgentRoleDeclaration.ConsumerId;
+            if (!profiles.Current.Consumers.TryGetValue(consumerId, out var consumer) || consumer.Nodes.Count == 0)
+                return JoinCode.Abstractions.Models.Agent.AgentRoleDeclaration.AllEnabled;
+
+            var declaredIds = consumer.Nodes.Select(static node => node.Id).ToArray();
+            Diag.WriteLine($"[ROLES] declaration from profile '{consumerId}': {string.Join(", ", declaredIds)}");
+            return JoinCode.Abstractions.Models.Agent.AgentRoleDeclaration.FromDeclaredIds(declaredIds);
+        });
         sw?.Stop();
 
         sw = PerfTimer.Start("    AddAotHandlerRegistry");

@@ -10,6 +10,7 @@ namespace Core.Agents;
 [Register(typeof(IAgentRoleRegistry), ServiceLifetime.Singleton)]
 public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry {
     private readonly IAgentDefinitionProvider? _definitionProvider;
+    private readonly AgentRoleDeclaration _roleDeclaration;
     private readonly ILogger<AgentRoleProfileRegistry>? _logger;
     private RoleRegistrySnapshot _snapshot = RoleRegistrySnapshot.Empty;
     private int _customLoaded;
@@ -35,16 +36,22 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// </summary>
     public AgentRoleProfileRegistry(
         IAgentDefinitionProvider? definitionProvider = null,
-        ILogger<AgentRoleProfileRegistry>? logger = null) {
+        ILogger<AgentRoleProfileRegistry>? logger = null,
+        AgentRoleDeclaration? roleDeclaration = null) {
         _definitionProvider = definitionProvider;
         _logger = logger;
+        _roleDeclaration = roleDeclaration ?? AgentRoleDeclaration.AllEnabled;
     }
 
     /// <summary>
     /// 注册内置角色 Profile — 由 AgentRolesPlugin 在 InitializeAsync 中调用(ADR 0098 万物皆插件)
     /// </summary>
     public void RegisterBuiltInProfiles() {
-        var profiles = BuildBuiltInProfiles();
+        // TASK100 S3：profile 消费点 agent-roles 决定启用集合；未声明的角色不登记。
+        var profiles = BuildBuiltInProfiles()
+            .Where(profile => _roleDeclaration.IsEnabled(AgentRoleNodes.NodeIdOf(profile)))
+            .ToList();
+        Diag.WriteLine($"[ROLES] built-in enabled: {string.Join(", ", profiles.Select(AgentRoleNodes.NodeIdOf))}");
         while (true) {
             var current = _snapshot;
             var updated = RoleRegistrySnapshot.Build(current.Profiles.AddRange(profiles));

@@ -7,14 +7,11 @@ namespace Core.Hooks.Execution.Interception.Defense;
 /// 本服务职责：① 注入 node ② 将 node 结果包装为 ToolResult + 诊断 ③ 提供 Begin() 入口。
 /// </para>
 /// <para>
-/// 调用方组装示例（LINQ 链式 + 有名函数）：
+/// TASK100：步骤顺序与开关改由 profile 消费点 <c>bash-defense-chain</c> 决定（contract: guard），
+/// 调用方不再自己 <c>.Then(...)</c> 拼链 —— 拼链等于把顺序写死在代码里，改顺序要重编译。
 /// <code>
-/// var (ctx, rejection) = await _bashDefenseService
-///     .Begin(command, workDir, shellKind, confirmMode, confirmedCmd, argvHash)
-///     .Then(_bashDefenseService.CheckRetainedDevice)
-///     .Then(_bashDefenseService.CheckRedirectWhitelist)
-///     .Then(_bashDefenseService.RequireArgvHash)
-///     .ExecuteAsync(ct);
+/// var rejection = await _bashDefenseService.ExecuteChainAsync(
+///     command, workDir, shellKind, confirmMode, confirmedCmd, argvHash, ct);
 /// </code>
 /// </para>
 /// </summary>
@@ -26,6 +23,23 @@ public sealed class BashDefenseService {
     private readonly RedirectWhitelistNode _redirectWhitelistNode;
     private readonly StrictParseNode _strictParseNode;
     private readonly GitPushCiGuardNode _gitPushCiGuardNode;
+    private readonly Dictionary<string, BashDefenseStepAsync> _stepById;
+    private readonly BashDefenseStepAsync[] _chain;
+
+    /// <summary>Bash 防御步骤链在 profile 中的消费点 ID（contract: guard）。</summary>
+    public const string ConsumerId = "bash-defense-chain";
+
+    /// <summary>
+    /// 无 profile 时的默认步骤顺序（与历史上硬编码的 <c>.Then(...)</c> 顺序逐字一致）。
+    /// </summary>
+    private static readonly string[] DefaultStepOrder = [
+        "dangerous-command",
+        "strict-parse",
+        "retained-device",
+        "redirect-whitelist",
+        "git-push-ci-guard",
+        "argv-hash"
+    ];
 
     /// <summary>
     /// 构造 Bash 防御服务
@@ -36,19 +50,108 @@ public sealed class BashDefenseService {
     /// <param name="redirectWhitelistNode">重定向白名单 node</param>
     /// <param name="strictParseNode">严格解析检测 node</param>
     /// <param name="gitPushCiGuardNode">git push CI 守卫 node（push 前查 CI 是否在跑）</param>
+    /// <param name="profiles">Profile 管理器；顺序与开关的唯一来源，为 null 时用 <see cref="DefaultStepOrder"/></param>
     public BashDefenseService(
         DangerousCommandNode dangerousCommandNode,
         RetainedDeviceNode retainedDeviceNode,
         ArgvHashNode argvHashNode,
         RedirectWhitelistNode redirectWhitelistNode,
         StrictParseNode strictParseNode,
-        GitPushCiGuardNode gitPushCiGuardNode) {
+        GitPushCiGuardNode gitPushCiGuardNode,
+        JoinCode.Abstractions.Composition.IProfileManager? profiles = null) {
         _dangerousCommandNode = dangerousCommandNode ?? throw new ArgumentNullException(nameof(dangerousCommandNode));
         _retainedDeviceNode = retainedDeviceNode ?? throw new ArgumentNullException(nameof(retainedDeviceNode));
         _argvHashNode = argvHashNode ?? throw new ArgumentNullException(nameof(argvHashNode));
         _redirectWhitelistNode = redirectWhitelistNode ?? throw new ArgumentNullException(nameof(redirectWhitelistNode));
         _strictParseNode = strictParseNode ?? throw new ArgumentNullException(nameof(strictParseNode));
         _gitPushCiGuardNode = gitPushCiGuardNode ?? throw new ArgumentNullException(nameof(gitPushCiGuardNode));
+
+        _stepById = new Dictionary<string, BashDefenseStepAsync>(StringComparer.Ordinal) {
+            ["dangerous-command"] = CheckDangerousCommand,
+            ["strict-parse"] = StrictParse,
+            ["retained-device"] = CheckRetainedDevice,
+            ["redirect-whitelist"] = CheckRedirectWhitelist,
+            ["git-push-ci-guard"] = CheckGitPushCiGuard,
+            ["argv-hash"] = RequireArgvHash
+        };
+        _chain = OrderChain(_stepById, profiles);
+    }
+
+    /// <summary>
+    /// 按 profile 消费点排序防御步骤 — 顺序、增删都由 <c>profiles/*.yaml</c> 决定，不再写死在调用方。
+    /// </summary>
+    /// <param name="stepById">节点 ID → 步骤委托</param>
+    /// <param name="profiles">Profile 管理器</param>
+    /// <returns>排好序的步骤委托</returns>
+    private static BashDefenseStepAsync[] OrderChain(
+        Dictionary<string, BashDefenseStepAsync> stepById,
+        JoinCode.Abstractions.Composition.IProfileManager? profiles) {
+        var items = DefaultStepOrder
+            .Where(stepById.ContainsKey)
+            .Select(id => new StepEntry(id, stepById[id]))
+            .ToArray();
+
+        var ordered = JoinCode.Abstractions.Composition.NodeChainOrder.Order(
+            items,
+            profiles,
+            ConsumerId,
+            static entry => JoinCode.Abstractions.Composition.NodeChainOrder.KebabToPascal(entry.Id),
+            static _ => 0,
+            "Bash 防御步骤");
+
+        Diag.WriteLine($"[ORDER] {ConsumerId}: {string.Join(" > ", ordered.Select(static entry => entry.Id))}");
+        return ordered.Select(static entry => entry.Run).ToArray();
+    }
+
+    /// <summary>
+    /// 按节点 ID 取防御步骤 — 供节点工厂暴露，让每个步骤在 <c>--dump-nodes</c> 里可见。
+    /// </summary>
+    /// <param name="nodeId">节点 ID（kebab-case）</param>
+    /// <returns>该节点的步骤委托</returns>
+    public BashDefenseStepAsync StepOf(string nodeId) {
+        ArgumentException.ThrowIfNullOrEmpty(nodeId);
+        return _stepById.TryGetValue(nodeId, out var step)
+            ? step
+            : throw new InvalidOperationException(
+                $"Bash 防御链没有节点 '{nodeId}'。已注册: {string.Join(", ", _stepById.Keys.Order(StringComparer.Ordinal))}。");
+    }
+
+    /// <summary>
+    /// 按 profile 决定的顺序执行完整防御链 — 调用方不再自己 <c>.Then(...)</c> 拼链。
+    /// </summary>
+    /// <param name="command">原始命令字符串</param>
+    /// <param name="workingDirectory">工作目录路径</param>
+    /// <param name="shellKind">Shell 类型</param>
+    /// <param name="confirmMode">确认模式</param>
+    /// <param name="confirmedCommand">已确认命令（二次确认场景）</param>
+    /// <param name="argvHash">argv hash（防意图反推）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>拒绝结果；全部通过时返回 null</returns>
+    public async ValueTask<ToolResult?> ExecuteChainAsync(
+        string command,
+        string workingDirectory,
+        SystemActuatorKind shellKind,
+        GuardConfirmMode confirmMode,
+        string? confirmedCommand,
+        string? argvHash,
+        CancellationToken ct) {
+        var chain = Begin(command, workingDirectory, shellKind, confirmMode, confirmedCommand, argvHash);
+        foreach (var step in _chain) {
+            chain.Then(step);
+        }
+        var (_, rejection) = await chain.ExecuteAsync(ct).ConfigureAwait(false);
+        return rejection;
+    }
+
+    /// <summary>节点 ID 与步骤委托的绑定项 — 让排序键与实现名取自同一处。</summary>
+    /// <param name="id">节点 ID（kebab-case）</param>
+    /// <param name="run">步骤委托</param>
+    private sealed class StepEntry(string id, BashDefenseStepAsync run) {
+        /// <summary>节点 ID（kebab-case）。</summary>
+        public string Id { get; } = id;
+
+        /// <summary>步骤委托。</summary>
+        public BashDefenseStepAsync Run { get; } = run;
     }
 
     /// <summary>

@@ -425,14 +425,121 @@ consumers:
       - id: agent-handoff-mw
         priority: 500
 
-  tool-dispatch:
+  # TASK100 S2：命令守卫链 — 顺序唯一来源就是这里（priority 降序 = 先评估）。
+  # orders.yaml 的 command_guards 退化为生成期校验表，运行期不再读它。
+  command-guard-chain:
+    contract: guard
     nodes:
-      - id: shell
-      - id: file
-      - id: web
-        enabled-when: feature.web-search
-      - id: code_execution
+      - id: git-commit-guard
+        priority: 800
+      - id: drive-protection-guard
+        priority: 700
+      - id: cmd-indirect-call-guard
+        priority: 600
+      - id: robocopy-mirror-guard
+        priority: 500
+      - id: heredoc-guard
+        priority: 400
+      - id: gh-pr-body-guard
+        priority: 300
+      - id: gh-timeout-guard
+        priority: 200
+      - id: vpn-route-guard
+        priority: 100
 
+  # TASK100 S2b：工具修正器链 — 顺序唯一来源同守卫链（priority 降序 = 先尝试）。
+  tool-fix-chain:
+    contract: guard
+    nodes:
+      - id: gh-pr-body-fix-hook
+        priority: 300
+      - id: json-fix-hook
+        priority: 200
+      - id: gh-timeout-fix-hook
+        priority: 100
+
+  # TASK100 S2c：Bash 防御链 — MTP 扰动纵深防御（priority 降序 = 先执行，首个非 null 即短路）。
+  # 此前这 6 步硬编码在 ShellCommandInterceptionMiddleware 的 .Then(...) 里，改顺序要重编译。
+  bash-defense-chain:
+    contract: guard
+    nodes:
+      - id: dangerous-command
+        priority: 600
+      - id: strict-parse
+        priority: 500
+      - id: retained-device
+        priority: 400
+      - id: redirect-whitelist
+        priority: 300
+      - id: git-push-ci-guard
+        priority: 200
+      - id: argv-hash
+        priority: 100
+
+  # TASK100 S3：内置 Agent 角色（contract: role — 同 role+variant 互斥）。
+  # 未声明的角色不登记：查询按既有语义返回 null（角色缺失只是少一个可选能力，不像协议缺失会发错格式）。
+  agent-roles:
+    contract: role
+    nodes:
+      - id: coordinator
+        priority: 900
+      - id: executor-code
+        priority: 800
+      - id: executor-search
+        priority: 700
+      - id: executor-explore
+        priority: 600
+      - id: executor-plan
+        priority: 500
+      - id: executor-doctor
+        priority: 400
+      - id: executor-verification
+        priority: 300
+      - id: executor-join-code-guide
+        priority: 200
+      - id: executor-context-compression
+        priority: 100
+
+  # TASK100 S3：LLM 协议实现（contract: provider — 同协议内互斥）。
+  # 对 provider 契约，priority 不表达顺序，只表达「启用集合」：不在集合内的协议直接拒绝，
+  # 而不是静默退回默认实现（那会把 A 协议的配置按 B 协议格式发出去）。
+  llm-providers:
+    contract: provider
+    nodes:
+      - id: openai-compatible
+        priority: 700
+      - id: anthropic
+        priority: 600
+      - id: azure
+        priority: 500
+      - id: agnes
+        priority: 400
+      - id: openai-responses
+        priority: 300
+      - id: jev
+        priority: 200
+      - id: hub
+        priority: 100
+
+  # TASK100 S2c：沙箱提供器（contract: provider — 同协议内互斥，按 priority 降序 = 降级时先试）。
+  # 这里只是「偏好顺序」；本平台不可用的实现会被 SandboxManager 按 IsAvailable 过滤掉，
+  # 所以一份清单可以跨平台通用（Windows 上 bubblewrap 不可用 → 实际顺序 process > soft）。
+  # docker 排最后是保持既有行为：历史上它从不进入自动降级链，只供显式指定。
+  sandbox-providers:
+    contract: provider
+    nodes:
+      - id: bubblewrap-sandbox-provider
+        priority: 400
+      - id: process-sandbox-provider
+        priority: 300
+      - id: soft-sandbox-provider
+        priority: 200
+      - id: docker-sandbox-provider
+        priority: 100
+
+  # TASK100 S1：原 tool-dispatch 4 条声明（shell/file/web/code_execution）已删除 ——
+  # 无任何工厂、无任何生产消费方（ToolDispatchConsumer 只在测试里 new）。
+  # 工具分组开关待 S4 用 capability 契约重建，不接受「声明了但没人装配」的死配置。
   command-dispatch:
     nodes:
       - id: 会话-command

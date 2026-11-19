@@ -82,6 +82,28 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
+    public void ExtractAllCheckNames_UnnamedLocalJob_FallsBackToJobId_AndSkipsCallerJobs() {
+        // ci.yml 的 detect 无 name → check 上下文就是 job_id；build 是 uses: caller，由被调 workflow 展开，须排除
+        var ciYml = """
+          jobs:
+            detect:
+              runs-on: ubuntu-24.04
+              outputs:
+                non-docs: ${{ steps.detect.outputs.non-docs }}
+              steps:
+                - id: detect
+                  run: echo ok
+            build:
+              needs: detect
+              uses: ./.github/workflows/ci-build.yml
+        """;
+
+        var localChecks = CiMatrixParser.ExtractAllCheckNames(ciYml, null, new HashSet<string>(["build"], StringComparer.Ordinal));
+
+        localChecks.Should().Equal("detect");
+    }
+
+    [Fact]
     public async Task AuditAsync_StandaloneJobsAndOutOfScopeChecks_NoFalseStale() {
         var fs = new InMemoryFileSystem();
         const string ymlPath = "/repo/.github/workflows/ci-unit-tests.yml";

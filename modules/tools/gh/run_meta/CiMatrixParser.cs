@@ -132,7 +132,8 @@ internal static class CiMatrixParser {
     }
 
     /// <summary>
-    /// 从 workflow yml 解析所有 job 的 (job_id, job_name) — 包括 matrix 和独立 job
+    /// 从 workflow yml 解析所有 job 的 (job_id, job_name) — 包括 matrix 和独立 job。
+    /// <para>无 <c>name:</c> 的 job 用 job_id 兜底（GitHub check 上下文此时就是 job_id，如 ci.yml 的 <c>detect</c>）。</para>
     /// </summary>
     internal static List<(string JobId, string JobName)> ExtractAllJobNames(string ymlContent) {
         var result = new List<(string, string)>();
@@ -140,35 +141,51 @@ internal static class CiMatrixParser {
         int? jobsIndent = null;
         string? currentJobId = null;
         int? jobIndent = null;
+        string? currentName = null;
         foreach (var line in ymlContent.Split('\n')) {
             if (string.IsNullOrWhiteSpace(line)) continue;
             var trimmed = line.AsSpan().Trim();
             var indent = line.Length - line.TrimStart().Length;
-            if (trimmed.StartsWith("jobs:")) { inJobs = true; jobsIndent = indent; continue; }
+            if (trimmed.StartsWith("jobs:")) {
+                FlushJob(result, ref currentJobId, ref currentName);
+                inJobs = true; jobsIndent = indent; continue;
+            }
             if (!inJobs || jobsIndent is null) continue;
             if (indent == jobsIndent + 2 && trimmed.EndsWith(':')) {
+                FlushJob(result, ref currentJobId, ref currentName);
                 currentJobId = trimmed[..^1].ToString();
                 jobIndent = indent;
                 continue;
             }
-            if (currentJobId is not null && jobIndent is not null &&
+            if (currentJobId is not null && jobIndent is not null && currentName is null &&
                 indent == jobIndent + 2 && trimmed.StartsWith("name:")) {
-                var name = trimmed[5..].Trim().ToString();
-                result.Add((currentJobId, name));
+                currentName = trimmed[5..].Trim().ToString();
             }
         }
+        FlushJob(result, ref currentJobId, ref currentName);
         return result;
+
+        static void FlushJob(List<(string, string)> jobs, ref string? jobId, ref string? jobName) {
+            if (jobId is not null) jobs.Add((jobId, jobName ?? jobId));
+            jobId = null;
+            jobName = null;
+        }
     }
 
     /// <summary>
-    /// 从 workflow yml 解析所有 check 名 — 通用展开任意 ${{ matrix.xxx }} 变量
-    /// <para>自动检测 job name 中的 matrix 变量,从 include entries 提取对应字段值展开</para>
+    /// 从 workflow yml 解析所有 check 名 — 通用展开任意 ${{ matrix.xxx }} 变量。
+    /// <para><paramref name="outerJobId"/> 为空(reusable workflow 自身的 cis.yml / 本地 job)时 check 名为裸名，
+    /// 否则为 <c>{outerJobId} / {展开名}</c>。</para>
+    /// <para><paramref name="excludeJobIds"/> 用于排除 ci.yml 里 <c>uses:</c> 调用 reusable workflow 的 caller job
+    /// （那些 check 由被调 workflow 展开，前缀为 caller job id）。</para>
     /// </summary>
-    internal static List<string> ExtractAllCheckNames(string ymlContent, string outerJobId) {
+    internal static List<string> ExtractAllCheckNames(string ymlContent, string? outerJobId, IReadOnlySet<string>? excludeJobIds = null) {
         var entries = ExtractMatrixIncludeEntries(ymlContent);
         var allJobs = ExtractAllJobNames(ymlContent);
+        var prefix = string.IsNullOrEmpty(outerJobId) ? "" : $"{outerJobId} / ";
         var checkNames = new List<string>();
-        foreach (var (_, jobName) in allJobs) {
+        foreach (var (jobId, jobName) in allJobs) {
+            if (excludeJobIds?.Contains(jobId) == true) continue;
             var matrixVars = ExtractAllMatrixVariables(jobName);
             if (matrixVars.Count > 0 && entries.Count > 0 && entries[0].ContainsKey(matrixVars[0])) {
                 foreach (var entry in entries) {
@@ -176,10 +193,10 @@ internal static class CiMatrixParser {
                     foreach (var var in matrixVars) {
                         expanded = expanded.Replace($"${{{{ matrix.{var} }}}}", entry.GetValueOrDefault(var, ""));
                     }
-                    checkNames.Add($"{outerJobId} / {expanded}");
+                    checkNames.Add($"{prefix}{expanded}");
                 }
             } else {
-                checkNames.Add($"{outerJobId} / {jobName}");
+                checkNames.Add($"{prefix}{jobName}");
             }
         }
         return checkNames;

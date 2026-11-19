@@ -96,6 +96,9 @@ public partial class GitHubToolHandlers {
             var ymlContent = await _fs.ReadAllTextAsync(fullPath, ct).ConfigureAwait(false);
             allCheckNames.AddRange(CiMatrixParser.ExtractAllCheckNames(ymlContent, outerJobId));
         }
+        // ci.yml 自身的本地 job(如 detect 无 name 的闸门 job)也是 required check — 排除 uses: caller job
+        var callerJobIds = workflowUses.Select(u => u.JobId).ToHashSet(StringComparer.Ordinal);
+        allCheckNames.AddRange(CiMatrixParser.ExtractAllCheckNames(ciYmlContent, null, callerJobIds));
         return allCheckNames;
     }
 

@@ -55,7 +55,7 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
 | A1 构建默认覆盖 UI 域 + inner log 错误透出 | `Build-AllDomains.ps1`、CI 本地排障 | ✅ | ✅ 默认全量 4 target（solution/native_tui/native_gui×2）全绿（`.xxx/logs/b7/a1_full_default.log`，exit 0）；错误透出上限 15→30 + 无直接 error 行时显式提示查看日志 |
-| A2 CI UI 域编译 job | `.github/workflows/ci-build.yml`（`build / Build UI`，windows-latest） | ✅ | ❌ 待下一次 PR 实测；**仓库保护需人工把 `build / Build UI` 加入 required status checks（需管理员操作）** |
+| A2 CI UI 域编译 job | `.github/workflows/ci-build.yml`（`build / Build UI`，windows-latest） | ✅ | ✅ job 已随 PR #700 后合入；`build / Build UI` 已加入 main 分支保护 required checks（2026-11-20 `gh branch sync-protection` 实测 38 check / 审计一致） |
 | B1 JsonAssert 帮助器 | 测试项目模板（Desktop 场景先行） | ✅ | ✅ `test/unit/testing.common/asserts/JsonAssert.cs` 语义断言（Parse/Get 路径/字符串/布尔/整数/数组包含）；自测 `JsonAssertTests` 8/8；Desktop 场景 3 文件 9 测试迁移后 30/30 绿（`--filter FullyQualifiedName~DesktopScene`） |
 | B2 排版断言分析器 | 测试项目 | ✅ | ✅ `JsonLayoutAssertionRule`（JCC9311，仅测试项目，Info 级）；分析器测试 5/5（正例 2 + 反例 3）；AotSafety.Tests 全量 267/267；真机 `dotnet build guard.config.tests -p:ErrorLog` SARIF 命中存量 9 处排版断言（level=note 不破坏 TreatWarningsAsErrors）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
 | B3 RetryableFact 模板 + CI Flaky 分层 | AsyncLock.Tests、CI workflows | ✅ | ✅ `Testing.Common/retry/FlakyRetry.cs`（RunUntilAsync/RunAsync，耗尽聚合报错，取消直抛）；`FlakyRetryTests` 5/5；AskWithRetry 两例迁移后 12/12；`Category=Flaky` 15/15、默认过滤 541（556−15）；`ci-unit-tests.yml` 加 `Category!=Flaky`；新增 `ci-flaky-nightly.yml`（UTC 06:30 + workflow_dispatch，YAML 校验通过，首次夜跑待合并后观察）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
@@ -137,6 +137,7 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 - C5 `mcp_list` JSON `meta.note` + 文本提示标注 gh_* 工具由 jcc-gh.exe 提供（172 个，不在 MCP 注册表）；`mcp_schema gh_*` 从"未找到工具"死路改为直接引导 `jcc gh <分组> <action> --help`。
 - C6 `GhSubCommand` 识别 `--version` 输出 `jcc gh (jcc-gh) <版本>` + 用法提示，exit 0。
   - 验收：gh.tests 793/793，Host.Tests CliOutputEnvelope 33/33，exe 全项实测（见四列验收表）。
+- 分支保护实同步（用户授权 `sync-protection`）：+`build / Build UI`、+`unit-tests / Honesty checklist matches doc`、+`unit-tests / Lock primitives - baseline only decreases`；首跑误删 `detect` 暴露 parser 缺口 — ci.yml 无 `name:` 的本地 job 不被解析，已修（`ExtractAllJobNames` 无 name 回退 job_id；`ExtractAllCheckNames` 支持裸前缀 + 排除 `uses:` caller job），补回 `detect` 后终态 38 个 check、审计 0 差异。gh.tests 794/794。
 
 <!-- 🤖 Auto Decision: 2026-11-20 TASK101-C -->
 <!-- 决策: C2 直接删除旧的 matrix 解析路径而不是在审计里做兼容映射；C5 采用"注册表边界说明"而非把 gh_* 合并进 MCP 注册表 -->

@@ -344,7 +344,7 @@ class Program {
                         ? ""
                         // 不输出 priority —— 路由以行首 (priority=N) 为准，meta.priority 不存在。
                         : $" [meta v={meta.Version} deps={FormatMetaList(meta.Dependencies)} caps={FormatMetaList(meta.Capabilities)} req={FormatMetaList(meta.RequiredCapabilities)}]";
-                    Cli.TerminalHelper.WriteLine($"    - {node.Id} (priority={node.Priority}){flag}{metaText}");
+                    Cli.TerminalHelper.WriteLine($"    - {node.Id} (priority={node.Priority}){flag}{metaText}{FormatGovernedTools(consumerConfig.Contract, node.Id)}");
                 }
             }
             if (!json) Cli.TerminalHelper.WriteLine();
@@ -388,6 +388,23 @@ class Program {
         value = profile.Consumers.TryGetValue("chat-pipeline", out var c)
             ? c.Nodes.FirstOrDefault(n => n.Id == "stream-rate-limit-mw")?.Config.GetValueOrDefault("max-requests") ?? "(null)"
             : "(null)";
+    }
+
+    /// <summary>
+    /// 能力节点的「治理面」标注 —— 这个能力关掉会连带裁掉多少工具。
+    /// <para>
+    /// 只对 capability 契约生效，且数量为 0 时不输出（<c>dream</c> 不治理工具面，
+    /// 打个 <c>tools=0</c> 反而会让人以为节点坏掉了）。
+    /// </para>
+    /// </summary>
+    /// <param name="contract">消费点契约。</param>
+    /// <param name="nodeId">节点 ID。</param>
+    /// <returns>形如 <c> [tools=4]</c> 的文本；不适用时为空串。</returns>
+    private static string FormatGovernedTools(string contract, string nodeId) {
+        if (contract is not Abstractions.Composition.Profile.NodeContract.Capability)
+            return "";
+        var governed = Composition.NodeRegistry.CapabilityToolCategories.GovernedToolCount(nodeId);
+        return governed > 0 ? $" [tools={governed}]" : "";
     }
 
     private static string FormatMetaList(string[] items) =>

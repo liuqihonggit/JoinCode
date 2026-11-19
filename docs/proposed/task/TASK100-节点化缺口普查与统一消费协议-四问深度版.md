@@ -944,3 +944,128 @@ $ JCC_PROFILE_DIR=<去掉 probe 的 profile> jcc probe
    与 S4 的 5、6 两项不是同一层，不在这里假装做完。
 2. `vision` 未注册（见 18.5）。
 3. 帮助文本仍由 `[SubCommandInfo]` 生成，未改成从节点表读 —— 二者目前一致，但仍是两处描述。
+
+---
+
+## 19. S4 收尾：能力打通到工具注册表（清单第 7 项）
+
+### 19.1 上一轮留下的「只关一半」
+
+§18.6 未做第 1 项写的就是这件事：`profile` 里去掉 `todo`，`ITodoService` 确实为 `null`，
+但 `todo` 工具还挂在工具表上 —— 调进去才发现服务不在。配置看起来生效了，实际只生效在某一层，
+这类「半生效」比完全不生效更难查：现象是「工具报错」，而人会去查工具，不会去查 profile。
+
+所以这一轮不加新契约、不加新节点、不加新 profile 词汇，只把 **`capabilities` 的消费深度**补齐：
+同一条声明，现在同时治理 **服务解析 / 插件加载 / 工具注册** 三层。
+
+### 19.2 数据从哪来（不改生成器）
+
+关键发现：源码生成器早就生成了 `GetAvailableToolCategories()`（分类 → 工具清单），
+而它算分类用的正是 `tool.Category ?? handler.DisplayName` —— 与 `[McpToolDispatch(ToolCategory.Xxx)]`
+的 `[EnumValue]` 字符串同一坐标系。于是「工具名 → 分类」可以直接反查，不必：
+
+- 不必改生成器（635 条映射不新增生成代码）；
+- 不必反射（分类在编译期已知）；
+- 不必读 `modules/tools/cli_nodes/groups/*/node.yaml`（Composition 禁触盘，JCC9001）。
+
+新增 `CapabilityToolCategories`：分类 → 治理它的能力（6 条），并把生成物翻成两张只读索引
+（`CategoryByTool`、能力 → 工具数）。
+
+### 19.3 只登记真被治理的分类
+
+| 能力 | 工具分类 | 工具数 |
+|---|---|---|
+| `goal` | `goal` | 3 |
+| `todo` | `todo` | 4 |
+| `task` | `task` | 12 |
+| `cron` | `cron` | 4 |
+| `memdir` | `memory` | 13 |
+| `code-index` | `code_index` | 23 |
+| `dream` | —— | 0 |
+
+合计 **59**。`dream` 不进表：它是引擎后台任务，没有暴露工具 ——
+填一条假映射会让「关掉 dream 工具却没少」变成新的谜题，宁可留空并在 dump 里不标注。
+
+### 19.4 过滤怎么接（与既有 CLI 过滤是「与」关系）
+
+`ServiceRegistration.Mcp.cs` 里原本只有一条来自 `EngineApplicationBuilder` 的 `toolFilter`
+（`SkipChatServices` 时只留 `gh_*`）。现在组合成：
+
+```csharp
+ComposeToolFilter(cliFilter, gate)
+  = gate 全开        → 原样返回 cliFilter
+  = cliFilter 为空   → gate.IsToolEnabled
+  = 两者都有          → name => cliFilter(name) && gate.IsToolEnabled(name)
+```
+
+**都全开时返回 `null`** —— 生成代码据此走「不过滤」快路径，未配置能力裁剪的宿主与改动前逐字节等价
+（真机 `filter=none`、工具数 368 与改动前一致，就是这条的证据）。
+
+三条保守规则防「静默少工具」：生成物里查不到的工具 → 放行；分类不归任何能力 → 放行；
+分类被多个能力共享 → 任一开启即放行。
+
+### 19.5 真机验收（账目必须对得上）
+
+`jcc -p "hi"` 走完整引擎装配（假 key 止于 401，但装配全跑完）：
+
+```
+（基线）  [TOOL-GATE] indexed=368 off=[-] blocked=0 samples=[-] filter=none
+          MCP Tool Handlers 注册完成，共 368 个工具
+
+（只关 todo）
+          [TOOL-GATE] indexed=368 off=[todo] blocked=4 filter=active
+          samples=[complete_step,todo_update,todo_list,todo_write]
+          MCP Tool Handlers 注册完成，共 364 个工具          ← 368-4
+
+（关 6 项：goal/todo/task/cron/memdir/code-index）
+          [TOOL-GATE] indexed=368 off=[goal,todo,task,cron,memdir,code-index] blocked=59 filter=active
+          samples=[memory_team_status,memory_scan,search_callers,search_project_nugets,memory_daily_log_get,task_update]
+          MCP Tool Handlers 注册完成，共 309 个工具          ← 368-59
+```
+
+`blocked` 与实际减少数**逐次相等**（4/4、59/59）—— 这不是巧合，是同一份索引算出来的；
+若两处各算一遍，迟早会出现「说裁了 59、实际裁了 57」。工具总数 368 与生成物条目数、去重后工具数
+三者一致（368/368/0 重复），说明索引没有漏项也没有重叠。
+
+行为闭环（同一 profile 下）：
+
+| 入口 | 结果 |
+|---|---|
+| `jcc mcp_list` | 309 条，`category=todo` 的工具 0 个 |
+| `jcc mcp_call todo_write` | `未找到工具: todo_write（用 jcc mcp_list 查看已注册工具）` |
+| `jcc mcp_call read file_path=...` | 正常返回文件内容 |
+
+### 19.6 `--dump-nodes` 看得见治理面
+
+节点自省新增 `[tools=N]`（只对 capability 契约、且 N>0 时输出）：
+
+```
+消费点: capabilities  [contract=capability, 7 节点]
+  - code-index (priority=100) [tools=23]
+  - dream (priority=200)
+  - memdir (priority=300) [tools=13]
+  - cron (priority=400) [tools=4]
+  - task (priority=500) [tools=12]
+  - todo (priority=600) [tools=4]
+  - goal (priority=700) [tools=3]
+```
+
+7 个数加起来 59，与 `[TOOL-GATE] blocked=59` 同源。`dream` 没有标注 —— 它确实不治理工具面，
+不写 `tools=0` 是因为那看起来像「这个节点坏了」，而事实是「这个能力没有工具面」。
+
+### 19.7 明确的边界（不假装）
+
+| 边界 | 事实 | 为什么这样 |
+|---|---|---|
+| `jcc tool call <工具>` 仍能执行被裁工具 | 该通道是 CLI 直连执行层（`jcc-tool-*.exe` / 本地执行），不经宿主 `IToolRegistry` | 它是调试/自检通道，`tool call` 的语义就是「绕过宿主直接打执行层」；能力门禁管的是 Agent 能看到与能调用的工具面 |
+| `jcc mcp serve` 在裁剪 profile 下也少工具 | 组合过滤不特判 `SkipToolFilter` | profile 是配置意愿，优先级高于「CLI 侧只留 `gh_*`」的性能优化；若需要全量，profile 里声明全部能力即可 |
+| 工具树 `jcc tool tree` 仍显示 635 | 它读 `modules/tools/cli_nodes/groups` 的**声明目录**，不是运行时注册表 | 两者本就不同层：635 = 声明（含 388 个独立 exe），368 = 宿主实际可注册（`[McpToolDispatch]`） |
+
+### 19.8 零回归数字
+
+- `--dump-nodes`：**238 节点 / 112 消费点**不变（本轮不加节点）；`--verify` 三项 `[OK]`。
+- `Verify-NodeConsistency`（238/112）、`Verify-ExplicitOrder`、`Verify-RegistrationOrder`、
+  `Verify-ToolNodes`（635「声明与现实一致」）、`Verify-HonestyChecklist`、`Verify-NoLockPrimitives` 全绿。
+- `Composition.Tests` 1117 通过；Composition / CLI 编译 0 警告 0 错误。
+- `Verify-StyleGate` 存量 247 条不变，新增/修改文件零新增违规。
+- 真机：基线 368 工具且 `filter=none`（与改动前一致）；只关 todo 364；关 6 项 309；`mcp_call` 闭环三态。

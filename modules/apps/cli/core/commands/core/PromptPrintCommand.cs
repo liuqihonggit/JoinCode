@@ -28,6 +28,15 @@ internal static class PromptPrintCommand {
                 return 1;
             }
 
+            // 工具组清单随 profile 变（tool-groups 消费点），生产链路由 SystemPromptMiddleware 开作用域；
+            // 本命令走 provider 路径，必须自己开，否则「打印出来的提示词」比真实发送的多列几组 ——
+            // 自省命令一旦与生产不一致，就不再是自省。
+            var profileManager = services.GetService<Abstractions.Composition.IProfileManager>();
+            using var toolGroupScope = Core.Prompts.PromptToolGroupScope.Enter(
+                profileManager is null
+                    ? null
+                    : Abstractions.Composition.Profile.ToolGroupDeclaration.EnabledIds(profileManager.Current));
+
             var sections = provider.GetSections().ToList();
             if (sections.Count == 0) {
                 TerminalHelper.WriteError("系统提示词没有任何段落（prompt 命令的装配结果校验层拦截）：[PromptSection] 未被生成器收集。");

@@ -604,9 +604,45 @@ consumers:
       - id: probe
         priority: 1800
 
-  # TASK100 S1：原 tool-dispatch 4 条声明（shell/file/web/code_execution）已删除 ——
-  # 无任何工厂、无任何生产消费方（ToolDispatchConsumer 只在测试里 new）。
-  # 工具分组的启停要等 635 工具那层接上 capability-aware 注册表（清单第 7 项），此处不预先造死声明。
+  # TASK100 S6：独立工具 exe 组（contract: capability — 存在即提供，彼此不互斥）。
+  # 13 个组 = resources/tools/cli_groups.yaml 的组，含 388 个不经宿主的隔离工具。
+  # 删掉一条的后果是三处同时生效：首轮提示词不再列出该组、jcc tool tree/find 看不到、
+  # jcc tool call 报「未在当前 profile 启用」（退出码 2）。而不是只在某一层悄悄少几个工具。
+  # 未声明整段消费点 = 全开（向后兼容）；声明了 = 白名单。ID 必须与 cli_groups.yaml 的组 ID 逐一相同，
+  # 由 Verify-ToolGroupNodes.py 双向核对。
+  tool-groups:
+    contract: capability
+    nodes:
+      - id: agent
+        priority: 100
+      - id: code
+        priority: 200
+      - id: file
+        priority: 300
+      - id: git
+        priority: 400
+      - id: github
+        priority: 500
+      - id: mcp
+        priority: 600
+      - id: media
+        priority: 700
+      - id: search
+        priority: 800
+      - id: shell
+        priority: 900
+      - id: slash
+        priority: 1000
+      - id: system
+        priority: 1100
+      - id: tools
+        priority: 1200
+      - id: web
+        priority: 1300
+
+  # 历史：S1 曾删除原 tool-dispatch 4 条声明（shell/file/web/code_execution）——
+  # 无工厂、无生产消费方。工具面的启停现在由上面两段承担：
+  # capabilities 管宿主注册的 368 个工具（按分类），tool-groups 管 13 个 exe 组的 388 个隔离工具。
   command-dispatch:
     nodes:
       - id: 会话-command

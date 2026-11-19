@@ -33,11 +33,17 @@ internal static class CliToolCommand {
 
     private static int RunTree(string[] args) {
         var dir = ResolveToolsDir(args);
-        var nodes = NodeManifestLoader.LoadNodesFromDirectory(dir);
+        var all = NodeManifestLoader.LoadNodesFromDirectory(dir);
+        var nodes = FilterByProfile(all, out var disabled);
         Console.Out.WriteLine($"CLI 工具节点目录: {dir}");
-        Console.Out.WriteLine(nodes.Count == 0
-            ? "  (未发现 node.yaml — 用 --dir 指定工具目录，或设置 JCC_CLI_TOOLS_DIR)"
-            : CliToolSearch.RenderTree(nodes));
+        if (all.Count == 0) {
+            Console.Out.WriteLine("  (未发现 node.yaml — 用 --dir 指定工具目录，或设置 JCC_CLI_TOOLS_DIR)");
+        } else if (nodes.Count == 0) {
+            Console.Out.WriteLine("  (当前 profile 未启用任何工具组 —— 检查 profile 的 tool-groups 消费点)");
+        } else {
+            Console.Out.WriteLine(CliToolSearch.RenderTree(nodes));
+        }
+        WriteProfileTrimSummary(disabled);
         return 0;
     }
 
@@ -49,9 +55,12 @@ internal static class CliToolCommand {
             return 2;
         }
         var dir = ResolveToolsDir(args);
-        var matches = CliToolSearch.Find(NodeManifestLoader.LoadNodesFromDirectory(dir), query);
+        var nodes = FilterByProfile(NodeManifestLoader.LoadNodesFromDirectory(dir), out var disabled);
+        var matches = CliToolSearch.Find(nodes, query);
         Console.Out.WriteLine($"查询: {query}  |  目录: {dir}");
         Console.Out.WriteLine(CliToolSearch.RenderResults(matches, query));
+        // 搜不到时最容易误判成「工具不存在」—— 被 profile 裁掉的组必须先说清楚，否则会去改代码找不存在的 bug。
+        WriteProfileTrimSummary(disabled);
         return 0;
     }
 
@@ -66,15 +75,59 @@ internal static class CliToolCommand {
     private static int RunHelp(string[] args) {
         var id = args.Length > 2 ? args[2] : null;
         if (string.IsNullOrWhiteSpace(id)) return WriteUsage();
-        var node = NodeManifestLoader.LoadNodesFromDirectory(ResolveToolsDir(args))
+        var all = NodeManifestLoader.LoadNodesFromDirectory(ResolveToolsDir(args));
+        var node = FilterByProfile(all, out _)
             .FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase));
         if (node is null) {
+            // 未启用 ≠ 未知：前者改 profile，后者查拼写。混成一句话会让人去改代码。
+            if (all.Any(candidate => string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase)))
+                return WriteGroupDisabled(id);
             Console.Error.WriteLine($"未找到节点 '{id}'（由 jcc tool help 的参数触发，CliToolCommand 节点查找层拦截）。");
             Console.Error.WriteLine("正确写法: 先用 jcc tool find <关键词> 找到节点 ID，再 jcc tool help <ID>。");
             return 1;
         }
         Console.Out.WriteLine(CliToolHelp.Render(node));
         return 0;
+    }
+
+    /// <summary>
+    /// 按 profile 的 <c>tool-groups</c> 消费点过滤组；被裁掉的组 ID 通过 <paramref name="disabled"/> 回传。
+    /// <para>过滤与诊断必须用同一份结果：分别算一次，就会出现「说裁了 2 组、实际少了 3 组」。</para>
+    /// </summary>
+    /// <param name="nodes">全量组节点。</param>
+    /// <param name="disabled">被 profile 裁掉的组 ID。</param>
+    /// <returns>启用的组节点。</returns>
+    private static IReadOnlyList<CliToolDescriptor> FilterByProfile(
+        IReadOnlyList<CliToolDescriptor> nodes,
+        out IReadOnlyList<string> disabled) {
+        var enabled = new List<CliToolDescriptor>(nodes.Count);
+        var off = new List<string>();
+        foreach (var node in nodes) {
+            if (CliToolGate.IsEnabled(node.Id))
+                enabled.Add(node);
+            else
+                off.Add(node.Id);
+        }
+        disabled = off;
+        return enabled;
+    }
+
+    /// <summary>被 profile 裁剪时补一行诊断 —— 「工具少了」的原因要能当场看到，而不是靠猜。</summary>
+    /// <param name="disabled">被裁掉的组 ID。</param>
+    private static void WriteProfileTrimSummary(IReadOnlyList<string> disabled) {
+        if (disabled.Count == 0) return;
+        Console.Out.WriteLine(
+            $"[TOOL-GROUP] profile={CliProfileGate.ProfileName} 未启用 {disabled.Count} 组: {string.Join(",", disabled)}"
+            + "（消费点 tool-groups；在 profile 里加回该组即恢复）");
+    }
+
+    /// <summary>组被 profile 裁掉时的统一措辞（<c>help</c> / <c>call</c> 共用，避免两处措辞漂移）。</summary>
+    /// <param name="group">组 ID。</param>
+    /// <returns>退出码 2（配置错误），与「未找到工具」的 2 保持同码但措辞不同。</returns>
+    private static int WriteGroupDisabled(string group) {
+        Console.Error.WriteLine($"工具组 '{group}' 未在当前 profile 启用（profile={CliProfileGate.ProfileName}，消费点=tool-groups，节点={group}）。");
+        Console.Error.WriteLine($"恢复用法: 在 profile 的 tool-groups 里加回 '- id: {group}'。");
+        return 2;
     }
 
     /// <summary>
@@ -91,6 +144,11 @@ internal static class CliToolCommand {
         var nodes = NodeManifestLoader.LoadNodesFromDirectory(call.ToolsDir ?? ResolveToolsDir(args));
         var target = TryResolveTarget(call, nodes, out var failureExitCode);
         if (target is null) return failureExitCode;
+
+        // 用全量节点解析目标（这样「未知工具」与「未启用组」是两种准确错误），
+        // 再对解析出的组判门禁 —— 反过来先过滤会让被裁组报成「未找到工具」，指向错误的方向。
+        if (!CliToolGate.IsEnabled(target.Group))
+            return WriteGroupDisabled(target.Group);
 
         // 用户口径（2026-11-16）：工具能不能独立跑是 exe 的事；「Agent 自己的功能」（配置、记忆、
         // 权限、会话等依赖宿主状态的 host 工具）就该留在 jcc 内。原先给这类工具也先起一个分组 exe、

@@ -1218,3 +1218,140 @@ DataDrivenPipelineComposition.cs:584   Stream 管道重建
   而这些链是安全边界，顺序抖动比「要重启」危险得多。
 
 结论：**「要重启」不是实现缺陷，是这类配置的正确语义**。真正要做的是把它说清楚，而不是假装热更新。
+
+---
+
+## 22. S6：388 个隔离工具（工具组）纳入 profile 治理
+
+### 22.1 上一轮「做完了」的地方，恰好漏掉了模型真正的入口
+
+S4 收尾把 `capabilities` 打通到宿主工具注册表，368 个工具能按分类裁。但模型用工具的链路是两条：
+
+```
+① 首轮提示词：「其余能力分装在 13 个独立 exe 里（共 635 个工具）」→ 告诉模型有哪些组
+② bash：jcc tool tree / find / help / call                        → 真正执行
+```
+
+两条都不认 profile。于是「裁剪」只裁了模型看不见的那一半，而看得见的那一半（388 个隔离工具）原样保留。
+更糟的是提示词里那句 **「上面这些组就是能力的全部范围 —— 组里搜不到才是真没有」**：
+profile 关掉 `todo` 之后，模型仍被告知存在 `search` 组，去 `tool find` 还能搜到 `search_callers`，
+调进去才报「未找到工具」（宿主的分类门禁在最后一步才拦住）。
+
+**结论：一个能力门禁若只覆盖「宿主注册表」这一层，而模型的主要入口在另一层，那它就只是半个门禁。**
+而「半个门禁」比没有更危险：它让人以为已经关掉了。
+
+### 22.2 ID 放在哪一层：三份清单，一处真相
+
+工具组的名字有三个天然来源，必须让它们指向同一份：
+
+| 位置 | 内容 | 谁读 |
+|---|---|---|
+| `resources/tools/cli_groups.yaml` | 13 组：id / exe / 工具数 / blurb | 提示词渲染（`CliGroupIndex`）、`tool tree` |
+| `ToolGroupDeclaration.cs`（抽象层） | 13 个 ID 常量 + `AllNodeIds` + `EnabledIds` | 提示词层、CLI 层、装配层 |
+| `base.yaml` 的 `tool-groups` 消费点 | 13 条节点声明 | `--dump-nodes` / 节点注册表 |
+
+**为什么 ID 常量住在抽象层而不是和节点类放一起**：节点类需要 `[NodeFactory]`，只能住装配层 `Composition`；
+而提示词层只引用 `Abstractions.Composition`，看不到装配层。若把 ID 写在节点类里，
+提示词就只能按 yaml 全量渲染 —— profile 门禁在提示词侧直接失效（而这正是本单元要修的东西）。
+
+三处一致性由 `Verify-ToolGroupNodes.py` 双向核对（`cli_groups.yaml` ↔ `ToolGroupDeclaration` ↔ `base.yaml`）。
+负向验证：把 yaml 里 `web` 改名成 `web-renamed`，门禁同时报
+「只在 cli_groups.yaml: web-renamed」与「只在 ToolGroupDeclaration: web」，退出码 1；恢复后转绿。
+
+### 22.3 契约不加值，消费点加一个
+
+工具组与 S4 的 `capability` 结构同构：**不问顺序，只问在不在**。所以不新增第 7 个契约值，
+只新增消费点 `tool-groups`（`contract: capability`）。这是「契约是语义、消费点是实例」的第一次复用 ——
+同一个 `capability` 之下，`capabilities` 管引擎能力（服务/插件/工具分类），`tool-groups` 管工具 exe 组。
+
+### 22.4 提示词侧怎么拿到 profile：不给 `PromptConfigSnapshot` 塞字段
+
+`ToolsSection` 是 static class，拿不到 DI。项目已有的通道是 `PromptConfigSnapshot`
+（AsyncLocal 作用域，`SystemPromptMiddleware` 与 `DefaultSystemPromptProvider` 都在用）。
+
+**但这次不能复用它**：`PromptConfigSnapshot.Current` 被 10+ 个段落读（Brief / Memory / TeamTools / Companion …），
+而生产聊天走的是 `SystemPromptMiddleware` 路径 —— 那条路径**从来没有进入过作用域**，
+于是那些段落读到的全是 `Default`。若我为了让 tools 段拿到 profile 而在 middleware 里
+`EnterScope(真实 options)`，等于顺手改变了另外十几个段落的生产行为（BriefSection 会真的渲染、
+MemorySection 会真的读文件）—— 那是另一个改动的风险，不该混进来。
+
+所以单独开一个只装一个值的槽 `PromptToolGroupScope`（`AsyncLocal<IReadOnlyList<string>?>`，null = 全开），
+只由「知道当前 profile 的两处」进入：
+
+- `SystemPromptMiddleware.InvokeAsync`（生产链路）
+- `PromptPrintCommand`（诊断链路 —— 走 provider 路径，必须自己开，否则打印的提示词比真实发送的多列几组）
+
+`jcc prompt` 因此仍然是可信的自省入口，而不是「大致相同」。
+
+### 22.5 CLI 侧四处同时生效（而不是只在 tree 里少一行）
+
+| 入口 | 裁剪后行为 |
+|---|---|
+| `jcc tool tree` | 只列启用的组；末尾加 `[TOOL-GROUP] profile=base 未启用 1 组: media（…加回即恢复）` |
+| `jcc tool find <关键词>` | 命中集不含被裁组；同样补那行诊断（搜不到最容易误判成「工具不存在」） |
+| `jcc tool help <组>` | 「工具组 'media' 未在当前 profile 启用（profile=base，消费点=tool-groups）」+ 恢复用法 |
+| `jcc tool call <组> <工具>` | 同上措辞，退出码 2；**未启用 ≠ 未知**（前者改 profile，后者查拼写） |
+
+`call` 的实现顺序很关键：**用全量节点解析目标，再对解析出的组判门禁**。
+反过来先过滤，被裁组会报「未找到工具」—— 把使用者指向错误的方向。
+
+### 22.6 真机证据（外部 profile，无重编译）
+
+去掉 `media` 组（60 个工具）：
+
+```
+$ jcc tool tree
+共 12 组 / 575 个工具，独立 exe 实现 328（61%…）
+[TOOL-GROUP] profile=base 未启用 1 组: media（消费点 tool-groups；在 profile 里加回该组即恢复）
+    （全开对照：共 13 组 / 635 个工具，独立 exe 实现 388）
+
+$ jcc tool help media
+工具组 'media' 未在当前 profile 启用（profile=base，消费点=tool-groups，节点=media）。
+恢复用法: 在 profile 的 tool-groups 里加回 '- id: media'。
+
+$ jcc tool call mouse_click          → 上面同一句，退出码 2
+$ jcc tool call media mouse_click    （全开）→ 走到执行层：mouse_click 缺少必填参数 --x
+
+$ jcc prompt --section tools
+（全开）分装在 13 个独立 exe 里（共 635 个工具，其中 388 个不经过宿主直接执行）
+        jcc-tool-agent … jcc-tool-media … jcc-tool-web（13 行）
+（裁剪）分装在 12 个独立 exe 里（共 575 个工具，其中 328 个…）
+        jcc-tool-agent … jcc-tool-web（12 行，media 消失，其余顺序不变）
+```
+
+`635 - 60 = 575`、`388 - 60 = 328` 两处都逐位对上 —— 数字来自同一份集合，不是分别四舍五入。
+
+### 22.7 撞出来的真结论：节点 ID 是全局命名空间
+
+加完 `tool-groups` 后 `--dump-nodes` 出现怪事：`base` 与 `headless` 是 13 节点，
+`ci` 与 `sdk` 是 **12** 节点，少的都是 `web`。
+
+原因不是 bug，是 `ci.yaml` / `sdk.yaml` 里既有的 `excludes: [web]`：
+**`excludes` 按节点 ID 排除，不区分消费点**。`web` 同时是 web-pipeline 的一个中间件和 tool-groups 的一个组，
+一条 excludes 同时命中两处（web-pipeline 也从 12 降到 11，可对照验证）。
+
+对 CI 来说这个结果恰好是想要的（CI 不装 web 抓取组），所以保留原状，但把这件事写进了两个 profile 的注释里 ——
+否则下一个人看到「ci 少一个组」会当 bug 去修，修完反而破坏 web-pipeline 的既有裁剪。
+
+**教训**：节点 ID 一旦全局唯一，跨消费点复用同一个词就会产生隐形耦合。
+若将来需要分开控制，正确做法是给 `excludes` 加 consumer 限定（`shell-pipeline:web`），
+而不是给工具组改名 —— 改 ID 会让「组名 = CLI 组名 = 节点 ID」这个简化失效，又回到「两套词一处换算」的老坑。
+
+### 22.8 门禁与数字
+
+- `--dump-nodes`：**251 节点 / 116 消费点**（+13 节点、+1 消费点）；契约分布
+  `capability=8, command-group=4, guard=12, middleware=80, provider=8, role=4`。
+- `--verify` 三项 `[OK]`；`Verify-NodeConsistency`（251/116）、`Verify-ToolGroupNodes`（13 组三方一致）、
+  `Verify-ExplicitOrder`、`Verify-RegistrationOrder`、`Verify-ToolNodes`（635 / 13 组「声明与现实一致」）、
+  `Verify-HonestyChecklist`、`Verify-NoLockPrimitives` 全绿；Composition.Tests 通过。
+- 编译：Abstractions.Composition / Composition / Prompts / Brain.ContextServices / CLI 全部 **0 警告 0 错误**。
+
+### 22.9 明确边界（与 S4 收尾那条并不冲突）
+
+| 通道 | 受哪层门禁 | 说明 |
+|---|---|---|
+| `IToolRegistry`（368 个 `[McpToolDispatch]` 工具） | `capabilities`（分类级） | `jcc tool call` 直连执行层时**不受**此门禁约束（调试通道，§19.7） |
+| 13 个 exe 组（635 声明 / 388 隔离） | `tool-groups`（组级） | 这一层**连 `tool call` 一起拦** —— 因为「组」本身就是配置单位，绕过它等于绕过半个 profile |
+
+粒度差异是有意的：能力级按「功能分类」裁（`todo` 4 个工具），组级按「exe 部署单位」裁（`github` 173 个）。
+前者细，后者粗；两者叠加后，`tool call` 仍可作为调试通道直连执行层，而模型的可见范围由两层共同决定。

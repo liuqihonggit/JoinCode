@@ -93,9 +93,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
     /// 执行 BashDefense 链 — MTP 扰动纵深防御（危险命令 + 严格解析 + 重定向白名单 + 保留设备名检测 + argv hash 二次确认）。
     /// <para>
     /// 在 CommandInterceptionDispatcher 之后执行，补充 Dispatcher 未覆盖的 MTP 扰动防御。
-    /// 当前组装：CheckDangerousCommand + StrictParse + CheckRetainedDevice + CheckRedirectWhitelist + RequireArgvHash。
-    /// CheckDangerousCommand 在首位：Dangerous 级直接拒绝（补 Dispatcher 对直接命令不消费分类的 gap）。
-    /// RequireArgvHash 仅在 ConfirmMode == AntiCharLossConfirm 时生效（从配置读取）。
+    /// 步骤顺序与开关来自 profile 消费点 <c>bash-defense-chain</c>（TASK100），此处不再拼链。
     /// </para>
     /// </summary>
     private async ValueTask<ToolResult?> EvaluateBashDefenseAsync(ShellPipelineContext context, CancellationToken ct) {
@@ -103,16 +101,15 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
         var confirmMode = (_config.ShellExecution.IsAntiCharLossConfirm || _perturbationNode.IsAdaptiveTriggered)
             ? GuardConfirmMode.AntiCharLossConfirm
             : GuardConfirmMode.None;
-        var (_, rejection) = await _bashDefenseService
-            .Begin(context.Command, workDir, context.Provider.Kind, confirmMode, context.ConfirmedCommand, context.ArgvHash)
-            .Then(_bashDefenseService.CheckDangerousCommand)
-            .Then(_bashDefenseService.StrictParse)
-            .Then(_bashDefenseService.CheckRetainedDevice)
-            .Then(_bashDefenseService.CheckRedirectWhitelist)
-            .Then(_bashDefenseService.CheckGitPushCiGuard)
-            .Then(_bashDefenseService.RequireArgvHash)
-            .ExecuteAsync(ct)
+        return await _bashDefenseService
+            .ExecuteChainAsync(
+                context.Command,
+                workDir,
+                context.Provider.Kind,
+                confirmMode,
+                context.ConfirmedCommand,
+                context.ArgvHash,
+                ct)
             .ConfigureAwait(false);
-        return rejection;
     }
 }

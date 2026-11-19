@@ -157,7 +157,9 @@ public sealed class NodeFactoryCatalogGenerator : IIncrementalGenerator {
         sb.AppendLine($"/// {result.SanitizedAssemblyName} 程序集可解析到的节点工厂清单（由源码生成器 NodeFactoryCatalogGenerator 生成）。");
         sb.AppendLine("/// 静态清单：无反射、无运行期扫描，AOT 友好。");
         sb.AppendLine("/// </summary>");
-        sb.AppendLine("internal static class NodeFactoryCatalog {");
+        // 类名带程序集后缀：internal 类型在 InternalsVisibleTo 下会跨程序集可见，
+        // 同名会触发 CS0436（本仓 warnings-as-errors）。命名先例见 GeneratedToolHandlerRegistration_JoinCode_Composition。
+        sb.AppendLine($"internal static class NodeFactoryCatalog_{result.SanitizedAssemblyName} {{");
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// 枚举本编译单元可见的 <c>[NodeFactory]</c> 节点工厂。");
         sb.AppendLine("    /// </summary>");

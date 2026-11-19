@@ -20,6 +20,7 @@ public static class NodeFactoryContribution {
     /// </summary>
     /// <returns>键为 <c>consumer:nodeId</c> 的工厂序列。</returns>
     public static IEnumerable<KeyValuePair<string, Func<IServiceProvider, object>>> Create() {
-        return NodeFactoryCatalog.Create();
+        // 生成物类名带程序集后缀，避免 InternalsVisibleTo 下的跨程序集同名冲突（CS0436）。
+        return NodeFactoryCatalog_JoinCodeComposition.Create();
     }
 }

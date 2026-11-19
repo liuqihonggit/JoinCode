@@ -308,6 +308,18 @@ public static class DataDrivenPipelineComposition {
         yield return F("tool-fix-chain:gh-timeout-fix-hook", sp => sp.GetRequiredService<Core.Hooks.Execution.FixHooks.GhTimeoutFixHook>());
 
         // ═══════════════════════════════════════════════════════════
+        // bash-defense-chain — Bash 防御步骤（contract: guard）
+        // 步骤实现在 BashDefenseService 内（薄编排层适配各防御 node），
+        // 顺序与开关取自 profile；这里只负责让每一步在 dump 里可见、可校验。
+        // ═══════════════════════════════════════════════════════════
+        yield return F("bash-defense-chain:dangerous-command", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("dangerous-command"));
+        yield return F("bash-defense-chain:strict-parse", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("strict-parse"));
+        yield return F("bash-defense-chain:retained-device", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("retained-device"));
+        yield return F("bash-defense-chain:redirect-whitelist", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("redirect-whitelist"));
+        yield return F("bash-defense-chain:git-push-ci-guard", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("git-push-ci-guard"));
+        yield return F("bash-defense-chain:argv-hash", sp => sp.GetRequiredService<Core.Hooks.Execution.Interception.Defense.BashDefenseService>().StepOf("argv-hash"));
+
+        // ═══════════════════════════════════════════════════════════
         // 分布式贡献（TASK100）：域内 [NodeFactory] → 生成器静态目录 → 此处转发。
         // 目录由 Composition 持有（本程序集编译闭包看不到全部实现域，实证见 §12.8）。
         // ═══════════════════════════════════════════════════════════

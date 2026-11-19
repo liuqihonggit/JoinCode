@@ -585,7 +585,7 @@ S2c 当时的结论是"`Guard.Sandbox` 不在 Pipelines 的编译闭包里，需
 
 | 项 | 结果 |
 |---|---|
-| `jcc --dump-nodes` | 191 节点 / 92 消费点；`sandbox-providers [contract=provider, 4 节点]` |
+| `jcc --dump-nodes` | 191 节点 / 92 消费点；`sandbox-providers [contract=provider, 4 节点]`（bash-defense-chain 落地后为 197/96，见 12.8.6） |
 | `jcc --dump-nodes --verify` | 声明无工厂 / 工厂无声明 / 互斥内重复 三项全 `[OK]` |
 | 门禁 `Verify-NodeConsistency.py` | `[OK] 191 节点 / 92 消费点（guard=8, middleware=80, provider=4）` |
 | 真机降级链 | `mcp_call bash` 宿主日志 `[ORDER] sandbox_providers(profile): bubblewrap > process > soft > docker` —— 顺序来自 `base.yaml` 而非 OS 默认（Windows 默认是 `process > soft`） |
@@ -609,3 +609,23 @@ S2c 当时的结论是"`Guard.Sandbox` 不在 Pipelines 的编译闭包里，需
 顺序设计说明：profile 只表达**偏好**，可用性过滤在消费侧做（`_providers` 只收 `IsAvailable`，降级循环还会 `ContainsKey` 复查）。因此一份跨平台清单即可：Windows 上 bubblewrap 不可用会被跳过，实际顺序退回 `process > soft`，与历史行为一致；docker 排最后是保持"只供显式指定、不进自动降级"的既有语义。
 
 这一步之后 `provider` 契约第一次真实出现在 dump 里（`provider=4`），S3 的 `provider` 与 `role` 有了可复制的落地样板。
+#### 12.8.6 S2c 另一半：Bash 防御链从「硬编码 `.Then()`」变成节点链
+
+原来这 6 步写死在 `ShellCommandInterceptionMiddleware.EvaluateBashDefenseAsync` 的链式调用里——**改顺序、去掉某一步，都要重编译**，正好撞上四问里的第 ④ 条（不改代码改配置）。
+
+| 文件 | 改动 |
+|---|---|
+| `guard.hooks/.../defense/BashDefenseService.cs` | 新增 `ConsumerId = "bash-defense-chain"`；步骤表 `nodeId → BashDefenseStepAsync` 就地登记；`OrderChain()` 用 `NodeChainOrder.Order` 按 profile 排序并打 `[ORDER] bash-defense-chain: …`；新增 `ExecuteChainAsync(...)` 与 `StepOf(nodeId)`；构造注入可选 `IProfileManager`；无 profile 时退回 `DefaultStepOrder`（与历史顺序逐字一致） |
+| `hands_shell/.../ShellCommandInterceptionMiddleware.cs` | 6 行 `.Then(...)` 换成一次 `ExecuteChainAsync(...)`，`BashDefense` 构建器语义未动（仍在内部 `Begin().Then().ExecuteAsync()`） |
+| `pipelines/registration/DataDrivenPipelineComposition.cs` | 6 条 `bash-defense-chain:*` 工厂，指向 `BashDefenseService.StepOf(id)` |
+| `resources/profiles/base.yaml` | `bash-defense-chain`（`contract: guard`，dangerous 600 → argv-hash 100） |
+| `abstractions/composition/node/chain/NodeChainOrder.cs` | `KebabToPascal` 由 `internal` 改 `public`——各消费点把节点 ID 存在自己小表里时，身份归一必须与 `Order` 的匹配规则同源，否则两份命名规则迟早漂移 |
+
+**节点身份怎么保证不漂移**：`OrderChain` 的 `nameOf` 直接用 `NodeChainOrder.KebabToPascal(entry.Id)`，与 `Order` 内部算期望名的函数是同一个函数，因此不可能出现「表里写 `dangerous-command`、匹配时算成 `DangerousCommand2`」这类偏差。
+
+**真机验收**：
+- `--dump-nodes`：`bash-defense-chain [contract=guard, 6 节点]`，总数 197 / 96 消费点，`guard=12`；
+- `--dump-nodes --verify` 三项全 `[OK]`；门禁 `[OK] 197 节点 / 96 消费点`；
+- `mcp_call bash --command "echo ok"` 宿主日志 `[ORDER] bash-defense-chain: dangerous-command > strict-parse > retained-device > redirect-whitelist > git-push-ci-guard > argv-hash`；
+- 防御仍真实生效（重构没有把链变成空转）：未闭合引号 → `strict-parse` 拒绝；`format C: /q` → `dangerous-command` 拒绝；
+- 零回归：`tool tree` 635；Composition 1117；Guard.Hooks 598；4 个 python 门禁 + 工具节点门禁全绿。

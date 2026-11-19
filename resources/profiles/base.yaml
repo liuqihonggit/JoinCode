@@ -458,6 +458,24 @@ consumers:
       - id: gh-timeout-fix-hook
         priority: 100
 
+  # TASK100 S2c：Bash 防御链 — MTP 扰动纵深防御（priority 降序 = 先执行，首个非 null 即短路）。
+  # 此前这 6 步硬编码在 ShellCommandInterceptionMiddleware 的 .Then(...) 里，改顺序要重编译。
+  bash-defense-chain:
+    contract: guard
+    nodes:
+      - id: dangerous-command
+        priority: 600
+      - id: strict-parse
+        priority: 500
+      - id: retained-device
+        priority: 400
+      - id: redirect-whitelist
+        priority: 300
+      - id: git-push-ci-guard
+        priority: 200
+      - id: argv-hash
+        priority: 100
+
   # TASK100 S2c：沙箱提供器（contract: provider — 同协议内互斥，按 priority 降序 = 降级时先试）。
   # 这里只是「偏好顺序」；本平台不可用的实现会被 SandboxManager 按 IsAvailable 过滤掉，
   # 所以一份清单可以跨平台通用（Windows 上 bubblewrap 不可用 → 实际顺序 process > soft）。

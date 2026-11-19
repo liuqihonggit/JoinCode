@@ -69,7 +69,11 @@ public static class NodeChainOrder {
     /// <summary>kebab-case 节点 ID → PascalCase 实现名（git-commit-guard → GitCommitGuard）。</summary>
     /// <param name="id">kebab 形式的节点 ID。</param>
     /// <returns>PascalCase 名称。</returns>
-    internal static string KebabToPascal(string id) =>
+    /// <remarks>
+    /// 公开是刻意的：各消费点（守卫/修正器/防御步骤/沙箱提供器）若把节点 ID 存在自己的小表里，
+    /// 身份归一必须与 <see cref="Order{T}"/> 的匹配规则同源，否则两份命名规则迟早漂移。
+    /// </remarks>
+    public static string KebabToPascal(string id) =>
         string.Concat(id.Split('-', StringSplitOptions.RemoveEmptyEntries)
             .Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 }

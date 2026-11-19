@@ -19,5 +19,24 @@ public interface INodeRegistry {
     RegistrationHandle Register(string nodeId, Func<IServiceProvider, NodeMetadata?, INode> factory);
 
     /// <summary>获取指定消费点的所有服务实例（类型安全版本，检查 enabled-when feature flag）</summary>
-    Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) where T : class;
+    /// <param name="consumerId">消费点 ID。</param>
+    /// <param name="profile">已解析的 profile。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <param name="failFastOnMissing">
+    /// 解析不到实例时是否抛错（TASK100 S10 / §25.7）。
+    /// <para>
+    /// 默认 false = 记一条 Warning 并跳过（历史行为）。<c>true</c> 用于**实例型**消费点 ——
+    /// 那里的节点缺失意味着「整批功能静默消失」（斜杠命令整批不见、提示词整组段落不见），
+    /// 宁可启动失败也不要静默少一块。
+    /// </para>
+    /// <para>
+    /// 注意与「feature flag 关闭」区分：后者是 registry 内部的显式跳过分支，
+    /// 不算解析失败，不会触发本参数。
+    /// </para>
+    /// </param>
+    Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(
+        string consumerId,
+        ResolvedProfile profile,
+        CancellationToken cancellationToken = default,
+        bool failFastOnMissing = false) where T : class;
 }

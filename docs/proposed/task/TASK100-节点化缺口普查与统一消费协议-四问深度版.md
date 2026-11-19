@@ -1857,3 +1857,62 @@ preprocess 注入幽灵节点连眼皮都不抬**。
       宁可启动失败，也不要静默少一道中间件。
       ```
       §25.2 的负向结果被翻过来了。
+
+### 25.7 同类残留 F6：registry 解析失败只 warning，静默跳过
+
+S9 修的是「preprocess 链没走 profile」。修的过程中还看到一条**同源的残留路径**：
+
+`NodeRegistry.GetServicesForConsumerAsync<T>` 的最后一个分支（既没有工厂、节点本身也不带实例时）
+只记一条 Warning 就把节点丢掉：
+
+```csharp
+} else {
+    _logger?.LogWarning("Node '{NodeId}' in consumer '{ConsumerId}' could not be resolved for service type '{ServiceType}'", ...);
+}
+```
+
+C2（§24.2）把 pipeline 那条路径升级成了 fail-fast，但 **registry 这条路径没有**。
+今天有两个生产调用点走它：
+
+| 调用点 | 消费点 | 节点类型 | 解析失败的后果 |
+|---|---|---|---|
+| `SlashCommandRunner` | `command-dispatch`（15 个 category 节点） | `CommandCategoryNode` | 斜杠命令**整批消失**（没有报错） |
+| `SystemPromptMiddleware` | `prompt-assembly`（3 个段落组节点） | `PromptSectionCategoryNode` | 提示词**少掉整组段落**（系统提示词悄悄变短） |
+
+这两处都是「整批节点一起丢」的形态 —— 现象是「某个功能/某段提示词不见了」，
+而人会去查提示词、去查配置，不会想到是节点工厂没解析出来。
+
+**修法**：给 `GetServicesForConsumerAsync<T>` 加 `failFastOnMissing` 参数（默认 false 保持兼容），
+实例型消费点的调用点传 true → 解析不到就抛错并指出 `consumer:nodeId` 与期望类型。
+「feature flag 关闭」仍按设计跳过（那是 registry 内部的显式分支，不是解析失败），两者不混淆。
+生产侧共 **3 个** `GetServicesForConsumerAsync` 调用点：`ServiceRegistration.Brain`（S9 已开）、
+`SlashCommandRunner`、`SystemPromptMiddleware`（本次开）。
+
+#### 25.7.1 验收实证（S10 施工完毕）
+
+| 项 | 结果 |
+|---|---|
+| 编译 | `Build-AllDomains.ps1 -Changed` 7 个项目全绿 —— 接口新增可选参数后，全部实现者（含两处测试替身、Moq Setup）都同步了签名 |
+| 回归测试 | Composition.Tests 20（含新增 `NodeRegistryFailFastTest` 4 条）、Host.Tests 3、NativeTui.Host.Tests 140，全通过 |
+| 真机正向 | `OPENAI_API_KEY=sk-dummy-probe JCC_ALLOW_DIRECT_FALLBACK=1 jcc -p "hi"` → `[PROMPT-GROUP] profile=base 启用工具组 13 个`：开着 fail-fast 照常装配，没有误伤 |
+| 真机负向 | `JCC_PROFILE_DIR` 外部 profile 往 `prompt-assembly` 注入 `ghost-prompt-node` → 当场抛 `节点装配失败: consumer='prompt-assembly', node='ghost-prompt-node', 期望类型='PromptSectionCategoryNode'`，`[PROMPT-GROUP]` 不再打印（解析在打点之前就失败） |
+| command-dispatch | CLI 非交互入口不可达（`-p "/help"` 被当普通 prompt 发给 LLM），改由 `Host.Tests` 用**真实 `NodeRegistry` + 真实 `SlashCommandRunner`** 覆盖：幽灵 `ghost-command` 必须抛 `InvalidOperationException`，且消息带消费点与节点 ID |
+| 门禁 | 新增 `Verify-FailFastConsumers.py`：登记全部 3 个生产调用点、锁 `failFastOnMissing: true`、锁接口/实现默认值 `false` 与真实抛错分支；负向实验删掉 `SlashCommandRunner` 的开关 → 退出码 1 并指名该文件（源文件随即原样恢复） |
+| CI | `ci-unit-tests.yml` 新增 step `Verify instance consumers resolve with fail-fast` |
+
+「由调用方决定」最怕新增消费点时忘传 —— 所以门禁把「所有生产调用点必须登记并判定性质」
+也一并锁住：新增一处 `.GetServicesForConsumerAsync<...>` 而没进登记表，CI 直接红。
+
+**收尾普查（F7 是否存在）**：`NodeRegistry.GetNodesForConsumerAsync` 里也有同款
+「找不到节点 → 记 Warning 跳过」的分支。但它只被三个 `INodeConsumer` 实现
+（`PipelineConsumer` / `CommandDispatchConsumer` / `PromptAssemblyConsumer`）调用，
+而全仓对这三者的引用**只有测试在 `new`，生产没有任何注入或枚举点** ——
+该分支在生产不可达，不构成新断裂点。判据与 S8 归档 `ToolDispatchConsumer` 一致：
+看的是「有没有真实消费方」，不是「代码长得像不像有问题」。
+
+至此 §24.6 / §25.6 / §25.8 三张清单全部打勾，F1–F6 六个断裂点闭合。
+
+### 25.8 本节补充清单
+
+- [x] **D6 registry 解析失败 fail-fast**：`GetServicesForConsumerAsync<T>` 加 `failFastOnMissing`，
+      `SlashCommandRunner`（command-dispatch）与 `SystemPromptMiddleware`（prompt-assembly）传 true。

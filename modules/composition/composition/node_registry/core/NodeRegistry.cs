@@ -217,7 +217,18 @@ public sealed class NodeRegistry : INodeRegistry {
     }
 
     /// <summary>获取指定消费点的所有服务实例（类型安全版本，检查 enabled-when feature flag）</summary>
-    public async Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) where T : class {
+    /// <param name="consumerId">消费点 ID。</param>
+    /// <param name="profile">已解析的 profile。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <param name="failFastOnMissing">
+    /// 解析不到实例时是否抛错（TASK100 S10 / §25.7）。默认 false = 记 Warning 并跳过；
+    /// 实例型消费点应传 true —— 那里的节点缺失等于「整批功能静默消失」。
+    /// </param>
+    public async Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(
+        string consumerId,
+        ResolvedProfile profile,
+        CancellationToken cancellationToken = default,
+        bool failFastOnMissing = false) where T : class {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig)) return [];
         var resolver = _services.GetService<NodeServiceResolver>();
         var result = new List<T>();
@@ -234,6 +245,15 @@ public sealed class NodeRegistry : INodeRegistry {
             } else if (nodes.TryGetValue(LookupKey(consumerId, nodeEntry.Id), out var entry) && entry.CreateNode(_services) is Node<T> typedNode) {
                 result.Add(typedNode.Service);
             } else {
+                // TASK100 S10（§25.7）：过去这里只记 Warning 就把节点丢掉 ——
+                // 在 command-dispatch / prompt-assembly 这类消费点上，丢一个节点 =
+                // 斜杠命令整批消失 / 提示词整组段落不见，现象与原因相隔很远。
+                if (failFastOnMissing) {
+                    throw new InvalidOperationException(
+                        $"节点装配失败: consumer='{consumerId}', node='{nodeEntry.Id}', " +
+                        $"期望类型='{typeof(T).Name}' — 既没有匹配的工厂，节点本身也不携带实例。" +
+                        "该节点已被 profile 声明却无法实例化；宁可启动失败，也不要静默少一块功能。");
+                }
                 _logger?.LogWarning("Node '{NodeId}' in consumer '{ConsumerId}' could not be resolved for service type '{ServiceType}'", nodeEntry.Id, consumerId, typeof(T).Name);
             }
         }

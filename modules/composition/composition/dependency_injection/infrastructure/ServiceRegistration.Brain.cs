@@ -86,7 +86,7 @@ public static partial class ServiceRegistration {
                 "preprocess 的两条链现在由 profile 治理，缺声明等于整条链不装配。");
 
         var middlewares = await registry
-            .GetServicesForConsumerAsync<IMiddleware<PreprocessContext>>(consumerId, profile)
+            .GetServicesForConsumerAsync<IMiddleware<PreprocessContext>>(consumerId, profile, default, failFastOnMissing: true)
             .ConfigureAwait(false);
 
         // 声明数与解析数必须一致（feature flag 关闭的节点由 registry 自行跳过，不在此处计数）。

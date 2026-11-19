@@ -240,7 +240,11 @@ public sealed class ConsumerTest {
         public RegistrationHandle Register(string nodeId, Func<IServiceProvider, NodeMetadata?, INode> factory) =>
             throw new NotSupportedException("测试替身不支持运行期注册");
 
-        public Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) where T : class =>
+        public Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(
+            string consumerId,
+            ResolvedProfile profile,
+            CancellationToken cancellationToken = default,
+            bool failFastOnMissing = false) where T : class =>
             throw new NotImplementedException();
     }
 

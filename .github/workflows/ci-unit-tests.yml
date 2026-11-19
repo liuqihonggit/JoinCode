@@ -196,6 +196,13 @@ jobs:
       - name: Verify node factory source classification (instance vs declared)
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-NodeFactoryCoverage.py
+      # 实例型消费点（preprocess 两条链 / command-dispatch / prompt-assembly）必须显式
+      # 开启 failFastOnMissing。缺这一步的后果是「profile 声明了节点但工厂漏登记 →
+      # 运行期只记 Warning 就丢掉」，症状是整批命令消失或提示词悄悄变短。
+      # 新增调用点若没在本门禁登记并判定性质，直接报红。
+      - name: Verify instance consumers resolve with fail-fast
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-FailFastConsumers.py
       # 工具组三方一致：cli_groups.yaml ↔ ToolGroupDeclaration ↔ base.yaml。
       # 缺这一步的后果是「profile 声明了一个永不存在的组」或「某个组永远关不掉」，
       # 而两种情况在 --dump-nodes 里都只是少一行/多一行，人眼很难发现。

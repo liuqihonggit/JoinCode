@@ -28,7 +28,10 @@ public sealed partial class SystemPromptMiddleware : ServiceEntity, IPreparePrep
     /// <inheritdoc/>
     public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct) {
         var categoryNodes = await _nodeRegistry.GetServicesForConsumerAsync<PromptSectionCategoryNode>(
-            "prompt-assembly", _profileManager.Current, ct).ConfigureAwait(false);
+            "prompt-assembly", _profileManager.Current, ct,
+            // TASK100 S10（§25.7）：prompt-assembly 是实例型消费点 —— 少解析一个节点 =
+            // 提示词整组段落静默消失（系统提示词悄悄变短）。宁可启动失败。
+            failFastOnMissing: true).ConfigureAwait(false);
         var allSections = categoryNodes.SelectMany(n => n.Sections).ToList();
 
         // 工具组清单是唯一随 profile 变、又只影响 tools 段落的输入：段落是 static class，

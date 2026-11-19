@@ -106,6 +106,23 @@ public static partial class ServiceRegistration {
         });
         sw?.Stop();
 
+        // TASK100 S3：角色启用集合同样由装配层读 profile 后注入（role 契约，同 role+variant 互斥）。
+        sw = PerfTimer.Start("    AddAgentRoleDeclaration");
+        services.AddSingleton(sp => {
+            var profiles = sp.GetService<JoinCode.Abstractions.Composition.IProfileManager>();
+            if (profiles is null)
+                return JoinCode.Abstractions.Models.Agent.AgentRoleDeclaration.AllEnabled;
+
+            var consumerId = JoinCode.Abstractions.Models.Agent.AgentRoleDeclaration.ConsumerId;
+            if (!profiles.Current.Consumers.TryGetValue(consumerId, out var consumer) || consumer.Nodes.Count == 0)
+                return JoinCode.Abstractions.Models.Agent.AgentRoleDeclaration.AllEnabled;
+
+            var declaredIds = consumer.Nodes.Select(static node => node.Id).ToArray();
+            Diag.WriteLine($"[ROLES] declaration from profile '{consumerId}': {string.Join(", ", declaredIds)}");
+            return JoinCode.Abstractions.Models.Agent.AgentRoleDeclaration.FromDeclaredIds(declaredIds);
+        });
+        sw?.Stop();
+
         sw = PerfTimer.Start("    AddAotHandlerRegistry");
         AotHandlerRegistrations_JoinCode_Composition.AddAotHandlerRegistry(services);
         sw?.Stop();

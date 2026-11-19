@@ -476,6 +476,30 @@ consumers:
       - id: argv-hash
         priority: 100
 
+  # TASK100 S3：内置 Agent 角色（contract: role — 同 role+variant 互斥）。
+  # 未声明的角色不登记：查询按既有语义返回 null（角色缺失只是少一个可选能力，不像协议缺失会发错格式）。
+  agent-roles:
+    contract: role
+    nodes:
+      - id: coordinator
+        priority: 900
+      - id: executor-code
+        priority: 800
+      - id: executor-search
+        priority: 700
+      - id: executor-explore
+        priority: 600
+      - id: executor-plan
+        priority: 500
+      - id: executor-doctor
+        priority: 400
+      - id: executor-verification
+        priority: 300
+      - id: executor-join-code-guide
+        priority: 200
+      - id: executor-context-compression
+        priority: 100
+
   # TASK100 S3：LLM 协议实现（contract: provider — 同协议内互斥）。
   # 对 provider 契约，priority 不表达顺序，只表达「启用集合」：不在集合内的协议直接拒绝，
   # 而不是静默退回默认实现（那会把 A 协议的配置按 B 协议格式发出去）。

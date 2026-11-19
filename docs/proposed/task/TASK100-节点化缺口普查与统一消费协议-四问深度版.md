@@ -693,3 +693,56 @@ JCC_ALLOW_DIRECT_FALLBACK=1 JCC_VENDOR=openai jcc chat --prompt hi
 | 门禁 `Verify-NodeConsistency.py` | `[OK] 204 节点 / 100 消费点（guard=12, middleware=80, provider=8）` |
 | 真机 red→green | 见 15.3（红灯是真 bug，不是彩排） |
 | 零回归 | `tool tree` 635；Composition 1117；Llm **613**；Guard.Hooks 598；Engine / Dream 编译通过 |
+## 16. S3 后半：role 契约（9 份内置 Agent 角色档案）
+
+### 16.1 形态上与 provider 不同，因为对象不同
+
+`AgentRoleProfile` 是**数据**（AllowedTools/DisallowedTools/Prompt 等），不是服务；9 份档案原本只存在于
+`BuildBuiltInProfiles()` 的一个大数组里。所以做法是：
+
+- **档案数据一行不动**：`BuildBuiltInProfiles()` 仍是唯一来源，节点只是「按 ID 取视图」
+- 节点 = `IAgentRoleNode`（`NodeId` + `Profile`），9 个类各持一个 `public const string Id`
+- `[NodeFactory(AgentRoleNodes.ConsumerId, Id)]` 直接用类自己的 const → **一个类只有一个字面量**，特性与属性不可能漂移
+- 启停由 profile 消费点 `agent-roles`（`contract: role`）决定；`AgentRoleDeclaration` 是纯数据（放 primitives 层，各宿主可见）
+
+### 16.2 语义差异（刻意的）
+
+| 契约 | 缺失时行为 | 为什么 |
+|---|---|---|
+| `provider`（LLM 协议） | **抛错拒绝** | 缺协议会把 A 协议的配置按 B 协议格式发出去，必须响 |
+| `role`（角色） | **不登记，查询返回 null** | 角色缺失只是少一个可选能力；`GetProfile` 本来就允许返回 null，调用方已处理 |
+
+### 16.3 打点抓到第二个命名 bug
+
+第一版把节点 ID 由枚举的 `[EnumValue]` 派生，日志立刻显示只启用了 7 个：
+
+```
+[ROLES] built-in enabled: coordinator, executor-code, ..., executor-verification   ← 少了 2 个
+```
+
+原因是 `ExecutorVariant` 的两个枚举值是 camelCase（`claudeCodeGuide` / `contextCompression`），
+拼出来的 ID 是 `executor-claudeCodeGuide`，与 profile 里的 kebab 声明对不上。
+改为由枚举**名称** kebab 化（`JoinCodeGuide → join-code-guide`）后 9 个全部匹配。
+**教训与 S2c/§12.8 同源：这类「声明 ↔ 实现」的错位不会编译报错，只能靠运行期打点或门禁抓。**
+
+### 16.4 双向验证（不是只验证「全开」）
+
+只证明「启用 9 个」等于没验证过滤逻辑。所以做了临时负向实验——从 profile 删掉 2 条：
+
+| 观察点 | 结果 |
+|---|---|
+| 宿主日志 | `[ROLES] built-in enabled:` 只剩 **7 个**，被删的两个确实未登记 |
+| `--dump-nodes --verify` | `工厂无声明: [FAIL] agent-roles:executor-doctor, agent-roles:executor-join-code-guide` |
+
+即：过滤真的生效，**门禁也真的会反向报孤儿工厂**（不是单向摆设）。恢复后三项全 `[OK]`。
+
+### 16.5 验收
+
+| 项 | 结果 |
+|---|---|
+| `jcc --dump-nodes` | **213 节点 / 104 消费点**；`agent-roles [contract=role, 9 节点]` |
+| 契约分布 | `guard=12, middleware=80, provider=8, role=4` —— `role` 契约首次出现在 dump |
+| `--verify` + 门禁 | 三项全 `[OK]`；`[OK] 213 节点 / 104 消费点` |
+| 真机 | `[ROLES] declaration from profile 'agent-roles': <9 个>` → `[ROLES] built-in enabled: <同 9 个>` |
+| 零回归 | `tool tree` 635；Composition 1117；Llm 613；Engine 编译通过 |
+| 未跑 | `Agents.Tests` 与 `Pipelines.Tests` 从未 restore，按纪律未执行（断言均为数量/存在性，不涉及新参数） |

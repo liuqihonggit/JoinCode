@@ -352,6 +352,28 @@ public static class DataDrivenPipelineComposition {
     }
 
     /// <summary>
+    /// 注册节点工厂解析器 —— 生产（<see cref="AddDataDrivenPipelines"/>）与测试宿主
+    /// （<c>AddTestPipelines</c>）共用这一份组装口径。
+    /// <para>
+    /// TASK100 S8（§24.2）：过去只吃手写清单，新增 [NodeFactory] 节点若忘了改手写清单，
+    /// 门禁与 --dump-nodes 都绿、运行期却静默跳过该中间件。现在以编译期 catalog 为底、
+    /// 手写清单为覆盖层（手写优先，保住 22 条参数化工厂的限流/重试参数）。
+    /// </para>
+    /// <para>
+    /// TASK100 S9（§25）：preprocess 两条链改为按 profile 经 <see cref="NodeServiceResolver"/>
+    /// 解析后，凡是要装配 <c>IChatPreprocessor</c> 的宿主都必须注册本解析器 —— 否则
+    /// profile 声明的节点全部解析不到，链装配直接 fail-fast（测试宿主只注册 NodeRegistry
+    /// 就属于这一类缺口，实证见 sync.integration ChatServiceTests）。
+    /// </para>
+    /// </summary>
+    /// <param name="services">DI 容器</param>
+    /// <returns>已注册解析器的 <see cref="IServiceCollection"/> 实例。</returns>
+    public static IServiceCollection AddNodeServiceResolver(this IServiceCollection services) =>
+        services.AddSingleton<NodeServiceResolver>(_ => NodeServiceResolver.BuildWithFallback(
+            BuildNodeFactories(),
+            Core.DependencyInjection.NodeFactoryContribution.Create()));
+
+    /// <summary>
     /// 数据驱动的管道组装 — 从 YAML Profile 配置组装所有16条管道
     /// </summary>
     /// <param name="services">DI 容器</param>
@@ -362,13 +384,8 @@ public static class DataDrivenPipelineComposition {
         // 注册基础中间件服务（新旧路径共享）
         services.RegisterBaseMiddlewareServices();
 
-        // 注册 NodeServiceResolver
-        // TASK100 S8（§24.2）：过去只吃手写清单，新增 [NodeFactory] 节点若忘了改手写清单，
-        // 门禁与 --dump-nodes 都绿、运行期却静默跳过该中间件。现在以编译期 catalog 为底、
-        // 手写清单为覆盖层（手写优先，保住 22 条参数化工厂的限流/重试参数）。
-        services.AddSingleton<NodeServiceResolver>(_ => NodeServiceResolver.BuildWithFallback(
-            BuildNodeFactories(),
-            Core.DependencyInjection.NodeFactoryContribution.Create()));
+        // 注册 NodeServiceResolver（与测试宿主共用同一口径，见 AddNodeServiceResolver）
+        services.AddNodeServiceResolver();
 
         // 注册 IProfileManager + ResolvedProfile（DSG049: 运行期 Profile 动态切换）
         services.AddSingleton<IProfileManager>(sp => {

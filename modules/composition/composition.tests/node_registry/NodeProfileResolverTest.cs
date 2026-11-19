@@ -51,6 +51,41 @@ public sealed class NodeProfileResolverTest {
     }
 
     [Fact]
+    public void Resolve_ScopedExclude_RemovesNodeFromOneConsumerOnly() {
+        // TASK100 S7：`consumer:node` 只影响指定消费点 —— 这是「工具组 web」与「将来的 web 中间件」
+        // 互不误伤的唯一保证。两个消费点里故意放同一个节点 ID，验证作用域真的生效。
+        var baseProfile = MakeProfile("base", consumers: MakeConsumers(
+            MakeConsumer("web-pipeline", MakeNode("web", 100), MakeNode("web-fetch-mw", 200)),
+            MakeConsumer("tool-groups", MakeNode("web", 100), MakeNode("file", 200))
+        ));
+        var childProfile = MakeProfile("child", inherits: "base", excludes: ["tool-groups:web"]);
+        var resolver = new NodeProfileResolver(MakeProfilesDict(baseProfile, childProfile));
+
+        var resolved = resolver.Resolve("child");
+
+        resolved.Consumers["tool-groups"].Nodes.Should().NotContain(n => n.Id == "web");
+        resolved.Consumers["tool-groups"].Nodes.Should().Contain(n => n.Id == "file");
+        resolved.Consumers["web-pipeline"].Nodes.Should().Contain(n => n.Id == "web", "限定写法不得波及同名节点所在的其它消费点");
+        resolved.Consumers["web-pipeline"].Nodes.Should().Contain(n => n.Id == "web-fetch-mw");
+    }
+
+    [Fact]
+    public void Resolve_ScopedExcludeWithUnknownPrefix_TreatedAsPlainNodeId() {
+        // 冒号不是「一定是限定符」：前缀不是已存在的消费点时，整串按节点 ID 处理。
+        // 这样写错消费点名只会「什么都没排掉」，不会把某个真实节点悄悄删掉。
+        var baseProfile = MakeProfile("base", consumers: MakeConsumers(
+            MakeConsumer("pipeline-a", MakeNode("node-a", 100), MakeNode("node-b", 200))
+        ));
+        var childProfile = MakeProfile("child", inherits: "base", excludes: ["typo-consumer:node-a"]);
+        var resolver = new NodeProfileResolver(MakeProfilesDict(baseProfile, childProfile));
+
+        var resolved = resolver.Resolve("child");
+
+        resolved.Consumers["pipeline-a"].Nodes.Should().HaveCount(2);
+        resolved.Consumers["pipeline-a"].Nodes.Should().Contain(n => n.Id == "node-a");
+    }
+
+    [Fact]
     public void Resolve_Includes_AddsNodesToExistingConsumer() {
         var baseProfile = MakeProfile("base", consumers: MakeConsumers(
             MakeConsumer("tool-dispatch", MakeNode("shell", 0))

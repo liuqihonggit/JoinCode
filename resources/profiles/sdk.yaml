@@ -1,8 +1,18 @@
 name: sdk
 inherits: headless
 excludes:
-  # 同 ci.yaml：`web` 同时命中 web-pipeline 的中间件与 tool-groups 的工具组（节点 ID 全局唯一）。
-  - web
+  # ── TASK100 S7：嵌入式宿主同样是无前端的进程内环境 ──
+  # 与 ci.yaml 取同一组（media/code/mcp/web），理由见那边的逐条注释：
+  # 这四组要么依赖桌面会话、要么依赖外部 peer、要么产出无人消费的结果。
+  # 有意与 ci 保持同构 —— 若将来两者取舍分叉，就在这里写明为什么分叉。
+  - "tool-groups:media"
+  - "tool-groups:code"
+  - "tool-groups:mcp"
+  - "tool-groups:web"
+  # 嵌入式宿主由宿主进程控制生命周期，不做空闲期整理，也不跑定时调度。
+  - "capabilities:dream"
+  - "capabilities:cron"
+  # ── 既有裁剪 ──
   - crash-snapshot-mw
   - audit-log-mw
 # TASK100 S1: tool-dispatch 段已删除 —— sdk-api-tool 既无工厂也无消费方，属死声明。

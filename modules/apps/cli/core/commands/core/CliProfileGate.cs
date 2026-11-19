@@ -18,6 +18,7 @@ internal static class CliProfileGate {
     private const string DefaultProfile = "base";
 
     private static readonly string s_profileName = ResolveProfileName(Environment.GetCommandLineArgs());
+    private static readonly bool s_isExplicit = IsExplicitlyRequested(Environment.GetCommandLineArgs());
     private static readonly Lazy<Abstractions.Composition.Profile.ResolvedProfile?> s_profile = new(Load);
 
     /// <summary>当前生效的 profile 名（用于报错措辞）。</summary>
@@ -25,6 +26,18 @@ internal static class CliProfileGate {
 
     /// <summary>当前解析出的 profile；读不到时为 <see langword="null"/>（= 全开）。</summary>
     public static Abstractions.Composition.Profile.ResolvedProfile? Current => s_profile.Value;
+
+    /// <summary>
+    /// 只在「用户显式指定了 profile」时返回解析结果，否则 <see langword="null"/>。
+    /// <para>
+    /// 给「宿主里已经有一个 IProfileManager，但它不知道命令行说了什么」的场景用：
+    /// <c>prompt</c> 这类自省命令走轻量宿主，其中的 <see cref="Abstractions.Composition.IProfileManager"/>
+    /// 是用默认名 <c>base</c> 构造的，直接读它会让 <c>jcc --profile ci prompt</c> 打印出 base 的提示词。
+    /// 用 <see cref="Current"/> 又会在「运行期 /profile 切换」后给出过期答案 —— 所以用「是否显式指定」
+    /// 来选择信源，而不是让两个信源互相覆盖。
+    /// </para>
+    /// </summary>
+    public static Abstractions.Composition.Profile.ResolvedProfile? CurrentExplicit => s_isExplicit ? s_profile.Value : null;
 
     /// <summary>
     /// 判断某消费点下的某节点在当前 profile 是否启用。
@@ -57,6 +70,19 @@ internal static class CliProfileGate {
 
         var fromEnv = Environment.GetEnvironmentVariable(JccEnvVar.NodeProfile.ToValue());
         return string.IsNullOrWhiteSpace(fromEnv) ? DefaultProfile : fromEnv;
+    }
+
+    /// <summary>命令行或环境变量里是否明确指定了 profile（与「解析结果恰好是 base」区分开）。</summary>
+    /// <param name="args">进程参数（首元素为可执行文件路径）。</param>
+    /// <returns>明确指定返回 <see langword="true"/>。</returns>
+    private static bool IsExplicitlyRequested(string[] args) {
+        var flag = JccCliArgEnumConstants.Profile;
+        var prefix = flag + "=";
+        foreach (var arg in args) {
+            if (string.Equals(arg, flag, StringComparison.Ordinal) || arg.StartsWith(prefix, StringComparison.Ordinal))
+                return true;
+        }
+        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(JccEnvVar.NodeProfile.ToValue()));
     }
 
     /// <summary>读取并解析 profile（只读一次；任何异常都退回「全开」）。</summary>

@@ -53,6 +53,25 @@ public sealed class NodeProfileResolver {
         return new ResolvedProfile(profile.Name, consumers.ToFrozenDictionary(StringComparer.Ordinal));
     }
 
+    /// <summary>
+    /// 解析一条 excludes 条目：<c>consumer:node</c> → (consumer, node)；<c>node</c> → (null, node)。
+    /// <para>
+    /// 判定「前缀是否真是消费点」而不是「是否含冒号」：节点 ID 的全局命名空间里没有禁止冒号的规则，
+    /// 直接按冒号劈开会把一个合法节点 ID 拆成两半，且错误形态是**静默少一个节点**（不是报错），
+    /// 排查成本极高。用父级已有的消费点做白名单，误判方向就变成无害的「整串当节点 ID」。
+    /// </para>
+    /// </summary>
+    /// <param name="entry">excludes 中的一条原文。</param>
+    /// <param name="consumers">合并中的消费点集合（父级已解析结果）。</param>
+    /// <returns>消费点限定符（无则 null）与实际节点 ID。</returns>
+    private static (string? Consumer, string Node) SplitExclude(string entry, IReadOnlyDictionary<string, ResolvedConsumerConfig> consumers) {
+        var separator = entry.IndexOf(':', StringComparison.Ordinal);
+        if (separator <= 0) return (null, entry);
+
+        var prefix = entry[..separator];
+        return consumers.ContainsKey(prefix) ? (prefix, entry[(separator + 1)..]) : (null, entry);
+    }
+
     private static FrozenDictionary<string, string> MergeConfig(IReadOnlyDictionary<string, string> baseConfig, IReadOnlyDictionary<string, string> overrideConfig) {
         var merged = new Dictionary<string, string>(baseConfig, StringComparer.Ordinal);
         foreach (var (key, value) in overrideConfig)
@@ -63,18 +82,30 @@ public sealed class NodeProfileResolver {
     private ResolvedProfile Merge(ResolvedProfile parent, NodeProfile child) {
         var consumers = new Dictionary<string, ResolvedConsumerConfig>(parent.Consumers, StringComparer.Ordinal);
 
-        // 1. 排除子 Profile 明确移除的节点（从所有消费点中移除）
-        foreach (var nodeId in child.Excludes) {
+        // 1. 排除子 Profile 明确移除的节点
+        //    两种写法：
+        //      `node`              → 从所有消费点移除（历史语义，`crash-snapshot-mw` 这类「全环境关掉」用它）
+        //      `consumer:node`     → 只从指定消费点移除（TASK100 S7）
+        //    为什么需要后者：节点 ID 是全局命名空间，工具组 `web` 与将来任何名为 web 的中间件会互相误伤。
+        //    前缀只有在「确实是已存在的消费点」时才当限定符 —— 否则整串仍按节点 ID 处理，
+        //    这样即使有人把节点 ID 写成带冒号的样子，也不会被悄悄解释成另一个消费点的排除。
+        foreach (var entry in child.Excludes) {
+            var (scopedConsumer, nodeId) = SplitExclude(entry, consumers);
             var foundAny = false;
             foreach (var (consumerId, consumerConfig) in consumers) {
+                if (scopedConsumer is not null && consumerId != scopedConsumer) continue;
                 if (consumerConfig.Nodes.Any(n => n.Id == nodeId)) {
                     foundAny = true;
                     var filtered = consumerConfig.Nodes.Where(n => n.Id != nodeId).ToArray();
                     consumers[consumerId] = consumerConfig with { Nodes = filtered };
                 }
             }
-            if (!foundAny)
-                _logger?.LogWarning("Profile '{ProfileName}' excludes node '{NodeId}' but it was not found in any consumer", child.Name, nodeId);
+            if (!foundAny) {
+                if (scopedConsumer is null)
+                    _logger?.LogWarning("Profile '{ProfileName}' excludes node '{NodeId}' but it was not found in any consumer", child.Name, nodeId);
+                else
+                    _logger?.LogWarning("Profile '{ProfileName}' excludes node '{NodeId}' from consumer '{ConsumerId}' but it was not found there", child.Name, nodeId, scopedConsumer);
+            }
         }
 
         // 2. 添加子 Profile 明确新增的消费点或节点

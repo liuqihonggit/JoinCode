@@ -435,6 +435,11 @@ overrides:
 
 **省略即继承机制**：子 profile 只声明差异（excludes/overrides/includes），未提及的节点从父 profile 继承。多层继承链逐级合并。
 
+`excludes` 支持两种写法（TASK100 S7 补齐）：裸 `<节点ID>` 从**所有**消费点移除；`<消费点ID>:<节点ID>`
+只从指定消费点移除。节点 ID 是全局命名空间 —— 同名节点若跨消费点存在，裸写法会把两处一起排掉，
+而表现只是「某个 profile 悄悄少一个节点」，因此工具组等「ID 容易和别处重名」的节点一律用限定写法，
+并由 `Verify-ToolGroupNodes.py` 在 CI 拦住裸写。
+
 ### 4.4 "可随时组织某个插件，也可以某种情况不加载"的运行期实现
 
 通过 NodeProfile 的 `excludes` 和 `includes` 实现：

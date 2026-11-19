@@ -1,8 +1,18 @@
 name: headless
 inherits: base
 excludes:
+  # ── 无界面运行：与前端相关的节点一律关掉 ──
   - teammate-pane-mw
   - transcript-mw
   - transcript-persist-mw
   - 社交-command
   - coordinator-mode-prompt
+  # ── TASK100 S7：工具面裁剪（消费点限定写法 `consumer:node`）──
+  # 斜杠命令是**前端输入语法**：没有输入框就没有人敲 `/commit`，模型也不会用斜杠调用工具。
+  # 这 99 个工具的等价能力在 CLI 命令面（`jcc slash_call` / `slash_list`）上仍然完整可用，
+  # 所以排除它们不减少任何真实能力，只是不再往工具清单里塞 99 行用不上的条目。
+  # 为什么写 `tool-groups:slash` 而不是裸 `slash`：节点 ID 是全局命名空间，
+  # 裸写法会把「任何」同名节点一起排掉。当前 13 个组名恰好没和其它消费点撞车
+  # （`Verify-ToolGroupNodes.py` 已把这条从口号变成检查），但那是运气不是约束 ——
+  # 显式限定消费点后，将来新增一个叫 slash 的中间件不会连带改变工具面。
+  - "tool-groups:slash"

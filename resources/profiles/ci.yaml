@@ -1,12 +1,23 @@
 name: ci
 inherits: headless
 excludes:
-  # 注意：excludes 按「节点 ID」排除，而节点 ID 是全局命名空间 —— 不是「按消费点」。
-  # `web` 同时是 web-pipeline 里一个中间件的 ID 和 tool-groups 里一个工具组的 ID，
-  # 因此这一条会同时排掉两处（web-pipeline 少 1 个节点，tool-groups 少 web 组）。
-  # 对 CI 来说这正好是想要的结果：不装 web 抓取工具组，所以保留同义；
-  # 但若将来要把「工具组 web」和「中间件 web」分开控制，需要给 excludes 加 consumer 限定。
-  - web
+  # ── TASK100 S7：工具面裁剪 ──
+  # CI 的任务是编译 / 跑测试 / 跑门禁脚本，下面四组在 CI 里没有消费方：
+  #   media  60 个 —— 桌面自动化（点击/拖拽/截图）与图像生成，runner 无桌面会话
+  #   code   32 个 —— notebook 单元格读写与执行，CI 不跑 notebook
+  #   mcp    25 个 —— MCP server 连接与授权，CI 没有 MCP peer
+  #   web     5 个 —— 抓取/下载，CI 的网络出口本就收紧，且抓取结果无人消费
+  # slash（99 个）由 headless 统一排除（斜杠命令是前端输入语法），此处不重复声明。
+  # 一律用 `consumer:node` 限定写法：裸 `web` 会把同名中间件一起排掉（见 headless.yaml 注释）。
+  - "tool-groups:media"
+  - "tool-groups:code"
+  - "tool-groups:mcp"
+  - "tool-groups:web"
+  # 能力面：CI 没有「空闲期」，也没有长驻进程 —— 关掉两个只会在后台烧时间的服务。
+  # 保留 goal/todo/task/memdir/code-index：门禁与 e2e 会真实调用它们（todo_write / task 查询 / 索引查询）。
+  - "capabilities:dream"
+  - "capabilities:cron"
+  # ── 既有裁剪（自 TASK100 之前就在）──
   - audit-log-mw
   - crash-snapshot-mw
   - process-usage-mw

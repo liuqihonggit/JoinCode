@@ -5,6 +5,7 @@ namespace Core.Security.Sandbox.Providers;
 /// 进程沙箱提供者 — 基于 Windows JobObject 或 Linux 进程组实现进程级隔离沙箱
 /// </summary>
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
+[Register(typeof(ISandboxProvider), ServiceLifetime.Singleton)]
 public sealed partial class ProcessSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
     private volatile ImmutableHamT<string, WindowsJobObjectSandbox> _jobObjects = ImmutableHamT<string, WindowsJobObjectSandbox>.Empty;

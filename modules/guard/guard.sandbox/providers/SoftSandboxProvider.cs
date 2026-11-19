@@ -6,6 +6,7 @@ namespace Core.Security.Sandbox.Providers;
 /// 沙箱外路径自动重定向到沙箱根目录下,符号链接逃逸时降级重定向
 /// </summary>
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
+[Register(typeof(ISandboxProvider), ServiceLifetime.Singleton)]
 public sealed partial class SoftSandboxProvider : SandboxProviderBase {
     /// <inheritdoc />
     public override SandboxType SandboxType => SandboxType.Soft;

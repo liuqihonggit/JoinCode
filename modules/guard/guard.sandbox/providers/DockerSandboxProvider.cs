@@ -5,6 +5,7 @@ namespace Core.Security.Sandbox.Providers;
 /// Docker 沙箱提供者 — 通过 Docker 容器实现完全隔离的命令执行环境
 /// </summary>
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
+[Register(typeof(ISandboxProvider), ServiceLifetime.Singleton)]
 public sealed partial class DockerSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
     private ImmutableHamT<string, string> _containerIds = ImmutableHamT<string, string>.Empty;

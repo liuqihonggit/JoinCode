@@ -52,7 +52,7 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity {
         IEnumerable<ICommandInterceptor> interceptors,
         ILogger<CommandInterceptionDispatcher>? logger = null,
         JoinCode.Abstractions.Composition.IProfileManager? profiles = null) {
-        _guards = NodeChainOrder.Order(
+        _guards = JoinCode.Abstractions.Composition.NodeChainOrder.Order(
             guards, profiles, GuardConsumerId, static g => g.Name, static g => g.Priority, "命令守卫");
         _interceptors = interceptors.OrderByDescending(static i => i.Priority).ToArray();
         _logger = logger;

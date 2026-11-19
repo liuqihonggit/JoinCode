@@ -14,7 +14,6 @@ global using Core.Hooks.Lifecycle;
 global using Core.Hooks.Session;
 global using Core.Hooks.ToolPermission.Handlers;
 global using Core.Permission;
-global using Core.Plugins;
 global using Core.Policy;
 global using Core.Security.Constants;
 global using Core.Security.DangerClassification;

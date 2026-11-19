@@ -1,4 +1,4 @@
-namespace Core.Hooks.Execution;
+namespace JoinCode.Abstractions.Composition;
 
 /// <summary>
 /// 节点链排序 — 让 profile 的消费点声明成为执行顺序的唯一来源。
@@ -28,7 +28,7 @@ public static class NodeChainOrder {
     /// <returns>排好序的节点数组。</returns>
     public static T[] Order<T>(
         IEnumerable<T> items,
-        JoinCode.Abstractions.Composition.IProfileManager? profiles,
+        IProfileManager? profiles,
         string consumerId,
         Func<T, string> nameOf,
         Func<T, int> priorityOf,
@@ -59,7 +59,7 @@ public static class NodeChainOrder {
 
         foreach (var extra in all) {
             if (!seen.Add(extra)) continue;
-            Diag.WriteLine($"[ORDER] {consumerId}: '{nameOf(extra)}' 未在 profile 声明，已追加到链尾（请补 profile 声明）");
+            JoinCode.Abstractions.Utils.Diagnostics.Diag.WriteLine($"[ORDER] {consumerId}: '{nameOf(extra)}' 未在 profile 声明，已追加到链尾（请补 profile 声明）");
             ordered.Add(extra);
         }
 

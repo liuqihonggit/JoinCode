@@ -38,7 +38,7 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity {
         ILogger<ToolFixHookRegistry>? logger = null,
         int threshold = 3) {
         _healthMonitor = healthMonitor ?? throw new ArgumentNullException(nameof(healthMonitor));
-        _hooks = NodeChainOrder.Order(
+        _hooks = JoinCode.Abstractions.Composition.NodeChainOrder.Order(
             hooks ?? [], profiles, ConsumerId, static h => h.Name, static h => h.Priority, "工具修正器").ToList();
         _declaredCount = _hooks.Count;
         _logger = logger;

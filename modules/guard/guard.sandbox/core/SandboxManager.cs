@@ -13,6 +13,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     private readonly SandboxIpcClient? _ipcClient;
     private volatile ImmutableHamT<string, SandboxActiveExecution> _activeExecutions = ImmutableHamT<string, SandboxActiveExecution>.Empty;
     private volatile ImmutableHamT<string, ISandboxProvider> _sandboxToProvider = ImmutableHamT<string, ISandboxProvider>.Empty;
+    private readonly SandboxType[] _fallbackOrder;
 
     /// <summary>
     /// 初始化沙箱管理器实例
@@ -21,7 +22,8 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         IEnumerable<ISandboxProvider> providers,
         IFileSystem fs,
         SandboxIpcClient? ipcClient = null,
-        ILogger<SandboxManager>? logger = null) {
+        ILogger<SandboxManager>? logger = null,
+        JoinCode.Abstractions.Composition.IProfileManager? profiles = null) {
         _fs = fs;
         _ipcClient = ipcClient;
         _logger = logger;
@@ -29,9 +31,37 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             .Where(p => p.IsAvailable)
             .ToImmutableHamT(p => p.SandboxType, p => p);
 
+        _fallbackOrder = BuildFallbackOrder(providers, profiles);
         _lifecycleActor = new SandboxLifecycleActor(_providers, _logger);
 
         _logger?.LogInformation("[SandboxManager] 可用沙箱类型: {Types}", string.Join(", ", _providers.Keys.Select(k => k.ToValue())));
+    }
+
+    /// <summary>沙箱提供器链在 profile 中的消费点 ID（contract: provider）。</summary>
+    public const string ConsumerId = "sandbox-providers";
+
+    /// <summary>
+    /// 构建降级顺序 — profile 的 sandbox-providers 消费点（priority 降序）为唯一来源；
+    /// profile 缺失时退回按操作系统的默认顺序（Linux 优先 bubblewrap，其余平台 process）。
+    /// </summary>
+    private static SandboxType[] BuildFallbackOrder(
+        IEnumerable<ISandboxProvider> providers,
+        JoinCode.Abstractions.Composition.IProfileManager? profiles) {
+        var available = providers.Where(static p => p.IsAvailable).ToArray();
+        var declared = profiles is not null
+            && profiles.Current.Consumers.TryGetValue(ConsumerId, out var consumer)
+            && consumer.Nodes.Count > 0;
+
+        if (declared && profiles is not null) {
+            return JoinCode.Abstractions.Composition.NodeChainOrder
+                .Order(available, profiles, ConsumerId, static p => p.GetType().Name, static _ => 0, "沙箱提供器")
+                .Select(static p => p.SandboxType)
+                .ToArray();
+        }
+
+        return OperatingSystem.IsLinux()
+            ? [SandboxType.Bubblewrap, SandboxType.Process, SandboxType.Soft]
+            : [SandboxType.Process, SandboxType.Soft];
     }
 
     /// <summary>
@@ -135,10 +165,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             }
         }
 
-        var fallbackOrder = OperatingSystem.IsLinux()
-            ? new[] { SandboxType.Bubblewrap, SandboxType.Process, SandboxType.Soft }
-            : new[] { SandboxType.Process, SandboxType.Soft };
-        foreach (var fallbackType in fallbackOrder) {
+        foreach (var fallbackType in _fallbackOrder) {
             if (fallbackType == targetType || !_providers.ContainsKey(fallbackType)) {
                 continue;
             }

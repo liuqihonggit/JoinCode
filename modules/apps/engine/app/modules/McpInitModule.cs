@@ -76,13 +76,12 @@ public sealed class McpInitModule : IAppModule {
 
     /// <summary>
     /// 插件并行加载清单（逻辑独立，IToolRegistry 线程安全 — WhenAll 墙钟语义）。
-    /// TASK100：FixHooksPlugin 已删除 —— 三个修正器改由 DI 收集（[Register(typeof(IToolFixHook))]）
+    /// TASK100：FixHooksPlugin / SandboxProvidersPlugin 均已删除 —— 三个修正器改由 DI 收集（[Register(typeof(IToolFixHook))]）
     /// + profile 的 tool-fix-chain 决定顺序，不再需要一个只做 new 的插件。
     /// </summary>
     private static Task[] StartPluginLoads(IServiceProvider services, ILogger? logger, CancellationToken ct) =>
     [
         LoadPluginSafeAsync<JoinCode.Dream.DreamPlugin>("DreamPlugin", services, logger, ct),
-        LoadPluginSafeAsync<Core.Plugins.SandboxProvidersPlugin>("SandboxProvidersPlugin", services, logger, ct),
         LoadPluginSafeAsync<Core.Telemetry.TelemetryPlugin>("TelemetryPlugin", services, logger, ct),
         LoadPluginSafeAsync<Core.Agents.AgentRolesPlugin>("AgentRolesPlugin", services, logger, ct),
         LoadPluginSafeAsync<JoinCode.CodeIndex.CSharpLanguagePlugin>("CSharpLanguagePlugin", services, logger, ct),

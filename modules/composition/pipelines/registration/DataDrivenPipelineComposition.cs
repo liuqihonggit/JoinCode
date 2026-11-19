@@ -306,6 +306,7 @@ public static class DataDrivenPipelineComposition {
         yield return F("tool-fix-chain:gh-pr-body-fix-hook", sp => sp.GetRequiredService<Core.Hooks.Execution.FixHooks.GhPrBodyFixHook>());
         yield return F("tool-fix-chain:json-fix-hook", sp => sp.GetRequiredService<Core.Hooks.Execution.FixHooks.JsonFixHook>());
         yield return F("tool-fix-chain:gh-timeout-fix-hook", sp => sp.GetRequiredService<Core.Hooks.Execution.FixHooks.GhTimeoutFixHook>());
+
     }
 
     /// <summary>

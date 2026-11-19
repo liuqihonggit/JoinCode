@@ -259,7 +259,7 @@ public partial class GitHubToolHandlers {
                 if (topicSet is { Count: > 0 } && repo.TryGetProperty("topics", out var topicsEl) && topicsEl.ValueKind == JsonValueKind.Array) {
                     var hasAnyTopic = false;
                     foreach (var t in topicsEl.EnumerateArray()) {
-                        if (t.ValueKind == JsonValueKind.String && topicSet.Contains(t.GetString())) { hasAnyTopic = true; break; }
+                        if (t.ValueKind == JsonValueKind.String && t.GetString() is { } topicValue && topicSet.Contains(topicValue)) { hasAnyTopic = true; break; }
                     }
                     if (!hasAnyTopic) continue;
                 }

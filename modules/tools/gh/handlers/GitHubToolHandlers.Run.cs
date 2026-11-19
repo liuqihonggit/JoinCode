@@ -173,7 +173,7 @@ public partial class GitHubToolHandlers {
             }
             return await GhRunViewCoreAsync(
                 new GhRepoCtx { Client = client, Owner = owner, Repo = repoName, Ct = cancellationToken },
-                new GhRunTarget { RunId = resolvedRunId, JobId = job_id, Attempt = attempt },
+                new GhRunTarget { RunId = resolvedRunId ?? throw new InvalidOperationException("[gh] run id 解析失败但无错误消息"), JobId = job_id, Attempt = attempt },
                 new GhLogOpts { Log = log, MaxLines = max_lines ?? limit, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = common?.Verbosity, Context = context, Around = around, All = all, MaxLinesPerJob = max_lines_per_job }
             ).ConfigureAwait(false);
         }).ConfigureAwait(false);
@@ -998,7 +998,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
-            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId, timeout_seconds, poll_interval_seconds, fail_fast == true, common?.WorkingDir, cancellationToken, onProgress).ConfigureAwait(false);
+            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId ?? throw new InvalidOperationException("[gh] run id 解析失败但无错误消息"), timeout_seconds, poll_interval_seconds, fail_fast == true, common?.WorkingDir, cancellationToken, onProgress).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -1028,10 +1028,10 @@ public partial class GitHubToolHandlers {
             return Fail(waitResult.Error ?? "轮询失败");
         if (waitResult.Outcome == RunWaitOutcome.Timeout)
             return Ok(
-                BuildRunWaitSummary(waitResult.Body, runId, waitResult.PollCount, waitResult.ElapsedMs),
+                BuildRunWaitSummary(waitResult.Body ?? string.Empty, runId, waitResult.PollCount, waitResult.ElapsedMs),
                 $"⚠ Run {runId} 等待超时({timeout.TotalSeconds:F0}s),当前状态: {waitResult.Conclusion}。用 gh_run_view {runId} 手动查看,或增大 timeout_seconds");
         var conclusion = waitResult.Conclusion ?? "unknown";
-        var summary = BuildRunWaitSummary(waitResult.Body, runId, waitResult.PollCount, waitResult.ElapsedMs);
+        var summary = BuildRunWaitSummary(waitResult.Body ?? string.Empty, runId, waitResult.PollCount, waitResult.ElapsedMs);
         if (!IsFailedConclusion(conclusion))
             return Ok(summary, $"Run {runId} 已完成: {conclusion}");
         var logContent = await FetchFailedJobLogsInlineAsync(owner, repoName, runId, null, ct).ConfigureAwait(false);

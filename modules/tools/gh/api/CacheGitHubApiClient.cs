@@ -47,9 +47,10 @@ internal sealed class CacheGitHubApiClient : IGitHubApiClient {
 
     private async Task<GitHubApiResponse> CacheGetAsync(
         string path, IReadOnlyDictionary<string, string>? query, bool paginate, CancellationToken ct) {
+        var cacheService = _cacheService ?? throw new InvalidOperationException("[gh] 缓存服务未注入");
         var tracker = GhTimingTracker.CurrentTimer.Value;
         var readStart = Stopwatch.GetTimestamp();
-        var cached = await _cacheService.TryGetApiAsync(path, query, ct).ConfigureAwait(false);
+        var cached = await cacheService.TryGetApiAsync(path, query, ct).ConfigureAwait(false);
         tracker?.AddLsmRead(Stopwatch.GetTimestamp() - readStart);
         if (cached is not null) {
             tracker?.RecordHit();
@@ -60,7 +61,7 @@ internal sealed class CacheGitHubApiClient : IGitHubApiClient {
         var response = await _inner.SendAsync(HttpMethod.Get, path, null, query, paginate, ct).ConfigureAwait(false);
         if (response.Success) {
             var writeStart = Stopwatch.GetTimestamp();
-            await _cacheService.WriteApiAsync(path, query, response.Body, ct).ConfigureAwait(false);
+            await cacheService.WriteApiAsync(path, query, response.Body, ct).ConfigureAwait(false);
             tracker?.AddLsmWrite(Stopwatch.GetTimestamp() - writeStart);
         }
         return response;
@@ -69,9 +70,10 @@ internal sealed class CacheGitHubApiClient : IGitHubApiClient {
     /// <summary>带缓存的 GraphQL 查询 — 缓存 key 用 body 的 SHA256 哈希前8位</summary>
 
     private async Task<GitHubApiResponse> CacheGraphqlAsync(string? body, CancellationToken ct) {
+        var cacheService = _cacheService ?? throw new InvalidOperationException("[gh] 缓存服务未注入");
         var tracker = GhTimingTracker.CurrentTimer.Value;
         var readStart = Stopwatch.GetTimestamp();
-        var cached = await _cacheService.TryGetGraphqlAsync(body ?? string.Empty, ct).ConfigureAwait(false);
+        var cached = await cacheService.TryGetGraphqlAsync(body ?? string.Empty, ct).ConfigureAwait(false);
         tracker?.AddLsmRead(Stopwatch.GetTimestamp() - readStart);
         if (cached is not null) {
             tracker?.RecordHit();
@@ -82,7 +84,7 @@ internal sealed class CacheGitHubApiClient : IGitHubApiClient {
         var response = await _inner.SendAsync(HttpMethod.Post, "graphql", body, null, false, ct).ConfigureAwait(false);
         if (response.Success) {
             var writeStart = Stopwatch.GetTimestamp();
-            await _cacheService.WriteGraphqlAsync(body ?? string.Empty, response.Body, ct).ConfigureAwait(false);
+            await cacheService.WriteGraphqlAsync(body ?? string.Empty, response.Body, ct).ConfigureAwait(false);
             tracker?.AddLsmWrite(Stopwatch.GetTimestamp() - writeStart);
         }
         return response;

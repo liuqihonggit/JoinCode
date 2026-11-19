@@ -70,7 +70,7 @@ internal static class GhCommandResolver {
     /// </summary>
     /// <param name="args">完整命令行参数，首个元素必须是 <c>gh</c>。</param>
     /// <returns>解析成功返回结果；失败返回 null 并填充 <paramref name="error"/>。</returns>
-    internal static GhResolvedCommand? Resolve(string[] args, out string? error) {
+    internal static GhResolvedCommand? Resolve(string[] args, [NotNullWhen(false)] out string? error) {
         error = null;
 
         // args[0] == "gh"，从 args[1] 开始取分组
@@ -279,7 +279,7 @@ internal static class GhArgsBinder {
     /// <param name="error">失败时的 Rust 风格报错。</param>
     /// <returns>成功返回参数字典；失败返回 null。</returns>
     internal static Dictionary<string, string>? Bind(
-        string[] tail, IReadOnlyList<GhParam> parameters, string toolName, out string? error) {
+        string[] tail, IReadOnlyList<GhParam> parameters, string toolName, [NotNullWhen(false)] out string? error) {
         error = null;
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         var byName = new Dictionary<string, GhParam>(StringComparer.Ordinal);
@@ -534,7 +534,7 @@ internal static class GhArgsBinder {
             return false;
         switch (alias.Kind) {
             case AliasKind.FixedValue:
-                result[alias.TargetKey] = alias.FixedValue;
+                result[alias.TargetKey] = alias.FixedValue ?? throw new InvalidOperationException("[gh] FixedValue 别名缺少固定值");
                 return true;
             case AliasKind.RenameOnly:
                 result[alias.TargetKey] = inlineValue ?? "true";
@@ -730,7 +730,7 @@ internal static class GhArgsBinder {
         if (ResolveGhShortOptionAlias(shortKey, toolName) is { } shortAlias) {
             switch (shortAlias.Kind) {
                 case AliasKind.FixedValue:
-                    result[shortAlias.TargetKey] = shortAlias.FixedValue;
+                    result[shortAlias.TargetKey] = shortAlias.FixedValue ?? throw new InvalidOperationException("[gh] 短选项 FixedValue 别名缺少固定值");
                     return true;
                 case AliasKind.RenameOnly:
                     result[shortAlias.TargetKey] = shortInline ?? "true";

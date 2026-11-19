@@ -6,11 +6,14 @@ namespace JoinCode.Gh;
 [JsonSerializable(typeof(List<ToolContent>))]
 [JsonSerializable(typeof(string))]
 internal sealed partial class GhJsonContext : JsonSerializerContext {
-    private static readonly Lazy<GhJsonContext> s_safe = new(() => new GhJsonContext(
-        new JsonSerializerOptions(Default.Options) {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            TypeInfoResolver = Default
-        }));
+    private static readonly Lazy<GhJsonContext> s_safe = new(() => {
+        var defaultContext = Default ?? throw new InvalidOperationException("[GhJsonContext] 源生成上下文 Default 未初始化");
+        return new GhJsonContext(
+            new JsonSerializerOptions(defaultContext.Options) {
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                TypeInfoResolver = defaultContext
+            });
+    });
 
     /// <summary>带 UnsafeRelaxedJsonEscaping 的上下文 — 不转义中文等非 ASCII 字符</summary>
     public static GhJsonContext Safe => s_safe.Value;

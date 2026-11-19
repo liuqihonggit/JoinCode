@@ -539,3 +539,24 @@ consumers:
 约束：AOT 友好（源生成，非反射）；与 `--dump-nodes --verify` 的门禁口径一致（声明 ↔ 工厂 ↔ 契约）；现有 161 条手写工厂可原样保留，逐步迁移。
 
 这一步做完，S3/S4 才能在不改依赖图的前提下推进。
+
+#### 12.8.1 三个可选架构（必须先定，再动手）
+
+| 架构 | 机制 | 优点 | 代价 |
+|---|---|---|---|
+| **A. DI 聚合**（推荐） | `[NodeFactory]` → 源生成 `INodeFactoryContribution` 实现 + 走现有 `ServiceRegistration` 生成器注册 → 宿主 `sp.GetServices<INodeFactoryContribution>()` 汇总 | 与现有 832 处 `[Register]` 同一条通道；AOT 友好；域零改依赖 | `--dump-nodes` 当前用空容器，必须改成「建真实宿主再 dump」，诊断命令变重（需实测启动耗时） |
+| B. 宿主聚合 | 每个域出 `static XxxNodeFactories.Create()`，由 CLI/Engine 汇总 | 不依赖 DI，dump 仍是纯静态 | CLI 与 GUI 各汇总一次 → 两套清单漂移（正是本任务要消灭的 R4）；且要求宿主引用所有域 |
+| C. 反射扫描 | 启动时扫程序集找 `[NodeFactory]` | 零生成器代码 | AOT 直接不可用（第一约束），且启动变慢；与「全静态工厂」原则冲突 |
+
+**结论：走 A。** 理由：本仓 AOT 是第一约束（G7 已验证），B 会复制出第二份装配清单，C 不可用。
+
+#### 12.8.2 A 方案的施工步骤（待执行）
+
+1. `Abstractions.Composition` 新增 `NodeFactoryAttribute(consumer, nodeId)` 与 `INodeFactoryContribution`（`IReadOnlyList<KeyValuePair<string, Func<IServiceProvider, object>>> Factories`）。
+2. `mcp_tool_dispatch.generator` 增一段扫描：按程序集聚合 `[NodeFactory]` → 生成 `<Assembly>NodeFactoryContribution` 类；沿用现有 `ServiceRegistrationGenerator` 的注册输出（`AddSingleton<INodeFactoryContribution, …>`）。
+3. `Pipelines.BuildNodeFactories(IServiceProvider? sp = null)`：静态 161 条 + `sp?.GetServices<INodeFactoryContribution>()`，**签名向后兼容**，现有调用点不动。
+4. `Program.DumpNodesInfo`：把空容器换成真实宿主容器（复用 `McpCommand.WithHostAsync` 的装配路径），取贡献后 dump；实测耗时，若明显变慢则缓存一次。
+5. 把沙箱 4 个提供器改成 `[NodeFactory("sandbox-providers", "…")]`，恢复 profile 声明，门禁应转绿（当前因删了声明而绿）。
+6. 验收：`--dump-nodes --verify` 仍 `[OK]`；`--dump-nodes` 含 `sandbox-providers`；`tool tree` 635；启动耗时不劣化 20% 以上。
+
+**注意**：步骤 2 是本次唯一需要动生成器的改动，必须跑 `-t:Rebuild` 并检查 `GeneratedServiceRegistration.g.cs` 内容（S2b 已栽过一次：编译成功但生成物是旧的）。

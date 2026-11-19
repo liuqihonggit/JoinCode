@@ -1,7 +1,7 @@
 # TASK101 工程优化清单 — 构建口径、测试断言体系与 jcc 工具体验
 
 > 来源：TASK099 B7 实战（PR #700 两次 CI 红 + 本地验收流程）中暴露的工具与工程摩擦。
-> 状态：implemented（A/B/C/D 四批已落地并逐批验收；A2 的 required check 登记与 C2 暴露的 2 个真实缺失 check 需管理员操作）
+> 状态：implemented（A/B/C/D 四批已落地并逐批验收；A2 按用户指令回退为定期 CI；C2 暴露的 2 个真实缺失 check 已同步）
 > 约束：无后向兼容；每项实施走「红测试 → 实现 → 编译 → 测试 → exe/手动验收 → 提交」。
 
 ## 1. 背景与实证
@@ -55,7 +55,7 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
 | A1 构建默认覆盖 UI 域 + inner log 错误透出 | `Build-AllDomains.ps1`、CI 本地排障 | ✅ | ✅ 默认全量 4 target（solution/native_tui/native_gui×2）全绿（`.xxx/logs/b7/a1_full_default.log`，exit 0）；错误透出上限 15→30 + 无直接 error 行时显式提示查看日志 |
-| A2 CI UI 域编译 job | `.github/workflows/ci-build.yml`（`build / Build UI`，windows-latest） | ✅ | ✅ job 已随 PR #700 后合入；`build / Build UI` 已加入 main 分支保护 required checks（2026-11-20 `gh branch sync-protection` 实测 38 check / 审计一致） |
+| A2 CI UI 域编译 job | `.github/workflows/ci-build.yml`（`build / Build UI`，windows-latest） | ✅（已按用户指令回退 PR 化） | ✅ 曾随 A 批合入并在分支保护登记；**2026-11-20 用户指令：PR 必跑的 UI 构建成本过高，已移除 `build-ui` job，UI 编译验证移到 `ci-gui-daily.yml`（每 2 天，windows-latest，含 native_tui 编译 + native_gui 测试）**；分支保护已同步移除 `build / Build UI` |
 | B1 JsonAssert 帮助器 | 测试项目模板（Desktop 场景先行） | ✅ | ✅ `test/unit/testing.common/asserts/JsonAssert.cs` 语义断言（Parse/Get 路径/字符串/布尔/整数/数组包含）；自测 `JsonAssertTests` 8/8；Desktop 场景 3 文件 9 测试迁移后 30/30 绿（`--filter FullyQualifiedName~DesktopScene`） |
 | B2 排版断言分析器 | 测试项目 | ✅ | ✅ `JsonLayoutAssertionRule`（JCC9311，仅测试项目，Info 级）；分析器测试 5/5（正例 2 + 反例 3）；AotSafety.Tests 全量 267/267；真机 `dotnet build guard.config.tests -p:ErrorLog` SARIF 命中存量 9 处排版断言（level=note 不破坏 TreatWarningsAsErrors）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
 | B3 RetryableFact 模板 + CI Flaky 分层 | AsyncLock.Tests、CI workflows | ✅ | ✅ `Testing.Common/retry/FlakyRetry.cs`（RunUntilAsync/RunAsync，耗尽聚合报错，取消直抛）；`FlakyRetryTests` 5/5；AskWithRetry 两例迁移后 12/12；`Category=Flaky` 15/15、默认过滤 541（556−15）；`ci-unit-tests.yml` 加 `Category!=Flaky`；新增 `ci-flaky-nightly.yml`（UTC 06:30 + workflow_dispatch，YAML 校验通过，首次夜跑待合并后观察）；jcc.exe `--selftest-tui` HOST SELFTEST OK |
@@ -91,7 +91,7 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 - A1 `Build-AllDomains.ps1`：默认全量改为 4 个 target（JoinCode.slnx + native_tui.slnx + NativeGui.Core.Tests + NativeGui.Host.Tests），失败时统一 result 表 + exit 1；错误透出上限 15→30，无直接 error 行时提示"可能被 MSB4181/级联掩盖，查看日志"。
   - 验收：默认命令 exit 0，4 target 全绿（`.xxx/logs/b7/a1_full_default.log`）。
 - A2 `ci-build.yml` 新增 `build-ui` job（windows-latest，构建 native_tui.slnx + NativeGui.Host.Tests.csproj），YAML 语法校验通过。
-  - 待办（需管理员）：将 `build / Build UI` 加入 main 分支保护 required checks，否则 job 失败不阻塞 auto-merge。
+  - **已回退（2026-11-20 用户指令）**：PR 必跑 UI 构建成本过高；job 删除，UI 验证改由 `ci-gui-daily.yml`（每 2 天）覆盖（新增 native_tui 编译），分支保护同步移除 `build / Build UI`。
 
 <!-- 🤖 Auto Decision: 2026-11-20 TASK101-A -->
 <!-- 决策: A1 在 PowerShell 脚本内合并默认目标，而不是把 UI 域并入 JoinCode.slnx -->
@@ -158,3 +158,9 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
 <!-- 原因: CA2255 无法区分"测试引导惯例"与"库作者误用"；中央豁免 + 自定义规则可把判定口径集中（测试放行/非测试登记），并把登记理由固化为 csproj 可见开关，替代 18 份文件各自的 pragma 说明 -->
 <!-- 替代方案: 保留 CA2255 原生告警并给每项目 NoWarn（就是当前的散落状态）；脚本 grep 门禁（只能事后检查，无法在编译期定位到具体方法）——均否决 -->
 <!-- 验证: 负对照真机报错/登记后静默；270 分析器测试全绿 -->
+
+<!-- 🤖 Auto Decision: 2026-11-20 TASK101-A2 回退（用户指令） -->
+<!-- 决策: 删除 ci-build.yml 的 build-ui job；UI 域编译验证移到 ci-gui-daily.yml（每 2 天）并在分支保护移除 build / Build UI -->
+<!-- 原因: windows-latest 构建每个 PR 都跑，CI 成本过高；用户明确要求 UI 采用定期 CI 验证 -->
+<!-- 代价: 跨域契约漂移不能再在 PR 当次暴露，最迟 2 天在定期 job 出现 — 用户接受 -->
+<!-- 替代方案: 只在 docs 改动的 PR 跳过 UI job（已有 detect 门控但仍按 PR 计费）；缩小 UI job 只编译不测试（省一半但违背用户"定期"要求）——均否决 -->

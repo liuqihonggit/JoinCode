@@ -83,30 +83,5 @@ jobs:
             artifacts/bin/Hub/Debug/net10.0/
           retention-days: 1
 
-  build-ui:
-    name: Build UI
-    runs-on: windows-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v5
-        with:
-          global-json-file: 'global.json'
-
-      - name: Cache NuGet Packages (Windows)
-        uses: actions/cache@v5
-        with:
-          path: ${{ github.workspace }}/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
-          restore-keys: |
-            nuget-${{ runner.os }}-
-
-      # native_tui/native_gui 不在 JoinCode.slnx 内；跨域接口变更（INodeRegistry/GoalEngine 等）
-      # 只有这两个域编译才能暴露实现遗漏（TASK099 B7 实测契约漂移漏到 PR CI 才修）。
-      - name: Build native_tui
-        run: dotnet build native_tui/native_tui.slnx -c Debug --nologo -m
-
-      - name: Build native_gui (host tests pull Host+Core)
-        run: dotnet build native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj -c Debug --nologo -m
+  # UI 域（native_tui / native_gui）编译验证已移到定期 CI（ci-gui-daily.yml, 每 2 天）。
+  # 决策（用户指令 2026-11-20）: PR 必跑的 windows 构建成本过高；跨域契约漂移由定期 job 兜底。

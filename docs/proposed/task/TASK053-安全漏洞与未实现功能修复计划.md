@@ -1,6 +1,10 @@
 # TASK053: 安全漏洞与未实现功能修复计划
 
-> 状态: proposed
+> 状态: implemented（2026-11-21 回填 — 批次 A/B/C/D 全部落地，各批次验收表早已标 ✅ 含 exe 冒烟，仅顶部状态未回写）
+> 回填依据: commit `4dcc5a0cd`（批次A + L2 调用图 50→100pct）、`5c8c2a235`（批次B4+C1-C6+D）、`273bc8bdd`（D2 桩补全）；
+> ADR 0138（mcp serve token 鉴权）/ 0139（权限管道路径边界短路）/ 0140（SSRF fail-closed）均 accepted；
+> 关键符号核验：`McpCommand.cs:352` 无 token 一律 401、`IsSafetyCritical`、`GitHubRepoNameValidator`、`ApiKeyProtector`、`MaxRequestBodyBytes` 均在；决策3过时注释已清。
+> 未做的仅为决策4体验 backlog（非安全漏洞，登记项）——保持不动。
 > 来源: 全工程安全审计 + 未实现功能盘点（静态扫描 + 人工复核，2026-10-17）
 > 关联: AGENTS.md 纵深防御七层规范、ADR 0080（手动 exe 验收）、ADR 0079（反例清单）
 

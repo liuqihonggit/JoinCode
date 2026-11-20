@@ -90,6 +90,56 @@ public sealed class UserInteractionToolHandlersTests {
         mock.LastOptions.Should().BeEquivalentTo(["是", "否"]);
     }
 
+    [Fact]
+    public async Task ConfirmActionAsync_UserDefers_ReturnsGuidanceWithoutAssumedConfirmation() {
+        var mock = new MockInteractiveService { ResultToReturn = AskUserQuestionResult.DeferredResult() };
+        var handler = new UserInteractionToolHandlers(mock);
+
+        var result = await handler.ConfirmActionAsync("delete file");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("has not responded yet");
+        text.Should().Contain("delete file");
+        text.Should().Contain("NOT executed");
+        text.Should().Contain("re-ask");
+    }
+
+    [Fact]
+    public async Task AskUserQuestionAsync_UserDefers_ReturnsGuidanceWithPartialAnswers() {
+        var partial = new Dictionary<string, string> { ["Q1"] = "A" };
+        var mock = new MockInteractiveService { ResultToReturn = AskUserQuestionResult.DeferredResult(partial) };
+        var handler = new UserInteractionToolHandlers(mock);
+
+        var result = await handler.AskUserQuestionAsync(BuildTwoQuestionJson());
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("has not responded yet");
+        text.Should().Contain("Do NOT assume any answer");
+        text.Should().Contain("Partial answers already collected");
+        text.Should().Contain("\"Q1\"=\"A\"");
+    }
+
+    [Fact]
+    public async Task AskUserQuestionAsync_UserCancels_ReturnsError() {
+        var mock = new MockInteractiveService { ResultToReturn = AskUserQuestionResult.CancelledResult() };
+        var handler = new UserInteractionToolHandlers(mock);
+
+        var result = await handler.AskUserQuestionAsync(BuildTwoQuestionJson());
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("declined");
+    }
+
+    private static string BuildTwoQuestionJson() =>
+        """
+        [
+          {"question":"Q1","header":"H1","options":[{"label":"A","description":"a"},{"label":"B","description":"b"}]},
+          {"question":"Q2","header":"H2","options":[{"label":"C","description":"c"},{"label":"D","description":"d"}]}
+        ]
+        """;
+
     private sealed class MockInteractiveService : IInteractiveService {
         public AskUserQuestionResult ResultToReturn { get; set; } = AskUserQuestionResult.SuccessResult("是");
         public string? LastQuestion { get; private set; }

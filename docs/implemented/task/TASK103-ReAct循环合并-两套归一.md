@@ -310,3 +310,36 @@
 | 真实 exe | `jcc -p` + MockServer（首轮 `grep`+`read` 双只读调用，次轮收尾文本） | 日志 `[TOOL-PARALLEL] batch=2 tools=grep,read`；两个工具均 `[OK]` 并返回真实结果；次轮请求正常收尾 |
 | 风格门禁 | `Verify-StyleGate.py` | 0 findings（顺带修复 native_tui `UltrathinkHighlighter.cs` 遗留文件级 using） |
 | E2E 文本解析适配 | `ConversationOutputParser` 改为 pending 列表 + 按工具名 FIFO 匹配（并行批次先集中 `[Tool]` 再按序 `[OK]`） | 新增 3 个解析器测试（批量开始/结果映射、同名 FIFO、原串行行为）；`E2E - Tools` 全组本地 60/60 通过（CI 首轮该组曾因旧解析器误配结果而红） |
+
+## S14 — ask 空闲超时交还控制权（默认 30 秒，2026-11-21）
+
+> 现象：后台任务监控运行期间，前台 `ask_user_question` / `confirm_action` 用阻塞 `Console.ReadLine()` 等待输入，期间后台通知无法被消费（`BackgroundNotificationHandler` 只在迭代开始排空），表现为“后台死了”。
+
+### 设计（默认行为，无开关）
+
+| 项 | 决策 |
+|----|------|
+| 超时归属 | 终端交互服务（CLI）内部，用户在任一提示停留超过 30 秒无输入即返回 `Deferred` |
+| 控制权 | 工具调用正常结束（非错误），Agent 循环恢复 → 下一轮迭代排空后台通知，等价于间隔检测 |
+| 答案语义 | 绝不假定未作答问题的答案；`confirm_action` 明确 `NOT executed`；多问题已答部分放入 `PartialAnswers` |
+| 非交互路径 | `TerminalHelper.IsHeadless`（stdin/stdout 重定向且未强制交互）保持原 `FailureResult`；`ForceInteractive + 重定向` 无控制台句柄时退化为立即读取（`KeyAvailable` 抛 `InvalidOperationException`/`IOException` → 视为就绪） |
+| 无开关 | 用户明确要求默认行为，不引入 `JCC_*` 开关 |
+
+### 需求落地四列验收表
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| `IdleInputWaiter`（`modules/abstractions/abstractions.utils/core/misc/IdleInputWaiter.cs`）轮询就绪检查 + 空闲超时返回 false | `TerminalInteractiveService.WaitForInputOrDeferAsync`（CLI 所有 ask 提示） | ✅ | ✅ 单元测试 5/5（就绪/轮询后就绪/超时/取消/零超时） |
+| `AskUserQuestionResult.Deferred/PartialAnswers/DeferredResult`（`InteractiveModels.cs`） | `TerminalInteractiveService`、`UserInteractionToolHandlers` | ✅ | ✅ 编译 + 处理器测试 |
+| `TerminalInteractiveService` 由阻塞 `ReadLine` 改为 `IdleInputWaiter` 就绪等待后读取，超时返回 `Deferred`（单选/多选/自由输入/多问题逐题） | `UserInteractionToolHandlers.AskUserQuestionAsync` / `ConfirmActionAsync` | ✅ | ⚠️ 真实控制台 30 秒空闲路径无法在无人值守环境自动驱动（需真实 TTY），逻辑由 `IdleInputWaiter` 单测 + 处理器映射测试覆盖 |
+| Deferred → 成功工具结果 + 引导文本（不得假定答案、继续后台监控、稍后重问） | QueryEngine 工具结果 → 下一轮迭代排空后台通知 | ✅ | ✅ `UserInteractionToolHandlersTests` 11/11（含 defer 双路径与部分答案） |
+
+### 验证记录
+
+| 验证 | 方式 | 结果 |
+|------|------|------|
+| 单元测试 | `dotnet test Abs.Core.Tests --filter IdleInputWaiterTests` | 5/5 通过 |
+| 单元测试 | `dotnet test Mcp.Tests --filter UserInteractionToolHandlersTests` | 11/11 通过 |
+| 编译 | `dotnet build modules/apps/cli/JoinCode.csproj -c Debug` | 0 警告 0 错误 |
+| 风格门禁 | `Verify-StyleGate.py` | 0 findings |
+| 取消语义修正 | `UserInteractionToolHandlers` 将 `Cancelled` 判定提前到 `!Success` 之前（原顺序导致取消永远落到通用错误） | 取消测试断言更新为 `declined` 并通过 |

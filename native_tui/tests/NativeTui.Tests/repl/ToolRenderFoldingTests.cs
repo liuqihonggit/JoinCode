@@ -169,7 +169,8 @@ public sealed class ToolRenderFoldingTests
         Assert.Equal(1 + 1 + 2 + 4, item.MeasureHeight(40));
         item.Render(screen, new Rect(0, 0, 40, 8), Theme.Dark);
 
-        Assert.Equal("  ⎿  Updated a.cs", RowText.Of(screen, 1, 0, 17));
+        // TASK069-M3 — patch 结果首行是增删统计（基准 FileEditToolUpdatedMessage）
+        Assert.Equal("  ⎿  Added 1 line", RowText.Of(screen, 1, 0, 17));
         Assert.Equal("    @@ -1 +1 @@", RowText.Of(screen, 2, 0, 15));
         Assert.Equal("     1 +new", RowText.Of(screen, 3, 0, 11));
         Assert.Equal("     out1", RowText.Of(screen, 4, 0, 9));
@@ -193,10 +194,11 @@ public sealed class ToolRenderFoldingTests
 
         Assert.Equal("Edited a.cs", item.Summary);
         Assert.Same(hunks, item.Patch);
+        Assert.Equal("Added 1 line", item.DisplaySummary); // TASK069-M3 — 首行改增删统计
         Assert.Equal(4, item.MeasureHeight(40));
         item.Render(screen, new Rect(0, 0, 40, 5), Theme.Dark);
 
-        Assert.Equal("  ⎿  Edited a.cs", RowText.Of(screen, 1, 0, 16));
+        Assert.Equal("  ⎿  Added 1 line", RowText.Of(screen, 1, 0, 17));
         Assert.Equal("    @@ -1,3 +1,4 @@", RowText.Of(screen, 2, 0, 19));
         Assert.Equal("     1 +new line", RowText.Of(screen, 3, 0, 16));
     }

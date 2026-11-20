@@ -264,6 +264,7 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         HitTestId = $"tool-result:{Interlocked.Increment(ref _hitIdCounter)}";
         Summary = summary;
         Patch = patch;
+        Stats = patch is { Length: > 0 } ? DiffStats.From(patch) : null;
         RawOutput = rawOutput;
         HiddenLines = hiddenLines;
         PreviewLimit = previewLimit;
@@ -283,6 +284,13 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
 
     /// <summary>结构化补丁 hunks（null = 无补丁不渲染 diff 块）。</summary>
     public DiffHunk[]? Patch { get; }
+
+    /// <summary>diff 统计（TASK069-M3 — 有 patch 时归纳；空 patch / 无 patch 为 null）。
+    /// 统计行取代引擎摘要成为结果首行（基准 FileEditToolUpdatedMessage 只显示增删统计）。</summary>
+    public DiffStats? Stats { get; }
+
+    /// <summary>结果首行文本（有统计用统计文案，否则引擎摘要）— 渲染/导出/搜索共用同一份。</summary>
+    public string DisplaySummary => Stats is { IsEmpty: false } stats ? stats.ToText() : Summary;
 
     /// <summary>原始终端输出全量（null = 无输出块；展开态消费完整数据 — ctrl+o）。</summary>
     public string? RawOutput { get; }
@@ -346,7 +354,7 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
             + RenderedErrorRows + (ShowsErrorHint ? 1 : 0)
             + RenderedPatchRows + (ShowsPatchHint ? 1 : 0)
         : 1
-            + (Summary.Length > 0 ? 1 : 0)
+            + (DisplaySummary.Length > 0 ? 1 : 0)
             + RenderedPatchRows + (ShowsPatchHint ? 1 : 0)
             + VisibleOutputRowCount + (ShowsOutputHint ? 1 : 0);
 
@@ -385,9 +393,15 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         return row;
     }
 
-    /// <summary>summary 行渲染（空摘要跳过不占行）。</summary>
+    /// <summary>summary 行渲染（空摘要跳过不占行；有 diff 统计时统计行取代引擎摘要）。</summary>
     private int RenderSummaryRow(Screen screen, Rect frame, Theme theme, int row)
     {
+        if (Stats is { IsEmpty: false } stats)
+        {
+            MessageRenderer.RenderDiffStats(screen, RowFrame(frame, row), theme, stats);
+            return row + 1;
+        }
+
         if (Summary.Length == 0)
         {
             return row;
@@ -518,9 +532,11 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// <summary>单行 frame（Y 为该渲染行，高度 1）。</summary>
     private static Rect RowFrame(Rect frame, int row) => frame with { Y = row, Height = 1 };
 
-    /// <summary>摘要 + diff 行内容匹配（transcript 搜索）；错误形态按错误块全文匹配。</summary>
+    /// <summary>首行文本 + diff 行内容匹配（transcript 搜索）；错误形态按错误块全文匹配。</summary>
     public bool ContainsText(string query) =>
-        (IsError ? ErrorText : Summary).Contains(query, StringComparison.OrdinalIgnoreCase)
+        DisplaySummary.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || Summary.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || (IsError && ErrorText.Contains(query, StringComparison.OrdinalIgnoreCase))
         || (Patch?.Any(hunk => hunk.Lines.Any(line => line.Content.Contains(query, StringComparison.OrdinalIgnoreCase))) ?? false);
 }
 
@@ -537,8 +553,11 @@ public sealed class DiffResultItem(string summary, DiffHunk[] patch, ICodeHighli
     /// <summary>渲染/测量核心（统一契约构造 — 无 RawOutput 的纯 patch 形态 + 高亮器透传）。</summary>
     private readonly ToolResultItem _core = new(summary, patch, null, 0, codeHighlighter: codeHighlighter);
 
-    /// <summary>工具结果摘要（首行 ⎿ 正文）。</summary>
+    /// <summary>工具结果摘要（引擎原文 — 首行实际文案见 DisplaySummary）。</summary>
     public string Summary => summary;
+
+    /// <summary>首行实际文案（TASK069-M3 — 有 patch 时是 `Added N lines, removed M lines`）。</summary>
+    public string DisplaySummary => _core.DisplaySummary;
 
     /// <summary>结构化补丁 hunks（驱动侧断言与渲染共享）。</summary>
     public DiffHunk[] Patch => patch;

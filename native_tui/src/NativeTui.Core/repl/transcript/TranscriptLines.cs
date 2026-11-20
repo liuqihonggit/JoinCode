@@ -156,9 +156,9 @@ public static class TranscriptLines
             yield break;
         }
 
-        if (result.Summary.Length > 0)
+        if (result.DisplaySummary.Length > 0)
         {
-            yield return $"{ToolResultIndent}{result.Summary}";
+            yield return $"{ToolResultIndent}{result.DisplaySummary}";
         }
 
         foreach (var line in PatchLines(result.Patch))
@@ -186,10 +186,10 @@ public static class TranscriptLines
         }
     }
 
-    /// <summary>diff 结果行 — summary + patch hunks（无输出块形态）。</summary>
+    /// <summary>diff 结果行 — 首行（有 patch 时为增删统计）+ patch hunks（无输出块形态）。</summary>
     private static IEnumerable<string> DiffLines(DiffResultItem diff)
     {
-        yield return $"{ToolResultIndent}{diff.Summary}";
+        yield return $"{ToolResultIndent}{diff.DisplaySummary}";
         foreach (var line in PatchLines(diff.Patch))
         {
             yield return line;

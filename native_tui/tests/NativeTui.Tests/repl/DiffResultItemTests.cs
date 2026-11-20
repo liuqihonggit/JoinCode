@@ -32,14 +32,18 @@ public sealed class DiffResultItemTests
 
         item.Render(screen, new Rect(0, 0, 40, 4), Theme.Dark);
 
-        // row0 margin 留空；row1 = "  ⎿  " dim 前缀 + summary 默认样式（对齐 MessageResponse）
+        // row0 margin 留空；row1 = "  ⎿  " dim 前缀 + 增删统计（TASK069-M3 对齐基准
+        // FileEditToolUpdatedMessage：文案默认样式，数字 bold）
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
         Assert.Equal(new Rune(' '), screen[0, 0].Value);
         Assert.Equal(new Rune('⎿'), screen[1, 2].Value);
         Assert.Equal(dim, screen[1, 2].StyleId);
-        Assert.Equal(new Rune('E'), screen[1, 5].Value);
+        Assert.Equal(new Rune('A'), screen[1, 5].Value);
         Assert.Equal(0, screen[1, 5].StyleId);
-        Assert.Equal("  ⎿  Edited a.cs", RowText.Of(screen, 1, 0, 16));
+        Assert.Equal(new Rune('1'), screen[1, 11].Value);
+        Assert.Equal(bold, screen[1, 11].StyleId);
+        Assert.Equal("  ⎿  Added 1 line", RowText.Of(screen, 1, 0, 17));
     }
 
     [Fact]

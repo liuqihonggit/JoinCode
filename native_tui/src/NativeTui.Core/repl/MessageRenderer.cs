@@ -154,6 +154,22 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X + indent.Length, ToolFoldingPolicy.ErrorHiddenLinesHint(hiddenLines), dim, frame.Right);
     }
 
+    /// <summary>
+    /// 渲染 diff 统计头（TASK069-M3 — 对齐基准 FileEditToolUpdatedMessage）：
+    /// "  ⎿  " dim 前缀 + `Added N lines, removed M lines`（数字 bold，单侧变更省略另一侧）。
+    /// </summary>
+    public static void RenderDiffStats(Screen screen, Rect frame, Theme theme, DiffStats stats)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, Figures.ToolResultIndent, dim, frame.Right);
+        var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
+        var col = frame.X + Figures.ToolResultIndent.Length;
+        foreach (var (text, isBold) in stats.Segments())
+        {
+            col = screen.WriteText(frame.Y, col, text, isBold ? bold : 0, frame.Right);
+        }
+    }
+
     /// <summary>渲染思考摘要行（结构化消息）：∴ 前缀 + "思考"（收起态带 " · ctrl+o 展开推理" /
     /// 展开态 " ▾"），整行 dim。时长不在此行显示 — 归 spinner 行 "thought for Ns"（对齐基准
     /// SpinnerAnimationRow thinkingStatus 口径；durationMs 参数仅为既有调用方兼容保留，

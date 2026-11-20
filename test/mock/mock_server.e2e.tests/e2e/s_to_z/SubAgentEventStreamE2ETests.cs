@@ -192,7 +192,7 @@ public sealed class SubAgentEventStreamE2ETests {
         var exe = ResolveMockServerPath(fs);
         var startInfo = new System.Diagnostics.ProcessStartInfo {
             FileName = exe,
-            Arguments = $"--config \"{configPath}\" --port 0",
+            Arguments = $"--config \"{configPath}\" --port 0 --no-open-browser",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,

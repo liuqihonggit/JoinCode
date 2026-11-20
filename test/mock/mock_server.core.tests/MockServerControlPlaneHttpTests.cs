@@ -33,6 +33,28 @@ public sealed class MockServerControlPlaneHttpTests {
     }
 
     [Fact]
+    public async Task Requests_AfterLlmCall_ReturnsCapturedJsonArray() {
+        var (server, client) = await StartServerAsync();
+        try {
+            await client.PostAsync("/v1/chat/completions",
+                new StringContent("""{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}""", Encoding.UTF8, "application/json"));
+
+            using var resp = await client.GetAsync("/__control__/requests");
+            resp.IsSuccessStatusCode.Should().BeTrue($"Dashboard 依赖该端点，实际状态码 {(int)resp.StatusCode}");
+
+            var json = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            doc.RootElement.GetArrayLength().Should().Be(1);
+            doc.RootElement[0].GetProperty("method").GetString().Should().Be("POST");
+            doc.RootElement[0].GetProperty("path").GetString().Should().Be("/v1/chat/completions");
+        } finally {
+            client.Dispose();
+            await server.StopAsync();
+            await server.DisposeAsync();
+        }
+    }
+
+    [Fact]
     public async Task Inject_ThenLlmRequest_ReturnsInjectedBody() {
         var (server, client) = await StartServerAsync();
         try {

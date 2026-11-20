@@ -494,7 +494,10 @@ public sealed class KestrelMockServer : IHttpMockServer {
         app.MapGet("/__control__/requests", async (HttpContext ctx) => {
             var since = ctx.Request.Query.TryGetValue("since", out var sinceVal) && int.TryParse(sinceVal, out var s) ? s : -1;
             var requests = since < 0 ? GetAllRequests() : GetRequestsSince(since);
-            var json = JsonSerializer.SerializeToUtf8Bytes(requests, typeof(List<CapturedRequest>), MockServerJsonContext.Default);
+            // 快照底层是 ImmutableList，必须物化为 List<CapturedRequest> 才与源生成上下文元数据匹配；
+            // 直接按 typeof(List<>) 序列化 ImmutableList 会抛异常 → Dashboard 拿不到数据
+            var captured = new List<CapturedRequest>(requests);
+            var json = JsonSerializer.SerializeToUtf8Bytes(captured, MockServerJsonContext.Default.ListCapturedRequest);
             ctx.Response.ContentType = "application/json";
             await ctx.Response.Body.WriteAsync(json, ctx.RequestAborted);
         });
@@ -658,7 +661,8 @@ async function loadRequests() {
       lastCount = allRequests.length;
     }
   } catch(e) {
-    document.getElementById('stats').textContent = 'Error: ' + e.message;
+    // 测试进程结束/端口回收后标签页仍在：给出可操作说明，而不是只显示 Failed to fetch
+    document.getElementById('stats').textContent = 'MockServer 已停止或不可达: ' + e.message + ' — 重启 MockServer 后点 Refresh';
   }
 }
 

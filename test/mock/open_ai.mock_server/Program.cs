@@ -14,8 +14,10 @@ public sealed class Program {
             var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
             var portArg = ParseArgument(args, "--port");
             var noOpenBrowser = Array.IndexOf(args, "--no-open-browser") >= 0;
+            var openBrowser = global::MockServer.Core.BrowserLaunchPolicy.ShouldOpen(
+                noOpenBrowser, Console.IsOutputRedirected, Console.IsInputRedirected);
             var interactive = Array.IndexOf(args, "--interactive") >= 0;
-            LogMain($"[OpenAI.MockServer] configPath={configPath}, portArg={portArg}, openBrowser={!noOpenBrowser}, interactive={interactive}");
+            LogMain($"[OpenAI.MockServer] configPath={configPath}, portArg={portArg}, openBrowser={openBrowser}, interactive={interactive}");
             var config = await MockServerConfig.LoadFromFileOrDefault(configPath).ConfigureAwait(true);
 
             var port = int.TryParse(portArg, out var p) ? p : config.Port;
@@ -46,8 +48,8 @@ public sealed class Program {
 
             LogMain($"[OpenAI.MockServer] Server started, URL={server.Url}, waiting for requests...");
 
-            // 自动打开浏览器 Dashboard
-            if (!noOpenBrowser) {
+            // 自动打开浏览器 Dashboard — 仅交互式终端；测试/管道宿主（stdout 重定向）不打开
+            if (openBrowser) {
                 var dashboardUrl = $"{server.Url}__control__/dashboard";
                 LogMain($"[OpenAI.MockServer] Opening browser: {dashboardUrl}");
                 try {

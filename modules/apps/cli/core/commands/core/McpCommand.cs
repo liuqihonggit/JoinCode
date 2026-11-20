@@ -276,6 +276,17 @@ public sealed class McpCliCommand {
             appHost.Services.GetRequiredService<IFileSystem>(),
             appHost.Services.GetService<ILogger<JccMcpServer>>());
 
+        // initialize 的 instructions/启动横幅会暴露工具总数，必须等插件后台链加载完再计数；
+        // 插件失败不阻断服务端（编译期注册表仍可用），仅延迟注册可见性。
+        var bootstrap = appHost.Services.GetService<JoinCode.App.Modules.McpPluginBootstrapHandle>();
+        if (bootstrap is not null) {
+            try {
+                await bootstrap.Completion.WaitAsync(ct).ConfigureAwait(false);
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
+                System.Diagnostics.Debug.WriteLine($"[McpServe] 等待插件加载失败: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
         var registry = appHost.Services.GetRequiredService<IMcpToolRegistry>();
         var toolCount = await registry.GetCountAsync(ct).ConfigureAwait(false);
         // tools/call 统一走权限管道（13 层中间件），禁止直连注册表绕过权限层 — ADR 0138
@@ -336,6 +347,11 @@ public sealed class McpCliCommand {
             }
         } catch (OperationCanceledException) when (serveCts.Token.IsCancellationRequested) {
             // 优雅退出
+        } catch (System.Net.Sockets.SocketException ex) {
+            TerminalHelper.WriteError(
+                $"MCP 服务端无法监听 {prefix}: {ex.Message.TrimEnd('。')}。"
+                + "请更换 --port 指定其他端口，或停止占用该端口的进程后重试");
+            return 1;
         }
 
         var uptime = DateTime.UtcNow - startTime;

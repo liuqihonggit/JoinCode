@@ -255,3 +255,30 @@
 | 5 | XML fallback 干预 | ○ | |
 | 6 | 预算守卫 | ○ | |
 | 7 | 长会话稳定性 | ○ | |
+
+## S12 — MCP 服务端 ↔ 外部客户端真机自测（2026-11-21）
+
+> 目的：验证 `jcc mcp_serve`（Streamable HTTP, 2025-11-25 协议）作为真实服务端与独立 HTTP 客户端（Python 标准库，`.xxx/mcp_accept/mcp_client.py`）全链路通讯，不使用单元测试替代。
+
+### 命令与结果
+
+| 步骤 | 命令/请求 | 结果 |
+|------|-----------|------|
+| 启动服务端 | `jcc mcp_serve --transport http --port 9915 --token accepttoken123 --await 900`（`JCC_PERMISSION_MODE=bypass`） | 启动横幅显示 `暴露 369 个工具`，token 打印成功 |
+| initialize | POST `/mcp/` + `Authorization: Bearer` | 200；`protocolVersion=2025-11-25`、`serverInfo=jcc-mcp/1.0.0`、instructions 含 369 个工具 |
+| initialized 通知 | `notifications/initialized` | 202（无响应体，符合规范） |
+| tools/list | `tools/list` | 200；369 个工具（file_insert_lines / grep / search_code / task_list …） |
+| tools/call | `tools/call get_process_info {}` | 200；`isError=false`，返回真实电脑名/PID/父进程链 |
+| 鉴权拒绝 | 无 Authorization 头发 initialize | 401 + `WWW-Authenticate: Bearer realm="mcp"` + 中文引导文案 |
+| 默认权限（非 bypass） | `tools/call get_process_info` | 200 + `permission_denied(PD002)`，非交互环境拒绝符合预期 |
+| 端口占用 | 同端口再启一个 `mcp_serve` | 退出码 1，输出「请更换 --port 指定其他端口，或停止占用该端口的进程后重试」 |
+
+### 自测发现并修复的问题
+
+1. **initialize 暴露 0 个工具**：`ExecuteServeAsync` 在插件后台链完成前计数（`GetCountAsync`），instructions 与启动横幅显示 `暴露 0 个工具`，而 tools/list 实际返回 369。修复：计数前 `await McpPluginBootstrapHandle.Completion`，插件失败仅降级为 Debug 日志、不阻断服务端。
+2. **监听失败走致命错误页**：HttpListener 与 TcpListener 降级均失败（如端口被占用返回 WSAEACCES）时，SocketException 逸出到全局致命错误处理器，无引导。修复：`ExecuteServeAsync` 捕获 `SocketException`，输出可操作提示并返回退出码 1。
+
+### 产物
+
+- 外部客户端与证据输出：`.xxx/mcp_accept/mcp_client.py`、`list3.out`、`call3.out`、`.xxx/logs/mcp_serve3.log`。
+- 结论：MCP 服务端仅暴露 tools 能力（initialize 能力声明 `tools.listChanged=false`）；本任务循环合并未改动 MCP 协议层，自测通过作为跨进程通讯回归基线。

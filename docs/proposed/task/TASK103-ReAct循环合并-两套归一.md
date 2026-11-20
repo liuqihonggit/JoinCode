@@ -144,6 +144,7 @@
 | S9 归档后 MockServer E2E（唯一 query 循环） | 3/3 通过 |
 | S9 归档后全仓编译 | `Build-AllDomains.ps1` 全部通过 |
 | S10 自对话实弹（bridge_serve） | PASS：握手/token_delta/tool_call/tool_result/turn_completed 全齐 |
+| S10 TUI 双侧自对话（NativeTui.Demo --bridge-selftest） | PASS：跨进程 NDJSON roundtrip |
 | S10 清理后全仓编译 | `Build-AllDomains.ps1` 全部通过 |
 
 ### 已知差距（现状）
@@ -157,6 +158,7 @@
 ## S10 自我验收与残留清理（已落地）
 
 - 自对话实弹：MockServer（LLM 服务端）+ `jcc bridge_serve`（引擎服务端，真实 exe）+ NDJSON 协议客户端（`.xxx/self_accept_bridge.py`）三进程自测。结果：`session_info` 握手 → `turn_started` → `tool_call`(bash) → `tool_result`（echo self-accept 输出正确）→ `turn_completed`；RESULT: PASS。
+- TUI 双侧自对话：`NativeTui.Demo.exe --bridge-selftest`（同一 exe 以客户端与 echo 服务端两进程互连）输出 `BRIDGE SELFTEST OK — 跨进程 stdin/stdout 管道 + 行分格 JSON 协议 roundtrip 全部通过`。
 - 残留清理：`ToolExecutionSettings.UseStreamingToolExecution` / `MaxParallelToolExecution` 删除（无消费者）；`QueryLoopServices` 删除 `ContentReplacer`/`FileContextService`；`IChatToolOrchestrator`/`ChatToolOrchestrator` 归档后的引用注释全部改为当前实现（网关/QueryEngine）表述。
 - 说明：bridge 走主代理 `mainAgent` 路径（QueryEngine 直连），不经 ChatService；ChatService 桥接路径由 MockServer GUI 同源 E2E 覆盖。
 

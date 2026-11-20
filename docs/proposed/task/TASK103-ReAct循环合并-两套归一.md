@@ -62,7 +62,8 @@
 - 子代理事件：回合级 `SubAgentEventChannel` 作用域 + 50ms 轮询合流（对齐旧循环）。
 - 执行设置：`QueryOptions.ExecutionOverrides` 透传 ChatOptionsFactory 产物（温度/思考/延迟工具/PromptCacheKey 等）；`ApplyExecutionOverrides` / `CloneExecutionSettings` 保证 model/effort 覆盖不丢其余字段。
 - 循环检测：工具调用序列 + 纯文本指纹在适配层复现，下游 `LoopInterventionMiddleware` 继续消费 LoopDetected。
-- 单测：`QueryLoopQueryBackendTests`（3）+ `QueryExecutionOverridesTests`（2）。
+- 轮内 steer（S5）：`QueryOptions.OnIterationStart` 在每次 LLM 请求前把邮箱内输入写入实时历史并排队 `SteerInput` 事件；`HasPendingIterationInput` 在收尾前发现待注入时继续一轮。
+- 单测：`QueryLoopQueryBackendTests`（4）+ `QueryExecutionOverridesTests`（2）+ `QueryIterationInputTests`（2）。
 
 ### 四列验收表
 
@@ -71,6 +72,7 @@
 | `QueryStreamChunkAdapter`（abstractions.interfaces） | `QueryLoopMiddleware.RunQueryBackendAsync` + `AgentStreamChunkAdapter` 同级协议桥 | ✅ | ❌ 未走 ADR 0080 真机 exe；已有 MockServer E2E（query/legacy 双模式通过） |
 | `ChatLoopBackendPolicy` + `JCC_CHAT_LOOP_BACKEND` | `QueryLoopMiddleware.InvokeAsync` 分支 | ✅ | ❌ 未走 ADR 0080 真机 exe；同源 GUI 会话 E2E 已验证 env=query 生效 |
 | 历史去重与增量回写 | `BuildQueryHistoryAsync` / `PersistQueryDeltaQuietlyAsync` | ✅ | ❌ 待多轮真机会话核对历史条数与顺序 |
+| 轮内 steer 注入 | `QueryOptions.OnIterationStart` / `HasPendingIterationInput` + `DrainSteerIntoQueryHistoryAsync` | ✅ | ❌ 未走 ADR 0080 真机 exe；单测覆盖步首注入/事件/落库与收尾继续 |
 | 子代理事件合流 | `ConsumeQueryBackendAsync` + `SubAgentEventChannel` | ✅ | ❌ 未走 ADR 0080 真机 exe；`SubAgentEventStreamE2ETests` query 2/2 通过 |
 | 闸门/执行设置透传 | `BuildQueryOptions` + `ApplyExecutionOverrides` | ✅ | ❌ 未走 ADR 0080 真机 exe；单测已覆盖设置透传/model 覆盖不丢字段 |
 | 流式增量输出 | `QueryEngine.ExecuteIterationInternalAsync` 即收即入队 | ✅ | ❌ 未走 ADR 0080 真机 exe；`StreamingIncrementalE2ETests` query 跨度断言通过 + legacy 回归通过 |
@@ -79,18 +81,19 @@
 
 | 验证项 | 结果 |
 |--------|------|
-| `Brain.Context.Tests` 全量 | 976 通过 |
+| `Brain.Context.Tests` 全量 | 976 通过（含 S5 后新增用例，最新全量见提交记录） |
 | `Brain.Other.Tests` 全量 | 499 通过（流式改造后 Query 子集 230 通过） |
+| steer 专项 | `QueryLoopQueryBackendTests` 4 通过 + `QueryIterationInputTests` 2 通过 |
 | `StreamingIncrementalE2ETests`（MockServer + GUI 同源会话） | query 模式通过；legacy 模式通过 |
 | `SubAgentEventStreamE2ETests` | query 模式 2/2 通过；legacy 模式通过 |
 | `jcc slash_call ask` 真机尝试 | ❌ 工具元命令宿主 `SkipProviderConfig=true`，不加载供应商配置，无法连接 MockServer；不构成验收证据 |
 
 ### 已知差距（翻转默认前必须补）
 
-1. 轮内 steer 仅步首注入；QueryEngine 循环内部无 drain 点（需 BeforeIteration 钩子）。
-2. 可疑 XML 标签 fallback 解析仍为 chat-only。
-3. 上下文预算守卫（ADR 0156 请求前裁剪）为 chat-only；query 后端依赖 QueryEngine 的 TokenBudget/HistorySnip。
-4. 取消语义差异：legacy 取消时为未执行工具补写 `(aborted)` 结果；QueryEngine 取消按自身路径处理，待对齐。
+1. 可疑 XML 标签 fallback 解析仍为 chat-only（解析器链在 brain.context_services，迁入需先下沉到 abstractions 避免反向依赖）。
+2. 上下文预算守卫（ADR 0156 请求前裁剪）为 chat-only；query 后端依赖 QueryEngine 的 TokenBudget/HistorySnip。
+3. 流式工具执行（`UseStreamingToolExecution`，默认 false）为 chat-only；默认配置下两后端行为一致。
+4. 取消语义差异：legacy 取消时为已发出的工具调用补写 `(aborted)` 结果；QueryEngine 在工具执行中取消会丢弃该步（历史保持合法），待对齐。
 5. 宿主 E2E（GUI/slash/bridge）尚未跑 query 后端，默认值保持 legacy；native_gui exe 人工验收待做。
 
 ## 验收标准

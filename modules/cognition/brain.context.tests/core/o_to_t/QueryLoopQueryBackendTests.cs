@@ -12,6 +12,7 @@ public sealed class QueryLoopQueryBackendTests {
 
         public List<QueryOptions?> ReceivedOptions { get; } = [];
         public List<int> HistoryCountsBeforeUser { get; } = [];
+        public List<int> HistoryCountsAfterHook { get; } = [];
         public Action<MessageList>? OnQuery { get; set; }
 
         public void Enqueue(params QueryStreamChunk[] chunks) => _chunks.AddRange(chunks);
@@ -31,6 +32,9 @@ public sealed class QueryLoopQueryBackendTests {
             ReceivedOptions.Add(options);
             HistoryCountsBeforeUser.Add(chatHistory.Count);
             chatHistory.AddUserMessage(userInput);
+            if (options?.OnIterationStart is { } onIterationStart)
+                await onIterationStart(chatHistory, cancellationToken);
+            HistoryCountsAfterHook.Add(chatHistory.Count);
             OnQuery?.Invoke(chatHistory);
 
             foreach (var chunk in _chunks) {
@@ -133,6 +137,44 @@ public sealed class QueryLoopQueryBackendTests {
     }
 
     [Fact]
+    public async Task QueryBackend_DrainsSteerAtIterationStart_EmitsEventAndPersistsUserMessage() {
+        using var scope = new ChatLoopBackendQueryScope();
+
+        var userWrites = new List<string>();
+        var contextManager = CreateContextManager(new MessageList(), assistantWrites: []);
+        contextManager.Setup(c => c.AddUserMessageAsync(It.IsAny<string>(), It.IsAny<MessageOriginKind?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, MessageOriginKind?, CancellationToken>((content, _, _) => userWrites.Add(content))
+            .Returns(Task.CompletedTask);
+
+        var mailbox = new SteerInputMailbox();
+        mailbox.Enqueue("session-steer", "STEER 输入");
+
+        var engine = new FakeQueryEngine();
+        engine.Enqueue(
+            new QueryStreamChunk { Type = AgentStreamChunkType.Content, Content = "收到" },
+            new QueryStreamChunk { Type = AgentStreamChunkType.Complete, StopReason = "end_turn", TotalTurns = 1 });
+
+        await using var middleware = CreateMiddleware(contextManager, engine, steerMailbox: mailbox);
+
+        var context = new ChatMiddlewareContext {
+            Message = "hello",
+            ToolUseContext = new ToolUseContext(),
+            SessionId = "session-steer"
+        };
+
+        var events = new List<ChatStreamEvent>();
+        await foreach (var evt in middleware.InvokeAsync(
+            context, (_, _) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None)) {
+            events.Add(evt);
+        }
+
+        events.Should().Contain(e => e.Type == ChatStreamEventType.SteerInput && e.Content == "STEER 输入");
+        engine.HistoryCountsAfterHook.Should().ContainSingle().Which.Should().Be(2, "当前用户消息 + 步首 steer 输入");
+        userWrites.Should().Contain("STEER 输入", "steer 消息必须随历史增量落库");
+        engine.ReceivedOptions[0].Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task LegacyBackend_RemainsDefault_WhenFlagUnset() {
         using var scope = new ChatLoopBackendLegacyScope();
 
@@ -194,7 +236,8 @@ public sealed class QueryLoopQueryBackendTests {
     private static QueryLoopMiddleware CreateMiddleware(
         Mock<IChatContextManager> contextManager,
         FakeQueryEngine engine,
-        ILLMInvocationHandler? llmHandler = null) {
+        ILLMInvocationHandler? llmHandler = null,
+        ISteerInputMailbox? steerMailbox = null) {
         var toolOrchestrator = new Mock<IChatToolOrchestrator>();
         var toolHandler = new ToolExecutionHandler(toolOrchestrator.Object, contextManager.Object);
         return new QueryLoopMiddleware(
@@ -204,6 +247,7 @@ public sealed class QueryLoopQueryBackendTests {
             new TelemetryRecorder(),
             contextManager.Object,
             new EmptyResponseTracker(),
+            steerMailbox: steerMailbox,
             queryEngine: engine);
     }
 

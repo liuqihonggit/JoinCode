@@ -51,6 +51,17 @@ public sealed class QueryOptions {
     /// </summary>
     public ChatOptions? ExecutionOverrides { get; init; }
 
+    /// <summary>
+    /// 迭代开始回调 — 每次 LLM 请求前触发，参数为实时对话历史。
+    /// TASK103：ChatService 查询后端在此把轮内 steer 注入写入历史（对齐 chat 循环步首 drain）。
+    /// </summary>
+    public Func<MessageList, CancellationToken, Task>? OnIterationStart { get; init; }
+
+    /// <summary>
+    /// 是否存在待注入的轮内输入 — 收尾前检查；true 时不结束查询，继续下一轮让注入进入上下文。
+    /// </summary>
+    public Func<bool>? HasPendingIterationInput { get; init; }
+
     private HashSet<string> _deniedSet = [];
     private HashSet<string> _allowedSet = [];
 

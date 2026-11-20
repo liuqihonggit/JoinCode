@@ -182,6 +182,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             cancellationToken.ThrowIfCancellationRequested();
             totalTurns++;
 
+            // 迭代开始回调（TASK103 — ChatService 查询后端步首注入 steer 输入）
+            if (context.Options?.OnIterationStart is { } onIterationStart) {
+                await onIterationStart(context.ChatHistory, cancellationToken).ConfigureAwait(false);
+            }
+
             // 迭代前钩子（USD 预算检查等）
             foreach (var hook in context.BeforeIterationHooks) {
                 await hook(context, cancellationToken).ConfigureAwait(false);
@@ -251,6 +256,12 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                             Content = $"⚠ 轮次闸门连续 {roundGateRejections} 次未通过（上限 {gateMaxRejections}），本轮已强制结束。"
                         });
                         break;
+                }
+
+                // 轮内注入未消费完时不得收尾（TASK103 — 对齐 chat 循环 HasPendingSteerInput）
+                if (context.Options?.HasPendingIterationInput?.Invoke() == true) {
+                    context.IsQueryComplete = false;
+                    continue;
                 }
 
                 context.Stopwatch.Stop();

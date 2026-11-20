@@ -345,13 +345,11 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         Diag.WriteLine($"[LOOP-QUERY] backend=query session={context.SessionId} gate={context.RequireRoundGate}");
 
         await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
-        foreach (var evt in await DrainSteerInputsAsync(context, ct).ConfigureAwait(false)) {
-            yield return evt;
-        }
 
         var history = await BuildQueryHistoryAsync(context, ct).ConfigureAwait(false);
         var baseCount = history.Count;
-        var options = BuildQueryOptions(context);
+        var steerEvents = new ConcurrentQueue<ChatStreamEvent>();
+        var options = BuildQueryOptions(context, steerEvents);
         var subAgentChannel = context.SubAgentEvents ?? new SubAgentEventChannel();
         context.SubAgentEvents = subAgentChannel;
         var state = new QueryBackendState();
@@ -368,7 +366,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         await _telemetryRecorder.RecordTurnTelemetryAsync(history, 0).ConfigureAwait(false);
         context.Timing.StartLlmCall();
         try {
-            await foreach (var evt in ConsumeQueryBackendAsync(chunkChannel.Reader, context, subAgentChannel, state, linkedCts.Token).ConfigureAwait(false)) {
+            await foreach (var evt in ConsumeQueryBackendAsync(chunkChannel.Reader, context, subAgentChannel, state, steerEvents, linkedCts.Token).ConfigureAwait(false)) {
                 yield return evt;
             }
             await pumpTask.ConfigureAwait(false);
@@ -409,14 +407,31 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         return history;
     }
 
-    /// <summary>构造查询选项 — 闸门、会话标识、聊天执行设置与会话级模型/力度覆盖。</summary>
-    private static QueryOptions BuildQueryOptions(ChatMiddlewareContext context) => new() {
+    /// <summary>构造查询选项 — 闸门、会话标识、聊天执行设置、步首 steer 钩子与会话级模型/力度覆盖。</summary>
+    private QueryOptions BuildQueryOptions(ChatMiddlewareContext context, ConcurrentQueue<ChatStreamEvent> steerEvents) => new() {
         SessionId = context.SessionId,
         RequireRoundGate = context.RequireRoundGate,
         ExecutionOverrides = context.ExecutionSettings,
         ModelId = context.ToolUseContext.ModelOverride,
         EffortLevel = EffortLevelHelper.ParseEffortLevel(context.ToolUseContext.Effort),
+        OnIterationStart = (history, _) => DrainSteerIntoQueryHistoryAsync(context, history, steerEvents),
+        HasPendingIterationInput = () => _steerMailbox?.HasPending(context.SessionId) == true,
     };
+
+    /// <summary>步首注入 steer — 写入查询实时历史并排队 SteerInput 事件，供消费循环上屏。</summary>
+    private Task DrainSteerIntoQueryHistoryAsync(
+        ChatMiddlewareContext context, MessageList history, ConcurrentQueue<ChatStreamEvent> steerEvents) {
+        if (_steerMailbox is null)
+            return Task.CompletedTask;
+
+        var pending = _steerMailbox.DrainAll(context.SessionId);
+        foreach (var text in pending) {
+            history.AddUserMessage(text);
+            steerEvents.Enqueue(ChatStreamEvent.SteerInput(text));
+            Diag.WriteLine($"[STEER-QUERY] 轮内注入进入查询历史 session={context.SessionId} 长度={text.Length}");
+        }
+        return Task.CompletedTask;
+    }
 
     /// <summary>把查询引擎输出泵入通道 — 引擎异常通过 pumpTask 回抛，通道关闭由 finally 保证。</summary>
     private static async Task PumpQueryChunksAsync(
@@ -441,10 +456,15 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         ChatMiddlewareContext context,
         SubAgentEventChannel subAgentChannel,
         QueryBackendState state,
+        ConcurrentQueue<ChatStreamEvent> steerEvents,
         [EnumeratorCancellation] CancellationToken ct) {
         Task<bool>? pendingRead = null;
         while (true) {
             ct.ThrowIfCancellationRequested();
+
+            while (steerEvents.TryDequeue(out var steerEvt)) {
+                yield return steerEvt;
+            }
 
             foreach (var evt in DrainSubAgentEvents(subAgentChannel)) {
                 yield return evt;

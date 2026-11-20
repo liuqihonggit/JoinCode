@@ -56,11 +56,16 @@ public class UserInteractionToolHandlers {
 
         var result = await _interactiveService.AskUserQuestionsAsync(questionItems, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to get user answers").Build();
+        if (result.Deferred)
+            return ToolResultBuilder.Success()
+                .WithText(BuildDeferredText("ask_user_question", result.PartialAnswers))
+                .Build();
 
         if (result.Cancelled)
             return ToolResultBuilder.Error().WithText("User declined to answer questions").Build();
+
+        if (!result.Success)
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to get user answers").Build();
 
         var answersText = result.Answers is not null
             ? string.Join(", ", result.Answers.Select(kv => $"\"{kv.Key}\"=\"{kv.Value}\""))
@@ -89,11 +94,16 @@ public class UserInteractionToolHandlers {
         var questionText = string.IsNullOrWhiteSpace(message) ? action : message;
         var result = await _interactiveService.AskUserQuestionAsync(questionText, ["是", "否"], false, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to get user confirmation").Build();
+        if (result.Deferred)
+            return ToolResultBuilder.Success()
+                .WithText(BuildDeferredText("confirm_action", null, action))
+                .Build();
 
         if (result.Cancelled)
             return ToolResultBuilder.Error().WithText("User cancelled the confirmation").Build();
+
+        if (!result.Success)
+            return ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to get user confirmation").Build();
 
         var confirmed = result.Answer == "是";
         return ToolResultBuilder.Success()
@@ -101,6 +111,19 @@ public class UserInteractionToolHandlers {
                 ? $"User confirmed the action: {action}"
                 : $"User declined the action: {action}")
             .Build();
+    }
+
+    /// <summary>构造用户空闲超时（未作答）时的引导文本 — 明确不得假定答案，并提示稍后重新提问。</summary>
+    private static string BuildDeferredText(string toolName, Dictionary<string, string>? partialAnswers, string? action = null) {
+        var sb = new StringBuilder(256);
+        sb.AppendLine($"User has not responded yet (no input within the idle wait window). Control returned to you from `{toolName}` so background tasks keep streaming.");
+        sb.AppendLine(action is not null
+            ? $"The action `{action}` was NOT executed — do not treat it as confirmed."
+            : "Do NOT assume any answer to the pending questions.");
+        sb.AppendLine("Continue other work or background monitoring, then call this tool again later to re-ask the user.");
+        if (partialAnswers is { Count: > 0 })
+            sb.AppendLine($"Partial answers already collected: {string.Join(", ", partialAnswers.Select(kv => $"\"{kv.Key}\"=\"{kv.Value}\""))}");
+        return sb.ToString();
     }
 
     private static string? ValidateQuestions(List<QuestionItem> questions) {

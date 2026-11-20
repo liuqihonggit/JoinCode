@@ -4,80 +4,102 @@ namespace JoinCode.Cli.Interaction;
 /// 终端交互服务 — 真正的控制台多选交互实现，替代 Core 层的 Mock InteractiveService
 /// 消费方: UserInteractionToolHandlers (MCP AskUserQuestion 工具)
 /// 注册: CliModule 中覆盖 Mock 注册，Order=80 在 CoreModule(Order=30) 之后
+/// 用户空闲超时（默认 30 秒）未输入时返回 Deferred，让 Agent 循环恢复后台监控而非永久阻塞
 /// </summary>
 public sealed class TerminalInteractiveService : IInteractiveService {
     private readonly ILogger<TerminalInteractiveService>? _logger;
+    private readonly IdleInputWaiter _idleWaiter;
+    private readonly TimeSpan _idleTimeout;
+
+    /// <summary>默认用户空闲超时 — 30 秒无输入即交还控制权。</summary>
+    internal static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// 构造函数 — 注入可选日志记录器
+    /// 构造函数 — 注入可选日志记录器与空闲超时
     /// </summary>
     /// <param name="logger">日志记录器，可选</param>
-    public TerminalInteractiveService(ILogger<TerminalInteractiveService>? logger = null) {
+    /// <param name="idleTimeout">用户空闲超时，默认 30 秒</param>
+    public TerminalInteractiveService(ILogger<TerminalInteractiveService>? logger = null, TimeSpan? idleTimeout = null) {
         _logger = logger;
+        _idleTimeout = idleTimeout ?? DefaultIdleTimeout;
+        _idleWaiter = new IdleInputWaiter(IsInputReady, ct => Task.Delay(100, ct));
+    }
+
+    /// <summary>非阻塞检查输入是否就绪；无控制台句柄（如 ForceInteractive + 重定向）时退化为立即读取。</summary>
+    private static bool IsInputReady() {
+        try {
+            return TerminalHelper.KeyAvailable;
+        } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
+            return true;
+        }
     }
 
     /// <summary>
     /// 单问题提问 — 显示选项列表，读取用户数字选择
     /// </summary>
-    public Task<AskUserQuestionResult> AskUserQuestionAsync(
+    public async Task<AskUserQuestionResult> AskUserQuestionAsync(
         string question,
         List<string>? options = null,
         bool multiSelect = false,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(question))
-            return Task.FromResult(AskUserQuestionResult.FailureResult("Question cannot be empty"));
+            return AskUserQuestionResult.FailureResult("Question cannot be empty");
 
         if (TerminalHelper.IsHeadless)
-            return Task.FromResult(AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input"));
+            return AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input");
 
         if (options is null || options.Count == 0) {
             TerminalHelper.WriteLine();
             WriteWrapped(Sanitize(question), bold: true, indent: 0);
             TerminalHelper.WriteRaw("> ");
+            if (!await WaitForInputOrDeferAsync(cancellationToken).ConfigureAwait(false))
+                return AskUserQuestionResult.DeferredResult();
             var freeInput = TerminalHelper.ReadLine();
-            return Task.FromResult(string.IsNullOrWhiteSpace(freeInput)
+            return string.IsNullOrWhiteSpace(freeInput)
                 ? AskUserQuestionResult.CancelledResult()
-                : AskUserQuestionResult.SuccessResult(freeInput));
+                : AskUserQuestionResult.SuccessResult(freeInput);
         }
 
-        var selection = DisplayQuestion(question, options, multiSelect, cancellationToken);
-        if (selection is null)
-            return Task.FromResult(AskUserQuestionResult.CancelledResult());
+        var selection = await DisplayQuestionAsync(question, options, multiSelect, cancellationToken).ConfigureAwait(false);
+        if (selection.Deferred)
+            return AskUserQuestionResult.DeferredResult();
+        if (selection.Indices.Count == 0)
+            return AskUserQuestionResult.CancelledResult();
 
-        if (multiSelect)
-            return Task.FromResult(AskUserQuestionResult.MultiSelectResult(selection));
-
-        return Task.FromResult(AskUserQuestionResult.SuccessResult(selection[0]));
+        var labels = selection.Indices.Select(idx => options[idx - 1]).ToList();
+        return multiSelect
+            ? AskUserQuestionResult.MultiSelectResult(labels)
+            : AskUserQuestionResult.SuccessResult(labels[0]);
     }
 
     /// <summary>
     /// 多问题批量提问 — 逐个显示，收集所有答案
     /// </summary>
-    public Task<AskUserQuestionResult> AskUserQuestionsAsync(
+    public async Task<AskUserQuestionResult> AskUserQuestionsAsync(
         List<QuestionItem> questions,
         CancellationToken cancellationToken = default) {
         if (questions.Count == 0)
-            return Task.FromResult(AskUserQuestionResult.FailureResult("No questions provided"));
+            return AskUserQuestionResult.FailureResult("No questions provided");
 
         if (questions.Count > 4)
-            return Task.FromResult(AskUserQuestionResult.FailureResult("Maximum 4 questions allowed"));
+            return AskUserQuestionResult.FailureResult("Maximum 4 questions allowed");
 
         var answers = new Dictionary<string, string>();
         foreach (var q in questions) {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrWhiteSpace(q.Question))
-                return Task.FromResult(AskUserQuestionResult.FailureResult("Question text cannot be empty"));
+                return AskUserQuestionResult.FailureResult("Question text cannot be empty");
 
             if (q.Options.Count < 2 || q.Options.Count > 4)
-                return Task.FromResult(AskUserQuestionResult.FailureResult($"Question '{q.Question}' must have 2-4 options"));
+                return AskUserQuestionResult.FailureResult($"Question '{q.Question}' must have 2-4 options");
 
             var labels = q.Options.Select(o => o.Label).ToList();
             if (labels.Distinct().Count() != labels.Count)
-                return Task.FromResult(AskUserQuestionResult.FailureResult($"Question '{q.Question}' has duplicate option labels"));
+                return AskUserQuestionResult.FailureResult($"Question '{q.Question}' has duplicate option labels");
 
             if (TerminalHelper.IsHeadless)
-                return Task.FromResult(AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input"));
+                return AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input");
 
             TerminalHelper.WriteLine();
             WriteWrapped(Sanitize(q.Header), bold: true, indent: 0);
@@ -93,29 +115,34 @@ public sealed class TerminalInteractiveService : IInteractiveService {
 
             TerminalHelper.WriteLine();
 
-            List<int> selected;
             if (q.MultiSelect) {
                 TerminalHelper.WriteRaw($"请选择 (1-{q.Options.Count}, 逗号分隔, 0=取消): ");
-                selected = ReadMultiSelection(q.Options.Count, cancellationToken);
+                var multi = await ReadSelectionAsync(q.Options.Count, multiSelect: true, cancellationToken).ConfigureAwait(false);
+                if (multi.Deferred)
+                    return AskUserQuestionResult.DeferredResult(answers.Count > 0 ? answers : null);
+                if (multi.Indices.Count == 0)
+                    return AskUserQuestionResult.CancelledResult();
+                answers[q.Question] = string.Join(", ", multi.Indices.Select(idx => q.Options[idx - 1].Label));
             } else {
                 TerminalHelper.WriteRaw($"请选择 (1-{q.Options.Count}, 0=取消): ");
-                selected = ReadSingleSelection(q.Options.Count, cancellationToken);
+                var single = await ReadSelectionAsync(q.Options.Count, multiSelect: false, cancellationToken).ConfigureAwait(false);
+                if (single.Deferred)
+                    return AskUserQuestionResult.DeferredResult(answers.Count > 0 ? answers : null);
+                if (single.Indices.Count == 0)
+                    return AskUserQuestionResult.CancelledResult();
+                answers[q.Question] = q.Options[single.Indices[0] - 1].Label;
             }
 
-            if (selected.Count == 0)
-                return Task.FromResult(AskUserQuestionResult.CancelledResult());
-
-            answers[q.Question] = string.Join(", ", selected.Select(idx => q.Options[idx - 1].Label));
             _logger?.LogInformation("[TerminalInteractive] Q: {Question} A: {Answer}", q.Question, answers[q.Question]);
         }
 
-        return Task.FromResult(AskUserQuestionResult.QuestionsResult(answers));
+        return AskUserQuestionResult.QuestionsResult(answers);
     }
 
     /// <summary>
-    /// 显示单问题并获取选择索引列表
+    /// 显示单问题并获取选择结果
     /// </summary>
-    private static List<string>? DisplayQuestion(string question, List<string> options, bool multiSelect, CancellationToken ct) {
+    private async Task<SelectionReadResult> DisplayQuestionAsync(string question, List<string> options, bool multiSelect, CancellationToken ct) {
         TerminalHelper.WriteLine();
         WriteWrapped(Sanitize(question), bold: true, indent: 0);
         TerminalHelper.WriteLine();
@@ -128,62 +155,77 @@ public sealed class TerminalInteractiveService : IInteractiveService {
 
         if (multiSelect) {
             TerminalHelper.WriteRaw($"请选择 (1-{options.Count}, 逗号分隔, 0=取消): ");
-            var indices = ReadMultiSelection(options.Count, ct);
-            return indices.Select(idx => options[idx - 1]).ToList();
+            return await ReadSelectionAsync(options.Count, multiSelect: true, ct).ConfigureAwait(false);
         }
 
         TerminalHelper.WriteRaw($"请选择 (1-{options.Count}, 0=取消): ");
-        var single = ReadSingleSelection(options.Count, ct);
-        return single.Count == 0 ? null : [options[single[0] - 1]];
+        return await ReadSelectionAsync(options.Count, multiSelect: false, ct).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 读取单选输入，返回选中索引(1-based)，空列表表示取消
+    /// 等待输入就绪，超过空闲时长返回 false 并提示用户稍后重新提问
     /// </summary>
-    private static List<int> ReadSingleSelection(int maxOption, CancellationToken ct) {
+    private async Task<bool> WaitForInputOrDeferAsync(CancellationToken ct) {
+        if (TerminalHelper.IsHeadless)
+            return true;
+
+        if (await _idleWaiter.WaitAsync(_idleTimeout, ct).ConfigureAwait(false))
+            return true;
+
+        TerminalHelper.WriteLine();
+        TerminalHelper.WriteError($"[ask] 已等待 {_idleTimeout.TotalSeconds:F0} 秒无输入，先返回控制权继续监控后台；稍后可再次提问（本次未作答不会假定任何选择）。");
+        _logger?.LogInformation("[TerminalInteractive] Deferred after idle timeout {Timeout}", _idleTimeout);
+        return false;
+    }
+
+    /// <summary>
+    /// 读取选择输入，返回选中索引(1-based)或延迟/取消标记
+    /// </summary>
+    private async Task<SelectionReadResult> ReadSelectionAsync(int maxOption, bool multiSelect, CancellationToken ct) {
         while (true) {
-            ct.ThrowIfCancellationRequested();
+            if (!await WaitForInputOrDeferAsync(ct).ConfigureAwait(false))
+                return SelectionReadResult.DeferredResult;
+
             var input = TerminalHelper.ReadLine().Trim();
 
             if (input == "0" || string.IsNullOrEmpty(input))
-                return [];
+                return SelectionReadResult.CancelledResult;
 
-            if (int.TryParse(input, out var idx) && idx >= 1 && idx <= maxOption)
-                return [idx];
+            var indices = multiSelect
+                ? ParseMultiSelection(input, maxOption)
+                : ParseSingleSelection(input, maxOption);
 
-            TerminalHelper.WriteRaw($"无效输入,请输入 1-{maxOption} 或 0 取消: ");
+            if (indices is not null)
+                return new SelectionReadResult(indices, Deferred: false);
+
+            var hint = multiSelect
+                ? $"无效输入,请输入 1-{maxOption} (逗号分隔) 或 0 取消: "
+                : $"无效输入,请输入 1-{maxOption} 或 0 取消: ";
+            TerminalHelper.WriteRaw(hint);
         }
     }
 
     /// <summary>
-    /// 读取多选输入(逗号分隔)，返回选中索引列表(1-based)，空列表表示取消
+    /// 解析单选输入，无效返回 null
     /// </summary>
-    private static List<int> ReadMultiSelection(int maxOption, CancellationToken ct) {
-        while (true) {
-            ct.ThrowIfCancellationRequested();
-            var input = TerminalHelper.ReadLine().Trim();
+    private static List<int>? ParseSingleSelection(string input, int maxOption) =>
+        int.TryParse(input, out var idx) && idx >= 1 && idx <= maxOption ? [idx] : null;
 
-            if (input == "0" || string.IsNullOrEmpty(input))
-                return [];
+    /// <summary>
+    /// 解析多选输入(逗号分隔)，无效返回 null
+    /// </summary>
+    private static List<int>? ParseMultiSelection(string input, int maxOption) {
+        var parts = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var indices = new List<int>();
 
-            var parts = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var indices = new List<int>();
-            var valid = true;
-
-            foreach (var part in parts) {
-                if (int.TryParse(part, out var idx) && idx >= 1 && idx <= maxOption)
-                    indices.Add(idx);
-                else {
-                    valid = false;
-                    break;
-                }
-            }
-
-            if (valid && indices.Count > 0)
-                return indices.Distinct().ToList();
-
-            TerminalHelper.WriteRaw($"无效输入,请输入 1-{maxOption} (逗号分隔) 或 0 取消: ");
+        foreach (var part in parts) {
+            if (int.TryParse(part, out var idx) && idx >= 1 && idx <= maxOption)
+                indices.Add(idx);
+            else
+                return null;
         }
+
+        return indices.Count > 0 ? indices.Distinct().ToList() : null;
     }
 
     /// <summary>清洗 — AI 生成文本行尾归一（CR 段折叠）+ 控制字符剥除（见 <see cref="QuestionTextSanitizer.Sanitize"/>）。</summary>
@@ -223,4 +265,12 @@ public sealed class TerminalInteractiveService : IInteractiveService {
 
     /// <summary>描述行缩进列。</summary>
     private const int DescriptionIndent = 5;
+
+    /// <summary>选择读取结果 — 选中索引 / 取消 / 用户空闲超时延迟。</summary>
+    private sealed record SelectionReadResult(List<int> Indices, bool Deferred) {
+        /// <summary>用户取消选择（输入 0 或空）。</summary>
+        public static SelectionReadResult CancelledResult { get; } = new([], Deferred: false);
+        /// <summary>用户空闲超时未作答，控制权交还调用方。</summary>
+        public static SelectionReadResult DeferredResult { get; } = new([], Deferred: true);
+    }
 }

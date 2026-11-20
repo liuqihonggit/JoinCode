@@ -32,7 +32,7 @@
 | 迭代重试/退避 | ✅ | ❌（交给外层） |
 | Token/USD 预算中间件 | ✅（query-pipeline） | ✅（chat-pipeline） |
 | 内容替换/历史裁剪 | ✅ | ❌（chat 侧由 compact 管线承担） |
-| 上下文预算守卫（ADR 0156） | ✅ | ❌ |
+| 上下文预算守卫（ADR 0156） | ✅（S8 请求前守卫） | ✅（GuardContextBudget） |
 | 轮次闸门 | ✅ | ✅（TASK102 共享策略） |
 | 事件协议 | `QueryStreamChunk` | `ChatStreamEvent` |
 
@@ -79,6 +79,13 @@
 - 工具执行循环改为下标遍历，`ExecuteToolAsync` / ToolCallEnd / `AddToolResultToHistory` 包在 `when (cancellationToken.IsCancellationRequested)` 捕获中：取消时 `WriteAbortedToolResults` 为当前及剩余调用补写 `assistant + "(aborted)"` 结果后重抛（对齐 chat 循环 `ToolExecutionHandler.WriteAbortedToolResultsAsync`）。
 - 单测：`QueryEngineCancellationTests`（1）断言取消后历史含 2 条 aborted 结果且每条前有 assistant 工具调用消息。
 
+## S8 请求前上下文预算守卫（已实现）
+
+- 新增 `PreRequestBudgetGuardMiddleware`（query 域 `IQueryMiddleware`）：`BeforeIterationHooks` 每轮 LLM 请求前用 ADR 0156 内容类型感知估算（CJK 1.5 字/token、非 CJK 4 字/token、每条消息 +4）对比 `IChatContextManager.GetContextMaxTokens()`。
+- 分级处理：≥0.7 预防性裁剪到 65% 窗口；≥1.0 紧急裁剪到 50%；依赖缺失（无 `IHistorySnipService`/`IChatContextManager`）时不注册钩子。
+- 补位关系：`HistorySnipMiddleware` 只在工具调用后触发，单轮内工具输出突增会漏检；本中间件在请求前兜底（对齐 chat 循环 `GuardContextBudget`）。
+- 单测：`PreRequestBudgetGuardTests`（4）覆盖阈值以下不裁剪/预防性/紧急/依赖缺失。
+
 ### 四列验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
@@ -93,6 +100,7 @@
 | 文本工具调用 fallback | `ITextToolCallFallbackParser`（abstractions.interfaces）+ `TextToolCallParserChain` 实现 + `QueryEngine.ApplyTextToolCallFallback` | ✅ | ❌ 未走 ADR 0080 真机 exe；`QueryEngineTextFallbackTests` 3 通过 + 两后端 MockServer E2E 回归通过 |
 | 异常输出干预同源 | `OutputInterventionPrompts` 被 `MalformedOutputTracker` / `QueryLoopMiddleware` / QueryEngine 共同消费 | ✅ | ❌ 未走 ADR 0080 真机 exe；单测覆盖纠正回灌与超限放行 |
 | 取消语义对齐 | `QueryEngine.ExecuteToolAsync` 取消上抛 + `WriteAbortedToolResults` | ✅ | ❌ 未走 ADR 0080 真机 exe；`QueryEngineCancellationTests` 通过 + query 模式 E2E 回归通过 |
+| 请求前预算守卫 | `PreRequestBudgetGuardMiddleware`（BeforeIterationHooks + IHistorySnipService + IChatContextManager） | ✅ | ❌ 未走 ADR 0080 真机 exe；`PreRequestBudgetGuardTests` 4 通过 + query 模式 E2E 回归通过 |
 
 ### 验证记录（2026-11-21）
 
@@ -110,11 +118,14 @@
 | S6 后全仓编译 | `Build-AllDomains.ps1` 全部通过（solution/native_tui/native_gui） |
 | S7 后 `Brain.Other.Tests` 全量 | 505 通过（含 `QueryEngineCancellationTests`） |
 | S7 后 MockServer E2E（query 模式） | `StreamingIncrementalE2ETests` + `SubAgentEventStreamE2ETests` 3/3 通过（取消路径未破坏泵收尾） |
+| S8 后 `Brain.Other.Tests` 全量 | 509 通过（含 `PreRequestBudgetGuardTests` 4） |
+| S8 后 MockServer E2E（query 模式） | 3/3 通过（守卫钩子默认不触发，聊天行为无回归） |
+| S8 后全仓编译 | `Build-AllDomains.ps1` 全部通过 |
 
 ### 已知差距（翻转默认前必须补）
 
 1. ~~可疑 XML 标签 fallback 解析仍为 chat-only~~ → 已解决（S6：接口下沉 abstractions，QueryEngine 经 DI 消费同一解析链）。
-2. 上下文预算守卫（ADR 0156 请求前裁剪）为 chat-only；query 后端依赖 QueryEngine 的 TokenBudget/HistorySnip。
+2. ~~上下文预算守卫（ADR 0156 请求前裁剪）为 chat-only~~ → 已解决（S8：query 中间件每轮请求前守卫，按 0.7/1.0 分级裁剪）。
 3. 流式工具执行（`UseStreamingToolExecution`，默认 false）为 chat-only；默认配置下两后端行为一致。
 4. ~~取消语义差异~~ → 已解决（S7：取消上抛 + `(aborted)` 补写，历史合法性对齐 legacy）。
 5. 宿主 E2E（GUI/slash/bridge）尚未跑 query 后端，默认值保持 legacy；native_gui exe 人工验收待做。

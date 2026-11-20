@@ -1,20 +1,23 @@
 # TASK069 — TUI 二轮细节对比（C# native_tui vs ClaudeCode 基准）
 
-> 状态：调研完成，确认 bug 修复中；差异项待用户逐项决策（一问一答）
+> 状态：**6 项确认 bug 已全部修复并验收（2026-11-21 回填，见 §一 状态列）；差异项待用户逐项决策（一问一答）**
+> 回填依据：B-1~B-5 = commit `33f8954bb`（5 个 TDD 测试文件，NativeTui.Tests 2788 + Host.Tests 125 全绿）；
+> B-6 = commit `30daa00990`（`SessionResumeStep.FindMostRecentSessionIdAsync` 加 ProjectPath 过滤，`git blame` 核实）。
+> 仅刷新「已修」事实，不改变「功能相同但实现不同 = 待用户裁决」的纪律。
 > 对比范围：第二轮 6 个此前未深挖的域（流式渲染/通知 footer/权限深度/会话 compact/错误重试/消息项渲染）
 > 方法：6 个并行调研代理，返回体量受控（行数上限约束）；判定纪律 = 双侧证据 + 自身契约违背才判 bug
 > 前置：TASK067 一轮 11 批次 + w2 板块 A-E 已覆盖底层与功能域；本轮聚焦细节层
 
 ## 一、确认 bug（直接 TDD 修复，无需决策）
 
-| # | 症状 | C# 证据 | 基准证据 | 严重度 |
-|---|------|---------|---------|--------|
-| B-1 | **Error 事件后 IsBusy 永久卡死**：回合异常（API 错误/超时/空回复/工具拒绝）只发 Error 无终态事件 → IsBusy 卡 true → 提交永久排队、Esc 无效、死亡检测被挡 | EngineTurnClient.cs:121-122（异常只发 Error）；ReplBridgeDriver.cs:181-211（IsBusy 仅 TurnCompleted/TurnInterrupted 复位） | REPL.tsx:2951-2961（finally 兜底 "Always reset loading state"） | **最高**（每次 API 错误必现） |
-| B-2 | 引擎 busy 中死亡无提示：死亡检测双条件 `!IsAlive && !IsBusy` → busy 中死亡 IsBusy 卡 true → spinner 永转不退出 | ReplShell.cs:732 | REPL.tsx:2958（finally 无条件） | 高 |
-| B-3 | 用户消息换行符被吞：'\n' 宽度 0 被 WriteText 跳过 → "a\nb" 渲染为 "ab" 无分隔 | MessageItems.cs:22,25-26 + Screen.cs:163-169 + RuneWidth.cs:136-138 | UserPromptMessage.tsx:76-78 | 高（多行/粘贴消息显示错误） |
-| B-4 | 流式项跨工具存活吞并新文本：text→tool→text 序列（agent loop 真实路径）第二段文本追加到旧流式项 → 顺序错乱 + OnDone 落定重复 | ReplBridgeDriver.cs:163-168,133-137（ToolCall 不清 _streamingItem） | messages.ts:3003（新块开始清空流式文本） | 高 |
-| B-5 | mac+ghostty spinner 字符集选择反序：darwin 优先命中含 ✽ 集（基准刻意规避 ghostty 渲染偏移） | SpinnerRow.cs:183-186 | Spinner/utils.ts:4-11（ghostty 优先） | 低 |
-| B-6 | --continue 跨项目恢复：全局最近会话无 ProjectPath 过滤（引擎域 modules/） | SessionResumeStep.cs:83-86 | sessionStorage.ts:4119-4122 | 中（跨域） |
+| # | 症状 | C# 证据（修复前） | 基准证据 | 严重度 | 状态（2026-11-21 回填） |
+|---|------|---------|---------|--------|------|
+| B-1 | **Error 事件后 IsBusy 永久卡死**：回合异常（API 错误/超时/空回复/工具拒绝）只发 Error 无终态事件 → IsBusy 卡 true → 提交永久排队、Esc 无效、死亡检测被挡 | EngineTurnClient.cs:121-122（异常只发 Error）；ReplBridgeDriver.cs:181-211（IsBusy 仅 TurnCompleted/TurnInterrupted 复位） | REPL.tsx:2951-2961（finally 兜底 "Always reset loading state"） | **最高**（每次 API 错误必现） | ✅ 已修 `33f8954bb`（Error 分支承担 EndTurn）+ `BridgeErrorTurnTerminationTests.cs` |
+| B-2 | 引擎 busy 中死亡无提示：死亡检测双条件 `!IsAlive && !IsBusy` → busy 中死亡 IsBusy 卡 true → spinner 永转不退出 | ReplShell.cs:732 | REPL.tsx:2958（finally 无条件） | 高 | ✅ 已修 `33f8954bb`（一拍缓冲后强制退出）+ `EngineDeathDetectionTests.cs` |
+| B-3 | 用户消息换行符被吞：'\n' 宽度 0 被 WriteText 跳过 → "a\nb" 渲染为 "ab" 无分隔 | MessageItems.cs:22,25-26 + Screen.cs:163-169 + RuneWidth.cs:136-138 | UserPromptMessage.tsx:76-78 | 高（多行/粘贴消息显示错误） | ✅ 已修 `33f8954bb`（空格分隔）+ `UserMessageNewlineRenderTests.cs` |
+| B-4 | 流式项跨工具存活吞并新文本：text→tool→text 序列（agent loop 真实路径）第二段文本追加到旧流式项 → 顺序错乱 + OnDone 落定重复 | ReplBridgeDriver.cs:163-168,133-137（ToolCall 不清 _streamingItem） | messages.ts:3003（新块开始清空流式文本） | 高 | ✅ 已修 `33f8954bb`（ToolCall 即定格 partial）+ `StreamingItemToolBoundaryTests.cs` |
+| B-5 | mac+ghostty spinner 字符集选择反序：darwin 优先命中含 ✽ 集（基准刻意规避 ghostty 渲染偏移） | SpinnerRow.cs:183-186 | Spinner/utils.ts:4-11（ghostty 优先） | 低 | ✅ 已修 `33f8954bb`（ghostty 优先判定）+ `SpinnerCharacterSetOrderTests.cs` |
+| B-6 | --continue 跨项目恢复：全局最近会话无 ProjectPath 过滤（引擎域 modules/） | SessionResumeStep.cs:83-86 | sessionStorage.ts:4119-4122 | 中（跨域） | ✅ 已修 `30daa00990`（`FindMostRecentSessionIdAsync` 加 ProjectPath 过滤，`git blame` 核实） |
 
 ## 二、差异清单（高价值节选，待一问一答）
 

@@ -126,9 +126,9 @@
 
 1. ~~可疑 XML 标签 fallback 解析仍为 chat-only~~ → 已解决（S6：接口下沉 abstractions，QueryEngine 经 DI 消费同一解析链）。
 2. ~~上下文预算守卫（ADR 0156 请求前裁剪）为 chat-only~~ → 已解决（S8：query 中间件每轮请求前守卫，按 0.7/1.0 分级裁剪）。
-3. 流式工具执行（`UseStreamingToolExecution`，默认 false）为 chat-only；默认配置下两后端行为一致。
+3. 流式工具执行（`UseStreamingToolExecution`，默认 false）为 chat-only — 接受为 opt-in 差异：query 后端按非流式执行（与 chat 默认配置一致），启用该设置且走 query 后端时输出 `[LOOP-QUERY]` 诊断说明；迁移并发调度器风险高于收益，不阻塞默认切换。
 4. ~~取消语义差异~~ → 已解决（S7：取消上抛 + `(aborted)` 补写，历史合法性对齐 legacy）。
-5. 宿主 E2E（GUI/slash/bridge）尚未跑 query 后端，默认值保持 legacy；native_gui exe 人工验收待做。
+5. 宿主验收：GUI 同源会话已由 MockServer E2E 在 query 后端通过（自动）；slash/bridge 宿主仍缺 query 后端 E2E（slash 元命令宿主 `SkipProviderConfig=true` 无法连 MockServer），○ 待验收；native_gui exe 人工验收 ○ 待用户执行。默认值保持 legacy 直至宿主验收完成。
 
 ## 验收标准
 

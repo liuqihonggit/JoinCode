@@ -117,6 +117,8 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         // TASK103 灰度后端：显式 JCC_CHAT_LOOP_BACKEND=query 时把整个 ReAct 循环委托给 QueryEngine；
         // 默认 legacy 保持既有行为，dry-run 预览仍走旧循环。
         if (ChatLoopBackendPolicy.UseQueryEngine && _queryEngine is not null && !context.IsDryRun) {
+            if (UseStreamingToolExecution)
+                Diag.WriteLine("[LOOP-QUERY] UseStreamingToolExecution 仅 legacy 后端支持，query 后端按非流式执行（默认配置行为一致）");
             await foreach (var evt in RunQueryBackendAsync(context, next, ct).ConfigureAwait(false)) {
                 yield return evt;
             }

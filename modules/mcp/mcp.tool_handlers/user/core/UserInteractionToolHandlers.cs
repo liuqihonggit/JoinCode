@@ -113,14 +113,14 @@ public class UserInteractionToolHandlers {
             .Build();
     }
 
-    /// <summary>构造用户空闲超时（未作答）时的引导文本 — 明确不得假定答案，并提示稍后重新提问。</summary>
+    /// <summary>构造提问被后台回调提前关闭时的引导文本 — 明确不得假定答案，并提示稍后重新提问。</summary>
     private static string BuildDeferredText(string toolName, Dictionary<string, string>? partialAnswers, string? action = null) {
         var sb = new StringBuilder(256);
-        sb.AppendLine($"User has not responded yet (no input within the idle wait window). Control returned to you from `{toolName}` so background tasks keep streaming.");
+        sb.AppendLine($"A background task notification arrived while waiting for user input. Control returned to you from `{toolName}` so the notification can be processed first.");
         sb.AppendLine(action is not null
             ? $"The action `{action}` was NOT executed — do not treat it as confirmed."
             : "Do NOT assume any answer to the pending questions.");
-        sb.AppendLine("Continue other work or background monitoring, then call this tool again later to re-ask the user.");
+        sb.AppendLine("Process the background notification, then call this tool again later to re-ask the user.");
         if (partialAnswers is { Count: > 0 })
             sb.AppendLine($"Partial answers already collected: {string.Join(", ", partialAnswers.Select(kv => $"\"{kv.Key}\"=\"{kv.Value}\""))}");
         return sb.ToString();

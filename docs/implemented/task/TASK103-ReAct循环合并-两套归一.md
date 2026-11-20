@@ -311,35 +311,41 @@
 | 风格门禁 | `Verify-StyleGate.py` | 0 findings（顺带修复 native_tui `UltrathinkHighlighter.cs` 遗留文件级 using） |
 | E2E 文本解析适配 | `ConversationOutputParser` 改为 pending 列表 + 按工具名 FIFO 匹配（并行批次先集中 `[Tool]` 再按序 `[OK]`） | 新增 3 个解析器测试（批量开始/结果映射、同名 FIFO、原串行行为）；`E2E - Tools` 全组本地 60/60 通过（CI 首轮该组曾因旧解析器误配结果而红） |
 
-## S14 — ask 空闲超时交还控制权（默认 30 秒，2026-11-21）
+## S14 — 后台回调到达即关闭 ask（事件驱动，2026-11-21）
 
-> 现象：后台任务监控运行期间，前台 `ask_user_question` / `confirm_action` 用阻塞 `Console.ReadLine()` 等待输入，期间后台通知无法被消费（`BackgroundNotificationHandler` 只在迭代开始排空），表现为“后台死了”。
+> 现象：后台任务监控运行期间，前台 `ask_user_question` / `confirm_action` 用阻塞 `Console.ReadLine()` 等待输入，期间后台回调无法被处理，表现为“后台死了”。首版用 30 秒空闲超时，用户否决：要求**后台始终可读，只有钩子/回调真正触发时才关闭 ask**，不是到期关闭。
 
 ### 设计（默认行为，无开关）
 
 | 项 | 决策 |
 |----|------|
-| 超时归属 | 终端交互服务（CLI）内部，用户在任一提示停留超过 30 秒无输入即返回 `Deferred` |
-| 控制权 | 工具调用正常结束（非错误），Agent 循环恢复 → 下一轮迭代排空后台通知，等价于间隔检测 |
+| 唤醒条件 | 等待输入期间轮询两条件：输入就绪 → 正常读取；后台通知待处理 → 立即关闭本次提问返回 `Deferred` |
+| 无超时 | 用户不输入且无后台回调时，ask 保持等待（原阻塞语义），不按时间关闭 |
+| 控制权 | 工具调用正常结束（非错误）；`QueryLoopMiddleware` 在每轮迭代步首排空后台通知并注入查询实时历史，模型可立即看到回调并按引导重问 |
+| 回合收尾 | `HasPendingIterationInput` 同时纳入 steer 输入与待处理后台通知，避免模型收尾时通知被留到下一用户回合 |
 | 答案语义 | 绝不假定未作答问题的答案；`confirm_action` 明确 `NOT executed`；多问题已答部分放入 `PartialAnswers` |
-| 非交互路径 | `TerminalHelper.IsHeadless`（stdin/stdout 重定向且未强制交互）保持原 `FailureResult`；`ForceInteractive + 重定向` 无控制台句柄时退化为立即读取（`KeyAvailable` 抛 `InvalidOperationException`/`IOException` → 视为就绪） |
+| 非交互路径 | `TerminalHelper.IsHeadless` 保持原 `FailureResult`；`ForceInteractive + 重定向` 无控制台句柄时（`KeyAvailable` 抛 `InvalidOperationException`/`IOException`）退化为立即读取 |
 | 无开关 | 用户明确要求默认行为，不引入 `JCC_*` 开关 |
 
 ### 需求落地四列验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `IdleInputWaiter`（`modules/abstractions/abstractions.utils/core/misc/IdleInputWaiter.cs`）轮询就绪检查 + 空闲超时返回 false | `TerminalInteractiveService.WaitForInputOrDeferAsync`（CLI 所有 ask 提示） | ✅ | ✅ 单元测试 5/5（就绪/轮询后就绪/超时/取消/零超时） |
+| `InteractiveInputWaiter`（`modules/abstractions/abstractions.utils/core/misc/InteractiveInputWaiter.cs`）轮询输入就绪/后台唤醒信号，无超时 | `TerminalInteractiveService.WaitForInputOrDeferAsync`（CLI 所有 ask 提示） | ✅ | ✅ 单元测试 6/6（就绪/信号/优先级/轮询/取消） |
 | `AskUserQuestionResult.Deferred/PartialAnswers/DeferredResult`（`InteractiveModels.cs`） | `TerminalInteractiveService`、`UserInteractionToolHandlers` | ✅ | ✅ 编译 + 处理器测试 |
-| `TerminalInteractiveService` 由阻塞 `ReadLine` 改为 `IdleInputWaiter` 就绪等待后读取，超时返回 `Deferred`（单选/多选/自由输入/多问题逐题） | `UserInteractionToolHandlers.AskUserQuestionAsync` / `ConfirmActionAsync` | ✅ | ⚠️ 真实控制台 30 秒空闲路径无法在无人值守环境自动驱动（需真实 TTY），逻辑由 `IdleInputWaiter` 单测 + 处理器映射测试覆盖 |
-| Deferred → 成功工具结果 + 引导文本（不得假定答案、继续后台监控、稍后重问） | QueryEngine 工具结果 → 下一轮迭代排空后台通知 | ✅ | ✅ `UserInteractionToolHandlersTests` 11/11（含 defer 双路径与部分答案） |
+| `TerminalInteractiveService` 注入 `IAgentNotificationQueue`，等待输入期间检测待处理通知，到达即返回 `Deferred`（单选/多选/自由输入/多问题逐题） | `UserInteractionToolHandlers.AskUserQuestionAsync` / `ConfirmActionAsync` | ✅ | ⚠️ 真实控制台“等待中后台回调到达”路径需真实 TTY + 后台任务触发，无法无人值守自动驱动；等待器单测 + 处理器映射测试覆盖逻辑 |
+| `IBackgroundNotificationHandler.DrainPendingNotificationTexts/HasPendingNotifications` + `QueryLoopMiddleware` 步首注入 | QueryEngine 每轮迭代（`OnIterationStart`）、回合收尾判定（`HasPendingIterationInput`） | ✅ | ✅ `BackgroundNotificationHandlerTests` 4/4 + `QueryLoopQueryBackendTests` 步首注入用例 |
+| Deferred → 成功工具结果 + 引导文本（收到后台回调、不得假定答案、处理通知后重问） | QueryEngine 工具结果 → 下一轮迭代注入回调 | ✅ | ✅ `UserInteractionToolHandlersTests` 11/11（含 defer 双路径与部分答案） |
 
 ### 验证记录
 
 | 验证 | 方式 | 结果 |
 |------|------|------|
-| 单元测试 | `dotnet test Abs.Core.Tests --filter IdleInputWaiterTests` | 5/5 通过 |
+| 单元测试 | `dotnet test Abs.Core.Tests --filter InteractiveInputWaiterTests` | 6/6 通过 |
 | 单元测试 | `dotnet test Mcp.Tests --filter UserInteractionToolHandlersTests` | 11/11 通过 |
+| 单元测试 | `dotnet test Brain.Context.Tests --filter BackgroundNotificationHandlerTests` | 4/4 通过 |
+| 单元测试 | `dotnet test Brain.Context.Tests --filter QueryLoopQueryBackendTests` | 全绿（含新增步首通知注入用例） |
 | 编译 | `dotnet build modules/apps/cli/JoinCode.csproj -c Debug` | 0 警告 0 错误 |
+| 全仓编译 | `Build-AllDomains.ps1` | 16 域 + native_tui + native_gui 全部通过 |
 | 风格门禁 | `Verify-StyleGate.py` | 0 findings |
 | 取消语义修正 | `UserInteractionToolHandlers` 将 `Cancelled` 判定提前到 `!Success` 之前（原顺序导致取消永远落到通用错误） | 取消测试断言更新为 `declined` 并通过 |

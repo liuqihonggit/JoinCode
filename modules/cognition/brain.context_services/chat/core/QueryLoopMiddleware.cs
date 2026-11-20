@@ -173,15 +173,24 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         ExecutionOverrides = context.ExecutionSettings,
         ModelId = context.ToolUseContext.ModelOverride,
         EffortLevel = EffortLevelHelper.ParseEffortLevel(context.ToolUseContext.Effort),
-        OnIterationStart = (history, _) => DrainSteerIntoQueryHistoryAsync(context, history, steerEvents),
-        HasPendingIterationInput = () => _steerMailbox?.HasPending(context.SessionId) == true,
+        OnIterationStart = (history, _) => InjectIterationInputsAsync(context, history, steerEvents),
+        HasPendingIterationInput = () => _steerMailbox?.HasPending(context.SessionId) == true
+            || _notificationHandler.HasPendingNotifications,
     };
 
+    /// <summary>步首注入轮内输入 — steer 输入与后台任务通知同时进入查询实时历史，保证 ask 被回调打断后模型能立即看到结果。</summary>
+    private Task InjectIterationInputsAsync(
+        ChatMiddlewareContext context, MessageList history, ConcurrentQueue<ChatStreamEvent> steerEvents) {
+        DrainSteerIntoQueryHistory(context, history, steerEvents);
+        InjectPendingBackgroundNotifications(history);
+        return Task.CompletedTask;
+    }
+
     /// <summary>步首注入 steer — 写入查询实时历史并排队 SteerInput 事件，供消费循环上屏。</summary>
-    private Task DrainSteerIntoQueryHistoryAsync(
+    private void DrainSteerIntoQueryHistory(
         ChatMiddlewareContext context, MessageList history, ConcurrentQueue<ChatStreamEvent> steerEvents) {
         if (_steerMailbox is null)
-            return Task.CompletedTask;
+            return;
 
         var pending = _steerMailbox.DrainAll(context.SessionId);
         foreach (var text in pending) {
@@ -189,7 +198,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             steerEvents.Enqueue(ChatStreamEvent.SteerInput(text));
             Diag.WriteLine($"[STEER-QUERY] 轮内注入进入查询历史 session={context.SessionId} 长度={text.Length}");
         }
-        return Task.CompletedTask;
+    }
+
+    /// <summary>步首注入后台任务通知 — 从通知队列排空并写入查询实时历史。</summary>
+    private void InjectPendingBackgroundNotifications(MessageList history) {
+        foreach (var notification in _notificationHandler.DrainPendingNotificationTexts()) {
+            history.AddUserMessage(notification);
+            Diag.WriteLine($"[BACKGROUND-NOTIFY] 轮内注入进入查询历史 长度={notification.Length}");
+        }
     }
 
     /// <summary>把查询引擎输出泵入通道 — 引擎异常通过 pumpTask 回抛，通道关闭由 finally 保证。</summary>

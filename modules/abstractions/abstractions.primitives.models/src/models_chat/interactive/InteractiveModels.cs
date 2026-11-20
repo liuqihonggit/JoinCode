@@ -33,12 +33,12 @@ public sealed record AskUserQuestionResult {
     public string? ErrorMessage { get; init; }
     /// <summary>获取是否已取消。</summary>
     public bool Cancelled { get; init; }
-    /// <summary>获取是否因用户空闲超时（未作答）而暂缓，调用方应稍后重新提问。</summary>
+    /// <summary>获取是否因后台任务回调到达而提前关闭提问，调用方应恢复循环并稍后重新提问。</summary>
     public bool Deferred { get; init; }
-    /// <summary>获取用户空闲超时未作答时已收集的中途答案（可能为空）。</summary>
+    /// <summary>获取提问被提前关闭时已收集的中途答案（可能为空）。</summary>
     public Dictionary<string, string>? PartialAnswers { get; init; }
 
-    /// <summary>创建用户空闲超时（未作答）结果，携带已收集的部分答案。</summary>
+    /// <summary>创建提问被后台回调提前关闭的结果，携带已收集的部分答案。</summary>
     public static AskUserQuestionResult DeferredResult(Dictionary<string, string>? partialAnswers = null) => new() {
         Success = false,
         Deferred = true,

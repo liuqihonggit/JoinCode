@@ -3,7 +3,8 @@ namespace NativeTui.Core.Repl;
 /// <summary>
 /// 流式正文项（M8-1 逐字流式 — TASK064 方案 A；方案 B 块级增量升级 — 流式期 Markdown 实时渲染）：
 /// 回合进行中 assistant 正文逐字上屏，对齐基准 Messages.tsx 尾部 ⎿ 前缀行渲染 StreamingMarkdown
-///（块边界切分：稳定前缀完整块走 MarkdownLayout 布局 + 段样式渲染，增长尾纯文本 —
+///（块边界切分：稳定前缀完整块 + 增长尾块都走 MarkdownLayout 布局 + 段样式渲染
+///（TASK069-S2 — 对齐基准 StreamingMarkdown 对 stablePrefix/unstableSuffix 同样 `<Markdown>` 渲染）；
 /// OnDone 由 Driver 原位替换为完整 Markdown/Assistant 项 ⏺ 形态，视觉无跳变）。
 /// ⎿ 前缀整体 dim（对齐 ToolResultItem "  ⎿  " 先例）；续行缩进对齐内容列；
 /// ScrollBox 每帧全量重渲（MeasureHeight/Render 每帧调用）— Append 置脏，帧内首次访问惰性投影
@@ -147,7 +148,8 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
     }
 
     /// <summary>投影行模型 — 稳定段布局行 + 稳定/尾间 gap 空行（块间空行语义 — 落定替换视觉无跳变）
-    /// + 尾纯文本行（未闭合围栏尾 Dim 样式）；空投影兜底 1 空行（高度对齐纯文本空缓冲形态）。</summary>
+    /// + 尾行；空投影兜底 1 空行。尾块有块模型时走 MarkdownLayout（TASK069-S2 — 对齐基准
+    /// unstableSuffix 完整渲染，未闭合围栏即代码块样式）；无块模型（无语法降级）走纯文本行。</summary>
     private IReadOnlyList<IReadOnlyList<MarkdownSegment>> BuildProjectedLines(int width) {
         if (_projection is not { } projection) {
             return [[]];
@@ -158,12 +160,14 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
             lines.Add([]);
         }
 
-        if (tail.Length > 0) {
-            var tailStyle = projection.TailOpenFence ? MarkdownStyle.Dim : MarkdownStyle.None;
-            // 可见文本必以 '\n' 结尾 — 去末尾换行再切分，避免尾行模型多出一个空行
+        if (projection.TailBlocks is { Count: > 0 } tailBlocks) {
+            lines.AddRange(MarkdownLayout.LayoutWithHighlights(
+                new MarkdownDocument(tailBlocks), Math.Max(0, width - ContentIndentCols), null).Lines);
+        } else if (tail.Length > 0) {
+            // 无语法降级：纯文本行（可见文本必以 '\n' 结尾 — 去末尾换行再切分，避免尾行多出空行）
             var body = tail.EndsWith('\n') ? tail[..^1] : tail;
             foreach (var line in body.Split('\n')) {
-                lines.Add(line.Length == 0 ? [] : [new MarkdownSegment(line, tailStyle)]);
+                lines.Add(line.Length == 0 ? [] : [new MarkdownSegment(line, MarkdownStyle.None)]);
             }
         }
 

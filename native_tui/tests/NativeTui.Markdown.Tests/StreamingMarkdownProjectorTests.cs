@@ -2,9 +2,9 @@ namespace NativeTui.Markdown.Tests;
 
 /// <summary>
 /// 流式 Markdown 增量投影器测试（方案 B — 块级增量，对齐基准 Markdown.tsx 块边界切分机制）：
-/// 块边界切分（单增长块全尾 / 多块首块稳定）；未闭合围栏 TailOpenFence；
+/// 块边界切分（单增长块全尾 / 多块首块稳定）；尾块投影成块模型（S2 — 未闭合围栏即代码块）；
 /// memoize（相同长度缓存 + 切分点推进才追加投影 + 逐 delta 序列与最终直接投影等价）；
-/// 无语法快路径全尾；稳定块行内样式投影（与 MarkdigProjector 同一分派）。
+/// 无语法快路径全尾（TailBlocks 留空）；稳定块行内样式投影（与 MarkdigProjector 同一分派）。
 /// </summary>
 public sealed class StreamingMarkdownProjectorTests
 {
@@ -22,7 +22,7 @@ public sealed class StreamingMarkdownProjectorTests
 
         Assert.Empty(projection.StableBlocks);
         Assert.Equal(string.Empty, projection.Tail);
-        Assert.False(projection.TailOpenFence);
+        Assert.Null(projection.TailBlocks);
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class StreamingMarkdownProjectorTests
 
         Assert.Empty(projection.StableBlocks);
         Assert.Equal("just plain text", projection.Tail);
-        Assert.False(projection.TailOpenFence);
+        Assert.Null(projection.TailBlocks);
     }
 
     [Fact]
@@ -55,7 +55,8 @@ public sealed class StreamingMarkdownProjectorTests
         var segment = Assert.Single(paragraph.Segments);
         Assert.Equal("p1", segment.Text);
         Assert.Equal("p2", projection.Tail);
-        Assert.False(projection.TailOpenFence);
+        // 尾块同样投影成块模型（S2）— 单段落
+        Assert.IsType<MarkdownParagraph>(Assert.Single(projection.TailBlocks!));
     }
 
     [Fact]
@@ -118,25 +119,31 @@ public sealed class StreamingMarkdownProjectorTests
     }
 
     [Fact]
-    public void Project_UnclosedFence_TailOpenFenceTrue()
+    public void Project_UnclosedFence_TailBlockIsCode()
     {
+        // S2 — 未闭合围栏在尾块投影期即为代码块（不再靠 TailOpenFence 让渲染层 dim）
         var projection = new StreamingMarkdownProjector().Project("intro\n\n```cs\ncode");
 
         var paragraph = SingleStableParagraph(projection);
         var segment = Assert.Single(paragraph.Segments);
         Assert.Equal("intro", segment.Text);
         Assert.Equal("```cs\ncode", projection.Tail);
-        Assert.True(projection.TailOpenFence);
+
+        var code = Assert.IsType<MarkdownCode>(Assert.Single(projection.TailBlocks!));
+        Assert.Equal("cs", code.Language);
+        Assert.Contains("code", code.Text, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Project_ClosedFenceTail_NoOpenFence()
+    public void Project_ClosedFenceTail_TailBlockIsCode()
     {
         var projection = new StreamingMarkdownProjector().Project("a\n\n```\nc\n```");
 
         SingleStableParagraph(projection);
         Assert.Equal("```\nc\n```", projection.Tail);
-        Assert.False(projection.TailOpenFence);
+
+        var code = Assert.IsType<MarkdownCode>(Assert.Single(projection.TailBlocks!));
+        Assert.Contains("c", code.Text, StringComparison.Ordinal);
     }
 
     [Fact]

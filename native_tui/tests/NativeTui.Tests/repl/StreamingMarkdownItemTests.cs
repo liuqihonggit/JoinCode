@@ -5,7 +5,9 @@ namespace NativeTui.Tests.Repl;
 /// 真投影器测试见 NativeTui.Markdown.Tests）：
 /// null 投影器降级纯文本（M8-1 行为回归锁）；稳定段走 MarkdownLayout 布局 + 段样式渲染
 ///（与 MarkdownMessageItem 同源 — 落定替换视觉无跳变）；稳定/尾间 gap 空行（块间空行语义）；
-/// 增长尾纯文本默认样式；未闭合围栏尾 dim；Append 置脏重投影 + 同帧缓存不重投影。
+/// 增长尾**块模型**同样走 MarkdownLayout（TASK069-S2 — 对齐基准 unstableSuffix 完整渲染，
+/// 未闭合围栏即代码块：只显示代码内容不显示围栏标记）；无块模型时回落纯文本行（无语法降级）；
+/// Append 置脏重投影 + 同帧缓存不重投影。
 /// TASK069-S1 — 只显示完整行：夹具文本须以 '\n' 结尾才可见（未完成尾行不渲染，
 /// 对齐基准 REPL.tsx visibleStreamingText 的 lastIndexOf('\n') 截断）。
 /// </summary>
@@ -23,9 +25,12 @@ public sealed class StreamingMarkdownItemTests
         }
     }
 
-    /// <summary>单段投影 helper — 稳定 1 段 + 尾。</summary>
-    private static StreamingMarkdownProjection Projection(string stableText, string tail, bool openFence = false) =>
-        new([new MarkdownParagraph([new MarkdownSegment(stableText, MarkdownStyle.None)])], tail, openFence);
+    /// <summary>单段投影 helper — 稳定 1 段 + 尾文本（+ 可选尾块模型）。</summary>
+    private static StreamingMarkdownProjection Projection(
+        string stableText,
+        string tail,
+        IReadOnlyList<MarkdownBlock>? tailBlocks = null) =>
+        new([new MarkdownParagraph([new MarkdownSegment(stableText, MarkdownStyle.None)])], tail, tailBlocks);
 
     [Fact]
     public void NullProjector_RendersPlainTextRegression()
@@ -48,11 +53,11 @@ public sealed class StreamingMarkdownItemTests
     [Fact]
     public void StableAndTail_RenderedWithGapLine()
     {
-        // 稳定段（⎿ 后首行）→ gap 空行（块间空行语义）→ 尾纯文本默认样式
+        // 稳定段（⎿ 后首行）→ gap 空行（块间空行语义）→ 尾（无块模型 = 纯文本降级）
         using var screen = new Screen(cols: 40, rows: 5);
         var projector = new StubProjector(_ => Projection("stable para", "growing tail"));
         var item = new StreamingTextItem(projector);
-        item.Append("stable para\n\ngrowing tail");
+        item.Append("stable para\n\ngrowing tail\n");
 
         item.Render(screen, new Rect(0, 0, 40, 5), Theme.Dark);
 
@@ -69,7 +74,7 @@ public sealed class StreamingMarkdownItemTests
         // 稳定段行内样式实时生效 — bold 段渲染 bold 样式（流式期即 Markdown 渲染）
         using var screen = new Screen(cols: 40, rows: 3);
         var projection = new StreamingMarkdownProjection(
-            [new MarkdownParagraph([new MarkdownSegment("bold", MarkdownStyle.Bold)])], string.Empty, false);
+            [new MarkdownParagraph([new MarkdownSegment("bold", MarkdownStyle.Bold)])], string.Empty);
         var projector = new StubProjector(_ => projection);
         var item = new StreamingTextItem(projector);
         item.Append("**bold**\n");
@@ -87,7 +92,7 @@ public sealed class StreamingMarkdownItemTests
         // 稳定标题块 — h1 级别样式由布局层施加（Bold|Italic|Underline），流式渲染同 MarkdownMessageItem
         using var screen = new Screen(cols: 40, rows: 3);
         var projection = new StreamingMarkdownProjection(
-            [new MarkdownHeading(1, [new MarkdownSegment("Title", MarkdownStyle.None)])], string.Empty, false);
+            [new MarkdownHeading(1, [new MarkdownSegment("Title", MarkdownStyle.None)])], string.Empty);
         var projector = new StubProjector(_ => projection);
         var item = new StreamingTextItem(projector);
         item.Append("# Title\n");
@@ -100,30 +105,53 @@ public sealed class StreamingMarkdownItemTests
     }
 
     [Fact]
-    public void OpenFenceTail_RenderedDim()
+    public void UnclosedFenceTail_RenderedAsCodeBlock()
     {
-        // 未闭合围栏尾 — dim 提示态（对齐基准未闭合围栏处理）
+        // TASK069-S2 — 未闭合围栏尾走完整 Markdown（对齐基准 unstableSuffix 渲染）：
+        // 只显示代码内容（围栏标记不显示），不再是 dim 纯文本行
         using var screen = new Screen(cols: 40, rows: 6);
-        var projector = new StubProjector(_ => Projection("intro", "```cs\nvar x", openFence: true));
+        var projector = new StubProjector(_ => Projection(
+            "intro", "```cs\nvar x\n", [new MarkdownCode("cs", "var x")]));
         var item = new StreamingTextItem(projector);
-        item.Append("intro\n\n```cs\nvar x");
+        item.Append("intro\n\n```cs\nvar x\n");
 
         item.Render(screen, new Rect(0, 0, 40, 6), Theme.Dark);
 
-        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        Assert.Equal("      ```cs", RowText.Of(screen, 3, 0, 11));
-        Assert.Equal(dim, screen[3, 6].StyleId);
+        Assert.Equal("      ", RowText.Of(screen, 2, 0, 6));
+        Assert.Equal("      var x", RowText.Of(screen, 3, 0, 11));
+        // 不再有 dim 提示态：代码内容段为默认样式
+        Assert.Equal(0, screen[3, 6].StyleId);
+        // 围栏标记不进渲染（对齐基准：code token 只渲染内容）
+        Assert.DoesNotContain("```", RowText.Of(screen, 3, 0, 20));
+    }
+
+    [Fact]
+    public void TailBlock_InlineStyleAppliedInStream()
+    {
+        // 尾块行内样式实时生效 — 增长中的 bold 段按 Markdown 渲染（S2 前为纯文本）
+        using var screen = new Screen(cols: 40, rows: 3);
+        var projector = new StubProjector(_ => new StreamingMarkdownProjection(
+            [], "**bold**\n",
+            [new MarkdownParagraph([new MarkdownSegment("bold", MarkdownStyle.Bold)])]));
+        var item = new StreamingTextItem(projector);
+        item.Append("**bold**\n");
+
+        item.Render(screen, new Rect(0, 0, 40, 3), Theme.Dark);
+
+        var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
+        Assert.Equal("  ⎿  bold", RowText.Of(screen, 1, 0, 9));
+        Assert.Equal(bold, screen[1, 5].StyleId);
     }
 
     [Fact]
     public void MultiLineTail_RenderedLineByLine()
     {
-        // 尾多行（增长中多行块）逐行渲染 — 各行从内容列起
+        // 尾多行（增长中多行块）逐行渲染 — 无块模型时纯文本降级，各行从内容列起
         using var screen = new Screen(cols: 40, rows: 5);
         var projector = new StubProjector(_ => new StreamingMarkdownProjection(
-            [new MarkdownParagraph([new MarkdownSegment("head", MarkdownStyle.None)])], "l1\nl2", false));
+            [new MarkdownParagraph([new MarkdownSegment("head", MarkdownStyle.None)])], "l1\nl2\n"));
         var item = new StreamingTextItem(projector);
-        item.Append("head\n\nl1\nl2");
+        item.Append("head\n\nl1\nl2\n");
 
         item.Render(screen, new Rect(0, 0, 40, 5), Theme.Dark);
 
@@ -137,7 +165,7 @@ public sealed class StreamingMarkdownItemTests
     public void Append_InvalidatesProjection_SameFrameCaches()
     {
         // Append 置脏 → 下次访问重投影；同宽度重复访问走缓存不重投影（每帧 Measure+Render 只投影一次）
-        var projector = new StubProjector(text => new StreamingMarkdownProjection([], text, false));
+        var projector = new StubProjector(text => new StreamingMarkdownProjection([], text));
         var item = new StreamingTextItem(projector);
         item.Append("a\n");
 
@@ -158,8 +186,8 @@ public sealed class StreamingMarkdownItemTests
     {
         // 流式推进 — 尾跨过块边界转稳定块后高度增长（稳定布局行 + gap + 新尾行）
         var projector = new StubProjector(accumulated => accumulated.Contains('\n')
-            ? Projection("para", "next")
-            : new StreamingMarkdownProjection([], accumulated, false));
+            ? Projection("para", "next\n")
+            : new StreamingMarkdownProjection([], accumulated));
         var item = new StreamingTextItem(projector);
 
         item.Append("para");
@@ -173,7 +201,7 @@ public sealed class StreamingMarkdownItemTests
     public void EmptyProjection_SinglePrefixLine()
     {
         // 空投影 — S1 后无完整行不占位；换行到达才有单 ⎿ 空行
-        var projector = new StubProjector(_ => new StreamingMarkdownProjection([], string.Empty, false));
+        var projector = new StubProjector(_ => new StreamingMarkdownProjection([], string.Empty));
         var item = new StreamingTextItem(projector);
 
         Assert.Equal(0, item.MeasureHeight(40));
@@ -189,7 +217,7 @@ public sealed class StreamingMarkdownItemTests
     public void Text_And_ContainsText_ContractUnchanged()
     {
         // M8-1 契约保留 — Text 累积 + transcript 搜索匹配（Driver 替换/定格语义消费）
-        var projector = new StubProjector(_ => new StreamingMarkdownProjection([], string.Empty, false));
+        var projector = new StubProjector(_ => new StreamingMarkdownProjection([], string.Empty));
         var item = new StreamingTextItem(projector);
         item.Append("hello ");
         item.Append("world");

@@ -53,7 +53,7 @@
 | # | 编号 | 事项 | 来源 |
 |---|------|------|------|
 | ~~19~~ | ~~TASK069-S1~~ | ~~流式上屏粒度：逐字抖动 vs 截断到最后换行逐行~~ | TASK069 域1 | ✅ **已对齐基准 2026-11-21**（用户拍板）：一手 `REPL.tsx:1500` `visibleStreamingText = streamingText.substring(0, lastIndexOf('\n')+1) \|\| null`，注释「line-by-line, not char-by-char」。实现 `StreamingTextItem.VisibleText` 截断到最后一个换行；无完整行 → `LinesFor` 返回空、高度 0 不占位（对齐基准 null 不渲染）；`Text` 仍返回全文（落定替换/transcript 长度不受影响）。TDD 11 项 + 全量 3065 绿 + 真机 EXIT=0 |
-| 20 | TASK069-S2 | 流式尾块渲染：纯文本 vs 完整 Markdown | TASK069 域1 |
+| ~~20~~ | ~~TASK069-S2~~ | ~~流式尾块渲染：纯文本 vs 完整 Markdown~~ | TASK069 域1 | ✅ **已对齐基准 2026-11-21**（用户拍板）：一手 `Markdown.tsx:231-236` `StreamingMarkdown` 把 stablePrefix 与 unstableSuffix **都**交给 `<Markdown>`（`gap={1}` 分隔），并未对尾块降级。实现：投影契约 `TailOpenFence` → `TailBlocks`（尾块模型，projector 用 `Markdig.Parse(tail)` 投影）；`StreamingTextItem.BuildProjectedLines` 对 `TailBlocks` 走 `MarkdownLayout`。未闭合围栏在解析期即 `FencedCodeBlock` → 只显示代码内容、不再显示围栏标记与 dim 提示态。无语法快路径 `TailBlocks=null` → 纯文本行降级（保留换行）。TDD 12 项 + Markdown 30/30 + Core 3066 + Host 142 绿 + 真机 EXIT=0 |
 | 21 | TASK069-S3 | 增量解析范围：全量 Markdig.Parse vs O(尾长) | TASK069 域1（性能） |
 | 22 | TASK069-S6 | 提示词 XML 剥离（基准 stripPromptXMLTags） | TASK069 域1 |
 | 23 | TASK069-M2 | 工具圆点状态色：恒 text vs success/error + 未决闪烁 | TASK069 域6 |
@@ -157,4 +157,9 @@
   - **S1 完成**：一手 `screens/REPL.tsx:1500` 给出精确语义（`substring(0, lastIndexOf('\n')+1) || null`，注释「Hide the in-progress source line so text streams line-by-line, not char-by-char」），用户拍板对齐。实现：`StreamingTextItem` 新增 `VisibleText()`（截断到最后一个换行），`LinesFor` 对空可见文本返回空列表 → `MeasureHeight=0` 不占位（基准 null 即不渲染）；`PlainLines`/`BuildProjectedLines` 去尾部换行避免多出空行；`Text` 保持全文（`BuildTranscriptSnapshot`/落定替换/`ContainsText` 全按全文，两处消费点已核）。
   - 影响面记录：Windows 因 #13 默认关闭流式预览，S1 实际只作用于非 Windows 或显式 `allowStreamingText: true`；短回复（无换行）流式期不再有预览，与基准一致。
   - 验收：`StreamingTextItemTests` 11/11、NativeTui.Tests **3065 全绿**、Markdown 30/30、Host 142/142；真机 `jcc.exe --selftest-tui` HOST SELFTEST OK EXIT=0；产物 DLL 含 `VisibleText`（UTF-16 核验）。
-- 下一动作：§2.2 继续 —— S2（尾块走完整 Markdown）已获用户拍板待施工；S3（增量解析 O(尾长)）待做性能取证后再定；其余 M 级项（M2/M3/M4/M5/N2/C1/C2/C3/E1/E4/P3/P4/P5）逐项取证请示。
+- **S2 完成（2026-11-21）**：一手 `components/Markdown.tsx:231-236` 确认基准 `StreamingMarkdown` 返回 `<Box><Markdown>{stablePrefix}</Markdown><Markdown>{unstableSuffix}</Markdown></Box>`——尾块与稳定块同等渲染，没有"纯文本降级"这一层。
+  - 契约改造：`StreamingMarkdownProjection.TailOpenFence`（bool，渲染层 dim 提示）→ `TailBlocks`（`IReadOnlyList<MarkdownBlock>?`）。理由：dim 是 C# 自创提示语义，基准无对应物；删掉后无死字段。
+  - 投影器：尾文本 `Markdig.Parse(tail)` → `ProjectBlocks`（未闭合围栏自然成为 `FencedCodeBlock`）；无语法快路径仍留 `null`（零解析，调用方纯文本行，保留换行语义）。
+  - 渲染：`BuildProjectedLines` 中 `TailBlocks` 非空走 `MarkdownLayout`（与稳定段同一布局入口），空则纯文本行降级。**已知同构风险**：tail 从块边界切片解析，若首行恰好 4 空格缩进会被判代码块——基准 `marked.lexer(stripped.substring(boundary))` 同样从边界开始，规则一致，不为 C# 特有。
+  - 验收：`StreamingMarkdownItemTests` 12 项、`StreamingMarkdownProjectorTests`（未闭合/闭合围栏改为断言 `MarkdownCode`）、Markdown 30/30、NativeTui.Tests 3066、Host 142 全绿；真机 `--selftest-tui` HOST SELFTEST OK EXIT=0；产物 `NativeTui.Markdown.dll` 与库输出同哈希 `680547e`（不只信时间戳）。
+- 下一动作：§2.2 继续 —— S3（增量解析 O(尾长)）待做性能取证后再定（当前定位切分点仍需全量 `Markdig.Parse`，长回复每 delta 全量解析是真实成本）；其余 M 级项（M2/M3/M4/M5/N2/C1/C2/C3/E1/E4/P3/P4/P5）逐项取证请示。

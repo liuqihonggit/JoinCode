@@ -124,6 +124,36 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, text, 0, frame.Right);
     }
 
+    /// <summary>
+    /// 渲染工具错误结果块的一行（TASK069-M5 — 对齐基准 FallbackToolUseErrorMessage）：
+    /// 首行 "  ⎿  " 前缀 dim + 正文 error 色；续行按 ToolResultIndent 等宽空格缩进 + error 色
+    ///（基准 MessageResponse 前缀列固定，错误 Text color="error" 承载全文）。
+    /// </summary>
+    public static void RenderToolErrorLine(Screen screen, Rect frame, Theme theme, string text, bool isFirst)
+    {
+        var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        if (!isFirst)
+        {
+            var indent = new string(' ', Figures.ToolResultIndent.Length);
+            screen.WriteText(frame.Y, frame.X, indent, 0, frame.Right);
+            screen.WriteText(frame.Y, frame.X + indent.Length, text, error, frame.Right);
+            return;
+        }
+
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, Figures.ToolResultIndent, dim, frame.Right);
+        screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, text, error, frame.Right);
+    }
+
+    /// <summary>渲染错误块折叠提示（缩进同续行 + dim — 基准 `… +N lines (ctrl+o to see all)`）。</summary>
+    public static void RenderErrorCollapseHint(Screen screen, Rect frame, Theme theme, int hiddenLines)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var indent = new string(' ', Figures.ToolResultIndent.Length);
+        screen.WriteText(frame.Y, frame.X, indent, 0, frame.Right);
+        screen.WriteText(frame.Y, frame.X + indent.Length, ToolFoldingPolicy.ErrorHiddenLinesHint(hiddenLines), dim, frame.Right);
+    }
+
     /// <summary>渲染思考摘要行（结构化消息）：∴ 前缀 + "思考"（收起态带 " · ctrl+o 展开推理" /
     /// 展开态 " ▾"），整行 dim。时长不在此行显示 — 归 spinner 行 "thought for Ns"（对齐基准
     /// SpinnerAnimationRow thinkingStatus 口径；durationMs 参数仅为既有调用方兼容保留，

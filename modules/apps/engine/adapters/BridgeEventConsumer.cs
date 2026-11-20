@@ -70,11 +70,11 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         WriteEvent(new Cli.Bridge.BridgeEvent.ToolCall(toolName, arguments ?? string.Empty));
     }
 
-    /// <summary>工具调用结束 → tool_result(截断摘要 + error 标记 + 结构化补丁投影 + 原始输出预截断投影)。
-    /// TASK069-M2/M5 — isError 同时以结构化字段下发（此前只折进摘要文本前缀，TUI 无法给圆点上色/走错误形态）。</summary>
+    /// <summary>工具调用结束 → tool_result(截断摘要 + 结构化 isError + 结构化补丁投影 + 原始输出预截断投影)。
+    /// TASK069-M2/M5 — isError 以结构化字段下发（此前只折进摘要文本前缀，TUI 无法给圆点上色/走错误形态）。</summary>
     public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
         var (rawOutput, hiddenLines) = ProjectRawOutput(resultText);
-        WriteEvent(new Cli.Bridge.BridgeEvent.ToolResult(BuildSummary(resultText, isError), ProjectPatch(patch), rawOutput, hiddenLines, isError));
+        WriteEvent(new Cli.Bridge.BridgeEvent.ToolResult(BuildSummary(resultText), ProjectPatch(patch), rawOutput, hiddenLines, isError));
     }
 
     /// <summary>工具调用进度 → tool_progress（TASK065 P3 — Bash/PowerShell 执行中输出快照流式上屏；
@@ -155,13 +155,13 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         WriteEvent(new Cli.Bridge.BridgeEvent.ThinkingEnded(Math.Max(0, _wallClock() - start)));
     }
 
-    /// <summary>工具结果摘要：error 前缀 + 截断。</summary>
-    private static string BuildSummary(string? resultText, bool isError) {
+    /// <summary>工具结果摘要：纯内容截断（TASK069-M5 — 错误标记不再拼进摘要文本，改由
+    /// `isError` 结构化字段承载，渲染侧归一为基准 `Error: ` 前缀 + error 色块）。</summary>
+    private static string BuildSummary(string? resultText) {
         var text = resultText ?? string.Empty;
-        var truncated = text.Length > ToolResultSummaryLimit
+        return text.Length > ToolResultSummaryLimit
             ? string.Concat(text.AsSpan(0, ToolResultSummaryLimit), "...")
             : text;
-        return isError ? $"[error] {truncated}" : truncated;
     }
 
     /// <summary>

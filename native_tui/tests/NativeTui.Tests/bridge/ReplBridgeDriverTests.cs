@@ -190,6 +190,31 @@ public sealed class ReplBridgeDriverTests
     }
 
     [Fact]
+    public void Apply_ToolResultWithErrorFlag_BuildsErrorFormItem()
+    {
+        // TASK069-M5 — isError 同时决定结果项形态（error 色块），不只圆点
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls"));
+
+        _driver.Apply(new BridgeEvent.ToolResult("boom", IsError: true));
+
+        var result = Assert.Single(_view.Messages.Items.OfType<ToolResultItem>());
+        Assert.True(result.IsError);
+    }
+
+    [Fact]
+    public void Apply_SuccessToolResult_BuildsPlainFormItem()
+    {
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls"));
+
+        _driver.Apply(new BridgeEvent.ToolResult("ok"));
+
+        var result = Assert.Single(_view.Messages.Items.OfType<ToolResultItem>());
+        Assert.False(result.IsError);
+    }
+
+    [Fact]
     public void Apply_NewToolCallAfterMissingResult_DoesNotRestatusPreviousItem()
     {
         // 引擎漏发 tool_result 时，新工具开始不得把上一行误标为完成

@@ -137,9 +137,25 @@ public static class TranscriptLines
         }
     }
 
-    /// <summary>工具结果行（verbose 全量）— summary ⎿ 行 + patch hunks + RawOutput 全行。</summary>
+    /// <summary>工具结果行（verbose 全量）— summary ⎿ 行 + patch hunks + RawOutput 全行；
+    /// 错误形态（TASK069-M5）投影归一后的错误块全文（与渲染同源，不叠摘要 + 输出两份）。</summary>
     private static IEnumerable<string> ToolResultLines(ToolResultItem result)
     {
+        if (result.IsError)
+        {
+            foreach (var line in ErrorBlockLines(result.ErrorText))
+            {
+                yield return line;
+            }
+
+            foreach (var line in PatchLines(result.Patch))
+            {
+                yield return line;
+            }
+
+            yield break;
+        }
+
         if (result.Summary.Length > 0)
         {
             yield return $"{ToolResultIndent}{result.Summary}";
@@ -156,6 +172,17 @@ public static class TranscriptLines
             {
                 yield return line;
             }
+        }
+    }
+
+    /// <summary>错误块行（首行 ⎿ 前缀，续行等宽缩进 — 对齐 MessageRenderer.RenderToolErrorLine）。</summary>
+    private static IEnumerable<string> ErrorBlockLines(string content)
+    {
+        var continuation = new string(' ', ToolResultIndent.Length);
+        var lines = content.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        for (var i = 0; i < lines.Length; i++)
+        {
+            yield return i == 0 ? $"{ToolResultIndent}{lines[i]}" : $"{continuation}{lines[i]}";
         }
     }
 

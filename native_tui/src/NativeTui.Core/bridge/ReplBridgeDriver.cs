@@ -368,7 +368,8 @@ public sealed class ReplBridgeDriver
             return;
         }
 
-        ReplaceToolStreamingWithResult(new ToolResultItem(summary, patch, rawOutput, hiddenLines, codeHighlighter: _codeHighlighter));
+        ReplaceToolStreamingWithResult(new ToolResultItem(
+            summary, patch, rawOutput, hiddenLines, codeHighlighter: _codeHighlighter, isError: isError));
     }
 
     /// <summary>工具进度路由（TASK065 P3）— 回合内惰性建流式项（spinner 前落位 — 紧随 ToolCallItem）

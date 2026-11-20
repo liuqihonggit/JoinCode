@@ -68,7 +68,7 @@ public sealed partial class PermissionCheckMiddleware : ServiceEntity, IToolExec
 
     /// <summary>
     /// 提取 WebFetch 的 ruleContent — domain:hostname 格式，用于域名级白名单持久化
-    /// 对齐 ChatToolOrchestrator 原有逻辑
+    /// 对齐旧聊天工具编排的权限检查逻辑
     /// </summary>
     private static string? ExtractWebFetchRuleContent(Dictionary<string, JsonElement> arguments) {
         if (arguments.TryGetValue("url", out var urlEl) && urlEl.ValueKind == JsonValueKind.String) {

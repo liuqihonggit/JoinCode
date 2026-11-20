@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.LLM.Execution;
 /// <summary>
 /// 工具错误消息格式化器 — 解析 &lt;tool_use_error&gt;...&lt;/tool_use_error&gt; 标签为友好消息。
 /// 三套 UI（CLI/TUI/GUI）共用，避免把原始标签暴露给用户。
-/// 回归背景：SchemaValidationMiddleware / ChatToolOrchestrator 把错误包在 &lt;tool_use_error&gt; 标签里，
+/// 回归背景：SchemaValidationMiddleware / 工具执行网关把错误包在 &lt;tool_use_error&gt; 标签里，
 /// 直接显示让用户看到 XML 标签，且 200 字符截断常切断关键错误信息。
 /// </summary>
 public static class ToolErrorFormatter {

@@ -96,8 +96,8 @@
 
 - `QueryLoopMiddleware` 重写为纯 query 桥接：构造依赖收敛为 notification/telemetry/contextManager/queryEngine + 可选 services/loopDetection/steerMailbox；删除 legacy 循环、流式工具执行分支、空响应干预、闸门回灌、fallback 解析与预算守卫等约 600 行（archive 副本 `.xxx/task103_legacy_archive/QueryLoopMiddleware.full.20261121.del`）。
 - 归档文件（`.xxx/task103_legacy_archive/`）：`LLMInvocationHandler`、`ToolExecutionHandler`、`StreamingToolExecutor`、`StreamingToolExecutorActor`、`ToolConcurrencyClassifier`、`ChatToolOrchestrator`、`IChatToolOrchestrator`、`MalformedOutputTracker`/`IMalformedOutputTracker`、`ChatLoopBackendPolicy` 及其对应测试（`QueryLoopMiddlewareTests`/`RoundGateEnforcementTests`/`StreamingToolExecutor*Tests`/`ToolConcurrencyClassifierTests`/`ChatLoopBackendPolicyTests`）。
-- 开关清理：`JCC_CHAT_LOOP_BACKEND`、`JCC_ACTOR_TOOL_EXECUTOR` 枚举成员删除；`QueryLoopServices` 移除 `TextToolCallParserChain`/`MalformedOutputTracker` 两个仅 legacy 使用的可选服务。
-- 行为变化：`UseStreamingToolExecution` / `MaxParallelToolExecution` 设置成为 no-op（流式执行器已归档，query 后端按非流式顺序执行）；`LoopInterventionMiddleware` 保留（消费 query 事件流的 LoopDetected）。
+- 开关清理：`JCC_CHAT_LOOP_BACKEND`、`JCC_ACTOR_TOOL_EXECUTOR` 枚举成员删除；`QueryLoopServices` 移除 `TextToolCallParserChain`/`MalformedOutputTracker`/`ContentReplacer`/`FileContextService` 四个仅 legacy 使用的可选服务。
+- 行为变化：`UseStreamingToolExecution` / `MaxParallelToolExecution` 设置随执行器归档一并从 `ToolExecutionSettings` 删除（query 后端按非流式顺序执行）；`LoopInterventionMiddleware` 保留（消费 query 事件流的 LoopDetected）。
 - 验证：`Brain.Context.Tests` 935 通过（legacy 套件归档后统计）、`Brain.Other.Tests` 498 通过、默认模式 MockServer E2E 3/3、`Build-AllDomains` 全绿。
 
 ### 四列验收表
@@ -143,6 +143,8 @@
 | S9 归档后 `Brain.Other.Tests` 全量 | 498 通过 |
 | S9 归档后 MockServer E2E（唯一 query 循环） | 3/3 通过 |
 | S9 归档后全仓编译 | `Build-AllDomains.ps1` 全部通过 |
+| S10 自对话实弹（bridge_serve） | PASS：握手/token_delta/tool_call/tool_result/turn_completed 全齐 |
+| S10 清理后全仓编译 | `Build-AllDomains.ps1` 全部通过 |
 
 ### 已知差距（现状）
 
@@ -151,6 +153,12 @@
 3. ~~流式工具执行~~ → S9 随 legacy 一并归档，设置项成为 no-op，query 后端按非流式顺序执行（原默认行为）；如需恢复流式调度应作为 QueryEngine 新能力单独立项。
 4. ~~取消语义差异~~ → 已解决（S7：取消上抛 + `(aborted)` 补写，历史合法性对齐 legacy）。
 5. 宿主验收：GUI 同源会话已由 MockServer E2E 在唯一 query 循环上通过；slash 与 GUI 回退共用同一 `ChatService.StreamWithEventsAsync` 路径（slash 元命令宿主 `SkipProviderConfig=true` 无法连 MockServer，缺独立 E2E）；bridge `mainAgent` 路径绕过 ChatService（`SessionController.cs:210`）；native_gui exe 人工验收 ○ 待用户执行（legacy 回退已不存在，异常需修 query 后端或回滚提交）。
+
+## S10 自我验收与残留清理（已落地）
+
+- 自对话实弹：MockServer（LLM 服务端）+ `jcc bridge_serve`（引擎服务端，真实 exe）+ NDJSON 协议客户端（`.xxx/self_accept_bridge.py`）三进程自测。结果：`session_info` 握手 → `turn_started` → `tool_call`(bash) → `tool_result`（echo self-accept 输出正确）→ `turn_completed`；RESULT: PASS。
+- 残留清理：`ToolExecutionSettings.UseStreamingToolExecution` / `MaxParallelToolExecution` 删除（无消费者）；`QueryLoopServices` 删除 `ContentReplacer`/`FileContextService`；`IChatToolOrchestrator`/`ChatToolOrchestrator` 归档后的引用注释全部改为当前实现（网关/QueryEngine）表述。
+- 说明：bridge 走主代理 `mainAgent` 路径（QueryEngine 直连），不经 ChatService；ChatService 桥接路径由 MockServer GUI 同源 E2E 覆盖。
 
 ## 验收标准
 

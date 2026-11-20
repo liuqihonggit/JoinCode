@@ -26,9 +26,21 @@ public sealed class ToolStreamingItem : IScrollItem, ITextMatchable
     /// <summary>上方被截的输出行数（0 = 无溢出不渲染提示行）。</summary>
     private int _hiddenLines;
 
+    /// <summary>工具已用时间（毫秒）— 引擎 ToolProgress.ElapsedTimeMs 权威值，null = 无耗时行（TASK069 #16）。</summary>
+    private long? _elapsedMs;
+
     /// <summary>更新输出快照（引擎侧每秒发的当前 stdout 最近行 — 整体替换非增量；空串清空尾巴）。</summary>
-    public void Update(string message)
+    public void Update(string message) => Update(message, null);
+
+    /// <summary>更新输出快照 + 工具已用时间（TASK069 #16 — 对齐基准 ShellTimeDisplay 耗时显示）。
+    /// elapsedMs 粘性：非 null 才覆盖，null 快照保留上次值（基准耗时来自工具态，偶发不带不清零）。</summary>
+    public void Update(string message, long? elapsedMs)
     {
+        if (elapsedMs is { } ms)
+        {
+            _elapsedMs = ms;
+        }
+
         var lines = SplitLines(message);
         _hiddenLines = Math.Max(0, lines.Length - ToolFoldingPolicy.MaxToolOutputLines);
         var tail = lines.Length > ToolFoldingPolicy.MaxToolOutputLines
@@ -54,15 +66,19 @@ public sealed class ToolStreamingItem : IScrollItem, ITextMatchable
     /// <summary>当前尾部显示行（测试断言面 — 溢出提示行 + 尾行原序）。</summary>
     public IReadOnlyList<string> DisplayLines => _displayLines;
 
-    /// <summary>内容高度 = margin 1 + 显示行数（空态仅 margin — 无尾巴零占屏）。</summary>
-    public int MeasureHeight(int width) => 1 + _displayLines.Length;
+    /// <summary>耗时显示文本（TASK069 #16 — 对齐基准 ShellTimeDisplay `(elapsed)` dim；null = 无耗时不占行）。</summary>
+    public string? ElapsedLabel => _elapsedMs is { } ms ? $"({Format.Duration(ms)})" : null;
+
+    /// <summary>内容高度 = margin 1 + 显示行数 + 耗时行（无尾巴且无耗时 = 仅 margin 零占屏）。</summary>
+    public int MeasureHeight(int width) => 1 + _displayLines.Length + (ElapsedLabel is null ? 0 : 1);
 
     /// <summary>渲染：margin 行留空 → 首行 "  ⎿  " dim 前缀 → 各行从内容列起写
     ///（续行 ToolResultIndent 等宽空格缩进对齐内容列 — 对齐 ToolResultItem 输出续行形态；
     /// 整行 dim — 流态弱化语义）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
-        if (_displayLines.Length == 0)
+        var elapsedLabel = ElapsedLabel;
+        if (_displayLines.Length == 0 && elapsedLabel is null)
         {
             return;
         }
@@ -82,6 +98,14 @@ public sealed class ToolStreamingItem : IScrollItem, ITextMatchable
 
             first = false;
             row++;
+        }
+
+        // TASK069 #16 — 耗时行（对齐基准 ShellProgressMessage：状态行在 ⎿ 列右侧的续行位，
+        // 即 MessageResponse row 布局下第 5 列 — 不再重复 ⎿ 前缀），dim 独立行置输出块末尾
+        if (elapsedLabel is not null)
+        {
+            screen.WriteText(row, frame.X, continuation, dim, frame.Right);
+            screen.WriteText(row, frame.X + continuation.Length, elapsedLabel, dim, frame.Right);
         }
     }
 

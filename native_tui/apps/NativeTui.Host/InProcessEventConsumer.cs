@@ -106,8 +106,8 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
 
     /// <summary>工具调用进度 → ToolProgress（TASK065 P3 — Bash/PowerShell 执行中输出快照流式上屏；
     /// progressType 透传引擎侧既有类型，null message 空串投影 — 对齐 bridge 形态逐行为镜像）。</summary>
-    public void OnToolProgress(string toolName, string progressType, string? progressMessage) {
-        _events.Enqueue(new BridgeEvent.ToolProgress(toolName, progressType, progressMessage ?? string.Empty));
+    public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) {
+        _events.Enqueue(new BridgeEvent.ToolProgress(toolName, progressType, progressMessage ?? string.Empty, elapsedTimeMs));
     }
 
     /// <summary>检测到循环输出 — TUI 不消费，忽略（对齐 bridge 形态）。</summary>

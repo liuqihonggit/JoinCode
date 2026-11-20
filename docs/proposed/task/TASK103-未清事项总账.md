@@ -43,7 +43,7 @@
 | ~~13~~ | ~~TASK069-缺失~~ | ~~reducedMotion/yank-bug 禁用流式预览~~ | TASK069 缺失 | ✅ **已对齐基准 2026-11-21**（用户拍板 Windows 禁用流式）：`StreamingPreviewPolicy.ShouldAllowStreaming`（纯函数，对齐 REPL.tsx:1495 + terminal.ts:177）+ `ReplBridgeDriver.allowStreamingText` 门控 + ReplShell 接线（Windows/WT_SESSION 默认禁）。流式集成测试显式启用。TDD + 全量 3048/3049（1 flaky RawStdinPump 单跑绿）+ 真机 selftest EXIT=0 |
 | 14 | TASK069-缺失 | spinner 连接警告（Reconnecting/Disconnected 行） | TASK069 缺失 | ✅ **证据不足维持现状 2026-11-21**：Claude Code 2.1.317 exe 无 Reconnecting/Disconnected UI 文案（仅网络层断开串）；C# 亦无。TASK069 转述无一手支撑 |
 | ~~15~~ | ~~TASK069-缺失~~ | ~~ultrathink 彩虹文字~~ | TASK069 缺失 | ✅ **已对齐基准 2026-11-21**：落点纠正为**用户消息正文**（基准仅 `UserPromptMessage` 调用 `HighlightedThinkingText`）。算法一手 `utils/thinking.ts`：`/\bultrathink\b/gi`、命中区每字符 7 色循环 `charIndex%7`、其余 text 色、默认启用。C# 加 `UltrathinkHighlighter` 纯函数 + RenderUser 分段着色 |
-| 16 | TASK069-缺失 | 工具执行中耗时显示（elapsedTimeSeconds） | TASK069 缺失 | 🔧 **施工中（M级跨域）**：一手 `ShellTimeDisplay.tsx` `(elapsed · timeout N)` dim；转述行号 BashTool.tsx:145 错。需 BridgeEvent 带 elapsed + 工具结果项渲染 |
+| ~~16~~ | ~~TASK069-缺失~~ | ~~工具执行中耗时显示（elapsedTimeSeconds）~~ | TASK069 缺失 | ✅ **已完成 2026-11-21**：一手 `ShellTimeDisplay.tsx` + `MessageResponse` row 布局（状态行在 ⎿ 列右侧续行位）。数据源早已存在（`ShellExecutionMiddleware.cs:83` 填 `ToolProgressData.ElapsedTimeMs`），只差投影链贯通：`ToolProgressRelay`→`ChatStreamEvent.ElapsedTimeMs`→`IEventConsumer.OnToolProgress`→`BridgeProtocol/BridgeEvent.ToolProgress.ElapsedTimeMs`（WhenWritingNull 旧端零破坏）→`ToolStreamingItem.Update(msg, elapsedMs)` 粘性→dim 耗时行。8 跳全锁（relay/契约/controller/driver/render 各断言），3056+140 绿 + 真机 EXIT=0 |
 | 17 | TASK069-缺失 | 用户中断专用消息 | TASK069 缺失 | ✅ **证据不足维持现状 2026-11-21**：exe 无 "Interrupted by user" 类文案；C# 仅红色通用错误。TASK069 转述无一手支撑 |
 | 18 | TASK069-缺失 | redacted_thinking 消息 | TASK069 缺失 | ✅ **一手源码到手→待施工（M级，跨域）**：基准 `Message.tsx:524` case `redacted_thinking` → `<AssistantRedactedThinkingMessage addMargin>`，仅 transcript 模式或 verbose 显示（否则 null）。C# 落点 = 新消息项 + BridgeEvent 协议扩展 + 双消费者，跨域（engine+native_tui） |
 
@@ -148,4 +148,5 @@
   - **#15 算法到手**：`utils/thinking.ts` 给出精确算法（触发词 `/\bultrathink\b/gi`、7 色彩虹 `charIndex % 7` 循环、其余 text 色），不再是"细节不可得"→ 待施工。
   - **方法论最终版（覆盖前面的 exe 结论）**：一手证据优先级 = **AGENTS.md 指定的基准 `.tsx` 源码** > 实现时对照基准写的代码注释 > 早期带行号规划 > 二轮转述表 > exe 明文串（仅证功能存在性）。**遇基准细节问题先查 AGENTS.md:33 的路径**，别再只用 exe 推断。
   - 教训：本机 Claude Code exe（2.1.317）是编译产物无源码；项目里另有反编译/镜像源码树（AGENTS.md 指定），二者别混。
-- 下一动作：按一手源码施工 M1（❯ 选中变色）与 #15（ultrathink 彩虹）；其余项复核前先查 AGENTS.md:33 基准源码。
+- **#16 工具耗时完成（2026-11-21）**：关键判断纠偏 —— 原以为「要改引擎算 elapsed」，一手查证发现 `ToolProgressData.ElapsedTimeMs` 早已由 `ShellExecutionMiddleware` 填充（Bash/PowerShell 每秒进度），只是**投影链丢掉**。属"字段贯通缺口"而非"功能新建"。8 跳：`ToolProgressRelay` → `ChatStreamEvent.ElapsedTimeMs` → `IEventConsumer.OnToolProgress(..., long?)` → `SessionController`（闭包读 `evt.ElapsedTimeMs`）→ `BridgeProtocol/BridgeEvent.ToolProgress`（`WhenWritingNull` 旧端零破坏）→ `ReplBridgeDriver.ApplyToolProgress` → `ToolStreamingItem.Update`（**粘性**：null 不清零）→ dim 耗时行。渲染位置对齐基准 `MessageResponse` **row 布局**（⎿ 只一次，状态行落第 5 列续行位，不重复 ⎿ —— 首次写成 `⎿` 被测试抓出）。每跳均有契约断言（relay/JSON 双端/controller/driver/render）。**教训：跨层字段丢失是静默的，必须逐跳断言，不能只看末端有没有显示。**
+- 下一动作：#18 redacted_thinking（新消息项 + 协议扩展）。

@@ -29,7 +29,11 @@ public interface IEventConsumer {
     /// <summary>
     /// 工具调用进度
     /// </summary>
-    void OnToolProgress(string toolName, string progressType, string? progressMessage);
+    /// <param name="toolName">工具名称</param>
+    /// <param name="progressType">进度类型标识</param>
+    /// <param name="progressMessage">进度消息文本</param>
+    /// <param name="elapsedTimeMs">工具已用时间（毫秒）— Bash/PowerShell 执行进度权威值，无则 null（TASK069 #16）</param>
+    void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null);
 
     /// <summary>
     /// 检测到循环输出

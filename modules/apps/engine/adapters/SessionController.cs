@@ -378,7 +378,7 @@ public sealed class SessionController {
                 RecordToolCallForTurnDiff(toolName, resultText, structuredPatch);
             },
             onToolProgress: (toolName, progressType, progressMessage) => {
-                _consumer.OnToolProgress(toolName, progressType, progressMessage);
+                _consumer.OnToolProgress(toolName, progressType, progressMessage, evt.ElapsedTimeMs);
             },
             onLoopDetected: (triggerCount, loopStartIndex, repeatedPattern) => {
                 _consumer.OnLoopDetected(triggerCount, loopStartIndex, repeatedPattern);

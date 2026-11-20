@@ -166,10 +166,10 @@ public sealed class ReplBridgeDriver
                 _spinner.Mode = SpinnerMode.ToolUse;
                 _spinner.HasActiveTools = true;
                 break;
-            case BridgeEvent.ToolProgress(_, _, var progressMessage):
+            case BridgeEvent.ToolProgress(_, _, var progressMessage, var elapsedTimeMs):
                 // TASK065 P3 — Bash/PowerShell 执行中输出快照流式上屏（progressType/工具名不路由 —
-                // 流式项即输出尾巴，类型差异由终态 ToolResultItem 表达）
-                ApplyToolProgress(progressMessage);
+                // 流式项即输出尾巴，类型差异由终态 ToolResultItem 表达）；TASK069 #16 elapsed 一并投影
+                ApplyToolProgress(progressMessage, elapsedTimeMs);
                 break;
             case BridgeEvent.ToolResult(var summary, var patch, var rawOutput, var hiddenLines):
                 // S2 契约统一结果项：ToolResultItem(Summary, Patch, RawOutput, HiddenLines) —
@@ -360,7 +360,7 @@ public sealed class ReplBridgeDriver
     /// + 快照原地 Update；塌缩态忽略（CondensedToolProgressItem 是唯一进度展示形态 — 既有语义）；
     /// 回合外迟到事件丢弃（IsBusy 防御 — 引擎漏发收尾时不跨回合泄漏）。progressType 不路由 —
     /// 全类型统一输出尾巴形态（bash_progress/ps_progress/query_update 等都受益）。</summary>
-    private void ApplyToolProgress(string message)
+    private void ApplyToolProgress(string message, long? elapsedTimeMs = null)
     {
         if (!IsBusy || _condensedProgressItem is not null)
         {
@@ -373,7 +373,7 @@ public sealed class ReplBridgeDriver
             AddMessage(_toolStreamingItem);
         }
 
-        _toolStreamingItem.Update(message);
+        _toolStreamingItem.Update(message, elapsedTimeMs);
     }
 
     /// <summary>聚合组路由 — 非 Accepts 工具到达时收组（连续同类中断）；Accepts 且无活动组时

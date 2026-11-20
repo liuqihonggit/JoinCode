@@ -70,7 +70,9 @@ public abstract record BridgeEvent
     /// Driver 路由流式项原地更新（ToolCallItem 之后的输出尾巴），tool_result 到达时原位替换为
     /// ToolResultItem（对齐 StreamingTextItem 替换先例）— 与引擎侧 ToolProgress 逐字段镜像。
     /// </summary>
-    public sealed record ToolProgress(string ToolName, string ProgressType, string Message) : BridgeEvent;
+    /// <param name="ElapsedTimeMs">工具已用时间（毫秒）— Bash/PowerShell 执行进度权威值，无则省略（TASK069 #16）</param>
+    public sealed record ToolProgress(string ToolName, string ProgressType, string Message,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ElapsedTimeMs = null) : BridgeEvent;
 
     /// <summary>
     /// 工具结果摘要（⎿ 缩进项）；Patch 非空时渲染为结构化 diff 块（M7-2 StructuredDiff）。

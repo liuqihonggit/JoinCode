@@ -1,4 +1,4 @@
-namespace Host.Tests.Bridge;
+﻿namespace Host.Tests.Bridge;
 
 /// <summary>
 /// 后台任务事件泵测试（M8-8）— ForkCompleted/TeammateCompleted 事件 → OnBackgroundTask 四参 upsert、
@@ -14,7 +14,7 @@ public sealed class BackgroundTaskEventPumpTests {
         public void OnThinking(string thinking) { }
         public void OnToolStart(string toolName, string? toolCallId, string? arguments) { }
         public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) { }
-        public void OnToolProgress(string toolName, string progressType, string? progressMessage) { }
+        public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) { }
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) { }
         public void OnTimingSummary(string summary) { }
         public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) { }

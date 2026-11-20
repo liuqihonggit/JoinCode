@@ -45,6 +45,32 @@ public sealed class ToolProgressRelayTests
         Assert.Equal("line1\nline2", evt.ProgressMessage);
     }
 
+    /// <summary>TASK069 #16 — ElapsedTimeMs 必须贯通到 ChatStreamEvent（此前 relay 投影丢弃该字段，
+    /// 导致 TUI 工具耗时显示无数据）。数据源 ShellExecutionMiddleware 已填 ToolProgressData.ElapsedTimeMs。</summary>
+    [Fact]
+    public void Build_CarriesElapsedTimeMs_ToEvent()
+    {
+        var channel = new SubAgentEventChannel();
+        using (channel.EnterScope())
+        {
+            var relay = ToolProgressRelay.Build("Bash", "call-1");
+            if (relay is not { } emit)
+            {
+                throw new Xunit.Sdk.XunitException("通道在场时 Build 应返回非空回调");
+            }
+
+            emit(new ToolProgressData {
+                ProgressType = "bash_progress",
+                ToolUseId = "bash_progress-0",
+                Message = "output",
+                ElapsedTimeMs = 3200,
+            });
+        }
+
+        var evt = Assert.Single(channel.TryDrain());
+        Assert.Equal(3200, evt.ElapsedTimeMs);
+    }
+
     /// <summary>null message — 空串投影（消费侧事件形状恒定）。</summary>
     [Fact]
     public void Build_NullMessage_ProjectsEmptyString()

@@ -29,6 +29,7 @@ public static class ToolProgressRelay
         }
 
         return progress => channel.Emit(ChatStreamEvent.ToolProgress(
-            toolName, progress.ProgressType, progress.Message ?? string.Empty, toolCallId));
+            toolName, progress.ProgressType, progress.Message ?? string.Empty, toolCallId,
+            elapsedTimeMs: progress.ElapsedTimeMs));
     }
 }

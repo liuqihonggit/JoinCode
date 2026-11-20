@@ -210,7 +210,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>工具调用进度</summary>
-    public void OnToolProgress(string toolName, string progressType, string? progressMessage) {
+    public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) {
         if (_agentMode) {
             WriteSdkJson(Cli.Output.SdkToolProgressMessage.Create(_sessionId) with {
                 ToolName = toolName,

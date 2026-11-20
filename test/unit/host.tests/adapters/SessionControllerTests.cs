@@ -153,6 +153,27 @@ public sealed class SessionControllerTests {
         Assert.Equal("query_update", consumer.ToolProgressEvents[0].progressType);
     }
 
+    /// <summary>TASK069 #16 — ChatStreamEvent.ElapsedTimeMs 必须贯通到 IEventConsumer.OnToolProgress
+    /// （此前 ChatStreamEvent.ToolProgress 无 elapsed 字段，TUI 耗时显示无数据源）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_ToolProgress_CarriesElapsedTimeMsToConsumer() {
+        var events = new List<ChatStreamEvent>
+        {
+            ChatStreamEvent.ToolProgress("Bash", "bash_progress", "out", null, 3200),
+            ChatStreamEvent.Text("ok"),
+            ChatStreamEvent.Done()
+        };
+        var chatService = CreateMockChatService(events);
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
+        Assert.Single(consumer.ToolProgressEvents);
+        Assert.Equal(3200, consumer.ToolProgressEvents[0].elapsedTimeMs);
+    }
+
     [Fact]
     public async Task StreamResponseAsync_TimingSummary_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
@@ -828,7 +849,7 @@ public sealed class SessionControllerTests {
         public List<string> ThinkingEvents { get; } = [];
         public List<(string toolName, string? toolCallId, string? arguments)> ToolStarts { get; } = [];
         public List<(string toolName, string? resultText, string? toolCallId, bool isError)> ToolEnds { get; } = [];
-        public List<(string toolName, string progressType, string? progressMessage)> ToolProgressEvents { get; } = [];
+        public List<(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs)> ToolProgressEvents { get; } = [];
         public List<(int triggerCount, int loopStartIndex, string? repeatedPattern)> LoopDetectedEvents { get; } = [];
         public List<string> TimingSummaryEvents { get; } = [];
         public List<(TokenUsage? usage, string? modelId)> DoneEvents { get; } = [];
@@ -840,7 +861,7 @@ public sealed class SessionControllerTests {
         public void OnThinking(string thinking) => ThinkingEvents.Add(thinking);
         public void OnToolStart(string toolName, string? toolCallId, string? arguments) => ToolStarts.Add((toolName, toolCallId, arguments));
         public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) => ToolEnds.Add((toolName, resultText, toolCallId, isError));
-        public void OnToolProgress(string toolName, string progressType, string? progressMessage) => ToolProgressEvents.Add((toolName, progressType, progressMessage));
+        public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) => ToolProgressEvents.Add((toolName, progressType, progressMessage, elapsedTimeMs));
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) => LoopDetectedEvents.Add((triggerCount, loopStartIndex, repeatedPattern));
         public void OnTimingSummary(string summary) => TimingSummaryEvents.Add(summary);
         public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) => DoneEvents.Add((usage, modelId));

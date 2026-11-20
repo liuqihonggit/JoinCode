@@ -231,6 +231,24 @@ public sealed class BridgeJsonContractTests {
         Assert.Equal(("PowerShell", "ps_progress", "ok"), (progress.ToolName, progress.ProgressType, progress.Message));
     }
 
+    /// <summary>TASK069 #16 — elapsedTimeMs 在场时序列化该字段（camelCase），缺席时省略
+    /// （WhenWritingNull 保证旧 TUI 零破坏）；native_tui 侧反解析回读耗时。</summary>
+    [Fact]
+    public void Serialize_ToolProgress_WithElapsed_CarriesElapsedField() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeEvent.ToolProgress("Bash", "bash_progress", "out", 3200),
+            CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        Assert.Equal(
+            "{\"type\":\"tool_progress\",\"toolName\":\"Bash\",\"progressType\":\"bash_progress\",\"message\":\"out\",\"elapsedTimeMs\":3200}",
+            json);
+
+        var parsed = JsonSerializer.Deserialize(
+            "{\"type\":\"tool_progress\",\"toolName\":\"Bash\",\"progressType\":\"bash_progress\",\"message\":\"out\",\"elapsedTimeMs\":45000}",
+            CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        var progress = Assert.IsType<CliBridge.BridgeEvent.ToolProgress>(parsed);
+        Assert.Equal(45000, progress.ElapsedTimeMs);
+    }
+
     // === ADR 0150: seq/ackSeq 流水号 JSON 契约 ===
 
     /// <summary>submit 带 seq → JSON 含 seq 字段（ADR 0150 流水号）。</summary>

@@ -78,8 +78,8 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
 
     /// <summary>工具调用进度 → tool_progress（TASK065 P3 — Bash/PowerShell 执行中输出快照流式上屏；
     /// progressType 透传引擎侧既有类型；null message 空串投影 — TUI 侧更新为空尾巴自然收敛）。</summary>
-    public void OnToolProgress(string toolName, string progressType, string? progressMessage) {
-        WriteEvent(new Cli.Bridge.BridgeEvent.ToolProgress(toolName, progressType, progressMessage ?? string.Empty));
+    public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) {
+        WriteEvent(new Cli.Bridge.BridgeEvent.ToolProgress(toolName, progressType, progressMessage ?? string.Empty, elapsedTimeMs));
     }
 
     /// <summary>检测到循环输出 — TUI 不消费，忽略。</summary>

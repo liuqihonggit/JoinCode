@@ -223,7 +223,7 @@ internal static class SubagentSelftest
         public void OnThinking(string thinking) { }
         public void OnToolStart(string toolName, string? toolCallId, string? arguments) { }
         public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, JoinCode.Abstractions.Models.Diff.StructuredPatchHunk[]? patch) { }
-        public void OnToolProgress(string toolName, string progressType, string? progressMessage) { }
+        public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) { }
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) { }
         public void OnTimingSummary(string summary) { }
         public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) { }

@@ -546,4 +546,21 @@ public sealed class BridgeProtocolTests
         Assert.Equal(("PowerShell", "ps_progress", "ok"), (progress.ToolName, progress.ProgressType, progress.Message));
         Assert.Null(diagnostic);
     }
+
+    /// <summary>TASK069 #16 — elapsedTimeMs 在场序列化 + 反解析回读；缺席省略（WhenWritingNull
+    /// 保证旧引擎行零破坏）。双端镜像形状锁定。</summary>
+    [Fact]
+    public void SerializeEvent_ToolProgress_WithElapsed_CarriesElapsedField()
+    {
+        var line = BridgeProtocol.SerializeEvent(new BridgeEvent.ToolProgress("Bash", "bash_progress", "out", 3200));
+        Assert.Equal(
+            "{\"type\":\"tool_progress\",\"toolName\":\"Bash\",\"progressType\":\"bash_progress\",\"message\":\"out\",\"elapsedTimeMs\":3200}",
+            line);
+
+        var reader = new StringReader("{\"type\":\"tool_progress\",\"toolName\":\"Bash\",\"progressType\":\"bash_progress\",\"message\":\"out\",\"elapsedTimeMs\":45000}\n");
+        var result = BridgeProtocol.TryReadEvent(reader, out var actual, out _);
+        Assert.Equal(BridgeReadResult.Event, result);
+        var progress = Assert.IsType<BridgeEvent.ToolProgress>(actual);
+        Assert.Equal(45000, progress.ElapsedTimeMs);
+    }
 }

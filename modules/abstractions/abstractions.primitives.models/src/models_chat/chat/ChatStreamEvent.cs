@@ -62,6 +62,13 @@ public sealed class ChatStreamEvent {
     public string? ProgressType { get; init; }
 
     /// <summary>
+    /// 工具已用时间（毫秒）— 对齐 TS ToolProgressData.elapsedTimeMs / ShellTimeDisplay：
+    /// 仅 ToolProgress 事件携带，Bash/PowerShell 执行进度由 ShellExecutionMiddleware 权威计算；
+    /// 无 elapsed 的工具（web search 等）为 null。TASK069 #16。
+    /// </summary>
+    public long? ElapsedTimeMs { get; init; }
+
+    /// <summary>
     /// 循环检测触发次数 — 仅 LoopDetected 事件携带
     /// </summary>
     public int LoopTriggerCount { get; init; }
@@ -136,12 +143,13 @@ public sealed class ChatStreamEvent {
     /// 工具进度事件 — 对齐 TS WebSearchTool onProgress
     /// 传递搜索进度（query_update/search_results_received）给 TUI 层
     /// </summary>
-    public static ChatStreamEvent ToolProgress(string toolName, string progressType, string progressMessage, string? toolCallId = null) => new() {
+    public static ChatStreamEvent ToolProgress(string toolName, string progressType, string progressMessage, string? toolCallId = null, long? elapsedTimeMs = null) => new() {
         Type = ChatStreamEventType.ToolProgress,
         ToolName = toolName,
         ToolCallId = toolCallId,
         ProgressType = progressType,
-        ProgressMessage = progressMessage
+        ProgressMessage = progressMessage,
+        ElapsedTimeMs = elapsedTimeMs
     };
 
     /// <summary>创建循环检测事件。</summary>

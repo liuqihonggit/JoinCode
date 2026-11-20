@@ -160,7 +160,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
 
         var psi = new ProcessStartInfo {
             FileName = mockServerExe,
-            Arguments = $"--config \"{configPath}\" --port 0",
+            Arguments = $"--config \"{configPath}\" --port 0 --no-open-browser",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,

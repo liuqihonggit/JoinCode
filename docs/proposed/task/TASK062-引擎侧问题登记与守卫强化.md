@@ -1,6 +1,10 @@
 # TASK062 — 引擎侧问题登记与守卫强化（子代理执行链缺陷后续）
 
-> 状态：进行中（2026-10-21）
+> 状态：**P1–P8 全部闭合**（2026-11-21 复核纠正：上一轮回填误判 P7/P8「悬置」，实为 TASK063 已于 2026-10-22 完成——见下）
+> 回填依据：`10ba6e250`（P2+P3 AgentMessageRouteLoop，守卫测试 4/4 + agents.tests 632）；P4 `AgentToolNameEnumConstants`（两个 E2E 脚本）；
+> P5 `TeammatePaneMiddleware.cs:33` 角色守卫 `isTeammate`；P6 `ci-e2e.yml:85` matrix 已含两个 SubAgentEvent E2E。
+> **P7** = TASK063 commit `853d9e75b`（方案2「完成态权威校正」：`OnSubagentFinished` 传 `evt.Usage?.TotalTokens`，协议 `SubagentFinished.TokenTotal` 全链；三处 `tokenGain: 0` 是逐活动增量——调研证明该增量不存在，故否决方案1「接 RecordTokenUsage 差值」）。
+> **P8** = TASK063 commit `c3c5ec77a`（**契约文档化而非加门闩**：占位语义「无可等之物 ≠ 就绪」写进 xml + 契约锁测试；否决 `_started` 门闩——"行为变更引入等待挂死风险"）。详见 `TASK063`。
 > 来源：DSG041 集成验收过程中暴露的引擎侧缺陷与缺陷模式，按"先记录所有问题，再修复；修复加入守卫和单一职责使问题更容易暴露"方法论推进
 > 关联：DSG041（docs/proposed/design/DSG041-subagent-event-source-plan.md）、TASK043（流式增量透传缺陷）
 
@@ -10,12 +14,12 @@
 |---|------|------|------|---------|
 | P1 | ~~ChatService 路径子代理 LLM 流无 AgentId 透传主流~~ **误诊修正**：真实根因=①E2E 未等插件就绪（八插件后台化后 kernel.Plugins 挂载延迟→agent 工具 not found 短路→无子代理事件、主 LLM 二轮直拿 turn2 文本——"串话"假象）②跨 class 并行污染（同 testhost 两引擎 session 进程级干扰→turn 被跨测试消耗）。修复=Completion 等待（通知语义）+ [Collection] 串行 + fork 断言对齐 teammate 演进 | 误诊→已修 | ✅ 3/3 全绿（含 CI 白名单增补） | E2E 断言守护 |
 | P2 | **邮箱 ReceiveAsync 漏传 ct 模式**（已修三处：AgentServiceImpl/SwarmPermissionMessageRouter/PlanApprovalMessageRouter）——"ct 挂在参数上但没传给底层"是静默缺陷，Dispose 挂死才暴露 | 缺陷模式（防再犯） | ✅ 已修 | **路由器取消收尾测试**（TDD 防回归）+ 单一职责提取 |
-| P3 | **路由循环内嵌大类**——RouteWorkerPermissionResponsesAsync 等三个消息路由循环内嵌在 AgentServiceImpl（900+ 行）等大类里，取消语义/生命周期/分发逻辑耦合，缺陷难以局部暴露 | 结构性风险 | ⏳ 待守卫 | 提取独立路由类（单一职责）+ 取消收尾单元测试 |
-| P4 | **E2E/测试工具名 magic string**——SubAgentEventStreamE2ETests/MainAgentPath E2E 脚本手写 "Agent"/"agent_spawn" 均错（真值 `agent`，AgentToolName [EnumValue]）——两轮排障才定位 | 可维护性 | ⏳ 待守卫 | 脚本改引用 AgentToolNameEnumConstants 常量（单一数据源） |
-| P5 | **TeammatePaneMiddleware 对非 teammate 子代理也尝试创建 tmux pane**——executor 前台子代理 spawn 也走 pane 创建（Windows 无 tmux 每次警告噪音）；判定条件只查 IsMainAgent 不查角色 | 设计缺陷（非致命） | ⏳ 待修 | 判定加角色守卫（teammate 才创建） |
-| P6 | **两处子代理 E2E 不在 CI 白名单**——ci-e2e matrix 白名单式 filter 从未含 SubAgentEventStreamE2ETests——缺陷长期潜伏（上次手动绿在 #435/#437 大改前） | CI 盲区 | ⏳ 待守卫 | ci-e2e matrix 增补两个 E2E 条目 |
-| P7 | **tokenGain 恒 0**（DSG041 遗留）——子代理事件无 token 增量数据源（ChatStreamEvent 无该字段；ProgressTracker 差值未接） | 功能缺口（低优） | ⏳ 悬置 | 后续接 ProgressTracker.RecordTokenUsage 差值 |
-| P8 | **McpPluginBootstrapHandle.Completion 的 Run 前占位语义**——Run 未调用时 Completion=Task.CompletedTask，消费方误判"就绪"（DI 有 Handle 但 McpInitModule 未跑 ConfigureAsync 的极端组装） | 边界语义 | ⏳ 待守卫 | 文档化契约 + 可选 _started 门闩（等待方阻塞至 Run 或超时） |
+| P3 | **路由循环内嵌大类**——RouteWorkerPermissionResponsesAsync 等三个消息路由循环内嵌在 AgentServiceImpl（900+ 行）等大类里，取消语义/生命周期/分发逻辑耦合，缺陷难以局部暴露 | 结构性风险 | ✅ 已守卫（`10ba6e250`） | 提取 `AgentMessageRouteLoop` 独立类 + ct 构造契约 + 取消收尾测试 4/4 |
+| P4 | **E2E/测试工具名 magic string**——SubAgentEventStreamE2ETests/MainAgentPath E2E 脚本手写 "Agent"/"agent_spawn" 均错（真值 `agent`，AgentToolName [EnumValue]）——两轮排障才定位 | 可维护性 | ✅ 已守卫 | 两 E2E 脚本改引用 `AgentToolNameEnumConstants.Agent` 常量（单一数据源） |
+| P5 | **TeammatePaneMiddleware 对非 teammate 子代理也尝试创建 tmux pane**——executor 前台子代理 spawn 也走 pane 创建（Windows 无 tmux 每次警告噪音）；判定条件只查 IsMainAgent 不查角色 | 设计缺陷（非致命） | ✅ 已修 | `TeammatePaneMiddleware.cs:33` 加 `isTeammate` 角色守卫（Variant==Teammate 才建 pane） |
+| P6 | **两处子代理 E2E 不在 CI 白名单**——ci-e2e matrix 白名单式 filter 从未含 SubAgentEventStreamE2ETests——缺陷长期潜伏（上次手动绿在 #435/#437 大改前） | CI 盲区 | ✅ 已守卫 | `ci-e2e.yml:85` matrix 已含 `SubAgentEventStreamE2ETests\|SubAgentEventMainAgentPathE2ETests` |
+| P7 | **tokenGain 恒 0**（DSG041 遗留）——子代理事件无 token 增量数据源（ChatStreamEvent 无该字段；ProgressTracker 差值未接） | 功能缺口（低优） | ✅ 已闭合（`853d9e75b`，TASK063） | 方案2 完成态权威校正：`OnSubagentFinished(tokenTotal: evt.Usage?.TotalTokens)` + `SubagentFinished.TokenTotal` 协议全链；逐活动 `tokenGain:0` 保留（增量不存在，否决方案1） |
+| P8 | **McpPluginBootstrapHandle.Completion 的 Run 前占位语义**——Run 未调用时 Completion=Task.CompletedTask，消费方误判"就绪"（DI 有 Handle 但 McpInitModule 未跑 ConfigureAsync 的极端组装） | 边界语义 | ✅ 已闭合（`c3c5ec77a`，TASK063） | 契约文档化（xml「无可等之物≠就绪」+ 误用形态 + 正确写法）+ 契约锁测试 `Completion_BeforeRun_Placeholder_NotReadinessSignal`（引用切换守卫）——**不加 `_started` 门闩**（挂死风险） |
 
 ## 2. 修复记录
 
@@ -45,8 +49,12 @@
 
 ## 4. 遗留
 
-- P1（ChatService 透传缺陷）单独深挖（TASK043 域——StreamingFallbackDecorator 调查）
-- P7/P8 低优先级悬置
+- ~~P1（ChatService 透传缺陷）单独深挖~~ → 已闭环（总表 ✅）：误诊修正为插件就绪时序 + 跨 class 污染，
+  E2E 已加 `bootstrapHandle.Completion.WaitAsync(30s)`（`SubAgentEventMainAgentPathE2ETests.cs:80` 等）+ [Collection] 串行，commit `ff9a5e8c8`。
+- ~~P7/P8 低优先级悬置~~ → 已闭合（TASK063，2026-10-22）：
+  - P7 `853d9e75b` — 完成态 `TokenTotal` 权威校正（非逐活动差值）；`SessionController.cs:508` 现传 `evt.Usage?.TotalTokens ?? 0`。
+  - P8 `c3c5ec77a` — 契约文档化 + 守卫锁；**刻意不加 `_started` 门闩**（"行为变更反而引入等待挂死风险"）。
+  - 教训：选择「文档化/替代方案」≠ 未实施；判状态须读关联任务（TASK063），不能只看本任务符号「门闩/差值」未出现就判悬置。
 
 <!-- 🤖 Auto Decision: 2026-10-21 -->
 <!-- 决策: 按用户"先记录所有问题再修复+守卫+单一职责"方法论——8 问题登记成表（P1-P8），守卫优先级=防再犯的 TDD 测试+编译期可见的构造契约 -->

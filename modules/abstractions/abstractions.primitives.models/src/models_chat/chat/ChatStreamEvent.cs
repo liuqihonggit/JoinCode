@@ -25,6 +25,9 @@ public sealed class ChatStreamEvent {
     public string? Content { get; init; }
     /// <summary>获取思考内容。</summary>
     public string? ThinkingContent { get; init; }
+    /// <summary>思考块是否被服务端脱敏（TASK069 #18 — Thinking 事件专用；true = 无 CoT 文本，
+    /// UI 渲染 "✻ Thinking…" 存根而非空思考行）。</summary>
+    public bool IsRedacted { get; init; }
     /// <summary>获取工具名称。</summary>
     public string? ToolName { get; init; }
     /// <summary>获取工具调用标识。</summary>
@@ -60,6 +63,13 @@ public sealed class ChatStreamEvent {
     /// "query_update" 或 "search_results_received"
     /// </summary>
     public string? ProgressType { get; init; }
+
+    /// <summary>
+    /// 工具已用时间（毫秒）— 对齐 TS ToolProgressData.elapsedTimeMs / ShellTimeDisplay：
+    /// 仅 ToolProgress 事件携带，Bash/PowerShell 执行进度由 ShellExecutionMiddleware 权威计算；
+    /// 无 elapsed 的工具（web search 等）为 null。TASK069 #16。
+    /// </summary>
+    public long? ElapsedTimeMs { get; init; }
 
     /// <summary>
     /// 循环检测触发次数 — 仅 LoopDetected 事件携带
@@ -109,9 +119,12 @@ public sealed class ChatStreamEvent {
     };
 
     /// <summary>创建思考内容事件。</summary>
-    public static ChatStreamEvent Thinking(string thinkingContent) => new() {
+    /// <param name="thinkingContent">思考文本（脱敏块为空串）</param>
+    /// <param name="redacted">服务端脱敏标记（TASK069 #18 — true 时 UI 渲染 "✻ Thinking…" 存根）</param>
+    public static ChatStreamEvent Thinking(string thinkingContent, bool redacted = false) => new() {
         Type = ChatStreamEventType.Thinking,
-        ThinkingContent = thinkingContent
+        ThinkingContent = thinkingContent,
+        IsRedacted = redacted
     };
 
     /// <summary>创建工具调用开始事件。</summary>
@@ -136,12 +149,13 @@ public sealed class ChatStreamEvent {
     /// 工具进度事件 — 对齐 TS WebSearchTool onProgress
     /// 传递搜索进度（query_update/search_results_received）给 TUI 层
     /// </summary>
-    public static ChatStreamEvent ToolProgress(string toolName, string progressType, string progressMessage, string? toolCallId = null) => new() {
+    public static ChatStreamEvent ToolProgress(string toolName, string progressType, string progressMessage, string? toolCallId = null, long? elapsedTimeMs = null) => new() {
         Type = ChatStreamEventType.ToolProgress,
         ToolName = toolName,
         ToolCallId = toolCallId,
         ProgressType = progressType,
-        ProgressMessage = progressMessage
+        ProgressMessage = progressMessage,
+        ElapsedTimeMs = elapsedTimeMs
     };
 
     /// <summary>创建循环检测事件。</summary>

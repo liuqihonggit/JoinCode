@@ -504,6 +504,47 @@ public sealed class MessageCursorTests
         Assert.Equal(normal, back[row, col].StyleId);
     }
 
+    /// <summary>TASK069-M1 一手基准对齐（HighlightedThinkingText.tsx:24 pointerColor =
+    /// isSelected ? suggestion : subtle）：消息操作选中时用户消息 ❯ 前缀前景 suggestion，
+    /// 非选中保持 subtle。当前实现仅整块背景覆写保留前景 Subtle → 红。</summary>
+    [Fact]
+    public void RenderAndFlush_SelectedUserMessage_PointerForegroundSuggestion()
+    {
+        var (shell, _) = CreateShell(seed: [new UserMessageItem("q1"), new UserMessageItem("q2")]);
+        shell.SeedContent();
+        shell.HandleKey(ShiftUp()); // 定位最后一条用户消息 q2
+        shell.RenderAndFlush();
+        shell.RenderAndFlush();
+
+        var back = shell.BackBuffer!;
+        // 选中 q2 行的 ❯ 前缀 → suggestion 前景
+        Assert.True(TryFindText(back, "q2", out var q2Row, out _));
+        Assert.True(TryFindPointerOnRow(back, q2Row, out var selectedPointerCol));
+        var selectedStyle = back.Styles.Get(back[q2Row, selectedPointerCol].StyleId);
+        Assert.Equal(Theme.Dark.Suggestion, selectedStyle.Foreground);
+
+        // 非选中 q1 行的 ❯ 前缀 → subtle 前景
+        Assert.True(TryFindText(back, "q1", out var q1Row, out _));
+        Assert.True(TryFindPointerOnRow(back, q1Row, out var normalPointerCol));
+        var normalStyle = back.Styles.Get(back[q1Row, normalPointerCol].StyleId);
+        Assert.Equal(Theme.Dark.Subtle, normalStyle.Foreground);
+    }
+
+    /// <summary>在指定行找 ❯ 前缀 cell 的列号。</summary>
+    private static bool TryFindPointerOnRow(Screen screen, int row, out int col)
+    {
+        for (var c = 0; c < screen.Cols; c++)
+        {
+            if (screen[row, c].Value == new Rune('❯'))
+            {
+                col = c;
+                return true;
+            }
+        }
+        col = -1;
+        return false;
+    }
+
     /// <summary>定位两字符文本的 cell 坐标（正文 'q' 右邻 '2' 形态）。</summary>
     private static bool TryFindText(Screen screen, string text, out int row, out int col)
     {

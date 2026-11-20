@@ -1,4 +1,4 @@
-namespace JoinCode.Host.Tests.Adapters;
+﻿namespace JoinCode.Host.Tests.Adapters;
 
 /// <summary>
 /// SessionController 子代理事件路由测试（DSG041 批1 — L3 协议扩展）：
@@ -269,7 +269,7 @@ public sealed class SessionControllerSubagentEventTests
         public void OnThinking(string thinking) { }
         public void OnToolStart(string toolName, string? toolCallId, string? arguments) => ToolStarts.Add((toolName, toolCallId, arguments));
         public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) => ToolEnds.Add((toolName, resultText, toolCallId, isError));
-        public void OnToolProgress(string toolName, string progressType, string? progressMessage) { }
+        public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) { }
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) { }
         public void OnTimingSummary(string summary) { }
         public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) => DoneEvents.Add((usage, modelId));

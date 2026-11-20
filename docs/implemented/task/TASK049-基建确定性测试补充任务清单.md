@@ -1,12 +1,22 @@
 # TASK030 — 基建确定性测试补充任务清单
 
+> ## ⚠️ 状态澄清（2026-11-21）
+>
+> 本文文件名 `TASK049`、标题写 `TASK030`，两者不一致（历史遗留，不改动以保留引用）；
+> 状态「待执行」是 2026-09-29 创建时的快照，**实际早已完成、忘回填**
+> （详见 [TASK102](../proposed/task/TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.3）：
+> `modules/collections/structura.tests/DagTests.cs:190` 起 `TopologicalSort_Empty/SingleNode/IsolatedNodes/Chain/Diamond`
+> 等测试齐全，配套 `DagAlgorithmsTests.cs` / `ConcurrentDagTests.cs`；
+> commit `07db686cd`（1379 测试 + 12 bug）、`012dadad2`（SwissTable/DAG/HamT 拆分）、`fc8bc65fd`（阶段3）三批落地。
+> **判据以代码 + commit 为准，不要只读开头状态。**
+
 > **目标**:给所有基建模块补充确定性测试(不依赖时序),通过拆分长方法的纯计算中间部分为 `internal` 方法,使其可独立单测。
 >
 > **检测方式**:并行 8 个 explore 子代理检测 7 个基建模块 + ActorBase 专项。
 >
 > **创建时间**:2026-09-29
 >
-> **状态**:待执行
+> **状态**:已完成（2026-11-21 回填勾选，见顶部澄清）
 
 ---
 
@@ -38,93 +48,93 @@
 **原则**:优先补"已是 public/internal 但零测试"的纯逻辑方法,零重构风险,收益最大。
 
 #### 1.1 structura — `Dag<T>` + `ConcurrentDag<T>` 对拍 ImmutableDag
-- [ ] 新建 `lib/structura.tests/DagTests.cs`
-  - [ ] `TopologicalSort`:链/钻石/菱形/空图/单节点/孤立多节点 → 断言层级
-  - [ ] `HasCycle`:无环/自环/2节点环/3+节点环/多独立环
-  - [ ] `FindAllCycles`:多环→断言环路径集合;嵌套环
-  - [ ] `WouldCreateCycle`:实例+静态,跨长链可达性
-  - [ ] `GetAffectedSubgraph`:钻石依赖图
-  - [ ] `GetAncestors`/`GetDescendants`
-  - [ ] 对拍:同输入下 `Dag` 与 `ImmutableDag` 结果一致
-- [ ] 新建 `lib/structura.tests/ConcurrentDagTests.cs`
-  - [ ] 锁超时返回空数组路径
-  - [ ] 同步+异步 API 一致性
-  - [ ] `WithLock`/`Dispose`
-- [ ] 补 `ImmutableDag` 缺失:深拷贝快照隔离语义、`FindAllCycles`多环、`GetAffectedSubgraph`钻石图
-- [ ] 补 `ImmutableHamTStringStringConverter` 往返测试(完全无测试)
+- [x] 新建 `lib/structura.tests/DagTests.cs`
+  - [x] `TopologicalSort`:链/钻石/菱形/空图/单节点/孤立多节点 → 断言层级
+  - [x] `HasCycle`:无环/自环/2节点环/3+节点环/多独立环
+  - [x] `FindAllCycles`:多环→断言环路径集合;嵌套环
+  - [x] `WouldCreateCycle`:实例+静态,跨长链可达性
+  - [x] `GetAffectedSubgraph`:钻石依赖图
+  - [x] `GetAncestors`/`GetDescendants`
+  - [x] 对拍:同输入下 `Dag` 与 `ImmutableDag` 结果一致
+- [x] 新建 `lib/structura.tests/ConcurrentDagTests.cs`
+  - [x] 锁超时返回空数组路径
+  - [x] 同步+异步 API 一致性
+  - [x] `WithLock`/`Dispose`
+- [x] 补 `ImmutableDag` 缺失:深拷贝快照隔离语义、`FindAllCycles`多环、`GetAffectedSubgraph`钻石图
+- [x] 补 `ImmutableHamTStringStringConverter` 往返测试(完全无测试)
 
 #### 1.2 async_lock — 死锁检测图算法 + 二进制协议
-- [ ] `LockRegistry.BuildWaitEdges` private→internal + 测试:空快照/全空闲/1等待/阈值过滤
-- [ ] `LockRegistry.FindCycleFrom` private→internal + 测试:自环/2节点/3+节点/无环/断链
-- [ ] `LockRegistry.EmitDeadlockReport` private→internal + 测试:1/2/3节点环格式
-- [ ] `LockRegistry.DetectDeadlockFromCurrentFlow` internal + 直接测试
-- [ ] `BinaryProtocol.Encode`/`ReadAsync` 往返测试:各消息类型/空payload/最大长度/边界
-- [ ] `BinaryProtocol.WriteInt32BigEndian`/`ReadInt32BigEndianAsync` private→internal + 大端测试
-- [ ] `HostElectionService.DecideRole` private→internal + 决策表:null→Host/myPid大→Host/myPid小→Slave/非数字→Slave
-- [ ] 零覆盖类补测:`OrderedLockManager`/`AsyncLockedDictionary`/`AsyncLazy`/`BackpressureChannel`/`AsyncFlowIdentity`
+- [x] `LockRegistry.BuildWaitEdges` private→internal + 测试:空快照/全空闲/1等待/阈值过滤
+- [x] `LockRegistry.FindCycleFrom` private→internal + 测试:自环/2节点/3+节点/无环/断链
+- [x] `LockRegistry.EmitDeadlockReport` private→internal + 测试:1/2/3节点环格式
+- [x] `LockRegistry.DetectDeadlockFromCurrentFlow` internal + 直接测试
+- [x] `BinaryProtocol.Encode`/`ReadAsync` 往返测试:各消息类型/空payload/最大长度/边界
+- [x] `BinaryProtocol.WriteInt32BigEndian`/`ReadInt32BigEndianAsync` private→internal + 大端测试
+- [x] `HostElectionService.DecideRole` private→internal + 决策表:null→Host/myPid大→Host/myPid小→Slave/非数字→Slave
+- [x] 零覆盖类补测:`OrderedLockManager`/`AsyncLockedDictionary`/`AsyncLazy`/`BackpressureChannel`/`AsyncFlowIdentity`
 
 #### 1.3 guard — BashAstSecurityWalker + CommandDangerClassifier 内部
-- [ ] `BashAstSecurityWalker` 全部 `Walk*`/`Validate*`/`Mask*` private static→internal static + 逐方法测试(8文件~1000行)
-  - [ ] `WalkCommand`/`WalkRedirectedStatement`
-  - [ ] `WalkArgument`/`WalkString`/`ValidateArithmeticNode`
-  - [ ] `WalkVariableAssignment`/`WalkDeclarationCommand`/`ResolveSimpleExpansion`
-  - [ ] `WalkFileRedirect`/`WalkHeredocRedirect`/`WalkHerestringRedirect`
-  - [ ] `CollectCommands`/`WalkStructuralNode`
-  - [ ] `WalkForStatement`/`WalkConditionalStatement`/`WalkSubshell`
-  - [ ] `PreChecks`:RunPreChecks/MaskBracesInQuotedContexts/HasErrorNode/StripRawString
-- [ ] `CommandDangerClassifier` 内部纯函数 private→internal + 测试
-  - [ ] `IsGitReadOnlySubcommand`(53行白名单)
-  - [ ] `IsGitIrreversibleSubcommand`
-  - [ ] `ClassifyByCombinations`/`IsCombinationHit`
-  - [ ] `ClassifyPath`/`CheckRecurseForceCombination`
-  - [ ] `ClassifyGitPipeRedirect`/`GetPipeTargetCommands`
-- [ ] `PermissionCheckContext` 静态方法:`IsSensitivePath`/`IsDangerousCommand`/`MatchesPattern`/`ContainsOrdinalIgnoreCase`
-- [ ] 守卫纯逻辑:`HeredocGuard.Evaluate`/`EscapeForDoubleQuotedString`、`VpnRouteGuard.Evaluate`、`GhPrBodyGuard.EscapeBody`/`GenerateDefaultBody`
-- [ ] `DangerousCommandCatalog` 数据源完整性:`BuildCommands`/`BuildFlags`/`BuildCombinations`
+- [x] `BashAstSecurityWalker` 全部 `Walk*`/`Validate*`/`Mask*` private static→internal static + 逐方法测试(8文件~1000行)
+  - [x] `WalkCommand`/`WalkRedirectedStatement`
+  - [x] `WalkArgument`/`WalkString`/`ValidateArithmeticNode`
+  - [x] `WalkVariableAssignment`/`WalkDeclarationCommand`/`ResolveSimpleExpansion`
+  - [x] `WalkFileRedirect`/`WalkHeredocRedirect`/`WalkHerestringRedirect`
+  - [x] `CollectCommands`/`WalkStructuralNode`
+  - [x] `WalkForStatement`/`WalkConditionalStatement`/`WalkSubshell`
+  - [x] `PreChecks`:RunPreChecks/MaskBracesInQuotedContexts/HasErrorNode/StripRawString
+- [x] `CommandDangerClassifier` 内部纯函数 private→internal + 测试
+  - [x] `IsGitReadOnlySubcommand`(53行白名单)
+  - [x] `IsGitIrreversibleSubcommand`
+  - [x] `ClassifyByCombinations`/`IsCombinationHit`
+  - [x] `ClassifyPath`/`CheckRecurseForceCombination`
+  - [x] `ClassifyGitPipeRedirect`/`GetPipeTargetCommands`
+- [x] `PermissionCheckContext` 静态方法:`IsSensitivePath`/`IsDangerousCommand`/`MatchesPattern`/`ContainsOrdinalIgnoreCase`
+- [x] 守卫纯逻辑:`HeredocGuard.Evaluate`/`EscapeForDoubleQuotedString`、`VpnRouteGuard.Evaluate`、`GhPrBodyGuard.EscapeBody`/`GenerateDefaultBody`
+- [x] `DangerousCommandCatalog` 数据源完整性:`BuildCommands`/`BuildFlags`/`BuildCombinations`
 
 #### 1.4 transport.impl — 协议编解码
-- [ ] **先创建 `JoinCode.Infra.Transport.Tests` 测试项目**(InternalsVisibleTo 落空)
-- [ ] `SseStreamParser.ParseAsync`:MemoryStream喂入SSE帧文本,断言event/data/id拼接、空行分隔、多行data
-- [ ] `HttpRequestSerializer.SerializeAsync`/`Deserialize`:构造HttpRequestMessage序列化后字符串断言;反序列化状态行/头/体
-- [ ] `HttpRequestSerializer.ParseStatusLine`/`ParseHeaderLine`/`IsContentHeader` private→internal static + 测试
-- [ ] `BridgeTokenRefreshScheduler.DecodeJwtExpiry` private→internal + 测试:含/不含exp的JWT,毫秒转换
-- [ ] `V1ReplBridgeTransport.IsStreamEvent` private→internal + 测试
-- [ ] `ConnectionManager.CalculateReconnectDelay` private→internal + 测试:Min(base*2^(n-1), max)
-- [ ] `SerialBatchEventUploader.ComputeRetryDelay`/`TakeBatch` private→internal + 测试
-- [ ] `BoundedUUIDSet.Add`/`ToListAsync` 专项测试:FIFO淘汰+去重
+- [x] **先创建 `JoinCode.Infra.Transport.Tests` 测试项目**(InternalsVisibleTo 落空)
+- [x] `SseStreamParser.ParseAsync`:MemoryStream喂入SSE帧文本,断言event/data/id拼接、空行分隔、多行data
+- [x] `HttpRequestSerializer.SerializeAsync`/`Deserialize`:构造HttpRequestMessage序列化后字符串断言;反序列化状态行/头/体
+- [x] `HttpRequestSerializer.ParseStatusLine`/`ParseHeaderLine`/`IsContentHeader` private→internal static + 测试
+- [x] `BridgeTokenRefreshScheduler.DecodeJwtExpiry` private→internal + 测试:含/不含exp的JWT,毫秒转换
+- [x] `V1ReplBridgeTransport.IsStreamEvent` private→internal + 测试
+- [x] `ConnectionManager.CalculateReconnectDelay` private→internal + 测试:Min(base*2^(n-1), max)
+- [x] `SerialBatchEventUploader.ComputeRetryDelay`/`TakeBatch` private→internal + 测试
+- [x] `BoundedUUIDSet.Add`/`ToListAsync` 专项测试:FIFO淘汰+去重
 
 #### 1.5 abstractions — JSON修复 + 安全验证
-- [ ] `JsonRepairPipeline.StripOuterQuotes`(377行)拆 internal 状态机片段 + 逐片段测试(单引号/双引号/反引号/转义)
-- [ ] `JsonRepairPipeline.FixUnquotedValues`/`FixUnquotedKeys`/`RepairJson` internal + 测试
-- [ ] `JsonLenientCoercer.CoerceToNumber`/`CoerceToBool` private→internal + 测试:数字格式探测/布尔词表
-- [ ] `SedValidation.ExtractSedExpressions`(122行)/`ContainsDangerousOperations` private→internal + 测试
-- [ ] `BashSafeWrapperStripper.StripSafeWrappers` + 测试
-- [ ] `ToolListDriftClassifier.Classify`(105行) + 测试:新增/移除/重命名推断
-- [ ] `SettingsEditValidator.ValidateSettingsContent`(已internal) + 测试
-- [ ] `PreapprovedDomains.CreateHostSet` + 测试
-- [ ] `AppDataPaths` 静态构造 + 路径常量测试
+- [x] `JsonRepairPipeline.StripOuterQuotes`(377行)拆 internal 状态机片段 + 逐片段测试(单引号/双引号/反引号/转义)
+- [x] `JsonRepairPipeline.FixUnquotedValues`/`FixUnquotedKeys`/`RepairJson` internal + 测试
+- [x] `JsonLenientCoercer.CoerceToNumber`/`CoerceToBool` private→internal + 测试:数字格式探测/布尔词表
+- [x] `SedValidation.ExtractSedExpressions`(122行)/`ContainsDangerousOperations` private→internal + 测试
+- [x] `BashSafeWrapperStripper.StripSafeWrappers` + 测试
+- [x] `ToolListDriftClassifier.Classify`(105行) + 测试:新增/移除/重命名推断
+- [x] `SettingsEditValidator.ValidateSettingsContent`(已internal) + 测试
+- [x] `PreapprovedDomains.CreateHostSet` + 测试
+- [x] `AppDataPaths` 静态构造 + 路径常量测试
 
 #### 1.6 plugins.infrastructure — 生命周期 + 依赖图
-- [ ] `PluginLifecycleTracker.ExecuteUndoChain`/`ExecuteAsyncUndoChainAsync` + 测试:逆序执行+异常隔离
-- [ ] `PluginDependencyGraph`(contracts)补环场景:A→B→A截断行为断言、`DeclarePluginDependency`/`GetDependents`零测试
-- [ ] `PluginCommandRegistry.RegisterCommandAsync` 别名展开 + 测试
-- [ ] `ResourceReferenceGraph` 全部方法 + 测试
-- [ ] `PluginResourceScanner.ScanPluginResources` + 测试
-- [ ] `PluginManager` internal测试钩子已暴露(`AddToBlacklistForTest`/`IsBlacklistedForTest`)+ 补测试使用
+- [x] `PluginLifecycleTracker.ExecuteUndoChain`/`ExecuteAsyncUndoChainAsync` + 测试:逆序执行+异常隔离
+- [x] `PluginDependencyGraph`(contracts)补环场景:A→B→A截断行为断言、`DeclarePluginDependency`/`GetDependents`零测试
+- [x] `PluginCommandRegistry.RegisterCommandAsync` 别名展开 + 测试
+- [x] `ResourceReferenceGraph` 全部方法 + 测试
+- [x] `PluginResourceScanner.ScanPluginResources` + 测试
+- [x] `PluginManager` internal测试钩子已暴露(`AddToBlacklistForTest`/`IsBlacklistedForTest`)+ 补测试使用
 
 #### 1.7 vault — 路径计算 + 哈希 + 评分
-- [ ] `MemoryPaths` 全部方法 + 测试:纯Path.Combine拼接
-- [ ] `TeamMemoryPaths` 全部方法 + 测试
-- [ ] `SyncFileHash.ComputeAsync` + 确定性测试:固定输入→固定哈希值
-- [ ] `MemoryRelevanceScorer.CalculateAdvancedRelevanceScore`/`GetMatchReason` + 测试:6加权因子
-- [ ] `MemoryRelevanceSelector.ScoreMemory` private→internal + 测试
-- [ ] `SessionScanner.CategorizeToolError`/`ExtractLanguageAndFileStats` private→internal static + 测试
-- [ ] `MemorySearchHistory.IsQueryRelated` private→internal static + 测试:30%重叠度阈值
-- [ ] `MemoryAgeInfo.CalculateHealthScore` private→internal + 测试
-- [ ] `AppStateConverter.ToDocument`/`FromDocument` 往返一致性:FromDocument(ToDocument(s))==s
-- [ ] `TranscriptFileWriter.ValidateId` + 测试:字符白名单
-- [ ] `FacetCacheService.IsValidFacets`/`GetFacetFilePath` private→internal + 测试
-- [ ] `MemoryTruncator.TruncateByBytes` private→internal static + UTF-8续字节边界测试
+- [x] `MemoryPaths` 全部方法 + 测试:纯Path.Combine拼接
+- [x] `TeamMemoryPaths` 全部方法 + 测试
+- [x] `SyncFileHash.ComputeAsync` + 确定性测试:固定输入→固定哈希值
+- [x] `MemoryRelevanceScorer.CalculateAdvancedRelevanceScore`/`GetMatchReason` + 测试:6加权因子
+- [x] `MemoryRelevanceSelector.ScoreMemory` private→internal + 测试
+- [x] `SessionScanner.CategorizeToolError`/`ExtractLanguageAndFileStats` private→internal static + 测试
+- [x] `MemorySearchHistory.IsQueryRelated` private→internal static + 测试:30%重叠度阈值
+- [x] `MemoryAgeInfo.CalculateHealthScore` private→internal + 测试
+- [x] `AppStateConverter.ToDocument`/`FromDocument` 往返一致性:FromDocument(ToDocument(s))==s
+- [x] `TranscriptFileWriter.ValidateId` + 测试:字符白名单
+- [x] `FacetCacheService.IsValidFacets`/`GetFacetFilePath` private→internal + 测试
+- [x] `MemoryTruncator.TruncateByBytes` private→internal static + UTF-8续字节边界测试
 
 ---
 

@@ -15,7 +15,8 @@ public sealed class ReplShellIntegrationTranscriptTests
             engine,
             new BannerItem("1.0.0", "m", "b", "/tmp"),
             new StringWriter(),
-            sizeSource: new FakeTerminalSizeSource(80, rows));
+            sizeSource: new FakeTerminalSizeSource(80, rows),
+            allowStreamingText: true); // TASK069 #13：本测试验证流式投影，显式启用
         shell.SeedContent();
         return (shell, engine);
     }

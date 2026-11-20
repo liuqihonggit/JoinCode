@@ -957,14 +957,18 @@ $ JCC_PROFILE_DIR=<去掉 probe 的 profile> jcc probe
 - 真机：18 条子命令逐条走过（`schema`/`config-print`/`mcp_*`/`slash_*`/`tool`/`prompt`/`experience`/`probe`）；
   `rg`/`gh` 已正确路由到节点，但本机 Debug 目录没有 `jcc-rg.exe`/`jcc-gh.exe`（需 `Pack-ToolNodes.ps1` 打包，与本次改动无关）。
 
-**未做（诚实记录）**：
+**未做（§18.6 写作时的诚实记录；右侧为后续最终状态，勿只读前半段）**：
 
 1. **工具面 gating**：`capabilities` 目前只门禁服务与插件。`todo` 工具仍会出现在工具表里
    （`TodoToolHandlers` 是 `[McpToolDispatch]` 生成的静态注册，`ITodoService` 在 DI 里也还在）。
    「profile 去掉 todo → todo 工具不出现」属清单第 7 项（635 工具 / capability-aware 注册表），
    与 S4 的 5、6 两项不是同一层，不在这里假装做完。
+   → ✅ **已于 §19 完成**：能力治理打通到工具注册层，`[TOOL-GATE] blocked=59` 与节点 `tools=` 同源。
 2. `vision` 未注册（见 18.5）。
+   → ⛔ **主动决定不做，不是欠账**：只登记真有消费方的能力；登记 `vision` 只会造出假节点
+   （§18.5 判定纪律，`base.yaml` capabilities 段注释同口径）。
 3. 帮助文本仍由 `[SubCommandInfo]` 生成，未改成从节点表读 —— 二者目前一致，但仍是两处描述。
+   → ✅ **已于 §20 完成**：帮助文本改从节点表读，`--help` 与执行同判启停。
 
 ---
 

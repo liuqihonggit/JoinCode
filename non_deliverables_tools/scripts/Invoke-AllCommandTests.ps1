@@ -51,7 +51,7 @@ $reportDir = Split-Path $ReportPath -Parent
 if (-not (Test-Path $reportDir)) { New-Item -ItemType Directory -Force -Path $reportDir | Out-Null }
 
 function Invoke-Jcc {
-    param([string[]]$CmdArgs, [int]$Timeout = $TimeoutSec)
+    param([string[]]$CmdArgs, [int]$Timeout = $TimeoutSec, [switch]$WithDiag)
     $psi = [System.Diagnostics.ProcessStartInfo]::new("dotnet")
     $psi.Arguments = "`"$JccDll`" " + ($CmdArgs -join " ")
     $psi.RedirectStandardOutput = $true
@@ -60,6 +60,10 @@ function Invoke-Jcc {
     $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
     $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
     $psi.WorkingDirectory = (Get-Location).Path
+    # TASK023 ③: --debuglog flag 在 CliArgParser 解析层缺失（真机验证放任意位置 stderr 零诊断），
+    # 只有 JCC_DEBUGLOG=1 环境变量在进程启动时被 Diag 静态字段读取、真正开启诊断输出。
+    # 只能用环境变量，不能用 --debuglog flag。
+    if ($WithDiag) { $psi.EnvironmentVariables["JCC_DEBUGLOG"] = "1" }
 
     $proc = [System.Diagnostics.Process]::Start($psi)
     $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
@@ -257,13 +261,44 @@ function Generate-MissingParamScenarios {
     return $scenarios
 }
 
+# TASK023 ③: 直调命令(mcp_call/slash_call)的 [STEP] 打点全在 REPL/startup 路径，直调不经过；
+# 真机 JCC_DEBUGLOG=1 下 stderr 产出的是 [MODULE]/[ROLES]/[LLM]/[TOOL-GATE]/[ORDER]/[CAPS-PLUGIN]/[CONFIG]。
+# 只抓 [STEP] 会让「步骤」列永远 no steps = 假绿。改为抓直调路径真实产出的诊断步骤前缀。
+# 前缀数组内联在函数体内 —— 本函数经 funcDefs 以定义字符串传入 -Parallel runspace，
+# 若引用 $script: 外部变量在 runspace 里为 $null，会再次导致步骤为空（假绿）。
 function Extract-Steps {
     param([string]$Stderr)
+    $prefixes = @('[STEP]', '[MODULE]', '[ROLES]', '[LLM]', '[TOOL-GATE]', '[ORDER]', '[CAPS-PLUGIN]', '[CONFIG]', '[WIRE]', '[READY]')
     $steps = @()
     foreach ($line in $Stderr -split "`n") {
-        if ($line -match '\[STEP\]') { $steps += $line.Trim() }
+        $trimmed = $line.Trim()
+        foreach ($prefix in $prefixes) {
+            if ($trimmed.StartsWith($prefix)) { $steps += $trimmed; break }
+        }
     }
     return $steps
+}
+
+# TASK023 ④: 副作用验证口径 — 诚实区分「只读」与「写类」，不制造假绿。
+# 只读工具/命令：无副作用，OK 即视为验证通过（状态验证）。
+# 写类工具/命令：本脚本是全参数冒烟，只验证「调用不崩溃 + 返回非错误」，
+#                 真正的落盘/状态变更需专用断言或人工核验，如实标注「未验证副作用」。
+# 危险写类工具已被 Get-IsDangerousTool 跳过，不在此列。
+function Get-SideEffectVerdict {
+    param([string]$Name, [string]$Status)
+    $readTokens = @('read','list','get','status','version','help','schema','search','find','query',
+                    'stat','info','show','view','inspect','describe','context','usage','history','check','validate','detect','analyze')
+    $lower = $Name.ToLowerInvariant().TrimStart('/')
+    $isRead = $false
+    foreach ($t in $readTokens) {
+        if ($lower -eq $t -or $lower.StartsWith($t + '_') -or $lower.EndsWith('_' + $t)) { $isRead = $true; break }
+    }
+    if ($isRead) {
+        if ($Status -eq "OK") { return "只读/OK(状态验证)" }
+        return "只读/$Status"
+    }
+    if ($Status -eq "OK") { return "写类/未验证副作用(仅冒烟)" }
+    return "写类/$Status"
 }
 
 function Test-McpTools {
@@ -308,6 +343,7 @@ function Test-McpTools {
         GenerateArgValue = (Get-Command Generate-ArgValue).Definition
         GenerateFullArgs = (Get-Command Generate-FullArgs).Definition
         ExtractSteps = (Get-Command Extract-Steps).Definition
+        SideEffectVerdict = (Get-Command Get-SideEffectVerdict).Definition
     }
     $total = $tools.Count
     $dllPath = $JccDll
@@ -320,6 +356,7 @@ function Test-McpTools {
         Set-Item function:Generate-ArgValue $using:funcDefs.GenerateArgValue
         Set-Item function:Generate-FullArgs $using:funcDefs.GenerateFullArgs
         Set-Item function:Extract-Steps $using:funcDefs.ExtractSteps
+        Set-Item function:Get-SideEffectVerdict $using:funcDefs.SideEffectVerdict
         $JccDll = $using:dllPath
         $TimeoutSec = $using:timeout
 
@@ -331,7 +368,8 @@ function Test-McpTools {
         $toolArgs = Generate-FullArgs -Schema $schema
         $callArgs = @("mcp_call", $tool) + $toolArgs + @("--json")
         $cmdStart = [System.Diagnostics.Stopwatch]::StartNew()
-        $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec
+        # TASK023 ③: 用 JCC_DEBUGLOG=1 环境变量开启诊断（--debuglog flag 解析层缺失、无效）。
+        $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec -WithDiag
         $cmdStart.Stop()
         $cmdDuration = [math]::Round($cmdStart.Elapsed.TotalSeconds, 1)
 
@@ -377,15 +415,16 @@ function Test-McpTools {
         $stepSummary = if ($steps.Count -gt 0) { "$($steps.Count) steps" } else { "no steps" }
 
         [PSCustomObject]@{
-            Category = "MCP"
-            Name     = $tool
-            Status   = $status
-            Args     = ($toolArgs -join " ")
-            Steps    = $stepSummary
-            Reason   = $exitReason
-            Content  = $contentText
-            Stderr   = $callResult.stderr
-            Duration = $cmdDuration
+            Category   = "MCP"
+            Name       = $tool
+            Status     = $status
+            Args       = ($toolArgs -join " ")
+            Steps      = $stepSummary
+            Reason     = $exitReason
+            SideEffect = (Get-SideEffectVerdict -Name $tool -Status $status)
+            Content    = $contentText
+            Stderr     = $callResult.stderr
+            Duration   = $cmdDuration
         }
     } -ThrottleLimit $Concurrency
 
@@ -559,6 +598,7 @@ function Test-SlashCommands {
         GenerateArgValue = (Get-Command Generate-ArgValue).Definition
         GenerateFullArgs = (Get-Command Generate-FullArgs).Definition
         ExtractSteps = (Get-Command Extract-Steps).Definition
+        SideEffectVerdict = (Get-Command Get-SideEffectVerdict).Definition
     }
     $dllPath = $JccDll
     $timeout = $TimeoutSec
@@ -570,6 +610,7 @@ function Test-SlashCommands {
         Set-Item function:Generate-ArgValue $using:funcDefs.GenerateArgValue
         Set-Item function:Generate-FullArgs $using:funcDefs.GenerateFullArgs
         Set-Item function:Extract-Steps $using:funcDefs.ExtractSteps
+        Set-Item function:Get-SideEffectVerdict $using:funcDefs.SideEffectVerdict
         $JccDll = $using:dllPath
         $TimeoutSec = $using:timeout
 
@@ -583,9 +624,10 @@ function Test-SlashCommands {
         $schema = Extract-Json -Text $schemaResult.stdout
 
         $toolArgs = Generate-FullArgs -Schema $schema
-        $callArgs = @("slash_call", $cmd) + $toolArgs + @("--debuglog")
+        # TASK023 ③: 去掉无效的 --debuglog flag（解析层缺失），改用 JCC_DEBUGLOG=1 环境变量。
+        $callArgs = @("slash_call", $cmd) + $toolArgs
         $cmdStart = [System.Diagnostics.Stopwatch]::StartNew()
-        $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec
+        $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec -WithDiag
         $cmdStart.Stop()
         $cmdDuration = [math]::Round($cmdStart.Elapsed.TotalSeconds, 1)
 
@@ -612,15 +654,16 @@ function Test-SlashCommands {
         $stepSummary = if ($steps.Count -gt 0) { "$($steps.Count) steps" } else { "no steps" }
 
         [PSCustomObject]@{
-            Category = "Slash"
-            Name     = "/$cmd"
-            Status   = $status
-            Args     = ($toolArgs -join " ")
-            Steps    = $stepSummary
-            Reason   = $exitReason
-            Content  = $contentText
-            Stderr   = $callResult.stderr
-            Duration = $cmdDuration
+            Category   = "Slash"
+            Name       = "/$cmd"
+            Status     = $status
+            Args       = ($toolArgs -join " ")
+            Steps      = $stepSummary
+            Reason     = $exitReason
+            SideEffect = (Get-SideEffectVerdict -Name $cmd -Status $status)
+            Content    = $contentText
+            Stderr     = $callResult.stderr
+            Duration   = $cmdDuration
         }
     } -ThrottleLimit $Concurrency
 
@@ -667,13 +710,14 @@ $report = [System.Text.StringBuilder]::new()
 [void]$report.AppendLine()
 [void]$report.AppendLine("## 详细结果")
 [void]$report.AppendLine()
-[void]$report.AppendLine("| 类别 | 名称 | 状态 | 耗时(s) | 参数 | 步骤 | 退出原因 |")
-[void]$report.AppendLine("|------|------|------|---------|------|------|----------|")
+[void]$report.AppendLine("| 类别 | 名称 | 状态 | 耗时(s) | 参数 | 步骤 | 退出原因 | 副作用验证 |")
+[void]$report.AppendLine("|------|------|------|---------|------|------|----------|-----------|")
 
 foreach ($r in $allResults) {
     $argsShort = if ($r.Args.Length -gt 60) { $r.Args.Substring(0, 57) + "..." } else { $r.Args }
     $reasonShort = if ($r.Reason.Length -gt 80) { $r.Reason.Substring(0, 77) + "..." } else { $r.Reason }
-    [void]$report.AppendLine("| $($r.Category) | $($r.Name) | $($r.Status) | $($r.Duration) | $argsShort | $($r.Steps) | $reasonShort |")
+    $sideEffect = if ($r.SideEffect) { $r.SideEffect } else { "未判定" }
+    [void]$report.AppendLine("| $($r.Category) | $($r.Name) | $($r.Status) | $($r.Duration) | $argsShort | $($r.Steps) | $reasonShort | $sideEffect |")
 }
 
 $slowCommands = $allResults | Where-Object { $_.Duration -gt 10 } | Sort-Object Duration -Descending

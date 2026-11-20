@@ -21,7 +21,8 @@ public sealed class EscInterruptClosureTests
     private static (ReplShell Shell, FakeReplEngine Engine, ManualClock Clock) CreateShell() {
         var engine = new FakeReplEngine();
         var banner = new BannerItem("0.0.0", "m", "b", "C:\\");
-        var shell = new ReplShell(engine, banner, new StringWriter());
+        // TASK069 #13：本测试验证流式部分响应，显式启用（不受 Windows 平台默认禁用影响）
+        var shell = new ReplShell(engine, banner, new StringWriter(), allowStreamingText: true);
         shell.SeedContent();
         var clock = new ManualClock();
         shell.EscClock = clock.Tick;

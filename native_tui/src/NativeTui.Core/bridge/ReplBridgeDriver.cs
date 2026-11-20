@@ -61,6 +61,11 @@ public sealed class ReplBridgeDriver
     /// 后续增量原地追加；AssistantMessage 原位替换为完整消息项；EndTurn 兜底定格/清理。</summary>
     private StreamingTextItem? _streamingItem;
 
+    /// <summary>是否允许逐字流式预览（TASK069 #13 — 对齐基准 REPL.tsx:1495 `showStreamingText`）：
+    /// 宿主按 `!reducedMotion && !hasCursorUpViewportYankBug()` 注入；false 时 TokenDelta 不建
+    /// StreamingTextItem（等整条落定），但 ResponseLength 累加不变。默认 true 保持既有测试/调用语义。</summary>
+    private readonly bool _allowStreamingText;
+
     /// <summary>活动工具流式输出项（TASK065 P3 — Bash 执行中输出实时显示）— 首个 tool_progress
     /// 惰性创建落位 ToolCallItem 之后（spinner 前），后续快照原地 Update；tool_result 到达原位替换为
     /// ToolResultItem（对齐 StreamingTextItem 替换先例）；新 tool_call 到达旧项定格；EndTurn 清引用
@@ -90,7 +95,8 @@ public sealed class ReplBridgeDriver
         ITerminalSizeSource? sizeSource = null,
         IStreamingMarkdownProjector? streamingProjector = null,
         string? issueOwnerRepo = null,
-        int shellTimeoutSeconds = 120)
+        int shellTimeoutSeconds = 120,
+        bool allowStreamingText = true)
     {
         _view = view;
         _spinner = spinner;
@@ -102,6 +108,7 @@ public sealed class ReplBridgeDriver
         _streamingProjector = streamingProjector;
         _issueOwnerRepo = issueOwnerRepo;
         _shellTimeoutSeconds = shellTimeoutSeconds;
+        _allowStreamingText = allowStreamingText;
     }
 
     /// <summary>注入上下文折叠项目标（ReplShell.SeedContent 晚期绑定 — TokenUsage 回填真实 prompt tokens；
@@ -159,10 +166,10 @@ public sealed class ReplBridgeDriver
                 _spinner.Mode = SpinnerMode.ToolUse;
                 _spinner.HasActiveTools = true;
                 break;
-            case BridgeEvent.ToolProgress(_, _, var progressMessage):
+            case BridgeEvent.ToolProgress(_, _, var progressMessage, var elapsedTimeMs):
                 // TASK065 P3 — Bash/PowerShell 执行中输出快照流式上屏（progressType/工具名不路由 —
-                // 流式项即输出尾巴，类型差异由终态 ToolResultItem 表达）
-                ApplyToolProgress(progressMessage);
+                // 流式项即输出尾巴，类型差异由终态 ToolResultItem 表达）；TASK069 #16 elapsed 一并投影
+                ApplyToolProgress(progressMessage, elapsedTimeMs);
                 break;
             case BridgeEvent.ToolResult(var summary, var patch, var rawOutput, var hiddenLines):
                 // S2 契约统一结果项：ToolResultItem(Summary, Patch, RawOutput, HiddenLines) —
@@ -181,9 +188,10 @@ public sealed class ReplBridgeDriver
                 _spinner.Mode = SpinnerMode.Responding;
                 _spinner.HasActiveTools = false;
                 _spinner.ResponseLength += length;
-                if (text is { Length: > 0 }) {
+                if (text is { Length: > 0 } && _allowStreamingText) {
                     // M8-1 逐字流式 — 惰性建流式项（spinner 前）+ 原地追加（每帧全量重渲自然增长）；
                     // 方案 B — 注入投影器则流式期 Markdown 实时渲染（块级增量），null 降级纯文本
+                    // TASK069 #13 — 宿主禁用流式预览时跳过建项（等AssistantMessage 整条落定）；ResponseLength 仍累加
                     if (_streamingItem is null) {
                         CloseActiveToolGroup();
                         _streamingItem = new StreamingTextItem(_streamingProjector);
@@ -192,11 +200,11 @@ public sealed class ReplBridgeDriver
                     _streamingItem.Append(text);
                 }
                 break;
-            case BridgeEvent.AssistantMessage(var text, var markdown, var messageId, var thinkingDurationMs, var thinkingContent):
+            case BridgeEvent.AssistantMessage(var text, var markdown, var messageId, var thinkingDurationMs, var thinkingContent, var thinkingRedacted):
                 CloseActiveToolGroup();
                 ReplaceStreamingWithFinal(markdown is not null
-                    ? new MarkdownMessageItem(IssueLinkExpander.ExpandDocument(markdown, _issueOwnerRepo), _codeHighlighter, thinkingDurationMs, thinkingContent, messageId)
-                    : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId));
+                    ? new MarkdownMessageItem(IssueLinkExpander.ExpandDocument(markdown, _issueOwnerRepo), _codeHighlighter, thinkingDurationMs, thinkingContent, messageId, thinkingRedacted)
+                    : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId, thinkingRedacted));
                 break;
             case BridgeEvent.TokenUsage(var inputTokens, var outputTokens, var contextTokens, var contextLimitTokens):
                 // S4 契约 — 用量记账归 tracker（footer 展示由 tracker 内部驱动）；未注入时静默容忍
@@ -352,7 +360,7 @@ public sealed class ReplBridgeDriver
     /// + 快照原地 Update；塌缩态忽略（CondensedToolProgressItem 是唯一进度展示形态 — 既有语义）；
     /// 回合外迟到事件丢弃（IsBusy 防御 — 引擎漏发收尾时不跨回合泄漏）。progressType 不路由 —
     /// 全类型统一输出尾巴形态（bash_progress/ps_progress/query_update 等都受益）。</summary>
-    private void ApplyToolProgress(string message)
+    private void ApplyToolProgress(string message, long? elapsedTimeMs = null)
     {
         if (!IsBusy || _condensedProgressItem is not null)
         {
@@ -365,7 +373,7 @@ public sealed class ReplBridgeDriver
             AddMessage(_toolStreamingItem);
         }
 
-        _toolStreamingItem.Update(message);
+        _toolStreamingItem.Update(message, elapsedTimeMs);
     }
 
     /// <summary>聚合组路由 — 非 Accepts 工具到达时收组（连续同类中断）；Accepts 且无活动组时

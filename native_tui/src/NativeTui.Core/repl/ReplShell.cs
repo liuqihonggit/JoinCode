@@ -698,7 +698,8 @@ public sealed class ReplShell
         Func<string?>? statusLineModelProvider = null,
         string? defaultShell = null,
         Func<string, bool>? gitignorePredicate = null,
-        ShellCompleter? shellCompleter = null)
+        ShellCompleter? shellCompleter = null,
+        bool? allowStreamingText = null)
     {
         _engine = engine;
         _banner = banner;
@@ -760,7 +761,15 @@ public sealed class ReplShell
         _wheelSpeed = new WheelSpeedTracker(() => WheelClock(), wheelBaseLines ?? 1);
         // TASK066 板块 E 收尾 — 剪贴板图片读取委托注入（null = 能力降级 alt+v/ctrl+v 无操作零行为变化）
         _readClipboardImage = readClipboardImage;
-        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo, shellTimeoutSeconds);
+        // TASK069 #13 — 流式预览门控（对齐基准 REPL.tsx:1495）：null = 按平台/环境判定
+        // （Windows conhost 或 WT_SESSION 禁用，避免 cursor-up yank 视口）；宿主若还接了
+        // prefersReducedMotion 设置，可综合两个条件后显式传 allowStreamingText 覆盖。
+        var streamingAllowed = allowStreamingText
+            ?? StreamingPreviewPolicy.ShouldAllowStreaming(
+                reducedMotion: false,
+                isWindows: OperatingSystem.IsWindows(),
+                wtSession: Environment.GetEnvironmentVariable("WT_SESSION"));
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo, shellTimeoutSeconds, allowStreamingText: streamingAllowed);
     }
 
     /// <summary>TASK078 — 引擎就绪后注入真实服务（后台预热完成时调用）。

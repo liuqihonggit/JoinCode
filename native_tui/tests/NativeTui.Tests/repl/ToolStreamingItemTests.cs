@@ -9,6 +9,22 @@ namespace NativeTui.Tests.Repl;
 /// </summary>
 public sealed class ToolStreamingItemTests
 {
+    /// <summary>TASK069 #16 — elapsed 耗时显示（对齐基准 ShellTimeDisplay `(elapsed)` dim）：
+    /// Update 带 elapsedMs 后 ElapsedLabel = "(Ns)"，格式复用 Format.Duration；null = 无耗时行。</summary>
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(0L, "(0s)")]
+    [InlineData(3000L, "(3s)")]
+    [InlineData(65000L, "(1m 5s)")]
+    public void Update_WithElapsed_ProjectsElapsedLabel(long? elapsedMs, string? expected)
+    {
+        var item = new ToolStreamingItem();
+        item.Update("running", elapsedMs);
+        Assert.Equal(expected, item.ElapsedLabel);
+        // 输出行本身不受 elapsed 影响
+        Assert.Equal(["running"], item.DisplayLines);
+    }
+
     /// <summary>超出尾部上限（5 行快照）— 环形保留最近 3 行 + "… +2 lines" 溢出提示行前置。</summary>
     [Fact]
     public void Update_KeepsLastThreeLinesWithOverflowHint()
@@ -121,6 +137,25 @@ public sealed class ToolStreamingItemTests
         Assert.Equal("     l3", RowText.Of(screen, 2, 0, 7));
         Assert.Equal("     l4", RowText.Of(screen, 3, 0, 7));
         Assert.Equal("     l5", RowText.Of(screen, 4, 0, 7));
+    }
+
+    /// <summary>TASK069 #16 — 耗时行渲染：输出块末尾追加 dim "(Ns)" 行（对齐基准 ShellTimeDisplay
+    /// 独立行）；MeasureHeight 计入该行。无耗时则无多余行（零占屏）。</summary>
+    [Fact]
+    public void Render_ElapsedLabel_AppendsDimDurationRow()
+    {
+        using var screen = new Screen(cols: 40, rows: 6);
+        var item = new ToolStreamingItem();
+        item.Update("line1\nline2", 3200);
+
+        Assert.Equal(4, item.MeasureHeight(40)); // margin 1 + 2 输出行 + 1 耗时行
+        item.Render(screen, new Rect(0, 0, 40, 4), Theme.Dark);
+
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        Assert.Equal("     line2", RowText.Of(screen, 2, 0, 10));
+        // 耗时行：5 空格缩进 + "(3s)" dim
+        Assert.Equal("     (3s)", RowText.Of(screen, 3, 0, 9));
+        Assert.Equal(dim, screen[3, 5].StyleId);
     }
 
     /// <summary>transcript 搜索匹配 — 显示行内容（含溢出提示行）。</summary>

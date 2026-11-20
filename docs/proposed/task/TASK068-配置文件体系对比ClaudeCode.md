@@ -1,9 +1,23 @@
 # TASK068 — 配置文件体系对比 ClaudeCode（差异文档 + 一问一答）
 
-> 状态：proposed
+> 状态：accepted（Q1–Q5 已于 2026-10-24 全部裁决并施工，见文末逐项 commit；**仅 C 类 3 键仍登记差异待后续批次**）
 > 对比范围：C# 侧全仓配置体系（guard/abstractions/composition/apps/mcp/native_tui/native_gui）vs 基准侧 `D:\project\claude-code-rust\claude-code-rev-main\src\`
 > 审计日期：2026-10-23
 > 配套产出：Bug1-Bug3 直接修复（C# 内部不一致，无需决策）；本文档只列**需要用户决策**的差异项
+
+> ## ⚠️ 状态澄清（2026-11-21，读前必看）
+>
+> **下方的 `状态：proposed` 与五组 `- [ ] A/B/C` 长期未更新，是历史遗留** ——
+> 第 137 行起记录了用户 2026-10-24 的裁决「全部做」，以及对应的 commit；代码已逐一核验：
+> `SettingsEnvGuard`（Q5-B 黑名单）、`GetManagedSettingsPath` 三平台（Q3-A）、`ApplyActorSettings`（B 类）、
+> `DefaultShellResolver`/`StatusLineTemplateRenderer` 等组件均真实存在。
+>
+> **真实剩余项只有一处**：C 类 3 键（`sandbox` / `enabledPlugins` / `actor`）——
+> 配置已能映射到 `WorkflowConfig`，但**下游消费方未接**（Actor 子类仍硬编码 `new ActorBackpressure(...)`，
+> 全仓零处读 `config.Actor.Backpressure`；插件加载前不读 `EnabledPlugins`；`CodeSandboxService` 无 OS 级沙箱实现）。
+> 这三项是**用户裁决暂缓的大改造**，不是遗漏的待办。其余 Q1–Q5 与 B 类 10 键、C 类 7 键均已闭环。
+>
+> 判据以**真机 + 代码消费方**为准，不要只看开头的复选框。
 
 ## 总览
 
@@ -32,7 +46,7 @@
 **影响面**：用户设 `JCC_CONFIG_PATH` 或 `XDG_CONFIG_HOME` 期望重定向配置目录 → 实际无效（只有 JCC_APP_DATA_FOLDER 生效）；TS 用户迁移到 jcc 时习惯性找 CLAUDE_CONFIG_DIR 对应物会踩坑。
 
 **选项**：
-- [ ] A. 删除 XdgPathResolver 六个死方法（保留已被消费的 runtime 目录方法），目录重定向统一收敛为 `JCC_APP_DATA_FOLDER` 单一机制（最小改动，消除两套实现）
+- [x] A. 删除 XdgPathResolver 六个死方法（保留已被消费的 runtime 目录方法），目录重定向统一收敛为 `JCC_APP_DATA_FOLDER` 单一机制（最小改动，消除两套实现）—— **已裁决执行（bb8a8f5fa）**
 - [ ] B. 接线 XDG：AppDataPaths.JccDirectory 增加 `JCC_CONFIG_PATH` → `XDG_CONFIG_HOME/jcc` → 现状 的回退链（对齐 TS CLAUDE_CONFIG_DIR 语义，但引入第二变量）
 - [ ] C. 保持现状（不推荐：死代码 + 同名变量双语义）
 
@@ -50,7 +64,7 @@
 **影响面**：① 用户从 TS 迁移按文档把 hooks 写 `current.hooks` → 静默失效（无任何报错）；② 企业管理员在 managed-settings.json 配 hooks → 无效；③ 两个 DTO（HookSettings vs HookSettingsFile.HookMatcher）形状不同维护两套。
 
 **选项**：
-- [ ] A. 删除 `CurrentSettings.Hooks` 死 DTO（收敛为顶层唯一），Hook 系统补 policySettings 源（对齐 TS 5 源）+ 补 managed-settings 路径注册
+- [x] A. 删除 `CurrentSettings.Hooks` 死 DTO（收敛为顶层唯一），Hook 系统补 policySettings 源（对齐 TS 5 源）+ 补 managed-settings 路径注册 —— **已裁决执行（e42f99e40）**
 - [ ] B. Hook 系统改读 `current.hooks`（收敛到 DTO 形状，破坏现有顶层用户数据需迁移）
 - [ ] C. 仅删死 DTO，policy 源缺失单独立项
 
@@ -65,7 +79,7 @@
 **影响面**：`C:\ProgramData` 普通用户可写 → 任何用户进程可伪造"管理员策略"提升自己权限（disableBypassPermissionsMode 等强制项可被覆盖），安全语义弱于 TS 的 Program Files（写需管理员）。drop-ins/注册表/plist 机制均缺。
 
 **选项**：
-- [ ] A. 路径改为 `C:\Program Files\jcc\managed-settings.json` 对齐 TS 安全语义 + 删除死常量（推荐）
+- [x] A. 路径改为 `C:\Program Files\jcc\managed-settings.json` 对齐 TS 安全语义 + 删除死常量（推荐）—— **已裁决执行（bb8a8f5fa，ManagedSettingsPathTests）**
 - [ ] B. 保持 ProgramData（安装器不落 Program Files 的场景），删除死常量，文档标注安全边界
 - [ ] C. 保持现状（死常量已由本次 Bug 批次清理，见下方"已直接修复"）
 
@@ -85,7 +99,7 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 **选项**：
 - [ ] A. 分批接线：按 TS 对应行为逐键补消费方（工作量大，建议按需排优先级：cleanupPeriodDays[会话清理] > defaultShell[!命令] > statusLine > respectGitignore > …）
 - [ ] B. 删死键：D 类 11 键 + C 类确认不做的键从 DTO/骨架/validator 删除，需要时再加回（DTO 是 init-only + Relaxed 宽容，删键不破坏既有文件读取）
-- [ ] C. 混合：D 类全删，C 类逐键一问一答（activeWorktreeSession 只写不读是明确的断链 bug，可先修读取方或删写入方）
+- [x] C. 混合：D 类全删，C 类逐键一问一答（activeWorktreeSession 只写不读是明确的断链 bug，可先修读取方或删写入方）—— **已裁决执行：D 类 11 键删 + B 类 10 键全接 + C 类 7 键接 + 2 键删死 DTO；仅剩 3 键（sandbox/enabledPlugins/actor）登记差异待后续批次**
 
 **另**：`AppDataPaths.ThemeFileName`/`CredentialsFileName`（+ JCC_THEME_FILE_NAME/JCC_CREDENTIALS_FILE_NAME 环境变量）为死路径定义（theme 实际走 settings.json theme 键 + global.json；credentials 走 tokens/ 目录）——建议随本项一并处置。
 
@@ -101,7 +115,7 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 
 **选项**：
 - [ ] A. 对齐 TS：引入 SAFE 白名单 + 危险变量来源分级（user/policy 直通，project/local 白名单外确认）
-- [ ] B. 仅加黑名单（拒绝已知危险键 PATH/LD_PRELOAD/NODE_* 等），项目级来源全黑名单外确认
+- [x] B. 仅加黑名单（拒绝已知危险键 PATH/LD_PRELOAD/NODE_* 等），项目级来源全黑名单外确认 —— **已裁决执行（801a73c2d，SettingsEnvGuard 33 键四类黑名单）**
 - [ ] C. 保持现状（个人工具威胁模型可接受时）
 
 ---

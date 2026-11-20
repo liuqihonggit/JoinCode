@@ -17,6 +17,12 @@ public interface IEventConsumer {
     void OnThinking(string thinking);
 
     /// <summary>
+    /// 思考块被服务端脱敏（TASK069 #18 — 无 CoT 文本；UI 渲染 "✻ Thinking…" 存根）。
+    /// 默认空实现 — 既有实现方零改动，默认实现须经接口类型调用才可见
+    /// </summary>
+    void OnThinkingRedacted() { }
+
+    /// <summary>
     /// 工具调用开始
     /// </summary>
     void OnToolStart(string toolName, string? toolCallId, string? arguments);
@@ -29,7 +35,11 @@ public interface IEventConsumer {
     /// <summary>
     /// 工具调用进度
     /// </summary>
-    void OnToolProgress(string toolName, string progressType, string? progressMessage);
+    /// <param name="toolName">工具名称</param>
+    /// <param name="progressType">进度类型标识</param>
+    /// <param name="progressMessage">进度消息文本</param>
+    /// <param name="elapsedTimeMs">工具已用时间（毫秒）— Bash/PowerShell 执行进度权威值，无则 null（TASK069 #16）</param>
+    void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null);
 
     /// <summary>
     /// 检测到循环输出

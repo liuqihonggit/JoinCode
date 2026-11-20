@@ -34,6 +34,7 @@ global using Infrastructure.Pipeline;
 global using Infrastructure.Pipeline.Middlewares;
 global using Infrastructure.Utils.Text;
 global using Integration.Tests.Capture;
+global using Integration.Tests.McpTools;
 global using IO.FileSystem;
 global using IO.Services;
 global using JoinCode.Abstractions.Brain.Context.Resolution;

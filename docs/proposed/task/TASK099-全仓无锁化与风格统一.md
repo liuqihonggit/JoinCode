@@ -1,6 +1,10 @@
 # TASK099 全仓无锁化与风格统一
 
-- 状态: proposed
+- 状态: implemented（2026-11-21 回填 — B0–B7 全部已验收，§5 四列验收表各批 exe 证据齐全；仅顶部状态未回写）
+- 回填依据: commit `de4d6e32c`（B0-B6 主体）/`1ded65b93`（B5 原子文件租约 + B6 锁生态退出编译 + B7 风格门禁）/`1719b53f6`（TASK101 承接待办）；
+  JCC4008 `ForbiddenLockPrimitiveRule` + `Verify-NoLockPrimitives.py` 门禁在 CI；`--selftest-crossproc`/`--selftest-tui`/`--dsh-smoke` 真实 exe 全绿（§5 证据）。
+  线束说明：B5 已把 `Mutex` 改为原子文件租约（`NamedMutexMailboxLock` 仅保留类名，内部为进程内占位 + 跨进程租约）；
+  B6 锁生态已移入 `.xxx/`，残余 `AsyncLock` 命中为保留的 async_primitives 子系统与测试，非锁生态本体。
 - 日期: 2026-11-19
 - 决策: [ADR 0158 全仓无锁化与业务级并发规约](../adr/0158-lock-free-business-concurrency.md)
 - 验收规范: [ADR 0080 手动 exe 测试指南](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md)、[ADR 0077 MockServer + jcc 联合测试](../../implemented/adr/engineering_ci_test/0077-mockserver-jcc-joint-testing.md)

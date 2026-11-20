@@ -1,28 +1,15 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 ﻿namespace Integration.Tests.McpTools;
 
+/// <summary>
+/// MCP 工具注册验证 — 用 <see cref="IsolatedTestHost"/> 注入隔离文件系统，零全局环境变量。
+/// </summary>
 public sealed class McpToolRegistrationValidationTests {
-    private static async Task<(Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools, List<string> RegistrationFailures)> BuildAndRegisterAllToolsAsync() {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
-        fileSystem.CreateDirectory(tempDir);
-        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
+    private static async Task<(IsolatedTestHost Host, Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools, List<string> RegistrationFailures)> BuildAndRegisterAllToolsAsync() {
+        var host = new IsolatedTestHost(withTestPipelines: true, minLogLevel: LogLevel.Debug);
+        await host.InitializeMcpAsync().ConfigureAwait(true);
 
-        var services = new ServiceCollection();
-        services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Debug));
-        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-        services.AddSingleton<IFileSystem>(fileSystem);
-
-        var config = new WorkflowConfig();
-        services.AddWorkflowServices(config);
-        services.AddTestPipelines();
-
-        var provider = services.BuildServiceProvider();
-
-        var mcpService = provider.GetRequiredService<IMcpService>();
-        await mcpService.InitializeAsync(provider).ConfigureAwait(true);
-
-        var registry = provider.GetRequiredService<Tools.LocalToolRegistry>();
+        var registry = host.GetRequiredService<Tools.LocalToolRegistry>();
         var allTools = await registry.GetAllToolInfosAsync().ConfigureAwait(true);
 
         var handlerTypes = typeof(McpToolDispatch.ToolHandlerExtensions).Assembly.GetTypes()
@@ -33,7 +20,7 @@ public sealed class McpToolRegistrationValidationTests {
 
         foreach (var handlerType in handlerTypes) {
             try {
-                var handler = provider.GetService(handlerType);
+                var handler = host.Services.GetService(handlerType);
                 if (handler is null)
                     registrationFailures.Add($"{handlerType.Name}: GetService returned null (missing DI dependencies)");
             } catch (Exception ex) {
@@ -41,13 +28,14 @@ public sealed class McpToolRegistrationValidationTests {
             }
         }
 
-        return (registry, allTools, registrationFailures);
+        return (host, registry, allTools, registrationFailures);
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task All_Tools_Should_Register_Successfully() {
-        var (_, allTools, registrationErrors) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (host, _, allTools, registrationErrors) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var hostScope = host;
 
         allTools.Should().NotBeEmpty("至少应注册一个工具");
 
@@ -130,7 +118,8 @@ public sealed class McpToolRegistrationValidationTests {
 
     [Fact]
     public async Task No_Duplicate_Tool_Names() {
-        var (_, allTools, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (host, _, allTools, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var hostScope = host;
         var names = allTools.Select(t => t.Name).ToList();
         var duplicates = names.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
 
@@ -139,7 +128,8 @@ public sealed class McpToolRegistrationValidationTests {
 
     [Fact]
     public async Task All_Required_Parameters_Have_Descriptions() {
-        var (_, allTools, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (host, _, allTools, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var hostScope = host;
         var missingDescParams = new List<string>();
 
         foreach (var tool in allTools) {

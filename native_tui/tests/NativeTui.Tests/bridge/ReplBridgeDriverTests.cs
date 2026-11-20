@@ -600,6 +600,23 @@ public sealed class ReplBridgeDriverTests
         Assert.Same(_spinner, _view.Messages.Items[^1]);
     }
 
+    /// <summary>TASK069 #16 — tool_progress 携带的 elapsedTimeMs 必须贯通到流式项耗时标签
+    ///（driver 动作面最后一跳；无 elapsed 则保持 null 不渲染耗时行）。</summary>
+    [Fact]
+    public void Apply_ToolProgress_WithElapsed_SetsElapsedLabel()
+    {
+        _driver.Apply(new BridgeEvent.TurnStarted());
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls -la"));
+        _driver.Apply(new BridgeEvent.ToolProgress("Bash", "bash_progress", "out", 9000));
+
+        var streamingItem = Assert.IsType<ToolStreamingItem>(_view.Messages.Items[^2]);
+        Assert.Equal("(9s)", streamingItem.ElapsedLabel);
+
+        // 后续无 elapsed 快照保留上次值（引擎每秒进度带时不覆盖为 null）
+        _driver.Apply(new BridgeEvent.ToolProgress("Bash", "bash_progress", "out2"));
+        Assert.Equal("(9s)", streamingItem.ElapsedLabel);
+    }
+
     /// <summary>TASK065 P3 — tool_result 到达时流式项原位替换为 ToolResultItem
     ///（对齐 StreamingTextItem 替换先例 — 输出尾巴位置落终态项，视觉无跳变）。</summary>
     [Fact]

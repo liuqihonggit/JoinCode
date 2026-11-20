@@ -1,5 +1,13 @@
 # TASK081 — C/S 闭环动态测试 — 客户端行为修复
 
+> ## ⚠️ 状态澄清（2026-11-21）
+>
+> **下方 20 项已于 2026-11-21 回填勾选**——施工前计划，实际早已全部完成（详见 [TASK102](TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.2）：
+> commit `e76f4949a` 明确写着「TASK081 全部完成 — 40/40 测试通过 + 校验脚本归档 (#607)」，
+> 另有 `304165d9c` / `e263bc337` / `cf1ab85fd` 三个配套修复 commit；
+> `test/mock/mock_server.core/` 与 `test/mock/mcp.mock_server/` 全套 MockServer 源码均在。
+> **判据以 commit + 代码为准，不要只读开头复选框。**
+
 ## 任务概述
 
 建立"自己和自己沟通"的 C/S 闭环动态测试模式，实际启动 jcc.exe（客户端）+ MockServer（服务端），动态输入内容（不得用固定 mock），针对返回结果做修改。既要操作服务器，也要操作客户端，遇到问题两边代码都修复。
@@ -74,47 +82,47 @@ jcc 侧启动：
 
 ### 阶段 0：基建（动态闭环测试脚手架）
 
-- [ ] 0.1 编译 jcc.exe + OpenAI.MockServer.exe（Debug）
-- [ ] 0.2 编写动态闭环测试脚本（Python，避免 PowerShell 编码问题）
+- [x] 0.1 编译 jcc.exe + OpenAI.MockServer.exe（Debug）
+- [x] 0.2 编写动态闭环测试脚本（Python，避免 PowerShell 编码问题）
   - 启动 MockServer（--interactive 模式）
   - 启动 jcc.exe（--force-interactive 多轮）
   - 动态注入响应（POST /__control__/inject）
   - 捕获 jcc.exe stdout
   - 捕获 MockServer /__control__/requests（收发数据）
   - 记录启动时间、参数时间
-- [ ] 0.3 验证脚手架可用（基础对话 round-trip）
+- [x] 0.3 验证脚手架可用（基础对话 round-trip）
 
 ### 阶段 1：基础对话链路验证
 
-- [ ] 1.1 纯文本对话（无工具调用）
-- [ ] 1.2 thinking/reasoning_content 分离（记忆：已修复，回归验证）
-- [ ] 1.3 流式 vs 非流式输出格式一致性
+- [x] 1.1 纯文本对话（无工具调用）
+- [x] 1.2 thinking/reasoning_content 分离（记忆：已修复，回归验证）
+- [x] 1.3 流式 vs 非流式输出格式一致性
 
 ### 阶段 2：工具调用链路验证
 
-- [ ] 2.1 空参数工具调用 input 应为 `{}`（记忆：已修复，回归验证）
-- [ ] 2.2 工具调用 id 解析（记忆：AllToolCalls 输出空 id 问题）
-- [ ] 2.3 工具结果 content 嵌套错误检测（记忆：不能只看 result: 'Done'）
-- [ ] 2.4 多工具调用顺序与并行
+- [x] 2.1 空参数工具调用 input 应为 `{}`（记忆：已修复，回归验证）
+- [x] 2.2 工具调用 id 解析（记忆：AllToolCalls 输出空 id 问题）
+- [x] 2.3 工具结果 content 嵌套错误检测（记忆：不能只看 result: 'Done'）
+- [x] 2.4 多工具调用顺序与并行
 
 ### 阶段 3：权限与参数校验
 
-- [ ] 3.1 `--trust` 是否设 permission_mode=trusted（记忆：未生效问题）
-- [ ] 3.2 `--permission-mode bypass` vs `--dangerously-skip-permissions`（记忆：后者无效）
-- [ ] 3.3 参数校验先于权限检查的顺序问题
+- [x] 3.1 `--trust` 是否设 permission_mode=trusted（记忆：未生效问题）
+- [x] 3.2 `--permission-mode bypass` vs `--dangerously-skip-permissions`（记忆：后者无效）
+- [x] 3.3 参数校验先于权限检查的顺序问题
 
 ### 阶段 4：异常与边界
 
-- [ ] 4.1 服务器返回异常时客户端处理
-- [ ] 4.2 空数组/空对象返回值验收（不把空值当特性）
-- [ ] 4.3 超时、卡死、无响应
-- [ ] 4.4 防御性编程：不确定参数范围用异常日志记录
+- [x] 4.1 服务器返回异常时客户端处理
+- [x] 4.2 空数组/空对象返回值验收（不把空值当特性）
+- [x] 4.3 超时、卡死、无响应
+- [x] 4.4 防御性编程：不确定参数范围用异常日志记录
 
 ### 阶段 5：格式统一（强迫症）
 
-- [ ] 5.1 NDJSON stream-json 格式对齐（关联 TASK080）
-- [ ] 5.2 错误提示格式统一（Rust 风格报错）
-- [ ] 5.3 时间戳、id、type 字段格式统一
+- [x] 5.1 NDJSON stream-json 格式对齐（关联 TASK080）
+- [x] 5.2 错误提示格式统一（Rust 风格报错）
+- [x] 5.3 时间戳、id、type 字段格式统一
 
 ## 修复记录
 

@@ -27,9 +27,45 @@ public static class MessageRenderer
         var textRight = frame.Right - 1;
         screen.WriteText(frame.Y, frame.X, $"{Figures.Pointer} ", pointer, textRight);
         // TASK069 B-3 — 换行符渲染为空格分隔（'\n' 宽度 0 被 WriteText 跳过会吞并成 "ab"）；
-        // CRLF 折叠单空格。1 行高度语义保持（多行完整支持属 TASK069 差异项 M1 待决策）
+        // CRLF 折叠单空格。1 行高度语义保持。
         var flattened = text.Replace("\r\n", "\n").Replace('\n', ' ').Replace('\r', ' ');
-        screen.WriteText(frame.Y, frame.X + 2, flattened, body, textRight);
+        // TASK069 ultrathink 彩虹文字 — 对齐基准 HighlightedThinkingText：命中 /\bultrathink\b/gi
+        // 触发词逐字符 7 色循环（utils/thinking.ts getRainbowColor charIndex%7），其余 text 色。
+        var position = frame.X + 2;
+        var cursor = 0;
+        foreach (var (start, end) in UltrathinkHighlighter.FindTriggerPositions(flattened))
+        {
+            if (start > cursor)
+            {
+                position = screen.WriteText(frame.Y, position, flattened.AsSpan(cursor, start - cursor), body, textRight);
+            }
+            for (var i = start; i < end; i++)
+            {
+                var rainbow = RainbowStyle(screen, theme, UltrathinkHighlighter.RainbowColorIndex(i - start), background);
+                position = screen.WriteText(frame.Y, position, flattened[i].ToString(), rainbow, textRight);
+            }
+            cursor = end;
+        }
+        if (cursor < flattened.Length)
+        {
+            screen.WriteText(frame.Y, position, flattened.AsSpan(cursor), body, textRight);
+        }
+    }
+
+    /// <summary>彩虹色索引 → Theme 的 rainbow 7 色（基准 getRainbowColor 的 C# 映射）。</summary>
+    private static int RainbowStyle(Screen screen, Theme theme, int index, Color background)
+    {
+        var foreground = index switch
+        {
+            0 => theme.RainbowRed,
+            1 => theme.RainbowOrange,
+            2 => theme.RainbowYellow,
+            3 => theme.RainbowGreen,
+            4 => theme.RainbowBlue,
+            5 => theme.RainbowIndigo,
+            _ => theme.RainbowViolet,
+        };
+        return screen.Styles.GetOrAdd(new TextStyle { Foreground = foreground, Background = background });
     }
 
     /// <summary>渲染助手文本消息：● + 空格（minWidth 2）+ 正文，全部 text 色。</summary>

@@ -1,37 +1,23 @@
 namespace Integration.Tests.Plugins;
 
+/// <summary>
+/// AOT handler 注册集成测试 — 用 <see cref="IsolatedTestHost"/> 注入隔离文件系统，
+/// 不再写进程全局环境变量（xUnit 类间并行安全）。
+/// </summary>
 public sealed class AotHandlerRegistryIntegrationTests {
-    private static IServiceProvider BuildServiceProvider(IFileSystem fileSystem) {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        fileSystem.CreateDirectory(tempDir);
-        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
-
-        var services = new ServiceCollection();
-        services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
-        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-        services.AddSingleton<IFileSystem>(fileSystem);
-
-        var config = new WorkflowConfig();
-        services.AddWorkflowServices(config);
-
-        return services.BuildServiceProvider();
-    }
-
     [Fact]
     public async Task IAotHandlerRegistry_IsRegistered_InDiContainer() {
-        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
-        var provider = BuildServiceProvider(fileSystem);
+        await using var host = new IsolatedTestHost();
 
-        var registry = provider.GetService<IAotHandlerRegistry>();
+        var registry = host.GetService<IAotHandlerRegistry>();
 
         registry.Should().NotBeNull("IAotHandlerRegistry 应在 AddAotHandlerRegistry 中注册到 DI 容器");
     }
 
     [Fact]
     public async Task IAotHandlerRegistry_ReturnsHandlers_ForShellNode() {
-        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
-        var provider = BuildServiceProvider(fileSystem);
-        var registry = provider.GetRequiredService<IAotHandlerRegistry>();
+        await using var host = new IsolatedTestHost();
+        var registry = host.GetRequiredService<IAotHandlerRegistry>();
 
         var handlers = registry.GetHandlers("shell");
 
@@ -41,9 +27,8 @@ public sealed class AotHandlerRegistryIntegrationTests {
 
     [Fact]
     public async Task IAotHandlerRegistry_ReturnsHandlers_ForFileNode() {
-        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
-        var provider = BuildServiceProvider(fileSystem);
-        var registry = provider.GetRequiredService<IAotHandlerRegistry>();
+        await using var host = new IsolatedTestHost();
+        var registry = host.GetRequiredService<IAotHandlerRegistry>();
 
         var handlers = registry.GetHandlers("file");
 
@@ -53,9 +38,8 @@ public sealed class AotHandlerRegistryIntegrationTests {
 
     [Fact]
     public async Task IAotHandlerRegistry_ReturnsNull_ForUnknownNode() {
-        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
-        var provider = BuildServiceProvider(fileSystem);
-        var registry = provider.GetRequiredService<IAotHandlerRegistry>();
+        await using var host = new IsolatedTestHost();
+        var registry = host.GetRequiredService<IAotHandlerRegistry>();
 
         var handlers = registry.GetHandlers("non-existent-node-id");
 
@@ -64,9 +48,8 @@ public sealed class AotHandlerRegistryIntegrationTests {
 
     [Fact]
     public async Task IAotHandlerRegistry_NodeIds_AlignWithToolCategoryEnumValue() {
-        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
-        var provider = BuildServiceProvider(fileSystem);
-        var registry = provider.GetRequiredService<IAotHandlerRegistry>();
+        await using var host = new IsolatedTestHost();
+        var registry = host.GetRequiredService<IAotHandlerRegistry>();
 
         var shellHandlers = registry.GetHandlers("shell");
         var fileHandlers = registry.GetHandlers("file");

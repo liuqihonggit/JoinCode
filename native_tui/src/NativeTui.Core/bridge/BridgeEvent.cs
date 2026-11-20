@@ -70,7 +70,9 @@ public abstract record BridgeEvent
     /// Driver 路由流式项原地更新（ToolCallItem 之后的输出尾巴），tool_result 到达时原位替换为
     /// ToolResultItem（对齐 StreamingTextItem 替换先例）— 与引擎侧 ToolProgress 逐字段镜像。
     /// </summary>
-    public sealed record ToolProgress(string ToolName, string ProgressType, string Message) : BridgeEvent;
+    /// <param name="ElapsedTimeMs">工具已用时间（毫秒）— Bash/PowerShell 执行进度权威值，无则省略（TASK069 #16）</param>
+    public sealed record ToolProgress(string ToolName, string ProgressType, string Message,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ElapsedTimeMs = null) : BridgeEvent;
 
     /// <summary>
     /// 工具结果摘要（⎿ 缩进项）；Patch 非空时渲染为结构化 diff 块（M7-2 StructuredDiff）。
@@ -105,12 +107,15 @@ public abstract record BridgeEvent
     /// TASK062 结构化：MessageId（回合序号 — Ctrl+O 定位/transcript 对账，UI 不显示数字本身）/
     /// ThinkingDurationMs（思考时长 — 0 = 无思考不渲染思考行）/ ThinkingContent（CoT 全文 —
     /// null 不输出字段，Ctrl+O 展开渲染）；三者末尾可选参数向后兼容（同 SessionInfo.Vendor 先例）。
+    /// ThinkingRedacted（TASK069 #18 — 思考被服务端脱敏，无 CoT 文本，transcript/verbose 渲染
+    /// "✻ Thinking…" 存根；默认 false 不输出字段，旧协议零破坏）。
     /// </summary>
     public sealed record AssistantMessage(string Text,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] MarkdownDocument? Markdown = null,
         int MessageId = 0,
         int ThinkingDurationMs = 0,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ThinkingContent = null) : BridgeEvent;
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ThinkingContent = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool ThinkingRedacted = false) : BridgeEvent;
 
     /// <summary>回合完成（idle）。</summary>
     public sealed record TurnCompleted() : BridgeEvent;

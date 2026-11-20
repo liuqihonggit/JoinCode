@@ -7,13 +7,20 @@ public static class ArgumentGenerator {
     /// <summary>
     /// 生成默认值参数 — Required 用 schema 默认值，Optional 用 null
     /// </summary>
-    public static Dictionary<string, JsonElement> GenerateDefaultArguments(ToolInfo tool) {
+    public static Dictionary<string, JsonElement> GenerateDefaultArguments(ToolInfo tool) =>
+        GenerateDefaultArguments(tool, tempDir: null);
+
+    /// <summary>
+    /// 生成默认值参数 — 指定 tempDir 时，路径类参数用该目录下的绝对路径（按工具语义构造，
+    /// 触发 file 类工具核心逻辑而非参数校验错误路径）；未指定时保持相对路径默认以兼容既有测试。
+    /// </summary>
+    public static Dictionary<string, JsonElement> GenerateDefaultArguments(ToolInfo tool, string? tempDir) {
         var args = new Dictionary<string, JsonElement>();
         if (tool.InputSchema?.Required == null) return args;
 
         foreach (var reqParam in tool.InputSchema.Required) {
             if (!tool.InputSchema.Properties.TryGetValue(reqParam, out var prop)) continue;
-            args[reqParam] = GenerateDefaultValue(reqParam, prop);
+            args[reqParam] = GenerateDefaultValue(reqParam, prop, tempDir);
         }
         return args;
     }
@@ -32,13 +39,13 @@ public static class ArgumentGenerator {
         }
     }
 
-    private static JsonElement GenerateDefaultValue(string paramName, ToolSchemaProperty prop) {
+    private static JsonElement GenerateDefaultValue(string paramName, ToolSchemaProperty prop, string? tempDir = null) {
         if (!string.IsNullOrEmpty(prop.Default)) {
             return JsonDocument.Parse(prop.Default).RootElement.Clone();
         }
 
         return prop.Type switch {
-            "string" => GenerateStringDefault(paramName, prop),
+            "string" => GenerateStringDefault(paramName, prop, tempDir),
             "integer" => JsonDocument.Parse("1").RootElement.Clone(),
             "number" => JsonDocument.Parse("1.0").RootElement.Clone(),
             "boolean" => JsonDocument.Parse("false").RootElement.Clone(),
@@ -48,9 +55,21 @@ public static class ArgumentGenerator {
         };
     }
 
-    private static JsonElement GenerateStringDefault(string paramName, ToolSchemaProperty prop) {
+    private static JsonElement GenerateStringDefault(string paramName, ToolSchemaProperty prop, string? tempDir = null) {
         if (prop.Enum is { Count: > 0 }) {
             return JsonDocument.Parse($"\"{prop.Enum[0]}\"").RootElement.Clone();
+        }
+
+        // tempDir 指定时，路径类参数用独占目录下的绝对路径 —— 触发 file 工具核心逻辑。
+        if (!string.IsNullOrEmpty(tempDir)) {
+            var pathValue = paramName switch {
+                "file_path" or "path" => Path.Combine(tempDir, "patrol-test.txt"),
+                "directory_path" => tempDir,
+                _ => null,
+            };
+            if (pathValue is not null) {
+                return JsonSerializer.SerializeToElement(pathValue);
+            }
         }
 
         var value = paramName switch {

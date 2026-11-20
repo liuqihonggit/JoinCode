@@ -105,7 +105,9 @@ public abstract record BridgeEvent
     /// Message 为进度文本（bash_progress 为当前 stdout 最近行快照 — 多行文本）；
     /// TUI 侧流式项原地更新，tool_result 到达时原位替换为终态结果项 — 与 native_tui 侧逐字段镜像。
     /// </summary>
-    public sealed record ToolProgress(string ToolName, string ProgressType, string Message) : BridgeEvent;
+    /// <param name="ElapsedTimeMs">工具已用时间（毫秒）— Bash/PowerShell 执行进度权威值，无则省略（TASK069 #16）</param>
+    public sealed record ToolProgress(string ToolName, string ProgressType, string Message,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] long? ElapsedTimeMs = null) : BridgeEvent;
 
     /// <summary>
     /// diff 行种类 — 数值对齐 native_tui DiffLineKind（Context=0/Added=1/Removed=2），

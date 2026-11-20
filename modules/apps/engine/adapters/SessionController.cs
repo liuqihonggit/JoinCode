@@ -365,6 +365,12 @@ public sealed class SessionController {
                 _consumer.OnText(content);
             },
             onThinking: thinking => {
+                // TASK069 #18 — 脱敏思考块无文本，单独通知（UI 渲染 "✻ Thinking…" 存根）
+                if (evt.IsRedacted) {
+                    _consumer.OnThinkingRedacted();
+                    return;
+                }
+
                 if (thinking.Length > 0) thinkingContent.Append(thinking);
                 _consumer.OnThinking(thinking);
             },
@@ -378,7 +384,7 @@ public sealed class SessionController {
                 RecordToolCallForTurnDiff(toolName, resultText, structuredPatch);
             },
             onToolProgress: (toolName, progressType, progressMessage) => {
-                _consumer.OnToolProgress(toolName, progressType, progressMessage);
+                _consumer.OnToolProgress(toolName, progressType, progressMessage, evt.ElapsedTimeMs);
             },
             onLoopDetected: (triggerCount, loopStartIndex, repeatedPattern) => {
                 _consumer.OnLoopDetected(triggerCount, loopStartIndex, repeatedPattern);

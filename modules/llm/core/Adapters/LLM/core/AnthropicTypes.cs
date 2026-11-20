@@ -311,6 +311,12 @@ internal sealed class AnthropicResponseContentBlock {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Thinking { get; set; }
 
+    /// <summary>获取或设置脱敏思考块的加密数据（TASK069 #18 — redacted_thinking 专用，不可读；
+    /// 多轮回放需原样回传，故建模保真）。</summary>
+    [JsonPropertyName("data")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Data { get; set; }
+
     /// <summary>获取或设置工具使用 ID。</summary>
     [JsonPropertyName("id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

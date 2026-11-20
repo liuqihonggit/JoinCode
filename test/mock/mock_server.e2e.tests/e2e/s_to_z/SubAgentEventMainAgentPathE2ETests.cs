@@ -1,4 +1,4 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
+﻿// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 #pragma warning disable JCC1017
 namespace MockServer.E2E.Tests.E2E;
@@ -193,7 +193,7 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
         public void OnThinking(string thinking) { }
         public void OnToolStart(string toolName, string? toolCallId, string? arguments) => ToolStarts.Add((toolName, arguments));
         public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, JoinCode.Abstractions.Models.Diff.StructuredPatchHunk[]? patch) => ToolEnds.Add((toolName, resultText is null ? null : resultText[..Math.Min(80, resultText.Length)], isError));
-        public void OnToolProgress(string toolName, string progressType, string? progressMessage) { }
+        public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) { }
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) { }
         public void OnTimingSummary(string summary) { }
         public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) { }

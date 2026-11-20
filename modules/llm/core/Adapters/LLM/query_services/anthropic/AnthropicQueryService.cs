@@ -508,6 +508,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
     internal static IReadOnlyList<ApiMessage> ConvertAnthropicResponseToApiMessages(AnthropicMessagesResponse response) {
         var textParts = new StringBuilder();
         var thinkingParts = new StringBuilder();
+        var redactedThinking = false;
         var toolUseBlocks = new List<(string Id, string Name, string Input)>();
         var webSearchResults = new List<string>();
 
@@ -516,6 +517,10 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                 case AnthropicContentBlockType.Thinking:
                 if (block.Thinking != null)
                     thinkingParts.Append(block.Thinking);
+                break;
+                case AnthropicContentBlockType.RedactedThinking:
+                // TASK069 #18 — 服务端脱敏思考块（无文本），标记下游渲染存根
+                redactedThinking = true;
                 break;
                 case AnthropicContentBlockType.Text:
                 textParts.Append(block.Text);
@@ -543,6 +548,15 @@ public sealed class AnthropicQueryService : QueryServiceBase {
 
         if (thinkingParts.Length > 0) {
             metadata["thinking_content"] = JsonElementHelper.FromString(thinkingParts.ToString());
+        }
+
+        if (redactedThinking) {
+            // 无 CoT 文本时 thinking_content 用布尔占位（下游只 ContainsKey 判定思考类）
+            if (thinkingParts.Length == 0) {
+                metadata["thinking_content"] = JsonElementHelper.FromBoolean(true);
+            }
+
+            metadata["thinking_redacted"] = JsonElementHelper.FromBoolean(true);
         }
 
         if (webSearchResults.Count > 0) {
@@ -657,6 +671,11 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                     } else if (evt.ContentBlock.Type == AnthropicContentBlockType.WebSearchToolResult) {
                         var searchMetadata = BuildWebSearchResultMetadata(evt.ContentBlock, messageId, modelName);
                         yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, searchMetadata, data);
+                    } else if (evt.ContentBlock.Type == AnthropicContentBlockType.RedactedThinking) {
+                        // TASK069 #18 — 服务端脱敏思考块：无 thinking 文本，发标记事件供 UI 渲染
+                        // "✻ Thinking…" 存根（对齐基准 AssistantRedactedThinkingMessage）
+                        var redactedMetadata = BuildRedactedThinkingMetadata(messageId, modelName);
+                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, redactedMetadata, data);
                     }
                 }
                 break;
@@ -728,6 +747,17 @@ public sealed class AnthropicQueryService : QueryServiceBase {
             ["thinking_content"] = JsonElementHelper.FromBoolean(true)
         }.ToFrozenDictionary();
         return (text, thinking);
+    }
+
+    /// <summary>TASK069 #18 — 脱敏思考块 metadata：thinking_content 让下游仍归入思考类，
+    /// thinking_redacted 标记无 CoT 文本（UI 渲染存根而非空思考行）。</summary>
+    internal static FrozenDictionary<string, JsonElement> BuildRedactedThinkingMetadata(string messageId, string modelName) {
+        return new Dictionary<string, JsonElement> {
+            ["Id"] = JsonElementHelper.FromString(messageId),
+            ["Model"] = JsonElementHelper.FromString(modelName),
+            ["thinking_content"] = JsonElementHelper.FromBoolean(true),
+            ["thinking_redacted"] = JsonElementHelper.FromBoolean(true)
+        }.ToFrozenDictionary();
     }
 
     /// <summary>构建 ContentBlockStart 中 server_tool_use 块的 metadata</summary>

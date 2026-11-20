@@ -1,20 +1,23 @@
 # TASK069 — TUI 二轮细节对比（C# native_tui vs ClaudeCode 基准）
 
-> 状态：调研完成，确认 bug 修复中；差异项待用户逐项决策（一问一答）
+> 状态：**6 项确认 bug 已全部修复并验收（2026-11-21 回填，见 §一 状态列）；差异项待用户逐项决策（一问一答）**
+> 回填依据：B-1~B-5 = commit `33f8954bb`（5 个 TDD 测试文件，NativeTui.Tests 2788 + Host.Tests 125 全绿）；
+> B-6 = commit `30daa00990`（`SessionResumeStep.FindMostRecentSessionIdAsync` 加 ProjectPath 过滤，`git blame` 核实）。
+> 仅刷新「已修」事实，不改变「功能相同但实现不同 = 待用户裁决」的纪律。
 > 对比范围：第二轮 6 个此前未深挖的域（流式渲染/通知 footer/权限深度/会话 compact/错误重试/消息项渲染）
 > 方法：6 个并行调研代理，返回体量受控（行数上限约束）；判定纪律 = 双侧证据 + 自身契约违背才判 bug
 > 前置：TASK067 一轮 11 批次 + w2 板块 A-E 已覆盖底层与功能域；本轮聚焦细节层
 
 ## 一、确认 bug（直接 TDD 修复，无需决策）
 
-| # | 症状 | C# 证据 | 基准证据 | 严重度 |
-|---|------|---------|---------|--------|
-| B-1 | **Error 事件后 IsBusy 永久卡死**：回合异常（API 错误/超时/空回复/工具拒绝）只发 Error 无终态事件 → IsBusy 卡 true → 提交永久排队、Esc 无效、死亡检测被挡 | EngineTurnClient.cs:121-122（异常只发 Error）；ReplBridgeDriver.cs:181-211（IsBusy 仅 TurnCompleted/TurnInterrupted 复位） | REPL.tsx:2951-2961（finally 兜底 "Always reset loading state"） | **最高**（每次 API 错误必现） |
-| B-2 | 引擎 busy 中死亡无提示：死亡检测双条件 `!IsAlive && !IsBusy` → busy 中死亡 IsBusy 卡 true → spinner 永转不退出 | ReplShell.cs:732 | REPL.tsx:2958（finally 无条件） | 高 |
-| B-3 | 用户消息换行符被吞：'\n' 宽度 0 被 WriteText 跳过 → "a\nb" 渲染为 "ab" 无分隔 | MessageItems.cs:22,25-26 + Screen.cs:163-169 + RuneWidth.cs:136-138 | UserPromptMessage.tsx:76-78 | 高（多行/粘贴消息显示错误） |
-| B-4 | 流式项跨工具存活吞并新文本：text→tool→text 序列（agent loop 真实路径）第二段文本追加到旧流式项 → 顺序错乱 + OnDone 落定重复 | ReplBridgeDriver.cs:163-168,133-137（ToolCall 不清 _streamingItem） | messages.ts:3003（新块开始清空流式文本） | 高 |
-| B-5 | mac+ghostty spinner 字符集选择反序：darwin 优先命中含 ✽ 集（基准刻意规避 ghostty 渲染偏移） | SpinnerRow.cs:183-186 | Spinner/utils.ts:4-11（ghostty 优先） | 低 |
-| B-6 | --continue 跨项目恢复：全局最近会话无 ProjectPath 过滤（引擎域 modules/） | SessionResumeStep.cs:83-86 | sessionStorage.ts:4119-4122 | 中（跨域） |
+| # | 症状 | C# 证据（修复前） | 基准证据 | 严重度 | 状态（2026-11-21 回填） |
+|---|------|---------|---------|--------|------|
+| B-1 | **Error 事件后 IsBusy 永久卡死**：回合异常（API 错误/超时/空回复/工具拒绝）只发 Error 无终态事件 → IsBusy 卡 true → 提交永久排队、Esc 无效、死亡检测被挡 | EngineTurnClient.cs:121-122（异常只发 Error）；ReplBridgeDriver.cs:181-211（IsBusy 仅 TurnCompleted/TurnInterrupted 复位） | REPL.tsx:2951-2961（finally 兜底 "Always reset loading state"） | **最高**（每次 API 错误必现） | ✅ 已修 `33f8954bb`（Error 分支承担 EndTurn）+ `BridgeErrorTurnTerminationTests.cs` |
+| B-2 | 引擎 busy 中死亡无提示：死亡检测双条件 `!IsAlive && !IsBusy` → busy 中死亡 IsBusy 卡 true → spinner 永转不退出 | ReplShell.cs:732 | REPL.tsx:2958（finally 无条件） | 高 | ✅ 已修 `33f8954bb`（一拍缓冲后强制退出）+ `EngineDeathDetectionTests.cs` |
+| B-3 | 用户消息换行符被吞：'\n' 宽度 0 被 WriteText 跳过 → "a\nb" 渲染为 "ab" 无分隔 | MessageItems.cs:22,25-26 + Screen.cs:163-169 + RuneWidth.cs:136-138 | UserPromptMessage.tsx:76-78 | 高（多行/粘贴消息显示错误） | ✅ 已修 `33f8954bb`（空格分隔）+ `UserMessageNewlineRenderTests.cs` |
+| B-4 | 流式项跨工具存活吞并新文本：text→tool→text 序列（agent loop 真实路径）第二段文本追加到旧流式项 → 顺序错乱 + OnDone 落定重复 | ReplBridgeDriver.cs:163-168,133-137（ToolCall 不清 _streamingItem） | messages.ts:3003（新块开始清空流式文本） | 高 | ✅ 已修 `33f8954bb`（ToolCall 即定格 partial）+ `StreamingItemToolBoundaryTests.cs` |
+| B-5 | mac+ghostty spinner 字符集选择反序：darwin 优先命中含 ✽ 集（基准刻意规避 ghostty 渲染偏移） | SpinnerRow.cs:183-186 | Spinner/utils.ts:4-11（ghostty 优先） | 低 | ✅ 已修 `33f8954bb`（ghostty 优先判定）+ `SpinnerCharacterSetOrderTests.cs` |
+| B-6 | --continue 跨项目恢复：全局最近会话无 ProjectPath 过滤（引擎域 modules/） | SessionResumeStep.cs:83-86 | sessionStorage.ts:4119-4122 | 中（跨域） | ✅ 已修 `30daa00990`（`FindMostRecentSessionIdAsync` 加 ProjectPath 过滤，`git blame` 核实） |
 
 ## 二、差异清单（高价值节选，待一问一答）
 
@@ -25,8 +28,8 @@
 | S1 | 流式上屏粒度 | C# 逐字含未完成行（抖动）；基准截断到最后换行逐行显示 | REPL.tsx:1505 |
 | S2 | 流式尾块渲染 | C# 尾恒纯文本；基准增长尾走完整 Markdown（代码块流式期有样式） | Markdown.tsx:231-233 |
 | S3 | 增量解析范围 | C# 每次 Append 全量 Markdig.Parse O(全文)；基准稳定边界起 O(尾长) | Markdown.tsx:210-212 |
-| S4 | 流式项前缀 | C# 流式 ⎿ dim 落定切 ●（跳变）；基准同用 ● | Messages.tsx:703-712 |
-| S5 | token compact 大小写 | C# 1.3k；基准 1.3K | format.ts:124-130 |
+| S4 | 流式项前缀 | C# 流式 ⎿ dim 落定切 ●（跳变）；基准同用 ● | Messages.tsx:703-712 | ✅ **裁决：维持 C# 现状（已对齐基准）2026-11-21** — 一手证据 `StreamingTextItem.cs:5` 实现注释「对齐基准 Messages.tsx 尾部 ⎿ 前缀行」+ TASK064:12 记基准行 703-709 为 ⎿；TASK069「基准同用 ●」是转述误读（基准落定才是 ●）。跳变是基准自身行为，非缺陷 |
+| S5 | token compact 大小写 | C# 1.3k；基准 1.3K | format.ts:124-130 | ✅ **已对齐基准 2026-11-21**（用户拍板改大写 K；`NumberFormatter.FormatCompact` k/M/B 后缀全大写，TDD 锁定） |
 | S6 | 提示词 XML 剥离 | 基准 stripPromptXMLTags 先剥离再切分；C# 无 | Markdown.tsx:202 |
 
 ### 域2：通知与 footer
@@ -76,7 +79,7 @@
 
 | # | 功能点 | 差异 |
 |---|--------|------|
-| M1 | ❯ 前缀选中变色 | 基准选中时 suggestion 色；C# 恒 Subtle |
+| M1 | ❯ 前缀选中变色 | 基准选中时 suggestion 色；C# 恒 Subtle | ✅ **已对齐基准 2026-11-21**（一手源码纠正早先误判）：基准 `HighlightedThinkingText.tsx:24` `isSelected ? suggestion : subtle`；C# 加 `IScrollItem.RenderSelectedAccent` 钩子 + `UserMessageItem` 覆写（选中时 ❯ 前景 subtle→suggestion），ScrollBox 选中项调钩子。TDD 25/25 + 真机 selftest |
 | M2 | 工具圆点状态色 | 基准完成=success/error 色 + 未决闪烁；C# 恒 text 色（工具失败不可见） |
 | M3 | diff 行号 gutter | 基准 marker+右对齐行号列 + "Added/Removed N lines" 统计头；C# 4 空格缩进无行号 |
 | M4 | 表格列对齐 | 基准 center/right 支持；C# 仅左对齐 |
@@ -91,10 +94,10 @@
 | 自定义 statusline | StatusLine.tsx:30-100 | settings.statusLine 外部命令 |
 | reducedMotion/yank-bug 禁用流式预览 | REPL.tsx:1495 | 无条件渲染 |
 | spinner 连接警告 | Spinner.tsx:348 | Reconnecting/Disconnected 行 |
-| ultrathink 彩虹文字 | HighlightedThinkingText.tsx:87 | 触发词特殊渲染 |
-| 工具执行中耗时显示 | BashTool/UI.tsx:145 | elapsedTimeSeconds 进度行 |
+| ultrathink 彩虹文字 | HighlightedThinkingText.tsx:87 | 触发词特殊渲染 — ✅ 已对齐基准 2026-11-21：落点为**用户消息正文**（基准仅 UserPromptMessage 调用）；算法一手 `utils/thinking.ts` `/\bultrathink\b/gi` + 7 色 `charIndex%7` 循环；C# 加 UltrathinkHighlighter + RenderUser 分段着色 |
+| 工具执行中耗时显示 | BashTool/UI.tsx:145（**转述行号错** → 真组件 `ShellTimeDisplay.tsx` + `ShellProgressMessage`） | ✅ **已完成 2026-11-21**：elapsed 数据源本就存在（`ShellExecutionMiddleware`），投影链 8 跳贯通至 TUI dim 耗时行（续行位，续 ⎿ 列布局）；旧端 JSON 零破坏 |
 | 用户中断专用消息 | UserTextMessage.tsx:83 | C# 仅红色通用错误 |
-| redacted_thinking 消息 | 独立组件 | 无对应消息项 |
+| redacted_thinking 消息 | 独立组件 `AssistantRedactedThinkingMessage.tsx`（`Message.tsx:524` — 默认视图 `return null`，仅 transcript/verbose 显示 `✻ Thinking…` dim italic） | ✅ **已完成 2026-11-21**：脱敏块识别（此前兜底成 Text 静默丢弃）→ metadata 标记 → `Thinking(redacted)` → `OnThinkingRedacted` → `AssistantMessage.ThinkingRedacted` → transcript 投影 `✻ Thinking…`（默认视图不渲染，对齐基准）。边界：标记仅进程内路径生效（引擎 bridge `AssistantMessage` 无 thinking 字段，另一缺口） |
 
 ## 三·补：批次落地与跨域登记（2026-10-24）
 

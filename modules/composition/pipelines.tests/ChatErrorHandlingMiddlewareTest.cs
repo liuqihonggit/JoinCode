@@ -218,6 +218,55 @@ public sealed class ChatErrorHandlingMiddlewareTest {
         apiEx.ErrorCode.Should().Be(ErrorCode.ApiConnection.ToValue());
     }
 
+    // === TASK069-E1: SSL/TLS 证书分类（对齐基准 formatAPIError isSSLError 分支）===
+
+    [Fact]
+    public void ClassifyException_HttpRequestWithAuthenticationInner_ThrowsSslCertificate() {
+        var authInner = new System.Security.Authentication.AuthenticationException(
+            "The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot");
+        var httpEx = new System.Net.Http.HttpRequestException("api.anthropic.com handshake failed", authInner, null);
+
+        var result = ChatErrorHandlingMiddleware.ClassifyException(httpEx);
+
+        var apiEx = result.Should().BeOfType<ApiException>().Which;
+        apiEx.ErrorCode.Should().Be(ErrorCode.ApiConnection.ToValue());
+        apiEx.Endpoint.Should().Be("Anthropic");
+        apiEx.Message.Should().Contain("SSL 证书校验失败");
+        apiEx.Message.Should().Contain("系统证书存储"); // 可操作提示
+    }
+
+    [Fact]
+    public void ClassifyException_SecureConnectionError_ThrowsSslCertificate() {
+        var httpEx = new System.Net.Http.HttpRequestException(
+            System.Net.Http.HttpRequestError.SecureConnectionError,
+            "The SSL connection could not be established");
+
+        var result = ChatErrorHandlingMiddleware.ClassifyException(httpEx);
+
+        var apiEx = result.Should().BeOfType<ApiException>().Which;
+        apiEx.Message.Should().Contain("SSL 证书校验失败");
+    }
+
+    [Theory]
+    [InlineData("The remote certificate has expired", "SSL 证书已过期")]
+    [InlineData("CERT_REVOKED: certificate revoked", "SSL 证书已被吊销")]
+    [InlineData("RemoteCertificateNameMismatch api.example.com", "SSL 证书主机名不匹配")]
+    [InlineData("DEPTH_ZERO_SELF_SIGNED_CERT", "检测到自签证书，证书链不受信任")]
+    public void DescribeSslFailure_MapsKnownReasons(string innerMessage, string expected) {
+        var authInner = new System.Security.Authentication.AuthenticationException(innerMessage);
+        var httpEx = new System.Net.Http.HttpRequestException("handshake failed", authInner, null);
+
+        ChatErrorHandlingMiddleware.DescribeSslFailure(httpEx).Should().Be(expected);
+    }
+
+    [Fact]
+    public void IsSslFailure_NonSslSocketInner_ReturnsFalse() {
+        var socketEx = new System.Net.Sockets.SocketException(10061);
+        var httpEx = new System.Net.Http.HttpRequestException("localhost refused", socketEx, null);
+
+        ChatErrorHandlingMiddleware.IsSslFailure(httpEx).Should().BeFalse();
+    }
+
     // === GetEndpointHint: 纯函数确定性测试 ===
 
     [Theory]

@@ -40,8 +40,17 @@ public class FireAndForgetTaskTests {
         fft.IsCompleted.Should().BeTrue();
     }
 
+    /// <summary>
+    /// 释放前取消令牌 — CI 高负载时线程池可能 50ms 内未调度 factory，
+    /// 用 Retry16Async 重试整个用例（间隔 200ms）击破偶发调度饥饿。
+    /// </summary>
     [Fact]
     public async Task Release_CancelsTokenBeforeWaiting() {
+        await TestWaitHelper.Retry16Async(_ => Release_CancelsTokenBeforeWaiting_Core(),
+            totalTimeout: TimeSpan.FromSeconds(60));
+    }
+
+    private static async Task Release_CancelsTokenBeforeWaiting_Core() {
         var tcs = new TaskCompletionSource<int>();
         CancellationToken observedToken = default;
         await using var fft = FireAndForgetTask<int>.Run(async ct => {
@@ -50,15 +59,19 @@ public class FireAndForgetTaskTests {
             return 1;
         });
 
-        await System.Threading.Tasks.Task.Delay(50);
-        observedToken.CanBeCanceled.Should().BeTrue();
+        try {
+            await System.Threading.Tasks.Task.Delay(50);
+            observedToken.CanBeCanceled.Should().BeTrue();
 
-        var releaseTask = fft.DisposeAsync().AsTask();
-        await System.Threading.Tasks.Task.Delay(50);
-        observedToken.IsCancellationRequested.Should().BeTrue();
+            var releaseTask = fft.DisposeAsync().AsTask();
+            await System.Threading.Tasks.Task.Delay(50);
+            observedToken.IsCancellationRequested.Should().BeTrue();
 
-        tcs.SetCanceled();
-        await releaseTask;
+            tcs.SetCanceled();
+            await releaseTask;
+        } finally {
+            tcs.TrySetCanceled();
+        }
     }
 
     [Fact]

@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 用户交互工具名称枚举 — 真正需要等待用户输入的工具
 /// 对应 ToolCategory.Interaction。此类工具禁止标记 ConcurrencySafe=true，
-/// 否则会绕过 StreamingToolExecutor 的独占调度导致并行卡死。
+/// 否则会绕过交互类工具的独占调度导致并行卡死。
 /// </summary>
 public enum UserInteractionToolName {
     /// <summary>

@@ -41,7 +41,7 @@ public enum ToolErrorType {
     /// <summary>PreToolUse Hook 阻断 — PreToolUseHookMiddleware (Order=800) 拦截</summary>
     [EnumValue("hook_blocked")] HookBlocked,
 
-    /// <summary>工具执行网关不可用 — ChatToolOrchestrator 检测</summary>
+    /// <summary>工具执行网关不可用 — 工具执行网关检测</summary>
     [EnumValue("gateway_unavailable")] GatewayUnavailable,
 
     /// <summary>管道完成但无结果 — PermissionAwareToolExecutor 检测</summary>

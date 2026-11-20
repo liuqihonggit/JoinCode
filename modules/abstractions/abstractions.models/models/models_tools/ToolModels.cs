@@ -198,7 +198,7 @@ public sealed record ToolResult {
     public System.Text.Json.JsonElement? StructuredOutput { get; set; }
 
     /// <summary>
-    /// 权限决策结果 — PendingConfirmation 时由上层 ToolExecutionHandler 触发 IPermissionConfirmationHandler.Confirm。
+    /// 权限决策结果 — PendingConfirmation 时由工具执行网关触发 IPermissionConfirmationHandler.Confirm。
     /// 默认 Allowed,表示工具已正常执行。不序列化到 LLM。
     /// </summary>
     [JsonIgnore]

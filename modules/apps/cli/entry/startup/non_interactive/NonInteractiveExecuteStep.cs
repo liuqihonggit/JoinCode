@@ -23,7 +23,6 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             var p = context.Config.Provider;
             using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray)) {
                 // 流式: LLM 请求流式（jcc 默认用 StreamingFallbackDecorator 先尝试流式，失败降级非流式）
-                // UseStreamingToolExecution 控制的是工具执行流式，非 LLM 流式，不在此显示
                 Cli.TerminalHelper.WriteLine($"供应商: {p.Vendor} | 模型: {p.ModelId} | 流式: 是" +
                     (context.Config.CurrentProfile is not null ? $" | 预设: {context.Config.CurrentProfile}" : ""));
                 Cli.TerminalHelper.WriteLine($"  端点: {p.Endpoint ?? "(默认)"} | API Key: {(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置（未验证）")}");

@@ -160,10 +160,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
     /// <summary>
     /// 核心执行循环 — 由 QueryCoreMiddleware 调用
+    /// <para>Stop hook 回灌上限由 <see cref="QueryEngineConfig.MaxStopHookReplyRounds"/> 提供
+    ///（TASK071 query2-③ 防阻断/回灌死循环烧钱；TASK102 后续从硬编码改为可配）。</para>
     /// </summary>
-    /// <summary>Stop hook 回灌轮次上限（TASK071 query2-③ — 防阻断/回灌死循环烧钱）。</summary>
-    private const int MaxStopHookReplyRounds = 5;
-
     private async Task ExecuteCoreLoopAsync(QueryMiddlewareContext context, CancellationToken cancellationToken) {
         var retryCount = 0;
         var totalInputTokens = 0;
@@ -173,10 +172,20 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var totalReasoning = 0;
         var stopHookReplies = 0;
         var totalTurns = 0;
+        // TASK102 轮次闸门：本轮是否已选择"5 结束"、已拦截收尾次数、是否启用
+        var roundGateEndSelected = false;
+        var roundGateRejections = 0;
+        var requireRoundGate = context.Options is { RequireRoundGate: true }
+            && context.Options.IsToolAllowed(RoundGatePolicy.ToolName);
 
         while (context.TotalToolCalls < _config.MaxToolCallIterations) {
             cancellationToken.ThrowIfCancellationRequested();
             totalTurns++;
+
+            // 迭代开始回调（TASK103 — ChatService 查询后端步首注入 steer 输入）
+            if (context.Options?.OnIterationStart is { } onIterationStart) {
+                await onIterationStart(context.ChatHistory, cancellationToken).ConfigureAwait(false);
+            }
 
             // 迭代前钩子（USD 预算检查等）
             foreach (var hook in context.BeforeIterationHooks) {
@@ -189,15 +198,16 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
             QueryIterationResult? iterationResult = null;
             var success = false;
+            context.HasEmittedStreamContent = false;
 
-            // 重试机制
+            // 重试机制 — 已发出流式内容的部分输出不再整轮重试（否则重复文本上屏）
             while (!success && retryCount <= _config.Retry.MaxRetries) {
                 try {
                     iterationResult = await ExecuteIterationInternalAsync(
                         context, cancellationToken).ConfigureAwait(false);
                     success = true;
                     retryCount = 0;
-                } catch (Exception ex) when (retryCount < _config.Retry.MaxRetries && IsRetryable(ex)) {
+                } catch (Exception ex) when (retryCount < _config.Retry.MaxRetries && IsRetryable(ex) && !context.HasEmittedStreamContent) {
                     retryCount++;
                     var delay = CalculateRetryDelay(retryCount);
                     _logger?.LogWarning(ex, "[QueryEngine] 迭代执行失败，{RetryCount}/{MaxRetries} 次重试，等待 {DelayMs}ms",
@@ -211,10 +221,6 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 context.OutputChunks.Enqueue(BuildRetryExhaustedErrorChunk(_config.Retry.MaxRetries));
                 return;
             }
-
-            // 处理内容输出
-            foreach (var c in iterationResult.Chunks)
-                context.OutputChunks.Enqueue(c);
 
             // 更新上下文的 Token 使用信息（最后一轮值 — 钩子消费语义不变）+ 跨轮累计（P7 权威校正数据源）
             context.InputTokens = iterationResult.InputTokens;
@@ -234,8 +240,35 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 await hook(context, cancellationToken).ConfigureAwait(false);
             }
 
+            // 异常输出已注入纠正提示词 — 不进入收尾判定，直接下一轮重试
+            if (iterationResult.RequestsAnotherTurn) {
+                continue;
+            }
+
             // 处理查询完成（无工具调用）
             if (iterationResult.ToolCalls.Count == 0) {
+                // TASK102 轮次闸门：未选择 5 结束 → 回灌阻断消息并继续一轮（独立于 Stop hook 计数）
+                switch (EvaluateRoundGateStop(requireRoundGate, roundGateEndSelected, ref roundGateRejections, out var gateMaxRejections)) {
+                    case RoundGateStopDecision.Blocked:
+                        context.ChatHistory.AddUserMessage(
+                            RoundGatePrompts.BuildStopBlockedMessage(roundGateRejections, gateMaxRejections));
+                        context.IsQueryComplete = false;
+                        continue;
+
+                    case RoundGateStopDecision.Exhausted:
+                        context.OutputChunks.Enqueue(new QueryStreamChunk {
+                            Type = AgentStreamChunkType.Content,
+                            Content = $"⚠ 轮次闸门连续 {roundGateRejections} 次未通过（上限 {gateMaxRejections}），本轮已强制结束。"
+                        });
+                        break;
+                }
+
+                // 轮内注入未消费完时不得收尾（TASK103 — 对齐 chat 循环 HasPendingSteerInput）
+                if (context.Options?.HasPendingIterationInput?.Invoke() == true) {
+                    context.IsQueryComplete = false;
+                    continue;
+                }
+
                 context.Stopwatch.Stop();
                 context.IsQueryComplete = true;
 
@@ -246,11 +279,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
                 // TASK071 query2-③ — 对齐 TS stopHooks.ts:257-263 + 296-309：Stop hook 阻断消息
                 // 以 user 消息回灌并继续一轮迭代（模型收到阻断说明后继续收尾），上限 5 轮防无限烧钱
-                if (context.StopHookBlockingMessages.Count > 0 && stopHookReplies < MaxStopHookReplyRounds) {
+                if (context.StopHookBlockingMessages.Count > 0 && stopHookReplies < _config.MaxStopHookReplyRounds) {
                     stopHookReplies++;
                     foreach (var blockMessage in context.StopHookBlockingMessages) {
                         _logger?.LogInformation("[QueryEngine] Stop hook 阻断回灌 ({Reply}/{Max}): {Message}",
-                            stopHookReplies, MaxStopHookReplyRounds, blockMessage);
+                            stopHookReplies, _config.MaxStopHookReplyRounds, blockMessage);
                         context.ChatHistory.AddUserMessage(blockMessage);
                     }
 
@@ -276,74 +309,109 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 return;
             }
 
-            // 依次执行本轮所有工具调用
-            foreach (var toolCall in iterationResult.ToolCalls) {
-                if (context.TotalToolCalls >= _config.MaxToolCallIterations) {
-                    break;
+            // 依次执行本轮所有工具调用 — 并发安全工具合批并行，非并发安全工具独占批次（ADR 0160）
+            var scheduledToolCalls = ScheduleToolCalls(iterationResult.ToolCalls, _config.MaxToolCallIterations - context.TotalToolCalls);
+            var concurrencyClassifier = _serviceProvider?.GetService<IToolConcurrencyClassifier>();
+            var batchStart = 0;
+            var stopProcessing = false;
+            while (batchStart < scheduledToolCalls.Count && !stopProcessing) {
+                var batchEnd = await DetermineBatchEndAsync(scheduledToolCalls, batchStart, concurrencyClassifier, cancellationToken).ConfigureAwait(false);
+                if (batchEnd - batchStart > 1) {
+                    Diag.WriteLine($"[TOOL-PARALLEL] batch={batchEnd - batchStart} tools={string.Join(',', scheduledToolCalls.Skip(batchStart).Take(batchEnd - batchStart).Select(x => x.Call.ToolName))}");
+                }
+                var firstCallNumber = context.TotalToolCalls + 1;
+
+                for (var i = batchStart; i < batchEnd; i++) {
+                    var toolCall = scheduledToolCalls[i].Call;
+                    var callNumber = firstCallNumber + (i - batchStart);
+                    context.ToolName = toolCall.ToolName;
+                    context.HasToolCall = true;
+
+                    // TASK102 轮次闸门：记录"5 结束"的选择；其余选项由工具结果注入工作流提示词
+                    if (RoundGatePolicy.TryReadChoice(toolCall.ToolName, toolCall.Arguments, toolCall.RawArguments, out var gateChoice)
+                        && gateChoice == RoundGateChoice.End) {
+                        roundGateEndSelected = true;
+                    }
+
+                    context.OutputChunks.Enqueue(new QueryStreamChunk {
+                        Type = AgentStreamChunkType.ToolCallStart,
+                        ToolName = toolCall.ToolName,
+                        ToolCallId = toolCall.ToolCallId,
+                        ToolArguments = toolCall.RawArguments,
+                        ToolCallNumber = callNumber
+                    });
                 }
 
-                context.TotalToolCalls++;
-                context.ToolName = toolCall.ToolName;
-                context.HasToolCall = true;
+                context.TotalToolCalls = firstCallNumber + (batchEnd - batchStart) - 1;
 
-                context.OutputChunks.Enqueue(new QueryStreamChunk {
-                    Type = AgentStreamChunkType.ToolCallStart,
-                    ToolName = toolCall.ToolName,
-                    ToolCallId = toolCall.ToolCallId,
-                    ToolArguments = toolCall.RawArguments,
-                    ToolCallNumber = context.TotalToolCalls
-                });
-
-                // 执行工具调用
-                var toolResult = await ExecuteToolAsync(toolCall, context.Options, cancellationToken).ConfigureAwait(false);
-
-                context.OutputChunks.Enqueue(new QueryStreamChunk {
-                    Type = AgentStreamChunkType.ToolCallEnd,
-                    ToolName = toolCall.ToolName,
-                    ToolCallId = toolCall.ToolCallId,
-                    ToolResult = toolResult,
-                    ToolResultText = ExtractToolResultText(toolResult),
-                    IsToolError = toolResult.IsError,
-                    ToolCallNumber = context.TotalToolCalls
-                });
-
-                // 将工具结果添加到对话历史
-                await AddToolResultToHistory(context, toolCall, toolResult).ConfigureAwait(false);
-
-                // TASK071-C6 — 结构化输出捕获：对齐 TS QueryEngine structuredOutputFromTool
-                // 合成工具验证通过时 ToolResult.StructuredOutput 携带验证数据，捕获到 context 供 result 消息填充
-                if (toolResult.StructuredOutput is { } structuredOutput) {
-                    context.StructuredOutputFromTool = structuredOutput;
+                // 批次内先全部启动，再按原调用顺序逐条 await — 并行收益 + 历史/事件顺序与串行一致
+                var batchTasks = new Task<ToolResult?>[batchEnd - batchStart];
+                for (var i = 0; i < batchTasks.Length; i++) {
+                    batchTasks[i] = TryExecuteToolAsync(scheduledToolCalls[batchStart + i].Call, context.Options, cancellationToken);
                 }
 
-                // TASK071-C6 — 合成工具调用计数 + 重试上限（对齐 TS MAX_STRUCTURED_OUTPUT_RETRIES）
-                if (toolCall.ToolName == SystemToolNameEnumConstants.SyntheticOutput) {
-                    context.StructuredOutputCallCount++;
-                    if (context.StructuredOutputCallCount >= context.MaxStructuredOutputRetries) {
-                        _logger?.LogWarning("[QueryEngine] StructuredOutput 合成工具调用次数超限: {Count}/{Max}",
-                            context.StructuredOutputCallCount, context.MaxStructuredOutputRetries);
-                        context.OutputChunks.Enqueue(BuildStructuredOutputRetryExhaustedErrorChunk(context.MaxStructuredOutputRetries));
-                        return;
+                for (var i = 0; i < batchTasks.Length; i++) {
+                    var scheduled = scheduledToolCalls[batchStart + i];
+                    var toolCall = scheduled.Call;
+                    var callNumber = firstCallNumber + i;
+                    var toolResult = await batchTasks[i].ConfigureAwait(false);
+                    if (toolResult is null) {
+                        // 取消时未完成的工具调用补写 (aborted) — assistant 工具调用消息后必须有对应结果，历史才对下一次请求合法
+                        WriteAbortedToolResults(context, iterationResult.ToolCalls, scheduled.OriginalIndex, iterationResult.Content);
+                        throw new OperationCanceledException(cancellationToken);
+                    }
+
+                    context.OutputChunks.Enqueue(new QueryStreamChunk {
+                        Type = AgentStreamChunkType.ToolCallEnd,
+                        ToolName = toolCall.ToolName,
+                        ToolCallId = toolCall.ToolCallId,
+                        ToolResult = toolResult,
+                        ToolResultText = ExtractToolResultText(toolResult),
+                        IsToolError = toolResult.IsError,
+                        ToolCallNumber = callNumber
+                    });
+
+                    // 将工具结果添加到对话历史（assistant 文本与工具调用同轮保留，对齐 chat 循环）
+                    await AddToolResultToHistory(context, toolCall, toolResult, iterationResult.Content).ConfigureAwait(false);
+
+                    // TASK071-C6 — 结构化输出捕获：对齐 TS QueryEngine structuredOutputFromTool
+                    // 合成工具验证通过时 ToolResult.StructuredOutput 携带验证数据，捕获到 context 供 result 消息填充
+                    if (toolResult.StructuredOutput is { } structuredOutput) {
+                        context.StructuredOutputFromTool = structuredOutput;
+                    }
+
+                    // TASK071-C6 — 合成工具调用计数 + 重试上限（对齐 TS MAX_STRUCTURED_OUTPUT_RETRIES）
+                    if (toolCall.ToolName == SystemToolNameEnumConstants.SyntheticOutput) {
+                        context.StructuredOutputCallCount++;
+                        if (context.StructuredOutputCallCount >= context.MaxStructuredOutputRetries) {
+                            _logger?.LogWarning("[QueryEngine] StructuredOutput 合成工具调用次数超限: {Count}/{Max}",
+                                context.StructuredOutputCallCount, context.MaxStructuredOutputRetries);
+                            context.OutputChunks.Enqueue(BuildStructuredOutputRetryExhaustedErrorChunk(context.MaxStructuredOutputRetries));
+                            return;
+                        }
+                    }
+
+                    // 子代理 usage 累计 — agent 工具的 ToolResult.Usage 携带子代理 token 用量（含缓存命中）
+                    if (toolResult.Usage is { } subagentUsage) {
+                        totalInputTokens += subagentUsage.PromptTokens;
+                        totalOutputTokens += subagentUsage.CompletionTokens;
+                        totalCacheRead += subagentUsage.CacheReadInputTokens;
+                        totalCacheCreation += subagentUsage.CacheCreationInputTokens;
+                        totalReasoning += subagentUsage.ReasoningTokens;
+                    }
+
+                    // 工具调用后钩子（内容替换预算检查、递减回报检测、历史裁剪、空闲提醒等）
+                    foreach (var hook in context.AfterToolCallHooks) {
+                        await hook(context, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    if (context.ShouldBreak) {
+                        stopProcessing = true;
+                        break;
                     }
                 }
 
-                // 子代理 usage 累计 — agent 工具的 ToolResult.Usage 携带子代理 token 用量（含缓存命中）
-                if (toolResult.Usage is { } subagentUsage) {
-                    totalInputTokens += subagentUsage.PromptTokens;
-                    totalOutputTokens += subagentUsage.CompletionTokens;
-                    totalCacheRead += subagentUsage.CacheReadInputTokens;
-                    totalCacheCreation += subagentUsage.CacheCreationInputTokens;
-                    totalReasoning += subagentUsage.ReasoningTokens;
-                }
-
-                // 工具调用后钩子（内容替换预算检查、递减回报检测、历史裁剪、空闲提醒等）
-                foreach (var hook in context.AfterToolCallHooks) {
-                    await hook(context, cancellationToken).ConfigureAwait(false);
-                }
-
-                if (context.ShouldBreak) {
-                    break;
-                }
+                batchStart = batchEnd;
             }
 
             if (context.ShouldBreak) {
@@ -353,6 +421,32 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
         _logger?.LogWarning("[QueryEngine] 达到最大工具调用次数限制: {Max}", _config.MaxToolCallIterations);
         context.OutputChunks.Enqueue(BuildMaxIterationErrorChunk(_config.MaxToolCallIterations));
+    }
+
+    /// <summary>轮次闸门收尾裁决结果</summary>
+    private enum RoundGateStopDecision { Allowed, Blocked, Exhausted }
+
+    /// <summary>
+    /// TASK102 轮次闸门 — 评估本次收尾是否放行：未过闸门时累计拦截次数并返回 Blocked；
+    /// 达到拦截上限返回 Exhausted（放行并提示），避免模型死不调用闸门时无限燃烧 token。
+    /// </summary>
+    /// <param name="required">本查询是否启用闸门。</param>
+    /// <param name="endSelected">本轮是否已选择"5 结束"。</param>
+    /// <param name="rejections">已拦截次数（拦截时自增）。</param>
+    /// <param name="maxRejections">拦截上限（≤0 表示不限制）。</param>
+    /// <returns>收尾裁决。</returns>
+    private RoundGateStopDecision EvaluateRoundGateStop(bool required, bool endSelected, ref int rejections, out int maxRejections) {
+        maxRejections = RoundGatePolicy.ReadMaxStopRejections();
+        if (!required || endSelected)
+            return RoundGateStopDecision.Allowed;
+
+        if (!RoundGatePolicy.CanRejectStop(rejections, maxRejections))
+            return RoundGateStopDecision.Exhausted;
+
+        rejections++;
+        _logger?.LogWarning("[QueryEngine] 轮次闸门拦截收尾（第 {Count}/{Max} 次）：未调用 {Tool} 选择结束",
+            rejections, maxRejections, RoundGatePolicy.ToolName);
+        return RoundGateStopDecision.Blocked;
     }
 
     /// <summary>
@@ -433,6 +527,69 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         _ => null
     };
 
+    /// <summary>
+    /// 应用聊天侧执行设置覆盖（TASK103 灰度后端）— 覆盖项优先，未提供项保持查询配置。
+    /// </summary>
+    /// <param name="settings">查询引擎按自身配置构造的基础设置。</param>
+    /// <param name="overrides">聊天侧 ChatOptionsFactory 产物；null 表示不覆盖。</param>
+    /// <returns>合并后的执行设置。</returns>
+    private static ChatOptions ApplyExecutionOverrides(ChatOptions settings, ChatOptions? overrides) {
+        if (overrides is null)
+            return settings;
+
+        return new ChatOptions {
+            Temperature = overrides.Temperature ?? settings.Temperature,
+            MaxTokens = overrides.MaxTokens ?? settings.MaxTokens,
+            TopP = overrides.TopP ?? settings.TopP,
+            FrequencyPenalty = overrides.FrequencyPenalty ?? settings.FrequencyPenalty,
+            PresencePenalty = overrides.PresencePenalty ?? settings.PresencePenalty,
+            ToolChoice = overrides.ToolChoice,
+            DiscoveredTools = overrides.DiscoveredTools ?? settings.DiscoveredTools,
+            DeferredTools = overrides.DeferredTools.Count > 0 ? overrides.DeferredTools : settings.DeferredTools,
+            ExtensionData = overrides.ExtensionData.Count > 0 ? overrides.ExtensionData : settings.ExtensionData,
+            EffortLevel = overrides.EffortLevel ?? settings.EffortLevel,
+            ThinkingEnabled = overrides.ThinkingEnabled || settings.ThinkingEnabled,
+            FastMode = overrides.FastMode || settings.FastMode,
+            FastModelId = overrides.FastModelId ?? settings.FastModelId,
+            PromptCacheKey = overrides.PromptCacheKey ?? settings.PromptCacheKey,
+            ContextManagement = overrides.ContextManagement ?? settings.ContextManagement,
+        };
+    }
+
+    /// <summary>
+    /// 复制执行设置并覆盖 effort/model — 保留延迟工具、思考开关等其余字段（旧实现重建对象时丢失）。
+    /// </summary>
+    /// <param name="settings">原执行设置。</param>
+    /// <param name="effortLevel">推理力度覆盖；null 保持原值。</param>
+    /// <param name="modelId">模型覆盖；非空时同时写入 ExtensionData["model"] 并启用 FastMode。</param>
+    /// <returns>覆盖后的执行设置。</returns>
+    private static ChatOptions CloneExecutionSettings(ChatOptions settings, JoinCode.Abstractions.LLM.EffortLevel? effortLevel = null, string? modelId = null) {
+        var extensionData = settings.ExtensionData;
+        if (!string.IsNullOrEmpty(modelId)) {
+            extensionData = new Dictionary<string, System.Text.Json.JsonElement>(settings.ExtensionData) {
+                ["model"] = JoinCode.Abstractions.Utils.JsonElementHelper.FromString(modelId)
+            };
+        }
+
+        return new ChatOptions {
+            Temperature = settings.Temperature,
+            MaxTokens = settings.MaxTokens,
+            TopP = settings.TopP,
+            FrequencyPenalty = settings.FrequencyPenalty,
+            PresencePenalty = settings.PresencePenalty,
+            ToolChoice = settings.ToolChoice,
+            DiscoveredTools = settings.DiscoveredTools,
+            DeferredTools = settings.DeferredTools,
+            ExtensionData = extensionData,
+            EffortLevel = effortLevel ?? settings.EffortLevel,
+            ThinkingEnabled = settings.ThinkingEnabled,
+            FastMode = !string.IsNullOrEmpty(modelId) || settings.FastMode,
+            FastModelId = modelId ?? settings.FastModelId,
+            PromptCacheKey = settings.PromptCacheKey,
+            ContextManagement = settings.ContextManagement,
+        };
+    }
+
     private async Task<QueryIterationResult> ExecuteIterationInternalAsync(
         QueryMiddlewareContext context,
         CancellationToken cancellationToken) {
@@ -442,41 +599,23 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             TopP = _config.TopP
         };
         var executionSettings = parameters.ToExecutionSettings(ToolChoice.AutoInvoke);
+        // TASK103：ChatService 灰度后端透传原聊天执行设置（温度/思考/延迟工具等），
+        // 随后仍允许 QueryOptions 的显式 effort/model 覆盖。
+        executionSettings = ApplyExecutionOverrides(executionSettings, context.Options?.ExecutionOverrides);
 
         // 对齐 TS executeForkedSkill: 传递 effort 给子智能体
         // 如果 QueryOptions 指定了 EffortLevel，覆盖默认值
         if (context.Options?.EffortLevel is { } effortLevel) {
-            executionSettings = new JoinCode.Abstractions.LLM.ChatOptions {
-                Temperature = executionSettings.Temperature,
-                MaxTokens = executionSettings.MaxTokens,
-                TopP = executionSettings.TopP,
-                FrequencyPenalty = executionSettings.FrequencyPenalty,
-                PresencePenalty = executionSettings.PresencePenalty,
-                ToolChoice = executionSettings.ToolChoice,
-                EffortLevel = effortLevel,
-            };
+            executionSettings = CloneExecutionSettings(executionSettings, effortLevel: effortLevel);
         }
 
         // 对齐 Reasonix Coordinator: 双模型分离 — 按请求指定模型
         if (!string.IsNullOrEmpty(context.Options?.ModelId)) {
-            var modelId = context.Options.ModelId ?? string.Empty;
-            executionSettings = new JoinCode.Abstractions.LLM.ChatOptions {
-                Temperature = executionSettings.Temperature,
-                MaxTokens = executionSettings.MaxTokens,
-                TopP = executionSettings.TopP,
-                FrequencyPenalty = executionSettings.FrequencyPenalty,
-                PresencePenalty = executionSettings.PresencePenalty,
-                ToolChoice = executionSettings.ToolChoice,
-                EffortLevel = executionSettings.EffortLevel,
-                FastMode = true,
-                FastModelId = modelId,
-                ExtensionData = new Dictionary<string, System.Text.Json.JsonElement> { ["model"] = JoinCode.Abstractions.Utils.JsonElementHelper.FromString(modelId) },
-            };
+            executionSettings = CloneExecutionSettings(executionSettings, modelId: context.Options.ModelId);
         }
 
         var chatCompletionService = _kernel.GetChatCompletionService();
         var responseBuilder = new StringBuilder();
-        var chunks = new List<QueryStreamChunk>();
         var pendingToolCalls = new List<ToolCallRequest>();
         var inputTokens = 0;
         var outputTokens = 0;
@@ -527,18 +666,20 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 }
             }
 
-            // 累积内容 — 区分 thinking/reasoning_content 与普通 text
+            // 累积内容并立即上屏 — 区分 thinking/reasoning_content 与普通 text；
+            // TASK103 流式对齐：边收边发（旧实现整轮聚合后一次性入队，GUI 时间差≈0）
             if (!string.IsNullOrEmpty(content)) {
                 var isThinking = streamChunk.Metadata?.ContainsKey("thinking_content") == true
                     || streamChunk.Metadata?.ContainsKey("reasoning_content") == true;
+                context.HasEmittedStreamContent = true;
                 if (isThinking) {
-                    chunks.Add(new QueryStreamChunk {
+                    context.OutputChunks.Enqueue(new QueryStreamChunk {
                         Type = AgentStreamChunkType.Thinking,
                         Content = content
                     });
                 } else {
                     responseBuilder.Append(content);
-                    chunks.Add(new QueryStreamChunk {
+                    context.OutputChunks.Enqueue(new QueryStreamChunk {
                         Type = AgentStreamChunkType.Content,
                         Content = content
                     });
@@ -561,6 +702,22 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             }
         }
 
+        // 协议层未识别工具调用 → 文本 fallback 解析（DSML/antml 等）
+        if (pendingToolCalls.Count == 0) {
+            var fallback = ApplyTextToolCallFallback(responseBuilder, context);
+            if (fallback.RequestsAnotherTurn) {
+                return new QueryIterationResult {
+                    RequestsAnotherTurn = true,
+                    InputTokens = inputTokens,
+                    OutputTokens = outputTokens,
+                    Usage = streamUsage,
+                    FinishReason = lastFinishReason,
+                    ModelId = streamModelId ?? context.Options?.ModelId
+                };
+            }
+            pendingToolCalls.AddRange(fallback.Calls);
+        }
+
         if (pendingToolCalls.Count == 0) {
             var finalContent = responseBuilder.ToString();
             if (!string.IsNullOrEmpty(finalContent)) {
@@ -569,7 +726,6 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
             return new QueryIterationResult {
                 Content = finalContent,
-                Chunks = chunks,
                 InputTokens = inputTokens,
                 OutputTokens = outputTokens,
                 Usage = streamUsage,
@@ -585,13 +741,129 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
         return new QueryIterationResult {
             ToolCalls = pendingToolCalls,
-            Chunks = chunks,
+            Content = responseBuilder.ToString(),
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             Usage = streamUsage,
             FinishReason = lastFinishReason,
             ModelId = streamModelId ?? context.Options?.ModelId
         };
+    }
+
+    /// <summary>文本 fallback 解析结果 — 解析出的调用或"已注入纠正提示、需要再来一轮"。</summary>
+    private readonly record struct FallbackParseOutcome(List<ToolCallRequest> Calls, bool RequestsAnotherTurn);
+
+    /// <summary>
+    /// 协议层无工具调用时尝试文本 fallback — 解析成功则转换为工具调用；
+    /// 解析失败且含可疑 XML 标签时注入纠正提示（超上限强制结束），防止循环静默中断。
+    /// </summary>
+    /// <param name="responseBuilder">累积的响应文本（解析成功后替换为剩余纯文本）。</param>
+    /// <param name="context">查询上下文。</param>
+    /// <returns>fallback 结果。</returns>
+    private FallbackParseOutcome ApplyTextToolCallFallback(StringBuilder responseBuilder, QueryMiddlewareContext context) {
+        var parser = _serviceProvider?.GetService<ITextToolCallFallbackParser>();
+        var content = responseBuilder.ToString();
+        var parsed = parser?.TryParse(content);
+        if (parsed is not null && parsed.ToolCalls.Count > 0) {
+            context.ConsecutiveMalformedOutput = 0;
+            Diag.WriteLine($"[XML-FALLBACK] 文本工具调用解析成功: {parsed.ToolCalls.Count} 个");
+            responseBuilder.Clear();
+            if (!string.IsNullOrWhiteSpace(parsed.RemainingText))
+                responseBuilder.Append(parsed.RemainingText);
+
+            var calls = parsed.ToolCalls
+                .Select(call => new ToolCallRequest {
+                    ToolName = call.Name,
+                    ToolCallId = call.Id,
+                    RawArguments = call.Arguments,
+                    Arguments = JsonArgumentParser.Parse(call.Arguments)
+                })
+                .ToList();
+            return new FallbackParseOutcome(calls, false);
+        }
+
+        if (!OutputInterventionPrompts.ContainsSuspiciousXmlTags(content)) {
+            context.ConsecutiveMalformedOutput = 0;
+            return new FallbackParseOutcome([], false);
+        }
+
+        context.ConsecutiveMalformedOutput++;
+        Diag.WriteLine($"[XML-FALLBACK] 可疑标签未能解析: {context.ConsecutiveMalformedOutput}/{OutputInterventionPrompts.MaxConsecutiveMalformed}");
+        if (context.ConsecutiveMalformedOutput > OutputInterventionPrompts.MaxConsecutiveMalformed) {
+            context.OutputChunks.Enqueue(new QueryStreamChunk {
+                Type = AgentStreamChunkType.Content,
+                Content = $"⚠ 模型连续{OutputInterventionPrompts.MaxConsecutiveMalformed}次输出异常格式，本轮对话已结束。"
+            });
+            context.ConsecutiveMalformedOutput = 0;
+            return new FallbackParseOutcome([], false);
+        }
+
+        context.ChatHistory.AddUserMessage(
+            OutputInterventionPrompts.BuildMalformedXmlPrompt(context.ConsecutiveMalformedOutput));
+        return new FallbackParseOutcome([], true);
+    }
+
+    /// <summary>
+    /// 取消时为未完成的工具调用补写 assistant + "(aborted)" 结果 — 保持历史合法
+    /// （对齐 chat 循环 WriteAbortedToolResultsAsync；startIndex 起含当前调用）。
+    /// </summary>
+    /// <param name="context">查询上下文。</param>
+    /// <param name="toolCalls">本轮全部工具调用。</param>
+    /// <param name="startIndex">起始下标（当前正在执行的调用）。</param>
+    /// <param name="assistantContent">assistant 同轮文本（可为 null）。</param>
+    private static void WriteAbortedToolResults(
+        QueryMiddlewareContext context, IReadOnlyList<ToolCallRequest> toolCalls, int startIndex, string? assistantContent) {
+        for (var i = startIndex; i < toolCalls.Count; i++) {
+            var toolCall = toolCalls[i];
+            var assistantMetadata = toolCall.ToolCallId != null
+                ? ToolCallEntry.BuildAssistantMetadata([new() { Id = toolCall.ToolCallId, Name = toolCall.ToolName, Arguments = toolCall.RawArguments ?? "{}" }])
+                : new Dictionary<string, JsonElement>();
+            context.ChatHistory.Add(new ApiMessage(MessageRole.Assistant, assistantContent, assistantMetadata));
+            context.ChatHistory.Add(new ApiMessage(MessageRole.Tool, "(aborted)",
+                ToolCallEntry.BuildToolResultMetadata(toolCall.ToolCallId, toolCall.ToolName)));
+        }
+    }
+
+    /// <summary>
+    /// 按剩余调用预算截断本轮工具调用，保留原始下标用于取消时补写 aborted。
+    /// </summary>
+    private static List<ScheduledToolCall> ScheduleToolCalls(IReadOnlyList<ToolCallRequest> toolCalls, int remainingBudget) {
+        var count = Math.Clamp(remainingBudget, 0, toolCalls.Count);
+        var scheduled = new List<ScheduledToolCall>(count);
+        for (var i = 0; i < count; i++) {
+            scheduled.Add(new ScheduledToolCall(toolCalls[i], i));
+        }
+        return scheduled;
+    }
+
+    /// <summary>
+    /// 计算从 start 起的批次边界 — 连续并发安全调用同批，非并发安全调用独占（ADR 0160）。
+    /// </summary>
+    private static async Task<int> DetermineBatchEndAsync(
+        List<ScheduledToolCall> scheduled, int start, IToolConcurrencyClassifier? classifier, CancellationToken cancellationToken) {
+        var end = start + 1;
+        if (classifier is null)
+            return end;
+        if (!await classifier.IsConcurrencySafeAsync(scheduled[start].Call.ToolName, scheduled[start].Call.Arguments, cancellationToken).ConfigureAwait(false))
+            return end;
+
+        while (end < scheduled.Count
+            && await classifier.IsConcurrencySafeAsync(scheduled[end].Call.ToolName, scheduled[end].Call.Arguments, cancellationToken).ConfigureAwait(false)) {
+            end++;
+        }
+        return end;
+    }
+
+    /// <summary>
+    /// 执行工具并把取消（OperationCanceledException + 令牌已取消）映射为 null，
+    /// 让批次按原顺序逐条判定 aborted；其他异常已由 <see cref="ExecuteToolAsync"/> 转为错误结果。
+    /// </summary>
+    private async Task<ToolResult?> TryExecuteToolAsync(ToolCallRequest request, QueryOptions? options, CancellationToken cancellationToken) {
+        try {
+            return await ExecuteToolAsync(request, options, cancellationToken).ConfigureAwait(false);
+        } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+            return null;
+        }
     }
 
     private async Task<ToolResult> ExecuteToolAsync(ToolCallRequest request, QueryOptions? options, CancellationToken cancellationToken) {
@@ -614,6 +886,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 : await _toolRegistry.ExecuteToolAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false);
             options?.ProgressTracker?.RecordToolUse(request.ToolName);
             return result;
+        } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+            // 取消不是工具失败 — 向上传播，由调用方补写 (aborted) 结果并终止循环
+            throw;
         } catch (Exception ex) {
             _logger?.LogError(ex, "[QueryEngine] 工具调用失败: {ToolName}", request.ToolName);
             options?.ProgressTracker?.RecordToolUse(request.ToolName);
@@ -640,7 +915,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         return string.Join("\n", textContents);
     }
 
-    private async ValueTask AddToolResultToHistory(QueryMiddlewareContext context, ToolCallRequest toolCall, ToolResult result) {
+    private async ValueTask AddToolResultToHistory(QueryMiddlewareContext context, ToolCallRequest toolCall, ToolResult result, string? assistantContent) {
         // 对齐 TS convertResultContentToContentBlocks — 分离文本和非文本内容
         var textContents = new List<string>();
         var nonTextContents = new List<ToolContent>();
@@ -673,7 +948,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var assistantMetadata = toolCall.ToolCallId != null
             ? ToolCallEntry.BuildAssistantMetadata([new() { Id = toolCall.ToolCallId, Name = toolCall.ToolName, Arguments = toolCall.RawArguments ?? "{}" }])
             : new Dictionary<string, JsonElement>();
-        context.ChatHistory.Add(new ApiMessage(MessageRole.Assistant, null, assistantMetadata));
+        context.ChatHistory.Add(new ApiMessage(MessageRole.Assistant, assistantContent, assistantMetadata));
 
         var toolMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.ToolCallId, toolCall.ToolName);
         context.ChatHistory.Add(new ApiMessage(MessageRole.Tool, toolResultText, toolMetadata) {
@@ -841,6 +1116,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 }
 
 /// <summary>
+/// 已调度的工具调用 — 携带原始下标（取消时从该下标起补写 aborted）。
+/// </summary>
+internal sealed record ScheduledToolCall(ToolCallRequest Call, int OriginalIndex);
+
+/// <summary>
 /// 工具调用请求
 /// </summary>
 internal sealed class ToolCallRequest {
@@ -864,8 +1144,6 @@ internal sealed class QueryIterationResult {
     public ToolCallRequest? ToolCall => ToolCalls.Count > 0 ? ToolCalls[0] : null;
     /// <summary>获取本轮所有工具调用列表</summary>
     public List<ToolCallRequest> ToolCalls { get; init; } = new();
-    /// <summary>获取本轮产生的流式块列表</summary>
-    public List<QueryStreamChunk> Chunks { get; init; } = new();
     /// <summary>获取输入 Token 数</summary>
     public int InputTokens { get; init; }
     /// <summary>获取输出 Token 数</summary>
@@ -876,6 +1154,8 @@ internal sealed class QueryIterationResult {
     public string? FinishReason { get; init; }
     /// <summary>获取本轮实际使用的模型标识（从流式 chunk ModelId 提取；null = 未提供）</summary>
     public string? ModelId { get; init; }
+    /// <summary>是否需要立即再执行一轮 — 异常输出已注入纠正提示，不进入收尾判定。</summary>
+    public bool RequestsAnotherTurn { get; init; }
 }
 
 /// <summary>

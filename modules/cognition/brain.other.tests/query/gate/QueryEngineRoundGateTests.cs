@@ -1,0 +1,140 @@
+namespace Core.Tests.Query.Gate;
+
+/// <summary>
+/// TASK102 轮次闸门 — QueryEngine 收尾拦截集成测试（假 IQueryService 驱动完整循环）。
+/// </summary>
+public sealed class QueryEngineRoundGateTests {
+    /// <summary>可编程响应序列的假查询服务 — 每次 LLM 调用消费一批事件。</summary>
+    private sealed class SequenceQueryService : IQueryService {
+        private readonly Queue<StreamEvent[]> _responses = new();
+
+        public void Enqueue(params StreamEvent[] events) => _responses.Enqueue(events);
+
+        public Task<IReadOnlyList<ApiMessage>> GetApiMessageContentsAsync(
+            MessageList chatHistory, ChatOptions? executionSettings = null, IChatClient? kernel = null, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("测试不走非流式接口");
+
+        public async IAsyncEnumerable<StreamEvent> GetStreamEventContentsAsync(
+            MessageList chatHistory, ChatOptions? executionSettings = null, IChatClient? kernel = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+            var batch = _responses.Count > 0 ? _responses.Dequeue() : [];
+            foreach (var evt in batch) {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Yield();
+                yield return evt;
+            }
+        }
+    }
+
+    private static StreamEvent Text(string content) => new() { Content = content };
+
+    private static StreamEvent GateEndCall() {
+        using var document = JsonDocument.Parse(
+            """[{"Id":"call-end","Name":"round_gate","Arguments":"{\"choice\":5}"}]""");
+        return new StreamEvent {
+            Metadata = new Dictionary<string, JsonElement> {
+                ["AllToolCalls"] = document.RootElement.Clone()
+            }
+        };
+    }
+
+    private static (QueryEngine Engine, SequenceQueryService QueryService, Mock<IToolRegistry> Registry) CreateEngine() {
+        var queryService = new SequenceQueryService();
+        var kernel = new Mock<IChatClient>();
+        kernel.Setup(k => k.GetChatCompletionService()).Returns(queryService);
+
+        var registry = new Mock<IToolRegistry>();
+        registry.Setup(r => r.ExecuteToolAsync(
+                It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ReturnsAsync(new ToolResult {
+                Content = [new ToolContent { Type = ToolContentType.Text, Text = "闸门已记录" }]
+            });
+
+        var engine = new QueryEngine(
+            kernel.Object,
+            registry.Object,
+            Microsoft.Extensions.Options.Options.Create(new QueryEngineConfig()),
+            serviceProvider: null,
+            logger: NullLogger<QueryEngine>.Instance);
+
+        return (engine, queryService, registry);
+    }
+
+    private static async Task<List<QueryStreamChunk>> RunAsync(
+        QueryEngine engine, MessageList history, QueryOptions options, CancellationToken ct = default) {
+        var chunks = new List<QueryStreamChunk>();
+        await foreach (var chunk in engine.QueryAsync("继续任务", history, options, ct).ConfigureAwait(false)) {
+            chunks.Add(chunk);
+        }
+
+        return chunks;
+    }
+
+    [Fact]
+    public async Task StopWithoutGate_IsBlocked_ThenEndChoiceAllowsCompletion() {
+        using var env = EnvVarScope.Set(JccEnvVar.RoundGateMaxReject.ToValue(), "6");
+        var (engine, queryService, registry) = CreateEngine();
+        var history = new MessageList();
+
+        queryService.Enqueue(Text("我先停一下"));
+        queryService.Enqueue(GateEndCall());
+        queryService.Enqueue(Text("收尾总结"));
+
+        var chunks = await RunAsync(engine, history, new QueryOptions { RequireRoundGate = true }).ConfigureAwait(true);
+
+        chunks.Should().Contain(c => c.Type == AgentStreamChunkType.Complete, "选择 5 结束后应正常完成");
+        history.Should().Contain(m => m.Role == MessageRole.User && m.Content != null && m.Content.Contains("收尾被拦截"),
+            "首次收尾应被拦截并回灌阻断消息");
+        registry.Verify(r => r.ExecuteToolAsync(
+            "round_gate", It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GateDisabled_StopsImmediately() {
+        var (engine, queryService, registry) = CreateEngine();
+        var history = new MessageList();
+
+        queryService.Enqueue(Text("普通回答"));
+
+        var chunks = await RunAsync(engine, history, new QueryOptions { RequireRoundGate = false }).ConfigureAwait(true);
+
+        chunks.Should().Contain(c => c.Type == AgentStreamChunkType.Complete);
+        history.Should().NotContain(m => m.Content != null && m.Content.Contains("收尾被拦截"));
+        registry.Verify(r => r.ExecuteToolAsync(
+            It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RejectionLimitReached_ForcesCompletionWithWarning() {
+        using var env = EnvVarScope.Set(JccEnvVar.RoundGateMaxReject.ToValue(), "1");
+        var (engine, queryService, _) = CreateEngine();
+        var history = new MessageList();
+
+        queryService.Enqueue(Text("第一次想停"));
+        queryService.Enqueue(Text("第二次想停"));
+
+        var chunks = await RunAsync(engine, history, new QueryOptions { RequireRoundGate = true }).ConfigureAwait(true);
+
+        chunks.Should().Contain(c => c.Type == AgentStreamChunkType.Complete);
+        chunks.Should().Contain(c => c.Content != null && c.Content.Contains("强制结束"), "达到上限应上屏警告并放行");
+        history.Count(m => m.Content != null && m.Content.Contains("收尾被拦截")).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GateToolDeniedInOptions_SkipsEnforcement() {
+        var (engine, queryService, registry) = CreateEngine();
+        var history = new MessageList();
+
+        queryService.Enqueue(Text("普通回答"));
+
+        var chunks = await RunAsync(engine, history, new QueryOptions {
+            RequireRoundGate = true,
+            DeniedTools = ["round_gate"]
+        }).ConfigureAwait(true);
+
+        chunks.Should().Contain(c => c.Type == AgentStreamChunkType.Complete);
+        history.Should().NotContain(m => m.Content != null && m.Content.Contains("收尾被拦截"));
+        registry.Verify(r => r.ExecuteToolAsync(
+            It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never);
+    }
+}

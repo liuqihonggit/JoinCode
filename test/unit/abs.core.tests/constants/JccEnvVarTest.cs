@@ -12,11 +12,6 @@ public class JccEnvVarTest {
     }
 
     [Fact]
-    public void ActorToolExecutor_ShouldBeJccActorToolExecutor() {
-        JccEnvVar.ActorToolExecutor.ToValue().Should().Be("JCC_ACTOR_TOOL_EXECUTOR");
-    }
-
-    [Fact]
     public void GithubToken_ShouldBeJccGithubToken() {
         JccEnvVar.GithubToken.ToValue().Should().Be("JCC_GITHUB_TOKEN");
     }
@@ -48,7 +43,6 @@ public class JccEnvVarTest {
 
     [Theory]
     [InlineData(JccEnvVar.DisableRetry, "JCC_DISABLE_RETRY")]
-    [InlineData(JccEnvVar.ActorToolExecutor, "JCC_ACTOR_TOOL_EXECUTOR")]
     [InlineData(JccEnvVar.GithubToken, "JCC_GITHUB_TOKEN")]
     [InlineData(JccEnvVar.GithubApiUrl, "JCC_GITHUB_API_URL")]
     [InlineData(JccEnvVar.AbsoluteTimeoutSeconds, "JCC_ABSOLUTE_TIMEOUT_SECONDS")]
@@ -61,7 +55,7 @@ public class JccEnvVarTest {
     [Fact]
     public void NewEnvVars_ShouldBeDistinctFromExisting() {
         var newVars = new[] {
-            JccEnvVar.DisableRetry, JccEnvVar.ActorToolExecutor, JccEnvVar.GithubToken,
+            JccEnvVar.DisableRetry, JccEnvVar.GithubToken,
             JccEnvVar.GithubApiUrl, JccEnvVar.AbsoluteTimeoutSeconds,
             JccEnvVar.ResumeTimeoutSeconds, JccEnvVar.ClusterDecompositionOverride
         };

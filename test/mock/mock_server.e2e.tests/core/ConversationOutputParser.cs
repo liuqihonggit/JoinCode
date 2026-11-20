@@ -59,22 +59,21 @@ public static class ConversationOutputParser {
         ArgumentNullException.ThrowIfNull(stdoutOutput);
 
         var toolCalls = new List<ToolCallRecord>();
+        var pendingTools = new List<PendingToolCall>();
         var responseLines = new List<string>();
         var errors = new List<string>();
 
-        ToolCallRecord? currentTool = null;
-        var toolArgsBuffer = new StringBuilder();
-        var toolResultBuffer = new StringBuilder();
-        var capturingResult = false;
+        PendingToolCall? captureTarget = null;
+        var captureBuffer = new StringBuilder();
 
-        void FlushResultToLastTool() {
-            if (!capturingResult || toolCalls.Count == 0) return;
-            var resultText = toolResultBuffer.ToString().Trim();
-            if (string.IsNullOrEmpty(resultText)) return;
-            var last = toolCalls[^1];
-            var combinedResult = string.IsNullOrEmpty(last.Result) ? resultText : $"{last.Result}\n{resultText}";
-            toolCalls[^1] = last with { Result = combinedResult };
-            toolResultBuffer.Clear();
+        void FlushCapture() {
+            if (captureTarget is null) return;
+            var resultText = captureBuffer.ToString().Trim();
+            if (!string.IsNullOrEmpty(resultText)) {
+                captureTarget.Result = string.IsNullOrEmpty(captureTarget.Result) ? resultText : $"{captureTarget.Result}\n{resultText}";
+            }
+            captureBuffer.Clear();
+            captureTarget = null;
         }
 
         foreach (var line in stdoutOutput.Split('\n')) {
@@ -82,44 +81,32 @@ public static class ConversationOutputParser {
             if (string.IsNullOrEmpty(trimmed)) continue;
 
             if (TryParseToolStart(trimmed, out var toolName, out var toolArgs)) {
-                FlushResultToLastTool();
-                capturingResult = false;
-                if (currentTool is not null) {
-                    currentTool = currentTool with { Arguments = toolArgsBuffer.ToString(), Result = toolResultBuffer.ToString().Trim() };
-                    toolCalls.Add(currentTool);
-                    toolArgsBuffer.Clear();
-                    toolResultBuffer.Clear();
-                }
-                currentTool = new ToolCallRecord { ToolName = toolName };
-                toolArgsBuffer.Append(toolArgs);
+                // 并行批次会先集中输出全部 [Tool]，结果稍后按 [OK]/[FAIL] 工具名匹配
+                FlushCapture();
+                pendingTools.Add(new PendingToolCall { ToolName = toolName, Arguments = toolArgs });
                 continue;
             }
 
             if (TryParseToolEnd(trimmed, out var endToolName, out var isSuccess)) {
-                if (currentTool is not null) {
-                    currentTool = currentTool with {
-                        Arguments = toolArgsBuffer.ToString(),
-                        IsSuccess = isSuccess,
-                        Result = toolResultBuffer.ToString().Trim()
-                    };
-                    toolCalls.Add(currentTool);
-                    toolArgsBuffer.Clear();
-                    toolResultBuffer.Clear();
-                    currentTool = null;
-                    capturingResult = true;
+                FlushCapture();
+                var target = pendingTools.FirstOrDefault(t => t.IsSuccess is null
+                    && string.Equals(t.ToolName, endToolName, StringComparison.OrdinalIgnoreCase));
+                target ??= pendingTools.LastOrDefault(t => t.IsSuccess is null);
+                if (target is not null) {
+                    target.IsSuccess = isSuccess;
+                    captureTarget = target;
                 }
                 continue;
             }
 
-            if (capturingResult && trimmed.StartsWith("  ", StringComparison.Ordinal)) {
-                toolResultBuffer.AppendLine(trimmed.TrimStart());
+            if (captureTarget is not null && trimmed.StartsWith("  ", StringComparison.Ordinal)) {
+                captureBuffer.AppendLine(trimmed.TrimStart());
                 continue;
             }
 
-            FlushResultToLastTool();
-            capturingResult = false;
+            FlushCapture();
 
-            if (TryParseToolProgress(trimmed, out var progressToolName, out var progressMsg)) {
+            if (TryParseToolProgress(trimmed, out _, out _)) {
                 continue;
             }
 
@@ -128,19 +115,28 @@ public static class ConversationOutputParser {
                 continue;
             }
 
-            if (currentTool is not null) {
-                toolArgsBuffer.Append(trimmed);
+            // 兼容 [Tool] 行参数折行输出 — 归到最近一个尚未结束的调用
+            var unclosed = pendingTools.LastOrDefault(t => t.IsSuccess is null);
+            if (unclosed is not null) {
+                unclosed.ArgumentContinuation.Append('\n').Append(trimmed);
                 continue;
             }
 
             responseLines.Add(trimmed);
         }
 
-        FlushResultToLastTool();
+        FlushCapture();
 
-        if (currentTool is not null) {
-            currentTool = currentTool with { Arguments = toolArgsBuffer.ToString(), Result = toolResultBuffer.ToString().Trim() };
-            toolCalls.Add(currentTool);
+        foreach (var pending in pendingTools) {
+            var arguments = pending.ArgumentContinuation.Length == 0
+                ? pending.Arguments
+                : pending.Arguments + pending.ArgumentContinuation.ToString();
+            toolCalls.Add(new ToolCallRecord {
+                ToolName = pending.ToolName,
+                Arguments = arguments,
+                IsSuccess = pending.IsSuccess ?? false,
+                Result = pending.Result.Trim()
+            });
         }
 
         return new ConversationTurnRecord {
@@ -327,4 +323,15 @@ public static class ConversationOutputParser {
 
     private static string Truncate(string s, int maxLen) =>
         string.IsNullOrEmpty(s) ? s : s.Length <= maxLen ? s : s[..maxLen] + "...";
+
+    /// <summary>
+    /// 尚未收到 [OK]/[FAIL] 的工具调用 — 并行批次允许先集中输出全部 [Tool] 行。
+    /// </summary>
+    private sealed class PendingToolCall {
+        public string ToolName { get; init; } = "";
+        public string Arguments { get; init; } = "";
+        public StringBuilder ArgumentContinuation { get; } = new();
+        public string Result { get; set; } = "";
+        public bool? IsSuccess { get; set; }
+    }
 }

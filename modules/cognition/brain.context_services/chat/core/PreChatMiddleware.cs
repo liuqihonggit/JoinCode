@@ -43,7 +43,6 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware {
         _logger?.LogInformation("正在发送聊天消息");
 
         _emptyResponseTracker.Reset();
-        context.EmptyResponseTracker = _emptyResponseTracker;
 
         context.Timing.StartTotal();
         context.Timing.StartPreprocess();

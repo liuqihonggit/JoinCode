@@ -39,6 +39,29 @@ public sealed class QueryOptions {
     /// <summary>获取模型标识。</summary>
     public string? ModelId { get; init; }
 
+    /// <summary>
+    /// 是否启用轮次闸门 — 主代理收尾前必须调用 round_gate 选择下一步，未选择 5（结束）则运行时拦截并继续。
+    /// 由 AgentBase 按 JCC_ROUND_GATE 与角色解析；子代理恒为 false。
+    /// </summary>
+    public bool RequireRoundGate { get; init; }
+
+    /// <summary>
+    /// 执行设置覆盖 — TASK103：ChatService 路由到 QueryEngine 时透传原 ChatOptionsFactory 的产物
+    /// （温度/反思开关/延迟工具等），避免灰度后端丢失聊天侧执行设置。null = 使用 QueryEngineConfig。
+    /// </summary>
+    public ChatOptions? ExecutionOverrides { get; init; }
+
+    /// <summary>
+    /// 迭代开始回调 — 每次 LLM 请求前触发，参数为实时对话历史。
+    /// TASK103：ChatService 查询后端在此把轮内 steer 注入写入历史（对齐 chat 循环步首 drain）。
+    /// </summary>
+    public Func<MessageList, CancellationToken, Task>? OnIterationStart { get; init; }
+
+    /// <summary>
+    /// 是否存在待注入的轮内输入 — 收尾前检查；true 时不结束查询，继续下一轮让注入进入上下文。
+    /// </summary>
+    public Func<bool>? HasPendingIterationInput { get; init; }
+
     private HashSet<string> _deniedSet = [];
     private HashSet<string> _allowedSet = [];
 

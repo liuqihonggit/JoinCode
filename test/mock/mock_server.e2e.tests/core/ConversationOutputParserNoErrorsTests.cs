@@ -75,4 +75,33 @@ public sealed class ConversationOutputParserNoErrorsTests {
         record.ToolCalls[0].IsSuccess.Should().BeFalse();
         record.ToolCalls[0].Result.Should().Contain("File not found");
     }
+
+    [Fact]
+    public void Parse_BatchedParallelToolStartsThenEnds_ShouldMapResultsByToolName() {
+        var output = "[Tool] search_code(query=class)\n[Tool] search_text(pattern=TODO)\n[Tool] symbol_search(symbol=Main)\n[OK] search_code\n  Found 1 file\n[OK] search_text\n  Found 2 files\n[OK] symbol_search\n  Found 3 files";
+        var record = ConversationOutputParser.Parse(output);
+
+        record.ToolCalls.Should().HaveCount(3, "并行批次先集中输出全部 [Tool] 再按序输出 [OK]");
+        record.ToolCalls.Should().OnlyContain(tc => tc.IsSuccess, "每个 [OK] 应按工具名匹配到对应调用");
+        record.ToolCalls[0].ToolName.Should().Be("search_code");
+        record.ToolCalls[0].Result.Should().Contain("Found 1 file");
+        record.ToolCalls[1].ToolName.Should().Be("search_text");
+        record.ToolCalls[1].Result.Should().Contain("Found 2 files");
+        record.ToolCalls[2].ToolName.Should().Be("symbol_search");
+        record.ToolCalls[2].Result.Should().Contain("Found 3 files");
+    }
+
+    [Fact]
+    public void Parse_BatchedDuplicateToolNames_ShouldMatchResultsInFifoOrder() {
+        var output = "[Tool] grep(pattern=A)\n[Tool] grep(pattern=B)\n[OK] grep\n  hit A\n[FAIL] grep\n  miss B";
+        var record = ConversationOutputParser.Parse(output);
+
+        record.ToolCalls.Should().HaveCount(2);
+        record.ToolCalls[0].Arguments.Should().Contain("pattern=A");
+        record.ToolCalls[0].IsSuccess.Should().BeTrue();
+        record.ToolCalls[0].Result.Should().Contain("hit A");
+        record.ToolCalls[1].Arguments.Should().Contain("pattern=B");
+        record.ToolCalls[1].IsSuccess.Should().BeFalse();
+        record.ToolCalls[1].Result.Should().Contain("miss B");
+    }
 }

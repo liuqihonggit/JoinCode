@@ -127,7 +127,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
 
     /// <summary>
     /// 处理权限待确认 — 调用 IPermissionConfirmationHandler.Confirm,用户允许则重新执行管道
-    /// 确认逻辑统一在此处,QueryEngine 和 ChatToolOrchestrator 两条路径都经过这里
+    /// 确认逻辑统一在此处,QueryEngine 子代理与主代理路径都经过这里
     /// </summary>
     internal async Task<ToolResult> HandlePendingConfirmationAsync(
         string toolName,

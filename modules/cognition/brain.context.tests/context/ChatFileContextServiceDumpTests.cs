@@ -2,7 +2,7 @@ namespace Brain.Tests.Context;
 
 /// <summary>
 /// 消息转储服务契约 — JCC_DUMP_MESSAGES=1 时必须把「发给模型的完整消息列表」写到文件。
-/// <para>这是提示词可观测性的最后一层：LLMInvocationHandler 在调用模型前 await 本服务；
+/// <para>这是提示词可观测性的最后一层：QueryEngine 的 MessageDumpMiddleware 在调用模型前 await 本服务；
 /// 这里锁住服务本身确实写了 system 消息，真机部分由 `jcc -p` 验证服务被接上。</para>
 /// </summary>
 public sealed class ChatFileContextServiceDumpTests {

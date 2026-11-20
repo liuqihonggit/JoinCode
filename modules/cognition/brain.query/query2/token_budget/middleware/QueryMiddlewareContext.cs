@@ -87,6 +87,17 @@ public sealed class QueryMiddlewareContext {
     public bool IsQueryComplete { get; set; }
 
     /// <summary>
+    /// 本轮迭代是否已向输出队列发出流式内容 — TASK103：部分文本已上屏后禁止整轮重试，避免重复输出。
+    /// </summary>
+    public bool HasEmittedStreamContent { get; set; }
+
+    /// <summary>
+    /// 连续异常输出次数 — 协议层未识别且文本含可疑 XML 工具标签的连续轮次；
+    /// 超过上限强制结束，避免静默中断或无限重试。
+    /// </summary>
+    public int ConsecutiveMalformedOutput { get; set; }
+
+    /// <summary>
     /// 是否应停止查询（中间件可设置此标志提前终止）
     /// </summary>
     public bool ShouldStop { get; set; }

@@ -151,4 +151,12 @@ public enum SystemToolName {
     [EnumValue("recall_search")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     RecallSearch,
+
+    /// <summary>
+    /// 轮次闸门 — 收尾前必须调用并选择下一步（1 直接继续/2 TODO 继续/3 规划/4 验收/5 结束）。
+    /// 只注入工作流提示词，不写文件、不等待用户，无人值守可用。
+    /// </summary>
+    [EnumValue("round_gate")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    RoundGate,
 }

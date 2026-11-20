@@ -239,12 +239,28 @@ public enum JccEnvVar {
 
     // TASK031 阶段B4 新增 — 常量委托统一(原硬编码字符串改为枚举委托)
     [EnumValue("JCC_DISABLE_RETRY")] DisableRetry,
-    [EnumValue("JCC_ACTOR_TOOL_EXECUTOR")] ActorToolExecutor,
     [EnumValue("JCC_GITHUB_TOKEN")] GithubToken,
     [EnumValue("JCC_GITHUB_API_URL")] GithubApiUrl,
     [EnumValue("JCC_ABSOLUTE_TIMEOUT_SECONDS")] AbsoluteTimeoutSeconds,
     [EnumValue("JCC_RESUME_TIMEOUT_SECONDS")] ResumeTimeoutSeconds,
     [EnumValue("JCC_CLUSTER_DECOMPOSITION_OVERRIDE")] ClusterDecompositionOverride,
+
+    // TASK102 轮次闸门 — 强制 AI 收尾前必须通过 round_gate 选择下一步
+    [EnumValue("JCC_ROUND_GATE")]
+    [SubCommandInfo("轮次闸门模式 (on/off/auto；auto=仅主代理交互式会话启用)", "运行时配置")]
+    RoundGate,
+    [EnumValue("JCC_ROUND_GATE_MAX_REJECT")]
+    [SubCommandInfo("闸门拦截收尾上限 (默认 6；0=不限制)", "运行时配置")]
+    RoundGateMaxReject,
+
+    // TASK102 后续 — 循环上限配置化（原硬编码 128/5）
+    [EnumValue("JCC_MAX_TOOL_CALL_ITERATIONS")]
+    [SubCommandInfo("单回合最大工具调用轮次 (默认 128)", "运行时配置")]
+    MaxToolCallIterations,
+    [EnumValue("JCC_MAX_STOP_HOOK_REPLY_ROUNDS")]
+    [SubCommandInfo("Stop hook 回灌最大轮次 (默认 5)", "运行时配置")]
+    MaxStopHookReplyRounds,
+
 }
 
 /// <summary>

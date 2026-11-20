@@ -134,6 +134,12 @@ public sealed class ChatMiddlewareContext {
     // === QueryLoopMiddleware 填充 ===
 
     /// <summary>
+    /// 是否启用轮次闸门 — 由 ChatService 按 JCC_ROUND_GATE 解析（仅显式 on 时启用），
+    /// QueryLoopMiddleware 在无工具调用收尾时据此拦截并要求调用 round_gate。
+    /// </summary>
+    public bool RequireRoundGate { get; init; }
+
+    /// <summary>
     /// 工具调用总次数
     /// </summary>
     public int TotalToolCalls { get; set; }
@@ -141,7 +147,7 @@ public sealed class ChatMiddlewareContext {
     /// <summary>
     /// 子代理事件通道 — QueryLoopMiddleware 在回合开始时创建。
     /// 排空侧由 QueryLoop 显式读取（AsyncLocal 在异步迭代器内跨 yield 不可见，禁止走环境态）；
-    /// 发射侧由 ToolExecutionHandler 进入 <see cref="SubAgentEventChannel.EnterScope"/> 作用域，
+    /// 发射侧由 QueryEngine 工具执行进入 <see cref="SubAgentEventChannel.EnterScope"/> 作用域，
     /// 供深层 Agent 中间件经 Current 发射。嵌套子代理的 QueryLoop 会覆盖为自己的新通道实现隔离。
     /// </summary>
     public SubAgentEventChannel? SubAgentEvents { get; set; }
@@ -192,11 +198,4 @@ public sealed class ChatMiddlewareContext {
     /// 由 ChatService 传入共享实例，确保管道各阶段和 ChatService 使用同一状态
     /// </summary>
     public required ToolUseContext ToolUseContext { get; init; }
-
-    /// <summary>
-    /// 空响应追踪器 — 追踪工具调用后LLM空响应的连续次数
-    /// 由 PreChatMiddleware 在用户输入新对话时重置
-    /// 由 QueryLoopMiddleware 在LLM从无声变有声时重置
-    /// </summary>
-    public IEmptyResponseTracker? EmptyResponseTracker { get; set; }
 }

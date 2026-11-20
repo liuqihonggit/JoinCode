@@ -7,7 +7,8 @@ namespace Core.Context;
 /// 解析成功后统一执行 ToolCallRepairHelper.RepairAll，确保与协议层修复逻辑一致。
 /// </summary>
 [Register(typeof(TextToolCallParserChain), ServiceLifetime.Singleton)]
-public sealed class TextToolCallParserChain {
+[Register(typeof(ITextToolCallFallbackParser), ServiceLifetime.Singleton)]
+public sealed class TextToolCallParserChain : ITextToolCallFallbackParser {
     private readonly IReadOnlyList<ITextToolCallParser> _parsers;
     private readonly ILogger? _logger;
 
@@ -35,5 +36,21 @@ public sealed class TextToolCallParserChain {
         }
         Diag.WriteLine("[XML-PARSE] 所有解析器均未识别");
         return null;
+    }
+
+    /// <summary>
+    /// 查询域通用接口实现 — 把内部解析结果转换为 abstractions DTO（QueryEngine 经 DI 消费）。
+    /// </summary>
+    TextToolCallFallbackResult? ITextToolCallFallbackParser.TryParse(ReadOnlySpan<char> content) {
+        var result = TryParse(content);
+        if (result is null)
+            return null;
+
+        return new TextToolCallFallbackResult {
+            ToolCalls = result.ToolCalls
+                .Select(call => new TextToolCallFallbackCall(call.Name, call.Arguments, call.Id))
+                .ToList(),
+            RemainingText = result.RemainingText
+        };
     }
 }

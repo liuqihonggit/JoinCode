@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace NativeTui.Core.Repl;
 
 /// <summary>

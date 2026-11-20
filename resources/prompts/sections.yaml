@@ -16,6 +16,7 @@ sections:
   - project_rules
   - external_rules
   - doing_tasks
+  - round_gate
   - actions
   - tools
   - agent_tool

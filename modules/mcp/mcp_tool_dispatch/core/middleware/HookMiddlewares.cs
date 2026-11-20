@@ -6,7 +6,7 @@ internal sealed partial class HookMiddlewareJsonContext : JsonSerializerContext;
 
 /// <summary>
 /// PreToolUse Hook 中间件 — 工具执行前触发 HookEvent.PreToolUse
-/// 对齐 ChatToolOrchestrator.ExecutePreHooksAsync
+/// 对齐旧聊天工具编排的 PreHook 语义
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecutionMiddleware {
@@ -59,7 +59,7 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
 
 /// <summary>
 /// PostToolUse Hook 中间件 — 工具执行后触发 HookEvent.PostToolUse
-/// 对齐 ChatToolOrchestrator.ExecutePostHooksAsync
+/// 对齐旧聊天工具编排的 PostHook 语义
 /// 放在 ToolExecutionMiddleware 之前，用 await next 后置模式读取 context.Result
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]

@@ -65,7 +65,7 @@
 | 28a | TASK069-C2 | /resume 模糊搜索：CLI Selector `enableSearch` 是占位参数（`SelectorComponents.cs:29-30` 忽略），TUI SessionPickerDialog 仅 ↑↓/enter/esc 无搜索——两条路径均无搜索 = 功能对齐差异（非静默失效 bug） | TASK069 域4 |
 | 29 | TASK069-C3 | /resume TUI 下交互：Selector 直写 stdout 与 TUI 帧冲突 | TASK069 域4 |
 | ~~30~~ | ~~TASK069-E1~~ | ~~API 错误分类：纯红单行 vs SSL/超时/连接分类~~ | TASK069 域5 | ✅ **已对齐基准 2026-11-21**：一手 `services/api/errors.ts:200-250 formatAPIError`（`ETIMEDOUT` → 超时提示；`isSSLError` 按 Node 错误码分 6 类文案；`Connection error.` → 连不上）。**性质纠正：分类层早已存在**（`ChatErrorHandlingMiddleware.ClassifyException`：401/403/429/502/503/504/5xx + SocketException→Connection + 超时→Timeout + 兜底 ApiConnection，全部中文可操作文案），「C# 纯红单行」只是**渲染形态**（TUI 一行红字）。**真缺口只有 SSL/TLS 一类**：这类失败 `StatusCode` 恒 null，原会落进「网络请求失败: 裸异常」。实现：`ApiException.SslCertificate(endpoint, reason)` + `IsSslFailure`（`HttpRequestError.SecureConnectionError` 或内层 `AuthenticationException`）+ `DescribeSslFailure`（过期/吊销/尚未生效/主机名不匹配/自签/兜底）。**未移植**：限流 upsell（`CUSTOM_OFF_SWITCH_MESSAGE` 的 `/model` 建议，C# 无容量降级概念）与基准 dim 提示行（C# 约定把提示折进同一条消息，见 401 既有写法）。TDD 6 项，pipelines.tests 68 / host.tests 1356 绿 + 真机 EXIT=0 + 产物 `JoinCode.Pipelines.dll` 含 SSL 文案 |
-| 31 | TASK069-E4 | 错误详情展开 ctrl+o（1000 字符 + cause 链 + 堆栈） | TASK069 域5 |
+| ~~31~~ | ~~TASK069-E4~~ | ~~错误详情展开 ctrl+o（1000 字符 + cause 链 + 堆栈）~~ | TASK069 域5 | ✅ **已对齐基准 2026-11-21**：一手 `components/messages/AssistantTextMessage.tsx:19/199-206`（`MAX_API_ERROR_CHARS=1000`，超限 `slice(0,1000)+"…"` + `<CtrlOToExpand/>` dim 引导）。**转述纠正**：基准错误组件里**没有堆栈/cause 链**——`formatAPIError` 只产出格式化消息文本，展开看到的就是全文消息，故未移植堆栈。实现：`ToolFoldingPolicy.MaxApiErrorChars=1000` + `ErrorExpandHint`；`ErrorMessageItem` 构造期截断并按行拆分、`IsTruncated`、高度含引导行；`MessageRenderer.RenderErrorLine`（首行 `● ` + error 色，续行 2 列缩进）+ `RenderErrorExpandHint`（dim）。**顺带修复同型缺陷**：错误正文含 `\n` 时此前被 `WriteText` 零宽规则吞掉挤成一行。`Text` 保全文，搜索/transcript 投影不受截断影响。TDD 6 项，Core 3111 / Host 144 绿 + 真机 EXIT=0 |
 | 32 | TASK069-P3 | 拒绝反馈输入框 "tell Claude what to do differently" | TASK069 域3 |
 | 33 | TASK069-P4 | ctrl+e 展开内容（AI 解释 + 风险分级） | TASK069 域3 |
 | 34 | TASK069-P5 | 触发原因解释区 + /permissions 引导 | TASK069 域3 |
@@ -201,4 +201,9 @@
   - **提示语真实性核对**：基准建议设 `NODE_EXTRA_CA_CERTS`；C# 只在 guard 侧监控 `SSL_CERT_FILE` 等变量，**并不会真正加载 CA bundle**（只有代理走 `HTTPS_PROXY`）。因此提示写「导入系统证书存储」而不是照抄环境变量，避免给出无效指引。
   - **未移植**：①`CUSTOM_OFF_SWITCH_MESSAGE` 的 `/model` 限流降级建议（C# 无容量降级/Opus 限量概念）；②基准的 dim 提示行（C# 约定把提示并入同一条消息，与既有 401 文案一致）。
   - 验收：`ChatErrorHandlingMiddlewareTest` +6（Authentication 内层 / SecureConnectionError / 四类原因映射 / 非 SSL 内层不误判）；pipelines.tests 68、host.tests 1356 绿；真机 EXIT=0；**产物 `JoinCode.Pipelines.dll` 含「SSL 证书校验失败」**（按约定改 `modules/composition/pipelines/` 必须编 `Pipelines.csproj`，只编 Composition 会「编译成功但改动没进产物」）。
-- 下一动作：§2.2 剩余项（C1/C2/C3/E4/P3/P4/P5）逐项取证请示 —— 域1（S1/S2/S3/S6）、域2（N2/N3）、域5 的 E1、域6（M2/M3/M4/M5）已结清。
+- **E4 完成（2026-11-21）**：一手 `components/messages/AssistantTextMessage.tsx:19`（`MAX_API_ERROR_CHARS = 1000`）+ L199-206（`truncated = !verbose && text.length > MAX` → `text.slice(0, MAX) + "…"`，随后渲染 `<CtrlOToExpand />`）+ `components/CtrlOToExpand.tsx:44-46`（`(ctrl+o to expand)` dim）。
+  - **转述纠正**：总账原文写「cause 链 + 堆栈」，但基准错误组件里没有堆栈渲染 —— `formatAPIError` 返回的就是格式化后的消息文本，ctrl+o 展开看到的也是同一份全文。故不移植堆栈：C# 的 ctrl+o 进 transcript 已能看到完整 `Text`。
+  - 实现：`ToolFoldingPolicy.MaxApiErrorChars` + `ErrorExpandHint = "(ctrl+o 展开)"`；`ErrorMessageItem` 构造期截断并按 `\n` 拆行、暴露 `IsTruncated`，`MeasureHeight = 1 + 行数 + 引导`；渲染拆 `RenderErrorLine`（首行 `● ` + error 色 / 续行 2 列缩进）与 `RenderErrorExpandHint`（dim）。
+  - **顺带修复同型缺陷**：错误正文含换行时，`Screen.WriteText` 的零宽规则会把 `\n` 吞掉、把多行挤成一行（与 M5 的 `[error]` 多行同一根因）。`Text` 仍保全文，`ContainsText` 与 transcript 投影走全文，截断只影响交互视图首屏。
+  - 验收：`ErrorMessageItemTests` 6（单行红字 / 多行不粘连 / 1001 字符截断+引导 / 恰 1000 不截断 / 搜索越界命中 / transcript 全文）；Core 3111、Host 144 绿；真机 EXIT=0；Core.dll 含 `MaxApiErrorChars`/`ErrorExpandHint`/`RenderErrorLine`。
+- 下一动作：§2.2 剩余项（C1/C2/C3/P3/P4/P5）逐项取证请示 —— 域1（S1/S2/S3/S6）、域2（N2/N3）、域5（E1/E4）、域6（M2/M3/M4/M5）已结清。

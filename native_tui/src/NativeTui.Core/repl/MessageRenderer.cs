@@ -219,11 +219,31 @@ public static class MessageRenderer
     }
 
     /// <summary>渲染错误消息：● + 空格 + 正文，全部 theme.Error 红色（bridge error 事件）。</summary>
-    public static void RenderError(Screen screen, Rect frame, Theme theme, string text)
+    public static void RenderError(Screen screen, Rect frame, Theme theme, string text) =>
+        RenderErrorLine(screen, frame, theme, text, isFirst: true);
+
+    /// <summary>
+    /// 渲染错误消息的一行（TASK069-E4）：首行 "● " + error 色正文；续行 2 列缩进（对齐 ● 后正文列）。
+    /// </summary>
+    public static void RenderErrorLine(Screen screen, Rect frame, Theme theme, string text, bool isFirst)
     {
         var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        if (!isFirst)
+        {
+            screen.WriteText(frame.Y, frame.X, "  ", 0, frame.Right);
+            screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
+            return;
+        }
+
         screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", style, frame.Right);
         screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
+    }
+
+    /// <summary>渲染错误正文截断的展开引导（dim，2 列缩进 — 基准 CtrlOToExpand）。</summary>
+    public static void RenderErrorExpandHint(Screen screen, Rect frame, Theme theme)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X + 2, ToolFoldingPolicy.ErrorExpandHint, dim, frame.Right);
     }
 
     /// <summary>渲染 diff hunk 头："    @@ … @@"（4 空格缩进，整行 dim 弱化）。</summary>

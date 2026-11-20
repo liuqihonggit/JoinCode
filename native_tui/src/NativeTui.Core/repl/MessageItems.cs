@@ -578,21 +578,48 @@ public sealed class DiffResultItem(string summary, DiffHunk[] patch, ICodeHighli
     public bool ContainsText(string query) => _core.ContainsText(query);
 }
 
-/// <summary>错误消息项（● theme.Error 红色 + 正文，bridge error 事件载体）。</summary>
+/// <summary>错误消息项（● theme.Error 红色 + 正文，bridge error 事件载体）。
+/// TASK069-E4 — 正文超 <see cref="ToolFoldingPolicy.MaxApiErrorChars"/> 时截断并追加 dim
+/// `(ctrl+o 展开)` 引导（ctrl+o 进 transcript 看全文，对齐基准 MAX_API_ERROR_CHARS 语义）；
+/// 含换行时逐行渲染（续行 2 列缩进）— 此前 '\n' 被 WriteText 零宽规则吞掉挤成一行。</summary>
 public sealed class ErrorMessageItem(string text) : IScrollItem, ICursorNavigable, ITextMatchable
 {
-    /// <summary>错误正文。</summary>
+    /// <summary>正文行缓存（截断后按 \n 拆分；构造期算好，渲染帧拍零重复处理）。</summary>
+    private readonly string[] _lines = Truncate(text).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+
+    /// <summary>错误正文全文（搜索/transcript 投影用 — 渲染按行截断）。</summary>
     public string Text { get; } = text;
 
-    /// <summary>内容高度 = margin 1 + 正文 1。</summary>
-    public int MeasureHeight(int width) => 2;
+    /// <summary>是否已截断（渲染展开引导依据）。</summary>
+    public bool IsTruncated => Text.Length > ToolFoldingPolicy.MaxApiErrorChars;
 
-    /// <summary>margin 行留空，正文画在 frame.Y+1。</summary>
-    public void Render(Screen screen, Rect frame, Theme theme) =>
-        MessageRenderer.RenderError(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, Text);
+    /// <summary>内容高度 = margin 1 + 正文行数 + 截断引导 0/1。</summary>
+    public int MeasureHeight(int width) => 2 + (_lines.Length - 1) + (IsTruncated ? 1 : 0);
 
-    /// <summary>错误正文匹配。</summary>
+    /// <summary>margin 行留空，正文从 frame.Y+1 起逐行渲染，截断时末行加 dim 引导。</summary>
+    public void Render(Screen screen, Rect frame, Theme theme)
+    {
+        var row = frame.Y + 1;
+        for (var i = 0; i < _lines.Length; i++)
+        {
+            MessageRenderer.RenderErrorLine(screen, frame with { Y = row, Height = 1 }, theme, _lines[i], i == 0);
+            row++;
+        }
+
+        if (IsTruncated)
+        {
+            MessageRenderer.RenderErrorExpandHint(screen, frame with { Y = row, Height = 1 }, theme);
+        }
+    }
+
+    /// <summary>错误正文匹配（全文 — 截断不影响搜索）。</summary>
     public bool ContainsText(string query) => Text.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>按字符上限截断（超限加省略号 — 对齐基准 `slice(0, MAX) + "…"`）。</summary>
+    private static string Truncate(string text) =>
+        text.Length > ToolFoldingPolicy.MaxApiErrorChars
+            ? string.Concat(text.AsSpan(0, ToolFoldingPolicy.MaxApiErrorChars), "…")
+            : text;
 }
 
 /// <summary>启动诊断行项 — 纯文本 dim 渲染（引擎启动中/[diag] 等）。

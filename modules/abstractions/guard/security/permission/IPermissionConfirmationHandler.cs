@@ -10,9 +10,11 @@ public interface IPermissionConfirmationHandler {
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <param name="confirmationPrompt">确认提示文本</param>
+    /// <param name="ruleContent">触发本次确认的规则内容（如 WebFetch 的 <c>domain:example.com</c>；
+    /// 无结构化来源时为 null — TASK069-P5 触发原因区数据源）</param>
     /// <param name="cancellationToken">取消令牌 — 取消视为拒绝（fail-closed）</param>
     /// <returns>用户确认结果（动作 + 可选反馈说明）</returns>
-    Task<PermissionConfirmResult> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default);
+    Task<PermissionConfirmResult> ConfirmAsync(string toolName, string confirmationPrompt, string? ruleContent = null, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

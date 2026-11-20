@@ -220,11 +220,16 @@ public sealed class TuiPermissionConfirmationTests {
         Assert.Contains(manager.LevelApprovals, l => l == CommandDangerLevel.Execution);
     }
 
-    /// <summary>固定动作假 bridge — handler 单元测试解耦 shell。</summary>
+    /// <summary>固定动作假 bridge — handler 单元测试解耦 shell；捕获收到的触发原因规则内容（P5）。</summary>
     private sealed class FakeBridge(PermissionConfirmAction action, string? feedback = null) : TuiPermissionBridge {
-        /// <summary>返回固定动作与反馈。</summary>
-        public override PermissionConfirmResult Confirm(string toolName, string confirmationPrompt) =>
-            PermissionConfirmResult.Of(action, feedback);
+        /// <summary>最后一次 Confirm 收到的 ruleContent（P5 透传断言用）。</summary>
+        public string? LastRuleContent { get; private set; }
+
+        /// <summary>返回固定动作与反馈，并记录规则内容。</summary>
+        public override PermissionConfirmResult Confirm(string toolName, string confirmationPrompt, string? ruleContent = null) {
+            LastRuleContent = ruleContent;
+            return PermissionConfirmResult.Of(action, feedback);
+        }
     }
 
     // ---- TASK069-P3 反馈透传 ----
@@ -300,6 +305,45 @@ public sealed class TuiPermissionConfirmationTests {
 
         Assert.Equal(PermissionConfirmAction.Deny, result.Action);
         Assert.Equal("别删，改成备份", result.Feedback);
+    }
+
+    // ---- TASK069-P5 触发原因透传 ----
+
+    /// <summary>bridge 把引擎给的规则内容带进挂起请求（对话框据此渲染原因是唯一数据源）。</summary>
+    [Fact]
+    public async Task Bridge_CarriesRuleContentIntoRequest() {
+        var (bridge, shell) = CreateBound();
+        var confirmTask = Task.Run(() => bridge.Confirm("WebFetch", "是否允许访问？", "domain:example.com"));
+        WaitUntil(() => shell.Permission.IsPending);
+
+        Assert.Equal("domain:example.com", shell.Permission.Request?.RuleContent);
+
+        shell.HandleRawKeyPress(KeyPress.Char("3"));
+        await confirmTask;
+    }
+
+    /// <summary>无规则内容时挂起请求保持空串（对话框整区折叠 — 不编造原因）。</summary>
+    [Fact]
+    public async Task Bridge_WithoutRuleContent_KeepsEmpty() {
+        var (bridge, shell) = CreateBound();
+        var confirmTask = Task.Run(() => bridge.Confirm("Bash", "run tests"));
+        WaitUntil(() => shell.Permission.IsPending);
+
+        Assert.Equal(string.Empty, shell.Permission.Request?.RuleContent);
+
+        shell.HandleRawKeyPress(KeyPress.Char("3"));
+        await confirmTask;
+    }
+
+    /// <summary>handler 把引擎的 ruleContent 原样转给 bridge（中间层不得丢弃或无中生有）。</summary>
+    [Fact]
+    public void Handler_PassesRuleContentToBridge() {
+        var bridge = new FakeBridge(PermissionConfirmAction.Allow);
+        var handler = new TuiPermissionConfirmationHandler(bridge, new FakePermissionManager());
+
+        handler.Confirm("WebFetch", "是否允许访问？", "domain:example.com");
+
+        Assert.Equal("domain:example.com", bridge.LastRuleContent);
     }
 
     /// <summary>引擎 DI 解析 handler（真 bridge 注入路径 — Program 组装等价冒烟）。</summary>

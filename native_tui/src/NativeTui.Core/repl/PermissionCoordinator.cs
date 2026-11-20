@@ -16,8 +16,12 @@ public enum PermissionChoice
     Deny,
 }
 
-/// <summary>挂起中的权限请求（工具名 + 描述参数）。</summary>
-public sealed record PermissionRequest(string ToolName, string Description);
+/// <summary>挂起中的权限请求（工具名 + 描述参数 + 触发原因规则内容）。</summary>
+/// <param name="ToolName">待确认工具名。</param>
+/// <param name="Description">确认提示文本。</param>
+/// <param name="RuleContent">触发本次确认的规则内容（TASK069-P5 — 如 WebFetch 的
+/// <c>domain:example.com</c>；空串 = 无结构化来源，对话框不渲染原因区）。</param>
+public sealed record PermissionRequest(string ToolName, string Description, string RuleContent = "");
 
 /// <summary>
 /// 权限对话框协调器（M7-3）— TCS 桥 + 对话框状态：

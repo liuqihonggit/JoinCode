@@ -148,7 +148,9 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         }
 
         var prompt = context.PermissionConfirmationPrompt ?? "需要确认";
-        var confirmResult = await _confirmationHandler.ConfirmAsync(toolName, prompt, cancellationToken).ConfigureAwait(false);
+        // TASK069-P5 — 带上触发原因规则内容（当前仅 WebFetch 的 domain:hostname 有结构化来源），
+        // 供对话框渲染「触发原因 + /permissions 引导」；无来源时为 null，渲染层整区折叠
+        var confirmResult = await _confirmationHandler.ConfirmAsync(toolName, prompt, context.PermissionRuleContent, cancellationToken).ConfigureAwait(false);
         var action = confirmResult.Action;
 
         if (action != PermissionConfirmAction.Allow && action != PermissionConfirmAction.AlwaysAllow) {

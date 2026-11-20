@@ -34,7 +34,7 @@
 ### 2.1 S 级（单行/文案/配色，先问）
 | # | 编号 | 事项 | 来源 |
 |---|------|------|------|
-| 7 | TASK069-S5 | token compact 大小写：`1.3k` vs `1.3K` | TASK069 域1 |
+| ~~7~~ | ~~TASK069-S5~~ | ~~token compact 大小写 `1.3k` vs `1.3K`~~ | TASK069 域1 | ✅ 已完成 2026-11-21：`FormatCompact` 后缀 k→K，红→绿测试 5 项 + `/stats` 真机 EXIT=0 |
 | 8 | TASK069-S4 | 流式项前缀：C# `⎿dim`→`●` 跳变 vs 基准恒 `●` | TASK069 域1 |
 | 9 | TASK069-M1 | ❯ 前缀选中变色：C# 恒 Subtle vs 基准 suggestion 色 | TASK069 域6 |
 | 10 | TASK069-P6 | 模式切换警告：基准 auto 进入 800ms 防抖警告（≤3 次） | TASK069 域3 |

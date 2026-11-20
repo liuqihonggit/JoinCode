@@ -29,7 +29,7 @@
 | S2 | 流式尾块渲染 | C# 尾恒纯文本；基准增长尾走完整 Markdown（代码块流式期有样式） | Markdown.tsx:231-233 |
 | S3 | 增量解析范围 | C# 每次 Append 全量 Markdig.Parse O(全文)；基准稳定边界起 O(尾长) | Markdown.tsx:210-212 |
 | S4 | 流式项前缀 | C# 流式 ⎿ dim 落定切 ●（跳变）；基准同用 ● | Messages.tsx:703-712 |
-| S5 | token compact 大小写 | C# 1.3k；基准 1.3K | format.ts:124-130 |
+| S5 | token compact 大小写 | C# 1.3k；基准 1.3K | format.ts:124-130 | ✅ **已对齐基准 2026-11-21**（用户拍板改大写 K；`NumberFormatter.FormatCompact` k/M/B 后缀全大写，TDD 锁定） |
 | S6 | 提示词 XML 剥离 | 基准 stripPromptXMLTags 先剥离再切分；C# 无 | Markdown.tsx:202 |
 
 ### 域2：通知与 footer

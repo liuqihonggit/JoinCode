@@ -5,14 +5,14 @@ namespace JoinCode.Cli.Display;
 /// </summary>
 public static class NumberFormatter {
     /// <summary>
-    /// 将长整数格式化为紧凑形式（k/M/B 后缀）
+    /// 将长整数格式化为紧凑形式（K/M/B 后缀 — 对齐基准 Claude Code format.ts 大写）
     /// </summary>
     /// <param name="value">待格式化的数值</param>
     /// <returns>紧凑形式的字符串表示</returns>
     public static string FormatCompact(long value) {
         if (value >= 1_000_000_000) return $"{value / 1_000_000_000.0:F1}B";
         if (value >= 1_000_000) return $"{value / 1_000_000.0:F1}M";
-        if (value >= 1000) return $"{value / 1000.0:F1}k";
+        if (value >= 1000) return $"{value / 1000.0:F1}K";
         return value.ToString();
     }
 

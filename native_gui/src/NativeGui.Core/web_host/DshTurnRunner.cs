@@ -280,7 +280,9 @@ internal sealed class DshTurnRunner {
                 Error = new DshTurnEndError { Code = "UNKNOWN", Message = ex.Message },
             });
         } finally {
-            _services.Streams.EndTurn(sessionId);
+            // turn/end 已在 PublishTurnEndAsync 内释放占用；这里只兜底释放仍属于本轮的情况，
+            // 避免迟到的 finally 把已经开始的新轮占用清掉。
+            _services.Streams.EndTurnIfCurrent(sessionId, turn);
             if (_services.Engine is { } ready) {
                 StartQueued(ready, sessionId);
             }
@@ -473,10 +475,10 @@ internal sealed class DshTurnRunner {
         }, surfaceOp: "append");
     }
 
-    /// <summary>落步骤结束与轮次结束（先 step/end 再 turn/end）</summary>
+    /// <summary>落步骤结束与轮次结束（先 step/end 再 turn/end；turn/end 与释放占用同事务）</summary>
     private async Task EndTurnAsync(string sessionId, int turn, DshTurnEndReason reason) {
         await _services.Streams.PublishAsync(sessionId, "step/end", new DshStepData { Turn = turn, Step = Step });
-        await _services.Streams.PublishAsync(sessionId, "turn/end", new DshTurnEndData { Turn = turn, Reason = reason });
+        await _services.Streams.PublishTurnEndAsync(sessionId, new DshTurnEndData { Turn = turn, Reason = reason });
     }
 
     /// <summary>快照事件页里的最大轮次（无事件为 0），用于让新轮次接着历史编号</summary>

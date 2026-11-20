@@ -374,15 +374,42 @@ internal sealed class DshSessionStreamHub {
 
     /// <summary>结束一轮生成（释放占用，允许下一轮）</summary>
     /// <param name="sessionId">会话 ID</param>
-    internal void EndTurn(string sessionId) {
-        var cancellation = _actor.Run(() => {
-            var state = State(sessionId);
-            state.Running = false;
-            var captured = state.Cancellation;
-            state.Cancellation = null;
-            return captured;
+    internal void EndTurn(string sessionId) => _actor.Run(() => ReleaseRunningCore(sessionId));
+
+    /// <summary>
+    /// 仅当进行中的轮次等于 turn 时释放 — 防止迟到的旧轮 finally 释放已开始的新轮占用。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="turn">旧轮编号</param>
+    internal void EndTurnIfCurrent(string sessionId, int turn) =>
+        _actor.Run(() => {
+            if (_sessions.TryGetValue(sessionId, out var state) && state.Running && state.Turn == turn) {
+                ReleaseRunningCore(sessionId);
+            }
         });
-        cancellation?.DisposeSource();
+
+    /// <summary>
+    /// 落 turn/end 并在同一单写者事务内释放轮次占用 — 客户端收到 turn/end 后立即发送下一条，
+    /// 不会因 finally 尚未执行而命中 session/busy。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="data">turn/end 载荷</param>
+    /// <returns>事件序号</returns>
+    internal Task<long> PublishTurnEndAsync(string sessionId, DshTurnEndData data) =>
+        _actor.RunAsync(async () => {
+            var seq = await PublishCoreAsync(sessionId, "turn/end", data, surfaceOp: null, onAllocated: null).ConfigureAwait(false);
+            ReleaseRunningCore(sessionId);
+            return seq;
+        });
+
+    /// <summary>单写者线程内释放轮次占用并回收取消令牌源</summary>
+    /// <param name="sessionId">会话 ID</param>
+    private void ReleaseRunningCore(string sessionId) {
+        var state = State(sessionId);
+        state.Running = false;
+        var captured = state.Cancellation;
+        state.Cancellation = null;
+        captured?.DisposeSource();
     }
 
     /// <summary>当前进行中的轮次编号（空闲为 0）</summary>

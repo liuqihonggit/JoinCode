@@ -4,7 +4,10 @@
 /// <summary>
 /// 工具测试上下文 — BuildAndRegisterAllToolsAsync 的返回值，替代元组更清晰
 /// </summary>
-public sealed record ToolTestContext {
+public sealed record ToolTestContext : IAsyncDisposable {
+    /// <summary>隔离宿主（持有 DI 容器与独占临时目录，零全局环境变量）</summary>
+    public required IsolatedTestHost Host { get; init; }
+
     /// <summary>工具注册表（直连，绕过权限管道）</summary>
     public required Tools.LocalToolRegistry Registry { get; init; }
     /// <summary>工具执行网关（走 13 层权限管道）</summary>
@@ -15,6 +18,8 @@ public sealed record ToolTestContext {
     public required string TempDir { get; init; }
     /// <summary>工作目录（IFileSystem.GetCurrentDirectory）</summary>
     public required string WorkingDir { get; init; }
+
+    public ValueTask DisposeAsync() => Host.DisposeAsync();
 }
 
 /// <summary>
@@ -25,95 +30,27 @@ public sealed record ToolTestContext {
 [Trait("Category", "Integration")]
 public sealed class McpToolSmokeTests {
     private static async Task<ToolTestContext> BuildAndRegisterAllToolsAsync() {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
-        Environment.SetEnvironmentVariable("JCC_FILE_SYSTEM_MODE", "InMemory");
+        // 隔离宿主：注入 InMemoryFileSystem + 独占 patrol-{Guid:N} 目录，零全局环境变量。
+        // disposeProvider=false：原测试从不 Dispose provider；冒烟会构造 LspManager，其 Dispose 走
+        // LspInitActor.ShutdownAsync(Ask)，在 xUnit 并行下偶发 10s 线程池饥饿超时（已知 Actor 边界）。
+        var host = new IsolatedTestHost(withTestPipelines: true, disposeProvider: false);
+        await host.InitializeMcpAsync().ConfigureAwait(true);
 
-        var services = new ServiceCollection();
-        services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Warning));
-        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        var toolRegistry = host.GetRequiredService<IMcpToolRegistry>();
+        _ = await toolRegistry.GetAllToolsAsync().ConfigureAwait(true);
 
-        var config = new WorkflowConfig();
-        services.AddWorkflowServices(config);
-        services.AddTestPipelines();
-
-        var provider = services.BuildServiceProvider();
-
-        var mcpService = provider.GetRequiredService<IMcpService>();
-        await mcpService.InitializeAsync(provider).ConfigureAwait(true);
-
-        var toolRegistry = provider.GetRequiredService<IMcpToolRegistry>();
-        var allTools = await toolRegistry.GetAllToolsAsync().ConfigureAwait(true);
-
-        var registry = provider.GetRequiredService<Tools.LocalToolRegistry>();
-        var gateway = provider.GetRequiredService<IToolExecutionGateway>();
+        var registry = host.GetRequiredService<Tools.LocalToolRegistry>();
+        var gateway = host.GetRequiredService<IToolExecutionGateway>();
         var toolInfos = await registry.GetAllToolInfosAsync().ConfigureAwait(true);
-        var fs = provider.GetRequiredService<IFileSystem>();
-        var workingDir = fs.GetCurrentDirectory();
+        var workingDir = host.FileSystem.GetCurrentDirectory();
         return new ToolTestContext {
+            Host = host,
             Registry = registry,
             Gateway = gateway,
             Tools = toolInfos,
-            TempDir = tempDir,
+            TempDir = host.TempDir,
             WorkingDir = workingDir,
         };
-    }
-
-    /// <summary>
-    /// 为工具构造最小参数集 — 对必需参数提供最小有效值
-    /// </summary>
-    private static Dictionary<string, JsonElement> BuildMinimalArguments(ToolInfo tool) {
-        var args = new Dictionary<string, JsonElement>();
-
-        if (tool.InputSchema?.Required == null) return args;
-
-        foreach (var reqParam in tool.InputSchema.Required) {
-            if (!tool.InputSchema.Properties.TryGetValue(reqParam, out var prop)) continue;
-
-            var value = prop.Type switch {
-                "string" => reqParam switch {
-                    "file_path" or "path" => JsonDocument.Parse("\"test.txt\"").RootElement.Clone(),
-                    "directory_path" => JsonDocument.Parse("\".\"").RootElement.Clone(),
-                    "command" => JsonDocument.Parse("\"echo hello\"").RootElement.Clone(),
-                    "pattern" => JsonDocument.Parse("\"*.txt\"").RootElement.Clone(),
-                    "query" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "url" => JsonDocument.Parse("\"http://localhost\"").RootElement.Clone(),
-                    "prompt" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "code" => JsonDocument.Parse("\"var x = 1;\"").RootElement.Clone(),
-                    "expression" => JsonDocument.Parse("\"1+1\"").RootElement.Clone(),
-                    "schema_name" => JsonDocument.Parse("\"test_schema\"").RootElement.Clone(),
-                    "schema_json" => JsonDocument.Parse("\"{}\"").RootElement.Clone(),
-                    "action" => JsonDocument.Parse("\"list\"").RootElement.Clone(),
-                    "target" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "confirm" => JsonDocument.Parse("\"yes\"").RootElement.Clone(),
-                    "agent_pattern" => JsonDocument.Parse("\"*\"").RootElement.Clone(),
-                    "agent_name" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "cassette_name" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "client_id" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "tool_name" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "resource_uri" => JsonDocument.Parse("\"test://resource\"").RootElement.Clone(),
-                    "auth_id" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "api_key" => JsonDocument.Parse("\"test-key\"").RootElement.Clone(),
-                    "token" => JsonDocument.Parse("\"test-token\"").RootElement.Clone(),
-                    "username" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "password" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "refresh_token" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "client_secret" => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                    "auth_url" => JsonDocument.Parse("\"http://localhost/auth\"").RootElement.Clone(),
-                    "token_url" => JsonDocument.Parse("\"http://localhost/token\"").RootElement.Clone(),
-                    _ => JsonDocument.Parse("\"test\"").RootElement.Clone(),
-                },
-                "integer" => JsonDocument.Parse("1").RootElement.Clone(),
-                "boolean" => JsonDocument.Parse("false").RootElement.Clone(),
-                "array" => JsonDocument.Parse("[]").RootElement.Clone(),
-                "object" => JsonDocument.Parse("{}").RootElement.Clone(),
-                _ => JsonDocument.Parse("\"test\"").RootElement.Clone()
-            };
-
-            args[reqParam] = value;
-        }
-
-        return args;
     }
 
     /// <summary>
@@ -167,7 +104,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task All_Registered_Tools_Can_Be_Called_Without_Crash() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var gateway = ctx.Gateway;
         var allTools = ctx.Tools;
 
@@ -187,7 +124,7 @@ public sealed class McpToolSmokeTests {
             }
 
             try {
-                var args = BuildMinimalArguments(tool);
+                var args = ArgumentGenerator.GenerateDefaultArguments(tool, ctx.TempDir);
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 var result = await gateway.ExecuteAsync(tool.Name, args, cts.Token).ConfigureAwait(true);
 
@@ -252,7 +189,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task Sleep_Tool_Returns_Valid_Result() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var args = new Dictionary<string, JsonElement> {
             ["duration_seconds"] = JsonDocument.Parse("1").RootElement.Clone()
@@ -267,7 +204,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task Mcp_Auth_Status_Tool_Returns_Valid_Result() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var result = await ctx.Registry.ExecuteToolAsync("mcp_auth_status", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
 
@@ -278,7 +215,7 @@ public sealed class McpToolSmokeTests {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Unknown_Tool_Returns_Error_Or_Throws() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         // 调用不存在的工具 — 注册表可能抛出异常或返回错误结果，不能静默成功
         Exception? caughtEx = null;
@@ -304,7 +241,7 @@ public sealed class McpToolSmokeTests {
     /// </summary>
     [Fact]
     public async Task Write_Read_Behavior_Verification() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var fileName = $"patrol-behavior-test-{Guid.NewGuid():N}.txt";
         var content = "hello patrol behavior verification";
         var fileNameJson = System.Text.Json.JsonSerializer.Serialize(fileName);
@@ -335,7 +272,7 @@ public sealed class McpToolSmokeTests {
     /// </summary>
     [Fact]
     public async Task Write_List_Behavior_Verification() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var fileName = $"patrol-list-test-{Guid.NewGuid():N}.txt";
 
         // write 写入文件(相对路径)
@@ -363,7 +300,7 @@ public sealed class McpToolSmokeTests {
     /// </summary>
     [Fact]
     public async Task Write_Edit_Read_Behavior_Verification() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var fileName = $"patrol-edit-test-{Guid.NewGuid():N}.txt";
         var fileNameJson = System.Text.Json.JsonSerializer.Serialize(fileName);
 
@@ -402,7 +339,7 @@ public sealed class McpToolSmokeTests {
     /// </summary>
     [Fact]
     public async Task Write_Delete_Read_Behavior_Verification() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var fileName = $"patrol-delete-test-{Guid.NewGuid():N}.txt";
         var fileNameJson = System.Text.Json.JsonSerializer.Serialize(fileName);
 
@@ -429,7 +366,7 @@ public sealed class McpToolSmokeTests {
     /// </summary>
     [Fact]
     public async Task All_Tools_With_Default_Arguments_No_Crash() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var gateway = ctx.Gateway;
         var allTools = ctx.Tools;
         var strategy = new DefaultToolValidationStrategy();
@@ -506,7 +443,7 @@ public sealed class McpToolSmokeTests {
     /// </summary>
     [Fact]
     public async Task All_Tools_Missing_Required_Param_Returns_Error() {
-        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        await using var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var gateway = ctx.Gateway;
         var allTools = ctx.Tools;
         var strategy = new DefaultToolValidationStrategy();

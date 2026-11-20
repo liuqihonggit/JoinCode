@@ -31,6 +31,19 @@ public sealed class UserMessageItem(string text) : IScrollItem, ICursorNavigable
 
     /// <summary>正文匹配（基于全文，不受显示截断影响）。</summary>
     public bool ContainsText(string query) => text.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>TASK069-M1 对齐基准 HighlightedThinkingText.tsx:24：消息操作选中时 ❯ 前缀
+    /// 由 subtle 提升为 suggestion 前景（正文前景不变）。❯ 画在 frame.Y+1 / frame.X（margin 行留空）。</summary>
+    public void RenderSelectedAccent(Screen screen, Rect frame, Theme theme) {
+        var pointer = screen[frame.Y + 1, frame.X];
+        if (pointer.Value != new Rune(Figures.Pointer[0])) {
+            return;
+        }
+        screen[frame.Y + 1, frame.X] = pointer with
+        {
+            StyleId = screen.Styles.GetOrAdd(screen.Styles.Get(pointer.StyleId) with { Foreground = theme.Suggestion }),
+        };
+    }
 }
 
 /// <summary>助手文本消息项（● text 色 + 正文）。TASK062 结构化：思考时长 &gt; 0 时正文上方渲染

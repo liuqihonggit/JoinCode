@@ -17,6 +17,14 @@ public interface IScrollItem
     /// IScrollItem 接口引用可见（ScrollBox.Items 遍历语境天然满足 — 具体类型引用需显式实现）。
     /// </summary>
     string? HitTestId => null;
+
+    /// <summary>
+    /// 选中强调渲染（TASK069-M1 — 对齐基准 HighlightedThinkingText.tsx:24 `isSelected ? suggestion : subtle`）：
+    /// 消息操作导航选中该项时，在 Render 之后由 ScrollBox 调用，项可把自己的指示符前景从 subtle 提升到
+    /// suggestion。默认 no-op（绝大多数项零改动）；仅 UserMessageItem 等有 ❯ 前缀者覆写。
+    /// 与整块背景覆写 ApplyHighlightBackground 正交（前者改前景、后者改背景）。
+    /// </summary>
+    void RenderSelectedAccent(Screen screen, Rect frame, Theme theme) { }
 }
 
 /// <summary>
@@ -155,6 +163,7 @@ public sealed class ScrollBox
                     rendered++;
                     if (ReferenceEquals(_items[i], HighlightItem))
                     {
+                        _items[i].RenderSelectedAccent(screen, itemFrame, theme);
                         ApplyHighlightBackground(screen, itemFrame, theme);
                     }
                 }

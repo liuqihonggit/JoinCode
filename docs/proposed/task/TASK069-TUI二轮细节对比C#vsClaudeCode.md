@@ -79,7 +79,7 @@
 
 | # | 功能点 | 差异 |
 |---|--------|------|
-| M1 | ❯ 前缀选中变色 | 基准选中时 suggestion 色；C# 恒 Subtle | ✅ **裁决：维持 C# 现状（已对齐基准）2026-11-21** — `RenderUser` 用户消息 ❯ 恒 Subtle 是对齐基准的实现；C# picker/dialog 选中态 `MessageRenderer.cs:350,394` 已是 suggestion 色（与基准一致）；`MessageCursor`（Shift+↑）是 w2 自创无基准对应物（`ReplShell.cs:2465`），高亮为整块背景覆写。TASK069 把 picker 选中态误套到用户消息前缀 |
+| M1 | ❯ 前缀选中变色 | 基准选中时 suggestion 色；C# 恒 Subtle | ✅ **已对齐基准 2026-11-21**（一手源码纠正早先误判）：基准 `HighlightedThinkingText.tsx:24` `isSelected ? suggestion : subtle`；C# 加 `IScrollItem.RenderSelectedAccent` 钩子 + `UserMessageItem` 覆写（选中时 ❯ 前景 subtle→suggestion），ScrollBox 选中项调钩子。TDD 25/25 + 真机 selftest |
 | M2 | 工具圆点状态色 | 基准完成=success/error 色 + 未决闪烁；C# 恒 text 色（工具失败不可见） |
 | M3 | diff 行号 gutter | 基准 marker+右对齐行号列 + "Added/Removed N lines" 统计头；C# 4 空格缩进无行号 |
 | M4 | 表格列对齐 | 基准 center/right 支持；C# 仅左对齐 |

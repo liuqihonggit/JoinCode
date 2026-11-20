@@ -147,7 +147,7 @@ public sealed class ChatMiddlewareContext {
     /// <summary>
     /// 子代理事件通道 — QueryLoopMiddleware 在回合开始时创建。
     /// 排空侧由 QueryLoop 显式读取（AsyncLocal 在异步迭代器内跨 yield 不可见，禁止走环境态）；
-    /// 发射侧由 ToolExecutionHandler 进入 <see cref="SubAgentEventChannel.EnterScope"/> 作用域，
+    /// 发射侧由 QueryEngine 工具执行进入 <see cref="SubAgentEventChannel.EnterScope"/> 作用域，
     /// 供深层 Agent 中间件经 Current 发射。嵌套子代理的 QueryLoop 会覆盖为自己的新通道实现隔离。
     /// </summary>
     public SubAgentEventChannel? SubAgentEvents { get; set; }

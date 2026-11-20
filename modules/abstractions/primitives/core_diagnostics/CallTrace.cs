@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.Diagnostics;
 /// <summary>
 /// 链路追踪 — 基于 AsyncLocal 自动跨异步边界传播调用 ID
 /// 格式: {sessionId短码}.{递增序号}，如 88d5.0、88d5.1
-/// 用法: LLMInvocationHandler 入口 SetId，下游各层通过 CurrentId 读取
+/// 用法: 循环入口 SetId，下游各层通过 CurrentId 读取
 /// </summary>
 public static class CallTrace {
     private static readonly AsyncLocal<string?> _callId = new();

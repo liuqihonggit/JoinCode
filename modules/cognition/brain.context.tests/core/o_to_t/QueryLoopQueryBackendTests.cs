@@ -2,8 +2,8 @@
 namespace Core.Context;
 
 /// <summary>
-/// TASK103 灰度后端 — QueryLoopMiddleware 在 JCC_CHAT_LOOP_BACKEND=query 时把循环委托给 IQueryEngine。
-/// 覆盖事件适配、历史去重与增量回写、执行设置/闸门透传。
+/// TASK103 单循环 — QueryLoopMiddleware 把循环委托给 IQueryEngine。
+/// 覆盖事件适配、历史去重与增量回写、执行设置/闸门透传、轮内 steer。
 /// </summary>
 public sealed class QueryLoopQueryBackendTests {
     /// <summary>可编排输出的假查询引擎 — 记录传入历史与选项，按脚本向历史追加消息。</summary>
@@ -51,8 +51,6 @@ public sealed class QueryLoopQueryBackendTests {
 
     [Fact]
     public async Task QueryBackend_MapsEngineChunks_AndSkipsDuplicateUserMessage() {
-        using var scope = new ChatLoopBackendQueryScope();
-
         var assistantWrites = new List<string>();
         var contextManager = CreateContextManager(
             new MessageList([new ApiMessage(MessageRole.User, "hello")]),
@@ -98,8 +96,6 @@ public sealed class QueryLoopQueryBackendTests {
 
     [Fact]
     public async Task QueryBackend_PassesGateOverridesAndSessionLevelModelEffort() {
-        using var scope = new ChatLoopBackendQueryScope();
-
         var contextManager = CreateContextManager(new MessageList(), assistantWrites: []);
         var engine = new FakeQueryEngine();
         engine.Enqueue(new QueryStreamChunk {
@@ -138,8 +134,6 @@ public sealed class QueryLoopQueryBackendTests {
 
     [Fact]
     public async Task QueryBackend_DrainsSteerAtIterationStart_EmitsEventAndPersistsUserMessage() {
-        using var scope = new ChatLoopBackendQueryScope();
-
         var userWrites = new List<string>();
         var contextManager = CreateContextManager(new MessageList(), assistantWrites: []);
         contextManager.Setup(c => c.AddUserMessageAsync(It.IsAny<string>(), It.IsAny<MessageOriginKind?>(), It.IsAny<CancellationToken>()))
@@ -174,36 +168,6 @@ public sealed class QueryLoopQueryBackendTests {
         engine.ReceivedOptions[0].Should().NotBeNull();
     }
 
-    [Fact]
-    public async Task LegacyBackend_RemainsDefault_WhenFlagUnset() {
-        using var scope = new ChatLoopBackendLegacyScope();
-
-        var contextManager = CreateContextManager(new MessageList(), assistantWrites: []);
-        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new MessageList());
-
-        var engine = new FakeQueryEngine();
-        engine.Enqueue(new QueryStreamChunk { Type = AgentStreamChunkType.Complete, StopReason = "end_turn" });
-
-        var llmHandler = new Mock<ILLMInvocationHandler>();
-        llmHandler.Setup(h => h.InvokeLLMAsync(
-                It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<ChatMiddlewareContext>(),
-                It.IsAny<int>(), It.IsAny<IterationState>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Callback<MessageList, ChatOptions?, ChatMiddlewareContext, int, IterationState, bool, CancellationToken>(
-                (_, _, _, _, state, _, _) => state.FullResponse.Append("legacy 回答"))
-            .Returns(AsyncEnumerableEmpty<ChatStreamEvent>());
-
-        await using var middleware = CreateMiddleware(contextManager, engine, llmHandler.Object);
-
-        var events = new List<ChatStreamEvent>();
-        await foreach (var evt in middleware.InvokeAsync(
-            CreateContext(), (_, _) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None)) {
-            events.Add(evt);
-        }
-
-        engine.ReceivedOptions.Should().BeEmpty("默认 legacy 后端不得触碰 QueryEngine");
-        events.Should().Contain(e => e.Type == ChatStreamEventType.Complete);
-    }
-
     private static ChatMiddlewareContext CreateContext() => new() {
         Message = "hello",
         ToolUseContext = new ToolUseContext()
@@ -236,30 +200,11 @@ public sealed class QueryLoopQueryBackendTests {
     private static QueryLoopMiddleware CreateMiddleware(
         Mock<IChatContextManager> contextManager,
         FakeQueryEngine engine,
-        ILLMInvocationHandler? llmHandler = null,
-        ISteerInputMailbox? steerMailbox = null) {
-        var toolOrchestrator = new Mock<IChatToolOrchestrator>();
-        var toolHandler = new ToolExecutionHandler(toolOrchestrator.Object, contextManager.Object);
-        return new QueryLoopMiddleware(
+        ISteerInputMailbox? steerMailbox = null) =>
+        new(
             new BackgroundNotificationHandler(contextManager.Object),
-            llmHandler ?? new Mock<ILLMInvocationHandler>().Object,
-            toolHandler,
             new TelemetryRecorder(),
             contextManager.Object,
-            new EmptyResponseTracker(),
-            steerMailbox: steerMailbox,
-            queryEngine: engine);
-    }
-
-    /// <summary>查询后端开关作用域 — 测试结束恢复原值。</summary>
-    private sealed class ChatLoopBackendQueryScope : IDisposable {
-        private readonly IDisposable _scope = EnvVarScope.Set(JccEnvVar.ChatLoopBackend.ToValue(), "query");
-        public void Dispose() => _scope.Dispose();
-    }
-
-    /// <summary>legacy 后端开关作用域 — 显式置 legacy 防止外部环境污染。</summary>
-    private sealed class ChatLoopBackendLegacyScope : IDisposable {
-        private readonly IDisposable _scope = EnvVarScope.Set(JccEnvVar.ChatLoopBackend.ToValue(), "legacy");
-        public void Dispose() => _scope.Dispose();
-    }
+            engine,
+            steerMailbox: steerMailbox);
 }

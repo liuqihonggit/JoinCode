@@ -1,301 +1,59 @@
 namespace Core.Context;
 
 /// <summary>
-/// 查询循环中间件 — LLM 调用 + 块处理 + 工具执行循环
-/// 对应原 ChatService.StreamWithEventsAsync 中的 while 循环
-/// 职责已拆分到: BackgroundNotificationHandler / LLMInvocationHandler / ToolExecutionHandler / InformationEntropyGuardian / TelemetryRecorder
-/// 支持流式工具执行：对齐 TS StreamingToolExecutor，流式期间收到 tool_use block 立即执行
+/// 聊天循环中间件 — ChatService 与 QueryEngine 的桥接（TASK103 合并后唯一循环实现）：
+/// 把整轮 ReAct 循环委托给 <see cref="IQueryEngine"/>，输出经适配器转为聊天事件，
+/// 期间合流子代理事件与轮内 steer 注入，回合结束后回写历史增量并执行后处理。
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware {
-    /// <summary>单回合最大工具调用轮次 — 与 QueryEngine 共用 LoopLimits（JCC_MAX_TOOL_CALL_ITERATIONS）。</summary>
-    private static readonly int MaxToolCallIterations = LoopLimits.MaxToolCallIterations;
-
-    /// <summary>
-    /// 特性开关 — 环境变量 JCC_ACTOR_TOOL_EXECUTOR=1 启用 Actor 版流式工具执行器(零锁)。
-    /// 默认 false 使用原锁版,渐进式迁移。
-    /// </summary>
-    private static readonly bool UseActorToolExecutor =
-        Environment.GetEnvironmentVariable(JccEnvVar.ActorToolExecutor.ToValue()) == "1";
-
     private readonly IBackgroundNotificationHandler _notificationHandler;
-    private readonly ILLMInvocationHandler _llmHandler;
-    private readonly IToolExecutionHandler _toolHandler;
     private readonly ITelemetryRecorder _telemetryRecorder;
     private readonly IChatContextManager _contextManager;
-    private readonly IEmptyResponseTracker _emptyResponseTracker;
     private readonly QueryLoopServices? _services;
     private readonly ILoopDetectionStrategy _loopDetectionStrategy;
-    private readonly IToolConcurrencyClassifier? _concurrencyClassifier;
-    private readonly ToolExecutionSettings? _toolExecutionSettings;
     private readonly ILogger<QueryLoopMiddleware>? _logger;
     private readonly ISteerInputMailbox? _steerMailbox;
-    private readonly IQueryEngine? _queryEngine;
+    private readonly IQueryEngine _queryEngine;
 
     /// <summary>
-    /// 初始化查询循环中间件，注入各处理器和可选服务
+    /// 初始化聊天循环中间件。
     /// </summary>
     /// <param name="notificationHandler">后台通知处理器</param>
-    /// <param name="llmHandler">LLM 调用处理器</param>
-    /// <param name="toolHandler">工具执行处理器</param>
     /// <param name="telemetryRecorder">遥测记录器</param>
     /// <param name="contextManager">聊天上下文管理器</param>
-    /// <param name="emptyResponseTracker">空响应追踪器</param>
-    /// <param name="services">查询循环可选服务聚合</param>
+    /// <param name="queryEngine">查询引擎（唯一循环实现）</param>
+    /// <param name="services">聊天循环可选服务聚合</param>
     /// <param name="loopDetectionStrategy">循环检测策略，null 时使用 InformationEntropyGuardian</param>
-    /// <param name="concurrencyClassifier">工具并发安全性分类器（可选）</param>
-    /// <param name="toolExecutionSettings">工具执行设置（可选）</param>
     /// <param name="logger">可选日志记录器</param>
-    /// <param name="steerMailbox">轮内注入邮箱（可选；null 时 steer 事件永不产生，等价旧行为）</param>
-    /// <param name="queryEngine">查询引擎（TASK103 灰度后端；null 或开关为 legacy 时走旧循环）</param>
+    /// <param name="steerMailbox">轮内注入邮箱（可选；null 时 steer 事件永不产生）</param>
     public QueryLoopMiddleware(
         IBackgroundNotificationHandler notificationHandler,
-        ILLMInvocationHandler llmHandler,
-        IToolExecutionHandler toolHandler,
         ITelemetryRecorder telemetryRecorder,
         IChatContextManager contextManager,
-        IEmptyResponseTracker emptyResponseTracker,
+        IQueryEngine queryEngine,
         QueryLoopServices? services = null,
         ILoopDetectionStrategy? loopDetectionStrategy = null,
-        IToolConcurrencyClassifier? concurrencyClassifier = null,
-        ToolExecutionSettings? toolExecutionSettings = null,
         ILogger<QueryLoopMiddleware>? logger = null,
-        ISteerInputMailbox? steerMailbox = null,
-        IQueryEngine? queryEngine = null) {
+        ISteerInputMailbox? steerMailbox = null) {
         _notificationHandler = notificationHandler;
-        _llmHandler = llmHandler;
-        _toolHandler = toolHandler;
         _telemetryRecorder = telemetryRecorder;
         _contextManager = contextManager;
-        _emptyResponseTracker = emptyResponseTracker;
+        _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
         _services = services;
-        _concurrencyClassifier = concurrencyClassifier;
-        _toolExecutionSettings = toolExecutionSettings;
         _logger = logger;
         _steerMailbox = steerMailbox;
-        _queryEngine = queryEngine;
         _loopDetectionStrategy = loopDetectionStrategy ?? new InformationEntropyGuardian(logger: logger);
     }
 
-    private bool UseStreamingToolExecution =>
-        _concurrencyClassifier is not null && (_toolExecutionSettings?.UseStreamingToolExecution ?? false);
-
-    private int MaxConcurrency => _toolExecutionSettings?.MaxParallelToolExecution ?? 10;
-
-    /// <summary>子代理事件通道轮询间隔 — 工具执行期间排空 SubAgentEventChannel 的节奏</summary>
-    private const int SubAgentEventPollIntervalMs = 50;
-
     /// <summary>
-    /// 等待任务完成期间持续排空子代理事件通道 — GUI 多 subAgent 运行期显示的核心合流点。
-    /// 每次轮询把通道缓冲的事件交给调用方 yield，直到任务完成且缓冲排空。
-    /// 本方法不 await 目标任务：异常（含取消）保留在任务上，由调用方读取
-    /// 任务结果时在原有 try/catch 中按原语义抛出。通道经参数显式传入（迭代器内禁用 AsyncLocal）。
-    /// </summary>
-    private async IAsyncEnumerable<ChatStreamEvent> WaitForTaskWithDrainAsync(
-        Task task,
-        SubAgentEventChannel? channel,
-        [EnumeratorCancellation] CancellationToken ct) {
-        while (!task.IsCompleted) {
-            // WhenAny 不传播成员异常 — Task.Delay 的取消由其捕获，此处永不抛出。
-            // 目标任务是本方法参数、已在本上下文启动，仅借 WhenAny 轮询完成状态
-            await Task.WhenAny(task, Task.Delay(SubAgentEventPollIntervalMs, ct)).ConfigureAwait(false);
-        }
-
-        if (channel is not null) {
-            foreach (var evt in channel.TryDrain())
-                yield return evt;
-        }
-    }
-
-    /// <summary>
-    /// 处理聊天事件流：while 循环执行 LLM 调用和工具执行
+    /// 处理聊天事件流 — 整轮循环委托给 QueryEngine（TASK103 单循环）。
     /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
-        // TASK103 灰度后端：显式 JCC_CHAT_LOOP_BACKEND=query 时把整个 ReAct 循环委托给 QueryEngine；
-        // 默认 legacy 保持既有行为，dry-run 预览仍走旧循环。
-        if (ChatLoopBackendPolicy.UseQueryEngine && _queryEngine is not null && !context.IsDryRun) {
-            if (UseStreamingToolExecution)
-                Diag.WriteLine("[LOOP-QUERY] UseStreamingToolExecution 仅 legacy 后端支持，query 后端按非流式执行（默认配置行为一致）");
-            await foreach (var evt in RunQueryBackendAsync(context, next, ct).ConfigureAwait(false)) {
-                yield return evt;
-            }
-            yield break;
-        }
-
-        var totalToolCalls = 0;
-        TokenUsage? finalUsage = null;
-        string? finalModelId = null;
-        // TASK102 轮次闸门：与 QueryEngine 共用 RoundGatePolicy，规则只实现一份
-        var roundGateEndSelected = false;
-        var roundGateRejections = 0;
-        var requireRoundGate = context.RequireRoundGate;
-
-        // 子代理事件通道 — 挂到 context 显式传递（AsyncLocal 在异步迭代器内跨 yield 不可见，
-        // 实测见 AsyncLocalInIteratorTests）；深层发射侧的作用域由 ToolExecutionHandler 进入
-        context.SubAgentEvents ??= new SubAgentEventChannel();
-
-#if DEBUG
-        if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
-#endif
-
-        while (totalToolCalls < MaxToolCallIterations) {
-            ct.ThrowIfCancellationRequested();
-
-            await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
-
-            // B11 steer：步首把轮内注入的输入落成用户消息（对齐 DSH dsh-agent-loop:1061
-            // 「步首 session.append("user/message", message)」）——下一步请求才带得上。
-            // 事件后续由宿主投影成轮内 user/message（surfaceOp=append）。
-            foreach (var evt in await DrainSteerInputsAsync(context, ct).ConfigureAwait(false)) {
-                yield return evt;
-            }
-
-            var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
-            Diag.WriteLine($"[LOOP] 迭代 #{totalToolCalls} | 消息={historySnapshot.Count}");
-
-            // ADR 0156 请求前上下文预算守卫：分级处理
-            var guardResult = GuardContextBudget();
-            if (guardResult.NeedsEmergencyCompaction) {
-                _logger?.LogWarning("上下文预算超限（估算 {Ratio:P0}），执行紧急折叠", guardResult.EstimatedRatio);
-                try {
-                    await _contextManager.FoldIfNeededAsync(ContextFoldDecision.FoldAggressive, null, ct).ConfigureAwait(false);
-                } catch (OperationCanceledException) {
-                    throw;
-                } catch (Exception foldEx) {
-                    _logger?.LogWarning(foldEx, "紧急上下文折叠失败，尝试继续对话");
-                }
-                var postFoldPreflight = _contextManager.DecidePreflightWithCurrentSpecs();
-                if (postFoldPreflight is { EstimatedRatio: >= 1.0 }) {
-                    yield return ChatStreamEvent.Text(
-                        $"⚠ 上下文溢出：当前估算约 {postFoldPreflight.EstimatedRatio:P0} 占用模型上下文窗口" +
-                        $"（{guardResult.ContextMaxTokens} token）。已自动压缩但仍超限。" +
-                        $"请用 /compact 手动压缩对话历史、运行 /clear 清空上下文，" +
-                        $"或切换到更大上下文窗口的模型。");
-                    yield return ChatStreamEvent.Done(stopReason: "context_overflow");
-                    break;
-                }
-            } else if (guardResult.NeedsPreventiveSnip) {
-                _logger?.LogInformation("上下文预算预防性裁剪（估算 {Ratio:P0}），执行 SnipStaleToolResults", guardResult.EstimatedRatio);
-                try {
-                    await _contextManager.FoldIfNeededAsync(ContextFoldDecision.FoldNormal, null, ct).ConfigureAwait(false);
-                } catch (OperationCanceledException) {
-                    throw;
-                } catch (Exception snipEx) {
-                    _logger?.LogWarning(snipEx, "预防性上下文裁剪失败，继续对话");
-                }
-            }
-#if DEBUG
-            if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
-#endif
-            await _telemetryRecorder.RecordTurnTelemetryAsync(historySnapshot, totalToolCalls).ConfigureAwait(false);
-
-            var iterState = new IterationState();
-
-            if (_loopDetectionStrategy is InformationEntropyGuardian guardian)
-                guardian.SetContext(context.SessionId, context.ConversationTurn, totalToolCalls);
-
-            if (UseStreamingToolExecution) {
-                await foreach (var evt in ProcessStreamingModeAsync(historySnapshot, context, iterState, totalToolCalls, ct).ConfigureAwait(false)) {
-                    yield return evt;
-                }
-            } else {
-                await foreach (var evt in ProcessTraditionalModeAsync(historySnapshot, context, iterState, totalToolCalls, ct).ConfigureAwait(false)) {
-                    yield return evt;
-                }
-            }
-
-            // TASK102 轮次闸门：本轮工具调用中是否已选择"5 结束"
-            if (requireRoundGate) {
-                foreach (var toolCall in iterState.ToolCalls) {
-                    if (RoundGatePolicy.TryReadChoiceFromJson(toolCall.Name, toolCall.Arguments, out var gateChoice)
-                        && gateChoice == RoundGateChoice.End) {
-                        roundGateEndSelected = true;
-                    }
-                }
-            }
-
-            if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
-            if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
-
-            if (iterState.ToolCallName is not null) {
-                _services?.MalformedOutputTracker?.Reset();
-                totalToolCalls += iterState.ToolCalls.Count;
-                continue;
-            }
-
-            var suspiciousAction = SuspiciousTagsAction.FallThrough;
-            if (iterState.SuspiciousTagsDetected)
-                suspiciousAction = await HandleSuspiciousTagsAsync(iterState, ct).ConfigureAwait(false);
-            if (suspiciousAction == SuspiciousTagsAction.Break) {
-                yield return ChatStreamEvent.Text(
-                    $"⚠ 模型连续{_services?.MalformedOutputTracker?.MaxConsecutiveMalformed ?? 3}次输出异常格式，本轮对话已结束。");
-                break;
-            }
-            if (suspiciousAction == SuspiciousTagsAction.Continue) continue;
-
-            if (!string.IsNullOrWhiteSpace(iterState.FullResponse.ToString())) {
-                _emptyResponseTracker.Reset();
-                _services?.MalformedOutputTracker?.Reset();
-
-                // TASK102 轮次闸门：未选择 5 结束 → 注入阻断消息并继续（与 QueryEngine 同一策略）
-                var gateEvaluation = await EvaluateRoundGateStopAsync(
-                    context, requireRoundGate, roundGateEndSelected, roundGateRejections, ct).ConfigureAwait(false);
-                roundGateRejections = gateEvaluation.Rejections;
-
-                switch (gateEvaluation.Decision) {
-                    case RoundGateStopDecision.Blocked:
-                        continue;
-                    case RoundGateStopDecision.Exhausted:
-                        yield return ChatStreamEvent.Text(
-                            $"⚠ 轮次闸门连续 {gateEvaluation.Rejections} 次未通过（上限 {gateEvaluation.MaxRejections}），本轮已强制结束。");
-                        break;
-                }
-
-                // B11 steer：本步无工具调用，但邮箱里还有待注入输入 → 不得收尾（DSH :998-1006），
-                // 否则注入会被丢弃或拖到下一轮。下一步步首统一 drain。
-                if (HasPendingSteerInput(context)) {
-                    Diag.WriteLine($"[LOOP {iterState.CallId}] 本步无工具调用但存在轮内注入, 继续下一步");
-                    continue;
-                }
-                break;
-            }
-
-            if (totalToolCalls > 0) {
-                var exceeded = _emptyResponseTracker.RecordEmptyResponse();
-                if (exceeded) {
-                    Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应已达{_emptyResponseTracker.MaxConsecutiveEmpty}次, 结束本轮对话");
-                    yield return ChatStreamEvent.Text($"⚠ 模型在工具调用后连续{_emptyResponseTracker.MaxConsecutiveEmpty}次返回空白响应，本轮对话已结束。");
-                    break;
-                }
-                Diag.WriteLine($"[LOOP {iterState.CallId}] 工具调用后空白响应({_emptyResponseTracker.ConsecutiveEmptyCount}/{_emptyResponseTracker.MaxConsecutiveEmpty}), 注入系统提示词让AI继续");
-                if (!context.IsDryRun)
-                    await _contextManager.AddSystemMessageAsync(
-                        _emptyResponseTracker.BuildInterventionPrompt(),
-                        ct).ConfigureAwait(false);
-                continue;
-            }
-
-            Diag.WriteLine($"[LOOP {iterState.CallId}] LLM 空响应, 结束本轮对话");
-            yield return ChatStreamEvent.Text("⚠ 模型返回了空白响应，本轮对话已结束。");
-            break;
-        }
-
-        if (totalToolCalls >= MaxToolCallIterations) {
-            Diag.WriteLine($"[LOOP] 达到最大工具调用次数限制: {MaxToolCallIterations}");
-            yield return ChatStreamEvent.Text(
-                $"⚠ 已达到最大工具调用次数（{MaxToolCallIterations} 次），为避免死循环本轮对话已被截断。");
-        }
-
-        context.TotalToolCalls = totalToolCalls;
-        context.FinalUsage = finalUsage;
-        context.FinalModelId = finalModelId;
-
-        await RunPostTurnCallbacksAsync(context, totalToolCalls, finalUsage, ct).ConfigureAwait(false);
-
-        await foreach (var evt in CompleteTurnAsync(context, next, finalUsage, finalModelId, fallbackStopReason: null, ct).ConfigureAwait(false)) {
+        await foreach (var evt in RunQueryBackendAsync(context, next, ct).ConfigureAwait(false)) {
             yield return evt;
         }
     }
@@ -331,9 +89,9 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     }
 
     /// <summary>
-    /// TASK103 灰度后端主路径 — 把整轮 ReAct 循环委托给 IQueryEngine：
+    /// 把整轮 ReAct 循环委托给 IQueryEngine：
     /// 历史快照剥离当前用户消息后传入（QueryEngine 会重新加入），输出经适配器转为聊天事件；
-    /// 等待引擎输出期间持续合流子代理事件，结束后回写历史增量并执行与旧循环一致的后处理。
+    /// 等待引擎输出期间持续合流子代理事件，结束后回写历史增量并执行回合级后处理。
     /// </summary>
     /// <param name="context">聊天中间件上下文。</param>
     /// <param name="next">下游聊天中间件委托。</param>
@@ -343,7 +101,6 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
-        var queryEngine = _queryEngine ?? throw new InvalidOperationException("[QueryLoopMiddleware] 查询后端缺少 IQueryEngine");
         Diag.WriteLine($"[LOOP-QUERY] backend=query session={context.SessionId} gate={context.RequireRoundGate}");
 
         await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
@@ -363,7 +120,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             SingleWriter = true,
             FullMode = BoundedChannelFullMode.Wait
         });
-        var pumpTask = PumpQueryChunksAsync(queryEngine, context.Message, history, options, chunkChannel.Writer, linkedCts.Token);
+        var pumpTask = PumpQueryChunksAsync(context.Message, history, options, chunkChannel.Writer, linkedCts.Token);
 
         await _telemetryRecorder.RecordTurnTelemetryAsync(history, 0).ConfigureAwait(false);
         context.Timing.StartLlmCall();
@@ -436,15 +193,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     }
 
     /// <summary>把查询引擎输出泵入通道 — 引擎异常通过 pumpTask 回抛，通道关闭由 finally 保证。</summary>
-    private static async Task PumpQueryChunksAsync(
-        IQueryEngine queryEngine,
+    private async Task PumpQueryChunksAsync(
         string userInput,
         MessageList history,
         QueryOptions options,
         ChannelWriter<QueryStreamChunk> writer,
         CancellationToken ct) {
         try {
-            await foreach (var chunk in queryEngine.QueryAsync(userInput, history, options, ct).ConfigureAwait(false)) {
+            await foreach (var chunk in _queryEngine.QueryAsync(userInput, history, options, ct).ConfigureAwait(false)) {
                 await writer.WriteAsync(chunk, ct).ConfigureAwait(false);
             }
         } finally {
@@ -589,7 +345,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
     }
 
-    /// <summary>回合级后处理 — 空闲检测、延迟工具发现同步与后采样回调（新旧循环共用）。</summary>
+    /// <summary>回合级后处理 — 空闲检测、延迟工具发现同步与后采样回调。</summary>
     private async Task RunPostTurnCallbacksAsync(ChatMiddlewareContext context, int totalToolCalls, TokenUsage? finalUsage, CancellationToken ct) {
         _services?.IdleDetector?.RecordAssistantTurn(null);
         await _contextManager.SyncDiscoveredToolsFromHistoryAsync(ct).ConfigureAwait(false);
@@ -624,387 +380,5 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         yield return ChatStreamEvent.Done(finalUsage, finalModelId, innerStopReason ?? fallbackStopReason);
-    }
-
-    /// <summary>请求前上下文预算守卫（ADR 0156）— 估算比率分级处理：
-    /// ≥ 1.0 → 紧急压缩信号；0.7~1.0 → 预防性裁剪信号；&lt; 0.7 → 放行。
-    /// 不抛异常，确保 Agent 永不因上下文溢出崩溃退出；决策 null 容错。</summary>
-    private ContextBudgetGuardResult GuardContextBudget() {
-        var preflight = _contextManager.DecidePreflightWithCurrentSpecs();
-        if (preflight is null) {
-            return ContextBudgetGuardResult.Ok;
-        }
-
-        var ratio = preflight.EstimatedRatio;
-        if (ratio >= 1.0) {
-            var ctxMax = _contextManager.GetContextMaxTokens();
-            var estimatedTokens = (int)(ctxMax * ratio);
-            return new ContextBudgetGuardResult(GuardLevel.Emergency, ctxMax, estimatedTokens, ratio);
-        }
-
-        if (ratio > 0.7) {
-            var ctxMax = _contextManager.GetContextMaxTokens();
-            var estimatedTokens = (int)(ctxMax * ratio);
-            return new ContextBudgetGuardResult(GuardLevel.Preventive, ctxMax, estimatedTokens, ratio);
-        }
-
-        return ContextBudgetGuardResult.Ok;
-    }
-
-    /// <summary>上下文预算守卫级别</summary>
-    private enum GuardLevel { Ok, Preventive, Emergency }
-
-    /// <summary>上下文预算守卫结果</summary>
-    private sealed record ContextBudgetGuardResult(GuardLevel Level, int ContextMaxTokens, int EstimatedTokens, double EstimatedRatio) {
-        /// <summary>是否需要紧急压缩（比率 ≥ 1.0）</summary>
-        public bool NeedsEmergencyCompaction => Level == GuardLevel.Emergency;
-        /// <summary>是否需要预防性裁剪（比率 0.7~1.0）</summary>
-        public bool NeedsPreventiveSnip => Level == GuardLevel.Preventive;
-        public static readonly ContextBudgetGuardResult Ok = new(GuardLevel.Ok, 0, 0, 0);
-    }
-
-    /// <summary>
-    /// 流式工具执行模式 — 对齐 TS StreamingToolExecutor
-    /// </summary>
-    private async IAsyncEnumerable<ChatStreamEvent> ProcessStreamingModeAsync(
-        MessageList historySnapshot, ChatMiddlewareContext context, IterationState iterState,
-        int totalToolCalls, [EnumeratorCancellation] CancellationToken ct) {
-
-        var concurrencyClassifier = _concurrencyClassifier
-            ?? throw new InvalidOperationException("[QueryLoopMiddleware] 流式工具执行缺少并发分类器");
-
-        IStreamingToolExecutor streamingExecutor = UseActorToolExecutor
-            ? new StreamingToolExecutorActor(_toolHandler, concurrencyClassifier, context, MaxConcurrency, _logger, ct)
-            : new StreamingToolExecutor(_toolHandler, concurrencyClassifier, context, MaxConcurrency, _logger, ct);
-
-        await foreach (var evt in _llmHandler.InvokeLLMAsync(
-            historySnapshot, context.ExecutionSettings, context, totalToolCalls, iterState,
-            streamingToolExecution: true, ct: ct).ConfigureAwait(false)) {
-            yield return evt;
-        }
-
-        if (iterState.ToolCallName is null) {
-            Diag.WriteLine($"[LOOP {iterState.CallId}] 纯文本响应, 长度={iterState.FullResponse.Length}");
-            if (iterState.FullResponse.Length == 0) {
-                yield break;
-            }
-            if (!TryFallbackParseToolCalls(iterState)) {
-                await foreach (var evt in EmitPureTextResponseAsync(iterState, context, ct).ConfigureAwait(false)) {
-                    yield return evt;
-                }
-                yield break;
-            }
-        }
-
-        var toolCalls = _toolHandler.PrepareToolCalls(iterState);
-        var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
-        var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
-        await _contextManager.AddAssistantToolCallMessageAsync(assistantContent, assistantMetadata, ct).ConfigureAwait(false);
-
-        for (var idx = 0; idx < toolCalls.Count; idx++) {
-            var toolCall = toolCalls[idx];
-            var currentArgs = JsonArgumentParser.Parse(toolCall.Arguments);
-            if (_loopDetectionStrategy.TryGetToolCallLoop(toolCall.Name, currentArgs, out var toolLoop)) {
-                yield return ChatStreamEvent.LoopDetected(toolLoop.TriggerCount, toolLoop.ToolCallCount, toolLoop.Reason);
-            }
-
-            yield return ChatStreamEvent.ToolStart(toolCall.Name, toolCall.Id, toolCall.Arguments);
-            await streamingExecutor.AddToolAsync(toolCall, idx).ConfigureAwait(false);
-        }
-
-        // 排空等待：工具执行期间实时 yield 子代理事件（GUI 多 subAgent 显示链路）；
-        // yield 禁止出现在带 catch 的 try 内（CS1626），故排空在 try 外、结果读取在 try 内保持原异常语义
-        var remainingTask = streamingExecutor.GetRemainingResultsAsync();
-        await foreach (var agentEvt in WaitForTaskWithDrainAsync(remainingTask, context.SubAgentEvents, ct).ConfigureAwait(false)) {
-            yield return agentEvt;
-        }
-
-        IReadOnlyList<StreamingToolResult> allResults;
-        try {
-            allResults = await remainingTask.ConfigureAwait(false);
-        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-            await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
-            throw;
-        }
-
-        foreach (var result in allResults) {
-            Diag.WriteLine($"[TOOL {iterState.CallId}] {result.ToolName} → {(result.Result.IsError ? "ERROR" : "OK")} | 长度={result.Result.ResultText?.Length ?? 0}");
-
-            yield return result.ToToolEndEvent();
-
-            try {
-                await _toolHandler.ApplyToolResultToContextAsync(
-                    result.ToolName, result.ToolCallId, result.Result.ResultText,
-                    result.Result.IsError, result.Result.ContentBlocks, context, ct).ConfigureAwait(false);
-            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-                await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
-                throw;
-            } catch (Exception applyEx) {
-                _logger?.LogError(applyEx, "[TOOL {CallId}] 应用结果到上下文失败: {ToolName}", iterState.CallId, result.ToolName);
-                try {
-                    var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(result.ToolCallId, result.ToolName);
-                    await _contextManager.AddToolResultMessageAsync(
-                        $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
-                        .ConfigureAwait(false);
-                } catch (Exception placeholderEx) {
-                    _logger?.LogError(placeholderEx, "[TOOL {CallId}] 写入占位结果也失败，中断回合", iterState.CallId);
-                    throw;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// 传统模式 — 流式结束后顺序执行工具
-    /// </summary>
-    private async IAsyncEnumerable<ChatStreamEvent> ProcessTraditionalModeAsync(
-        MessageList historySnapshot, ChatMiddlewareContext context, IterationState iterState,
-        int totalToolCalls, [EnumeratorCancellation] CancellationToken ct) {
-
-        await foreach (var evt in _llmHandler.InvokeLLMAsync(
-            historySnapshot, context.ExecutionSettings, context, totalToolCalls, iterState, ct: ct)
-            .ConfigureAwait(false)) {
-            yield return evt;
-        }
-
-        if (iterState.ToolCallName is null) {
-            Diag.WriteLine($"[LOOP {iterState.CallId}] 纯文本响应, 长度={iterState.FullResponse.Length}");
-            if (iterState.FullResponse.Length == 0) {
-                yield break;
-            }
-            if (!TryFallbackParseToolCalls(iterState)) {
-                await foreach (var evt in EmitPureTextResponseAsync(iterState, context, ct).ConfigureAwait(false)) {
-                    yield return evt;
-                }
-                yield break;
-            }
-        }
-
-        var toolCalls = _toolHandler.PrepareToolCalls(iterState);
-        var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
-        var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
-        await _contextManager.AddAssistantToolCallMessageAsync(assistantContent, assistantMetadata, ct).ConfigureAwait(false);
-
-        for (var idx = 0; idx < toolCalls.Count; idx++) {
-            var toolCall = toolCalls[idx];
-            var currentArgs = JsonArgumentParser.Parse(toolCall.Arguments);
-            if (_loopDetectionStrategy.TryGetToolCallLoop(toolCall.Name, currentArgs, out var toolLoop)) {
-                yield return ChatStreamEvent.LoopDetected(toolLoop.TriggerCount, toolLoop.ToolCallCount, toolLoop.Reason);
-            }
-
-            yield return ChatStreamEvent.ToolStart(toolCall.Name, toolCall.Id, toolCall.Arguments);
-
-            ToolCallResult toolCallResult;
-            // 排空等待：工具执行期间实时 yield 子代理事件（GUI 多 subAgent 显示链路）
-            var execTask = _toolHandler.ExecuteToolCallAsync(
-                toolCall.Name, toolCall.Id, currentArgs, context, ct);
-            await foreach (var agentEvt in WaitForTaskWithDrainAsync(execTask, context.SubAgentEvents, ct).ConfigureAwait(false)) {
-                yield return agentEvt;
-            }
-
-            try {
-                // 排空等待已确认任务完成（含异常态），同步读取仅为在原 try/catch 内触发原异常语义
-                toolCallResult = await execTask.ConfigureAwait(false);
-            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-                await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
-                throw;
-            }
-
-            Diag.WriteLine($"[TOOL {iterState.CallId}] {toolCall.Name} → {(toolCallResult.IsError ? "ERROR" : "OK")}");
-
-            yield return ChatStreamEvent.ToolEnd(
-                toolCall.Name, toolCallResult.ResultText, toolCall.Id,
-                toolCallResult.IsError, toolCallResult.StructuredPatch);
-
-            try {
-                await _toolHandler.ApplyToolResultToContextAsync(
-                    toolCall.Name, toolCall.Id, toolCallResult.ResultText,
-                    toolCallResult.IsError, toolCallResult.ContentBlocks, context, ct).ConfigureAwait(false);
-            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
-                await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
-                throw;
-            } catch (Exception applyEx) {
-                _logger?.LogError(applyEx, "[TOOL {CallId}] 应用结果到上下文失败: {ToolName}", iterState.CallId, toolCall.Name);
-                try {
-                    var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.Id, toolCall.Name);
-                    await _contextManager.AddToolResultMessageAsync(
-                        $"(工具结果应用失败: {applyEx.Message})", placeholderMetadata, null, CancellationToken.None)
-                        .ConfigureAwait(false);
-                } catch (Exception placeholderEx) {
-                    _logger?.LogError(placeholderEx, "[TOOL {CallId}] 写入占位结果也失败，中断回合", iterState.CallId);
-                    throw;
-                }
-            }
-        }
-    }
-
-    /// <summary>轮次闸门收尾裁决结果</summary>
-    private enum RoundGateStopDecision { Allowed, Blocked, Exhausted }
-
-    /// <summary>轮次闸门评估结果 — 携带更新后的拦截次数与上限（async 方法不能使用 out 参数）。</summary>
-    /// <param name="Decision">裁决结果。</param>
-    /// <param name="Rejections">累计拦截次数。</param>
-    /// <param name="MaxRejections">拦截上限（≤0 表示不限制）。</param>
-    private readonly record struct RoundGateStopEvaluation(RoundGateStopDecision Decision, int Rejections, int MaxRejections);
-
-    /// <summary>
-    /// TASK102 轮次闸门 — 评估本次收尾：未过闸门时注入阻断消息并返回 Blocked；
-    /// 达到上限返回 Exhausted（放行并提示），与 QueryEngine 共用 RoundGatePolicy。
-    /// </summary>
-    /// <param name="context">当前中间件上下文。</param>
-    /// <param name="required">本会话是否启用闸门。</param>
-    /// <param name="endSelected">本轮是否已选择"5 结束"。</param>
-    /// <param name="rejections">已拦截次数。</param>
-    /// <param name="ct">取消令牌。</param>
-    /// <returns>收尾裁决与更新后的计数。</returns>
-    private async Task<RoundGateStopEvaluation> EvaluateRoundGateStopAsync(
-        ChatMiddlewareContext context, bool required, bool endSelected, int rejections, CancellationToken ct) {
-        var maxRejections = RoundGatePolicy.ReadMaxStopRejections();
-        if (!required || endSelected)
-            return new(RoundGateStopDecision.Allowed, rejections, maxRejections);
-
-        if (!RoundGatePolicy.CanRejectStop(rejections, maxRejections))
-            return new(RoundGateStopDecision.Exhausted, rejections, maxRejections);
-
-        var next = rejections + 1;
-        Diag.WriteLine($"[GATE] 拦截收尾 第{next}次 上限={maxRejections}");
-        if (!context.IsDryRun)
-            await _contextManager.AddSystemMessageAsync(
-                RoundGatePrompts.BuildStopBlockedMessage(next, maxRejections), ct).ConfigureAwait(false);
-
-        return new(RoundGateStopDecision.Blocked, next, maxRejections);
-    }
-
-    /// <summary>该会话是否有待注入输入（未装配邮箱时恒 false，等价旧行为）。</summary>
-    /// <param name="context">当前中间件上下文（提供会话 ID）</param>
-    private bool HasPendingSteerInput(ChatMiddlewareContext context) =>
-        _steerMailbox?.HasPending(context.SessionId) == true;
-
-    /// <summary>取走本会话全部轮内注入，按 FIFO 落为用户消息并返回对应事件。</summary>
-    /// <param name="context">当前中间件上下文（提供会话 ID）</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>每条注入对应一个 <see cref="ChatStreamEventType.SteerInput"/> 事件</returns>
-    private async Task<IReadOnlyList<ChatStreamEvent>> DrainSteerInputsAsync(
-        ChatMiddlewareContext context, CancellationToken ct) {
-        if (_steerMailbox is null) {
-            return [];
-        }
-        var pending = _steerMailbox.DrainAll(context.SessionId);
-        if (pending.Count == 0) {
-            return [];
-        }
-        var events = new List<ChatStreamEvent>(pending.Count);
-        foreach (var text in pending) {
-            await _contextManager.AddUserMessageAsync(text, MessageOriginKind.SteerInput, ct).ConfigureAwait(false);
-            Diag.WriteLine($"[STEER] 轮内注入进入上下文 session={context.SessionId} 长度={text.Length}");
-            events.Add(ChatStreamEvent.SteerInput(text));
-        }
-        return events;
-    }
-
-    private (List<ChatStreamEvent> Events, string FinalResponse) BuildPureTextResponse(
-        IterationState iterState, ChatMiddlewareContext context) {
-        var events = new List<ChatStreamEvent>();
-        var aiResponse = iterState.FullResponse.ToString();
-
-        if (_loopDetectionStrategy.TryGetTextLoop(aiResponse, out var textLoop)) {
-            Diag.WriteLine("[LOOP] 逻辑指纹循环已触发");
-            events.Add(ChatStreamEvent.LoopDetected(textLoop.TriggerCount, textLoop.ToolCallCount, textLoop.Reason));
-        }
-
-        return (events, aiResponse);
-    }
-
-    /// <summary>
-    /// 发射纯文本响应事件流 — 从 BuildPureTextResponse 构建事件并持久化助手消息
-    /// </summary>
-    private async IAsyncEnumerable<ChatStreamEvent> EmitPureTextResponseAsync(
-        IterationState iterState, ChatMiddlewareContext context,
-        [EnumeratorCancellation] CancellationToken ct) {
-        var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
-        foreach (var evt in pureEvents)
-            yield return evt;
-        if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
-            await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Fallback 解析 — 当协议层未检测到工具调用时，尝试从 LLM content 文本中解析工具调用。
-    /// 防御场景：LLM 在 content 中输出 XML 格式工具调用（如 &lt;antml:invoke&gt;、&lt;tool_use&gt;），
-    /// 或异常输出 &lt;parameter name="..."&gt; 标签导致 ReAct 循环中断。
-    /// </summary>
-    /// <param name="iterState">当前迭代状态</param>
-    /// <returns>解析成功返回 true（iterState 已填充工具调用信息）；失败返回 false</returns>
-    private bool TryFallbackParseToolCalls(IterationState iterState) {
-        var parserChain = _services?.TextToolCallParserChain;
-        if (parserChain is null || iterState.FullResponse.Length == 0) return false;
-
-        TextToolCallParseResult? parseResult;
-        try {
-            parseResult = parserChain.TryParse(iterState.FullResponse.ToString());
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex,
-                "[QueryLoop {CallId}] Fallback 解析异常，已容错跳过: {Message}",
-                iterState.CallId, ex.Message);
-            Diag.WriteLine($"[FALLBACK] 解析异常已容错: {ex.Message}");
-            return false;
-        }
-
-        if (parseResult is null || parseResult.ToolCalls.Count == 0) {
-            if (OutputInterventionPrompts.ContainsSuspiciousXmlTags(iterState.FullResponse.ToString())) {
-                iterState.SuspiciousTagsDetected = true;
-                Diag.WriteLine($"[FALLBACK] 可疑XML标签检测: SuspiciousTagsDetected=true");
-                _logger?.LogWarning(
-                    "[QueryLoop {CallId}] LLM 输出包含可疑 XML 工具调用标签但无法完整解析，" +
-                    "可能为异常输出（如 <parameter name=\"...\"> 标签），内容前200字符: {Preview}",
-                    iterState.CallId,
-                    iterState.FullResponse.Length > 200
-                        ? iterState.FullResponse.ToString(0, 200)
-                        : iterState.FullResponse.ToString());
-            }
-            return false;
-        }
-
-        var first = parseResult.ToolCalls[0];
-        iterState.ToolCallName = first.Name;
-        iterState.ToolCallId = first.Id;
-        iterState.ToolCallArguments = JsonArgumentParser.Parse(first.Arguments);
-        foreach (var tc in parseResult.ToolCalls)
-            iterState.ToolCalls.Add(tc);
-
-        if (parseResult.RemainingText is not null) {
-            iterState.FullResponse.Clear();
-            iterState.FullResponse.Append(parseResult.RemainingText);
-        }
-
-        _logger?.LogWarning(
-            "[QueryLoop {CallId}] 检测到文本格式工具调用（非协议层），已 fallback 解析: {ToolName}, 工具调用数={Count}",
-            iterState.CallId, first.Name, parseResult.ToolCalls.Count);
-        Diag.WriteLine($"[FALLBACK] 解析成功: {first.Name}, 工具调用数={parseResult.ToolCalls.Count}");
-        _services?.MalformedOutputTracker?.Reset();
-        return true;
-    }
-
-    /// <summary>可疑标签处理动作</summary>
-    private enum SuspiciousTagsAction { FallThrough, Continue, Break }
-
-    /// <summary>
-    /// 处理可疑 XML 标签 — 记录异常输出次数，注入干预提示词让 LLM 重新生成。
-    /// 超过阈值时返回 Break 强制结束对话。
-    /// </summary>
-    private async Task<SuspiciousTagsAction> HandleSuspiciousTagsAsync(IterationState iterState, CancellationToken ct) {
-        var tracker = _services?.MalformedOutputTracker;
-        if (tracker is null) return SuspiciousTagsAction.FallThrough;
-
-        var exceeded = tracker.RecordMalformedOutput();
-        if (exceeded) {
-            Diag.WriteLine($"[LOOP {iterState.CallId}] 连续异常输出已达{tracker.MaxConsecutiveMalformed}次, 强制结束");
-            return SuspiciousTagsAction.Break;
-        }
-
-        await _contextManager.AddUserMessageAsync(
-            tracker.BuildInterventionPrompt(), cancellationToken: ct).ConfigureAwait(false);
-        Diag.WriteLine($"[LOOP {iterState.CallId}] 检测到可疑XML标签, 注入干预提示词 (第{tracker.ConsecutiveMalformedCount}次)");
-        return SuspiciousTagsAction.Continue;
     }
 }

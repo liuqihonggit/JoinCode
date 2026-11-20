@@ -239,7 +239,6 @@ public enum JccEnvVar {
 
     // TASK031 阶段B4 新增 — 常量委托统一(原硬编码字符串改为枚举委托)
     [EnumValue("JCC_DISABLE_RETRY")] DisableRetry,
-    [EnumValue("JCC_ACTOR_TOOL_EXECUTOR")] ActorToolExecutor,
     [EnumValue("JCC_GITHUB_TOKEN")] GithubToken,
     [EnumValue("JCC_GITHUB_API_URL")] GithubApiUrl,
     [EnumValue("JCC_ABSOLUTE_TIMEOUT_SECONDS")] AbsoluteTimeoutSeconds,
@@ -262,10 +261,6 @@ public enum JccEnvVar {
     [SubCommandInfo("Stop hook 回灌最大轮次 (默认 5)", "运行时配置")]
     MaxStopHookReplyRounds,
 
-    // TASK103 循环合并 — ChatService 循环后端灰度
-    [EnumValue("JCC_CHAT_LOOP_BACKEND")]
-    [SubCommandInfo("ChatService 循环后端 (legacy/query；默认 query，legacy 为逃生开关)", "运行时配置")]
-    ChatLoopBackend,
 }
 
 /// <summary>

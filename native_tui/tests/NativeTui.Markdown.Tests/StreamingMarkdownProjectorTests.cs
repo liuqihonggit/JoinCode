@@ -169,4 +169,56 @@ public sealed class StreamingMarkdownProjectorTests
         Assert.Same(first.StableBlocks, second.StableBlocks);
         Assert.Equal("p2 appended", second.Tail);
     }
+
+    /// <summary>
+    /// 逐字符累积投影 vs 一次性投影等价（TASK069-S3 安全网）— 边界探测改为只 lex 未稳定窗口后，
+    /// 稳定块序列与尾文本必须与全文解析完全一致；否则切分点漂移会重复/丢失块。
+    /// </summary>
+    private static void AssertCharByCharMatchesFresh(string full)
+    {
+        var incremental = new StreamingMarkdownProjector();
+        for (var length = 1; length <= full.Length; length++)
+        {
+            incremental.Project(full[..length]);
+        }
+
+        var incrementalFinal = incremental.Project(full);
+        var freshFinal = new StreamingMarkdownProjector().Project(full);
+
+        Assert.Equal(
+            freshFinal.StableBlocks.Select(static block => block.ToString()),
+            incrementalFinal.StableBlocks.Select(static block => block.ToString()));
+        Assert.Equal(freshFinal.Tail, incrementalFinal.Tail);
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_ListMatchesFull()
+    {
+        AssertCharByCharMatchesFresh("- a\n- b\n- c\n\nnext para\n\n- d\n- e\n");
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_QuoteAndHeadingMatchFull()
+    {
+        AssertCharByCharMatchesFresh("> quoted line one\n> quoted line two\n\n# Heading\n\nbody text\n");
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_FenceMatchesFull()
+    {
+        AssertCharByCharMatchesFresh("```cs\nvar a = 1;\nvar b = 2;\n```\n\nafter fence\n");
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_SetextAndTableMatchFull()
+    {
+        AssertCharByCharMatchesFresh("Title\n=====\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\ntail\n");
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_NestedListAndIndentedCodeMatchFull()
+    {
+        // 最易被切片误判的场景：嵌套列表的缩进子项（4 空格）在切片起点会被判成缩进代码块
+        AssertCharByCharMatchesFresh("- a\n    - b\n        - c\n\npara\n\n- d\n");
+    }
 }

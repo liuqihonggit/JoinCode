@@ -46,9 +46,13 @@ public sealed class StreamingMarkdownProjector : IStreamingMarkdownProjector
             return Cache(new StreamingMarkdownProjection([], accumulated), accumulated.Length);
         }
 
-        var document = Markdig.Markdown.Parse(accumulated, MarkdigProjector.SharedPipeline);
+        // TASK069-S3 — 边界探测只 lex 未稳定窗口（对齐基准 Markdown.tsx:210
+        // 「Lex only from current boundary — O(unstable length), not O(full text)」）：
+        // _stableSplit 恒落在块边界，切片解析与全文解析在块级等价，切分点按窗口偏移换算回全文坐标
+        var window = accumulated[_stableSplit..];
+        var document = Markdig.Markdown.Parse(window, MarkdigProjector.SharedPipeline);
         var lastBlock = document.LastOrDefault();
-        var split = lastBlock?.Span.Start ?? 0;
+        var split = _stableSplit + (lastBlock?.Span.Start ?? 0);
         if (split > _stableSplit)
         {
             // 切分点推进 — 新跨过的完整块独立解析追加投影（块级局部性：块边界切片独立解析

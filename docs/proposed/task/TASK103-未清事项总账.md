@@ -54,7 +54,7 @@
 |---|------|------|------|
 | ~~19~~ | ~~TASK069-S1~~ | ~~流式上屏粒度：逐字抖动 vs 截断到最后换行逐行~~ | TASK069 域1 | ✅ **已对齐基准 2026-11-21**（用户拍板）：一手 `REPL.tsx:1500` `visibleStreamingText = streamingText.substring(0, lastIndexOf('\n')+1) \|\| null`，注释「line-by-line, not char-by-char」。实现 `StreamingTextItem.VisibleText` 截断到最后一个换行；无完整行 → `LinesFor` 返回空、高度 0 不占位（对齐基准 null 不渲染）；`Text` 仍返回全文（落定替换/transcript 长度不受影响）。TDD 11 项 + 全量 3065 绿 + 真机 EXIT=0 |
 | ~~20~~ | ~~TASK069-S2~~ | ~~流式尾块渲染：纯文本 vs 完整 Markdown~~ | TASK069 域1 | ✅ **已对齐基准 2026-11-21**（用户拍板）：一手 `Markdown.tsx:231-236` `StreamingMarkdown` 把 stablePrefix 与 unstableSuffix **都**交给 `<Markdown>`（`gap={1}` 分隔），并未对尾块降级。实现：投影契约 `TailOpenFence` → `TailBlocks`（尾块模型，projector 用 `Markdig.Parse(tail)` 投影）；`StreamingTextItem.BuildProjectedLines` 对 `TailBlocks` 走 `MarkdownLayout`。未闭合围栏在解析期即 `FencedCodeBlock` → 只显示代码内容、不再显示围栏标记与 dim 提示态。无语法快路径 `TailBlocks=null` → 纯文本行降级（保留换行）。TDD 12 项 + Markdown 30/30 + Core 3066 + Host 142 绿 + 真机 EXIT=0 |
-| 21 | TASK069-S3 | 增量解析范围：全量 Markdig.Parse vs O(尾长) | TASK069 域1（性能） |
+| ~~21~~ | ~~TASK069-S3~~ | ~~增量解析范围：全量 Markdig.Parse vs O(尾长)~~ | TASK069 域1（性能） | ✅ **已对齐基准 2026-11-21**：一手 `Markdown.tsx:210`「Lex only from current boundary — O(unstable length), not O(full text)」。C# 原为定位切分点每 delta 全量 `Markdig.Parse(accumulated)`。改为只 lex 未稳定窗口 `accumulated[_stableSplit..]`，切分点按窗口偏移换算回全文坐标 — 复杂度 O(全文)→O(尾长)。**等价性由 5 个逐字符累积用例锁定**（列表/引用+标题/围栏/setext+表格/嵌套列表缩进），Markdown 35/35 绿 |
 | 22 | TASK069-S6 | 提示词 XML 剥离（基准 stripPromptXMLTags） | TASK069 域1 |
 | 23 | TASK069-M2 | 工具圆点状态色：恒 text vs success/error + 未决闪烁 | TASK069 域6 |
 | 24 | TASK069-M3 | diff 行号 gutter + 统计头 | TASK069 域6 |
@@ -162,4 +162,8 @@
   - 投影器：尾文本 `Markdig.Parse(tail)` → `ProjectBlocks`（未闭合围栏自然成为 `FencedCodeBlock`）；无语法快路径仍留 `null`（零解析，调用方纯文本行，保留换行语义）。
   - 渲染：`BuildProjectedLines` 中 `TailBlocks` 非空走 `MarkdownLayout`（与稳定段同一布局入口），空则纯文本行降级。**已知同构风险**：tail 从块边界切片解析，若首行恰好 4 空格缩进会被判代码块——基准 `marked.lexer(stripped.substring(boundary))` 同样从边界开始，规则一致，不为 C# 特有。
   - 验收：`StreamingMarkdownItemTests` 12 项、`StreamingMarkdownProjectorTests`（未闭合/闭合围栏改为断言 `MarkdownCode`）、Markdown 30/30、NativeTui.Tests 3066、Host 142 全绿；真机 `--selftest-tui` HOST SELFTEST OK EXIT=0；产物 `NativeTui.Markdown.dll` 与库输出同哈希 `680547e`（不只信时间戳）。
-- 下一动作：§2.2 继续 —— S3（增量解析 O(尾长)）待做性能取证后再定（当前定位切分点仍需全量 `Markdig.Parse`，长回复每 delta 全量解析是真实成本）；其余 M 级项（M2/M3/M4/M5/N2/C1/C2/C3/E1/E4/P3/P4/P5）逐项取证请示。
+- **S3 完成（2026-11-21）**：一手 `Markdown.tsx:210` 明写「Lex only from current boundary — O(unstable length), not O(full text)」，C# 原实现为了拿 `lastBlock.Span.Start` 每次都 `Parse(accumulated)` 全文——稳定块 memoize 只省了「投影」没省「lex」。
+  - 改法：`var window = accumulated[_stableSplit..]; var split = _stableSplit + lastBlock.Span.Start;`。成立前提是 `_stableSplit` 恒为块边界（它只被赋值为 `lastBlock.Span.Start`），因此切片起点就是块起点，语义与全文解析一致。
+  - **等价性安全网**（这是本项唯一真风险）：`AssertCharByCharMatchesFresh` 逐字符累积投影后与一次性投影比对稳定块序列 + 尾文本，覆盖列表 / 引用+标题 / 围栏 / setext+表格 / **嵌套列表 4 空格缩进**（切片起点最易被误判成缩进代码块的场景）。
+  - 验收：Markdown 35/35、Core 3066（一次 `RawStdinPumpTests` flaky 单跑 18/18×3 排除）、Host 142；真机 EXIT=0；`NativeTui.Markdown.dll` 与库输出同哈希 `2a18e7f`。
+- 下一动作：§2.2 剩余 M 级项（M2/M3/M4/M5/N2/C1/C2/C3/E1/E4/P3/P4/P5）逐项取证请示 —— 域1（流式渲染）四项 S1/S2/S3/S6 已全部结清。

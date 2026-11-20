@@ -104,17 +104,18 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `QueryStreamChunkAdapter`（abstractions.interfaces） | `QueryLoopMiddleware.RunQueryBackendAsync` + `AgentStreamChunkAdapter` 同级协议桥 | ✅ | ❌ 未走 ADR 0080 真机 exe；已有 MockServer E2E（query/legacy 双模式通过） |
-| `ChatLoopBackendPolicy` + `JCC_CHAT_LOOP_BACKEND` | `QueryLoopMiddleware.InvokeAsync` 分支（默认 query，legacy 逃生） | ✅ | ❌ 未走 ADR 0080 真机 exe；同源 GUI 会话 E2E 已验证默认模式与 legacy 模式均生效 |
-| 历史去重与增量回写 | `BuildQueryHistoryAsync` / `PersistQueryDeltaQuietlyAsync` | ✅ | ❌ 待多轮真机会话核对历史条数与顺序 |
+| `QueryStreamChunkAdapter`（abstractions.interfaces） | `QueryLoopMiddleware.RunQueryBackendAsync` + `AgentStreamChunkAdapter` 同级协议桥 | ✅ | ✅ S11 native_gui 真机 DSH RPC（文本 3 分片流式上屏 + Done） |
+| `ChatLoopBackendPolicy` + `JCC_CHAT_LOOP_BACKEND` | `QueryLoopMiddleware.InvokeAsync` 分支（默认 query，legacy 逃生） | ✅（S9 已删除，双后端灰度结束） | — 能力随 S9 归档移除 |
+| 历史去重与增量回写 | `BuildQueryHistoryAsync` / `PersistQueryDeltaQuietlyAsync` | ✅ | ✅ S11 真机第二轮请求携带首轮 tool result（MockServer Request #1） |
 | 轮内 steer 注入 | `QueryOptions.OnIterationStart` / `HasPendingIterationInput` + `DrainSteerIntoQueryHistoryAsync` | ✅ | ❌ 未走 ADR 0080 真机 exe；单测覆盖步首注入/事件/落库与收尾继续 |
 | 子代理事件合流 | `ConsumeQueryBackendAsync` + `SubAgentEventChannel` | ✅ | ❌ 未走 ADR 0080 真机 exe；`SubAgentEventStreamE2ETests` query 2/2 通过 |
 | 闸门/执行设置透传 | `BuildQueryOptions` + `ApplyExecutionOverrides` | ✅ | ❌ 未走 ADR 0080 真机 exe；单测已覆盖设置透传/model 覆盖不丢字段 |
-| 流式增量输出 | `QueryEngine.ExecuteIterationInternalAsync` 即收即入队 | ✅ | ❌ 未走 ADR 0080 真机 exe；`StreamingIncrementalE2ETests` query 跨度断言通过 + legacy 回归通过 |
+| 流式增量输出 | `QueryEngine.ExecuteIterationInternalAsync` 即收即入队 | ✅ | ✅ S11 native_gui 真机 DSH RPC（MockServer 3 个文本分片逐段上屏） |
 | 文本工具调用 fallback | `ITextToolCallFallbackParser`（abstractions.interfaces）+ `TextToolCallParserChain` 实现 + `QueryEngine.ApplyTextToolCallFallback` | ✅ | ❌ 未走 ADR 0080 真机 exe；`QueryEngineTextFallbackTests` 3 通过 + 两后端 MockServer E2E 回归通过 |
 | 异常输出干预同源 | `OutputInterventionPrompts` 被 `MalformedOutputTracker` / `QueryLoopMiddleware` / QueryEngine 共同消费 | ✅ | ❌ 未走 ADR 0080 真机 exe；单测覆盖纠正回灌与超限放行 |
 | 取消语义对齐 | `QueryEngine.ExecuteToolAsync` 取消上抛 + `WriteAbortedToolResults` | ✅ | ❌ 未走 ADR 0080 真机 exe；`QueryEngineCancellationTests` 通过 + query 模式 E2E 回归通过 |
 | 请求前预算守卫 | `PreRequestBudgetGuardMiddleware`（BeforeIterationHooks + IHistorySnipService + IChatContextManager） | ✅ | ❌ 未走 ADR 0080 真机 exe；`PreRequestBudgetGuardTests` 4 通过 + query 模式 E2E 回归通过 |
+| 并行工具执行（ADR 0160） | `IToolConcurrencyClassifier` + `QueryEngine` 合批 + `ReadOnlyCommandProbe` 注册 | ✅ | ✅ S13 `jcc -p` 真机：`[TOOL-PARALLEL] batch=2 tools=grep,read`，两工具均 OK，次轮正常收尾 |
 
 ### 验证记录（2026-11-21）
 
@@ -282,3 +283,27 @@
 
 - 外部客户端与证据输出：`.xxx/mcp_accept/mcp_client.py`、`list3.out`、`call3.out`、`.xxx/logs/mcp_serve3.log`。
 - 结论：MCP 服务端仅暴露 tools 能力（initialize 能力声明 `tools.listChanged=false`）；本任务循环合并未改动 MCP 协议层，自测通过作为跨进程通讯回归基线。
+
+## S13 — 并行工具执行恢复（ADR 0160，2026-11-21）
+
+> 合并前 ChatService 侧 `StreamingToolExecutor(Actor)` + `ToolConcurrencyClassifier` 提供的并行能力在 S9 归档后丢失，QueryEngine 全部工具串行。本节按 ADR 0160 恢复：并发安全工具合批并行、结果按调用顺序回写、取消补写 aborted。
+
+### 实现要点
+
+| 组件 | 位置 | 说明 |
+|------|------|------|
+| `IToolConcurrencyClassifier` / `ToolConcurrencyClassifier` | `modules/cognition/brain.query/query2/token_budget/tools/` | `[Register]` 自动注册；消费生成器 `SafeToolNames`；Bash/PowerShell 经 `ReadOnlyCommandProbe` 只读探测；交互工具强制独占 |
+| `ReadOnlyCommandProbe` 注册 | `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | 委托 `IReadOnlyCommandDetector.CheckReadOnlyConstraints`，避免 brain.query 反向依赖 guard |
+| 合批执行 | `QueryEngine.ExecuteCoreLoopAsync` | 连续并发安全调用同批先全部启动、再按原调用顺序逐条 await/回写；非并发安全调用独占批次 |
+| 诊断打点 | `QueryEngine` | `[TOOL-PARALLEL] batch=N tools=...`（JCC_DEBUGLOG 控制） |
+
+### 验证记录
+
+| 验证 | 方式 | 结果 |
+|------|------|------|
+| 红测试 | `QueryEngineParallelToolExecutionTests`（并行互等 / 完成顺序反转 / 并行取消）+ `ToolConcurrencyClassifierTests`（7 项） | 实现前编译红（IToolConcurrencyClassifier 不存在） |
+| 绿测试 | `dotnet test Brain.Other.Tests --filter Core.Tests.Query.Parallel` | 10/10 通过 |
+| 回归 | `Brain.Other.Tests` 全量 | 508/508 通过 |
+| 全仓编译 | `Build-AllDomains.ps1` | solution + native_tui + native_gui 全部通过 |
+| 真实 exe | `jcc -p` + MockServer（首轮 `grep`+`read` 双只读调用，次轮收尾文本） | 日志 `[TOOL-PARALLEL] batch=2 tools=grep,read`；两个工具均 `[OK]` 并返回真实结果；次轮请求正常收尾 |
+| 风格门禁 | `Verify-StyleGate.py` | 0 findings（顺带修复 native_tui `UltrathinkHighlighter.cs` 遗留文件级 using） |

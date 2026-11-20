@@ -309,35 +309,57 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 return;
             }
 
-            // 依次执行本轮所有工具调用
-            for (var callIndex = 0; callIndex < iterationResult.ToolCalls.Count; callIndex++) {
-                var toolCall = iterationResult.ToolCalls[callIndex];
-                if (context.TotalToolCalls >= _config.MaxToolCallIterations) {
-                    break;
+            // 依次执行本轮所有工具调用 — 并发安全工具合批并行，非并发安全工具独占批次（ADR 0160）
+            var scheduledToolCalls = ScheduleToolCalls(iterationResult.ToolCalls, _config.MaxToolCallIterations - context.TotalToolCalls);
+            var concurrencyClassifier = _serviceProvider?.GetService<IToolConcurrencyClassifier>();
+            var batchStart = 0;
+            var stopProcessing = false;
+            while (batchStart < scheduledToolCalls.Count && !stopProcessing) {
+                var batchEnd = await DetermineBatchEndAsync(scheduledToolCalls, batchStart, concurrencyClassifier, cancellationToken).ConfigureAwait(false);
+                if (batchEnd - batchStart > 1) {
+                    Diag.WriteLine($"[TOOL-PARALLEL] batch={batchEnd - batchStart} tools={string.Join(',', scheduledToolCalls.Skip(batchStart).Take(batchEnd - batchStart).Select(x => x.Call.ToolName))}");
+                }
+                var firstCallNumber = context.TotalToolCalls + 1;
+
+                for (var i = batchStart; i < batchEnd; i++) {
+                    var toolCall = scheduledToolCalls[i].Call;
+                    var callNumber = firstCallNumber + (i - batchStart);
+                    context.ToolName = toolCall.ToolName;
+                    context.HasToolCall = true;
+
+                    // TASK102 轮次闸门：记录"5 结束"的选择；其余选项由工具结果注入工作流提示词
+                    if (RoundGatePolicy.TryReadChoice(toolCall.ToolName, toolCall.Arguments, toolCall.RawArguments, out var gateChoice)
+                        && gateChoice == RoundGateChoice.End) {
+                        roundGateEndSelected = true;
+                    }
+
+                    context.OutputChunks.Enqueue(new QueryStreamChunk {
+                        Type = AgentStreamChunkType.ToolCallStart,
+                        ToolName = toolCall.ToolName,
+                        ToolCallId = toolCall.ToolCallId,
+                        ToolArguments = toolCall.RawArguments,
+                        ToolCallNumber = callNumber
+                    });
                 }
 
-                context.TotalToolCalls++;
-                context.ToolName = toolCall.ToolName;
-                context.HasToolCall = true;
+                context.TotalToolCalls = firstCallNumber + (batchEnd - batchStart) - 1;
 
-                // TASK102 轮次闸门：记录"5 结束"的选择；其余选项由工具结果注入工作流提示词
-                if (RoundGatePolicy.TryReadChoice(toolCall.ToolName, toolCall.Arguments, toolCall.RawArguments, out var gateChoice)
-                    && gateChoice == RoundGateChoice.End) {
-                    roundGateEndSelected = true;
+                // 批次内先全部启动，再按原调用顺序逐条 await — 并行收益 + 历史/事件顺序与串行一致
+                var batchTasks = new Task<ToolResult?>[batchEnd - batchStart];
+                for (var i = 0; i < batchTasks.Length; i++) {
+                    batchTasks[i] = TryExecuteToolAsync(scheduledToolCalls[batchStart + i].Call, context.Options, cancellationToken);
                 }
 
-                context.OutputChunks.Enqueue(new QueryStreamChunk {
-                    Type = AgentStreamChunkType.ToolCallStart,
-                    ToolName = toolCall.ToolName,
-                    ToolCallId = toolCall.ToolCallId,
-                    ToolArguments = toolCall.RawArguments,
-                    ToolCallNumber = context.TotalToolCalls
-                });
-
-                ToolResult toolResult;
-                try {
-                    // 执行工具调用
-                    toolResult = await ExecuteToolAsync(toolCall, context.Options, cancellationToken).ConfigureAwait(false);
+                for (var i = 0; i < batchTasks.Length; i++) {
+                    var scheduled = scheduledToolCalls[batchStart + i];
+                    var toolCall = scheduled.Call;
+                    var callNumber = firstCallNumber + i;
+                    var toolResult = await batchTasks[i].ConfigureAwait(false);
+                    if (toolResult is null) {
+                        // 取消时未完成的工具调用补写 (aborted) — assistant 工具调用消息后必须有对应结果，历史才对下一次请求合法
+                        WriteAbortedToolResults(context, iterationResult.ToolCalls, scheduled.OriginalIndex, iterationResult.Content);
+                        throw new OperationCanceledException(cancellationToken);
+                    }
 
                     context.OutputChunks.Enqueue(new QueryStreamChunk {
                         Type = AgentStreamChunkType.ToolCallEnd,
@@ -346,51 +368,50 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         ToolResult = toolResult,
                         ToolResultText = ExtractToolResultText(toolResult),
                         IsToolError = toolResult.IsError,
-                        ToolCallNumber = context.TotalToolCalls
+                        ToolCallNumber = callNumber
                     });
 
                     // 将工具结果添加到对话历史（assistant 文本与工具调用同轮保留，对齐 chat 循环）
                     await AddToolResultToHistory(context, toolCall, toolResult, iterationResult.Content).ConfigureAwait(false);
-                } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
-                    // 取消时未完成的工具调用补写 (aborted) — assistant 工具调用消息后必须有对应结果，历史才对下一次请求合法
-                    WriteAbortedToolResults(context, iterationResult.ToolCalls, callIndex, iterationResult.Content);
-                    throw;
-                }
 
-                // TASK071-C6 — 结构化输出捕获：对齐 TS QueryEngine structuredOutputFromTool
-                // 合成工具验证通过时 ToolResult.StructuredOutput 携带验证数据，捕获到 context 供 result 消息填充
-                if (toolResult.StructuredOutput is { } structuredOutput) {
-                    context.StructuredOutputFromTool = structuredOutput;
-                }
+                    // TASK071-C6 — 结构化输出捕获：对齐 TS QueryEngine structuredOutputFromTool
+                    // 合成工具验证通过时 ToolResult.StructuredOutput 携带验证数据，捕获到 context 供 result 消息填充
+                    if (toolResult.StructuredOutput is { } structuredOutput) {
+                        context.StructuredOutputFromTool = structuredOutput;
+                    }
 
-                // TASK071-C6 — 合成工具调用计数 + 重试上限（对齐 TS MAX_STRUCTURED_OUTPUT_RETRIES）
-                if (toolCall.ToolName == SystemToolNameEnumConstants.SyntheticOutput) {
-                    context.StructuredOutputCallCount++;
-                    if (context.StructuredOutputCallCount >= context.MaxStructuredOutputRetries) {
-                        _logger?.LogWarning("[QueryEngine] StructuredOutput 合成工具调用次数超限: {Count}/{Max}",
-                            context.StructuredOutputCallCount, context.MaxStructuredOutputRetries);
-                        context.OutputChunks.Enqueue(BuildStructuredOutputRetryExhaustedErrorChunk(context.MaxStructuredOutputRetries));
-                        return;
+                    // TASK071-C6 — 合成工具调用计数 + 重试上限（对齐 TS MAX_STRUCTURED_OUTPUT_RETRIES）
+                    if (toolCall.ToolName == SystemToolNameEnumConstants.SyntheticOutput) {
+                        context.StructuredOutputCallCount++;
+                        if (context.StructuredOutputCallCount >= context.MaxStructuredOutputRetries) {
+                            _logger?.LogWarning("[QueryEngine] StructuredOutput 合成工具调用次数超限: {Count}/{Max}",
+                                context.StructuredOutputCallCount, context.MaxStructuredOutputRetries);
+                            context.OutputChunks.Enqueue(BuildStructuredOutputRetryExhaustedErrorChunk(context.MaxStructuredOutputRetries));
+                            return;
+                        }
+                    }
+
+                    // 子代理 usage 累计 — agent 工具的 ToolResult.Usage 携带子代理 token 用量（含缓存命中）
+                    if (toolResult.Usage is { } subagentUsage) {
+                        totalInputTokens += subagentUsage.PromptTokens;
+                        totalOutputTokens += subagentUsage.CompletionTokens;
+                        totalCacheRead += subagentUsage.CacheReadInputTokens;
+                        totalCacheCreation += subagentUsage.CacheCreationInputTokens;
+                        totalReasoning += subagentUsage.ReasoningTokens;
+                    }
+
+                    // 工具调用后钩子（内容替换预算检查、递减回报检测、历史裁剪、空闲提醒等）
+                    foreach (var hook in context.AfterToolCallHooks) {
+                        await hook(context, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    if (context.ShouldBreak) {
+                        stopProcessing = true;
+                        break;
                     }
                 }
 
-                // 子代理 usage 累计 — agent 工具的 ToolResult.Usage 携带子代理 token 用量（含缓存命中）
-                if (toolResult.Usage is { } subagentUsage) {
-                    totalInputTokens += subagentUsage.PromptTokens;
-                    totalOutputTokens += subagentUsage.CompletionTokens;
-                    totalCacheRead += subagentUsage.CacheReadInputTokens;
-                    totalCacheCreation += subagentUsage.CacheCreationInputTokens;
-                    totalReasoning += subagentUsage.ReasoningTokens;
-                }
-
-                // 工具调用后钩子（内容替换预算检查、递减回报检测、历史裁剪、空闲提醒等）
-                foreach (var hook in context.AfterToolCallHooks) {
-                    await hook(context, cancellationToken).ConfigureAwait(false);
-                }
-
-                if (context.ShouldBreak) {
-                    break;
-                }
+                batchStart = batchEnd;
             }
 
             if (context.ShouldBreak) {
@@ -803,6 +824,48 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         }
     }
 
+    /// <summary>
+    /// 按剩余调用预算截断本轮工具调用，保留原始下标用于取消时补写 aborted。
+    /// </summary>
+    private static List<ScheduledToolCall> ScheduleToolCalls(IReadOnlyList<ToolCallRequest> toolCalls, int remainingBudget) {
+        var count = Math.Clamp(remainingBudget, 0, toolCalls.Count);
+        var scheduled = new List<ScheduledToolCall>(count);
+        for (var i = 0; i < count; i++) {
+            scheduled.Add(new ScheduledToolCall(toolCalls[i], i));
+        }
+        return scheduled;
+    }
+
+    /// <summary>
+    /// 计算从 start 起的批次边界 — 连续并发安全调用同批，非并发安全调用独占（ADR 0160）。
+    /// </summary>
+    private static async Task<int> DetermineBatchEndAsync(
+        List<ScheduledToolCall> scheduled, int start, IToolConcurrencyClassifier? classifier, CancellationToken cancellationToken) {
+        var end = start + 1;
+        if (classifier is null)
+            return end;
+        if (!await classifier.IsConcurrencySafeAsync(scheduled[start].Call.ToolName, scheduled[start].Call.Arguments, cancellationToken).ConfigureAwait(false))
+            return end;
+
+        while (end < scheduled.Count
+            && await classifier.IsConcurrencySafeAsync(scheduled[end].Call.ToolName, scheduled[end].Call.Arguments, cancellationToken).ConfigureAwait(false)) {
+            end++;
+        }
+        return end;
+    }
+
+    /// <summary>
+    /// 执行工具并把取消（OperationCanceledException + 令牌已取消）映射为 null，
+    /// 让批次按原顺序逐条判定 aborted；其他异常已由 <see cref="ExecuteToolAsync"/> 转为错误结果。
+    /// </summary>
+    private async Task<ToolResult?> TryExecuteToolAsync(ToolCallRequest request, QueryOptions? options, CancellationToken cancellationToken) {
+        try {
+            return await ExecuteToolAsync(request, options, cancellationToken).ConfigureAwait(false);
+        } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+            return null;
+        }
+    }
+
     private async Task<ToolResult> ExecuteToolAsync(ToolCallRequest request, QueryOptions? options, CancellationToken cancellationToken) {
         if (options is not null && !options.IsToolAllowed(request.ToolName)) {
             _logger?.LogWarning("[QueryEngine] 工具被过滤拒绝: {ToolName}", request.ToolName);
@@ -1051,6 +1114,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         }
     }
 }
+
+/// <summary>
+/// 已调度的工具调用 — 携带原始下标（取消时从该下标起补写 aborted）。
+/// </summary>
+internal sealed record ScheduledToolCall(ToolCallRequest Call, int OriginalIndex);
 
 /// <summary>
 /// 工具调用请求

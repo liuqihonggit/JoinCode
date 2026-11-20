@@ -16,6 +16,12 @@ public static partial class ServiceRegistration {
         services.AddSingleton(Options.Create(new Configuration.QueryEngineConfig()));
 
         services.AddSingleton(McpToolDispatch.GeneratedToolHandlerRegistration_JoinCode_Composition.SafeToolNames);
+        // ADR 0160 — 只读命令探测委托：委托 guard 的 IReadOnlyCommandDetector，供 QueryEngine 分类器判定 Bash/PowerShell 并行安全
+        services.TryAddSingleton<ReadOnlyCommandProbe>(sp => {
+            var detector = sp.GetService<IReadOnlyCommandDetector>();
+            return command => detector is not null
+                && detector.CheckReadOnlyConstraints(command).Behavior == PermissionBehavior.Allow;
+        });
 
         var sw = PerfTimer.Start("    AddJoinCodeCompositionAutoRegisteredServices");
         var countBefore = services.Count;

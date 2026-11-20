@@ -24,7 +24,7 @@
 | ~~2~~ | ~~TASK062-P8~~ | ~~Completion Run 前占位语义~~ | TASK062 | S | ✅ **误判纠正**：TASK063 `c3c5ec77a` 已文档化契约+守卫锁，**刻意不加门闩**（挂死风险）→移 §3 | 见 §4 |
 | ~~3~~ | ~~TASK062-P7~~ | ~~tokenGain 恒 0~~ | TASK062 | M | ✅ **误判纠正**：TASK063 `853d9e75b` 已用完成态 TokenTotal 权威校正闭合→移 §3 | 见 §4 |
 | ~~4~~ | ~~TASK069-C2~~ | ~~`/resume` 模糊搜索 enableSearch~~ | TASK069 域4 | M | ✅ **归类误判**：非接线 bug，是功能对齐差异（CLI/TUI 两条路径均无搜索）→移 §2.2 | 见 §4 |
-| 5 | TASK071-C6 | 结构化输出：synthetic tool 重试上限 5 + `result.structured_output` 自动填充接线 | TASK071 | M | 待核实：DTO 字段在（`SdkMessage.cs:251`），重试机制未见 | 补两处缺口 |
+| ~~5~~ | ~~TASK071-C6~~ | ~~结构化输出 synthetic tool 重试 + 自动填充~~ | TASK071 | M | ✅ **归类误判**：原文归 C 类「行为差异待逐项裁决」第6项「需整体设计」→移 §2.2 | 见 §4 |
 | 6 | TASK071-A4 | 通用设置迁移框架（版本号 + 脚本目录）；已有 `SettingsSourceMigration` 单件 | TASK071 | L | ✅ 已核实：通用框架未建（TASK089 只做一件） | 需设计，另立专项 |
 
 ## 2. 需用户逐项决策（功能相同实现不同 / 口味差异）— 按域分组
@@ -82,6 +82,7 @@
 | 43 | TASK071-C3 | /init /memory /loop /branch+/fork 命令分叉 | TASK071 |
 | 44 | TASK071-C4 | TaskCreate/AskUserQuestion schema 分叉 | TASK071 |
 | 45 | TASK071-C5 | Glob 大小写/Bash 超时/TaskOutput 语义分叉 | TASK071 |
+| 45a | TASK071-C6 | 结构化输出体系（synthetic tool + 重试上限5 + `result.structured_output`）— 原文标「需整体设计」，C# 无限重试风险 | TASK071 C类第6项 |
 | 46 | TASK071-C7 | Complete 协议字段（duration_api_ms/num_turns/modelUsage/permission_denials） | TASK071 |
 | 47 | TASK071-A1 | upstreamproxy（CONNECT→WS 隧道中继） | TASK071 |
 | 48 | TASK071-A2 | remote 会话订阅端（CCR viewer） | TASK071 |
@@ -127,4 +128,5 @@
 - **#4 TASK069-C2 归类纠正（2026-11-21）**：
   - 深查：CLI `Selector<T>`（`SelectorComponents.cs:29-30`）的 `enableSearch` 是**占位参数**，构造函数直接忽略，`SearchKey` 字段存而不用；TUI `SessionPickerDialog.TryHandleKey` 仅 ↑↓/enter/esc 无搜索分支。
   - 判定：`ResumeCommand.cs:202` 传 `enableSearch: true` 不是"参数静默失效 bug"，而是**基准 LogSelector 有搜索、C# 两条路径都未实现**的功能对齐差异 → 按 AGENTS 纪律一问一答，从 §1 移入 §2.2（#28a）。
-- 下一动作：从 §1 第 5 项（TASK071-C6 结构化输出重试 + 自动填充）继续。
+- **#5 TASK071-C6 归类纠正（2026-11-21）**：原文 `TASK071:67,122` 明确归 C 类「行为差异待逐项裁决」第 6 项、标注"需整体设计"（保留 C# 设计 vs 对齐 TS 的选择题），非"确认缺口"→ 从 §1 移入 §2.2（#45a）。
+- 下一动作：§1 只剩第 6 项 TASK071-A4（L 级，原文已标"需设计另立专项"）——同样是决策/专项项，非可直接施工缺口。§1 清理阶段结束，转入 §2 一问一答。

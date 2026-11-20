@@ -30,6 +30,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     private readonly ToolExecutionSettings? _toolExecutionSettings;
     private readonly ILogger<QueryLoopMiddleware>? _logger;
     private readonly ISteerInputMailbox? _steerMailbox;
+    private readonly IQueryEngine? _queryEngine;
 
     /// <summary>
     /// 初始化查询循环中间件，注入各处理器和可选服务
@@ -46,6 +47,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     /// <param name="toolExecutionSettings">工具执行设置（可选）</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="steerMailbox">轮内注入邮箱（可选；null 时 steer 事件永不产生，等价旧行为）</param>
+    /// <param name="queryEngine">查询引擎（TASK103 灰度后端；null 或开关为 legacy 时走旧循环）</param>
     public QueryLoopMiddleware(
         IBackgroundNotificationHandler notificationHandler,
         ILLMInvocationHandler llmHandler,
@@ -58,7 +60,8 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         IToolConcurrencyClassifier? concurrencyClassifier = null,
         ToolExecutionSettings? toolExecutionSettings = null,
         ILogger<QueryLoopMiddleware>? logger = null,
-        ISteerInputMailbox? steerMailbox = null) {
+        ISteerInputMailbox? steerMailbox = null,
+        IQueryEngine? queryEngine = null) {
         _notificationHandler = notificationHandler;
         _llmHandler = llmHandler;
         _toolHandler = toolHandler;
@@ -70,6 +73,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         _toolExecutionSettings = toolExecutionSettings;
         _logger = logger;
         _steerMailbox = steerMailbox;
+        _queryEngine = queryEngine;
         _loopDetectionStrategy = loopDetectionStrategy ?? new InformationEntropyGuardian(logger: logger);
     }
 
@@ -110,6 +114,15 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
+        // TASK103 灰度后端：显式 JCC_CHAT_LOOP_BACKEND=query 时把整个 ReAct 循环委托给 QueryEngine；
+        // 默认 legacy 保持既有行为，dry-run 预览仍走旧循环。
+        if (ChatLoopBackendPolicy.UseQueryEngine && _queryEngine is not null && !context.IsDryRun) {
+            await foreach (var evt in RunQueryBackendAsync(context, next, ct).ConfigureAwait(false)) {
+                yield return evt;
+            }
+            yield break;
+        }
+
         var totalToolCalls = 0;
         TokenUsage? finalUsage = null;
         string? finalModelId = null;
@@ -278,6 +291,284 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         context.FinalUsage = finalUsage;
         context.FinalModelId = finalModelId;
 
+        await RunPostTurnCallbacksAsync(context, totalToolCalls, finalUsage, ct).ConfigureAwait(false);
+
+        await foreach (var evt in CompleteTurnAsync(context, next, finalUsage, finalModelId, fallbackStopReason: null, ct).ConfigureAwait(false)) {
+            yield return evt;
+        }
+    }
+
+    /// <summary>查询后端等待引擎 chunk 的轮询间隔（毫秒）— 期间排空子代理事件。</summary>
+    private const int QueryBackendPollIntervalMs = 50;
+
+    /// <summary>查询后端 chunk 通道容量 — 有界通道向引擎施加背压，防止消费端停滞时无限堆积。</summary>
+    private const int QueryBackendChannelCapacity = 256;
+
+    /// <summary>
+    /// 查询后端运行状态 — 跨 chunk 累积的收尾数据。
+    /// </summary>
+    private sealed class QueryBackendState {
+        /// <summary>总工具调用次数</summary>
+        public int TotalToolCalls { get; set; }
+        /// <summary>LLM 调用轮次</summary>
+        public int TotalTurns { get; set; }
+        /// <summary>本轮是否出现工具调用</summary>
+        public bool HasToolCall { get; set; }
+        /// <summary>最终 token 用量</summary>
+        public TokenUsage? FinalUsage { get; set; }
+        /// <summary>最终模型 ID</summary>
+        public string? FinalModelId { get; set; }
+        /// <summary>最终终止原因</summary>
+        public string? FinalStopReason { get; set; }
+        /// <summary>当前步文本（文本循环检测输入 — 每次工具调用边界重置）</summary>
+        public StringBuilder Text { get; } = new();
+        /// <summary>当前步是否出现工具调用（决定收尾时是否做纯文本循环检测）</summary>
+        public bool StepHadToolCall { get; set; }
+        /// <summary>是否已记录首 token 延迟</summary>
+        public bool FirstTokenRecorded { get; set; }
+    }
+
+    /// <summary>
+    /// TASK103 灰度后端主路径 — 把整轮 ReAct 循环委托给 IQueryEngine：
+    /// 历史快照剥离当前用户消息后传入（QueryEngine 会重新加入），输出经适配器转为聊天事件；
+    /// 等待引擎输出期间持续合流子代理事件，结束后回写历史增量并执行与旧循环一致的后处理。
+    /// </summary>
+    /// <param name="context">聊天中间件上下文。</param>
+    /// <param name="next">下游聊天中间件委托。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>聊天事件流。</returns>
+    private async IAsyncEnumerable<ChatStreamEvent> RunQueryBackendAsync(
+        ChatMiddlewareContext context,
+        StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
+        [EnumeratorCancellation] CancellationToken ct) {
+        var queryEngine = _queryEngine ?? throw new InvalidOperationException("[QueryLoopMiddleware] 查询后端缺少 IQueryEngine");
+        Diag.WriteLine($"[LOOP-QUERY] backend=query session={context.SessionId} gate={context.RequireRoundGate}");
+
+        await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
+        foreach (var evt in await DrainSteerInputsAsync(context, ct).ConfigureAwait(false)) {
+            yield return evt;
+        }
+
+        var history = await BuildQueryHistoryAsync(context, ct).ConfigureAwait(false);
+        var baseCount = history.Count;
+        var options = BuildQueryOptions(context);
+        var subAgentChannel = context.SubAgentEvents ?? new SubAgentEventChannel();
+        context.SubAgentEvents = subAgentChannel;
+        var state = new QueryBackendState();
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using var subAgentScope = subAgentChannel.EnterScope();
+        var chunkChannel = Channel.CreateBounded<QueryStreamChunk>(new BoundedChannelOptions(QueryBackendChannelCapacity) {
+            SingleReader = true,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.Wait
+        });
+        var pumpTask = PumpQueryChunksAsync(queryEngine, context.Message, history, options, chunkChannel.Writer, linkedCts.Token);
+
+        await _telemetryRecorder.RecordTurnTelemetryAsync(history, 0).ConfigureAwait(false);
+        context.Timing.StartLlmCall();
+        try {
+            await foreach (var evt in ConsumeQueryBackendAsync(chunkChannel.Reader, context, subAgentChannel, state, linkedCts.Token).ConfigureAwait(false)) {
+                yield return evt;
+            }
+            await pumpTask.ConfigureAwait(false);
+        } finally {
+            linkedCts.Cancel();
+            await AwaitPumpQuietlyAsync(pumpTask).ConfigureAwait(false);
+            context.Timing.StopLlmCall();
+            await PersistQueryDeltaQuietlyAsync(history, baseCount, context.IsDryRun).ConfigureAwait(false);
+        }
+
+        foreach (var evt in DrainSubAgentEvents(subAgentChannel)) {
+            yield return evt;
+        }
+        subAgentChannel.Complete();
+
+        context.TotalToolCalls = state.TotalToolCalls;
+        context.FinalUsage = state.FinalUsage;
+        context.FinalModelId = state.FinalModelId;
+        if (state.TotalTurns > 0)
+            context.Timing.LlmCallCount = state.TotalTurns;
+
+        await RunPostTurnCallbacksAsync(context, state.TotalToolCalls, state.FinalUsage, ct).ConfigureAwait(false);
+
+        await foreach (var evt in CompleteTurnAsync(context, next, state.FinalUsage, state.FinalModelId, state.FinalStopReason, ct).ConfigureAwait(false)) {
+            yield return evt;
+        }
+    }
+
+    /// <summary>剥离当前用户消息后的查询历史 — Preprocessor 已落库，QueryEngine 会重新加入，避免重复。</summary>
+    private async Task<MessageList> BuildQueryHistoryAsync(ChatMiddlewareContext context, CancellationToken ct) {
+        var snapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
+        var history = new MessageList(snapshot);
+        if (history.Count > 0) {
+            var last = history[history.Count - 1];
+            if (last.Role == MessageRole.User && string.Equals(last.Content, context.Message, StringComparison.Ordinal))
+                history.RemoveAt(history.Count - 1);
+        }
+        return history;
+    }
+
+    /// <summary>构造查询选项 — 闸门、会话标识、聊天执行设置与会话级模型/力度覆盖。</summary>
+    private static QueryOptions BuildQueryOptions(ChatMiddlewareContext context) => new() {
+        SessionId = context.SessionId,
+        RequireRoundGate = context.RequireRoundGate,
+        ExecutionOverrides = context.ExecutionSettings,
+        ModelId = context.ToolUseContext.ModelOverride,
+        EffortLevel = EffortLevelHelper.ParseEffortLevel(context.ToolUseContext.Effort),
+    };
+
+    /// <summary>把查询引擎输出泵入通道 — 引擎异常通过 pumpTask 回抛，通道关闭由 finally 保证。</summary>
+    private static async Task PumpQueryChunksAsync(
+        IQueryEngine queryEngine,
+        string userInput,
+        MessageList history,
+        QueryOptions options,
+        ChannelWriter<QueryStreamChunk> writer,
+        CancellationToken ct) {
+        try {
+            await foreach (var chunk in queryEngine.QueryAsync(userInput, history, options, ct).ConfigureAwait(false)) {
+                await writer.WriteAsync(chunk, ct).ConfigureAwait(false);
+            }
+        } finally {
+            writer.TryComplete();
+        }
+    }
+
+    /// <summary>消费引擎 chunk 并合流子代理事件 — 引擎无输出时每 50ms 排空一次通道。</summary>
+    private async IAsyncEnumerable<ChatStreamEvent> ConsumeQueryBackendAsync(
+        ChannelReader<QueryStreamChunk> reader,
+        ChatMiddlewareContext context,
+        SubAgentEventChannel subAgentChannel,
+        QueryBackendState state,
+        [EnumeratorCancellation] CancellationToken ct) {
+        Task<bool>? pendingRead = null;
+        while (true) {
+            ct.ThrowIfCancellationRequested();
+
+            foreach (var evt in DrainSubAgentEvents(subAgentChannel)) {
+                yield return evt;
+            }
+
+            while (reader.TryRead(out var chunk)) {
+                foreach (var evt in HandleQueryChunk(chunk, context, state)) {
+                    yield return evt;
+                }
+            }
+
+            pendingRead ??= reader.WaitToReadAsync(ct).AsTask();
+            var delay = Task.Delay(QueryBackendPollIntervalMs, ct);
+            if (await Task.WhenAny(pendingRead, delay).ConfigureAwait(false) != pendingRead)
+                continue;
+
+            if (!await pendingRead.ConfigureAwait(false))
+                yield break;
+            pendingRead = null;
+        }
+    }
+
+    /// <summary>排空子代理事件通道 — 无通道时返回空。</summary>
+    private static IEnumerable<ChatStreamEvent> DrainSubAgentEvents(SubAgentEventChannel? channel) =>
+        channel is null ? [] : channel.TryDrain();
+
+    /// <summary>单个查询 chunk → 聊天事件（含循环检测与完成数据捕获；Complete 由收尾统一发出）。</summary>
+    private IEnumerable<ChatStreamEvent> HandleQueryChunk(QueryStreamChunk chunk, ChatMiddlewareContext context, QueryBackendState state) {
+        if (chunk.Type == AgentStreamChunkType.Content) {
+            state.Text.Append(chunk.Content);
+            RecordFirstToken(context, state);
+        } else if (chunk.Type is AgentStreamChunkType.ThinkingStart or AgentStreamChunkType.Thinking) {
+            RecordFirstToken(context, state);
+        } else if (chunk.Type == AgentStreamChunkType.ToolCallStart) {
+            state.HasToolCall = true;
+            state.StepHadToolCall = true;
+            state.Text.Clear();
+            state.TotalToolCalls++;
+            if (_loopDetectionStrategy.TryGetToolCallLoop(chunk.ToolName ?? string.Empty, JsonArgumentParser.Parse(chunk.ToolArguments), out var toolLoop)) {
+                yield return ChatStreamEvent.LoopDetected(toolLoop.TriggerCount, toolLoop.ToolCallCount, toolLoop.Reason);
+            }
+        } else if (chunk.Type == AgentStreamChunkType.ToolCallEnd) {
+            state.StepHadToolCall = false;
+            state.Text.Clear();
+        } else if (chunk.Type == AgentStreamChunkType.Complete) {
+            state.FinalUsage = chunk.Usage;
+            state.FinalModelId = chunk.ModelId;
+            state.FinalStopReason = chunk.StopReason;
+            state.TotalTurns = chunk.TotalTurns;
+            if (chunk.TotalToolCalls > state.TotalToolCalls)
+                state.TotalToolCalls = chunk.TotalToolCalls;
+            if (!state.StepHadToolCall && state.Text.Length > 0 && _loopDetectionStrategy.TryGetTextLoop(state.Text.ToString(), out var textLoop)) {
+                yield return ChatStreamEvent.LoopDetected(textLoop.TriggerCount, textLoop.ToolCallCount, textLoop.Reason);
+            }
+            yield break;
+        }
+
+        var evt = QueryStreamChunkAdapter.ToChatStreamEvent(chunk);
+        if (evt is not null)
+            yield return evt;
+    }
+
+    /// <summary>记录首 token 延迟（仅首次）— LLM 计时已由 StartLlmCall 启动。</summary>
+    private static void RecordFirstToken(ChatMiddlewareContext context, QueryBackendState state) {
+        if (state.FirstTokenRecorded)
+            return;
+        state.FirstTokenRecorded = true;
+        context.Timing.FirstTokenLatencyMs = context.Timing.LlmTotalMs;
+    }
+
+    /// <summary>回写查询历史增量 — 第一条是 QueryEngine 重新加入的当前用户消息（Preprocessor 已落库），跳过。</summary>
+    private async Task PersistQueryDeltaQuietlyAsync(MessageList history, int baseCount, bool isDryRun) {
+        if (isDryRun)
+            return;
+
+        try {
+            for (var i = baseCount + 1; i < history.Count; i++) {
+                await PersistMessageAsync(history[i], CancellationToken.None).ConfigureAwait(false);
+            }
+        } catch (Exception ex) {
+            _logger?.LogError(ex, "[QueryLoopMiddleware] 查询后端历史增量回写失败");
+        }
+    }
+
+    /// <summary>按角色回写单条消息 — 复用既有上下文管理器方法，保持会话存储不变量。</summary>
+    private async Task PersistMessageAsync(ApiMessage message, CancellationToken ct) {
+        switch (message.Role) {
+            case MessageRole.Assistant when message.Metadata.Count > 0:
+                await _contextManager.AddAssistantToolCallMessageAsync(message.Content, message.Metadata, ct).ConfigureAwait(false);
+                break;
+            case MessageRole.Assistant:
+                if (!string.IsNullOrWhiteSpace(message.Content))
+                    await _contextManager.AddAssistantMessageAsync(message.Content, ct).ConfigureAwait(false);
+                break;
+            case MessageRole.Tool:
+                await _contextManager.AddToolResultMessageAsync(
+                    message.Content ?? string.Empty,
+                    message.Metadata,
+                    message.ContentBlocks.Count > 0 ? message.ContentBlocks : null,
+                    ct).ConfigureAwait(false);
+                break;
+            case MessageRole.System:
+                await _contextManager.AddSystemMessageAsync(message.Content ?? string.Empty, ct).ConfigureAwait(false);
+                break;
+            case MessageRole.User:
+                await _contextManager.AddUserMessageAsync(message.Content ?? string.Empty, cancellationToken: ct).ConfigureAwait(false);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /// <summary>静默等待引擎泵任务结束 — 取消/异常已在主路径或收尾中处理，避免掩盖原始错误。</summary>
+    private static async Task AwaitPumpQuietlyAsync(Task pumpTask) {
+        try {
+            await pumpTask.ConfigureAwait(false);
+        } catch (Exception ex) {
+            if (ex is not OperationCanceledException)
+                Diag.WriteLine($"[LOOP-QUERY] 引擎泵收尾异常: {ex.Message}");
+        }
+    }
+
+    /// <summary>回合级后处理 — 空闲检测、延迟工具发现同步与后采样回调（新旧循环共用）。</summary>
+    private async Task RunPostTurnCallbacksAsync(ChatMiddlewareContext context, int totalToolCalls, TokenUsage? finalUsage, CancellationToken ct) {
         _services?.IdleDetector?.RecordAssistantTurn(null);
         await _contextManager.SyncDiscoveredToolsFromHistoryAsync(ct).ConfigureAwait(false);
 
@@ -293,15 +584,24 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             };
             await _services.PostSamplingCallbacks.FireAsync(postSamplingCtx).ConfigureAwait(false);
         }
+    }
 
-        var innerStopReason = (string?)null;
+    /// <summary>透传下游事件并统一发出 Done — 下游若已发 Complete，其 stopReason 优先，其次用查询引擎终止原因。</summary>
+    private static async IAsyncEnumerable<ChatStreamEvent> CompleteTurnAsync(
+        ChatMiddlewareContext context,
+        StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
+        TokenUsage? finalUsage,
+        string? finalModelId,
+        string? fallbackStopReason,
+        [EnumeratorCancellation] CancellationToken ct) {
+        string? innerStopReason = null;
         await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             if (evt.Type == ChatStreamEventType.Complete)
                 innerStopReason = evt.StopReason;
             yield return evt;
         }
 
-        yield return ChatStreamEvent.Done(finalUsage, finalModelId, innerStopReason);
+        yield return ChatStreamEvent.Done(finalUsage, finalModelId, innerStopReason ?? fallbackStopReason);
     }
 
     /// <summary>请求前上下文预算守卫（ADR 0156）— 估算比率分级处理：

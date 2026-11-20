@@ -193,15 +193,16 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
             QueryIterationResult? iterationResult = null;
             var success = false;
+            context.HasEmittedStreamContent = false;
 
-            // 重试机制
+            // 重试机制 — 已发出流式内容的部分输出不再整轮重试（否则重复文本上屏）
             while (!success && retryCount <= _config.Retry.MaxRetries) {
                 try {
                     iterationResult = await ExecuteIterationInternalAsync(
                         context, cancellationToken).ConfigureAwait(false);
                     success = true;
                     retryCount = 0;
-                } catch (Exception ex) when (retryCount < _config.Retry.MaxRetries && IsRetryable(ex)) {
+                } catch (Exception ex) when (retryCount < _config.Retry.MaxRetries && IsRetryable(ex) && !context.HasEmittedStreamContent) {
                     retryCount++;
                     var delay = CalculateRetryDelay(retryCount);
                     _logger?.LogWarning(ex, "[QueryEngine] 迭代执行失败，{RetryCount}/{MaxRetries} 次重试，等待 {DelayMs}ms",
@@ -215,10 +216,6 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 context.OutputChunks.Enqueue(BuildRetryExhaustedErrorChunk(_config.Retry.MaxRetries));
                 return;
             }
-
-            // 处理内容输出
-            foreach (var c in iterationResult.Chunks)
-                context.OutputChunks.Enqueue(c);
 
             // 更新上下文的 Token 使用信息（最后一轮值 — 钩子消费语义不变）+ 跨轮累计（P7 权威校正数据源）
             context.InputTokens = iterationResult.InputTokens;
@@ -485,6 +482,69 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         _ => null
     };
 
+    /// <summary>
+    /// 应用聊天侧执行设置覆盖（TASK103 灰度后端）— 覆盖项优先，未提供项保持查询配置。
+    /// </summary>
+    /// <param name="settings">查询引擎按自身配置构造的基础设置。</param>
+    /// <param name="overrides">聊天侧 ChatOptionsFactory 产物；null 表示不覆盖。</param>
+    /// <returns>合并后的执行设置。</returns>
+    private static ChatOptions ApplyExecutionOverrides(ChatOptions settings, ChatOptions? overrides) {
+        if (overrides is null)
+            return settings;
+
+        return new ChatOptions {
+            Temperature = overrides.Temperature ?? settings.Temperature,
+            MaxTokens = overrides.MaxTokens ?? settings.MaxTokens,
+            TopP = overrides.TopP ?? settings.TopP,
+            FrequencyPenalty = overrides.FrequencyPenalty ?? settings.FrequencyPenalty,
+            PresencePenalty = overrides.PresencePenalty ?? settings.PresencePenalty,
+            ToolChoice = overrides.ToolChoice,
+            DiscoveredTools = overrides.DiscoveredTools ?? settings.DiscoveredTools,
+            DeferredTools = overrides.DeferredTools.Count > 0 ? overrides.DeferredTools : settings.DeferredTools,
+            ExtensionData = overrides.ExtensionData.Count > 0 ? overrides.ExtensionData : settings.ExtensionData,
+            EffortLevel = overrides.EffortLevel ?? settings.EffortLevel,
+            ThinkingEnabled = overrides.ThinkingEnabled || settings.ThinkingEnabled,
+            FastMode = overrides.FastMode || settings.FastMode,
+            FastModelId = overrides.FastModelId ?? settings.FastModelId,
+            PromptCacheKey = overrides.PromptCacheKey ?? settings.PromptCacheKey,
+            ContextManagement = overrides.ContextManagement ?? settings.ContextManagement,
+        };
+    }
+
+    /// <summary>
+    /// 复制执行设置并覆盖 effort/model — 保留延迟工具、思考开关等其余字段（旧实现重建对象时丢失）。
+    /// </summary>
+    /// <param name="settings">原执行设置。</param>
+    /// <param name="effortLevel">推理力度覆盖；null 保持原值。</param>
+    /// <param name="modelId">模型覆盖；非空时同时写入 ExtensionData["model"] 并启用 FastMode。</param>
+    /// <returns>覆盖后的执行设置。</returns>
+    private static ChatOptions CloneExecutionSettings(ChatOptions settings, JoinCode.Abstractions.LLM.EffortLevel? effortLevel = null, string? modelId = null) {
+        var extensionData = settings.ExtensionData;
+        if (!string.IsNullOrEmpty(modelId)) {
+            extensionData = new Dictionary<string, System.Text.Json.JsonElement>(settings.ExtensionData) {
+                ["model"] = JoinCode.Abstractions.Utils.JsonElementHelper.FromString(modelId)
+            };
+        }
+
+        return new ChatOptions {
+            Temperature = settings.Temperature,
+            MaxTokens = settings.MaxTokens,
+            TopP = settings.TopP,
+            FrequencyPenalty = settings.FrequencyPenalty,
+            PresencePenalty = settings.PresencePenalty,
+            ToolChoice = settings.ToolChoice,
+            DiscoveredTools = settings.DiscoveredTools,
+            DeferredTools = settings.DeferredTools,
+            ExtensionData = extensionData,
+            EffortLevel = effortLevel ?? settings.EffortLevel,
+            ThinkingEnabled = settings.ThinkingEnabled,
+            FastMode = !string.IsNullOrEmpty(modelId) || settings.FastMode,
+            FastModelId = modelId ?? settings.FastModelId,
+            PromptCacheKey = settings.PromptCacheKey,
+            ContextManagement = settings.ContextManagement,
+        };
+    }
+
     private async Task<QueryIterationResult> ExecuteIterationInternalAsync(
         QueryMiddlewareContext context,
         CancellationToken cancellationToken) {
@@ -494,41 +554,23 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             TopP = _config.TopP
         };
         var executionSettings = parameters.ToExecutionSettings(ToolChoice.AutoInvoke);
+        // TASK103：ChatService 灰度后端透传原聊天执行设置（温度/思考/延迟工具等），
+        // 随后仍允许 QueryOptions 的显式 effort/model 覆盖。
+        executionSettings = ApplyExecutionOverrides(executionSettings, context.Options?.ExecutionOverrides);
 
         // 对齐 TS executeForkedSkill: 传递 effort 给子智能体
         // 如果 QueryOptions 指定了 EffortLevel，覆盖默认值
         if (context.Options?.EffortLevel is { } effortLevel) {
-            executionSettings = new JoinCode.Abstractions.LLM.ChatOptions {
-                Temperature = executionSettings.Temperature,
-                MaxTokens = executionSettings.MaxTokens,
-                TopP = executionSettings.TopP,
-                FrequencyPenalty = executionSettings.FrequencyPenalty,
-                PresencePenalty = executionSettings.PresencePenalty,
-                ToolChoice = executionSettings.ToolChoice,
-                EffortLevel = effortLevel,
-            };
+            executionSettings = CloneExecutionSettings(executionSettings, effortLevel: effortLevel);
         }
 
         // 对齐 Reasonix Coordinator: 双模型分离 — 按请求指定模型
         if (!string.IsNullOrEmpty(context.Options?.ModelId)) {
-            var modelId = context.Options.ModelId ?? string.Empty;
-            executionSettings = new JoinCode.Abstractions.LLM.ChatOptions {
-                Temperature = executionSettings.Temperature,
-                MaxTokens = executionSettings.MaxTokens,
-                TopP = executionSettings.TopP,
-                FrequencyPenalty = executionSettings.FrequencyPenalty,
-                PresencePenalty = executionSettings.PresencePenalty,
-                ToolChoice = executionSettings.ToolChoice,
-                EffortLevel = executionSettings.EffortLevel,
-                FastMode = true,
-                FastModelId = modelId,
-                ExtensionData = new Dictionary<string, System.Text.Json.JsonElement> { ["model"] = JoinCode.Abstractions.Utils.JsonElementHelper.FromString(modelId) },
-            };
+            executionSettings = CloneExecutionSettings(executionSettings, modelId: context.Options.ModelId);
         }
 
         var chatCompletionService = _kernel.GetChatCompletionService();
         var responseBuilder = new StringBuilder();
-        var chunks = new List<QueryStreamChunk>();
         var pendingToolCalls = new List<ToolCallRequest>();
         var inputTokens = 0;
         var outputTokens = 0;
@@ -579,18 +621,20 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 }
             }
 
-            // 累积内容 — 区分 thinking/reasoning_content 与普通 text
+            // 累积内容并立即上屏 — 区分 thinking/reasoning_content 与普通 text；
+            // TASK103 流式对齐：边收边发（旧实现整轮聚合后一次性入队，GUI 时间差≈0）
             if (!string.IsNullOrEmpty(content)) {
                 var isThinking = streamChunk.Metadata?.ContainsKey("thinking_content") == true
                     || streamChunk.Metadata?.ContainsKey("reasoning_content") == true;
+                context.HasEmittedStreamContent = true;
                 if (isThinking) {
-                    chunks.Add(new QueryStreamChunk {
+                    context.OutputChunks.Enqueue(new QueryStreamChunk {
                         Type = AgentStreamChunkType.Thinking,
                         Content = content
                     });
                 } else {
                     responseBuilder.Append(content);
-                    chunks.Add(new QueryStreamChunk {
+                    context.OutputChunks.Enqueue(new QueryStreamChunk {
                         Type = AgentStreamChunkType.Content,
                         Content = content
                     });
@@ -621,7 +665,6 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
             return new QueryIterationResult {
                 Content = finalContent,
-                Chunks = chunks,
                 InputTokens = inputTokens,
                 OutputTokens = outputTokens,
                 Usage = streamUsage,
@@ -637,7 +680,6 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
         return new QueryIterationResult {
             ToolCalls = pendingToolCalls,
-            Chunks = chunks,
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             Usage = streamUsage,
@@ -916,8 +958,6 @@ internal sealed class QueryIterationResult {
     public ToolCallRequest? ToolCall => ToolCalls.Count > 0 ? ToolCalls[0] : null;
     /// <summary>获取本轮所有工具调用列表</summary>
     public List<ToolCallRequest> ToolCalls { get; init; } = new();
-    /// <summary>获取本轮产生的流式块列表</summary>
-    public List<QueryStreamChunk> Chunks { get; init; } = new();
     /// <summary>获取输入 Token 数</summary>
     public int InputTokens { get; init; }
     /// <summary>获取输出 Token 数</summary>

@@ -87,6 +87,11 @@ public sealed class QueryMiddlewareContext {
     public bool IsQueryComplete { get; set; }
 
     /// <summary>
+    /// 本轮迭代是否已向输出队列发出流式内容 — TASK103：部分文本已上屏后禁止整轮重试，避免重复输出。
+    /// </summary>
+    public bool HasEmittedStreamContent { get; set; }
+
+    /// <summary>
     /// 是否应停止查询（中间件可设置此标志提前终止）
     /// </summary>
     public bool ShouldStop { get; set; }

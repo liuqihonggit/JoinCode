@@ -45,6 +45,12 @@ public sealed class QueryOptions {
     /// </summary>
     public bool RequireRoundGate { get; init; }
 
+    /// <summary>
+    /// 执行设置覆盖 — TASK103：ChatService 路由到 QueryEngine 时透传原 ChatOptionsFactory 的产物
+    /// （温度/反思开关/延迟工具等），避免灰度后端丢失聊天侧执行设置。null = 使用 QueryEngineConfig。
+    /// </summary>
+    public ChatOptions? ExecutionOverrides { get; init; }
+
     private HashSet<string> _deniedSet = [];
     private HashSet<string> _allowedSet = [];
 

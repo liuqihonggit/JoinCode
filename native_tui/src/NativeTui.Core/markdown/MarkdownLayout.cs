@@ -234,30 +234,50 @@ public static class MarkdownLayout
             .Select(column => Math.Max(3, CellDisplayWidth(table, column)))
             .ToArray();
 
-        lines.Add(TableRow(prefix, table.Headers, widths));
+        lines.Add(TableRow(prefix, table.Headers, widths, isHeader: true, table.Aligns ?? []));
         lines.Add(new List<MarkdownSegment>(prefix) { new(TableSeparator(widths), MarkdownStyle.None) });
         foreach (var row in table.Rows)
         {
-            lines.Add(TableRow(prefix, row, widths));
+            lines.Add(TableRow(prefix, row, widths, isHeader: false, table.Aligns ?? []));
         }
     }
 
-    /// <summary>表格数据行 — "| " + pad(单元格段) + " "（末格 " |"，对齐基准行尾 trimEnd）。</summary>
+    /// <summary>表格行 — "| " + 左补空格 + 单元格段 + 右补空格 + 行尾。
+    /// 表头恒居中（基准 MarkdownTable.tsx:217 "Headers always centered"）；数据列按 GFM 对齐
+    /// （None/Left 右补、Right 左补、Center 左右均分且余数偏右 — 对齐基准 padAligned）。</summary>
     private static List<MarkdownSegment> TableRow(
         IReadOnlyList<MarkdownSegment> prefix,
         IReadOnlyList<IReadOnlyList<MarkdownSegment>> cells,
-        int[] widths)
+        int[] widths,
+        bool isHeader,
+        IReadOnlyList<MarkdownTableAlign> aligns)
     {
         var line = new List<MarkdownSegment>(prefix);
         for (var column = 0; column < widths.Length; column++)
         {
             var cell = column < cells.Count ? cells[column] : [];
             var padding = widths[column] - SegmentsWidth(cell);
-            line.Add(new MarkdownSegment("| ", MarkdownStyle.None));
-            line.AddRange(cell);
-            if (padding > 0)
+            var align = isHeader
+                ? MarkdownTableAlign.Center
+                : column < aligns.Count ? aligns[column] : MarkdownTableAlign.None;
+            var leftPadding = align switch
             {
-                line.Add(new MarkdownSegment(new string(' ', padding), MarkdownStyle.None));
+                MarkdownTableAlign.Center => padding / 2,
+                MarkdownTableAlign.Right => padding,
+                _ => 0,
+            };
+            var rightPadding = padding - leftPadding;
+
+            line.Add(new MarkdownSegment("| ", MarkdownStyle.None));
+            if (leftPadding > 0)
+            {
+                line.Add(new MarkdownSegment(new string(' ', leftPadding), MarkdownStyle.None));
+            }
+
+            line.AddRange(cell);
+            if (rightPadding > 0)
+            {
+                line.Add(new MarkdownSegment(new string(' ', rightPadding), MarkdownStyle.None));
             }
 
             line.Add(new MarkdownSegment(column == widths.Length - 1 ? " |" : " ", MarkdownStyle.None));

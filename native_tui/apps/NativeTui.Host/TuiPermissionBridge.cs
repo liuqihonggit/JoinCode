@@ -15,20 +15,22 @@ public class TuiPermissionBridge {
     public void Bind(ReplShell shell) => _shell = shell;
 
     /// <summary>
-    /// 挂起权限对话框并等待用户选择 — 工具名/描述透传对话框，按键解除后映射引擎动作；
-    /// 未绑定 shell 时 Deny（降级不阻塞）。virtual 供测试替身（FakeBridge 先例）。
+    /// 挂起权限对话框并等待用户选择 — 工具名/描述透传对话框，按键解除后映射引擎动作，
+    /// 并带上用户按 Tab 填写的补充说明（P3）；未绑定 shell 时 Deny（降级不阻塞）。
+    /// virtual 供测试替身（FakeBridge 先例）。
     /// </summary>
-    public virtual PermissionConfirmAction Confirm(string toolName, string confirmationPrompt) {
+    public virtual PermissionConfirmResult Confirm(string toolName, string confirmationPrompt, string? ruleContent = null) {
         var shell = _shell;
         if (shell is null)
-            return PermissionConfirmAction.Deny;
+            return PermissionConfirmResult.Of(PermissionConfirmAction.Deny);
 
-        shell.BeginPermissionRequest(toolName, confirmationPrompt);
+        shell.BeginPermissionRequest(toolName, confirmationPrompt, ruleContent);
         var choice = shell.Permission.Wait().GetAwaiter().GetResult();  // style-allow: sync-block — TUI 权限同步桥: UI 线程同步等待用户选择
-        return choice switch {
+        var action = choice switch {
             PermissionChoice.Allow => PermissionConfirmAction.Allow,
             PermissionChoice.AlwaysAllow => PermissionConfirmAction.AlwaysAllow,
             _ => PermissionConfirmAction.Deny,
         };
+        return PermissionConfirmResult.Of(action, shell.Permission.Feedback);
     }
 }

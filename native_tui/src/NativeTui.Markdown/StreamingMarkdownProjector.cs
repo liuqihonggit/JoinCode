@@ -4,7 +4,7 @@ namespace NativeTui.Markdown;
 /// 流式 Markdown 增量投影器（方案 B — 块级增量，对齐基准 Markdown.tsx 块边界切分机制）：
 /// Markdig 解析累积全文取最后一个顶层块边界为切分点 — 边界前稳定前缀的完整块投影 memoize 追加
 ///（切分点推进才投影新跨过的块，旧块永不重投影），最后块为增长尾（每 delta 重新解析，
-/// 调用方纯文本渲染）；未闭合围栏尾标记 TailOpenFence（渲染 dim 提示态）。
+/// 尾块同样投影成块模型供调用方 Markdown 布局渲染 — TASK069-S2 对齐基准 unstableSuffix 渲染）。
 /// 无语法快路径（共享 MarkdigProjector.HasMarkdownSyntax 采样语义 — 流式与落定
 /// ProjectOptional 判定一致，视觉无跳变）；相同累积长度直接返回缓存投影
 ///（每帧 Measure/Render 只投影一次）。
@@ -42,12 +42,17 @@ public sealed class StreamingMarkdownProjector : IStreamingMarkdownProjector
         if (!MarkdigProjector.HasMarkdownSyntax(accumulated))
         {
             // 无语法快路径 — 纯文本全尾零解析（落定 ProjectOptional 同判定降级纯文本项，视觉一致）
-            return Cache(new StreamingMarkdownProjection([], accumulated, false), accumulated.Length);
+            // TailBlocks 留 null = 调用方纯文本行渲染（无需块模型的语法降级）
+            return Cache(new StreamingMarkdownProjection([], accumulated), accumulated.Length);
         }
 
-        var document = Markdig.Markdown.Parse(accumulated, MarkdigProjector.SharedPipeline);
+        // TASK069-S3 — 边界探测只 lex 未稳定窗口（对齐基准 Markdown.tsx:210
+        // 「Lex only from current boundary — O(unstable length), not O(full text)」）：
+        // _stableSplit 恒落在块边界，切片解析与全文解析在块级等价，切分点按窗口偏移换算回全文坐标
+        var window = accumulated[_stableSplit..];
+        var document = Markdig.Markdown.Parse(window, MarkdigProjector.SharedPipeline);
         var lastBlock = document.LastOrDefault();
-        var split = lastBlock?.Span.Start ?? 0;
+        var split = _stableSplit + (lastBlock?.Span.Start ?? 0);
         if (split > _stableSplit)
         {
             // 切分点推进 — 新跨过的完整块独立解析追加投影（块级局部性：块边界切片独立解析
@@ -59,8 +64,12 @@ public sealed class StreamingMarkdownProjector : IStreamingMarkdownProjector
         }
 
         var tail = accumulated[_stableSplit..];
-        var openFence = lastBlock is FencedCodeBlock { IsOpen: true };
-        return Cache(new StreamingMarkdownProjection(_stableBlocks, tail, openFence), accumulated.Length);
+        // TASK069-S2 — 尾块同样解析成块模型（对齐基准 StreamingMarkdown 把 unstableSuffix
+        // 交给 <Markdown> 完整渲染）：未闭合围栏被 Markdig 识别为 FencedCodeBlock，按代码样式呈现
+        var tailBlocks = tail.Length == 0
+            ? (IReadOnlyList<MarkdownBlock>)[]
+            : MarkdigProjector.ProjectBlocks(Markdig.Markdown.Parse(tail, MarkdigProjector.SharedPipeline));
+        return Cache(new StreamingMarkdownProjection(_stableBlocks, tail, tailBlocks), accumulated.Length);
     }
 
     /// <summary>记录缓存并返回（帧内重复调用复用）。</summary>

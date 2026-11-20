@@ -23,28 +23,33 @@ public sealed class GuiPermissionConfirmationHandler : IPermissionConfirmationHa
     }
 
     /// <inheritdoc/>
-    public async Task<PermissionConfirmAction> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default) {
+    /// <remarks>
+    /// GUI 弹窗（浏览器 PermissionPrompt / Avalonia PermissionDialog）当前只采集动作，不采集补充说明 —
+    /// 因此 <see cref="PermissionConfirmResult.Feedback"/> 恒为 null（与 CLI <c>^</c> 提示符同状态）。
+    /// 采集通道要动 web 协议的 <c>permission/response</c> 载荷与两个前端的输入框，属独立任务。
+    /// </remarks>
+    public async Task<PermissionConfirmResult> ConfirmAsync(string toolName, string confirmationPrompt, string? ruleContent = null, CancellationToken cancellationToken = default) {
         var handler = Handler;
         if (handler is null || cancellationToken.IsCancellationRequested)
-            return PermissionConfirmAction.Deny;
+            return PermissionConfirmResult.Of(PermissionConfirmAction.Deny);
 
         PermissionConfirmationDecision decision;
         try {
             decision = await handler(
-                new PermissionConfirmationRequest(toolName, confirmationPrompt, RequestId: null, RuleContent: null) {
+                new PermissionConfirmationRequest(toolName, confirmationPrompt, RequestId: null, RuleContent: ruleContent) {
                     DangerLevel = DangerLevelPromptParser.ParseLevelFromPrompt(confirmationPrompt)
                 }).WaitAsync(cancellationToken);
         } catch (OperationCanceledException) {
-            return PermissionConfirmAction.Deny;
+            return PermissionConfirmResult.Of(PermissionConfirmAction.Deny);
         }
 
         if (decision == PermissionConfirmationDecision.Deny)
-            return PermissionConfirmAction.Deny;
+            return PermissionConfirmResult.Of(PermissionConfirmAction.Deny);
 
         ApproveDecision(toolName, confirmationPrompt, decision == PermissionConfirmationDecision.AlwaysAllow);
-        return decision == PermissionConfirmationDecision.AlwaysAllow
+        return PermissionConfirmResult.Of(decision == PermissionConfirmationDecision.AlwaysAllow
             ? PermissionConfirmAction.AlwaysAllow
-            : PermissionConfirmAction.Allow;
+            : PermissionConfirmAction.Allow);
     }
 
     /// <summary>批准副作用 — 临时批准工具（时长按决策）+ 会话级批准危险等级，与 CLI 同源</summary>

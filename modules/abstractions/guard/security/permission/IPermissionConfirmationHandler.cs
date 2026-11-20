@@ -10,9 +10,31 @@ public interface IPermissionConfirmationHandler {
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <param name="confirmationPrompt">确认提示文本</param>
+    /// <param name="ruleContent">触发本次确认的规则内容（如 WebFetch 的 <c>domain:example.com</c>；
+    /// 无结构化来源时为 null — TASK069-P5 触发原因区数据源）</param>
     /// <param name="cancellationToken">取消令牌 — 取消视为拒绝（fail-closed）</param>
-    /// <returns>用户确认结果</returns>
-    Task<PermissionConfirmAction> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default);
+    /// <returns>用户确认结果（动作 + 可选反馈说明）</returns>
+    Task<PermissionConfirmResult> ConfirmAsync(string toolName, string confirmationPrompt, string? ruleContent = null, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// 权限确认结果 — 动作 + 用户补充说明（TASK069-P3，对齐基准 <c>PermissionPrompt</c> 的
+/// <c>onSelect(value, feedback)</c>：选项可按 Tab 展开输入框填写说明）。
+/// Feedback 会被 <see cref="PermissionConfirmAction.Deny"/> 拼进拒绝消息、被 Allow 追加到工具结果，
+/// 让模型知道「用户不是简单拒绝，而是希望换个做法」。
+/// </summary>
+public sealed record PermissionConfirmResult {
+    /// <summary>用户选择的确认动作。</summary>
+    public required PermissionConfirmAction Action { get; init; }
+
+    /// <summary>用户补充说明（空白归一为 null — 基准 trim 后为空即视为未填写）。</summary>
+    public string? Feedback { get; init; }
+
+    /// <summary>构造确认结果 — 反馈按 trim 归一（空白 → null）。</summary>
+    /// <param name="action">确认动作。</param>
+    /// <param name="feedback">用户补充说明（可空）。</param>
+    public static PermissionConfirmResult Of(PermissionConfirmAction action, string? feedback = null) =>
+        new() { Action = action, Feedback = string.IsNullOrWhiteSpace(feedback) ? null : feedback.Trim() };
 }
 
 /// <summary>

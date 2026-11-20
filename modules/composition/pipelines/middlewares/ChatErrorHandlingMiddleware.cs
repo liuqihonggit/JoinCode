@@ -67,6 +67,13 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
             return workflowEx;
 
         if (ex is System.Net.Http.HttpRequestException httpEx) {
+            // TASK069-E1 — SSL/TLS 证书失败先判（对齐基准 formatAPIError 的 isSSLError 分支）：
+            // 这类失败 StatusCode 恒 null，落进通用分支只会变成「网络请求失败: 裸异常消息」，
+            // 而实际根因通常是企业代理 / TLS 拦截，需要可操作提示。
+            if (IsSslFailure(httpEx)) {
+                return ApiException.SslCertificate(GetEndpointHint(ex), DescribeSslFailure(httpEx));
+            }
+
             var statusCode = (int?)httpEx.StatusCode;
             return statusCode switch {
                 401 => ApiException.Authentication(GetEndpointHint(ex), "API Key 无效或已过期。请检查供应商专属环境变量（如 OPENAI_API_KEY、DEEPSEEK_API_KEY）配置。"),
@@ -89,6 +96,38 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
             return ApiException.Timeout(GetEndpointHint(ex));
 
         return new ApiException($"对话管道异常: {ex.Message}", ex, errorCode: ErrorCode.WorkflowExecution.ToValue());
+    }
+
+    /// <summary>
+    /// 是否 TLS/证书握手失败（TASK069-E1）：.NET 侧以 <see cref="System.Net.Http.HttpRequestError.SecureConnectionError"/>
+    /// 标记，或内部异常为 <see cref="System.Security.Authentication.AuthenticationException"/>
+    ///（证书链/名称校验失败的统一载体 — 对齐基准 SSL_ERROR_CODES 一组 Node 错误码的语义）。
+    /// </summary>
+    internal static bool IsSslFailure(System.Net.Http.HttpRequestException ex) =>
+        ex.HttpRequestError == System.Net.Http.HttpRequestError.SecureConnectionError
+        || ex.InnerException is System.Security.Authentication.AuthenticationException;
+
+    /// <summary>
+    /// 证书失败原因本地化（基准 formatAPIError 的自签/过期/吊销/主机名/尚未生效分支 —
+    /// .NET 把这些都折成 AuthenticationException 的 OpenSSL 式文本，只能按关键字还原）。
+    /// </summary>
+    internal static string DescribeSslFailure(Exception ex) {
+        var message = ex.InnerException?.Message ?? ex.Message;
+        if (message.Contains("expired", StringComparison.OrdinalIgnoreCase))
+            return "SSL 证书已过期";
+        if (message.Contains("revoked", StringComparison.OrdinalIgnoreCase))
+            return "SSL 证书已被吊销";
+        if (message.Contains("not yet valid", StringComparison.OrdinalIgnoreCase))
+            return "SSL 证书尚未生效";
+        if (message.Contains("name mismatch", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("RemoteCertificateNameMismatch", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("hostname", StringComparison.OrdinalIgnoreCase))
+            return "SSL 证书主机名不匹配";
+        if (message.Contains("self-signed", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("self signed", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("SELF_SIGNED", StringComparison.OrdinalIgnoreCase))
+            return "检测到自签证书，证书链不受信任";
+        return "SSL 证书校验失败（证书链不受信任）";
     }
 
     internal static string GetEndpointHint(Exception ex) {

@@ -130,7 +130,7 @@ public sealed class InProcessEventConsumerTests
     }
 
     [Fact]
-    public void OnToolEnd_ErrorPrefixesSummary()
+    public void OnToolEnd_ErrorKeepsSummaryPlainAndSetsIsError()
     {
         var consumer = new InProcessEventConsumer();
 
@@ -138,7 +138,9 @@ public sealed class InProcessEventConsumerTests
 
         var events = consumer.DrainEvents();
         var result = Assert.IsType<BridgeEvent.ToolResult>(Assert.Single(events));
-        Assert.Equal("[error] boom", result.Summary);
+        // TASK069-M5 — 摘要纯内容（前缀/配色归渲染侧），错误语义走结构化字段
+        Assert.Equal("boom", result.Summary);
+        Assert.True(result.IsError);
     }
 
     [Fact]

@@ -25,20 +25,20 @@ public sealed class TuiPermissionConfirmationHandler(TuiPermissionBridge bridge,
     /// 挂起对话框等待用户确认并按结果临时批准 — 用户选择经 bridge 返回，
     /// 临时批准使 PermissionAwareToolExecutor 允许后重跑权限管道对本工具直接 Granted。
     /// </summary>
-    public PermissionConfirmAction Confirm(string toolName, string confirmationPrompt) {
-        var action = Bridge.Confirm(toolName, confirmationPrompt);
-        ApplyTemporaryApproval(toolName, confirmationPrompt, action);
-        return action;
+    public PermissionConfirmResult Confirm(string toolName, string confirmationPrompt, string? ruleContent = null) {
+        var result = Bridge.Confirm(toolName, confirmationPrompt, ruleContent);
+        ApplyTemporaryApproval(toolName, confirmationPrompt, result.Action);
+        return result;
     }
 
     /// <summary>
     /// 异步确认入口（ADR 0142 接口形态）— 取消视为拒绝（fail-closed，对齐 CLI 先例）；
     /// 同步转发 bridge 挂起对话框（TCS 异步续延，引擎回合线程等按键解除）。
     /// </summary>
-    public Task<PermissionConfirmAction> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default) {
+    public Task<PermissionConfirmResult> ConfirmAsync(string toolName, string confirmationPrompt, string? ruleContent = null, CancellationToken cancellationToken = default) {
         if (cancellationToken.IsCancellationRequested)
-            return Task.FromResult(PermissionConfirmAction.Deny);
-        return Task.FromResult(Confirm(toolName, confirmationPrompt));
+            return Task.FromResult(PermissionConfirmResult.Of(PermissionConfirmAction.Deny));
+        return Task.FromResult(Confirm(toolName, confirmationPrompt, ruleContent));
     }
 
     /// <summary>按确认结果应用临时批准（工具档位时长 + levelTag 同级批准 — Deny 不批准）。</summary>

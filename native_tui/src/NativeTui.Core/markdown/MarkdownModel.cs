@@ -75,10 +75,29 @@ public sealed record MarkdownList(bool Ordered, int Start, IReadOnlyList<Markdow
 /// <summary>分隔线 — 渲染为 "---" 三字符（基准 hr，非全宽线）。</summary>
 public sealed record MarkdownRule() : MarkdownBlock;
 
-/// <summary>表格 — 单元格为段序列（保留行内样式）；列宽 = max(显示宽, 3)，"|" 竖线 + "---" 分隔行（基准 formatToken table）。</summary>
+/// <summary>表格列对齐（TASK069-M4 — GFM 表格分隔行语义：`:--` 左 / `:-:` 居中 / `--:` 右；
+/// 对齐基准 MarkdownTable.tsx:217「Headers always centered; data uses table alignment」）。</summary>
+public enum MarkdownTableAlign
+{
+    /// <summary>未指定（按左对齐渲染 — GFM 缺省）。</summary>
+    None = 0,
+
+    /// <summary>左对齐。</summary>
+    Left,
+
+    /// <summary>居中。</summary>
+    Center,
+
+    /// <summary>右对齐。</summary>
+    Right,
+}
+
+/// <summary>表格 — 单元格为段序列（保留行内样式）；列宽 = max(显示宽, 3)，"|" 竖线 + "---" 分隔行（基准 formatToken table）。
+/// Aligns 为各列 GFM 对齐（null = 未提供，全部按左对齐；表头恒居中由布局层施加）。</summary>
 public sealed record MarkdownTable(
     IReadOnlyList<IReadOnlyList<MarkdownSegment>> Headers,
-    IReadOnlyList<IReadOnlyList<IReadOnlyList<MarkdownSegment>>> Rows) : MarkdownBlock;
+    IReadOnlyList<IReadOnlyList<IReadOnlyList<MarkdownSegment>>> Rows,
+    IReadOnlyList<MarkdownTableAlign>? Aligns = null) : MarkdownBlock;
 
 /// <summary>Markdown 文档根 — 顶层块序列；顶层块间空 1 行（对齐基准 Box gap 视觉主路径）。</summary>
 public sealed record MarkdownDocument(IReadOnlyList<MarkdownBlock> Blocks);

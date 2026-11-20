@@ -107,7 +107,7 @@ public sealed class TuiPermissionConfirmationTests {
         var confirmTask = Task.Run(() => bridge.Confirm("Bash", "run tests"));
         WaitUntil(() => shell.Permission.IsPending);
         shell.HandleKey(new ConsoleKeyInfo(key, ConsoleKey.D1 + (key - '1'), false, false, false));
-        return await confirmTask;
+        return (await confirmTask).Action;
     }
 
     // ---- TuiInteractionModule ----
@@ -135,7 +135,7 @@ public sealed class TuiPermissionConfirmationTests {
     public void Bridge_ConfirmWithoutShell_Denies() {
         var bridge = new TuiPermissionBridge();
 
-        Assert.Equal(PermissionConfirmAction.Deny, bridge.Confirm("Bash", "run tests"));
+        Assert.Equal(PermissionConfirmAction.Deny, bridge.Confirm("Bash", "run tests").Action);
     }
 
     /// <summary>绑定后 — Confirm 挂起对话框（工具名/描述透传）→ 数字 1 解除 → Allow。</summary>
@@ -160,7 +160,7 @@ public sealed class TuiPermissionConfirmationTests {
         var denyTask = Task.Run(() => bridge2.Confirm("Bash", "x"));
         WaitUntil(() => shell2.Permission.IsPending);
         shell2.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Escape, false, false, false));
-        Assert.Equal(PermissionConfirmAction.Deny, await denyTask);
+        Assert.Equal(PermissionConfirmAction.Deny, (await denyTask).Action);
     }
 
     /// <summary>数字 2 — AlwaysAllow。</summary>
@@ -179,9 +179,9 @@ public sealed class TuiPermissionConfirmationTests {
         var manager = new FakePermissionManager();
         var handler = new TuiPermissionConfirmationHandler(new FakeBridge(PermissionConfirmAction.Allow), manager);
 
-        var action = handler.Confirm("Bash", "run tests");
+        var result = handler.Confirm("Bash", "run tests");
 
-        Assert.Equal(PermissionConfirmAction.Allow, action);
+        Assert.Equal(PermissionConfirmAction.Allow, result.Action);
         Assert.Equal([("Bash", TimeSpan.FromMinutes(1))], manager.Approvals);
     }
 
@@ -205,7 +205,7 @@ public sealed class TuiPermissionConfirmationTests {
         var manager = new FakePermissionManager();
         var handler = new TuiPermissionConfirmationHandler(new FakeBridge(PermissionConfirmAction.Deny), manager);
 
-        Assert.Equal(PermissionConfirmAction.Deny, handler.Confirm("Bash", "run tests"));
+        Assert.Equal(PermissionConfirmAction.Deny, handler.Confirm("Bash", "run tests").Action);
         Assert.Empty(manager.Approvals);
     }
 
@@ -220,10 +220,130 @@ public sealed class TuiPermissionConfirmationTests {
         Assert.Contains(manager.LevelApprovals, l => l == CommandDangerLevel.Execution);
     }
 
-    /// <summary>固定动作假 bridge — handler 单元测试解耦 shell。</summary>
-    private sealed class FakeBridge(PermissionConfirmAction action) : TuiPermissionBridge {
-        /// <summary>返回固定动作。</summary>
-        public override PermissionConfirmAction Confirm(string toolName, string confirmationPrompt) => action;
+    /// <summary>固定动作假 bridge — handler 单元测试解耦 shell；捕获收到的触发原因规则内容（P5）。</summary>
+    private sealed class FakeBridge(PermissionConfirmAction action, string? feedback = null) : TuiPermissionBridge {
+        /// <summary>最后一次 Confirm 收到的 ruleContent（P5 透传断言用）。</summary>
+        public string? LastRuleContent { get; private set; }
+
+        /// <summary>返回固定动作与反馈，并记录规则内容。</summary>
+        public override PermissionConfirmResult Confirm(string toolName, string confirmationPrompt, string? ruleContent = null) {
+            LastRuleContent = ruleContent;
+            return PermissionConfirmResult.Of(action, feedback);
+        }
+    }
+
+    // ---- TASK069-P3 反馈透传 ----
+
+    /// <summary>
+    /// 拒绝并填写说明 — bridge 把用户原话带给引擎（Tab 展开输入 → 逐字输入 → Enter 提交）。
+    /// 焦点移到「No」档后 Tab 进输入态，此时数字/字母属于正文而非快捷选档。
+    /// </summary>
+    [Fact]
+    public async Task Bridge_CarriesRejectFeedback() {
+        var (bridge, shell) = CreateBound();
+        var confirmTask = Task.Run(() => bridge.Confirm("Bash", "run tests"));
+        WaitUntil(() => shell.Permission.IsPending);
+
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.DownArrow));
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.DownArrow));
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.Tab));
+        Assert.True(shell.Permission.FeedbackInputActive);
+
+        foreach (var ch in "用 ls")
+        {
+            shell.HandleRawKeyPress(KeyPress.Char(ch.ToString()));
+        }
+
+        // 输入态下数字不触发选档（仍进正文）
+        shell.HandleRawKeyPress(KeyPress.Char("2"));
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.Return));
+
+        var result = await confirmTask;
+        Assert.Equal(PermissionConfirmAction.Deny, result.Action);
+        Assert.Equal("用 ls2", result.Feedback);
+    }
+
+    /// <summary>未填说明时 Feedback 为 null（拒绝文案保持原样 — 现状零变化）。</summary>
+    [Fact]
+    public async Task Bridge_WithoutFeedback_ReturnsNullFeedback() {
+        var (bridge, shell) = CreateBound();
+        var confirmTask = Task.Run(() => bridge.Confirm("Bash", "run tests"));
+        WaitUntil(() => shell.Permission.IsPending);
+
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.DownArrow));
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.DownArrow));
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.Return));
+
+        var result = await confirmTask;
+        Assert.Equal(PermissionConfirmAction.Deny, result.Action);
+        Assert.Null(result.Feedback);
+    }
+
+    /// <summary>允许时填写的说明同样透传（基准 acceptFeedback 追加到工具结果）。</summary>
+    [Fact]
+    public async Task Bridge_CarriesAcceptFeedback() {
+        var (bridge, shell) = CreateBound();
+        var confirmTask = Task.Run(() => bridge.Confirm("Bash", "run tests"));
+        WaitUntil(() => shell.Permission.IsPending);
+
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.Tab));
+        shell.HandleRawKeyPress(KeyPress.Char("r"));
+        shell.HandleRawKeyPress(KeyPress.Char("u"));
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.Return));
+
+        var result = await confirmTask;
+        Assert.Equal(PermissionConfirmAction.Allow, result.Action);
+        Assert.Equal("ru", result.Feedback);
+    }
+
+    /// <summary>handler 透传反馈（bridge 给出即原样返回 — handler 只加临时批准副作用）。</summary>
+    [Fact]
+    public void Handler_PassesFeedbackThrough() {
+        var handler = new TuiPermissionConfirmationHandler(new FakeBridge(PermissionConfirmAction.Deny, "别删，改成备份"));
+
+        var result = handler.Confirm("Bash", "rm -rf build");
+
+        Assert.Equal(PermissionConfirmAction.Deny, result.Action);
+        Assert.Equal("别删，改成备份", result.Feedback);
+    }
+
+    // ---- TASK069-P5 触发原因透传 ----
+
+    /// <summary>bridge 把引擎给的规则内容带进挂起请求（对话框据此渲染原因是唯一数据源）。</summary>
+    [Fact]
+    public async Task Bridge_CarriesRuleContentIntoRequest() {
+        var (bridge, shell) = CreateBound();
+        var confirmTask = Task.Run(() => bridge.Confirm("WebFetch", "是否允许访问？", "domain:example.com"));
+        WaitUntil(() => shell.Permission.IsPending);
+
+        Assert.Equal("domain:example.com", shell.Permission.Request?.RuleContent);
+
+        shell.HandleRawKeyPress(KeyPress.Char("3"));
+        await confirmTask;
+    }
+
+    /// <summary>无规则内容时挂起请求保持空串（对话框整区折叠 — 不编造原因）。</summary>
+    [Fact]
+    public async Task Bridge_WithoutRuleContent_KeepsEmpty() {
+        var (bridge, shell) = CreateBound();
+        var confirmTask = Task.Run(() => bridge.Confirm("Bash", "run tests"));
+        WaitUntil(() => shell.Permission.IsPending);
+
+        Assert.Equal(string.Empty, shell.Permission.Request?.RuleContent);
+
+        shell.HandleRawKeyPress(KeyPress.Char("3"));
+        await confirmTask;
+    }
+
+    /// <summary>handler 把引擎的 ruleContent 原样转给 bridge（中间层不得丢弃或无中生有）。</summary>
+    [Fact]
+    public void Handler_PassesRuleContentToBridge() {
+        var bridge = new FakeBridge(PermissionConfirmAction.Allow);
+        var handler = new TuiPermissionConfirmationHandler(bridge, new FakePermissionManager());
+
+        handler.Confirm("WebFetch", "是否允许访问？", "domain:example.com");
+
+        Assert.Equal("domain:example.com", bridge.LastRuleContent);
     }
 
     /// <summary>引擎 DI 解析 handler（真 bridge 注入路径 — Program 组装等价冒烟）。</summary>
@@ -241,6 +361,6 @@ public sealed class TuiPermissionConfirmationTests {
         var resolved = provider.GetRequiredService<IPermissionConfirmationHandler>();
 
         Assert.IsType<TuiPermissionConfirmationHandler>(resolved);
-        Assert.Equal(PermissionConfirmAction.Deny, await resolved.ConfirmAsync("Bash", "x"));
+        Assert.Equal(PermissionConfirmAction.Deny, (await resolved.ConfirmAsync("Bash", "x")).Action);
     }
 }

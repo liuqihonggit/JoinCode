@@ -81,6 +81,20 @@ public class ApiException : WorkflowException {
     }
 
     /// <summary>
+    /// 创建 SSL/TLS 证书异常（对齐基准 formatAPIError 的 isSSLError 分支：
+    /// 企业代理 / TLS 拦截网关下最常见的失败形态，给可操作提示而非裸 SocketException）。
+    /// </summary>
+    /// <param name="endpoint">端点提示（供应商名或 URL 片段）</param>
+    /// <param name="reason">证书失败原因（已本地化的具体描述）</param>
+    public static ApiException SslCertificate(string endpoint, string reason) {
+        return new ApiException(
+            $"无法连接到 API：{reason}。若通过企业代理或 TLS 拦截网关上网，请检查代理配置" +
+            "或将对应的根证书导入系统证书存储",
+            endpoint: endpoint,
+            errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiConnection.ToValue());
+    }
+
+    /// <summary>
     /// 创建限流异常
     /// </summary>
     public static ApiException RateLimit(string endpoint, TimeSpan? retryAfter = null) {

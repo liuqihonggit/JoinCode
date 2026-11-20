@@ -130,7 +130,21 @@ public sealed class AssistantMessageItem(string text, int thinkingDurationMs = 0
 /// IToolCallInfo — 消息操作域复制面契约（ToolName/Args 公开 — CopyTextExtractor 主参数提取接线）。
 /// ITextMatchable — transcript 搜索匹配（toolName/args，M8-3）。
 /// </summary>
-public sealed class ToolCallItem : IScrollItem, ICursorNavigable, IToolCallInfo, ITextMatchable
+/// <summary>工具调用状态（TASK069-M2 — 对齐基准 ToolUseLoader 的 isUnresolved/isError 两轴：
+/// Pending = 未决（● dim + 闪烁）/ Success（● success 色）/ Error（● error 色））。</summary>
+public enum ToolCallStatus
+{
+    /// <summary>执行中（未决）— ● 默认前景 + dim + 600ms 方波闪烁。</summary>
+    Pending = 0,
+
+    /// <summary>成功完成 — ● success 色恒亮。</summary>
+    Success,
+
+    /// <summary>失败 — ● error 色恒亮。</summary>
+    Error,
+}
+
+public sealed class ToolCallItem : IScrollItem, ICursorNavigable, IToolCallInfo, ITextMatchable, IAnimatable
 {
     /// <summary>显示工具名（Edit Create/Update 派生后的标题行名称）。</summary>
     private readonly string _displayToolName;
@@ -163,17 +177,27 @@ public sealed class ToolCallItem : IScrollItem, ICursorNavigable, IToolCallInfo,
     /// <summary>派生后的参数摘要（多行命令含 \n — 高度与渲染按行拆分）。</summary>
     public string DisplayArgs => _displayArgs;
 
+    /// <summary>执行状态（TASK069-M2 — ● 颜色/闪烁依据；Driver 在 tool_result 到达时回填）。</summary>
+    public ToolCallStatus Status { get; set; } = ToolCallStatus.Pending;
+
+    /// <summary>动画时钟（ReplShell 每 50ms 广播 — 仅 Pending 态 ● 闪烁消费）。</summary>
+    public long AnimTimeMs { get; set; }
+
     /// <summary>内容高度 = margin 1 + 标题行数（单行参数 1 + 多行命令续行数）。</summary>
     public int MeasureHeight(int width) => 1 + _displayLines.Length;
 
-    /// <summary>渲染：margin 留空 → 标题行（多行命令按行拆分渲染，续行缩进对齐参数列）。</summary>
+    /// <summary>渲染：margin 留空 → 标题行（多行命令按行拆分渲染，续行缩进对齐参数列）；
+    /// ● 状态色/闪烁按 <see cref="Status"/> 与 <see cref="AnimTimeMs"/> 施加。</summary>
     public void Render(Screen screen, Rect frame, Theme theme) =>
         MessageRenderer.RenderToolCall(
             screen,
             frame with { Y = frame.Y + 1, Height = _displayLines.Length },
             theme,
             _displayToolName,
-            _displayArgs);
+            _displayArgs,
+            isActive: Status == ToolCallStatus.Pending,
+            hasError: Status == ToolCallStatus.Error,
+            animTimeMs: AnimTimeMs);
 
     /// <summary>工具名 + 参数匹配。</summary>
     public bool ContainsText(string query) =>
@@ -213,6 +237,9 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// <summary>构造期预高亮的各 hunk 各行 token 色段（TASK066 F1 — null = 无高亮能力/语言不支持全降级）。</summary>
     private readonly IReadOnlyList<HighlightSpan>?[][]? _syntaxSpans;
 
+    /// <summary>错误块行缓存（TASK069-M5 — 归一后的错误内容按行拆分；错误形态唯一显示数据源）。</summary>
+    private readonly string[] _errorLines;
+
     /// <summary>纯摘要形态（旧调用兼容 — 排队反馈/未登录提示等无输出场景）。</summary>
     public ToolResultItem(string text) : this(text, null, null, 0)
     {
@@ -223,24 +250,30 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// rawOutput 原始终端输出（折叠数据源，item 持有全量供展开）/ hiddenLines 引擎侧算好的隐藏行数 /
     /// previewLimit 预览上限（Bash=3 默认、Write=10 由 Driver 传 ToolFoldingPolicy.MaxWritePreviewLines）/
     /// codeHighlighter 代码高亮插件（TASK066 F1 — null = 高亮禁用降级纯 diff 色，对齐
-    /// MarkdownMessageItem(document, highlighter) 注入先例）。
+    /// MarkdownMessageItem(document, highlighter) 注入先例）/
+    /// isError 错误形态（TASK069-M5 — 对齐基准 FallbackToolUseErrorMessage：归一为 `Error: ` 前缀的
+    /// error 色块，最多 MaxErrorRenderLines 行 + 展开引导；错误块取 RawOutput 全量，摘要仅单行兜底）。
     /// 构造期预计算 gutter 行号 + 语法色段（ToolCallItem._displayLines 先例 — 渲染帧拍零推导成本）。
     /// </summary>
     public ToolResultItem(string summary, DiffHunk[]? patch, string? rawOutput, int hiddenLines,
         int previewLimit = ToolFoldingPolicy.MaxToolOutputLines,
-        ICodeHighlighter? codeHighlighter = null)
+        ICodeHighlighter? codeHighlighter = null,
+        bool isError = false)
     {
 
         HitTestId = $"tool-result:{Interlocked.Increment(ref _hitIdCounter)}";
         Summary = summary;
         Patch = patch;
+        Stats = patch is { Length: > 0 } ? DiffStats.From(patch) : null;
         RawOutput = rawOutput;
         HiddenLines = hiddenLines;
         PreviewLimit = previewLimit;
+        IsError = isError;
         _outputLines = SplitRawOutput(rawOutput);
         _gutterDigits = patch is { Length: > 0 } ? DiffGutter.GutterDigits(patch) : 0;
         _lineNumbers = patch is { Length: > 0 } ? patch.Select(DiffGutter.AssignLineNumbers).ToArray() : [];
         _syntaxSpans = HighlightPatchLines(patch, codeHighlighter, summary);
+        _errorLines = isError ? SplitErrorLines(ErrorText) : [];
     }
 
     /// <summary>结果摘要（首行 ⎿ 正文；空串不占行）。</summary>
@@ -252,6 +285,13 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// <summary>结构化补丁 hunks（null = 无补丁不渲染 diff 块）。</summary>
     public DiffHunk[]? Patch { get; }
 
+    /// <summary>diff 统计（TASK069-M3 — 有 patch 时归纳；空 patch / 无 patch 为 null）。
+    /// 统计行取代引擎摘要成为结果首行（基准 FileEditToolUpdatedMessage 只显示增删统计）。</summary>
+    public DiffStats? Stats { get; }
+
+    /// <summary>结果首行文本（有统计用统计文案，否则引擎摘要）— 渲染/导出/搜索共用同一份。</summary>
+    public string DisplaySummary => Stats is { IsEmpty: false } stats ? stats.ToText() : Summary;
+
     /// <summary>原始终端输出全量（null = 无输出块；展开态消费完整数据 — ctrl+o）。</summary>
     public string? RawOutput { get; }
 
@@ -260,6 +300,21 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
 
     /// <summary>输出预览行数上限（Bash 3 / Write 10）。</summary>
     public int PreviewLimit { get; }
+
+    /// <summary>错误形态（TASK069-M5 — true 走 error 色块渲染，摘要行/输出折叠块让位）。</summary>
+    public bool IsError { get; }
+
+    /// <summary>错误块全文（归一后带 `Error: ` 前缀 — 原始输出优先，摘要仅单行兜底；
+    /// 渲染与 transcript 投影共用同一份内容）。</summary>
+    public string ErrorText => ToolErrorText.Normalize(RawOutput ?? Summary);
+
+    /// <summary>错误块渲染行数 — 展开态全量；折叠态 MaxErrorRenderLines 上限。</summary>
+    private int RenderedErrorRows => IsExpanded
+        ? _errorLines.Length
+        : Math.Min(_errorLines.Length, ToolFoldingPolicy.MaxErrorRenderLines);
+
+    /// <summary>错误块折叠提示（折叠态超出 10 行才出 — 基准 plusLines &gt; 0）。</summary>
+    private bool ShowsErrorHint => !IsExpanded && _errorLines.Length > ToolFoldingPolicy.MaxErrorRenderLines;
 
     /// <summary>展开态（Ctrl+O 切换 — Driver 接线；展开时 RawOutput 全量渲染）。</summary>
     public bool IsExpanded { get; private set; }
@@ -292,24 +347,61 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     private bool ShowsOutputHint =>
         !IsExpanded && RawOutput is not null && _outputLines.Length > 0 && ToolFoldingPolicy.ShowsCollapseHint(HiddenLines);
 
-    /// <summary>内容高度 = margin 1 + summary 0/1 + patch 预览 + patch 提示 0/1 + 输出行 + 输出提示 0/1。</summary>
-    public int MeasureHeight(int width) =>
-        1
-        + (Summary.Length > 0 ? 1 : 0)
-        + RenderedPatchRows + (ShowsPatchHint ? 1 : 0)
-        + VisibleOutputRowCount + (ShowsOutputHint ? 1 : 0);
+    /// <summary>内容高度 = margin 1 + （错误块行数 + 折叠提示 | summary 0/1 + patch 预览 + patch 提示 0/1
+    /// + 输出行 + 输出提示 0/1）。错误形态单块承载全文，不再叠摘要行与输出预览。</summary>
+    public int MeasureHeight(int width) => IsError
+        ? 1
+            + RenderedErrorRows + (ShowsErrorHint ? 1 : 0)
+            + RenderedPatchRows + (ShowsPatchHint ? 1 : 0)
+        : 1
+            + (DisplaySummary.Length > 0 ? 1 : 0)
+            + RenderedPatchRows + (ShowsPatchHint ? 1 : 0)
+            + VisibleOutputRowCount + (ShowsOutputHint ? 1 : 0);
 
-    /// <summary>渲染：margin 留空 → summary ⎿ 行 → patch 预览块 + 折叠提示 → 输出折叠块 + 折叠提示。</summary>
+    /// <summary>渲染：margin 留空 → 错误块（error 色多行 + 折叠提示）或 summary ⎿ 行 →
+    /// patch 预览块 + 折叠提示 → 输出折叠块 + 折叠提示。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
-        var row = RenderSummaryRow(screen, frame, theme, frame.Y + 1);
+        var row = IsError
+            ? RenderErrorRows(screen, frame, theme, frame.Y + 1)
+            : RenderSummaryRow(screen, frame, theme, frame.Y + 1);
         row = RenderPatchRows(screen, frame, theme, row);
+        if (IsError)
+        {
+            return;
+        }
+
         RenderOutputRows(screen, frame, theme, row);
     }
 
-    /// <summary>summary 行渲染（空摘要跳过不占行）。</summary>
+    /// <summary>错误块渲染 — 每行 error 色（首行 ⎿ 前缀 dim，续行缩进对齐）+ 超限折叠提示。</summary>
+    private int RenderErrorRows(Screen screen, Rect frame, Theme theme, int row)
+    {
+        var rendered = RenderedErrorRows;
+        for (var i = 0; i < rendered; i++)
+        {
+            MessageRenderer.RenderToolErrorLine(screen, RowFrame(frame, row), theme, _errorLines[i], i == 0);
+            row++;
+        }
+
+        if (ShowsErrorHint)
+        {
+            MessageRenderer.RenderErrorCollapseHint(screen, RowFrame(frame, row), theme, _errorLines.Length - rendered);
+            row++;
+        }
+
+        return row;
+    }
+
+    /// <summary>summary 行渲染（空摘要跳过不占行；有 diff 统计时统计行取代引擎摘要）。</summary>
     private int RenderSummaryRow(Screen screen, Rect frame, Theme theme, int row)
     {
+        if (Stats is { IsEmpty: false } stats)
+        {
+            MessageRenderer.RenderDiffStats(screen, RowFrame(frame, row), theme, stats);
+            return row + 1;
+        }
+
         if (Summary.Length == 0)
         {
             return row;
@@ -421,6 +513,10 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         return row;
     }
 
+    /// <summary>拆分错误块行 — 已归一文本按 \n 切分（空内容保留裸前缀单行 — 基准同形）。</summary>
+    private static string[] SplitErrorLines(string normalized) =>
+        normalized.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+
     /// <summary>拆分输出行 — null 空数组；尾部空白修剪（基准 renderTruncatedContent trimEnd）后空为无输出占位；\r 行尾清理。</summary>
     private static string[] SplitRawOutput(string? rawOutput)
     {
@@ -436,9 +532,11 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// <summary>单行 frame（Y 为该渲染行，高度 1）。</summary>
     private static Rect RowFrame(Rect frame, int row) => frame with { Y = row, Height = 1 };
 
-    /// <summary>摘要 + diff 行内容匹配（transcript 搜索）。</summary>
+    /// <summary>首行文本 + diff 行内容匹配（transcript 搜索）；错误形态按错误块全文匹配。</summary>
     public bool ContainsText(string query) =>
-        Summary.Contains(query, StringComparison.OrdinalIgnoreCase)
+        DisplaySummary.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || Summary.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || (IsError && ErrorText.Contains(query, StringComparison.OrdinalIgnoreCase))
         || (Patch?.Any(hunk => hunk.Lines.Any(line => line.Content.Contains(query, StringComparison.OrdinalIgnoreCase))) ?? false);
 }
 
@@ -455,8 +553,11 @@ public sealed class DiffResultItem(string summary, DiffHunk[] patch, ICodeHighli
     /// <summary>渲染/测量核心（统一契约构造 — 无 RawOutput 的纯 patch 形态 + 高亮器透传）。</summary>
     private readonly ToolResultItem _core = new(summary, patch, null, 0, codeHighlighter: codeHighlighter);
 
-    /// <summary>工具结果摘要（首行 ⎿ 正文）。</summary>
+    /// <summary>工具结果摘要（引擎原文 — 首行实际文案见 DisplaySummary）。</summary>
     public string Summary => summary;
+
+    /// <summary>首行实际文案（TASK069-M3 — 有 patch 时是 `Added N lines, removed M lines`）。</summary>
+    public string DisplaySummary => _core.DisplaySummary;
 
     /// <summary>结构化补丁 hunks（驱动侧断言与渲染共享）。</summary>
     public DiffHunk[] Patch => patch;
@@ -477,21 +578,48 @@ public sealed class DiffResultItem(string summary, DiffHunk[] patch, ICodeHighli
     public bool ContainsText(string query) => _core.ContainsText(query);
 }
 
-/// <summary>错误消息项（● theme.Error 红色 + 正文，bridge error 事件载体）。</summary>
+/// <summary>错误消息项（● theme.Error 红色 + 正文，bridge error 事件载体）。
+/// TASK069-E4 — 正文超 <see cref="ToolFoldingPolicy.MaxApiErrorChars"/> 时截断并追加 dim
+/// `(ctrl+o 展开)` 引导（ctrl+o 进 transcript 看全文，对齐基准 MAX_API_ERROR_CHARS 语义）；
+/// 含换行时逐行渲染（续行 2 列缩进）— 此前 '\n' 被 WriteText 零宽规则吞掉挤成一行。</summary>
 public sealed class ErrorMessageItem(string text) : IScrollItem, ICursorNavigable, ITextMatchable
 {
-    /// <summary>错误正文。</summary>
+    /// <summary>正文行缓存（截断后按 \n 拆分；构造期算好，渲染帧拍零重复处理）。</summary>
+    private readonly string[] _lines = Truncate(text).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+
+    /// <summary>错误正文全文（搜索/transcript 投影用 — 渲染按行截断）。</summary>
     public string Text { get; } = text;
 
-    /// <summary>内容高度 = margin 1 + 正文 1。</summary>
-    public int MeasureHeight(int width) => 2;
+    /// <summary>是否已截断（渲染展开引导依据）。</summary>
+    public bool IsTruncated => Text.Length > ToolFoldingPolicy.MaxApiErrorChars;
 
-    /// <summary>margin 行留空，正文画在 frame.Y+1。</summary>
-    public void Render(Screen screen, Rect frame, Theme theme) =>
-        MessageRenderer.RenderError(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, Text);
+    /// <summary>内容高度 = margin 1 + 正文行数 + 截断引导 0/1。</summary>
+    public int MeasureHeight(int width) => 2 + (_lines.Length - 1) + (IsTruncated ? 1 : 0);
 
-    /// <summary>错误正文匹配。</summary>
+    /// <summary>margin 行留空，正文从 frame.Y+1 起逐行渲染，截断时末行加 dim 引导。</summary>
+    public void Render(Screen screen, Rect frame, Theme theme)
+    {
+        var row = frame.Y + 1;
+        for (var i = 0; i < _lines.Length; i++)
+        {
+            MessageRenderer.RenderErrorLine(screen, frame with { Y = row, Height = 1 }, theme, _lines[i], i == 0);
+            row++;
+        }
+
+        if (IsTruncated)
+        {
+            MessageRenderer.RenderErrorExpandHint(screen, frame with { Y = row, Height = 1 }, theme);
+        }
+    }
+
+    /// <summary>错误正文匹配（全文 — 截断不影响搜索）。</summary>
     public bool ContainsText(string query) => Text.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>按字符上限截断（超限加省略号 — 对齐基准 `slice(0, MAX) + "…"`）。</summary>
+    private static string Truncate(string text) =>
+        text.Length > ToolFoldingPolicy.MaxApiErrorChars
+            ? string.Concat(text.AsSpan(0, ToolFoldingPolicy.MaxApiErrorChars), "…")
+            : text;
 }
 
 /// <summary>启动诊断行项 — 纯文本 dim 渲染（引擎启动中/[diag] 等）。

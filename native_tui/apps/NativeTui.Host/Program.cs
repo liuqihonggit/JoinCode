@@ -523,7 +523,7 @@ public static class Program {
                     prompt: shell.PromptCommand,
                     readPassword: shell.ReadPasswordCommand,
                     beginSessionPicker: (request, ct) => shell.BeginSessionPickerCoreAsync(
-                        request.Entries.Select(e => new SessionPickerItem(e.SessionId, e.Preview, e.TimeAgo)).ToList(),
+                        request.Entries.Select(e => new SessionPickerItem(e.SessionId, e.Preview, e.Metadata)).ToList(),
                         request.Title));
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
             } catch (ConfigurationException) {

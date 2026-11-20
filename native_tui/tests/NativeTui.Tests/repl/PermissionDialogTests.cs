@@ -230,6 +230,59 @@ public sealed class PermissionDialogTests
         Assert.Equal(12, new PermissionRequestItem(coordinator).MeasureHeight(width: 40));
     }
 
+    // ---- TASK069-P3 反馈输入行 ----
+
+    /// <summary>未展开输入框时 Esc 提示行附「Tab 修改说明」（对齐基准 "Esc to cancel · Tab to amend"）。</summary>
+    [Fact]
+    public void Render_EscHintOffersFeedbackInput()
+    {
+        using var screen = new Screen(cols: 60, rows: 14);
+        var coordinator = BeginCoordinator();
+        new PermissionRequestItem(coordinator).Render(screen, new Rect(0, 0, 60, 14), Theme.Dark);
+
+        Assert.Contains("Esc to cancel", RowText.Of(screen, 12, 0, 60));
+        Assert.Contains("Tab 修改说明", RowText.Of(screen, 12, 0, 60));
+    }
+
+    /// <summary>展开输入框 — 焦点选项下方插 1 行 dim 占位；高度 +1；提示改为「Tab 收起说明」。</summary>
+    [Fact]
+    public void Render_FeedbackPlaceholderUnderFocusedOption()
+    {
+        using var screen = new Screen(cols: 60, rows: 15);
+        var coordinator = BeginCoordinator();
+        coordinator.OnTab();
+
+        var item = new PermissionRequestItem(coordinator);
+        Assert.Equal(14, item.MeasureHeight(width: 60));
+        item.Render(screen, new Rect(0, 0, 60, 15), Theme.Dark);
+
+        // 焦点档（Yes，row8）之下即输入行
+        Assert.Contains("1. Yes", RowText.Of(screen, 8, 0, 60));
+        Assert.Contains("告诉 Claude 接下来做什么", RowText.Of(screen, 9, 0, 60));
+        // 后续选项与提示行整体下移一行
+        Assert.Contains("3. No", RowText.Of(screen, 11, 0, 60));
+        Assert.Contains("Tab 收起说明", RowText.Of(screen, 13, 0, 60));
+    }
+
+    /// <summary>输入行显示已填文本 + 尾随光标；提示行带字数；拒绝档占位换文案。</summary>
+    [Fact]
+    public void Render_FeedbackTextWithCursor_AndRejectPlaceholder()
+    {
+        using var screen = new Screen(cols: 60, rows: 15);
+        var coordinator = BeginCoordinator();
+
+        coordinator.MoveFocus(2);
+        Assert.Equal("告诉 Claude 应该怎么做", coordinator.FeedbackPlaceholder);
+        coordinator.OnTab();
+        coordinator.AppendFeedback("改成备份");
+
+        new PermissionRequestItem(coordinator).Render(screen, new Rect(0, 0, 60, 15), Theme.Dark);
+
+        var inputRow = RowText.Of(screen, 11, 0, 60);
+        Assert.Contains("改成备份_", inputRow);
+        Assert.Contains("Tab 收起说明（4 字）", RowText.Of(screen, 13, 0, 60));
+    }
+
     // ---- ReplShell 模态改道 ----
 
     /// <summary>构造测试 shell（复用 ReplShellTests 模式）。</summary>

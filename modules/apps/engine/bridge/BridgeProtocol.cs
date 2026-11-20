@@ -160,12 +160,15 @@ public abstract record BridgeEvent
     /// RawOutput 为工具原始输出多行文本（超长预截断防 64MB 原始输出撑爆 JSON 行 — 对齐基准
     /// terminal.ts renderTruncatedContent 的 PADDING 预截断语义；null 不输出字段 WhenWritingNull —
     /// 单行结果 summary 已表达不带此字段，旧 golden 零破坏）；HiddenLines 为折叠隐藏行数
-    /// （0 不输出字段 WhenWritingDefault — 与 native_tui 侧 ToolResult 逐字节镜像）。
+    /// （0 不输出字段 WhenWritingDefault — 与 native_tui 侧 ToolResult 逐字节镜像）；
+    /// IsError 为工具失败标记（TASK069-M2/M5 — 此前只折成摘要文本 "Error: " 前缀，结构化标记丢失；
+    /// false 不输出字段 WhenWritingDefault — 旧 golden 零破坏）。
     /// </summary>
     public sealed record ToolResult(string Summary,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BridgeDiffHunk[]? Patch = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RawOutput = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int HiddenLines = 0) : BridgeEvent;
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int HiddenLines = 0,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool IsError = false) : BridgeEvent;
 
     /// <summary>
     /// 流式 token 增量（spinner ResponseLength 累加）。M8-1 逐字流式 — 与 native_tui 侧镜像：

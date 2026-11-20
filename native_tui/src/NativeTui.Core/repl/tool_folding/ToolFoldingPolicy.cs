@@ -16,6 +16,20 @@ public static class ToolFoldingPolicy
     /// <summary>Write 结果预览行数上限（FileWriteTool/UI.tsx MAX_LINES_TO_RENDER）。</summary>
     public const int MaxWritePreviewLines = 10;
 
+    /// <summary>错误结果块渲染行数上限（FallbackToolUseErrorMessage MAX_RENDERED_LINES=10 —
+    /// 错误内容整体渲染为红块，超出截断并给展开引导）。</summary>
+    public const int MaxErrorRenderLines = 10;
+
+    /// <summary>API 错误正文显示上限字符（TASK069-E4 — 对齐基准 AssistantTextMessage.tsx:19
+    /// MAX_API_ERROR_CHARS=1000：超限截断 + 展开引导，ctrl+o 进 transcript 看全文）。</summary>
+    public const int MaxApiErrorChars = 1000;
+
+    /// <summary>错误截断展开提示（基准 CtrlOToExpand `(ctrl+o to expand)`）。</summary>
+    public const string ErrorExpandHint = "(ctrl+o 展开)";
+
+    /// <summary>错误块折叠提示文案（FallbackToolUseErrorMessage `… +N lines (ctrl+o to see all)`）。</summary>
+    public static string ErrorHiddenLinesHint(int hiddenLines) => $"… +{hiddenLines} lines (ctrl+o to see all)";
+
     /// <summary>聚合 hint 最短展示时长 ms（CollapsedReadSearchContent.tsx MIN_HINT_DISPLAY_MS — 防快完成工具一帧闪过）。</summary>
     public const int MinHintDisplayMs = 700;
 

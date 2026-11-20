@@ -66,6 +66,9 @@ public sealed class ReplBridgeDriver
     /// StreamingTextItem（等整条落定），但 ResponseLength 累加不变。默认 true 保持既有测试/调用语义。</summary>
     private readonly bool _allowStreamingText;
 
+    /// <summary>当前逐条工具行（TASK069-M2 — tool_result 到达时回填 ● 状态；塌缩/聚合路径不建行恒 null）。</summary>
+    private ToolCallItem? _activeToolCallItem;
+
     /// <summary>活动工具流式输出项（TASK065 P3 — Bash 执行中输出实时显示）— 首个 tool_progress
     /// 惰性创建落位 ToolCallItem 之后（spinner 前），后续快照原地 Update；tool_result 到达原位替换为
     /// ToolResultItem（对齐 StreamingTextItem 替换先例）；新 tool_call 到达旧项定格；EndTurn 清引用
@@ -171,10 +174,11 @@ public sealed class ReplBridgeDriver
                 // 流式项即输出尾巴，类型差异由终态 ToolResultItem 表达）；TASK069 #16 elapsed 一并投影
                 ApplyToolProgress(progressMessage, elapsedTimeMs);
                 break;
-            case BridgeEvent.ToolResult(var summary, var patch, var rawOutput, var hiddenLines):
+            case BridgeEvent.ToolResult(var summary, var patch, var rawOutput, var hiddenLines, var isError):
                 // S2 契约统一结果项：ToolResultItem(Summary, Patch, RawOutput, HiddenLines) —
-                // patch/rawOutput/hiddenLines 全量透传（折叠/展开渲染归 item，Driver 只路由不解释）
-                ApplyToolResult(summary, patch, rawOutput, hiddenLines);
+                // patch/rawOutput/hiddenLines 全量透传（折叠/展开渲染归 item，Driver 只路由不解释）；
+                // TASK069-M2/M5 — isError 回填工具行圆点状态（结构化标记，此前只有摘要文本前缀）
+                ApplyToolResult(summary, patch, rawOutput, hiddenLines, isError);
                 _spinner.HasActiveTools = false;
                 break;
             case BridgeEvent.PermissionRequest(var toolName, var description):
@@ -277,6 +281,8 @@ public sealed class ReplBridgeDriver
     {
         // 上一个工具的流式尾巴定格（引用清空不删项 — 引擎漏发 tool_result 时不串新工具输出）
         _toolStreamingItem = null;
+        // TASK069-M2 — 新工具开始，上一工具行引用作废（漏发 tool_result 时不误标状态）
+        _activeToolCallItem = null;
         _pendingToolInfo = ToolTitleFormatter.FormatToolInfo(name, args);
         // 限时工具倒计时（TASK079 — bash/powershell 执行中 spinner 显示剩余秒数，用户知道何时中断；
         // 工具名为 bridge 协议字面量 — NativeTui.Core 自包含不引用主仓枚举）
@@ -313,7 +319,9 @@ public sealed class ReplBridgeDriver
             return;
         }
 
-        AddMessage(new ToolCallItem(name, args));
+        var item = new ToolCallItem(name, args);
+        _activeToolCallItem = item;
+        AddMessage(item);
     }
 
     /// <summary>工具结果路由（S6 任务 7）— 计数递减；塌缩态计数归零移除塌缩项；
@@ -322,8 +330,15 @@ public sealed class ReplBridgeDriver
     /// 输出尾巴位置落终态结果项，视觉无跳变；塌缩/聚合吸收路径移除流式项）。
     /// pending 工具信息消费（TASK066 F4 — 塌缩/聚合/逐条全路径前置：最近完成的工具
     /// 转 <c>_spinner.LastToolInfo</c>，异常序（无 pending）保持原值不动）。</summary>
-    private void ApplyToolResult(string summary, DiffHunk[]? patch, string? rawOutput, int hiddenLines)
+    private void ApplyToolResult(string summary, DiffHunk[]? patch, string? rawOutput, int hiddenLines, bool isError)
     {
+        // TASK069-M2 — 逐条工具行回填终态（● success/error 恒亮）；塌缩/聚合路径未建行，引用恒 null
+        if (_activeToolCallItem is { } call)
+        {
+            call.Status = isError ? ToolCallStatus.Error : ToolCallStatus.Success;
+            _activeToolCallItem = null;
+        }
+
         _inProgressToolCallCount = Math.Max(0, _inProgressToolCallCount - 1);
         _spinner.EndToolCountdown();
         if (_pendingToolInfo is { } completed)
@@ -353,7 +368,8 @@ public sealed class ReplBridgeDriver
             return;
         }
 
-        ReplaceToolStreamingWithResult(new ToolResultItem(summary, patch, rawOutput, hiddenLines, codeHighlighter: _codeHighlighter));
+        ReplaceToolStreamingWithResult(new ToolResultItem(
+            summary, patch, rawOutput, hiddenLines, codeHighlighter: _codeHighlighter, isError: isError));
     }
 
     /// <summary>工具进度路由（TASK065 P3）— 回合内惰性建流式项（spinner 前落位 — 紧随 ToolCallItem）

@@ -2,9 +2,9 @@ namespace NativeTui.Markdown.Tests;
 
 /// <summary>
 /// 流式 Markdown 增量投影器测试（方案 B — 块级增量，对齐基准 Markdown.tsx 块边界切分机制）：
-/// 块边界切分（单增长块全尾 / 多块首块稳定）；未闭合围栏 TailOpenFence；
+/// 块边界切分（单增长块全尾 / 多块首块稳定）；尾块投影成块模型（S2 — 未闭合围栏即代码块）；
 /// memoize（相同长度缓存 + 切分点推进才追加投影 + 逐 delta 序列与最终直接投影等价）；
-/// 无语法快路径全尾；稳定块行内样式投影（与 MarkdigProjector 同一分派）。
+/// 无语法快路径全尾（TailBlocks 留空）；稳定块行内样式投影（与 MarkdigProjector 同一分派）。
 /// </summary>
 public sealed class StreamingMarkdownProjectorTests
 {
@@ -22,7 +22,7 @@ public sealed class StreamingMarkdownProjectorTests
 
         Assert.Empty(projection.StableBlocks);
         Assert.Equal(string.Empty, projection.Tail);
-        Assert.False(projection.TailOpenFence);
+        Assert.Null(projection.TailBlocks);
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class StreamingMarkdownProjectorTests
 
         Assert.Empty(projection.StableBlocks);
         Assert.Equal("just plain text", projection.Tail);
-        Assert.False(projection.TailOpenFence);
+        Assert.Null(projection.TailBlocks);
     }
 
     [Fact]
@@ -55,7 +55,8 @@ public sealed class StreamingMarkdownProjectorTests
         var segment = Assert.Single(paragraph.Segments);
         Assert.Equal("p1", segment.Text);
         Assert.Equal("p2", projection.Tail);
-        Assert.False(projection.TailOpenFence);
+        // 尾块同样投影成块模型（S2）— 单段落
+        Assert.IsType<MarkdownParagraph>(Assert.Single(projection.TailBlocks!));
     }
 
     [Fact]
@@ -118,25 +119,31 @@ public sealed class StreamingMarkdownProjectorTests
     }
 
     [Fact]
-    public void Project_UnclosedFence_TailOpenFenceTrue()
+    public void Project_UnclosedFence_TailBlockIsCode()
     {
+        // S2 — 未闭合围栏在尾块投影期即为代码块（不再靠 TailOpenFence 让渲染层 dim）
         var projection = new StreamingMarkdownProjector().Project("intro\n\n```cs\ncode");
 
         var paragraph = SingleStableParagraph(projection);
         var segment = Assert.Single(paragraph.Segments);
         Assert.Equal("intro", segment.Text);
         Assert.Equal("```cs\ncode", projection.Tail);
-        Assert.True(projection.TailOpenFence);
+
+        var code = Assert.IsType<MarkdownCode>(Assert.Single(projection.TailBlocks!));
+        Assert.Equal("cs", code.Language);
+        Assert.Contains("code", code.Text, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Project_ClosedFenceTail_NoOpenFence()
+    public void Project_ClosedFenceTail_TailBlockIsCode()
     {
         var projection = new StreamingMarkdownProjector().Project("a\n\n```\nc\n```");
 
         SingleStableParagraph(projection);
         Assert.Equal("```\nc\n```", projection.Tail);
-        Assert.False(projection.TailOpenFence);
+
+        var code = Assert.IsType<MarkdownCode>(Assert.Single(projection.TailBlocks!));
+        Assert.Contains("c", code.Text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -161,5 +168,57 @@ public sealed class StreamingMarkdownProjectorTests
 
         Assert.Same(first.StableBlocks, second.StableBlocks);
         Assert.Equal("p2 appended", second.Tail);
+    }
+
+    /// <summary>
+    /// 逐字符累积投影 vs 一次性投影等价（TASK069-S3 安全网）— 边界探测改为只 lex 未稳定窗口后，
+    /// 稳定块序列与尾文本必须与全文解析完全一致；否则切分点漂移会重复/丢失块。
+    /// </summary>
+    private static void AssertCharByCharMatchesFresh(string full)
+    {
+        var incremental = new StreamingMarkdownProjector();
+        for (var length = 1; length <= full.Length; length++)
+        {
+            incremental.Project(full[..length]);
+        }
+
+        var incrementalFinal = incremental.Project(full);
+        var freshFinal = new StreamingMarkdownProjector().Project(full);
+
+        Assert.Equal(
+            freshFinal.StableBlocks.Select(static block => block.ToString()),
+            incrementalFinal.StableBlocks.Select(static block => block.ToString()));
+        Assert.Equal(freshFinal.Tail, incrementalFinal.Tail);
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_ListMatchesFull()
+    {
+        AssertCharByCharMatchesFresh("- a\n- b\n- c\n\nnext para\n\n- d\n- e\n");
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_QuoteAndHeadingMatchFull()
+    {
+        AssertCharByCharMatchesFresh("> quoted line one\n> quoted line two\n\n# Heading\n\nbody text\n");
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_FenceMatchesFull()
+    {
+        AssertCharByCharMatchesFresh("```cs\nvar a = 1;\nvar b = 2;\n```\n\nafter fence\n");
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_SetextAndTableMatchFull()
+    {
+        AssertCharByCharMatchesFresh("Title\n=====\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\ntail\n");
+    }
+
+    [Fact]
+    public void Project_SlicedBoundary_NestedListAndIndentedCodeMatchFull()
+    {
+        // 最易被切片误判的场景：嵌套列表的缩进子项（4 空格）在切片起点会被判成缩进代码块
+        AssertCharByCharMatchesFresh("- a\n    - b\n        - c\n\npara\n\n- d\n");
     }
 }

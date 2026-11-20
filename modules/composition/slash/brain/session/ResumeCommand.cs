@@ -169,14 +169,10 @@ public sealed class ResumeCommand : ChatCommandBase {
             return;
         }
 
-        // 构建会话条目（L3.3: Lite 模式，preview 从 customTitle 或 ID 推断）
+        // 构建会话条目（L3.3: Lite 模式 — 标题取 customTitle，元数据行由 BuildSessionMetadata 统一生成）
         var entries = new List<SessionEntry>();
         foreach (var lite in resumableEntries) {
-            var timeAgo = GetTimeAgo(lite.LastModified);
-            var preview = string.IsNullOrEmpty(lite.CustomTitle)
-                ? lite.Id[..Math.Min(8, lite.Id.Length)] + "..."
-                : lite.CustomTitle;
-            entries.Add(new SessionEntry(lite.Id, preview, timeAgo, lite));
+            entries.Add(new SessionEntry(lite.Id, BuildSessionPreview(lite), BuildSessionMetadata(lite), lite));
         }
 
         var projectLabel = showAllProjects ? "（所有项目）" : "（当前仓库）";
@@ -197,9 +193,10 @@ public sealed class ResumeCommand : ChatCommandBase {
             var selector = new Selector<SessionEntry>(
                 title,
                 [.. entries],
-                e => $"[{e.SessionId[..Math.Min(8, e.SessionId.Length)]}...] {e.TimeAgo}",
                 e => e.Preview,
-                enableSearch: true);
+                e => $"{e.Preview} {e.Metadata}",
+                enableSearch: true,
+                detailSelector: e => $"[{e.SessionId[..Math.Min(8, e.SessionId.Length)]}...] {e.Metadata}");
 
             var result = await selector.ShowAsync(context.CancellationToken).ConfigureAwait(false);
 
@@ -213,12 +210,12 @@ public sealed class ResumeCommand : ChatCommandBase {
             return;
         }
 
-        // 非交互模式回退：纯文本列表
+        // 非交互模式回退：纯文本列表（标题主行 + ID/元数据副行 — 与 TUI 选择器同源同信息量）
         var projectHint = showAllProjects ? " [所有项目]" : "";
         for (var i = 0; i < entries.Count; i++) {
             var entry = entries[i];
-            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} [{entry.SessionId[..Math.Min(8, entry.SessionId.Length)]}...] {entry.TimeAgo}{projectHint}");
-            TerminalHelper.WriteLine($"     {entry.Preview}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} {entry.Preview}{projectHint}");
+            TerminalHelper.WriteLine($"     {TerminalColors.Muted}[{entry.SessionId[..Math.Min(8, entry.SessionId.Length)]}...] {entry.Metadata}{AnsiStyleEnumConstants.Reset}");
         }
 
         TerminalHelper.NewLine();
@@ -269,7 +266,7 @@ public sealed class ResumeCommand : ChatCommandBase {
             return;
         }
 
-        var pickerEntries = entries.Select(e => new SessionPickerEntry(e.SessionId, e.Preview, e.TimeAgo)).ToList();
+        var pickerEntries = entries.Select(e => new SessionPickerEntry(e.SessionId, e.Preview, e.Metadata)).ToList();
         var request = new SessionPickerRequest(pickerEntries, title);
         var selectedId = await picker.Invoke(request, context.CancellationToken).ConfigureAwait(false);
         if (string.IsNullOrEmpty(selectedId)) {
@@ -297,15 +294,16 @@ public sealed class ResumeCommand : ChatCommandBase {
             var lite = new SessionLiteData {
                 Id = summary.SessionId,
                 LastModified = summary.LastModifiedAt,
+                MessageCount = summary.MessageCount,
                 FilePath = string.Empty
             };
 
-            // 读取 customTitle 和 ProjectPath
+            // 读取 customTitle / ProjectPath / 分支
             try {
                 var customTitle = await transcriptService.GetCustomTitleAsync(summary.SessionId).ConfigureAwait(false) ?? string.Empty;
                 var info = await transcriptService.GetSessionInfoAsync(summary.SessionId).ConfigureAwait(false);
                 if (info is not null) {
-                    lite = lite with { CustomTitle = customTitle, ProjectPath = info.ProjectPath, CreatedAt = info.CreatedAt };
+                    lite = lite with { CustomTitle = customTitle, ProjectPath = info.ProjectPath, CreatedAt = info.CreatedAt, BranchName = info.BranchName };
                 } else {
                     lite = lite with { CustomTitle = customTitle };
                 }
@@ -330,9 +328,9 @@ public sealed class ResumeCommand : ChatCommandBase {
     }
 
     /// <summary>
-    /// 会话条目（供 Selector 使用）
+    /// 会话条目（供 Selector 使用）— Preview 为主标题行，Metadata 为 dim 副标题行（相对时间 · 分支 · 消息数）。
     /// </summary>
-    internal sealed record SessionEntry(string SessionId, string Preview, string TimeAgo, SessionLiteData LiteData);
+    internal sealed record SessionEntry(string SessionId, string Preview, string Metadata, SessionLiteData LiteData);
 
     /// <summary>
     /// 恢复指定会话
@@ -482,6 +480,36 @@ public sealed class ResumeCommand : ChatCommandBase {
         return CrossProjectResumeResult.DifferentProject(projectPath);
     }
 
+    /// <summary>
+    /// 会话标题 — customTitle 优先，缺省退 ID 前 8 位（对齐基准 getLogDisplayTitle 的 sessionId.slice(0,8) 兜底）。
+    /// 基准另有 agentName / summary / firstPrompt 三级回退：前两项本仓库会话元数据无对应字段，
+    /// 第三项要读 messages（与 Lite 加载「只读 stat」的前提冲突），均未移植。
+    /// </summary>
+    /// <param name="lite">轻量会话数据。</param>
+    /// <returns>用于列表主行的标题文本。</returns>
+    internal static string BuildSessionPreview(SessionLiteData lite) =>
+        string.IsNullOrEmpty(lite.CustomTitle)
+            ? lite.Id[..Math.Min(8, lite.Id.Length)] + "..."
+            : lite.CustomTitle;
+
+    /// <summary>
+    /// 会话元数据行 — 对齐 TS <c>formatLogMetadata</c>（utils/format.ts:203）：
+    /// 「相对时间 · [分支] · N 条消息」，用「 · 」连接、缺项整段省略（分支为空不占位）。
+    /// 基准另有 <c>#tag</c> / <c>@agentSetting</c> / <c>repo#PR</c> 三段：本仓库会话数据
+    /// 三者均无产生点（transcript 摘要与 SessionInfo 里都没有这些字段），未移植。
+    /// </summary>
+    /// <param name="lite">轻量会话数据。</param>
+    /// <returns>列表副行（dim）显示的元数据文本。</returns>
+    internal static string BuildSessionMetadata(SessionLiteData lite) {
+        var parts = new List<string>(3) { GetTimeAgo(lite.LastModified) };
+        if (!string.IsNullOrEmpty(lite.BranchName)) {
+            parts.Add(lite.BranchName);
+        }
+
+        parts.Add($"{lite.MessageCount} 条消息");
+        return string.Join(" · ", parts);
+    }
+
     private static string GetTimeAgo(DateTime dateTime) {
         var span = DateTime.Now - dateTime;
 
@@ -571,6 +599,10 @@ public sealed record SessionLiteData {
     public DateTime LastModified { get; init; }
     /// <summary>会话文件存储路径。</summary>
     public string FilePath { get; init; } = string.Empty;
+    /// <summary>会话所在 git 分支（SessionInfo.BranchName 透传；空串 = 无分支信息，元数据里省略）。</summary>
+    public string BranchName { get; init; } = string.Empty;
+    /// <summary>会话消息条数（TranscriptSummary.MessageCount 透传 — 元数据行展示）。</summary>
+    public int MessageCount { get; init; }
 }
 
 /// <summary>

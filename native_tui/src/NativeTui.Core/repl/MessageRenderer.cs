@@ -80,12 +80,15 @@ public static class MessageRenderer
     /// 渲染工具调用消息：● + 空格 + bold 工具名 + 默认样式 (参数摘要)，名字与摘要间无间隔。
     /// 参数含换行时多行显示（Bash 多行命令 — 基准 Ink wrap 语义）：首行 "(" + 首段不闭合，
     /// 续行缩进对齐参数列（工具名后括号列），末行尾闭合括号（基准 AssistantToolUseMessage 括号包全文）。
+    /// TASK069-M2 — ● 状态口径对齐基准 ToolUseLoader：未决默认前景 + dim + 600ms 方波闪烁；
+    /// 完成 success 色恒亮；错误 error 色恒亮（此前恒 theme.Text，工具成败不可见）。
     /// </summary>
-    public static void RenderToolCall(Screen screen, Rect frame, Theme theme, string toolName, string args)
+    public static void RenderToolCall(Screen screen, Rect frame, Theme theme, string toolName, string args,
+        bool isActive = false, bool hasError = false, long animTimeMs = 0)
     {
-        var bullet = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Text });
+        var bullet = screen.Styles.GetOrAdd(BulletStyle(theme, isActive, hasError));
         var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
-        screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", bullet, frame.Right);
+        screen.WriteText(frame.Y, frame.X, $"{BulletChar(isActive, hasError, animTimeMs)} ", bullet, frame.Right);
         var col = screen.WriteText(frame.Y, frame.X + 2, toolName, bold, frame.Right);
         var lines = args.Split('\n');
         var firstSegment = lines[0].TrimEnd('\r');
@@ -98,12 +101,73 @@ public static class MessageRenderer
         }
     }
 
+    /// <summary>● 动画口径（基准 ToolUseLoader：`t1 = isError || !isUnresolved || isBlinking ? ● : " "`）—
+    /// 未决且动画中按 600ms 方波在 ●/空格间切换；完成/错误恒亮（布局不跳动，文案恒 X+2 起）。
+    /// 单一实现源 — 工具行 / 聚合摘要行 / 子代理组头共用。</summary>
+    internal static string BulletChar(bool isActive, bool hasError, long animTimeMs)
+    {
+        const int BlinkIntervalMs = 600;
+        return hasError || !isActive || animTimeMs / BlinkIntervalMs % 2 == 0 ? Figures.MessageBullet : " ";
+    }
+
+    /// <summary>● 颜色口径（基准 `color = isUnresolved ? undefined : isError ? error : success`）：
+    /// 未决 → 默认前景 + dim；完成 → success；错误 → error。单一实现源（同 <see cref="BulletChar"/>）。</summary>
+    internal static TextStyle BulletStyle(Theme theme, bool isActive, bool hasError) => isActive
+        ? new TextStyle { Dim = true }
+        : new TextStyle { Foreground = hasError ? theme.Error : theme.Success };
+
     /// <summary>渲染工具结果消息："  ⎿  " 前缀整体 dim（单一 Text span），正文默认样式。</summary>
     public static void RenderToolResult(Screen screen, Rect frame, Theme theme, string text)
     {
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         screen.WriteText(frame.Y, frame.X, Figures.ToolResultIndent, dim, frame.Right);
         screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, text, 0, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染工具错误结果块的一行（TASK069-M5 — 对齐基准 FallbackToolUseErrorMessage）：
+    /// 首行 "  ⎿  " 前缀 dim + 正文 error 色；续行按 ToolResultIndent 等宽空格缩进 + error 色
+    ///（基准 MessageResponse 前缀列固定，错误 Text color="error" 承载全文）。
+    /// </summary>
+    public static void RenderToolErrorLine(Screen screen, Rect frame, Theme theme, string text, bool isFirst)
+    {
+        var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        if (!isFirst)
+        {
+            var indent = new string(' ', Figures.ToolResultIndent.Length);
+            screen.WriteText(frame.Y, frame.X, indent, 0, frame.Right);
+            screen.WriteText(frame.Y, frame.X + indent.Length, text, error, frame.Right);
+            return;
+        }
+
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, Figures.ToolResultIndent, dim, frame.Right);
+        screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, text, error, frame.Right);
+    }
+
+    /// <summary>渲染错误块折叠提示（缩进同续行 + dim — 基准 `… +N lines (ctrl+o to see all)`）。</summary>
+    public static void RenderErrorCollapseHint(Screen screen, Rect frame, Theme theme, int hiddenLines)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var indent = new string(' ', Figures.ToolResultIndent.Length);
+        screen.WriteText(frame.Y, frame.X, indent, 0, frame.Right);
+        screen.WriteText(frame.Y, frame.X + indent.Length, ToolFoldingPolicy.ErrorHiddenLinesHint(hiddenLines), dim, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染 diff 统计头（TASK069-M3 — 对齐基准 FileEditToolUpdatedMessage）：
+    /// "  ⎿  " dim 前缀 + `Added N lines, removed M lines`（数字 bold，单侧变更省略另一侧）。
+    /// </summary>
+    public static void RenderDiffStats(Screen screen, Rect frame, Theme theme, DiffStats stats)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, Figures.ToolResultIndent, dim, frame.Right);
+        var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
+        var col = frame.X + Figures.ToolResultIndent.Length;
+        foreach (var (text, isBold) in stats.Segments())
+        {
+            col = screen.WriteText(frame.Y, col, text, isBold ? bold : 0, frame.Right);
+        }
     }
 
     /// <summary>渲染思考摘要行（结构化消息）：∴ 前缀 + "思考"（收起态带 " · ctrl+o 展开推理" /
@@ -155,11 +219,31 @@ public static class MessageRenderer
     }
 
     /// <summary>渲染错误消息：● + 空格 + 正文，全部 theme.Error 红色（bridge error 事件）。</summary>
-    public static void RenderError(Screen screen, Rect frame, Theme theme, string text)
+    public static void RenderError(Screen screen, Rect frame, Theme theme, string text) =>
+        RenderErrorLine(screen, frame, theme, text, isFirst: true);
+
+    /// <summary>
+    /// 渲染错误消息的一行（TASK069-E4）：首行 "● " + error 色正文；续行 2 列缩进（对齐 ● 后正文列）。
+    /// </summary>
+    public static void RenderErrorLine(Screen screen, Rect frame, Theme theme, string text, bool isFirst)
     {
         var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        if (!isFirst)
+        {
+            screen.WriteText(frame.Y, frame.X, "  ", 0, frame.Right);
+            screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
+            return;
+        }
+
         screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", style, frame.Right);
         screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
+    }
+
+    /// <summary>渲染错误正文截断的展开引导（dim，2 列缩进 — 基准 CtrlOToExpand）。</summary>
+    public static void RenderErrorExpandHint(Screen screen, Rect frame, Theme theme)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X + 2, ToolFoldingPolicy.ErrorExpandHint, dim, frame.Right);
     }
 
     /// <summary>渲染 diff hunk 头："    @@ … @@"（4 空格缩进，整行 dim 弱化）。</summary>
@@ -501,12 +585,9 @@ public static class MessageRenderer
     /// </summary>
     public static void RenderSubagentHeader(Screen screen, Rect frame, Theme theme, string text, bool isDone, bool hasError, long animTimeMs)
     {
-        const int BlinkIntervalMs = 600;
         var isRunning = !isDone;
-        var bullet = hasError || isDone || animTimeMs / BlinkIntervalMs % 2 == 0 ? Figures.MessageBullet : " ";
-        var bulletStyle = isRunning
-            ? screen.Styles.GetOrAdd(new TextStyle { Dim = true })
-            : screen.Styles.GetOrAdd(new TextStyle { Foreground = hasError ? theme.Error : theme.Success });
+        var bullet = BulletChar(isRunning, hasError, animTimeMs);
+        var bulletStyle = screen.Styles.GetOrAdd(BulletStyle(theme, isRunning, hasError));
         screen.WriteText(frame.Y, frame.X, $"{bullet} ", bulletStyle, frame.Right);
         screen.WriteText(frame.Y, frame.X + 2, text, 0, frame.Right);
     }

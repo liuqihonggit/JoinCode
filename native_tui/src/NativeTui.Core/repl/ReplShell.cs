@@ -1069,10 +1069,20 @@ public sealed class ReplShell
         _lastSubmittedText = string.Empty;
     }
 
-    /// <summary>挂起权限请求（宿主 TuiPermissionBridge.Confirm → 此处 → 用户按键 Complete）。</summary>
-    public void BeginPermissionRequest(string toolName, string description)
+    /// <summary>挂起权限请求（宿主 TuiPermissionBridge.Confirm → 此处 → 用户按键 Complete）。
+    /// 两参重载供 ReplBridgeDriver 方法组绑定（引擎事件路径无结构化规则内容）。</summary>
+    /// <param name="toolName">工具名称。</param>
+    /// <param name="description">确认提示文本。</param>
+    public void BeginPermissionRequest(string toolName, string description) =>
+        BeginPermissionRequest(toolName, description, ruleContent: null);
+
+    /// <summary>挂起权限请求（TASK069-P5 — 带触发原因：规则内容非空时对话框渲染原因区与 /permissions 引导）。</summary>
+    /// <param name="toolName">工具名称。</param>
+    /// <param name="description">确认提示文本。</param>
+    /// <param name="ruleContent">触发本次确认的规则内容（如 WebFetch 的 domain:example.com；null 不渲染原因区）。</param>
+    public void BeginPermissionRequest(string toolName, string description, string? ruleContent)
     {
-        _permission.Begin(new PermissionRequest(toolName, description));
+        _permission.Begin(new PermissionRequest(toolName, description, ruleContent ?? string.Empty));
         AddMessage(new PermissionRequestItem(_permission));
     }
 
@@ -1900,10 +1910,25 @@ public sealed class ReplShell
             return;
         }
 
-        // S8 接线 — Tab 遍历选项（焦点 +1 环绕）
+        // S8 + P3 — Tab 双重语义（对齐基准 CustomSelect onInputModeToggle）：焦点档带输入框时
+        // 进/出反馈输入态；don't-ask-again 档无输入框 → 退回遍历语义
         if (key is { Kind: KeyKind.Tab, Shift: false })
         {
-            _permission.CycleFocus();
+            _permission.OnTab();
+            return;
+        }
+
+        // P3 — 反馈输入态下 Backspace 退格（空串静默，不关闭对话框）
+        if (key.Kind == KeyKind.Backspace)
+        {
+            _permission.TrimFeedbackTail();
+            return;
+        }
+
+        // P3 — 反馈输入态吞掉所有可打印输入（数字 1/2/3 与 y/n 快捷选档此时属于正文，不能误触）
+        if (_permission.FeedbackInputActive && !key.Ctrl && key.Kind is KeyKind.Char or KeyKind.Paste)
+        {
+            _permission.AppendFeedback(key.Input);
             return;
         }
 
@@ -2234,7 +2259,7 @@ public sealed class ReplShell
             return Task.FromResult<string?>(null);
         }
 
-        var dialog = new SessionPickerDialog(items, title);
+        var dialog = new SessionPickerDialog(items, title, _sizeSource.Current.Rows);
         _sessionPickerDialog = dialog;
         AddMessage(dialog);
         return dialog.SelectionTask;

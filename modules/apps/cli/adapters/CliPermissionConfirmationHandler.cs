@@ -20,22 +20,31 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
     /// <summary>在控制台显示权限确认提示并解析用户响应，按结果临时批准工具或等级</summary>
     /// <param name="toolName">待确认的工具名称</param>
     /// <param name="confirmationPrompt">展示给用户的确认提示文本</param>
+    /// <param name="ruleContent">触发本次确认的规则内容（TASK069-P5 — 非空时随提示打印原因与 /permissions 引导）</param>
     /// <param name="cancellationToken">取消令牌 — 取消视为拒绝</param>
-    /// <returns>用户选择的确认动作（允许/始终允许/拒绝）；非交互环境自动拒绝</returns>
-    public Task<PermissionConfirmAction> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default) {
+    /// <returns>用户选择的确认动作（允许/始终允许/拒绝）；非交互环境自动拒绝。CLI 提示符形态不提供反馈输入，Feedback 恒 null</returns>
+    public Task<PermissionConfirmResult> ConfirmAsync(string toolName, string confirmationPrompt, string? ruleContent = null, CancellationToken cancellationToken = default) {
         if (cancellationToken.IsCancellationRequested)
-            return Task.FromResult(PermissionConfirmAction.Deny);
+            return Task.FromResult(PermissionConfirmResult.Of(PermissionConfirmAction.Deny));
 
-        return Task.FromResult(ConfirmBlocking(toolName, confirmationPrompt));
+        return Task.FromResult(PermissionConfirmResult.Of(ConfirmBlocking(toolName, confirmationPrompt, ruleContent)));
     }
 
     /// <summary>同步阻塞确认 — 复用 REPL 单通道门控读取 stdin（CLI 专属交互形态）</summary>
-    private PermissionConfirmAction ConfirmBlocking(string toolName, string confirmationPrompt) {
+    private PermissionConfirmAction ConfirmBlocking(string toolName, string confirmationPrompt, string? ruleContent) {
         Cli.TerminalHelper.WriteLine();
         using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
             Cli.TerminalHelper.WriteRaw("^ ");
         using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
             Cli.TerminalHelper.WriteLine($"权限确认: {confirmationPrompt}");
+
+        // TASK069-P5 — 触发原因区（对齐基准 PermissionRuleExplanation）：结构化规则内容存在时说明「为什么问我」
+        if (!string.IsNullOrEmpty(ruleContent)) {
+            using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray)) {
+                Cli.TerminalHelper.WriteLine($"  触发原因: {toolName}({ruleContent})");
+                Cli.TerminalHelper.WriteLine("  /permissions 更新规则");
+            }
+        }
 
         using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
             Cli.TerminalHelper.WriteRaw("^ ");

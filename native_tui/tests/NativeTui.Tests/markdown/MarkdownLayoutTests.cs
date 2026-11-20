@@ -163,6 +163,7 @@ public sealed class MarkdownLayoutTests
     public void Layout_TableRendersPipeRowsWithSeparator()
     {
         // 1 行数据（a | bbbbbbb）；列宽 = max(显示宽, 3)：col0 = max("Name"=4, "a"=1) = 4；col1 = max("Value"=5, "bbbbbbb"=7) = 7
+        // 表头恒居中（TASK069-M4 — 基准 Headers always centered），数据列无标记 = 左对齐
         var doc = new MarkdownDocument([new MarkdownTable(
             [Cell(Seg("Name")), Cell(Seg("Value"))],
             [[Cell(Seg("a")), Cell(Seg("bbbbbbb"))]])]);
@@ -171,9 +172,28 @@ public sealed class MarkdownLayoutTests
 
         Assert.Equal(
         [
-            "| Name | Value   |",
+            "| Name |  Value  |",
             "|------|---------|",
             "| a    | bbbbbbb |",
+        ], lines.Select(PlainText));
+    }
+
+    [Fact]
+    public void Layout_TableHonorsColumnAlignment()
+    {
+        // TASK069-M4 — GFM 对齐：左 / 中 / 右；余数偏右（对齐基准 padAligned）；表头恒居中
+        var doc = new MarkdownDocument([new MarkdownTable(
+            [Cell(Seg("L")), Cell(Seg("C")), Cell(Seg("R"))],
+            [[Cell(Seg("x")), Cell(Seg("y")), Cell(Seg("z"))]],
+            [MarkdownTableAlign.Left, MarkdownTableAlign.Center, MarkdownTableAlign.Right])]);
+
+        var lines = MarkdownLayout.Layout(doc, width: 80);
+
+        Assert.Equal(
+        [
+            "|  L  |  C  |  R  |",
+            "|-----|-----|-----|",
+            "| x   |  y  |   z |",
         ], lines.Select(PlainText));
     }
 

@@ -6,6 +6,8 @@ namespace NativeTui.Tests.Repl;
 /// null 投影器降级纯文本（M8-1 行为回归锁）；稳定段走 MarkdownLayout 布局 + 段样式渲染
 ///（与 MarkdownMessageItem 同源 — 落定替换视觉无跳变）；稳定/尾间 gap 空行（块间空行语义）；
 /// 增长尾纯文本默认样式；未闭合围栏尾 dim；Append 置脏重投影 + 同帧缓存不重投影。
+/// TASK069-S1 — 只显示完整行：夹具文本须以 '\n' 结尾才可见（未完成尾行不渲染，
+/// 对齐基准 REPL.tsx visibleStreamingText 的 lastIndexOf('\n') 截断）。
 /// </summary>
 public sealed class StreamingMarkdownItemTests
 {
@@ -28,10 +30,10 @@ public sealed class StreamingMarkdownItemTests
     [Fact]
     public void NullProjector_RendersPlainTextRegression()
     {
-        // M8-1 行为回归锁 — projector null 纯文本逐字：⎿ 前缀 dim + 默认正文 + 续行 6 空格缩进
+        // M8-1 行为回归锁 — projector null 纯文本（S1 后只渲染完整行）：⎿ 前缀 dim + 默认正文 + 续行 6 空格缩进
         using var screen = new Screen(cols: 40, rows: 4);
         var item = new StreamingTextItem();
-        item.Append("plain one\nplain two");
+        item.Append("plain one\nplain two\n");
 
         item.Render(screen, new Rect(0, 0, 40, 4), Theme.Dark);
 
@@ -70,7 +72,7 @@ public sealed class StreamingMarkdownItemTests
             [new MarkdownParagraph([new MarkdownSegment("bold", MarkdownStyle.Bold)])], string.Empty, false);
         var projector = new StubProjector(_ => projection);
         var item = new StreamingTextItem(projector);
-        item.Append("**bold**");
+        item.Append("**bold**\n");
 
         item.Render(screen, new Rect(0, 0, 40, 3), Theme.Dark);
 
@@ -88,7 +90,7 @@ public sealed class StreamingMarkdownItemTests
             [new MarkdownHeading(1, [new MarkdownSegment("Title", MarkdownStyle.None)])], string.Empty, false);
         var projector = new StubProjector(_ => projection);
         var item = new StreamingTextItem(projector);
-        item.Append("# Title");
+        item.Append("# Title\n");
 
         item.Render(screen, new Rect(0, 0, 40, 3), Theme.Dark);
 
@@ -137,12 +139,12 @@ public sealed class StreamingMarkdownItemTests
         // Append 置脏 → 下次访问重投影；同宽度重复访问走缓存不重投影（每帧 Measure+Render 只投影一次）
         var projector = new StubProjector(text => new StreamingMarkdownProjection([], text, false));
         var item = new StreamingTextItem(projector);
-        item.Append("a");
+        item.Append("a\n");
 
         _ = item.MeasureHeight(40);
         Assert.Equal(1, projector.Calls);
 
-        item.Append("b");
+        item.Append("b\n");
         _ = item.MeasureHeight(40);
         Assert.Equal(2, projector.Calls);
 
@@ -161,7 +163,7 @@ public sealed class StreamingMarkdownItemTests
         var item = new StreamingTextItem(projector);
 
         item.Append("para");
-        Assert.Equal(2, item.MeasureHeight(40)); // 全尾单行
+        Assert.Equal(0, item.MeasureHeight(40)); // S1 — 无完整行不占位
 
         item.Append("\n\nnext");
         Assert.Equal(4, item.MeasureHeight(40)); // 稳定 1 行 + gap 1 行 + 尾 1 行
@@ -170,10 +172,13 @@ public sealed class StreamingMarkdownItemTests
     [Fact]
     public void EmptyProjection_SinglePrefixLine()
     {
-        // 空投影兜底 — 高度 2（margin + ⎿ 空行），对齐纯文本空缓冲形态
+        // 空投影 — S1 后无完整行不占位；换行到达才有单 ⎿ 空行
         var projector = new StubProjector(_ => new StreamingMarkdownProjection([], string.Empty, false));
         var item = new StreamingTextItem(projector);
 
+        Assert.Equal(0, item.MeasureHeight(40));
+
+        item.Append("\n");
         Assert.Equal(2, item.MeasureHeight(40));
         using var screen = new Screen(cols: 40, rows: 2);
         item.Render(screen, new Rect(0, 0, 40, 2), Theme.Dark);

@@ -8,8 +8,11 @@ namespace NativeTui.Core.Repl;
 /// ⎿ 前缀整体 dim（对齐 ToolResultItem "  ⎿  " 先例）；续行缩进对齐内容列；
 /// ScrollBox 每帧全量重渲（MeasureHeight/Render 每帧调用）— Append 置脏，帧内首次访问惰性投影
 ///（同帧 Measure+Render 共享投影与行模型缓存；宽度变化才重布局 — 对齐 MarkdownMessageItem 缓存模式）。
-/// projector null = 降级纯文本逐字（M8-1 行为完整保留）；流式期不做代码高亮
+/// projector null = 降级纯文本（M8-1 行为保留，仅改可见粒度）；流式期不做代码高亮
 ///（与基准一致：增量期无高亮，落定后 MarkdownMessageItem 全量高亮）。
+/// TASK069-S1 — 只显示**完整行**：可见文本截断到最后一个换行（含），无换行即不占位
+///（对齐基准 REPL.tsx visibleStreamingText 的 `substring(0, lastIndexOf('\n') + 1)`，
+/// 原注释 "text streams line-by-line, not char-by-char"）；<see cref="Text"/> 仍返回全文。
 /// </summary>
 public sealed class StreamingTextItem : IScrollItem, ITextMatchable
 {
@@ -60,8 +63,12 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
         }
     }
 
-    /// <summary>内容高度 = margin 1 + 行模型行数（projector 缺席 = 纯文本行数 — M8-1 行为）。</summary>
-    public int MeasureHeight(int width) => 1 + LinesFor(width).Count;
+    /// <summary>内容高度 = margin 1 + 行模型行数；无完整行（可见文本为空）= 0 不占位
+    ///（对齐基准 visibleStreamingText 为 null 时不渲染流式行）。</summary>
+    public int MeasureHeight(int width) {
+        var lines = LinesFor(width);
+        return lines.Count == 0 ? 0 : 1 + lines.Count;
+    }
 
     /// <summary>渲染：margin 行留空 → 首行 "  ⎿  " dim 前缀 → 各内容行从内容列起逐段写
     ///（段样式经 MessageRenderer.MapMarkdownStyle 映射 — 与 MarkdownMessageItem 段渲染同源；
@@ -83,14 +90,19 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
         }
     }
 
-    /// <summary>行模型 — projector 缺席走纯文本（M8-1 现行为：\n 分行、超宽由 Screen 裁剪）；
-    /// 在场走投影缓存链：脏刷新投影 → 稳定段布局（宽度缓存）+ gap 空行 + 尾纯文本行（宽度缓存）。</summary>
+    /// <summary>行模型 — 无完整行（可见文本为空）返回空列表 = 不占位；projector 缺席走纯文本，
+    /// 在场走投影缓存链：脏刷新投影 → 稳定段布局（宽度缓存）+ gap 空行 + 尾行（宽度缓存）。</summary>
     private IReadOnlyList<IReadOnlyList<MarkdownSegment>> LinesFor(int width) {
-        if (_projector is null) {
-            return PlainLines();
+        var visible = VisibleText();
+        if (visible.Length == 0) {
+            return [];
         }
 
-        RefreshProjection();
+        if (_projector is null) {
+            return PlainLines(visible);
+        }
+
+        RefreshProjection(visible);
         if (_builtLines is null || _builtLinesWidth != width) {
             _builtLines = BuildProjectedLines(width);
             _builtLinesWidth = width;
@@ -99,11 +111,19 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
         return _builtLines;
     }
 
-    /// <summary>纯文本行模型（M8-1 行为 — 空缓冲 1 空行；段化统一渲染路径，默认样式等价裸文本）。</summary>
-    private IReadOnlyList<IReadOnlyList<MarkdownSegment>> PlainLines()
-    {
-        var lines = _buffer.Length == 0 ? (string[])[string.Empty] : _buffer.ToString().Split('\n');
-        return lines
+    /// <summary>可见文本 — 截断到最后一个换行（含）；无换行 = 空（没有完整行可显示）。
+    /// 对齐基准 REPL.tsx：`streamingText.substring(0, streamingText.lastIndexOf('\n') + 1) || null`。</summary>
+    private string VisibleText() {
+        var text = _buffer.ToString();
+        var lastNewline = text.LastIndexOf('\n');
+        return lastNewline < 0 ? string.Empty : text[..(lastNewline + 1)];
+    }
+
+    /// <summary>纯文本行模型（可见文本必以 '\n' 结尾 — 去掉末尾换行再切分，不产生尾部空行；
+    /// 段化统一渲染路径，默认样式等价裸文本）。</summary>
+    private static IReadOnlyList<IReadOnlyList<MarkdownSegment>> PlainLines(string visible) {
+        return visible[..^1]
+            .Split('\n')
             .Select(static line => line.Length == 0
                 ? []
                 : (IReadOnlyList<MarkdownSegment>)[new MarkdownSegment(line, MarkdownStyle.None)])
@@ -111,7 +131,7 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
     }
 
     /// <summary>脏刷新投影 — Append 后首次访问；投影变化连带失效稳定布局与行模型缓存。</summary>
-    private void RefreshProjection() {
+    private void RefreshProjection(string visible) {
         if (!_projectionDirty) {
             return;
         }
@@ -120,7 +140,7 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
             return;
         }
 
-        _projection = projector.Project(_buffer.ToString());
+        _projection = projector.Project(visible);
         _projectionDirty = false;
         _stableLines = null;
         _builtLines = null;
@@ -140,7 +160,9 @@ public sealed class StreamingTextItem : IScrollItem, ITextMatchable
 
         if (tail.Length > 0) {
             var tailStyle = projection.TailOpenFence ? MarkdownStyle.Dim : MarkdownStyle.None;
-            foreach (var line in tail.Split('\n')) {
+            // 可见文本必以 '\n' 结尾 — 去末尾换行再切分，避免尾行模型多出一个空行
+            var body = tail.EndsWith('\n') ? tail[..^1] : tail;
+            foreach (var line in body.Split('\n')) {
                 lines.Add(line.Length == 0 ? [] : [new MarkdownSegment(line, tailStyle)]);
             }
         }

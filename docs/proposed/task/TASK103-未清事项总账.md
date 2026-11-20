@@ -52,7 +52,7 @@
 ### 2.2 M 级（单域多文件）
 | # | 编号 | 事项 | 来源 |
 |---|------|------|------|
-| 19 | TASK069-S1 | 流式上屏粒度：逐字抖动 vs 截断到最后换行逐行 | TASK069 域1 |
+| ~~19~~ | ~~TASK069-S1~~ | ~~流式上屏粒度：逐字抖动 vs 截断到最后换行逐行~~ | TASK069 域1 | ✅ **已对齐基准 2026-11-21**（用户拍板）：一手 `REPL.tsx:1500` `visibleStreamingText = streamingText.substring(0, lastIndexOf('\n')+1) \|\| null`，注释「line-by-line, not char-by-char」。实现 `StreamingTextItem.VisibleText` 截断到最后一个换行；无完整行 → `LinesFor` 返回空、高度 0 不占位（对齐基准 null 不渲染）；`Text` 仍返回全文（落定替换/transcript 长度不受影响）。TDD 11 项 + 全量 3065 绿 + 真机 EXIT=0 |
 | 20 | TASK069-S2 | 流式尾块渲染：纯文本 vs 完整 Markdown | TASK069 域1 |
 | 21 | TASK069-S3 | 增量解析范围：全量 Markdig.Parse vs O(尾长) | TASK069 域1（性能） |
 | 22 | TASK069-S6 | 提示词 XML 剥离（基准 stripPromptXMLTags） | TASK069 域1 |
@@ -152,4 +152,9 @@
   - 教训：本机 Claude Code exe（2.1.317）是编译产物无源码；项目里另有反编译/镜像源码树（AGENTS.md 指定），二者别混。
 - **#16 工具耗时完成（2026-11-21）**：关键判断纠偏 —— 原以为「要改引擎算 elapsed」，一手查证发现 `ToolProgressData.ElapsedTimeMs` 早已由 `ShellExecutionMiddleware` 填充（Bash/PowerShell 每秒进度），只是**投影链丢掉**。属"字段贯通缺口"而非"功能新建"。8 跳：`ToolProgressRelay` → `ChatStreamEvent.ElapsedTimeMs` → `IEventConsumer.OnToolProgress(..., long?)` → `SessionController`（闭包读 `evt.ElapsedTimeMs`）→ `BridgeProtocol/BridgeEvent.ToolProgress`（`WhenWritingNull` 旧端零破坏）→ `ReplBridgeDriver.ApplyToolProgress` → `ToolStreamingItem.Update`（**粘性**：null 不清零）→ dim 耗时行。渲染位置对齐基准 `MessageResponse` **row 布局**（⎿ 只一次，状态行落第 5 列续行位，不重复 ⎿ —— 首次写成 `⎿` 被测试抓出）。每跳均有契约断言（relay/JSON 双端/controller/driver/render）。**教训：跨层字段丢失是静默的，必须逐跳断言，不能只看末端有没有显示。**
 - **#18 redacted_thinking 完成（2026-11-21）**：关键纠偏 —— 基准 `Message.tsx:524` 在**默认交互视图 `return null`**（只 transcript/verbose 显示 `✻ Thinking…`），所以 C# 之前"什么都不显示"在默认视图其实已等价；真正缺口是 ① `redacted_thinking` 未进 `AnthropicContentBlockType`（converter 兜底成 `Text` 静默丢弃）② transcript 模式无存根。实现走"最小贯通"：复用 `ChatStreamEvent.Thinking` + `IsRedacted` 标记（不动 `Switch` 签名）；`OnThinkingRedacted()` 用 **DIM 默认空实现**（零破坏 5 个既有 consumer）；`AssistantMessage.ThinkingRedacted` 用 `WhenWritingDefault`（旧 JSON 零变化）。**边界如实登记**：引擎 out-of-process bridge 的 AssistantMessage 不带 thinking 字段（CoT 未过桥），标记目前只在进程内路径生效 —— 这是与 #18 相邻但独立的缺口，未混为一体假称已对齐。
-- 下一动作：§2.1 S 级已全部处理完（S5/M1/#15/#13/#16/#18 完成，S4 维持现状，其余维持现状或归 §2.2/§2.3 决策）；下一步转入 §2.2 架构分歧项逐项请示。
+- **§2.2 开工 + S1 完成（2026-11-21）**：转入 §2.2 前先按纪律回一手证据，避免照转述动手。
+  - **S6 判定不适用（关闭）**：`stripPromptXMLTags` 剥离的是 `<commit_analysis|context|function_analysis|pr_analysis>` 块；本仓库 `.cs/.yaml` 中**零产生点**（grep 0 处），基准侧 grep 也只命中剥离函数自身。无对象可剥 → 不做。
+  - **S1 完成**：一手 `screens/REPL.tsx:1500` 给出精确语义（`substring(0, lastIndexOf('\n')+1) || null`，注释「Hide the in-progress source line so text streams line-by-line, not char-by-char」），用户拍板对齐。实现：`StreamingTextItem` 新增 `VisibleText()`（截断到最后一个换行），`LinesFor` 对空可见文本返回空列表 → `MeasureHeight=0` 不占位（基准 null 即不渲染）；`PlainLines`/`BuildProjectedLines` 去尾部换行避免多出空行；`Text` 保持全文（`BuildTranscriptSnapshot`/落定替换/`ContainsText` 全按全文，两处消费点已核）。
+  - 影响面记录：Windows 因 #13 默认关闭流式预览，S1 实际只作用于非 Windows 或显式 `allowStreamingText: true`；短回复（无换行）流式期不再有预览，与基准一致。
+  - 验收：`StreamingTextItemTests` 11/11、NativeTui.Tests **3065 全绿**、Markdown 30/30、Host 142/142；真机 `jcc.exe --selftest-tui` HOST SELFTEST OK EXIT=0；产物 DLL 含 `VisibleText`（UTF-16 核验）。
+- 下一动作：§2.2 继续 —— S2（尾块走完整 Markdown）已获用户拍板待施工；S3（增量解析 O(尾长)）待做性能取证后再定；其余 M 级项（M2/M3/M4/M5/N2/C1/C2/C3/E1/E4/P3/P4/P5）逐项取证请示。

@@ -156,3 +156,71 @@
 
 - 不在合并任务中引入新功能；闸门等新能力已按共享策略落地。
 - 不改变 TS 对齐方向（query2 为目标架构）。
+
+## native_gui 真机验收清单（ADR 0080，默认 query 后端）
+
+> 目的：默认后端已切到 QueryEngine（`JCC_CHAT_LOOP_BACKEND` 未设置 = query），验证真实 exe 下 GUI 回退路径的流式、工具、子代理、取消与逃生开关。
+> 全部为真实进程运行，禁止用单元测试替代；每项验收后在下表勾选并记录异常。
+
+### 前置准备
+
+1. 编译（Debug，不做 AOT 发布）：
+   ```
+   dotnet build native_gui/apps/NativeGui.Host/NativeGui.Host.csproj -c Debug
+   dotnet build test/mock/mock_server.e2e.tests/OpenAI.MockServer 2>/dev/null || dotnet build -t:OpenAI.MockServer
+   ```
+   MockServer exe 定位：`artifacts/bin/OpenAI.MockServer/**/JoinCode.OpenAI.MockServer.exe`（优先 Debug）。
+2. 准备 MockServer 脚本配置（`.xxx/mockserver_gui.json`，长文本按 word 分片≈20ms/片）：
+   ```json
+   {
+     "port": 0,
+     "default_response": "(script exhausted)",
+     "scripted_turns": [
+       { "thinking_content": null, "tool_calls": null, "text_response": "word1 word2 ... word50", "follow_up_text": null, "http_status_code": null }
+     ]
+   }
+   ```
+3. 启动 MockServer 并记录就绪行端口：
+   ```
+   artifacts/bin/OpenAI.MockServer/<config>/JoinCode.OpenAI.MockServer.exe --config .xxx/mockserver_gui.json --port 0 --no-open-browser
+   ```
+   就绪标志：`[OpenAI]   URL: http://localhost:<port>/`
+4. 以环境变量启动 GUI（cmd/PowerShell 均可；**不要**设置 `JCC_CHAT_LOOP_BACKEND`，让默认值生效）：
+   ```
+   set JCC_ENDPOINT=http://localhost:<port>
+   set OPENAI_API_KEY=sk-test-gui-accept
+   set JCC_VENDOR=openai
+   set JCC_MODEL_ID=gpt-4o
+   set JCC_PERMISSION_MODE=bypass
+   set JCC_DEBUGLOG=1
+   artifacts/bin/NativeGui.Host/Debug/net10.0-windows10.0.26100.0/NativeGui.Host.exe
+   ```
+
+### 验收场景
+
+| # | 场景 | 操作 | 期望 | 观察点 |
+|---|------|------|------|--------|
+| 1 | 流式增量 | 发送"给我讲一个很长的故事" | 文本逐段上屏（非整块一次性出现），结束后有 Done | 首 token 延迟、末 token 时间；日志 `[LOOP-QUERY]` |
+| 2 | 工具调用 | 发送"用 Bash 执行 echo hello" | 工具开始/结束事件、结果回填、模型继续收尾 | `ToolCallStart/ToolCallEnd`、无重复文本 |
+| 3 | 子代理事件 | 发送需要 fork 子代理的任务 | 子代理进度事件实时显现 | `SubAgentEventChannel` 50ms 合并无丢失 |
+| 4 | 取消（Esc/中断） | 长工具执行中打断 | 回合停止，无崩溃；历史保持合法（可继续下一轮对话） | 日志无未捕获异常；下一轮请求不报 tool_calls 无结果 |
+| 5 | XML fallback 干预 | MockServer 脚本返回含 `<antml:invoke ...>` 的文本 | 自动解析执行或注入纠正提示后继续；连续 3 次后警告结束 | 日志 `[XML-FALLBACK]` |
+| 6 | 预算守卫 | 构造接近窗口的历史（重复长对话/大工具输出） | 请求前自动裁剪，不出现 `prompt_too_long` 崩溃 | 日志 `[BUDGET-GUARD]`（阈值以下不出现属正常） |
+| 7 | legacy 逃生 | 关闭 GUI，设置 `JCC_CHAT_LOOP_BACKEND=legacy` 重启 | 与场景 1/2 行为一致（旧循环），验证逃生可用 | 日志无 `[LOOP-QUERY]` |
+
+### 回退与报告
+
+- 任一场景失败：记录场景号 + 日志片段（grep `[LOOP-QUERY]` / `[XML-FALLBACK]` / `[BUDGET-GUARD]` / 异常栈），先用 `JCC_CHAT_LOOP_BACKEND=legacy` 恢复使用并反馈。
+- 通过后：本表勾选，作为“已验收”证据回填四列验收表对应行的最后一列。
+
+### 验收记录（○ 待用户填写）
+
+| # | 场景 | 结果（✅/❌） | 备注（日志/耗时/截图路径） |
+|---|------|--------------|------------------------------|
+| 1 | 流式增量 | ○ | |
+| 2 | 工具调用 | ○ | |
+| 3 | 子代理事件 | ○ | |
+| 4 | 取消 | ○ | |
+| 5 | XML fallback 干预 | ○ | |
+| 6 | 预算守卫 | ○ | |
+| 7 | legacy 逃生 | ○ | |

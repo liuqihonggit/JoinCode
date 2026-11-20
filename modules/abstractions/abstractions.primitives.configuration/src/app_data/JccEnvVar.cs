@@ -264,7 +264,7 @@ public enum JccEnvVar {
 
     // TASK103 循环合并 — ChatService 循环后端灰度
     [EnumValue("JCC_CHAT_LOOP_BACKEND")]
-    [SubCommandInfo("ChatService 循环后端 (legacy/query；默认 legacy)", "运行时配置")]
+    [SubCommandInfo("ChatService 循环后端 (legacy/query；默认 query，legacy 为逃生开关)", "运行时配置")]
     ChatLoopBackend,
 }
 

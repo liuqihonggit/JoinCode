@@ -5,11 +5,11 @@ namespace Core.Tests.Query.Merge;
 /// </summary>
 public sealed class ChatLoopBackendPolicyTests {
     [Fact]
-    public void Read_DefaultsToLegacyWhenUnset() {
+    public void Read_DefaultsToQueryWhenUnset() {
         using var scope = EnvVarScope.Set(JccEnvVar.ChatLoopBackend.ToValue(), null);
 
-        ChatLoopBackendPolicy.Read().Should().Be(ChatLoopBackend.Legacy);
-        ChatLoopBackendPolicy.UseQueryEngine.Should().BeFalse();
+        ChatLoopBackendPolicy.Read().Should().Be(ChatLoopBackend.Query);
+        ChatLoopBackendPolicy.UseQueryEngine.Should().BeTrue();
     }
 
     [Theory]
@@ -37,9 +37,9 @@ public sealed class ChatLoopBackendPolicyTests {
     }
 
     [Fact]
-    public void Read_InvalidValueFallsBackToLegacy() {
+    public void Read_InvalidValueFallsBackToQuery() {
         using var scope = EnvVarScope.Set(JccEnvVar.ChatLoopBackend.ToValue(), "garbage");
 
-        ChatLoopBackendPolicy.Read().Should().Be(ChatLoopBackend.Legacy);
+        ChatLoopBackendPolicy.Read().Should().Be(ChatLoopBackend.Query);
     }
 }

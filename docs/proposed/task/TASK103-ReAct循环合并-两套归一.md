@@ -42,20 +42,20 @@
 
 1. **规则单源冻结（已完成）**：闸门（`RoundGatePolicy`）、循环上限（`LoopLimits`：`JCC_MAX_TOOL_CALL_ITERATIONS` / `JCC_MAX_STOP_HOOK_REPLY_ROUNDS`）已抽为共享单源；新规则禁止写进任一循环。
    - 已完成证据：TASK102 第二轮，两套循环共同消费，单测覆盖默认/覆盖/非法回退。
-2. **事件适配层（已完成）**：`QueryStreamChunkAdapter`（`modules/abstractions/abstractions.interfaces/interfaces/llm/QueryStreamChunkAdapter.cs`）覆盖全部 chunk 类型；`JCC_CHAT_LOOP_BACKEND=legacy|query` 灰度开关（`ChatLoopBackendPolicy`，默认 legacy）已落地。
+2. **事件适配层（已完成）**：`QueryStreamChunkAdapter`（`modules/abstractions/abstractions.interfaces/interfaces/llm/QueryStreamChunkAdapter.cs`）覆盖全部 chunk 类型；`JCC_CHAT_LOOP_BACKEND=legacy|query` 开关（`ChatLoopBackendPolicy`，2026-11-21 已翻转默认 query，legacy 保留为逃生）已落地。
    - 映射决策：`Error → SystemNotice`（失败原因上屏，不静默丢弃）；`ThinkingEnd` 无对应事件返回 null；`Complete → Done` 透传 usage/model/stopReason。
    - 单测：`QueryStreamChunkAdapterTests`（全类型映射）+ `ChatLoopBackendPolicyTests`（默认值/别名/非法回退）。
 3. **能力迁移（部分完成）**：
    a. 流式工具执行器迁入 QueryEngine（或作为 QueryEngine 中间件）— ❌ 未迁（`JCC_ACTOR_TOOL_EXECUTOR` 仍仅 chat legacy 使用）。
    b. steer 邮箱与子代理事件通道迁入 QueryEngine — 🟡 子代理事件已由适配层合流；steer 仅步首注入（循环内 drain 待补）。
    c. 循环检测 + 三级干预（软提示/硬撤回重连/压缩）迁入 QueryEngine 中间件 — 🟡 检测已在适配层复现，三级干预仍由 chat 管线 `LoopInterventionMiddleware` 消费。
-4. **灰度切换（已落地，默认 legacy）**：`ChatService.StreamWithEventsAsync` 内部在 `JCC_CHAT_LOOP_BACKEND=query` 时路由到 `IQueryEngine`；GUI 同源会话 E2E（流式 + 子代理事件）已在 query/legacy 双模式通过；slash/bridge 宿主与 native_gui 真机人工验收待补。
+4. **默认切换（已落地，默认 query）**：`ChatService.StreamWithEventsAsync` 默认路由到 `IQueryEngine`，`JCC_CHAT_LOOP_BACKEND=legacy` 显式回旧循环；GUI 同源会话 E2E（流式 + 子代理事件）在默认/legacy 双模式通过；native_gui 真机人工验收 ○ 待补。
 5. **下线旧循环**：全部宿主迁移且 E2E 绿后，`QueryLoopMiddleware` 与 `chat-pipeline` 中对应节点移入 `.xxx/` 归档，删除相关测试或改为 QueryEngine 等价测试。
 6. **统一终止策略对象**：把闸门/空响应/循环检测/Stop hook 的优先级与计数收敛到一个 `TurnTerminationPolicy`，两阶段迁移期由新旧循环共同消费。
 
 ## S4 灰度接线（已实现，默认关闭）
 
-- `QueryLoopMiddleware` 注入可选 `IQueryEngine`；`JCC_CHAT_LOOP_BACKEND=query` 时整轮循环委托 QueryEngine，默认 legacy 不变，dry-run 预览仍走旧循环。
+- `QueryLoopMiddleware` 注入可选 `IQueryEngine`；默认整轮循环委托 QueryEngine（`JCC_CHAT_LOOP_BACKEND=legacy` 回旧循环），dry-run 预览仍走旧循环。
 - 历史去重：ChatPreprocessor 已落库当前用户消息 → 快照剥离末尾同内容 user 消息，QueryEngine 重新加入；结束后按角色把增量回写 `IChatContextManager`（跳过重复 user）。
 - 事件：`QueryStreamChunkAdapter` 全类型映射；Complete 截留为最终 Done；Error → SystemNotice。
 - 流式修复：QueryEngine 原先把整轮 Content 聚合后才入队（GUI 首末分片时间差≈0）；现改为收到即入 `OutputChunks`，并以 `HasEmittedStreamContent` 禁止"部分输出后整轮重试"造成重复文本。
@@ -86,12 +86,18 @@
 - 补位关系：`HistorySnipMiddleware` 只在工具调用后触发，单轮内工具输出突增会漏检；本中间件在请求前兜底（对齐 chat 循环 `GuardContextBudget`）。
 - 单测：`PreRequestBudgetGuardTests`（4）覆盖阈值以下不裁剪/预防性/紧急/依赖缺失。
 
+## 默认翻转（2026-11-21，已落地）
+
+- `ChatLoopBackendPolicy.Read()` 未设置/非法值 → `Query`；`JCC_CHAT_LOOP_BACKEND=legacy` 为逃生开关，dry-run 预览仍走 legacy。
+- 翻转依据：S6/S7/S8 已关闭 query 后端能力差距；GUI 回退与 slash 共用 `ChatService.StreamWithEventsAsync` 路径且默认模式 E2E 通过；bridge `mainAgent` 路径不经 ChatService，不受开关影响。
+- 未覆盖项：slash 独立宿主 E2E（宿主 `SkipProviderConfig=true`）与 native_gui 真机人工验收 ○ 待用户。
+
 ### 四列验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
 | `QueryStreamChunkAdapter`（abstractions.interfaces） | `QueryLoopMiddleware.RunQueryBackendAsync` + `AgentStreamChunkAdapter` 同级协议桥 | ✅ | ❌ 未走 ADR 0080 真机 exe；已有 MockServer E2E（query/legacy 双模式通过） |
-| `ChatLoopBackendPolicy` + `JCC_CHAT_LOOP_BACKEND` | `QueryLoopMiddleware.InvokeAsync` 分支 | ✅ | ❌ 未走 ADR 0080 真机 exe；同源 GUI 会话 E2E 已验证 env=query 生效 |
+| `ChatLoopBackendPolicy` + `JCC_CHAT_LOOP_BACKEND` | `QueryLoopMiddleware.InvokeAsync` 分支（默认 query，legacy 逃生） | ✅ | ❌ 未走 ADR 0080 真机 exe；同源 GUI 会话 E2E 已验证默认模式与 legacy 模式均生效 |
 | 历史去重与增量回写 | `BuildQueryHistoryAsync` / `PersistQueryDeltaQuietlyAsync` | ✅ | ❌ 待多轮真机会话核对历史条数与顺序 |
 | 轮内 steer 注入 | `QueryOptions.OnIterationStart` / `HasPendingIterationInput` + `DrainSteerIntoQueryHistoryAsync` | ✅ | ❌ 未走 ADR 0080 真机 exe；单测覆盖步首注入/事件/落库与收尾继续 |
 | 子代理事件合流 | `ConsumeQueryBackendAsync` + `SubAgentEventChannel` | ✅ | ❌ 未走 ADR 0080 真机 exe；`SubAgentEventStreamE2ETests` query 2/2 通过 |
@@ -121,6 +127,10 @@
 | S8 后 `Brain.Other.Tests` 全量 | 509 通过（含 `PreRequestBudgetGuardTests` 4） |
 | S8 后 MockServer E2E（query 模式） | 3/3 通过（守卫钩子默认不触发，聊天行为无回归） |
 | S8 后全仓编译 | `Build-AllDomains.ps1` 全部通过 |
+| 默认翻转后 `Brain.Other.Tests` 全量 | 509 通过（`ChatLoopBackendPolicyTests` 默认断言改为 query） |
+| 默认翻转后 `Brain.Context.Tests` 全量 | 977 通过 |
+| 默认翻转后 MockServer E2E（默认模式） | 3/3 通过（未设置环境变量即 query 后端） |
+| 默认翻转后 MockServer E2E（legacy 逃生） | 3/3 通过（`JCC_CHAT_LOOP_BACKEND=legacy`） |
 
 ### 已知差距（翻转默认前必须补）
 
@@ -128,7 +138,7 @@
 2. ~~上下文预算守卫（ADR 0156 请求前裁剪）为 chat-only~~ → 已解决（S8：query 中间件每轮请求前守卫，按 0.7/1.0 分级裁剪）。
 3. 流式工具执行（`UseStreamingToolExecution`，默认 false）为 chat-only — 接受为 opt-in 差异：query 后端按非流式执行（与 chat 默认配置一致），启用该设置且走 query 后端时输出 `[LOOP-QUERY]` 诊断说明；迁移并发调度器风险高于收益，不阻塞默认切换。
 4. ~~取消语义差异~~ → 已解决（S7：取消上抛 + `(aborted)` 补写，历史合法性对齐 legacy）。
-5. 宿主验收：GUI 同源会话已由 MockServer E2E 在 query 后端通过（自动）；slash/bridge 宿主仍缺 query 后端 E2E（slash 元命令宿主 `SkipProviderConfig=true` 无法连 MockServer），○ 待验收；native_gui exe 人工验收 ○ 待用户执行。默认值保持 legacy 直至宿主验收完成。
+5. 宿主验收：GUI 同源会话已由 MockServer E2E 在默认（query）后端通过；slash 与 GUI 回退共用同一 `ChatService.StreamWithEventsAsync` 路径（slash 元命令宿主 `SkipProviderConfig=true` 无法连 MockServer，缺独立 E2E）；bridge `mainAgent` 路径本就绕过 ChatService（`SessionController.cs:210`），不受开关影响；native_gui exe 人工验收 ○ 待用户执行。
 
 ## 验收标准
 

@@ -42,10 +42,10 @@
 | ~~12~~ | ~~TASK074-D7~~ | ~~bash mode 使用埋点~~ | TASK074 | ✅ **维持现状 2026-11-21**：基准 `logEvent('tengu_input_bash')` 是使用频率埋点，C# 无埋点基础设施；D7 原文自标「低优先级遗留、需埋点基础设施」——可观测性增强非 TUI 对齐，无基础设施时不做空中楼阁 |
 | 13 | TASK069-缺失 | reducedMotion/yank-bug 禁用流式预览 | TASK069 缺失 | ⚠️ 待裁决：基准 REPL.tsx:1495；C# 已有 ReducedMotion 基础设施（SpinnerAnimator/StallTracker），缺流式预览分支；exe 无一手文案取证 |
 | 14 | TASK069-缺失 | spinner 连接警告（Reconnecting/Disconnected 行） | TASK069 缺失 | ✅ **证据不足维持现状 2026-11-21**：Claude Code 2.1.317 exe 无 Reconnecting/Disconnected UI 文案（仅网络层断开串）；C# 亦无。TASK069 转述无一手支撑 |
-| 15 | TASK069-缺失 | ultrathink 彩虹文字 | TASK069 缺失 | ✅ **一手确证→待施工 2026-11-21**：exe 提取到 `ultrathink`/`ultrathink_effort`/`ultrathink-active` 等标记；C# `Theme.cs` 有相关基础。对齐基准实现彩虹文字分支 |
+| 15 | TASK069-缺失 | ultrathink 彩虹文字 | TASK069 缺失 | ⚠️ **规模上调 S→M + 基准细节不可得 2026-11-21**：exe 确证 `ultrathink` 标记存在，但基准 `HighlightedThinkingText.tsx:87` 的触发词/渐变算法源码拿不到（exe 编译后无源码）；C# rainbow 7 色有定义无消费点，落点在 CoT 文本分段着色（AssistantMessageItem/MarkdownMessageItem）。**臆造渐变冒充对齐不可取**，待用户提供基准渲染细节或裁决放弃 |
 | 16 | TASK069-缺失 | 工具执行中耗时显示（elapsedTimeSeconds） | TASK069 缺失 | ⚠️ 待裁决：基准 BashTool/UI.tsx:145；C# 有 elapsed 基础设施（ReplShell/EarlyInputBuffer）；exe 无明确进度行文案取证 |
 | 17 | TASK069-缺失 | 用户中断专用消息 | TASK069 缺失 | ✅ **证据不足维持现状 2026-11-21**：exe 无 "Interrupted by user" 类文案；C# 仅红色通用错误。TASK069 转述无一手支撑 |
-| 18 | TASK069-缺失 | redacted_thinking 消息 | TASK069 缺失 | ✅ **一手确证→待施工 2026-11-21**：exe 提取到 `<redacted>` 标记；C# 无对应消息项。对齐基准加 redacted 消息渲染分支 |
+| 18 | TASK069-缺失 | redacted_thinking 消息 | TASK069 缺失 | ⚠️ **规模上调 S→M + 基准细节不可得 2026-11-21**：exe 确证 `<redacted>` 标记，但基准独立组件的布局/文案源码拿不到；C# 落点 = 新消息项类型 + BridgeEvent 协议扩展（ThinkingContent 旁加 redacted 标志）+ 双消费者，跨域（native_tui + engine）。待基准细节或裁决放弃 |
 
 ### 2.2 M 级（单域多文件）
 | # | 编号 | 事项 | 来源 |

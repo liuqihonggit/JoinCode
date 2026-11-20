@@ -145,6 +145,7 @@
 | S9 归档后全仓编译 | `Build-AllDomains.ps1` 全部通过 |
 | S10 自对话实弹（bridge_serve） | PASS：握手/token_delta/tool_call/tool_result/turn_completed 全齐 |
 | S10 TUI 双侧自对话（NativeTui.Demo --bridge-selftest） | PASS：跨进程 NDJSON roundtrip |
+| S11 GUI 真机自验收（DSH RPC + MockServer） | PASS：请求#0 → bash 工具执行 → 请求#1 带工具结果 → 文本流回合完成 |
 | S10 清理后全仓编译 | `Build-AllDomains.ps1` 全部通过 |
 
 ### 已知差距（现状）
@@ -153,7 +154,7 @@
 2. ~~上下文预算守卫（ADR 0156 请求前裁剪）为 chat-only~~ → 已解决（S8：query 中间件每轮请求前守卫，按 0.7/1.0 分级裁剪）。
 3. ~~流式工具执行~~ → S9 随 legacy 一并归档，设置项成为 no-op，query 后端按非流式顺序执行（原默认行为）；如需恢复流式调度应作为 QueryEngine 新能力单独立项。
 4. ~~取消语义差异~~ → 已解决（S7：取消上抛 + `(aborted)` 补写，历史合法性对齐 legacy）。
-5. 宿主验收：GUI 同源会话已由 MockServer E2E 在唯一 query 循环上通过；slash 与 GUI 回退共用同一 `ChatService.StreamWithEventsAsync` 路径（slash 元命令宿主 `SkipProviderConfig=true` 无法连 MockServer，缺独立 E2E）；bridge `mainAgent` 路径绕过 ChatService（`SessionController.cs:210`）；native_gui exe 人工验收 ○ 待用户执行（legacy 回退已不存在，异常需修 query 后端或回滚提交）。
+5. 宿主验收：GUI 同源会话 E2E + **native_gui 真机 DSH RPC 自验收（S11 PASS：流式/工具/权限/结果回灌/二次请求）**；slash 与 GUI 回退共用同一 `ChatService.StreamWithEventsAsync` 路径（slash 元命令宿主 `SkipProviderConfig=true` 无法连 MockServer，缺独立 E2E）；bridge `mainAgent` 路径绕过 ChatService（`SessionController.cs:210`）。GUI 渲染层另有手工冒烟；legacy 回退已不存在，异常需修 query 后端或回滚提交。
 
 ## S10 自我验收与残留清理（已落地）
 
@@ -161,6 +162,16 @@
 - TUI 双侧自对话：`NativeTui.Demo.exe --bridge-selftest`（同一 exe 以客户端与 echo 服务端两进程互连）输出 `BRIDGE SELFTEST OK — 跨进程 stdin/stdout 管道 + 行分格 JSON 协议 roundtrip 全部通过`。
 - 残留清理：`ToolExecutionSettings.UseStreamingToolExecution` / `MaxParallelToolExecution` 删除（无消费者）；`QueryLoopServices` 删除 `ContentReplacer`/`FileContextService`；`IChatToolOrchestrator`/`ChatToolOrchestrator` 归档后的引用注释全部改为当前实现（网关/QueryEngine）表述。
 - 说明：bridge 走主代理 `mainAgent` 路径（QueryEngine 直连），不经 ChatService；ChatService 桥接路径由 MockServer GUI 同源 E2E 覆盖。
+
+## S11 native_gui 真机自验收（DSH RPC，无人工）
+
+- 方式：启动真实 `NativeGui.Host.exe`（env 指向 MockServer），解析 `.jcc/dumps/startup_timing.log` 的 `[DSH-WEB] listening` 端口，通过 DSH RPC 全链路驱动：`settings/mutate`（permission/defaultPreset=bypass）→ `session/create` → `session/prompt`。harness：`.xxx/gui_accept/gui_rpc_accept.py`。
+- 证据（PASS）：
+  - MockServer Request #0 含用户消息 `run bash echo gui-self-accept`，按脚本返回工具调用；
+  - 工具在真实 GUI 进程中执行（bash，ExitCode 0，输出 hello）；
+  - Request #1 携带 `[tool] hello ... {"exit_code":0,...}` 工具结果，模型返回文本流（3 chunks），回合完成。
+- 结论：GUI 真机路径 `JccChatSession → ChatService.StreamWithEventsAsync → QueryLoopMiddleware → QueryEngine` 的流式、工具调用、权限放行、结果回灌、二次 LLM 调用全部打通。GUI 渲染层另有手工冒烟（截图确认消息/工具卡片上屏）；真机权限对话框也实测出现（标准代理预设下 bash 触发审批）。
+- 注意：GUI 的权限预设以持久化设置为准，`JCC_PERMISSION_MODE` 环境变量不覆盖已存预设；自动化验收通过 `settings/mutate` 写 bypass。
 
 ## 验收标准
 
@@ -211,7 +222,7 @@
    set OPENAI_API_KEY=sk-test-gui-accept
    set JCC_VENDOR=openai
    set JCC_MODEL_ID=gpt-4o
-   set JCC_PERMISSION_MODE=bypass
+   rem GUI 权限以持久化预设为准（JCC_PERMISSION_MODE 不覆盖已存预设）；自动化请用 settings/mutate 写 permission/defaultPreset=bypass
    set JCC_DEBUGLOG=1
    artifacts/bin/NativeGui.Host/Debug/net10.0-windows10.0.26100.0/NativeGui.Host.exe
    ```

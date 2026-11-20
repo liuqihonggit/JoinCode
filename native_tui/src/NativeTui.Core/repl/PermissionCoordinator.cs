@@ -48,6 +48,21 @@ public sealed class PermissionCoordinator
     /// <summary>Ctrl+E 解释展开态（S8 — 基准 ctrl+e: confirm:toggleExplanation，命令详情展开；Begin 重置 false）。</summary>
     public bool ExplanationExpanded { get; private set; }
 
+    /// <summary>用户补充说明（P3 — 选项按 Tab 展开输入框填写；Begin 重置，Complete 后由 TuiPermissionBridge 读取）。</summary>
+    public string Feedback { get; private set; } = string.Empty;
+
+    /// <summary>反馈输入态（P3 — Tab 在有反馈的选项上切换；焦点移开即收起）。</summary>
+    public bool FeedbackInputActive { get; private set; }
+
+    /// <summary>当前焦点档是否支持反馈输入（P3 — 基准 FallbackPermissionRequest 只给 Yes/No 配
+    /// <c>feedbackConfig</c>，don't-ask-again 档没有 → Tab 在该档退回遍历语义）。</summary>
+    public bool FocusSupportsFeedback => FocusIndex != (int)PermissionChoice.AlwaysAllow;
+
+    /// <summary>反馈输入占位文案（按焦点档 — 对齐基准 accept/reject 两套 placeholder）。</summary>
+    public string FeedbackPlaceholder => FocusIndex == (int)PermissionChoice.Deny
+        ? "告诉 Claude 应该怎么做"
+        : "告诉 Claude 接下来做什么";
+
     /// <summary>Shift+Tab 权限模式循环请求（S8 — 基准 shift+tab: confirm:cycleMode；
     /// ReplShell 接线订阅转发 CyclePermissionMode 引擎回执通道 — 接线未决问题记录）。</summary>
     public event Action? ModeCycleRequested;
@@ -71,6 +86,8 @@ public sealed class PermissionCoordinator
         FocusIndex = 0;
         SelectionToggled = false;
         ExplanationExpanded = false;
+        Feedback = string.Empty;
+        FeedbackInputActive = false;
     }
 
     /// <summary>Complete 解除等待 + 清空状态（幂等 — 二次调用 no-op）。</summary>
@@ -86,12 +103,53 @@ public sealed class PermissionCoordinator
         Request = null;
     }
 
-    /// <summary>焦点环绕移动（上 = -1 / 下 = +1）。</summary>
-    public void MoveFocus(int delta) =>
+    /// <summary>焦点环绕移动（上 = -1 / 下 = +1）— 焦点离开即收起反馈输入态（已填文本保留）。</summary>
+    public void MoveFocus(int delta)
+    {
         FocusIndex = ((FocusIndex + delta) % OptionCount + OptionCount) % OptionCount;
+        FeedbackInputActive = false;
+    }
 
     /// <summary>Tab 遍历选项（S8 — 基准 tab: confirm:nextField；焦点 +1 环绕，键位表独立入口）。</summary>
     public void CycleFocus() => MoveFocus(1);
+
+    /// <summary>
+    /// Tab 双重语义（P3 — 对齐基准 CustomSelect <c>onInputModeToggle</c>：Tab 在带输入框的选项上
+    /// 进/出输入态）：焦点档支持反馈 → 切换输入态；否则退回 S8 的 <see cref="CycleFocus"/> 遍历语义。
+    /// </summary>
+    public void OnTab()
+    {
+        if (FocusSupportsFeedback)
+        {
+            FeedbackInputActive = !FeedbackInputActive;
+            return;
+        }
+
+        CycleFocus();
+    }
+
+    /// <summary>追加反馈文本（仅在输入态生效 — 非输入态的字符不污染反馈，仍由调用方吞掉）。</summary>
+    /// <param name="text">本次输入文本（字符或粘贴块）。</param>
+    public void AppendFeedback(string text)
+    {
+        if (!FeedbackInputActive || string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        Feedback += text;
+    }
+
+    /// <summary>反馈退格（空串静默 — 输入态下不关闭对话框）。</summary>
+    public void TrimFeedbackTail()
+    {
+        if (!FeedbackInputActive || Feedback.Length == 0)
+        {
+            return;
+        }
+
+        Feedback = Feedback[..^1];
+    }
 
     /// <summary>Space 切换选中（S8 — 基准 space: confirm:toggle；选中态翻转，Begin 重置）。</summary>
     public void ToggleSelection() => SelectionToggled = !SelectionToggled;

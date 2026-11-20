@@ -21,12 +21,12 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
     /// <param name="toolName">待确认的工具名称</param>
     /// <param name="confirmationPrompt">展示给用户的确认提示文本</param>
     /// <param name="cancellationToken">取消令牌 — 取消视为拒绝</param>
-    /// <returns>用户选择的确认动作（允许/始终允许/拒绝）；非交互环境自动拒绝</returns>
-    public Task<PermissionConfirmAction> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default) {
+    /// <returns>用户选择的确认动作（允许/始终允许/拒绝）；非交互环境自动拒绝。CLI 提示符形态不提供反馈输入，Feedback 恒 null</returns>
+    public Task<PermissionConfirmResult> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default) {
         if (cancellationToken.IsCancellationRequested)
-            return Task.FromResult(PermissionConfirmAction.Deny);
+            return Task.FromResult(PermissionConfirmResult.Of(PermissionConfirmAction.Deny));
 
-        return Task.FromResult(ConfirmBlocking(toolName, confirmationPrompt));
+        return Task.FromResult(PermissionConfirmResult.Of(ConfirmBlocking(toolName, confirmationPrompt)));
     }
 
     /// <summary>同步阻塞确认 — 复用 REPL 单通道门控读取 stdin（CLI 专属交互形态）</summary>

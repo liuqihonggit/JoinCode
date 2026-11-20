@@ -58,18 +58,27 @@ public sealed class ReplShellWiringPermissionThemeTests
         Assert.Equal(PermissionChoice.Deny, await choiceTask);
     }
 
-    /// <summary>接线点7 — Tab 遍历选项：焦点 +1 环绕（0→1→2→0）。</summary>
+    /// <summary>接线点7 — Tab 在有输入框的档位（Yes/No）切换反馈输入态（TASK069-P3 —
+    /// 对齐基准 CustomSelect onInputModeToggle）；don't-ask-again 档无输入框 → 退回遍历语义。</summary>
     [Fact]
-    public void PermissionTab_CyclesFocus()
+    public void PermissionTab_TogglesFeedbackInput()
     {
         var (shell, _) = CreateShellWithPendingPermission();
         Assert.Equal(0, shell.Permission.FocusIndex);
 
         shell.HandleKey(new ConsoleKeyInfo('\t', ConsoleKey.Tab, false, false, false));
+        Assert.True(shell.Permission.FeedbackInputActive);
+        Assert.Equal(0, shell.Permission.FocusIndex);
+
+        shell.HandleKey(new ConsoleKeyInfo('\t', ConsoleKey.Tab, false, false, false));
+        Assert.False(shell.Permission.FeedbackInputActive);
+
+        // 移到 don't-ask-again 档（无输入框）→ Tab 恢复遍历
+        shell.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
         Assert.Equal(1, shell.Permission.FocusIndex);
         shell.HandleKey(new ConsoleKeyInfo('\t', ConsoleKey.Tab, false, false, false));
-        shell.HandleKey(new ConsoleKeyInfo('\t', ConsoleKey.Tab, false, false, false));
-        Assert.Equal(0, shell.Permission.FocusIndex);
+        Assert.Equal(2, shell.Permission.FocusIndex);
+        Assert.False(shell.Permission.FeedbackInputActive);
     }
 
     /// <summary>接线点7 — Space 切换选中态（翻转 + 模态吞键不进输入缓冲）。</summary>

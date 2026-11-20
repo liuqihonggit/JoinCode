@@ -25,9 +25,13 @@ public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : I
     public PermissionCoordinator Coordinator { get; } = coordinator;
 
     /// <summary>内容高度 = Fallback 骨架 12（margin1+边框1+标题1+空1+工具1+空1+问题1+选项3+Esc空1+Esc1）
-    /// + 描述(空则 0) + 形态区行数（Bash：命令折行 + 警告 0/1 / File：路径 1 + patch 0/1）。</summary>
+    /// + 描述(空则 0) + 形态区行数（Bash：命令折行 + 警告 0/1 / File：路径 1 + patch 0/1）
+    /// + 反馈输入行（P3 — Tab 展开时 1 行）。</summary>
     public int MeasureHeight(int width) =>
-        12 + DescriptionRows + FormRows(width);
+        12 + DescriptionRows + FormRows(width) + FeedbackRows;
+
+    /// <summary>反馈输入行数（P3 — Tab 展开输入框时占 1 行）。</summary>
+    private int FeedbackRows => Coordinator.FeedbackInputActive ? 1 : 0;
 
     /// <summary>描述行数（空描述折叠为 0）。</summary>
     private int DescriptionRows => string.IsNullOrEmpty(Coordinator.Request?.Description) ? 0 : 1;
@@ -71,6 +75,10 @@ public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : I
         for (var i = 0; i < PermissionCoordinator.OptionCount; i++)
         {
             MessageRenderer.RenderPermissionOption(screen, RowFrame(frame, row++), theme, i, OptionLabels[i], i == Coordinator.FocusIndex);
+            if (i == Coordinator.FocusIndex && Coordinator.FeedbackInputActive)
+            {
+                RenderFeedbackInput(screen, RowFrame(frame, row++), theme);
+            }
         }
 
         row++;
@@ -125,16 +133,35 @@ public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : I
     }
 
     /// <summary>Esc 提示行 — Fallback/File 走基准 "Esc to cancel"（零行为变化）；Bash 附 ctrl+e 展开详情提示
-    ///（对齐基准 "Esc to cancel · ctrl+e to explain"，S8 键位 ToggleExplanation 数据层已就绪）。</summary>
-    private static void RenderEscHint(Screen screen, Rect frame, Theme theme, PermissionFormKind kind)
+    ///（对齐基准 "Esc to cancel · ctrl+e to explain"，S8 键位 ToggleExplanation 数据层已就绪）；
+    /// 焦点档支持反馈时附 Tab 说明提示（P3 — 对齐基准 "Esc to cancel · Tab to amend"）。</summary>
+    private void RenderEscHint(Screen screen, Rect frame, Theme theme, PermissionFormKind kind)
     {
-        if (kind != PermissionFormKind.Bash)
+        var text = kind == PermissionFormKind.Bash ? " Esc to cancel · ctrl+e 展开详情" : " Esc to cancel";
+        if (Coordinator.FocusSupportsFeedback)
         {
-            MessageRenderer.RenderPermissionEscHint(screen, frame, theme);
+            text += Coordinator.FeedbackInputActive
+                ? $" · Tab 收起说明（{Coordinator.Feedback.Length} 字）"
+                : " · Tab 修改说明";
+        }
+
+        screen.WriteText(frame.Y, frame.X, text, screen.Styles.GetOrAdd(new TextStyle { Dim = true }), frame.Right);
+    }
+
+    /// <summary>反馈输入行渲染（P3）— 与选项标签同列（5 列缩进）：有内容走默认样式 + 尾随光标「_」，
+    /// 空内容走 dim 占位文案（按焦点档区分 accept/reject 两套措辞）。</summary>
+    private void RenderFeedbackInput(Screen screen, Rect frame, Theme theme)
+    {
+        const int labelColumn = 5;
+        if (Coordinator.Feedback.Length == 0)
+        {
+            screen.WriteText(frame.Y, frame.X, $"{new string(' ', labelColumn)}{Coordinator.FeedbackPlaceholder}", screen.Styles.GetOrAdd(new TextStyle { Dim = true }), frame.Right);
             return;
         }
 
-        screen.WriteText(frame.Y, frame.X, " Esc to cancel · ctrl+e 展开详情", screen.Styles.GetOrAdd(new TextStyle { Dim = true }), frame.Right);
+        var col = screen.WriteText(frame.Y, frame.X, new string(' ', labelColumn), 0, frame.Right);
+        col = screen.WriteText(frame.Y, col, Coordinator.Feedback, 0, frame.Right);
+        screen.WriteText(frame.Y, col, "_", screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Suggestion }), frame.Right);
     }
 
     /// <summary>单行 frame（Y 为该渲染行，高度 1）。</summary>

@@ -72,7 +72,7 @@ public sealed class EngineSession : IAsyncDisposable {
             // BindInteractions 重绑为 ReplShell 命令对话框同步桥（prompt 明文 / readPassword 密文遮蔽，
             // TASK065 F2b 已接；组装期 null = 命令侧默认空输入降级）。
             commandCallbacks.BindInteractions(
-                confirm: message => MapConfirmResult(permissionBridge.Confirm(CommandConfirmToolName, message)),
+                confirm: message => MapConfirmResult(permissionBridge.Confirm(CommandConfirmToolName, message).Action),
                 prompt: null,
                 readPassword: null,
                 beginSessionPicker: null);

@@ -188,7 +188,7 @@ public class PermissionAwareToolExecutorTest {
         var handler = CreateStubHandler();
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();
         confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PermissionConfirmAction.Deny);
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Deny));
 
         await using var executor = new PermissionAwareToolExecutor(
             CreateRegistry(handler), CreatePipeline(new AlwaysPendingMiddleware()),
@@ -201,12 +201,71 @@ public class PermissionAwareToolExecutorTest {
         result.GetFirstText().Should().Contain("\"type\":\"permission_denied\"");
     }
 
+    // ---- TASK069-P3 拒绝反馈 ----
+
     [Fact]
-    public async Task HandlePendingConfirmation_UserAllows_RetriesAndReturnsSuccess() {
+    public async Task HandlePendingConfirmation_UserDeniesWithFeedback_CarriesUserWords() {
         var handler = CreateStubHandler();
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();
         confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PermissionConfirmAction.Allow);
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Deny, "别删，改成备份"));
+
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler), CreatePipeline(new AlwaysPendingMiddleware()),
+            CreatePermissionManager(), confirmationHandler: confirmHandler.Object,
+            logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        var result = await executor.ExecuteAsync("test_tool", []);
+
+        // 用户原话进拒绝消息 — 只说「被拒绝」模型只能干等，带上说明它才知道换成哪种做法
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("别删，改成备份");
+    }
+
+    [Fact]
+    public async Task HandlePendingConfirmation_UserDeniesWithoutFeedback_KeepsOriginalMessage() {
+        var handler = CreateStubHandler();
+        var confirmHandler = new Mock<IPermissionConfirmationHandler>();
+        confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Deny, "   "));
+
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler), CreatePipeline(new AlwaysPendingMiddleware()),
+            CreatePermissionManager(), confirmationHandler: confirmHandler.Object,
+            logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        var result = await executor.ExecuteAsync("test_tool", []);
+
+        // 纯空白反馈归一为 null → 文案与改造前逐字一致（现状零变化）
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("用户拒绝工具执行: test_tool");
+        result.GetFirstText().Should().NotContain("说明");
+    }
+
+    [Fact]
+    public async Task HandlePendingConfirmation_UserAllowsWithFeedback_AppendsToToolResult() {
+        var handler = CreateStubHandler();
+        var confirmHandler = new Mock<IPermissionConfirmationHandler>();
+        confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Allow, "只跑单测"));
+
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler), CreatePipeline(new PendingThenSuccessMiddleware()),
+            CreatePermissionManager(), confirmationHandler: confirmHandler.Object,
+            logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        var result = await executor.ExecuteAsync("test_tool", []);
+
+        // 对齐基准 toolExecution.ts:1417-1429 — 允许附带的说明作为独立 text 追加到工具结果
+        result.IsError.Should().BeFalse();
+        result.Content.Should().Contain(c => c.Text == "只跑单测");
+    }
+
+    [Fact]
+    public async Task HandlePendingConfirmation_UserAllows_RetriesAndReturnsSuccess() {        var handler = CreateStubHandler();
+        var confirmHandler = new Mock<IPermissionConfirmationHandler>();
+        confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Allow));
 
         await using var executor = new PermissionAwareToolExecutor(
             CreateRegistry(handler), CreatePipeline(new PendingThenSuccessMiddleware()),
@@ -224,7 +283,7 @@ public class PermissionAwareToolExecutorTest {
         var handler = CreateStubHandler();
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();
         confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PermissionConfirmAction.AlwaysAllow);
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.AlwaysAllow));
         var permissionManager = new Mock<IToolPermissionManager>();
         permissionManager.Setup(p => p.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(PermissionMode.Auto);
 
@@ -247,7 +306,7 @@ public class PermissionAwareToolExecutorTest {
         var handler = CreateStubHandler();
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();
         confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PermissionConfirmAction.AlwaysAllow);
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.AlwaysAllow));
         var permissionManager = new Mock<IToolPermissionManager>();
         permissionManager.Setup(p => p.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(PermissionMode.Auto);
 
@@ -269,7 +328,7 @@ public class PermissionAwareToolExecutorTest {
         var handler = CreateStubHandler();
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();
         confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PermissionConfirmAction.Allow);
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Allow));
         var permissionManager = new Mock<IToolPermissionManager>();
         permissionManager.Setup(p => p.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(PermissionMode.Auto);
 
@@ -289,7 +348,7 @@ public class PermissionAwareToolExecutorTest {
         var handler = CreateStubHandler();
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();
         confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PermissionConfirmAction.Allow);
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Allow));
 
         await using var executor = new PermissionAwareToolExecutor(
             CreateRegistry(handler), CreatePipeline(new PendingThenSuccessMiddleware()),
@@ -372,7 +431,7 @@ public class PermissionAwareToolExecutorTest {
         var handler = CreateStubHandler();
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();
         confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(PermissionConfirmAction.Allow);
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Allow));
 
         await using var executor = new PermissionAwareToolExecutor(
             CreateRegistry(handler), CreatePipeline(new PendingThenNoResultMiddleware()),

@@ -1900,10 +1900,25 @@ public sealed class ReplShell
             return;
         }
 
-        // S8 接线 — Tab 遍历选项（焦点 +1 环绕）
+        // S8 + P3 — Tab 双重语义（对齐基准 CustomSelect onInputModeToggle）：焦点档带输入框时
+        // 进/出反馈输入态；don't-ask-again 档无输入框 → 退回遍历语义
         if (key is { Kind: KeyKind.Tab, Shift: false })
         {
-            _permission.CycleFocus();
+            _permission.OnTab();
+            return;
+        }
+
+        // P3 — 反馈输入态下 Backspace 退格（空串静默，不关闭对话框）
+        if (key.Kind == KeyKind.Backspace)
+        {
+            _permission.TrimFeedbackTail();
+            return;
+        }
+
+        // P3 — 反馈输入态吞掉所有可打印输入（数字 1/2/3 与 y/n 快捷选档此时属于正文，不能误触）
+        if (_permission.FeedbackInputActive && !key.Ctrl && key.Kind is KeyKind.Char or KeyKind.Paste)
+        {
+            _permission.AppendFeedback(key.Input);
             return;
         }
 

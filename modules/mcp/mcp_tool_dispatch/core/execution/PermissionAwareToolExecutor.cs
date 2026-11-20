@@ -148,11 +148,17 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         }
 
         var prompt = context.PermissionConfirmationPrompt ?? "需要确认";
-        var action = await _confirmationHandler.ConfirmAsync(toolName, prompt, cancellationToken).ConfigureAwait(false);
+        var confirmResult = await _confirmationHandler.ConfirmAsync(toolName, prompt, cancellationToken).ConfigureAwait(false);
+        var action = confirmResult.Action;
 
         if (action != PermissionConfirmAction.Allow && action != PermissionConfirmAction.AlwaysAllow) {
             _logger.LogWarning("用户拒绝工具执行: {ToolName}", toolName);
-            var deniedError = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionDenied, $"用户拒绝工具执行: {toolName}", toolName, ToolErrorCode.PermissionDeniedByUser);
+            // TASK069-P3 — 拒绝时带上用户按 Tab 填写的说明（对齐基准 REJECT_MESSAGE_WITH_REASON_PREFIX）：
+            // 只说「被拒绝」模型只能干等，带上原话它才知道该换哪种做法。无说明时保持原文案（现状零变化）。
+            var deniedReason = confirmResult.Feedback is null
+                ? $"用户拒绝工具执行: {toolName}"
+                : $"用户拒绝工具执行: {toolName}" + Environment.NewLine + $"用户对后续做法的说明: {confirmResult.Feedback}";
+            var deniedError = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionDenied, deniedReason, toolName, ToolErrorCode.PermissionDeniedByUser);
             CompleteExecutionEntity(context);
             RaiseToolExecutionCompleted(toolName, deniedError, arguments);
             return deniedError;
@@ -182,6 +188,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         await _pipeline.ExecuteAsync(retryContext, cancellationToken).ConfigureAwait(false);
 
         if (retryContext.Result is not null) {
+            AppendAcceptFeedback(retryContext.Result, confirmResult.Feedback);
             ApplyQuotaWarning(toolName, retryContext.Result);
             CompleteExecutionEntity(retryContext);
             RaiseToolExecutionCompleted(toolName, retryContext.Result, arguments);
@@ -193,6 +200,21 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         CompleteExecutionEntity(retryContext);
         RaiseToolExecutionCompleted(toolName, retryNoResultError, arguments);
         return retryNoResultError;
+    }
+
+    /// <summary>
+    /// 允许时把用户补充说明追加为工具结果末尾的文本内容（TASK069-P3 — 对齐基准
+    /// <c>toolExecution.ts:1417-1429</c>：允许附带的 acceptFeedback 作为独立 text content block
+    /// 追加在工具结果之后，模型按说明继续做）。无说明时不改结果（现状零变化）。
+    /// </summary>
+    /// <param name="result">工具执行结果。</param>
+    /// <param name="feedback">用户补充说明（null 表示未填写）。</param>
+    private static void AppendAcceptFeedback(ToolResult result, string? feedback) {
+        if (feedback is null) {
+            return;
+        }
+
+        result.Content.Add(new ToolContent { Type = ToolContentType.Text, Text = feedback });
     }
 
     private void RecordPermissionDenied(string toolName) {

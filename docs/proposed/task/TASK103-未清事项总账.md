@@ -20,7 +20,7 @@
 
 | # | 编号 | 事项 | 来源 | 规模 | 核实状态 | 处置 |
 |---|------|------|------|------|----------|------|
-| 1 | TASK069-M6 | 用户消息 10k 截断：`UserMessageTruncator` 已实现**零调用点** | TASK069 域6 | S | ✅ 已核实：全仓 grep `UserMessageTruncator` 无调用 | 接线到消息渲染路径，TDD |
+| ~~1~~ | ~~TASK069-M6~~ | ~~用户消息 10k 截断接线~~ | TASK069 域6 | S | ✅ **已完成 2026-11-21**（见 §4） | DisplayText 接线，34/34 + 真机 selftest EXIT=0 |
 | 2 | TASK062-P8 | `McpPluginBootstrapHandle.Completion` Run 前占位语义（未调用 Run 即 `Task.CompletedTask`，误判就绪） | TASK062 | S | ✅ 已核实：未加 `_started` 门闩 | 文档化契约 + `_started` 门闩，TDD |
 | 3 | TASK062-P7 | tokenGain 恒 0（`SessionController.cs:511-517` 三处传 0） | TASK062 | M | ✅ 已核实：仍传 0 | 接 `ProgressTracker.RecordTokenUsage` 差值 |
 | 4 | TASK069-C2 | `/resume` 模糊搜索 `enableSearch` 传参疑似静默失效 | TASK069 域4 | M | ⚠️ 待深查：`ResumeCommand.cs:202` 已传 `enableSearch: true`，需追到 Selector 是否消费 | 若确为失效 → bug 直接修；否则关闭 |
@@ -107,4 +107,13 @@
 ## 4. 清理进度
 
 - 2026-11-21：建立总账。已核实关闭 10 项（§3）；§1 六项可直接清理、§2 四十六项待决策。
-- 下一动作：从 §1 第 1 项（TASK069-M6 接线）开始，逐项施工 → 验收 → 提交 → 回此打勾。
+- **#1 TASK069-M6 已完成（2026-11-21）**：
+  - 设计决策：`UserMessageItem.DisplayText`（= `UserMessageTruncator.Truncate(text)`）仅供渲染，
+    `Text` 属性保留全文（复制 `CopyTextExtractor` / 搜索 `ContainsText` / 排队断言不受影响）——对齐基准「显示截断、复制全文」。
+  - TDD 红→绿：先写 `UserMessageItemTruncationWiringTests` 4 项（DisplayText 不存在 → CS1061 红），
+    再改 `MessageItems.cs` 的 `UserMessageItem`。`UserMessage` 相关 34/34 绿。
+  - 回归：NativeTui.Tests 全量 3026~3027/3028，2 个偶发失败均为 `RawStdinPumpTests` 输入泵时序 flaky
+    （单跑该 fixture 18/18 连续 3 次全绿，每次全量失败的用例不同——TASK101 B3 已登记的 Flaky 分层，与本次渲染改动无关）。
+  - 真机（ADR 0080）：重编 NativeTui.Core + CLI，DLL 字符串核验含 `DisplayText`；
+    `jcc.exe --selftest-tui` seed provider 后 `HOST SELFTEST OK` EXIT=0。
+- 下一动作：从 §1 第 2 项（TASK062-P8 `_started` 门闩）继续。

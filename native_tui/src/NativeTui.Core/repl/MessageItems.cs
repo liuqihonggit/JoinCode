@@ -15,17 +15,21 @@ public interface ITextMatchable
 /// <summary>用户消息项（整行灰底 + ❯ subtle + 正文）。</summary>
 public sealed class UserMessageItem(string text) : IScrollItem, ICursorNavigable, ITextMatchable
 {
-    /// <summary>用户正文（测试断言面 — 排队消息等场景）。</summary>
+    /// <summary>用户正文全文（复制/搜索/排队断言面 — 保留原文，不受显示截断影响）。</summary>
     public string Text => text;
+
+    /// <summary>显示文本（TASK069-M6）：超 10k 截断为 head + `…截断…` + tail，避免大文件管道输入逐帧渲染卡顿。
+    /// 仅用于渲染；Text 保持全文供复制/搜索。截断标记中的换行由 RenderUser 折叠为空格（1 行高度语义）。</summary>
+    public string DisplayText => UserMessageTruncator.Truncate(text);
 
     /// <summary>内容高度 = margin 1 + 正文 1。</summary>
     public int MeasureHeight(int width) => 2;
 
-    /// <summary>margin 行留空，正文画在 frame.Y+1。</summary>
+    /// <summary>margin 行留空，正文画在 frame.Y+1（显示截断后的 DisplayText）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme) =>
-        MessageRenderer.RenderUser(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, text);
+        MessageRenderer.RenderUser(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, DisplayText);
 
-    /// <summary>正文匹配。</summary>
+    /// <summary>正文匹配（基于全文，不受显示截断影响）。</summary>
     public bool ContainsText(string query) => text.Contains(query, StringComparison.OrdinalIgnoreCase);
 }
 

@@ -101,8 +101,7 @@ public sealed class InProcessEventConsumerExtensionTests
 
     /// <summary>OnDone 无正文带 usage — 仍发 TokenUsage（纯工具回合的用量汇总不丢）。</summary>
     [Fact]
-    public void OnDone_EmptyTextWithUsage_StillEmitsTokenUsage()
-    {
+    public void OnDone_EmptyTextWithUsage_StillEmitsTokenUsage()    {
         var consumer = new InProcessEventConsumer();
 
         consumer.OnDone(usage: new TokenUsage(7, 3), modelId: null);
@@ -156,5 +155,38 @@ public sealed class InProcessEventConsumerExtensionTests
         Assert.IsType<BridgeEvent.ToolCall>(events[0]);
         Assert.IsType<BridgeEvent.ToolProgress>(events[1]);
         Assert.IsType<BridgeEvent.ToolResult>(events[2]);
+    }
+
+    /// <summary>TASK069 #18 — 脱敏思考：发 thinking_started，OnDone 的 AssistantMessage 带
+    /// ThinkingRedacted 标记且无 CoT 文本（对齐基准 AssistantRedactedThinkingMessage 存根）。</summary>
+    [Fact]
+    public void OnThinkingRedacted_FlagsAssistantMessage()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnThinkingRedacted();
+        consumer.OnText("answer");
+        consumer.OnDone(usage: null, modelId: null);
+
+        var events = consumer.DrainEvents();
+        Assert.IsType<BridgeEvent.ThinkingStarted>(events[0]);
+        var assistant = Assert.IsType<BridgeEvent.AssistantMessage>(events[^1]);
+        Assert.True(assistant.ThinkingRedacted);
+        Assert.Null(assistant.ThinkingContent);
+    }
+
+    /// <summary>正常思考不带脱敏标记（默认 false — 旧行为零变化）。</summary>
+    [Fact]
+    public void OnThinking_Normal_LeavesRedactedFalse()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnThinking("real cot");
+        consumer.OnText("answer");
+        consumer.OnDone(usage: null, modelId: null);
+
+        var assistant = Assert.IsType<BridgeEvent.AssistantMessage>(consumer.DrainEvents()[^1]);
+        Assert.False(assistant.ThinkingRedacted);
+        Assert.Equal("real cot", assistant.ThinkingContent);
     }
 }

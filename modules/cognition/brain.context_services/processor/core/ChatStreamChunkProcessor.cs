@@ -169,6 +169,14 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
         var isThinking = chunk.Metadata?.ContainsKey("thinking_content") == true
             || chunk.Metadata?.ContainsKey("reasoning_content") == true;
 
+        // TASK069 #18 — 服务端脱敏思考块（无 CoT 文本）：发 redacted 思考事件供 UI 渲染存根
+        if (chunk.Metadata?.ContainsKey("thinking_redacted") == true) {
+            return new StreamChunkResult {
+                Action = ChunkAction.Continue,
+                Events = [ChatStreamEvent.Thinking(string.Empty, redacted: true)]
+            };
+        }
+
         ChatStreamEvent[] events = [];
         var shouldBreak = false;
 

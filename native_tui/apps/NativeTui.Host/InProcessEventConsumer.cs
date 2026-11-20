@@ -33,6 +33,9 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     private long? _thinkingStartMs;
     private bool _thinkingSignalled;
     private int _thinkingTotalMs;
+
+    /// <summary>本回合思考块被服务端脱敏（TASK069 #18 — 无 CoT 文本，OnDone 带标记供 UI 渲染存根）。</summary>
+    private bool _thinkingRedacted;
     private int _messageId;
 
     /// <summary>命令回合纯文本模式（TASK065 F6 — DispatchSlashCommandAsync 置位：OnDone 跳过
@@ -59,6 +62,7 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _thinkingStartMs = null;
         _thinkingSignalled = false;
         _thinkingTotalMs = 0;
+        _thinkingRedacted = false;
         _commandPlainTextMode = false;
     }
 
@@ -92,9 +96,21 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>TASK069 #18 — 思考块被服务端脱敏：无 CoT 文本可累积，仅标记本回合存在脱敏思考
+    /// （OnDone 经 AssistantMessage.ThinkingRedacted 告知 UI 渲染 "✻ Thinking…" 存根）；同时按思考
+    /// 起始语义发 thinking_started（spinner 进入 Thinking 模式，与正常思考一致）。</summary>
+    public void OnThinkingRedacted() {
+        _thinkingRedacted = true;
+        if (!_thinkingSignalled) {
+            _thinkingSignalled = true;
+            _events.Enqueue(new BridgeEvent.ThinkingStarted());
+        }
+
+        _thinkingStartMs ??= _wallClock();
+    }
+
     /// <summary>工具调用开始 → tool_call(name, args)；思考结束时结算 thinking_ended。</summary>
-    public void OnToolStart(string toolName, string? toolCallId, string? arguments) {
-        EndThinkingIfActive();
+    public void OnToolStart(string toolName, string? toolCallId, string? arguments) {        EndThinkingIfActive();
         _events.Enqueue(new BridgeEvent.ToolCall(toolName, arguments ?? string.Empty));
     }
 
@@ -133,7 +149,9 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
                 _commandPlainTextMode ? null : MarkdigProjector.ProjectOptional(fullText),
                 MessageId: ++_messageId,
                 ThinkingDurationMs: _thinkingTotalMs,
-                ThinkingContent: thinking.Length > 0 ? thinking : null));
+                ThinkingContent: thinking.Length > 0 ? thinking : null,
+                ThinkingRedacted: _thinkingRedacted));
+            _thinkingRedacted = false;
             _commandPlainTextMode = false;
         }
 

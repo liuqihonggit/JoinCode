@@ -17,6 +17,12 @@ public interface IEventConsumer {
     void OnThinking(string thinking);
 
     /// <summary>
+    /// 思考块被服务端脱敏（TASK069 #18 — 无 CoT 文本；UI 渲染 "✻ Thinking…" 存根）。
+    /// 默认空实现 — 既有实现方零改动，默认实现须经接口类型调用才可见
+    /// </summary>
+    void OnThinkingRedacted() { }
+
+    /// <summary>
     /// 工具调用开始
     /// </summary>
     void OnToolStart(string toolName, string? toolCallId, string? arguments);

@@ -97,7 +97,7 @@
 | ultrathink 彩虹文字 | HighlightedThinkingText.tsx:87 | 触发词特殊渲染 — ✅ 已对齐基准 2026-11-21：落点为**用户消息正文**（基准仅 UserPromptMessage 调用）；算法一手 `utils/thinking.ts` `/\bultrathink\b/gi` + 7 色 `charIndex%7` 循环；C# 加 UltrathinkHighlighter + RenderUser 分段着色 |
 | 工具执行中耗时显示 | BashTool/UI.tsx:145（**转述行号错** → 真组件 `ShellTimeDisplay.tsx` + `ShellProgressMessage`） | ✅ **已完成 2026-11-21**：elapsed 数据源本就存在（`ShellExecutionMiddleware`），投影链 8 跳贯通至 TUI dim 耗时行（续行位，续 ⎿ 列布局）；旧端 JSON 零破坏 |
 | 用户中断专用消息 | UserTextMessage.tsx:83 | C# 仅红色通用错误 |
-| redacted_thinking 消息 | 独立组件 | 无对应消息项 |
+| redacted_thinking 消息 | 独立组件 `AssistantRedactedThinkingMessage.tsx`（`Message.tsx:524` — 默认视图 `return null`，仅 transcript/verbose 显示 `✻ Thinking…` dim italic） | ✅ **已完成 2026-11-21**：脱敏块识别（此前兜底成 Text 静默丢弃）→ metadata 标记 → `Thinking(redacted)` → `OnThinkingRedacted` → `AssistantMessage.ThinkingRedacted` → transcript 投影 `✻ Thinking…`（默认视图不渲染，对齐基准）。边界：标记仅进程内路径生效（引擎 bridge `AssistantMessage` 无 thinking 字段，另一缺口） |
 
 ## 三·补：批次落地与跨域登记（2026-10-24）
 

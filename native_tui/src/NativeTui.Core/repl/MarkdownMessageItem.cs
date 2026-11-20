@@ -8,7 +8,7 @@ namespace NativeTui.Core.Repl;
 /// 代码行高亮在段写完后按色段覆写前景（M7-5 — 高亮器由宿主注入，null = 降级纯文本）。
 /// TASK062 结构化：思考时长 &gt; 0 时正文上方 dim 思考摘要行 + Ctrl+O 展开 CoT（同 AssistantMessageItem 语义）。
 /// </summary>
-public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighlighter? highlighter = null, int thinkingDurationMs = 0, string? thinkingContent = null, int messageId = 0) : IScrollItem, ICursorNavigable, ITextMatchable
+public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighlighter? highlighter = null, int thinkingDurationMs = 0, string? thinkingContent = null, int messageId = 0, bool thinkingRedacted = false) : IScrollItem, ICursorNavigable, ITextMatchable
 {
     /// <summary>思考内容行数上限守卫（超限折叠截断提示 — CoT 刷屏防护）。</summary>
     private const int MaxThinkingLines = 200;
@@ -24,6 +24,9 @@ public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighligh
 
     /// <summary>CoT 全文（null = 无内容不可展开）。</summary>
     public string? ThinkingContent => thinkingContent;
+
+    /// <summary>思考被服务端脱敏（TASK069 #18 — transcript/verbose 投影 "✻ Thinking…" 存根）。</summary>
+    public bool ThinkingRedacted => thinkingRedacted;
 
     /// <summary>消息序号（会话级 — Ctrl+O 定位/transcript 对账）。</summary>
     public int MessageId => messageId;
@@ -67,14 +70,14 @@ public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighligh
     /// <summary>内容高度 = margin 1 + 布局行数（空文档至少 1 行圆点行）+ 思考摘要行（有思考）+ CoT 行数（展开态）。</summary>
     public int MeasureHeight(int width) =>
         1 + Math.Max(1, LayoutFor(width).Lines.Count)
-        + (thinkingDurationMs > 0 ? 1 : 0)
+        + (thinkingDurationMs > 0 && !thinkingRedacted ? 1 : 0)
         + (IsThinkingExpanded ? CountThinkingLines() : 0);
 
-    /// <summary>渲染：margin 行留空 → 思考摘要行（有思考）→ CoT（展开态）→ ● text 色（col0）→ 各物理行从 col2 起逐段写 → 代码行覆写高亮前景。</summary>
+    /// <summary>渲染：margin 行留空 → 思考摘要行（有思考且未脱敏）→ CoT（展开态）→ ● text 色（col0）→ 各物理行从 col2 起逐段写 → 代码行覆写高亮前景。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
         var row = frame.Y + 1;
-        if (thinkingDurationMs > 0)
+        if (thinkingDurationMs > 0 && !thinkingRedacted)
         {
             MessageRenderer.RenderThinkingSummary(screen, frame with { Y = row++, Height = 1 }, theme, thinkingDurationMs, IsThinkingExpanded);
         }

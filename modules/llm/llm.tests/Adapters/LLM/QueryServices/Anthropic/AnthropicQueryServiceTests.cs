@@ -138,8 +138,36 @@ public sealed class AnthropicQueryServiceTests {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void ConvertAnthropicResponseToApiMessages_ToolUseBlock_AddsToolCallMetadata() {
+    public void ConvertAnthropicResponseToApiMessages_RedactedThinkingBlock_MarksRedacted() {
+        // TASK069 #18 — 脱敏思考块无 CoT 文本，带 thinking_redacted 标记（下游渲染存根）
         var response = new AnthropicMessagesResponse {
+            Id = "msg-1",
+            Model = "claude",
+            Content =
+            [
+                new AnthropicResponseContentBlock { Type = AnthropicContentBlockType.RedactedThinking, Data = "cipher" }
+            ]
+        };
+
+        var result = AnthropicQueryService.ConvertAnthropicResponseToApiMessages(response);
+
+        result[0].Metadata.Should().ContainKey("thinking_redacted");
+        result[0].Metadata!["thinking_redacted"].GetBoolean().Should().BeTrue();
+        result[0].Metadata.Should().ContainKey("thinking_content");
+    }
+
+    [Fact]
+    public void BuildRedactedThinkingMetadata_CarriesBothMarkers() {
+        var metadata = AnthropicQueryService.BuildRedactedThinkingMetadata("msg-1", "claude");
+
+        metadata.Should().ContainKey("thinking_content");
+        metadata.Should().ContainKey("thinking_redacted");
+        metadata["thinking_redacted"].GetBoolean().Should().BeTrue();
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ConvertAnthropicResponseToApiMessages_ToolUseBlock_AddsToolCallMetadata() {        var response = new AnthropicMessagesResponse {
             Id = "msg-1",
             Model = "claude",
             Content =

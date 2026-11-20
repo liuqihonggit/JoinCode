@@ -6,6 +6,9 @@ namespace Api.LLM;
 public enum AnthropicContentBlockType {
     [EnumValue("text")] Text,
     [EnumValue("thinking")] Thinking,
+    /// <summary>服务端已脱敏的思考块（REDACT_THINKING beta — 无 thinking 文本，仅存根展示；
+    /// 不入此枚举会被 converter 兜底成 Text 静默丢弃，TASK069 #18）。</summary>
+    [EnumValue("redacted_thinking")] RedactedThinking,
     [EnumValue("tool_use")] ToolUse,
     [EnumValue("tool_result")] ToolResult,
     [EnumValue("server_tool_use")] ServerToolUse,

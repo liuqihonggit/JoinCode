@@ -155,7 +155,7 @@ public static class Program {
                 await Task.Delay(100, cts.Token).ConfigureAwait(false);
                 foreach (var evt in session.Client.DrainEvents()) {
                     switch (evt) {
-                        case BridgeEvent.AssistantMessage(var text, _, _, _, _):
+                        case BridgeEvent.AssistantMessage(var text, _, _, _, _, _):
                             texts.Add(text);
                             break;
                         case BridgeEvent.Error(var message):
@@ -222,9 +222,9 @@ public static class Program {
                         }
                         tokenTotal += delta;
                         break;
-                    case BridgeEvent.AssistantMessage(var text, var markdown, var msgId, var thinkMs, var cot):
+                    case BridgeEvent.AssistantMessage(var text, var markdown, var msgId, var thinkMs, var cot, var redacted):
                         assistantMessages.Add(text);
-                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms assistant_message #{assistantMessages.Count} | id={msgId} thinkMs={thinkMs} cotLen={cot?.Length ?? 0} | textLen={text.Length} markdown={(markdown is not null ? "有" : "null")} | 首部: {text[..Math.Min(60, text.Length)]}");
+                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms assistant_message #{assistantMessages.Count} | id={msgId} thinkMs={thinkMs} cotLen={cot?.Length ?? 0} redacted={redacted} | textLen={text.Length} markdown={(markdown is not null ? "有" : "null")} | 首部: {text[..Math.Min(60, text.Length)]}");
                         break;
                     case BridgeEvent.TurnCompleted:
                         Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms turn_completed | 首思考={firstThinking} 首 token={firstToken} | token总长={tokenTotal} | assistant_message数={assistantMessages.Count}");

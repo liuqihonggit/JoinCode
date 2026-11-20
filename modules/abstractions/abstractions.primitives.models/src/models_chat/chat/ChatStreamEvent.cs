@@ -25,6 +25,9 @@ public sealed class ChatStreamEvent {
     public string? Content { get; init; }
     /// <summary>获取思考内容。</summary>
     public string? ThinkingContent { get; init; }
+    /// <summary>思考块是否被服务端脱敏（TASK069 #18 — Thinking 事件专用；true = 无 CoT 文本，
+    /// UI 渲染 "✻ Thinking…" 存根而非空思考行）。</summary>
+    public bool IsRedacted { get; init; }
     /// <summary>获取工具名称。</summary>
     public string? ToolName { get; init; }
     /// <summary>获取工具调用标识。</summary>
@@ -116,9 +119,12 @@ public sealed class ChatStreamEvent {
     };
 
     /// <summary>创建思考内容事件。</summary>
-    public static ChatStreamEvent Thinking(string thinkingContent) => new() {
+    /// <param name="thinkingContent">思考文本（脱敏块为空串）</param>
+    /// <param name="redacted">服务端脱敏标记（TASK069 #18 — true 时 UI 渲染 "✻ Thinking…" 存根）</param>
+    public static ChatStreamEvent Thinking(string thinkingContent, bool redacted = false) => new() {
         Type = ChatStreamEventType.Thinking,
-        ThinkingContent = thinkingContent
+        ThinkingContent = thinkingContent,
+        IsRedacted = redacted
     };
 
     /// <summary>创建工具调用开始事件。</summary>

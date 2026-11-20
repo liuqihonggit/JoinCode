@@ -25,9 +25,9 @@ public static class TranscriptLines
         return item switch
         {
             UserMessageItem user => PrefixedLines($"{Figures.Pointer} ", user.Text),
-            AssistantMessageItem assistant => ThinkingLines(assistant.ThinkingContent)
+            AssistantMessageItem assistant => ThinkingLinesFor(assistant.ThinkingRedacted, assistant.ThinkingContent)
                 .Concat(PrefixedLines($"{Figures.MessageBullet} ", assistant.Text)),
-            MarkdownMessageItem markdown => ThinkingLines(markdown.ThinkingContent)
+            MarkdownMessageItem markdown => ThinkingLinesFor(markdown.ThinkingRedacted, markdown.ThinkingContent)
                 .Concat(MarkdownLines(markdown.Document)),
             ToolCallItem toolCall => ToolCallLines(toolCall),
             ToolResultItem result => ToolResultLines(result),
@@ -62,6 +62,11 @@ public static class TranscriptLines
     }
 
     /// <summary>CoT 全文行（截断守卫 — 超限截断附提示行；null/空 = 空）。</summary>
+    /// <summary>TASK069 #18 — 思考行投影：脱敏块无 CoT 文本，投影 "✻ Thinking…" 存根
+    ///（对齐基准 AssistantRedactedThinkingMessage — transcript/verbose 才可见）。</summary>
+    private static IEnumerable<string> ThinkingLinesFor(bool redacted, string? thinkingContent) =>
+        redacted ? [$"{Figures.TeardropAsterisk} Thinking…"] : ThinkingLines(thinkingContent);
+
     private static IEnumerable<string> ThinkingLines(string? thinkingContent)
     {
         if (thinkingContent is not { Length: > 0 })

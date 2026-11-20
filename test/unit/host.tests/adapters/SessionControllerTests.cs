@@ -174,6 +174,27 @@ public sealed class SessionControllerTests {
         Assert.Equal(3200, consumer.ToolProgressEvents[0].elapsedTimeMs);
     }
 
+    /// <summary>TASK069 #18 — ChatStreamEvent.IsRedacted 的 Thinking 事件走 OnThinkingRedacted
+    /// （不进 ThinkingEvents — 脱敏块无 CoT 文本，UI 渲染存根）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_RedactedThinking_RoutesToOnThinkingRedacted() {
+        var events = new List<ChatStreamEvent>
+        {
+            ChatStreamEvent.Thinking(string.Empty, redacted: true),
+            ChatStreamEvent.Text("ok"),
+            ChatStreamEvent.Done()
+        };
+        var chatService = CreateMockChatService(events);
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(1, consumer.RedactedThinkingCount);
+        Assert.Empty(consumer.ThinkingEvents);
+    }
+
     [Fact]
     public async Task StreamResponseAsync_TimingSummary_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
@@ -859,6 +880,9 @@ public sealed class SessionControllerTests {
 
         public void OnText(string content) => TextEvents.Add(content);
         public void OnThinking(string thinking) => ThinkingEvents.Add(thinking);
+        /// <summary>TASK069 #18 — 脱敏思考通知计数（与正常 ThinkingEvents 分开，断言互不污染）。</summary>
+        public int RedactedThinkingCount { get; private set; }
+        public void OnThinkingRedacted() => RedactedThinkingCount++;
         public void OnToolStart(string toolName, string? toolCallId, string? arguments) => ToolStarts.Add((toolName, toolCallId, arguments));
         public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) => ToolEnds.Add((toolName, resultText, toolCallId, isError));
         public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) => ToolProgressEvents.Add((toolName, progressType, progressMessage, elapsedTimeMs));

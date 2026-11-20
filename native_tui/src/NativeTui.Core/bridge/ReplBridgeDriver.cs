@@ -200,11 +200,11 @@ public sealed class ReplBridgeDriver
                     _streamingItem.Append(text);
                 }
                 break;
-            case BridgeEvent.AssistantMessage(var text, var markdown, var messageId, var thinkingDurationMs, var thinkingContent):
+            case BridgeEvent.AssistantMessage(var text, var markdown, var messageId, var thinkingDurationMs, var thinkingContent, var thinkingRedacted):
                 CloseActiveToolGroup();
                 ReplaceStreamingWithFinal(markdown is not null
-                    ? new MarkdownMessageItem(IssueLinkExpander.ExpandDocument(markdown, _issueOwnerRepo), _codeHighlighter, thinkingDurationMs, thinkingContent, messageId)
-                    : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId));
+                    ? new MarkdownMessageItem(IssueLinkExpander.ExpandDocument(markdown, _issueOwnerRepo), _codeHighlighter, thinkingDurationMs, thinkingContent, messageId, thinkingRedacted)
+                    : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId, thinkingRedacted));
                 break;
             case BridgeEvent.TokenUsage(var inputTokens, var outputTokens, var contextTokens, var contextLimitTokens):
                 // S4 契约 — 用量记账归 tracker（footer 展示由 tracker 内部驱动）；未注入时静默容忍

@@ -309,3 +309,4 @@
 | 全仓编译 | `Build-AllDomains.ps1` | solution + native_tui + native_gui 全部通过 |
 | 真实 exe | `jcc -p` + MockServer（首轮 `grep`+`read` 双只读调用，次轮收尾文本） | 日志 `[TOOL-PARALLEL] batch=2 tools=grep,read`；两个工具均 `[OK]` 并返回真实结果；次轮请求正常收尾 |
 | 风格门禁 | `Verify-StyleGate.py` | 0 findings（顺带修复 native_tui `UltrathinkHighlighter.cs` 遗留文件级 using） |
+| E2E 文本解析适配 | `ConversationOutputParser` 改为 pending 列表 + 按工具名 FIFO 匹配（并行批次先集中 `[Tool]` 再按序 `[OK]`） | 新增 3 个解析器测试（批量开始/结果映射、同名 FIFO、原串行行为）；`E2E - Tools` 全组本地 60/60 通过（CI 首轮该组曾因旧解析器误配结果而红） |

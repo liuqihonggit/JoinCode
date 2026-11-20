@@ -160,10 +160,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
     /// <summary>
     /// 核心执行循环 — 由 QueryCoreMiddleware 调用
+    /// <para>Stop hook 回灌上限由 <see cref="QueryEngineConfig.MaxStopHookReplyRounds"/> 提供
+    ///（TASK071 query2-③ 防阻断/回灌死循环烧钱；TASK102 后续从硬编码改为可配）。</para>
     /// </summary>
-    /// <summary>Stop hook 回灌轮次上限（TASK071 query2-③ — 防阻断/回灌死循环烧钱）。</summary>
-    private const int MaxStopHookReplyRounds = 5;
-
     private async Task ExecuteCoreLoopAsync(QueryMiddlewareContext context, CancellationToken cancellationToken) {
         var retryCount = 0;
         var totalInputTokens = 0;
@@ -267,11 +266,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
                 // TASK071 query2-③ — 对齐 TS stopHooks.ts:257-263 + 296-309：Stop hook 阻断消息
                 // 以 user 消息回灌并继续一轮迭代（模型收到阻断说明后继续收尾），上限 5 轮防无限烧钱
-                if (context.StopHookBlockingMessages.Count > 0 && stopHookReplies < MaxStopHookReplyRounds) {
+                if (context.StopHookBlockingMessages.Count > 0 && stopHookReplies < _config.MaxStopHookReplyRounds) {
                     stopHookReplies++;
                     foreach (var blockMessage in context.StopHookBlockingMessages) {
                         _logger?.LogInformation("[QueryEngine] Stop hook 阻断回灌 ({Reply}/{Max}): {Message}",
-                            stopHookReplies, MaxStopHookReplyRounds, blockMessage);
+                            stopHookReplies, _config.MaxStopHookReplyRounds, blockMessage);
                         context.ChatHistory.AddUserMessage(blockMessage);
                     }
 

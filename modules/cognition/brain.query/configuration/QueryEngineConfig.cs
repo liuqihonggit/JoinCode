@@ -24,10 +24,16 @@ public record QueryEngineConfig {
     public float TopP { get; init; } = 0.95f;
 
     /// <summary>
-    /// 最大工具调用迭代次数
+    /// 最大工具调用迭代次数（JCC_MAX_TOOL_CALL_ITERATIONS）
     /// </summary>
     [Range(1, 1000)]
-    public int MaxToolCallIterations { get; init; } = 128;
+    public int MaxToolCallIterations { get; init; } = LoopLimits.MaxToolCallIterations;
+
+    /// <summary>
+    /// Stop hook 回灌轮次上限（JCC_MAX_STOP_HOOK_REPLY_ROUNDS）
+    /// </summary>
+    [Range(1, 100)]
+    public int MaxStopHookReplyRounds { get; init; } = LoopLimits.MaxStopHookReplyRounds;
 
     /// <summary>
     /// 是否启用思考模式

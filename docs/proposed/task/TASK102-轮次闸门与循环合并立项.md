@@ -46,6 +46,9 @@
 | `QueryOptions.RequireRoundGate` + AgentBase 解析 | 主代理请求 | ✅ | ✅ 真机 `JCC_ROUND_GATE=on` 拦截、`off` 不拦截 |
 | `ChatMiddlewareContext.RequireRoundGate` + ChatService | ChatService 回退路径 | ✅ | ✅ 单测；显式 `on` 才启用（默认路径不打扰 slash 命令） |
 | `JCC_ROUND_GATE` / `JCC_ROUND_GATE_MAX_REJECT` | JccEnvVar | ✅ | ✅ 真机 on/off 对比；上限单测覆盖 0/1/6 语义 |
+| `LoopLimits`（上限配置化） | `QueryEngineConfig.MaxToolCallIterations/MaxStopHookReplyRounds` + `QueryLoopMiddleware` | ✅ | ✅ 单测 6（默认/覆盖/非法回退）+ 全量回归 |
+| TODO 注入（choice 2） | `RoundGateToolHandlers` → `ITodoService.GetReadyTodosAsync` | ✅ | ✅ 单测 5 + 真机 dump 含"当前没有就绪 TODO"回退 |
+| 选项日志 + 并行调用提示 | `RoundGateToolHandlers` / 工具描述 | ✅ | ✅ 真机日志 `[Tool] round_gate(...)`；描述含同轮并行提示 |
 
 ### 真机验收记录（ADR 0080）
 
@@ -74,6 +77,19 @@ EXIT=0
 ```
 
 **关闸门**：`JCC_ROUND_GATE=off` → 单轮默认响应、0 次拦截、EXIT=0；系统提示 dump 中"轮次闸门"出现次数为 0。
+
+**第二轮补充（TODO 分支）**：MockServer 四轮脚本（`.xxx/gate_todo_e2e_mockserver.json`）——纯文本 → `round_gate(2)` → `round_gate(5)` → 纯文本。
+真机 dump `req_0003` 中 choice=2 的工具结果包含"【闸门 · 2 TODO 继续】…"与"当前没有就绪 TODO：请改用 3 规划任务，或 1 直接继续。"，EXIT=0。
+
+## 收尾补充（第二轮：推荐项落地）
+
+| 推荐项 | 落地方式 | 状态 |
+|--------|----------|------|
+| 硬编码上限配置化 | `JCC_MAX_TOOL_CALL_ITERATIONS` / `JCC_MAX_STOP_HOOK_REPLY_ROUNDS` → `LoopLimits` 单源；QueryEngineConfig 与 QueryLoopMiddleware 共同消费（原 128 / 5） | ✅ |
+| 闸门接通真实 TODO | choice=2 时从 `ITodoService.GetReadyTodosAsync` 注入就绪项（最多 5 条）；空列表给出改选 3 的引导；服务缺失/异常回退通用提示 | ✅ |
+| 闸门可观测性 | 拦截时 QueryEngine 日志 + QueryLoop `[GATE]` Diag；工具选择记录 `[RoundGate] choice=…`；MockServer dump 可回放完整注入链 | ✅ |
+| 成本提示 | 工具描述明确"可与最后一个动作同轮并行调用，避免额外往返" | ✅ |
+| 两套循环合并 | 已产出的能力矩阵与迁移顺序：TASK103（大迁移，不在本轮范围） | 📋 立项 |
 
 ### ○ 待用户验收项
 

@@ -253,6 +253,14 @@ public enum JccEnvVar {
     [EnumValue("JCC_ROUND_GATE_MAX_REJECT")]
     [SubCommandInfo("闸门拦截收尾上限 (默认 6；0=不限制)", "运行时配置")]
     RoundGateMaxReject,
+
+    // TASK102 后续 — 循环上限配置化（原硬编码 128/5）
+    [EnumValue("JCC_MAX_TOOL_CALL_ITERATIONS")]
+    [SubCommandInfo("单回合最大工具调用轮次 (默认 128)", "运行时配置")]
+    MaxToolCallIterations,
+    [EnumValue("JCC_MAX_STOP_HOOK_REPLY_ROUNDS")]
+    [SubCommandInfo("Stop hook 回灌最大轮次 (默认 5)", "运行时配置")]
+    MaxStopHookReplyRounds,
 }
 
 /// <summary>

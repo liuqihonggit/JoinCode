@@ -40,7 +40,8 @@
 
 ## 迁移步骤（建议）
 
-1. **规则单源冻结（已完成）**：闸门、空响应等"何时允许结束"的规则抽到共享策略；新规则禁止写进任一循环。
+1. **规则单源冻结（已完成）**：闸门（`RoundGatePolicy`）、循环上限（`LoopLimits`：`JCC_MAX_TOOL_CALL_ITERATIONS` / `JCC_MAX_STOP_HOOK_REPLY_ROUNDS`）已抽为共享单源；新规则禁止写进任一循环。
+   - 已完成证据：TASK102 第二轮，两套循环共同消费，单测覆盖默认/覆盖/非法回退。
 2. **事件适配层**：定义 `QueryStreamChunk → ChatStreamEvent` 的稳定适配器（`AgentStreamChunkAdapter` 已有类似实现），确保 GUI/slash 消费方无感。
 3. **能力迁移（按依赖顺序）**：
    a. 流式工具执行器迁入 QueryEngine（或作为 QueryEngine 中间件）。

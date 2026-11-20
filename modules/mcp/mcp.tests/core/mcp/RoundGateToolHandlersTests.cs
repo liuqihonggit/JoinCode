@@ -56,4 +56,59 @@ public sealed class RoundGateToolHandlersTests {
 
         result.GetFirstText().Should().Contain("继续 TASK102 测试");
     }
+
+    [Fact]
+    public async Task RoundGateAsync_NextTodoWithService_AppendsReadyTodos() {
+        var todoService = new Mock<ITodoService>();
+        todoService.Setup(t => t.GetReadyTodosAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new TodoItem("t1", "实现 TASK102 收尾", "pending", "high"),
+                new TodoItem("t2", "补真机验收", "pending", "medium")
+            ]);
+        var handler = new RoundGateToolHandlers(todoService.Object);
+
+        var result = await handler.RoundGateAsync(2).ConfigureAwait(true);
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("当前就绪 TODO");
+        text.Should().Contain("实现 TASK102 收尾");
+        text.Should().Contain("补真机验收");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_NextTodoWithoutReadyItems_FallsBackToPlanHint() {
+        var todoService = new Mock<ITodoService>();
+        todoService.Setup(t => t.GetReadyTodosAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var handler = new RoundGateToolHandlers(todoService.Object);
+
+        var result = await handler.RoundGateAsync(2).ConfigureAwait(true);
+
+        result.GetFirstText().Should().Contain("当前没有就绪 TODO");
+        result.GetFirstText().Should().Contain("3 规划任务");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_TodoServiceThrows_FallsBackToGenericPrompt() {
+        var todoService = new Mock<ITodoService>();
+        todoService.Setup(t => t.GetReadyTodosAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("todo store offline"));
+        var handler = new RoundGateToolHandlers(todoService.Object);
+
+        var result = await handler.RoundGateAsync(2).ConfigureAwait(true);
+
+        result.IsError.Should().BeFalse("TODO 读取失败不应阻断闸门");
+        result.GetFirstText().Should().Contain("TODO 继续");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_EndChoice_DoesNotQueryTodoService() {
+        var todoService = new Mock<ITodoService>();
+        var handler = new RoundGateToolHandlers(todoService.Object);
+
+        await handler.RoundGateAsync(5).ConfigureAwait(true);
+
+        todoService.Verify(t => t.GetReadyTodosAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

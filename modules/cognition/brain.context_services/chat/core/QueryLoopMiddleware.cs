@@ -8,7 +8,8 @@ namespace Core.Context;
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware {
-    private const int MaxToolCallIterations = 128;
+    /// <summary>单回合最大工具调用轮次 — 与 QueryEngine 共用 LoopLimits（JCC_MAX_TOOL_CALL_ITERATIONS）。</summary>
+    private static readonly int MaxToolCallIterations = LoopLimits.MaxToolCallIterations;
 
     /// <summary>
     /// 特性开关 — 环境变量 JCC_ACTOR_TOOL_EXECUTOR=1 启用 Actor 版流式工具执行器(零锁)。

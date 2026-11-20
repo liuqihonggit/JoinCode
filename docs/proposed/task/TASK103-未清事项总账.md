@@ -23,7 +23,7 @@
 | ~~1~~ | ~~TASK069-M6~~ | ~~用户消息 10k 截断接线~~ | TASK069 域6 | S | ✅ **已完成 2026-11-21**（见 §4） | DisplayText 接线，34/34 + 真机 selftest EXIT=0 |
 | ~~2~~ | ~~TASK062-P8~~ | ~~Completion Run 前占位语义~~ | TASK062 | S | ✅ **误判纠正**：TASK063 `c3c5ec77a` 已文档化契约+守卫锁，**刻意不加门闩**（挂死风险）→移 §3 | 见 §4 |
 | ~~3~~ | ~~TASK062-P7~~ | ~~tokenGain 恒 0~~ | TASK062 | M | ✅ **误判纠正**：TASK063 `853d9e75b` 已用完成态 TokenTotal 权威校正闭合→移 §3 | 见 §4 |
-| 4 | TASK069-C2 | `/resume` 模糊搜索 `enableSearch` 传参疑似静默失效 | TASK069 域4 | M | ⚠️ 待深查：`ResumeCommand.cs:202` 已传 `enableSearch: true`，需追到 Selector 是否消费 | 若确为失效 → bug 直接修；否则关闭 |
+| ~~4~~ | ~~TASK069-C2~~ | ~~`/resume` 模糊搜索 enableSearch~~ | TASK069 域4 | M | ✅ **归类误判**：非接线 bug，是功能对齐差异（CLI/TUI 两条路径均无搜索）→移 §2.2 | 见 §4 |
 | 5 | TASK071-C6 | 结构化输出：synthetic tool 重试上限 5 + `result.structured_output` 自动填充接线 | TASK071 | M | 待核实：DTO 字段在（`SdkMessage.cs:251`），重试机制未见 | 补两处缺口 |
 | 6 | TASK071-A4 | 通用设置迁移框架（版本号 + 脚本目录）；已有 `SettingsSourceMigration` 单件 | TASK071 | L | ✅ 已核实：通用框架未建（TASK089 只做一件） | 需设计，另立专项 |
 
@@ -60,6 +60,7 @@
 | 26 | TASK069-M5 | 工具错误结果分支 is_error → 错误消息组件 | TASK069 域6 |
 | 27 | TASK069-N2 | footer 右侧布局：单槽四源互斥 vs 右列多项堆叠 | TASK069 域2 |
 | 28 | TASK069-C1 | /resume 列表项增强（相对时间/分支/消息数/tag/PR） | TASK069 域4 |
+| 28a | TASK069-C2 | /resume 模糊搜索：CLI Selector `enableSearch` 是占位参数（`SelectorComponents.cs:29-30` 忽略），TUI SessionPickerDialog 仅 ↑↓/enter/esc 无搜索——两条路径均无搜索 = 功能对齐差异（非静默失效 bug） | TASK069 域4 |
 | 29 | TASK069-C3 | /resume TUI 下交互：Selector 直写 stdout 与 TUI 帧冲突 | TASK069 域4 |
 | 30 | TASK069-E1 | API 错误分类：纯红单行 vs SSL/超时/连接分类 | TASK069 域5 |
 | 31 | TASK069-E4 | 错误详情展开 ctrl+o（1000 字符 + cause 链 + 堆栈） | TASK069 域5 |
@@ -123,4 +124,7 @@
   - P8 铁证：commit `c3c5ec77a`（契约文档化 + 契约锁测试）；TASK063 决策原文「契约文档化而非行为修正（不加 `_started` 门闩等待）——行为变更反而引入等待挂死风险」；`McpPluginBootstrapHandleTests.Completion_BeforeRun_Placeholder_NotReadinessSignal` 锁死占位语义。
   - P7 铁证：commit `853d9e75b`（方案2 完成态权威校正）；`SessionController.cs:508` 传 `tokenTotal: evt.Usage?.TotalTokens ?? 0`；`SubagentFinished.TokenTotal` 协议全链；三处 `tokenGain:0` 是逐活动增量（调研证明不存在，否决方案1）。
   - 处置：TASK062 顶部状态 + 总表 + §4 遗留已纠正为 P1–P8 全闭合；总账 #2/#3 移入 §3。**零代码改动**（代码现状即拍板结果）。
-- 下一动作：从 §1 第 4 项（TASK069-C2 `enableSearch` 深查）继续。
+- **#4 TASK069-C2 归类纠正（2026-11-21）**：
+  - 深查：CLI `Selector<T>`（`SelectorComponents.cs:29-30`）的 `enableSearch` 是**占位参数**，构造函数直接忽略，`SearchKey` 字段存而不用；TUI `SessionPickerDialog.TryHandleKey` 仅 ↑↓/enter/esc 无搜索分支。
+  - 判定：`ResumeCommand.cs:202` 传 `enableSearch: true` 不是"参数静默失效 bug"，而是**基准 LogSelector 有搜索、C# 两条路径都未实现**的功能对齐差异 → 按 AGENTS 纪律一问一答，从 §1 移入 §2.2（#28a）。
+- 下一动作：从 §1 第 5 项（TASK071-C6 结构化输出重试 + 自动填充）继续。

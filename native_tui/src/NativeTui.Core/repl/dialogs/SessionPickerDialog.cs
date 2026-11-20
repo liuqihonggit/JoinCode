@@ -5,9 +5,9 @@ namespace NativeTui.Core.Repl;
 /// ReplShell/Program 负责把 abstractions 层 SessionPickerEntry 转换为本类型。
 /// </summary>
 /// <param name="SessionId">会话唯一标识（完整 ID，选择后回传命令侧）。</param>
-/// <param name="Preview">会话预览文本（customTitle 或 ID 前缀）。</param>
-/// <param name="TimeAgo">相对时间描述（如"22 小时前"）。</param>
-public sealed record SessionPickerItem(string SessionId, string Preview, string TimeAgo);
+/// <param name="Preview">会话标题（customTitle 或 ID 前缀 — 列表主行）。</param>
+/// <param name="Metadata">元数据行（相对时间 · 分支 · 消息数 — 列表副行 dim）。</param>
+public sealed record SessionPickerItem(string SessionId, string Preview, string Metadata);
 
 /// <summary>
 /// TUI 原生会话选择器对话框（/session /resume 命令选择历史会话 — 替代 CLI 简化版 Selector）：
@@ -16,14 +16,19 @@ public sealed record SessionPickerItem(string SessionId, string Preview, string 
 /// 打分过滤、命中降序，选中与窗口归零）→ ↑↓ clamp 导航（焦点跟随滚动窗口，对齐
 /// ModelPickerCoordinator 列词语义）→ enter 接受（SelectionTask TaskCompletionSource 完成回传
 /// 选中 SessionId）/ esc 取消（完成 null）。
+/// **每项两行**（TASK069-C1 — 对齐基准 LogSelector 的 label + dim description）：主行是会话标题，
+/// 副行 dim 显示 ID 前 8 位 + 元数据；可见项数由终端行数推导（见 <see cref="MaxVisibleFor"/>）。
 /// 渲染对齐 QuickOpenDialog/ModelPickerDialog 形态学（permission 色边框 + 标题 + dim footer）：
 /// margin + 边框 + 标题 + 查询行 + 空行 + 会话列表（焦点行 ❯ suggestion 高亮）+ 溢出行 + 空行 + footer。
 /// TCS 桥跨线程安全 — 引擎回合线程 await SelectionTask，TUI 主线程 TryHandleKey 完成TCS。
 /// </summary>
 public sealed class SessionPickerDialog : IScrollItem
 {
-    /// <summary>可见行数（对齐 ModelPickerCoordinator.MaxVisible=10）。</summary>
-    public const int MaxVisible = 10;
+    /// <summary>每项占用行数（标题主行 + 元数据副行）。</summary>
+    public const int RowsPerItem = 2;
+
+    /// <summary>终端行数未知时的兜底值（常见 80x24 终端）。</summary>
+    public const int FallbackTerminalRows = 24;
 
     /// <summary>footer 快捷键行（对齐 QuickOpenDialog FooterText 形态）。</summary>
     private static readonly string FooterText =
@@ -49,12 +54,30 @@ public sealed class SessionPickerDialog : IScrollItem
     /// <summary>创建会话选择器对话框 — items 为已排序已过滤的会话清单（宿主组装注入）。</summary>
     /// <param name="items">会话条目清单（空清单合法 — 显示空态提示）。</param>
     /// <param name="title">选择器标题（如"选择会话（当前仓库）"）。</param>
-    public SessionPickerDialog(IReadOnlyList<SessionPickerItem> items, string title)
+    /// <param name="terminalRows">终端总行数（决定可见项数；≤0 走 <see cref="FallbackTerminalRows"/>）。</param>
+    public SessionPickerDialog(IReadOnlyList<SessionPickerItem> items, string title, int terminalRows = 0)
     {
         ArgumentNullException.ThrowIfNull(items);
         _items = items;
         _title = title;
         _filtered = items;
+        MaxVisible = MaxVisibleFor(terminalRows);
+    }
+
+    /// <summary>可见项数上限 — 由终端行数推导（见 <see cref="MaxVisibleFor"/>）。</summary>
+    public int MaxVisible { get; }
+
+    /// <summary>
+    /// 可见项数 = (终端行数 − 固定行 − 1 行溢出保留) ÷ 每项行数，至少 1 项。
+    /// 对齐基准 LogSelector 的 <c>visibleOptionCount = (maxHeight - headerLines - 2) / 3</c>
+    /// （基准按 3 行/项算，本对话框无项间隔故按 2 行）。
+    /// </summary>
+    /// <param name="terminalRows">终端总行数（≤0 用兜底值）。</param>
+    /// <returns>可见项数（≥1）。</returns>
+    public static int MaxVisibleFor(int terminalRows)
+    {
+        var rows = terminalRows > 0 ? terminalRows : FallbackTerminalRows;
+        return Math.Max(1, (rows - FixedRows - 1) / RowsPerItem);
     }
 
     /// <summary>当前查询（空 = 全量清单，原顺序）。</summary>
@@ -72,7 +95,7 @@ public sealed class SessionPickerDialog : IScrollItem
     /// <summary>选中索引（clamp 于 [0, items.Count-1]）。</summary>
     public int SelectedIndex => _selectedIndex;
 
-    /// <summary>可见条数 = min(MaxVisible, 过滤后条数)。</summary>
+    /// <summary>可见项数 = min(MaxVisible, 过滤后条数)。</summary>
     public int VisibleCount => Math.Min(MaxVisible, _filtered.Count);
 
     /// <summary>折叠条数 = max(0, n - MaxVisible)。</summary>
@@ -131,7 +154,7 @@ public sealed class SessionPickerDialog : IScrollItem
         return true;
     }
 
-    /// <summary>内容高度 = 固定 6 行 + 列表区（空态 1 行 / 可见 N 行）+ 溢出 0/1；关闭后 0。</summary>
+    /// <summary>内容高度 = 固定 7 行 + 列表区（空态 1 行 / 可见项 × 2 行）+ 溢出 0/1；关闭后 0。</summary>
     public int MeasureHeight(int width) =>
         _closed ? 0 : FixedRows + ListRows + OverflowRows;
 
@@ -158,8 +181,8 @@ public sealed class SessionPickerDialog : IScrollItem
         MessageRenderer.RenderModelShortcuts(screen, RowFrame(frame, row), theme, FooterText);
     }
 
-    /// <summary>列表区行数（空态 1 行提示占位）。</summary>
-    private int ListRows => _filtered.Count == 0 ? 1 : VisibleCount;
+    /// <summary>列表区行数（空态 1 行提示占位；有项按每项 <see cref="RowsPerItem"/> 行）。</summary>
+    private int ListRows => _filtered.Count == 0 ? 1 : VisibleCount * RowsPerItem;
 
     /// <summary>溢出行数（HiddenCount &gt; 0 时 1）。</summary>
     private int OverflowRows => HiddenCount > 0 ? 1 : 0;
@@ -212,31 +235,36 @@ public sealed class SessionPickerDialog : IScrollItem
         for (var i = 0; i < VisibleCount; i++)
         {
             var index = WindowStart + i;
-            RenderItemRow(screen, RowFrame(frame, row++), theme, _filtered[index], index == _selectedIndex);
+            RenderItemRow(screen, RowFrame(frame, row), theme, _filtered[index], index == _selectedIndex);
+            row += RowsPerItem;
         }
 
         return row;
     }
 
-    /// <summary>会话行渲染（对齐 QuickOpenDialog RenderResultRow 形态）：
-    /// 焦点 = ❯ suggestion + 空格 + 显示文本 suggestion 色；非焦点 = 2 空格缩进 + 文本默认样式。
-    /// 显示文本格式：[ID前8位...] TimeAgo · Preview</summary>
+    /// <summary>会话行渲染（每项两行 — 对齐基准 LogSelector 的 label + dim description）：
+    /// 主行 = 会话标题（焦点 ❯ suggestion + 空格 + suggestion 色；非焦点 2 空格缩进 + 默认样式）；
+    /// 副行 = 4 空格缩进 dim「[ID前8位] 元数据」。</summary>
     private static void RenderItemRow(Screen screen, Rect frame, Theme theme, SessionPickerItem item, bool focused)
     {
-        var idPrefix = item.SessionId.Length <= 8 ? item.SessionId : item.SessionId[..8];
-        var displayText = $"[{idPrefix}...] {item.TimeAgo} · {item.Preview}";
-        var text = TruncateToDisplayWidth(displayText, Math.Max(1, frame.Width - 5));
+        var title = TruncateToDisplayWidth(item.Preview, Math.Max(1, frame.Width - 5));
         if (focused)
         {
             var suggestion = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Suggestion });
             screen[frame.Y, frame.X] = new Cell(new Rune('❯'), suggestion, CellWidth.Default);
             screen.WriteText(frame.Y, frame.X + 1, " ", suggestion, frame.Right);
-            screen.WriteText(frame.Y, frame.X + 2, text, suggestion, frame.Right);
-            return;
+            screen.WriteText(frame.Y, frame.X + 2, title, suggestion, frame.Right);
+        }
+        else
+        {
+            screen.WriteText(frame.Y, frame.X, "  ", 0, frame.Right);
+            screen.WriteText(frame.Y, frame.X + 2, title, 0, frame.Right);
         }
 
-        screen.WriteText(frame.Y, frame.X, "  ", 0, frame.Right);
-        screen.WriteText(frame.Y, frame.X + 2, text, 0, frame.Right);
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var idPrefix = item.SessionId.Length <= 8 ? item.SessionId : item.SessionId[..8];
+        var metadata = TruncateToDisplayWidth($"[{idPrefix}] {item.Metadata}", Math.Max(1, frame.Width - 7));
+        screen.WriteText(frame.Y + 1, frame.X + 4, metadata, dim, frame.Right);
     }
 
     /// <summary>查询行渲染 — 空查询 dim 占位，有查询 " ❯ {query}"（对齐 QuickOpenDialog）。</summary>
@@ -299,8 +327,9 @@ public sealed class SessionPickerDialog : IScrollItem
         WindowStart = 0;
     }
 
-    /// <summary>模糊匹配键 — 会话 ID + 预览文本（屏幕上可见的两列信息）。</summary>
-    private static string SearchKeyOf(SessionPickerItem item) => $"{item.SessionId} {item.Preview}";
+    /// <summary>模糊匹配键 — 会话 ID + 标题 + 元数据（屏幕上可见的三段信息，分支可搜）。
+    /// 对齐基准 LogSelector L428-434：标题、分支、tag、PR 都在匹配范围内。</summary>
+    private static string SearchKeyOf(SessionPickerItem item) => $"{item.SessionId} {item.Preview} {item.Metadata}";
 
     /// <summary>溢出行渲染 — 1 缩进 dim " … 及 N 项"。</summary>
     private void RenderOverflowRow(Screen screen, Rect frame)

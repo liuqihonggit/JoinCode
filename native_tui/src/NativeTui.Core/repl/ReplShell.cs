@@ -2234,7 +2234,7 @@ public sealed class ReplShell
             return Task.FromResult<string?>(null);
         }
 
-        var dialog = new SessionPickerDialog(items, title);
+        var dialog = new SessionPickerDialog(items, title, _sizeSource.Current.Rows);
         _sessionPickerDialog = dialog;
         AddMessage(dialog);
         return dialog.SelectionTask;

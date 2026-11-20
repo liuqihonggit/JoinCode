@@ -6,9 +6,9 @@ namespace JoinCode.ChatCommands;
 /// 由命令侧构造、TUI 侧消费，避免 composition 层类型泄漏到 abstractions 层。
 /// </summary>
 /// <param name="SessionId">会话唯一标识（完整 ID，显示时截断）。</param>
-/// <param name="Preview">会话预览文本（customTitle 或 ID 前缀）。</param>
-/// <param name="TimeAgo">相对时间描述（如"22 小时前"）。</param>
-public sealed record SessionPickerEntry(string SessionId, string Preview, string TimeAgo);
+/// <param name="Preview">会话标题（customTitle 或 ID 前缀 — 列表主行）。</param>
+/// <param name="Metadata">元数据行（相对时间 · 分支 · 消息数 — 列表副行 dim），对齐 TS formatLogMetadata。</param>
+public sealed record SessionPickerEntry(string SessionId, string Preview, string Metadata);
 
 /// <summary>
 /// 会话选择器请求 — 包含会话列表和标题，作为 BeginSessionPicker 回调的入参。

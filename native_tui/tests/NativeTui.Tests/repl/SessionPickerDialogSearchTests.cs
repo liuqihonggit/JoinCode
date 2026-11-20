@@ -9,10 +9,10 @@ public sealed class SessionPickerDialogSearchTests
 {
     private static SessionPickerItem[] Items() =>
     [
-        new("8f2a1c9d", "fix login redirect", "3 分钟前"),
-        new("33bb77aa", "refactor markdown parser", "2 小时前"),
-        new("aa11bb22", "login retry backoff", "昨天"),
-        new("cc44dd55", "release notes", "3 天前"),
+        new("8f2a1c9d", "fix login redirect", "3 分钟前 · main · 12 条消息"),
+        new("33bb77aa", "refactor markdown parser", "2 小时前 · main · 40 条消息"),
+        new("aa11bb22", "login retry backoff", "昨天 · main · 7 条消息"),
+        new("cc44dd55", "release notes", "3 天前 · release/1.2 · 21 条消息"),
     ];
 
     private static SessionPickerDialog Create() => new(Items(), "选择会话（当前仓库）");

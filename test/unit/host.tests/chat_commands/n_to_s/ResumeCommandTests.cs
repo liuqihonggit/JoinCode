@@ -98,4 +98,56 @@ public sealed class ResumeCommandTests {
         result.IsSameRepoWorktree.Should().BeFalse();
         result.ProjectPath.Should().Be("/path/to/other/project");
     }
+
+    // ─── TASK069-C1 列表项增强：标题与元数据行（对齐 TS formatLogMetadata） ───
+
+    [Fact]
+    public void BuildSessionMetadata_Should_JoinTimeBranchAndMessageCount() {
+        var lite = new SessionLiteData {
+            Id = "abc12345",
+            LastModified = DateTime.Now.AddMinutes(-3),
+            BranchName = "main",
+            MessageCount = 12,
+        };
+
+        ResumeCommand.BuildSessionMetadata(lite).Should().Be("3 分钟前 · main · 12 条消息");
+    }
+
+    [Fact]
+    public void BuildSessionMetadata_Should_OmitBranchSegment_WhenBranchEmpty() {
+        // 分支为空 → 整段省略（不留 " ·  · " 空档）
+        var lite = new SessionLiteData {
+            Id = "abc12345",
+            LastModified = DateTime.Now.AddHours(-2),
+            MessageCount = 7,
+        };
+
+        ResumeCommand.BuildSessionMetadata(lite).Should().Be("2 小时前 · 7 条消息");
+    }
+
+    [Fact]
+    public void BuildSessionMetadata_Should_Always_ReportMessageCount_EvenZero() {
+        var lite = new SessionLiteData {
+            Id = "abc12345",
+            LastModified = DateTime.Now,
+            MessageCount = 0,
+        };
+
+        ResumeCommand.BuildSessionMetadata(lite).Should().Be("刚刚 · 0 条消息");
+    }
+
+    [Fact]
+    public void BuildSessionPreview_Should_PreferCustomTitle() {
+        var lite = new SessionLiteData { Id = "abcdefghijkl", CustomTitle = "修登录跳转" };
+
+        ResumeCommand.BuildSessionPreview(lite).Should().Be("修登录跳转");
+    }
+
+    [Fact]
+    public void BuildSessionPreview_Should_FallBackToTruncatedId_WhenTitleMissing() {
+        // 基准 getLogDisplayTitle 兜底 sessionId.slice(0,8)；本仓库保持既有「+...」后缀
+        var lite = new SessionLiteData { Id = "abcdefghijkl", CustomTitle = "" };
+
+        ResumeCommand.BuildSessionPreview(lite).Should().Be("abcdefgh...");
+    }
 }

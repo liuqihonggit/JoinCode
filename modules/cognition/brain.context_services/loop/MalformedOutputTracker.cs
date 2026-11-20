@@ -7,7 +7,7 @@ namespace Core.Context;
 /// </summary>
 [Register(typeof(IMalformedOutputTracker), ServiceLifetime.Singleton)]
 public sealed class MalformedOutputTracker : ServiceEntity, IMalformedOutputTracker {
-    private const int DefaultMaxConsecutive = 3;
+    private const int DefaultMaxConsecutive = OutputInterventionPrompts.MaxConsecutiveMalformed;
     private int _consecutiveMalformedCount;
 
     /// <summary>
@@ -42,9 +42,6 @@ public sealed class MalformedOutputTracker : ServiceEntity, IMalformedOutputTrac
     /// <summary>
     /// 构建注入系统提示词的内容 — 提醒 LLM 使用正确的工具调用格式
     /// </summary>
-    public string BuildInterventionPrompt() {
-        return $"<system-reminder>系统检测到你的输出包含异常的 XML 工具调用标签" +
-               $"（第{_consecutiveMalformedCount}次，最多{DefaultMaxConsecutive}次）。" +
-               $"请使用正确的 function calling 协议输出工具调用，不要在 content 文本中输出 XML 标签。</system-reminder>";
-    }
+    public string BuildInterventionPrompt() =>
+        OutputInterventionPrompts.BuildMalformedXmlPrompt(_consecutiveMalformedCount, DefaultMaxConsecutive);
 }

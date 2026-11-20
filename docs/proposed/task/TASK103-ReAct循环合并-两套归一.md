@@ -26,7 +26,7 @@
 | 轮内 steer 注入 | ❌ | ✅ `ISteerInputMailbox` |
 | 子代理事件通道 | ❌（回合级在 SessionController） | ✅ `SubAgentEventChannel` |
 | LLM 输出循环检测 + 三级干预 | ❌ | ✅ `InformationEntropyGuardian` + `LoopInterventionMiddleware` |
-| 空响应/异常输出干预 | ✅（空白响应） | ✅（空响应 + XML 标签输出） |
+| 空响应/异常输出干预 | ✅（空白响应 + XML fallback，S6） | ✅（空响应 + XML 标签输出） |
 | Stop hook 阻断回灌 | ✅ | ❌ |
 | 结构化输出合成工具 | ✅ | ❌ |
 | 迭代重试/退避 | ✅ | ❌（交给外层） |
@@ -65,6 +65,14 @@
 - 轮内 steer（S5）：`QueryOptions.OnIterationStart` 在每次 LLM 请求前把邮箱内输入写入实时历史并排队 `SteerInput` 事件；`HasPendingIterationInput` 在收尾前发现待注入时继续一轮。
 - 单测：`QueryLoopQueryBackendTests`（4）+ `QueryExecutionOverridesTests`（2）+ `QueryIterationInputTests`（2）。
 
+## S6 XML fallback 迁移（已实现）
+
+- 抽象层新增 `TextToolCallFallback.cs`（`ITextToolCallFallbackParser` + 调用/结果 DTO）；`TextToolCallParserChain`（chat 域）双 `[Register]` 暴露接口实现，query 域不反向引用 chat。
+- 共享干预文案 `OutputInterventionPrompts`（abstractions.utils）：可疑 XML 标签检测 + 纠正提示词 + 上限 3，chat 循环（`QueryLoopMiddleware` / `MalformedOutputTracker`）与 QueryEngine 同源消费。
+- QueryEngine 无工具调用分支新增 `ApplyTextToolCallFallback`：协议层 0 调用 → 文本解析（成功则替换为剩余纯文本并执行工具）；解析失败且含可疑标签 → 注入 `<system-reminder>` 纠正提示并 `RequestsAnotherTurn` 再来一轮；超 3 次上屏警告放行收尾。
+- 工具路径 assistant 消息保留工具块外纯文本（`AddToolResultToHistory(..., assistantContent)`），对齐 chat 循环。
+- 单测：`QueryEngineTextFallbackTests`（3）覆盖解析成功执行/纠正回灌/超限强制结束。
+
 ### 四列验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
@@ -76,6 +84,8 @@
 | 子代理事件合流 | `ConsumeQueryBackendAsync` + `SubAgentEventChannel` | ✅ | ❌ 未走 ADR 0080 真机 exe；`SubAgentEventStreamE2ETests` query 2/2 通过 |
 | 闸门/执行设置透传 | `BuildQueryOptions` + `ApplyExecutionOverrides` | ✅ | ❌ 未走 ADR 0080 真机 exe；单测已覆盖设置透传/model 覆盖不丢字段 |
 | 流式增量输出 | `QueryEngine.ExecuteIterationInternalAsync` 即收即入队 | ✅ | ❌ 未走 ADR 0080 真机 exe；`StreamingIncrementalE2ETests` query 跨度断言通过 + legacy 回归通过 |
+| 文本工具调用 fallback | `ITextToolCallFallbackParser`（abstractions.interfaces）+ `TextToolCallParserChain` 实现 + `QueryEngine.ApplyTextToolCallFallback` | ✅ | ❌ 未走 ADR 0080 真机 exe；`QueryEngineTextFallbackTests` 3 通过 + 两后端 MockServer E2E 回归通过 |
+| 异常输出干预同源 | `OutputInterventionPrompts` 被 `MalformedOutputTracker` / `QueryLoopMiddleware` / QueryEngine 共同消费 | ✅ | ❌ 未走 ADR 0080 真机 exe；单测覆盖纠正回灌与超限放行 |
 
 ### 验证记录（2026-11-21）
 
@@ -87,10 +97,14 @@
 | `StreamingIncrementalE2ETests`（MockServer + GUI 同源会话） | query 模式通过；legacy 模式通过 |
 | `SubAgentEventStreamE2ETests` | query 模式 2/2 通过；legacy 模式通过 |
 | `jcc slash_call ask` 真机尝试 | ❌ 工具元命令宿主 `SkipProviderConfig=true`，不加载供应商配置，无法连接 MockServer；不构成验收证据 |
+| S6 后 `Brain.Other.Tests` 全量 | 504 通过（含 `QueryEngineTextFallbackTests` 3） |
+| S6 后 `Brain.Context.Tests` 全量 | 977 通过 |
+| S6 后 MockServer E2E（query + legacy 双模式） | `StreamingIncrementalE2ETests` + `SubAgentEventStreamE2ETests` 3/3 通过 ×2 |
+| S6 后全仓编译 | `Build-AllDomains.ps1` 全部通过（solution/native_tui/native_gui） |
 
 ### 已知差距（翻转默认前必须补）
 
-1. 可疑 XML 标签 fallback 解析仍为 chat-only（解析器链在 brain.context_services，迁入需先下沉到 abstractions 避免反向依赖）。
+1. ~~可疑 XML 标签 fallback 解析仍为 chat-only~~ → 已解决（S6：接口下沉 abstractions，QueryEngine 经 DI 消费同一解析链）。
 2. 上下文预算守卫（ADR 0156 请求前裁剪）为 chat-only；query 后端依赖 QueryEngine 的 TokenBudget/HistorySnip。
 3. 流式工具执行（`UseStreamingToolExecution`，默认 false）为 chat-only；默认配置下两后端行为一致。
 4. 取消语义差异：legacy 取消时为已发出的工具调用补写 `(aborted)` 结果；QueryEngine 在工具执行中取消会丢弃该步（历史保持合法），待对齐。

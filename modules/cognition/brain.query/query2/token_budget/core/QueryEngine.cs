@@ -240,6 +240,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 await hook(context, cancellationToken).ConfigureAwait(false);
             }
 
+            // 异常输出已注入纠正提示词 — 不进入收尾判定，直接下一轮重试
+            if (iterationResult.RequestsAnotherTurn) {
+                continue;
+            }
+
             // 处理查询完成（无工具调用）
             if (iterationResult.ToolCalls.Count == 0) {
                 // TASK102 轮次闸门：未选择 5 结束 → 回灌阻断消息并继续一轮（独立于 Stop hook 计数）
@@ -341,8 +346,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     ToolCallNumber = context.TotalToolCalls
                 });
 
-                // 将工具结果添加到对话历史
-                await AddToolResultToHistory(context, toolCall, toolResult).ConfigureAwait(false);
+                // 将工具结果添加到对话历史（assistant 文本与工具调用同轮保留，对齐 chat 循环）
+                await AddToolResultToHistory(context, toolCall, toolResult, iterationResult.Content).ConfigureAwait(false);
 
                 // TASK071-C6 — 结构化输出捕获：对齐 TS QueryEngine structuredOutputFromTool
                 // 合成工具验证通过时 ToolResult.StructuredOutput 携带验证数据，捕获到 context 供 result 消息填充
@@ -668,6 +673,22 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             }
         }
 
+        // 协议层未识别工具调用 → 文本 fallback 解析（DSML/antml 等）
+        if (pendingToolCalls.Count == 0) {
+            var fallback = ApplyTextToolCallFallback(responseBuilder, context);
+            if (fallback.RequestsAnotherTurn) {
+                return new QueryIterationResult {
+                    RequestsAnotherTurn = true,
+                    InputTokens = inputTokens,
+                    OutputTokens = outputTokens,
+                    Usage = streamUsage,
+                    FinishReason = lastFinishReason,
+                    ModelId = streamModelId ?? context.Options?.ModelId
+                };
+            }
+            pendingToolCalls.AddRange(fallback.Calls);
+        }
+
         if (pendingToolCalls.Count == 0) {
             var finalContent = responseBuilder.ToString();
             if (!string.IsNullOrEmpty(finalContent)) {
@@ -691,12 +712,66 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
         return new QueryIterationResult {
             ToolCalls = pendingToolCalls,
+            Content = responseBuilder.ToString(),
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             Usage = streamUsage,
             FinishReason = lastFinishReason,
             ModelId = streamModelId ?? context.Options?.ModelId
         };
+    }
+
+    /// <summary>文本 fallback 解析结果 — 解析出的调用或"已注入纠正提示、需要再来一轮"。</summary>
+    private readonly record struct FallbackParseOutcome(List<ToolCallRequest> Calls, bool RequestsAnotherTurn);
+
+    /// <summary>
+    /// 协议层无工具调用时尝试文本 fallback — 解析成功则转换为工具调用；
+    /// 解析失败且含可疑 XML 标签时注入纠正提示（超上限强制结束），防止循环静默中断。
+    /// </summary>
+    /// <param name="responseBuilder">累积的响应文本（解析成功后替换为剩余纯文本）。</param>
+    /// <param name="context">查询上下文。</param>
+    /// <returns>fallback 结果。</returns>
+    private FallbackParseOutcome ApplyTextToolCallFallback(StringBuilder responseBuilder, QueryMiddlewareContext context) {
+        var parser = _serviceProvider?.GetService<ITextToolCallFallbackParser>();
+        var content = responseBuilder.ToString();
+        var parsed = parser?.TryParse(content);
+        if (parsed is not null && parsed.ToolCalls.Count > 0) {
+            context.ConsecutiveMalformedOutput = 0;
+            Diag.WriteLine($"[XML-FALLBACK] 文本工具调用解析成功: {parsed.ToolCalls.Count} 个");
+            responseBuilder.Clear();
+            if (!string.IsNullOrWhiteSpace(parsed.RemainingText))
+                responseBuilder.Append(parsed.RemainingText);
+
+            var calls = parsed.ToolCalls
+                .Select(call => new ToolCallRequest {
+                    ToolName = call.Name,
+                    ToolCallId = call.Id,
+                    RawArguments = call.Arguments,
+                    Arguments = JsonArgumentParser.Parse(call.Arguments)
+                })
+                .ToList();
+            return new FallbackParseOutcome(calls, false);
+        }
+
+        if (!OutputInterventionPrompts.ContainsSuspiciousXmlTags(content)) {
+            context.ConsecutiveMalformedOutput = 0;
+            return new FallbackParseOutcome([], false);
+        }
+
+        context.ConsecutiveMalformedOutput++;
+        Diag.WriteLine($"[XML-FALLBACK] 可疑标签未能解析: {context.ConsecutiveMalformedOutput}/{OutputInterventionPrompts.MaxConsecutiveMalformed}");
+        if (context.ConsecutiveMalformedOutput > OutputInterventionPrompts.MaxConsecutiveMalformed) {
+            context.OutputChunks.Enqueue(new QueryStreamChunk {
+                Type = AgentStreamChunkType.Content,
+                Content = $"⚠ 模型连续{OutputInterventionPrompts.MaxConsecutiveMalformed}次输出异常格式，本轮对话已结束。"
+            });
+            context.ConsecutiveMalformedOutput = 0;
+            return new FallbackParseOutcome([], false);
+        }
+
+        context.ChatHistory.AddUserMessage(
+            OutputInterventionPrompts.BuildMalformedXmlPrompt(context.ConsecutiveMalformedOutput));
+        return new FallbackParseOutcome([], true);
     }
 
     private async Task<ToolResult> ExecuteToolAsync(ToolCallRequest request, QueryOptions? options, CancellationToken cancellationToken) {
@@ -745,7 +820,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         return string.Join("\n", textContents);
     }
 
-    private async ValueTask AddToolResultToHistory(QueryMiddlewareContext context, ToolCallRequest toolCall, ToolResult result) {
+    private async ValueTask AddToolResultToHistory(QueryMiddlewareContext context, ToolCallRequest toolCall, ToolResult result, string? assistantContent) {
         // 对齐 TS convertResultContentToContentBlocks — 分离文本和非文本内容
         var textContents = new List<string>();
         var nonTextContents = new List<ToolContent>();
@@ -778,7 +853,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var assistantMetadata = toolCall.ToolCallId != null
             ? ToolCallEntry.BuildAssistantMetadata([new() { Id = toolCall.ToolCallId, Name = toolCall.ToolName, Arguments = toolCall.RawArguments ?? "{}" }])
             : new Dictionary<string, JsonElement>();
-        context.ChatHistory.Add(new ApiMessage(MessageRole.Assistant, null, assistantMetadata));
+        context.ChatHistory.Add(new ApiMessage(MessageRole.Assistant, assistantContent, assistantMetadata));
 
         var toolMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.ToolCallId, toolCall.ToolName);
         context.ChatHistory.Add(new ApiMessage(MessageRole.Tool, toolResultText, toolMetadata) {
@@ -979,6 +1054,8 @@ internal sealed class QueryIterationResult {
     public string? FinishReason { get; init; }
     /// <summary>获取本轮实际使用的模型标识（从流式 chunk ModelId 提取；null = 未提供）</summary>
     public string? ModelId { get; init; }
+    /// <summary>是否需要立即再执行一轮 — 异常输出已注入纠正提示，不进入收尾判定。</summary>
+    public bool RequestsAnotherTurn { get; init; }
 }
 
 /// <summary>

@@ -949,7 +949,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         if (parseResult is null || parseResult.ToolCalls.Count == 0) {
-            if (ContainsSuspiciousXmlTags(iterState.FullResponse.ToString())) {
+            if (OutputInterventionPrompts.ContainsSuspiciousXmlTags(iterState.FullResponse.ToString())) {
                 iterState.SuspiciousTagsDetected = true;
                 Diag.WriteLine($"[FALLBACK] 可疑XML标签检测: SuspiciousTagsDetected=true");
                 _logger?.LogWarning(
@@ -981,19 +981,6 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         Diag.WriteLine($"[FALLBACK] 解析成功: {first.Name}, 工具调用数={parseResult.ToolCalls.Count}");
         _services?.MalformedOutputTracker?.Reset();
         return true;
-    }
-
-    /// <summary>
-    /// 检测 LLM 输出是否包含可疑的 XML 工具调用标签。
-    /// 用于在 fallback 解析失败时发出警告，防止 LLM 异常输出静默中断 ReAct 循环。
-    /// </summary>
-    private static bool ContainsSuspiciousXmlTags(string content) {
-        return content.Contains("<parameter ", StringComparison.Ordinal)
-            || content.Contains("<antml:", StringComparison.Ordinal)
-            || content.Contains("<tool_use>", StringComparison.Ordinal)
-            || content.Contains("<function_calls>", StringComparison.Ordinal)
-            || content.Contains("<function_call ", StringComparison.Ordinal)
-            || content.Contains("<invoke ", StringComparison.Ordinal);
     }
 
     /// <summary>可疑标签处理动作</summary>

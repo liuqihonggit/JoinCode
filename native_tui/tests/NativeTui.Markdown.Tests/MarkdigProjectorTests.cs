@@ -132,6 +132,18 @@ public sealed class MarkdigProjectorTests
     }
 
     [Fact]
+    public void Project_PipeTableCarriesColumnAlignment()
+    {
+        // TASK069-M4 — 分隔行 :-- / :-: / --: 分别投影为左/中/右；无标记列 = None
+        var table = Assert.IsType<MarkdownTable>(
+            FirstBlock("| L | C | R | N |\n|:--|:-:|--:|---|\n| 1 | 2 | 3 | 4 |"));
+
+        Assert.Equal(
+            [MarkdownTableAlign.Left, MarkdownTableAlign.Center, MarkdownTableAlign.Right, MarkdownTableAlign.None],
+            table.Aligns);
+    }
+
+    [Fact]
     public void Project_LinkTextCarriesLinkFlag()
     {
         var segments = InlineOf(FirstBlock("[text](https://example.com)"));

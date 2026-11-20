@@ -109,13 +109,23 @@ public static class MarkdigProjector
     private static int OrderedStart(ListBlock list) =>
         list.OfType<ListItemBlock>().FirstOrDefault(static item => item.Order > 0)?.Order ?? 1;
 
-    /// <summary>表格投影 — IsHeader 行为表头，其余为数据行（Markdig TableRow.IsHeader）。</summary>
+    /// <summary>表格投影 — IsHeader 行为表头，其余为数据行（Markdig TableRow.IsHeader）；
+    /// 列对齐取分隔行语义（TASK069-M4 — `:--` 左 / `:-:` 中 / `--:` 右）。</summary>
     private static MarkdownBlock ProjectTable(Table table)
     {
         var rows = table.OfType<TableRow>().ToList();
         var headers = rows.Where(static row => row.IsHeader).Select(ProjectRow).FirstOrDefault() ?? [];
         var data = rows.Where(static row => !row.IsHeader).Select(ProjectRow).ToList();
-        return new MarkdownTable(headers, data);
+        var aligns = table.ColumnDefinitions
+            .Select(static column => column.Alignment switch
+            {
+                TableColumnAlign.Left => MarkdownTableAlign.Left,
+                TableColumnAlign.Center => MarkdownTableAlign.Center,
+                TableColumnAlign.Right => MarkdownTableAlign.Right,
+                _ => MarkdownTableAlign.None,
+            })
+            .ToList();
+        return new MarkdownTable(headers, data, aligns);
     }
 
     /// <summary>表格行投影 — 行 → 格列表（每格 = 其内 leaf 块行内段的顺序拼接，对齐青蛙TUI CellText 拼接先例）。</summary>

@@ -58,7 +58,7 @@
 | 22 | TASK069-S6 | 提示词 XML 剥离（基准 stripPromptXMLTags） | TASK069 域1 |
 | 23 | TASK069-M2 | 工具圆点状态色：恒 text vs success/error + 未决闪烁 | TASK069 域6 |
 | 24 | TASK069-M3 | diff 行号 gutter + 统计头 | TASK069 域6 |
-| 25 | TASK069-M4 | 表格列对齐：仅左 vs center/right | TASK069 域6 |
+| ~~25~~ | ~~TASK069-M4~~ | ~~表格列对齐：仅左 vs center/right~~ | TASK069 域6 | ✅ **已对齐基准 2026-11-21**：一手 `MarkdownTable.tsx:217`「Headers always centered; data uses table alignment」+ `utils/markdown.ts:366 padAligned`（center 余数偏右）。真缺口是**解析层丢信息**（`MarkdownTable` 无 align 字段，GFM `:--`/`:-:`/`--:` 全部丢失）。实现：`MarkdownTableAlign` 枚举 + `MarkdownTable.Aligns`；`ProjectTable` 从 Markdig `ColumnDefinitions.Alignment` 投影；`TableRow` 表头恒居中、数据列按对齐分配 padding。TDD 解析 1 项 + 布局 2 项，Core 3067 / Markdown 36 绿 + 真机 EXIT=0 |
 | 26 | TASK069-M5 | 工具错误结果分支 is_error → 错误消息组件 | TASK069 域6 |
 | 27 | TASK069-N2 | footer 右侧布局：单槽四源互斥 vs 右列多项堆叠 | TASK069 域2 |
 | 28 | TASK069-C1 | /resume 列表项增强（相对时间/分支/消息数/tag/PR） | TASK069 域4 |
@@ -166,4 +166,8 @@
   - 改法：`var window = accumulated[_stableSplit..]; var split = _stableSplit + lastBlock.Span.Start;`。成立前提是 `_stableSplit` 恒为块边界（它只被赋值为 `lastBlock.Span.Start`），因此切片起点就是块起点，语义与全文解析一致。
   - **等价性安全网**（这是本项唯一真风险）：`AssertCharByCharMatchesFresh` 逐字符累积投影后与一次性投影比对稳定块序列 + 尾文本，覆盖列表 / 引用+标题 / 围栏 / setext+表格 / **嵌套列表 4 空格缩进**（切片起点最易被误判成缩进代码块的场景）。
   - 验收：Markdown 35/35、Core 3066（一次 `RawStdinPumpTests` flaky 单跑 18/18×3 排除）、Host 142；真机 EXIT=0；`NativeTui.Markdown.dll` 与库输出同哈希 `2a18e7f`。
-- 下一动作：§2.2 剩余 M 级项（M2/M3/M4/M5/N2/C1/C2/C3/E1/E4/P3/P4/P5）逐项取证请示 —— 域1（流式渲染）四项 S1/S2/S3/S6 已全部结清。
+- **M4 完成（2026-11-21）**：一手 `MarkdownTable.tsx:217`「Headers always centered; data uses table alignment」，`padAligned`（`utils/markdown.ts:366`）center 取 `leftPad = floor(padding/2)`（余数偏右）。
+  - **性质纠正**：原描述写「C# 仅左对齐」，实际是**解析层就没保留对齐信息**——`MarkdownTable` 只有 Headers/Rows，GFM 的 `:--`/`:-:`/`--:` 在 `ProjectTable` 阶段被丢弃，渲染层无从知晓。属实现缺口而非渲染选择。
+  - 实现：`MarkdownTableAlign`（None/Left/Center/Right）+ `MarkdownTable.Aligns`（可选，null = 全左）；`ProjectTable` 从 Markdig `ColumnDefinitions.Alignment` 映射；`TableRow` 按列分配 `leftPadding/rightPadding`，表头恒 Center。
+  - 验收：`Project_PipeTableCarriesColumnAlignment`、`Layout_TableHonorsColumnAlignment`（左/中/右 + 表头居中逐字符断言）、`Layout_TableRendersPipeRowsWithSeparator` 更新为表头居中；Core 3067、Markdown 36、Host 142 绿（一次 `RawStdinPumpTests` flaky 复跑即绿）；真机 EXIT=0；Core/Markdown 产物哈希与库输出一致。
+- 下一动作：§2.2 剩余 M 级项（M2/M3/M5/N2/C1/C2/C3/E1/E4/P3/P4/P5）逐项取证请示 —— 域1（S1/S2/S3/S6）与域6 表格列对齐（M4）已结清。

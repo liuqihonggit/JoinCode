@@ -21,8 +21,8 @@
 | # | 编号 | 事项 | 来源 | 规模 | 核实状态 | 处置 |
 |---|------|------|------|------|----------|------|
 | ~~1~~ | ~~TASK069-M6~~ | ~~用户消息 10k 截断接线~~ | TASK069 域6 | S | ✅ **已完成 2026-11-21**（见 §4） | DisplayText 接线，34/34 + 真机 selftest EXIT=0 |
-| 2 | TASK062-P8 | `McpPluginBootstrapHandle.Completion` Run 前占位语义（未调用 Run 即 `Task.CompletedTask`，误判就绪） | TASK062 | S | ✅ 已核实：未加 `_started` 门闩 | 文档化契约 + `_started` 门闩，TDD |
-| 3 | TASK062-P7 | tokenGain 恒 0（`SessionController.cs:511-517` 三处传 0） | TASK062 | M | ✅ 已核实：仍传 0 | 接 `ProgressTracker.RecordTokenUsage` 差值 |
+| ~~2~~ | ~~TASK062-P8~~ | ~~Completion Run 前占位语义~~ | TASK062 | S | ✅ **误判纠正**：TASK063 `c3c5ec77a` 已文档化契约+守卫锁，**刻意不加门闩**（挂死风险）→移 §3 | 见 §4 |
+| ~~3~~ | ~~TASK062-P7~~ | ~~tokenGain 恒 0~~ | TASK062 | M | ✅ **误判纠正**：TASK063 `853d9e75b` 已用完成态 TokenTotal 权威校正闭合→移 §3 | 见 §4 |
 | 4 | TASK069-C2 | `/resume` 模糊搜索 `enableSearch` 传参疑似静默失效 | TASK069 域4 | M | ⚠️ 待深查：`ResumeCommand.cs:202` 已传 `enableSearch: true`，需追到 Selector 是否消费 | 若确为失效 → bug 直接修；否则关闭 |
 | 5 | TASK071-C6 | 结构化输出：synthetic tool 重试上限 5 + `result.structured_output` 自动填充接线 | TASK071 | M | 待核实：DTO 字段在（`SdkMessage.cs:251`），重试机制未见 | 补两处缺口 |
 | 6 | TASK071-A4 | 通用设置迁移框架（版本号 + 脚本目录）；已有 `SettingsSourceMigration` 单件 | TASK071 | L | ✅ 已核实：通用框架未建（TASK089 只做一件） | 需设计，另立专项 |
@@ -103,6 +103,8 @@
 | TASK067-截断 | 输入超 10000 截断 | PR #506 |
 | TASK069-缺失 | 成本 USD 计账 / 自定义 statusline | 已实现（工作清单 §五） |
 | TASK071-D7 | hooks suppressOutput | HookResult 加字段遗留——⚠️ 待核实：`TASK075` 提「D7 遗留需 HookResult 加字段」，与「D1-D9 全落地」矛盾 |
+| TASK062-P8 | Completion Run 前占位语义 | TASK063 `c3c5ec77a`（2026-10-22）：契约文档化 + 守卫锁；**刻意不加 `_started` 门闩**（"行为变更引入等待挂死风险"）。误判根因：只 grep 门闩符号未见即判悬置，未读关联 TASK063 |
+| TASK062-P7 | tokenGain 恒 0 | TASK063 `853d9e75b`：方案2 完成态权威校正（`OnSubagentFinished(tokenTotal: evt.Usage?.TotalTokens)` + `SubagentFinished.TokenTotal` 全链）；三处 `tokenGain:0` 保留（逐活动增量不存在，否决方案1 接 RecordTokenUsage 差值） |
 
 ## 4. 清理进度
 
@@ -116,4 +118,9 @@
     （单跑该 fixture 18/18 连续 3 次全绿，每次全量失败的用例不同——TASK101 B3 已登记的 Flaky 分层，与本次渲染改动无关）。
   - 真机（ADR 0080）：重编 NativeTui.Core + CLI，DLL 字符串核验含 `DisplayText`；
     `jcc.exe --selftest-tui` seed provider 后 `HOST SELFTEST OK` EXIT=0。
-- 下一动作：从 §1 第 2 项（TASK062-P8 `_started` 门闩）继续。
+- **#2/#3 TASK062-P8/P7 误判纠正（2026-11-21）**：
+  - 根因：上一轮回填 TASK062 时只 grep 本任务符号（`_started`/`RecordTokenUsage` 未见）即判「悬置」，未读关联任务 TASK063——**"选择了文档化/替代方案"≠"未实施"**。
+  - P8 铁证：commit `c3c5ec77a`（契约文档化 + 契约锁测试）；TASK063 决策原文「契约文档化而非行为修正（不加 `_started` 门闩等待）——行为变更反而引入等待挂死风险」；`McpPluginBootstrapHandleTests.Completion_BeforeRun_Placeholder_NotReadinessSignal` 锁死占位语义。
+  - P7 铁证：commit `853d9e75b`（方案2 完成态权威校正）；`SessionController.cs:508` 传 `tokenTotal: evt.Usage?.TotalTokens ?? 0`；`SubagentFinished.TokenTotal` 协议全链；三处 `tokenGain:0` 是逐活动增量（调研证明不存在，否决方案1）。
+  - 处置：TASK062 顶部状态 + 总表 + §4 遗留已纠正为 P1–P8 全闭合；总账 #2/#3 移入 §3。**零代码改动**（代码现状即拍板结果）。
+- 下一动作：从 §1 第 4 项（TASK069-C2 `enableSearch` 深查）继续。

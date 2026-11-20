@@ -167,22 +167,20 @@
 1. 编译（Debug，不做 AOT 发布）：
    ```
    dotnet build native_gui/apps/NativeGui.Host/NativeGui.Host.csproj -c Debug
-   dotnet build test/mock/mock_server.e2e.tests/OpenAI.MockServer 2>/dev/null || dotnet build -t:OpenAI.MockServer
+   dotnet build test/mock/open_ai.mock_server/OpenAI.MockServer.csproj -c Debug
    ```
-   MockServer exe 定位：`artifacts/bin/OpenAI.MockServer/**/JoinCode.OpenAI.MockServer.exe`（优先 Debug）。
-2. 准备 MockServer 脚本配置（`.xxx/mockserver_gui.json`，长文本按 word 分片≈20ms/片）：
-   ```json
-   {
-     "port": 0,
-     "default_response": "(script exhausted)",
-     "scripted_turns": [
-       { "thinking_content": null, "tool_calls": null, "text_response": "word1 word2 ... word50", "follow_up_text": null, "http_status_code": null }
-     ]
-   }
-   ```
+   exe 路径（实测）：
+   - GUI：`artifacts/bin/NativeGui.Host/Debug/net10.0-windows10.0.26100.0/NativeGui.Host.exe`
+   - MockServer：`artifacts/bin/OpenAI.MockServer/Debug/net10.0/JoinCode.OpenAI.MockServer.exe`
+2. MockServer 脚本配置（仓库已预置，按场景换用并重启 MockServer）：
+   - `.xxx/mockserver_gui_stream.json` — 场景 1：60 词长文本按 word 分片
+   - `.xxx/mockserver_gui_tool.json` — 场景 2：`bash` 工具调用 + 收尾文本
+   - `.xxx/mockserver_gui_xml.json` — 场景 5：含 `<antml:invoke>` 的异常文本 + 恢复文本
+   - 场景 3（子代理）/4（取消）/6（预算）/7（legacy）沿用当前配置或真实供应商即可。
+   - 注意：预处理/意图分类可能先消耗一个脚本轮次；工具调用未触发时，在 `scripted_turns` 前补一个文本轮或调大 `default_response`。
 3. 启动 MockServer 并记录就绪行端口：
    ```
-   artifacts/bin/OpenAI.MockServer/<config>/JoinCode.OpenAI.MockServer.exe --config .xxx/mockserver_gui.json --port 0 --no-open-browser
+   artifacts/bin/OpenAI.MockServer/Debug/net10.0/JoinCode.OpenAI.MockServer.exe --config .xxx/mockserver_gui_stream.json --port 0 --no-open-browser
    ```
    就绪标志：`[OpenAI]   URL: http://localhost:<port>/`
 4. 以环境变量启动 GUI（cmd/PowerShell 均可；**不要**设置 `JCC_CHAT_LOOP_BACKEND`，让默认值生效）：

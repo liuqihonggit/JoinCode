@@ -163,6 +163,47 @@ public sealed class ReplBridgeDriverTests
     }
 
     [Fact]
+    public void Apply_ToolResult_MarksCallItemSuccess()
+    {
+        // TASK069-M2 — 逐条工具行在结果到达后回填终态（● success 恒亮）
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls"));
+        var call = Assert.IsType<ToolCallItem>(_view.Messages.Items[^2]);
+        Assert.Equal(ToolCallStatus.Pending, call.Status);
+
+        _driver.Apply(new BridgeEvent.ToolResult("ok"));
+
+        Assert.Equal(ToolCallStatus.Success, call.Status);
+    }
+
+    [Fact]
+    public void Apply_ToolResultWithErrorFlag_MarksCallItemError()
+    {
+        // TASK069-M2 — 结构化 isError 是 ● 错误色的权威来源
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls"));
+        var call = Assert.IsType<ToolCallItem>(_view.Messages.Items[^2]);
+
+        _driver.Apply(new BridgeEvent.ToolResult("Error: boom", IsError: true));
+
+        Assert.Equal(ToolCallStatus.Error, call.Status);
+    }
+
+    [Fact]
+    public void Apply_NewToolCallAfterMissingResult_DoesNotRestatusPreviousItem()
+    {
+        // 引擎漏发 tool_result 时，新工具开始不得把上一行误标为完成
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "one"));
+        var first = Assert.IsType<ToolCallItem>(_view.Messages.Items[^2]);
+
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "two"));
+        _driver.Apply(new BridgeEvent.ToolResult("ok"));
+
+        Assert.Equal(ToolCallStatus.Pending, first.Status);
+    }
+
+    [Fact]
     public void Apply_TokenDelta_AccumulatesLengthAndSwitchesToResponding()
     {
         _driver.BeginTurn();

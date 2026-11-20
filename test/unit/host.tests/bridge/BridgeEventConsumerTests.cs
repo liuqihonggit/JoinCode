@@ -147,8 +147,9 @@ public sealed class BridgeEventConsumerTests {
 
         consumer.OnToolEnd("Bash", "command failed: exit 1", "call-2", isError: true, patch: null);
 
+        // TASK069-M2/M5 — 摘要文本标记保留（LLM/日志侧兼容）+ 结构化 isError 字段新增（TUI 圆点/错误形态消费）
         Assert.Equal(
-            "{\"type\":\"tool_result\",\"summary\":\"[error] command failed: exit 1\"}\n",
+            "{\"type\":\"tool_result\",\"summary\":\"[error] command failed: exit 1\",\"isError\":true}\n",
             @out.ToString());
     }
 

@@ -80,12 +80,15 @@ public static class MessageRenderer
     /// 渲染工具调用消息：● + 空格 + bold 工具名 + 默认样式 (参数摘要)，名字与摘要间无间隔。
     /// 参数含换行时多行显示（Bash 多行命令 — 基准 Ink wrap 语义）：首行 "(" + 首段不闭合，
     /// 续行缩进对齐参数列（工具名后括号列），末行尾闭合括号（基准 AssistantToolUseMessage 括号包全文）。
+    /// TASK069-M2 — ● 状态口径对齐基准 ToolUseLoader：未决默认前景 + dim + 600ms 方波闪烁；
+    /// 完成 success 色恒亮；错误 error 色恒亮（此前恒 theme.Text，工具成败不可见）。
     /// </summary>
-    public static void RenderToolCall(Screen screen, Rect frame, Theme theme, string toolName, string args)
+    public static void RenderToolCall(Screen screen, Rect frame, Theme theme, string toolName, string args,
+        bool isActive = false, bool hasError = false, long animTimeMs = 0)
     {
-        var bullet = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Text });
+        var bullet = screen.Styles.GetOrAdd(BulletStyle(theme, isActive, hasError));
         var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
-        screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", bullet, frame.Right);
+        screen.WriteText(frame.Y, frame.X, $"{BulletChar(isActive, hasError, animTimeMs)} ", bullet, frame.Right);
         var col = screen.WriteText(frame.Y, frame.X + 2, toolName, bold, frame.Right);
         var lines = args.Split('\n');
         var firstSegment = lines[0].TrimEnd('\r');
@@ -97,6 +100,21 @@ public static class MessageRenderer
             screen.WriteText(frame.Y + i, col, isLast ? $"{text})" : text, 0, frame.Right);
         }
     }
+
+    /// <summary>● 动画口径（基准 ToolUseLoader：`t1 = isError || !isUnresolved || isBlinking ? ● : " "`）—
+    /// 未决且动画中按 600ms 方波在 ●/空格间切换；完成/错误恒亮（布局不跳动，文案恒 X+2 起）。
+    /// 单一实现源 — 工具行 / 聚合摘要行 / 子代理组头共用。</summary>
+    internal static string BulletChar(bool isActive, bool hasError, long animTimeMs)
+    {
+        const int BlinkIntervalMs = 600;
+        return hasError || !isActive || animTimeMs / BlinkIntervalMs % 2 == 0 ? Figures.MessageBullet : " ";
+    }
+
+    /// <summary>● 颜色口径（基准 `color = isUnresolved ? undefined : isError ? error : success`）：
+    /// 未决 → 默认前景 + dim；完成 → success；错误 → error。单一实现源（同 <see cref="BulletChar"/>）。</summary>
+    internal static TextStyle BulletStyle(Theme theme, bool isActive, bool hasError) => isActive
+        ? new TextStyle { Dim = true }
+        : new TextStyle { Foreground = hasError ? theme.Error : theme.Success };
 
     /// <summary>渲染工具结果消息："  ⎿  " 前缀整体 dim（单一 Text span），正文默认样式。</summary>
     public static void RenderToolResult(Screen screen, Rect frame, Theme theme, string text)
@@ -501,12 +519,9 @@ public static class MessageRenderer
     /// </summary>
     public static void RenderSubagentHeader(Screen screen, Rect frame, Theme theme, string text, bool isDone, bool hasError, long animTimeMs)
     {
-        const int BlinkIntervalMs = 600;
         var isRunning = !isDone;
-        var bullet = hasError || isDone || animTimeMs / BlinkIntervalMs % 2 == 0 ? Figures.MessageBullet : " ";
-        var bulletStyle = isRunning
-            ? screen.Styles.GetOrAdd(new TextStyle { Dim = true })
-            : screen.Styles.GetOrAdd(new TextStyle { Foreground = hasError ? theme.Error : theme.Success });
+        var bullet = BulletChar(isRunning, hasError, animTimeMs);
+        var bulletStyle = screen.Styles.GetOrAdd(BulletStyle(theme, isRunning, hasError));
         screen.WriteText(frame.Y, frame.X, $"{bullet} ", bulletStyle, frame.Right);
         screen.WriteText(frame.Y, frame.X + 2, text, 0, frame.Right);
     }

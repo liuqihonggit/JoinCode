@@ -130,7 +130,21 @@ public sealed class AssistantMessageItem(string text, int thinkingDurationMs = 0
 /// IToolCallInfo — 消息操作域复制面契约（ToolName/Args 公开 — CopyTextExtractor 主参数提取接线）。
 /// ITextMatchable — transcript 搜索匹配（toolName/args，M8-3）。
 /// </summary>
-public sealed class ToolCallItem : IScrollItem, ICursorNavigable, IToolCallInfo, ITextMatchable
+/// <summary>工具调用状态（TASK069-M2 — 对齐基准 ToolUseLoader 的 isUnresolved/isError 两轴：
+/// Pending = 未决（● dim + 闪烁）/ Success（● success 色）/ Error（● error 色））。</summary>
+public enum ToolCallStatus
+{
+    /// <summary>执行中（未决）— ● 默认前景 + dim + 600ms 方波闪烁。</summary>
+    Pending = 0,
+
+    /// <summary>成功完成 — ● success 色恒亮。</summary>
+    Success,
+
+    /// <summary>失败 — ● error 色恒亮。</summary>
+    Error,
+}
+
+public sealed class ToolCallItem : IScrollItem, ICursorNavigable, IToolCallInfo, ITextMatchable, IAnimatable
 {
     /// <summary>显示工具名（Edit Create/Update 派生后的标题行名称）。</summary>
     private readonly string _displayToolName;
@@ -163,17 +177,27 @@ public sealed class ToolCallItem : IScrollItem, ICursorNavigable, IToolCallInfo,
     /// <summary>派生后的参数摘要（多行命令含 \n — 高度与渲染按行拆分）。</summary>
     public string DisplayArgs => _displayArgs;
 
+    /// <summary>执行状态（TASK069-M2 — ● 颜色/闪烁依据；Driver 在 tool_result 到达时回填）。</summary>
+    public ToolCallStatus Status { get; set; } = ToolCallStatus.Pending;
+
+    /// <summary>动画时钟（ReplShell 每 50ms 广播 — 仅 Pending 态 ● 闪烁消费）。</summary>
+    public long AnimTimeMs { get; set; }
+
     /// <summary>内容高度 = margin 1 + 标题行数（单行参数 1 + 多行命令续行数）。</summary>
     public int MeasureHeight(int width) => 1 + _displayLines.Length;
 
-    /// <summary>渲染：margin 留空 → 标题行（多行命令按行拆分渲染，续行缩进对齐参数列）。</summary>
+    /// <summary>渲染：margin 留空 → 标题行（多行命令按行拆分渲染，续行缩进对齐参数列）；
+    /// ● 状态色/闪烁按 <see cref="Status"/> 与 <see cref="AnimTimeMs"/> 施加。</summary>
     public void Render(Screen screen, Rect frame, Theme theme) =>
         MessageRenderer.RenderToolCall(
             screen,
             frame with { Y = frame.Y + 1, Height = _displayLines.Length },
             theme,
             _displayToolName,
-            _displayArgs);
+            _displayArgs,
+            isActive: Status == ToolCallStatus.Pending,
+            hasError: Status == ToolCallStatus.Error,
+            animTimeMs: AnimTimeMs);
 
     /// <summary>工具名 + 参数匹配。</summary>
     public bool ContainsText(string query) =>

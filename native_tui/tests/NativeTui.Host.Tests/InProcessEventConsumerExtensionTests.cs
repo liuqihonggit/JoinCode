@@ -22,12 +22,35 @@ public sealed class InProcessEventConsumerExtensionTests
         Assert.Equal(2, result.HiddenLines);
     }
 
+    /// <summary>TASK069-M2/M5 — 工具失败标记结构化下发（此前只折成摘要文本前缀，TUI 无法给圆点上色）。</summary>
+    [Fact]
+    public void OnToolEnd_ErrorFlag_CarriesStructuredIsError()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnToolEnd("Bash", "boom", "call-1", isError: true, patch: null);
+
+        var result = Assert.IsType<BridgeEvent.ToolResult>(Assert.Single(consumer.DrainEvents()));
+        Assert.True(result.IsError);
+    }
+
+    /// <summary>成功结果 IsError 保持 false（旧 JSON 零变化）。</summary>
+    [Fact]
+    public void OnToolEnd_SuccessFlag_LeavesIsErrorFalse()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnToolEnd("Bash", "ok", "call-1", isError: false, patch: null);
+
+        var result = Assert.IsType<BridgeEvent.ToolResult>(Assert.Single(consumer.DrainEvents()));
+        Assert.False(result.IsError);
+    }
+
     /// <summary>单行结果 — RawOutput 不投影（summary 已表达）、HiddenLines 0（旧事件形态零变化）。</summary>
     [Fact]
     public void OnToolEnd_SingleLineResult_OmitsRawOutput()
     {
         var consumer = new InProcessEventConsumer();
-
         consumer.OnToolEnd("Read", "41 lines", "call-1", isError: false, patch: null);
 
         var result = Assert.IsType<BridgeEvent.ToolResult>(Assert.Single(consumer.DrainEvents()));

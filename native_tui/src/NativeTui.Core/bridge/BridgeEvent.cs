@@ -80,12 +80,16 @@ public abstract record BridgeEvent
     /// RawOutput 为工具原始输出多行文本（引擎侧预截断防超长原始输出撑爆 JSON 行 — 渲染层折叠 +
     /// Ctrl+O 展开消费；null 不输出字段 WhenWritingNull — 单行结果 summary 已完整表达不带此字段，
     /// 旧 JSON golden 零破坏）；HiddenLines 为折叠隐藏行数（0 不输出字段 WhenWritingDefault —
-    /// 引擎侧权威计算：原始总行数 − 预览上限，含预截断丢弃估算）。
+    /// 引擎侧权威计算：原始总行数 − 预览上限，含预截断丢弃估算）；
+    /// IsError 为工具失败标记（TASK069-M2/M5 — 圆点错误色 + 结果错误形态的权威来源；
+    /// 此前只折成摘要文本 "Error: " 前缀，结构化标记在投影层丢失。false 不输出字段 —
+    /// 旧 JSON golden 零破坏）。
     /// </summary>
     public sealed record ToolResult(string Summary,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DiffHunk[]? Patch = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RawOutput = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int HiddenLines = 0) : BridgeEvent;
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int HiddenLines = 0,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool IsError = false) : BridgeEvent;
 
     /// <summary>
     /// 权限请求（工具执行前需用户确认 — TUI 模态对话框）。Demo 进程内路径由 SimulatedEngine 事件驱动；

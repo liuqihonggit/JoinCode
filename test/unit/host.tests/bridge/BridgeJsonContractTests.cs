@@ -114,6 +114,14 @@ public sealed class BridgeJsonContractTests {
     }
 
     [Fact]
+    public void Serialize_ToolResultError_EmitsStructuredIsErrorField() {
+        // TASK069-M2/M5 — 结构化错误标记；false 不输出字段（WhenWritingDefault），旧 golden 零破坏
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeEvent.ToolResult("boom", IsError: true), CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        Assert.Equal("{\"type\":\"tool_result\",\"summary\":\"boom\",\"isError\":true}", json);
+    }
+
+    [Fact]
     public void Deserialize_TuiEmittedRequestLine_ParsesBack() {
         // native_tui BridgeProtocol.WriteRequest 产出的行（契约快照）
         var request = JsonSerializer.Deserialize(

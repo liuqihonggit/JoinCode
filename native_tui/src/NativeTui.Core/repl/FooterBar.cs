@@ -6,9 +6,11 @@ namespace NativeTui.Core.Repl;
 /// + busy dim ` · esc 打断`（U+00B7）/ 非 busy 且有 agents 提示 dim ` · {AgentsHint}`；
 /// 标准模式（引擎默认 auto）dim `? 查看快捷键`（busy 时 `esc 打断`）；
 /// 行 1 右侧 Notifications 登录错误（error 色右对齐）；
-/// 行 2 右侧（四源互斥，持续告警最优先）：上下文余量告警 ContextWarning（M8-7 — Critical error /
-/// Warning warning 色，持续态压瞬态通知）&gt; 动态通知 <see cref="ReplNotifications.Current"/>（dim）
-/// &gt; 静态 <see cref="FooterState.Notification"/>（dim）&gt; TokenWarning（Ok dim / Low warning 色）。
+/// 行 2 起右侧为**多行堆叠列**（TASK069 N2 — 对齐基准 Notifications.tsx:203 `flexDirection="column"`：
+/// 各来源各自成行并行显示，不再单槽互斥），自上而下：自定义状态行 StatusLine（用户显式配置最高）
+/// &gt; 上下文余量告警 ContextWarning（M8-7 — Critical error / Warning warning）&gt; 动态通知
+/// <see cref="ReplNotifications.Current"/>（dim）&gt; 静态 <see cref="FooterState.Notification"/>（dim）
+/// &gt; TokenWarning（Ok dim / Low warning 色）。高度随活跃来源数增长。
 /// 注意：paddingX=2 留白由 REPL 组装层负责（frame.X 从 col 2 起），本组件只渲染内容。
 /// </summary>
 public sealed class FooterBar
@@ -16,20 +18,24 @@ public sealed class FooterBar
     /// <summary>窄屏阈值（TASK069 N3 — 基准 Notifications.tsx:175 columns&lt;80 布局切换）。</summary>
     public const int NarrowScreenColumns = 80;
 
-    /// <summary>footer 高度：行 2 右侧内容（上下文告警/动态通知/静态通知/Token 警告）非空时 2 行，否则 1 行。</summary>
-    public int MeasureHeight(FooterState state) => Row2Text(state) is null ? 1 : 2;
+    /// <summary>footer 高度（列宽无关 — 1 行模式行 + 右列堆叠行数）。</summary>
+    public int MeasureHeight(FooterState state) => 1 + RightRowCount(state);
 
     /// <summary>footer 高度（窄屏感知 — TASK069 N3）：窄屏（&lt;80 列）时 LoginError 独立行堆叠
     ///（对齐基准右列上下堆叠 — 左右同行互挤覆盖消除），高度 +1。</summary>
     public int MeasureHeight(FooterState state, int cols) =>
-        MeasureHeight(state) + (cols < NarrowScreenColumns && state.LoginError is not null ? 1 : 0);
+        MeasureHeight(state) + (IsNarrowLoginRow(state, cols) ? 1 : 0);
+
+    /// <summary>窄屏且存在登录错误 → LoginError 单独占一行（不做右对齐同行渲染）。</summary>
+    private static bool IsNarrowLoginRow(FooterState state, int cols) =>
+        cols < NarrowScreenColumns && state.LoginError is not null;
 
     /// <summary>渲染状态栏（frame 高度须 ≥ MeasureHeight）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme, FooterState state)
     {
         RenderLeftSide(screen, frame with { Height = 1 }, theme, state);
         var rowOffset = 0;
-        if (frame.Width < NarrowScreenColumns && state.LoginError is not null)
+        if (IsNarrowLoginRow(state, frame.Width))
         {
             // TASK069 N3 — 窄屏 LoginError 独立行（不再行 1 右对齐与模式串互挤覆盖）
             rowOffset = 1;
@@ -40,25 +46,60 @@ public sealed class FooterBar
             RenderRightAligned(screen, frame.Y, frame, state.LoginError, theme.Error);
         }
 
-        if (Row2Text(state) is { } row2)
+        // TASK069 N2 — 右列多行堆叠（基准 Notifications.tsx column）：每个活跃来源各自一行，互不覆盖
+        var row = frame.Y + rowOffset + 1;
+        foreach (var (text, foreground) in RightRows(state, theme))
         {
-            RenderRightAligned(screen, frame.Y + rowOffset + 1, frame, row2, Row2Color(state, theme));
+            RenderRightAligned(screen, row, frame, text, foreground);
+            row++;
         }
     }
 
-    /// <summary>行 2 右侧文本 — 五源互斥优先级：自定义状态行（statusline 键常驻，用户显式配置最高）
-    /// &gt; 上下文告警（持续态 — 通知 12s 超时自然消亡，告警持续到余量回升）&gt; 动态通知 &gt; 静态通知 &gt; Token 警告文本。</summary>
-    private static string? Row2Text(FooterState state) =>
-        state.StatusLine ?? state.ContextWarning ?? state.Notifications?.Current ?? state.Notification ?? state.Tokens?.Warning.Text;
+    /// <summary>右列堆叠行数（高度用 — 与 <see cref="RightRows"/> 同源判定）。</summary>
+    private static int RightRowCount(FooterState state) =>
+        (IsBlank(state.StatusLine) ? 0 : 1)
+        + (IsBlank(state.ContextWarning) ? 0 : 1)
+        + (IsBlank(state.Notifications?.Current) ? 0 : 1)
+        + (IsBlank(state.Notification) ? 0 : 1)
+        + (IsBlank(state.Tokens?.Warning.Text) ? 0 : 1);
 
-    /// <summary>行 2 右侧前景色 — 上下文告警按级别（Critical error / Warning warning），
-    /// TokenWarning.Low 用 warning 琥珀（基准 Context low warning 色），其余（通知/Ok）dim（null）。</summary>
-    private static Color? Row2Color(FooterState state, Theme theme) =>
-        state.ContextWarning is not null ? ContextWarningColor(theme, state.ContextWarningLevel)
-        : state.Notifications?.Current is null && state.Notification is null
-        && state.Tokens?.Warning.Level == TokenWarningLevel.Low
-            ? theme.Warning
-            : null;
+    /// <summary>空/缺省来源不占行（null 或空串一视同仁）。</summary>
+    private static bool IsBlank(string? text) => text is not { Length: > 0 };
+
+    /// <summary>右列堆叠行（自上而下按优先级 — TASK069 N2 多源并行显示）：自定义状态行
+    /// &gt; 上下文告警（持续态 — 通知 12s 超时自然消亡，告警持续到余量回升）&gt; 动态通知
+    /// &gt; 静态通知 &gt; Token 警告文本。</summary>
+    private static IReadOnlyList<(string Text, Color? Foreground)> RightRows(FooterState state, Theme theme)
+    {
+        var rows = new List<(string Text, Color? Foreground)>(5);
+        if (state.StatusLine is { Length: > 0 } statusLine)
+        {
+            rows.Add((statusLine, null));
+        }
+
+        if (state.ContextWarning is { Length: > 0 } contextWarning)
+        {
+            rows.Add((contextWarning, ContextWarningColor(theme, state.ContextWarningLevel)));
+        }
+
+        if (state.Notifications?.Current is { Length: > 0 } current)
+        {
+            rows.Add((current, null));
+        }
+
+        if (state.Notification is { Length: > 0 } notification)
+        {
+            rows.Add((notification, null));
+        }
+
+        if (state.Tokens?.Warning.Text is { Length: > 0 } tokenWarning)
+        {
+            // 独立行后 TokenWarning 自身决定色（Low 琥珀 / Ok dim）— 不再受上方来源挤占影响
+            rows.Add((tokenWarning, state.Tokens?.Warning.Level == TokenWarningLevel.Low ? theme.Warning : null));
+        }
+
+        return rows;
+    }
 
     /// <summary>告警级别 → 前景色（None 防御性回落 warning 色 — Driver 保证 text null ⟺ level None）。</summary>
     private static Color ContextWarningColor(Theme theme, ContextAlertLevel level) => level switch

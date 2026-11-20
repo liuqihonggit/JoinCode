@@ -1,10 +1,10 @@
 namespace NativeTui.Tests.Repl;
 
 /// <summary>
-/// FooterBar 动态源消费测试 — 行 2 右侧三源互斥优先级：
-/// 动态通知 ReplNotifications.Current（dim）&gt; 静态 FooterState.Notification（dim）&gt;
-/// TokenWarning（Ok dim / Low warning 琥珀）。通知瞬态（到期 Tick 清除），
-/// token 警告常驻（无通知时接管行 2）。MeasureHeight 随源内容 1↔2 行联动。
+/// FooterBar 动态源消费测试 — 行 2 起右侧多源堆叠（TASK069 N2 对齐基准 Notifications.tsx column）：
+/// 动态通知 ReplNotifications.Current（dim）/ 静态 FooterState.Notification（dim）/
+/// TokenWarning（Ok dim / Low warning 琥珀）各自成行并行显示，不再单槽互斥；
+/// 通知瞬态（到期 Tick 清除）只影响自己那一行。MeasureHeight 随活跃来源数联动。
 /// </summary>
 public sealed class FooterBarDynamicTests
 {
@@ -25,19 +25,22 @@ public sealed class FooterBarDynamicTests
     }
 
     [Fact]
-    public void Notifications_OverridesStaticNotification()
+    public void Notifications_AndStatic_StackOnSeparateRows()
     {
-        using var screen = new Screen(cols: 60, rows: 2);
+        using var screen = new Screen(cols: 60, rows: 3);
         var notifications = new ReplNotifications();
         notifications.Tick(0);
         notifications.Enqueue("动态通知");
         var footer = new FooterBar();
         var state = new FooterState { Notification = "静态通知", Notifications = notifications };
-        footer.Render(screen, new Rect(0, 0, 60, 2), Theme.Dark, state);
 
-        // 行 2 只出现动态通知（互斥优先级 — 通知瞬态覆盖静态）
-        Assert.DoesNotContain("静态通知", RowText.Of(screen, 1, 0, 60));
+        // TASK069 N2 — 两源并行：动态通知上一行、静态通知下一行，互不覆盖
+        Assert.Equal(3, footer.MeasureHeight(state));
+        footer.Render(screen, new Rect(0, 0, 60, 3), Theme.Dark, state);
+
         Assert.Contains("动态通知", RowText.Of(screen, 1, 0, 60));
+        Assert.DoesNotContain("静态通知", RowText.Of(screen, 1, 0, 60));
+        Assert.Contains("静态通知", RowText.Of(screen, 2, 0, 60));
     }
 
     [Fact]
@@ -138,5 +141,60 @@ public sealed class FooterBarDynamicTests
         Assert.Equal(1, footer.MeasureHeight(new FooterState { Tokens = tokens }));
         tokens.RecordUsage(0, 0, 190_000, 200_000);
         Assert.Equal(2, footer.MeasureHeight(new FooterState { Tokens = tokens }));
+    }
+
+    [Fact]
+    public void AllSources_StackInPriorityOrder()
+    {
+        // TASK069 N2 — 五源并行各占一行（不再互斥），自上而下按优先级
+        using var screen = new Screen(cols: 60, rows: 6);
+        var notifications = new ReplNotifications();
+        notifications.Tick(0);
+        notifications.Enqueue("动态通知");
+        var tokens = new TokenUsageTracker();
+        tokens.RecordUsage(0, 0, 190_000, 200_000);
+        var footer = new FooterBar();
+        var state = new FooterState
+        {
+            StatusLine = "状态行",
+            ContextWarning = "上下文告急 (5%)",
+            ContextWarningLevel = ContextAlertLevel.Critical,
+            Notifications = notifications,
+            Notification = "静态通知",
+            Tokens = tokens,
+        };
+
+        Assert.Equal(6, footer.MeasureHeight(state));
+        footer.Render(screen, new Rect(0, 0, 60, 6), Theme.Dark, state);
+
+        var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Error });
+        Assert.Contains("状态行", RowText.Of(screen, 1, 0, 60));
+        Assert.Contains("上下文告急 (5%)", RowText.Of(screen, 2, 0, 60));
+        Assert.Equal(error, screen[2, 60 - 15].StyleId);
+        Assert.Contains("动态通知", RowText.Of(screen, 3, 0, 60));
+        Assert.Contains("静态通知", RowText.Of(screen, 4, 0, 60));
+        Assert.Equal(tokens.Warning.Text, RowText.Of(screen, 5, 0, 60).TrimStart());
+    }
+
+    [Fact]
+    public void EmptyStringSource_DoesNotOccupyRow()
+    {
+        var footer = new FooterBar();
+
+        Assert.Equal(1, footer.MeasureHeight(new FooterState { Notification = string.Empty, StatusLine = string.Empty }));
+    }
+
+    [Fact]
+    public void NarrowWithLoginError_StackStartsAfterLoginRow()
+    {
+        using var screen = new Screen(cols: 60, rows: 4);
+        var footer = new FooterBar();
+        var state = new FooterState { LoginError = "未登录 · 运行 /login", Notification = "静态通知" };
+
+        Assert.Equal(3, footer.MeasureHeight(state, cols: 60));
+        footer.Render(screen, new Rect(0, 0, 60, 4), Theme.Dark, state);
+
+        Assert.Contains("未登录", RowText.Of(screen, 1, 0, 60));
+        Assert.Contains("静态通知", RowText.Of(screen, 2, 0, 60));
     }
 }

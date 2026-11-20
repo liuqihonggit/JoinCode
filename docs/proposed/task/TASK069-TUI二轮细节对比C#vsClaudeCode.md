@@ -28,7 +28,7 @@
 | S1 | 流式上屏粒度 | C# 逐字含未完成行（抖动）；基准截断到最后换行逐行显示 | REPL.tsx:1505 |
 | S2 | 流式尾块渲染 | C# 尾恒纯文本；基准增长尾走完整 Markdown（代码块流式期有样式） | Markdown.tsx:231-233 |
 | S3 | 增量解析范围 | C# 每次 Append 全量 Markdig.Parse O(全文)；基准稳定边界起 O(尾长) | Markdown.tsx:210-212 |
-| S4 | 流式项前缀 | C# 流式 ⎿ dim 落定切 ●（跳变）；基准同用 ● | Messages.tsx:703-712 |
+| S4 | 流式项前缀 | C# 流式 ⎿ dim 落定切 ●（跳变）；基准同用 ● | Messages.tsx:703-712 | ✅ **裁决：维持 C# 现状（已对齐基准）2026-11-21** — 一手证据 `StreamingTextItem.cs:5` 实现注释「对齐基准 Messages.tsx 尾部 ⎿ 前缀行」+ TASK064:12 记基准行 703-709 为 ⎿；TASK069「基准同用 ●」是转述误读（基准落定才是 ●）。跳变是基准自身行为，非缺陷 |
 | S5 | token compact 大小写 | C# 1.3k；基准 1.3K | format.ts:124-130 | ✅ **已对齐基准 2026-11-21**（用户拍板改大写 K；`NumberFormatter.FormatCompact` k/M/B 后缀全大写，TDD 锁定） |
 | S6 | 提示词 XML 剥离 | 基准 stripPromptXMLTags 先剥离再切分；C# 无 | Markdown.tsx:202 |
 
@@ -79,7 +79,7 @@
 
 | # | 功能点 | 差异 |
 |---|--------|------|
-| M1 | ❯ 前缀选中变色 | 基准选中时 suggestion 色；C# 恒 Subtle |
+| M1 | ❯ 前缀选中变色 | 基准选中时 suggestion 色；C# 恒 Subtle | ✅ **裁决：维持 C# 现状（已对齐基准）2026-11-21** — `RenderUser` 用户消息 ❯ 恒 Subtle 是对齐基准的实现；C# picker/dialog 选中态 `MessageRenderer.cs:350,394` 已是 suggestion 色（与基准一致）；`MessageCursor`（Shift+↑）是 w2 自创无基准对应物（`ReplShell.cs:2465`），高亮为整块背景覆写。TASK069 把 picker 选中态误套到用户消息前缀 |
 | M2 | 工具圆点状态色 | 基准完成=success/error 色 + 未决闪烁；C# 恒 text 色（工具失败不可见） |
 | M3 | diff 行号 gutter | 基准 marker+右对齐行号列 + "Added/Removed N lines" 统计头；C# 4 空格缩进无行号 |
 | M4 | 表格列对齐 | 基准 center/right 支持；C# 仅左对齐 |

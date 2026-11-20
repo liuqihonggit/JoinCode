@@ -35,8 +35,8 @@
 | # | 编号 | 事项 | 来源 |
 |---|------|------|------|
 | ~~7~~ | ~~TASK069-S5~~ | ~~token compact 大小写 `1.3k` vs `1.3K`~~ | TASK069 域1 | ✅ 已完成 2026-11-21：`FormatCompact` 后缀 k→K，红→绿测试 5 项 + `/stats` 真机 EXIT=0 |
-| 8 | TASK069-S4 | 流式项前缀：C# `⎿dim`→`●` 跳变 vs 基准恒 `●` | TASK069 域1 | ⚠️ **证据冲突待重新裁决**：TASK064:12 引用同一基准行 Messages.tsx:703-709 读作 `⎿` 前缀（C# 刻意对齐），TASK069:31 读作"基准同用 ●"——两份文档对同一基准解读相反；代码 `StreamingTextItem.cs:5` 注释"对齐基准 ⎿ 前缀"佐证 TASK064。极可能是误判（跳变是基准本身行为）。见 §4 |
-| 9 | TASK069-M1 | ❯ 前缀选中变色：C# 恒 Subtle vs 基准 suggestion 色 | TASK069 域6 | ⚠️ **证据冲突待重新裁决**：`RenderUser` 的 ❯ 是用户消息固定前缀恒 Subtle（基准同）；C# picker/dialog 选中态 `MessageRenderer.cs:350,394` 已是 suggestion 色（与基准一致）；`MessageCursor`（Shift+↑ 导航）是 w2 自创特性**无基准对应物**（`ReplShell.cs:2465` 原话），其选中高亮是整块背景覆写非前缀变色。极可能是把 picker 选中态误套到用户消息前缀。见 §4 |
+| ~~8~~ | ~~TASK069-S4~~ | ~~流式项前缀跳变~~ | TASK069 域1 | ✅ **裁决维持现状（已对齐基准）2026-11-21**：一手证据 `StreamingTextItem.cs:5` 实现注释「对齐基准 Messages.tsx 尾部 ⎿ 前缀」+ TASK064:12 记基准行 703-709 为 ⎿；TASK069「基准同用 ●」是转述误读（基准落定才 ●）。跳变是基准自身行为 |
+| ~~9~~ | ~~TASK069-M1~~ | ~~❯ 前缀选中变色~~ | TASK069 域6 | ✅ **裁决维持现状（已对齐基准）2026-11-21**：`RenderUser` ❯ 恒 Subtle 是对齐基准；C# picker/dialog 选中态 `MessageRenderer.cs:350,394` 已是 suggestion 色；`MessageCursor` 是 w2 自创无基准对应物，高亮为整块背景覆写。TASK069 误套 picker 选中态到用户消息前缀 |
 | 10 | TASK069-P6 | 模式切换警告：基准 auto 进入 800ms 防抖警告（≤3 次） | TASK069 域3 |
 | 11 | TASK069-P7 | dont-ask-again 文案与行为不符（承诺不再问但 30 分钟复问）——改文案 or 改持久化 | TASK069 域3 |
 | 12 | TASK074-D7 | bash mode 使用埋点 `logEvent('tengu_input_bash')` | TASK074 |
@@ -138,4 +138,9 @@
   - **S4**：TASK064:12 引用基准 Messages.tsx:703-709 读作 `⎿` 前缀流式行（C# `StreamingTextItem` 刻意对齐，注释明写）；TASK069:31 对同一行读作"基准同用 ●"。两份文档矛盾，极可能基准流式期本就是 ⎿、落定才 ●（跳变是基准行为非 C# 缺陷）。
   - **M1**：`RenderUser` 的 ❯ 是用户消息固定前缀恒 Subtle（基准同）；C# picker/dialog 选中态 `MessageRenderer.cs:350,394` 已是 suggestion 色（与基准一致）；`MessageCursor`（Shift+↑）是 w2 自创特性**无基准对应物**（`ReplShell.cs:2465` 原话），选中高亮是整块背景覆写非前缀变色。极可能是把 picker 选中态误套到用户消息前缀。
   - 处置：**不施工**，向用户如实报告证据冲突并请重新裁决。教训（第三次印证）：总账转述不可信，施工前必须回到**原始证据**（基准行引用 + 代码注释 + 原始任务分类）复核。
-- 下一动作：S4/M1 待用户重新裁决；其余 §2 项施工前一律先做原始证据复核。
+- **#8/#9 S4/M1 裁决闭合（2026-11-21，用户授权「参考 Claude Code 设计裁决」）**：
+  - 用户授权后不猜、先找一手证据：本机装 Claude Code 2.1.317 原生 exe（编译后无可读源码/行号），文档引用的旧版 `.tsx` 拿不到 → 以**实现时对照基准写的代码注释** + **早期带行号的详细规划**（TASK064）为准。
+  - S4：`StreamingTextItem.cs:5`「对齐基准 Messages.tsx 尾部 ⎿ 前缀行渲染」+ TASK064:12（基准行 703-709 = ⎿）→ 基准流式期本就是 ⎿、落定才 ●；TASK069「基准同用 ●」是转述误读 → **维持 C# 现状（已对齐），关闭**。
+  - M1：`RenderUser` ❯ 恒 Subtle 对齐基准；C# picker/dialog 选中态 `MessageRenderer.cs:350,394` 已是 suggestion 色；`MessageCursor` 是 w2 自创无基准对应物（`ReplShell.cs:2465`）→ TASK069 误套 picker 选中态到用户消息前缀 → **维持现状，关闭**。
+  - **方法论沉淀**：遇「TASK069 转述 vs 实现注释」冲突，一手证据优先级 = 实现时对照基准写的代码注释 > 早期带行号规划 > 二轮转述表。本机 Claude Code exe 可作最终仲裁（需运行时截图/抓帧，非静态源码）。
+- 下一动作：§2 剩余项施工前一律先做一手证据复核（代码注释 / 原始规划 / 必要时 Claude Code 真机），确认是真差异再请示或对齐。

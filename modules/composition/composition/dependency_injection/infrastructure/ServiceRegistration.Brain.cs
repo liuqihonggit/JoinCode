@@ -26,7 +26,7 @@ public static partial class ServiceRegistration {
         // 现在两个阶段各对应一个 profile 消费点（preprocess-analyze-pipeline /
         // preprocess-prepare-pipeline），由 NodeRegistry 按 profile 的 priority 解析，
         // 解析不到实例时 fail-fast —— 与 DataDrivenPipelineComposition.ResolveMiddlewares 同一口径。
-        services.AddSingleton<IChatPreprocessor>(sp => ResolveChatPreprocessorAsync(sp).GetAwaiter().GetResult());
+        services.AddSingleton<IChatPreprocessor>(sp => new DeferredChatPreprocessor(() => ResolveChatPreprocessorAsync(sp)));
 
         return services;
     }
@@ -34,9 +34,9 @@ public static partial class ServiceRegistration {
     /// <summary>
     /// 构建 <see cref="ChatPreprocessor"/>：两条 preprocess 链都按 profile 解析（§25.3）。
     /// <para>
-    /// 这里用 <c>GetAwaiter().GetResult()</c> 而非 async 工厂：DI 的
-    /// <c>AddSingleton&lt;T&gt;(Func&lt;IServiceProvider, T&gt;)</c> 没有 async 重载。
-    /// 内部 await 全部 <c>ConfigureAwait(false)</c>，且没有真正的 IO 等待，不存在同步上下文死锁。
+    /// 由 <see cref="DeferredChatPreprocessor"/> 在首次调用时 await 本方法 — DI 的
+    /// <c>AddSingleton&lt;T&gt;(Func&lt;IServiceProvider, T&gt;)</c> 没有 async 重载，
+    /// 注册阶段用延迟代理避免同步阻塞；装配失败在首次预处理时即暴露。
     /// </para>
     /// </summary>
     private static async Task<IChatPreprocessor> ResolveChatPreprocessorAsync(IServiceProvider sp) {

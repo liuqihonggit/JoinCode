@@ -42,7 +42,9 @@
 
 1. **规则单源冻结（已完成）**：闸门（`RoundGatePolicy`）、循环上限（`LoopLimits`：`JCC_MAX_TOOL_CALL_ITERATIONS` / `JCC_MAX_STOP_HOOK_REPLY_ROUNDS`）已抽为共享单源；新规则禁止写进任一循环。
    - 已完成证据：TASK102 第二轮，两套循环共同消费，单测覆盖默认/覆盖/非法回退。
-2. **事件适配层**：定义 `QueryStreamChunk → ChatStreamEvent` 的稳定适配器（`AgentStreamChunkAdapter` 已有类似实现），确保 GUI/slash 消费方无感。
+2. **事件适配层（已完成）**：`QueryStreamChunkAdapter`（`modules/abstractions/abstractions.interfaces/interfaces/llm/QueryStreamChunkAdapter.cs`）覆盖全部 chunk 类型；`JCC_CHAT_LOOP_BACKEND=legacy|query` 灰度开关（`ChatLoopBackendPolicy`，默认 legacy）已落地。
+   - 映射决策：`Error → SystemNotice`（失败原因上屏，不静默丢弃）；`ThinkingEnd` 无对应事件返回 null；`Complete → Done` 透传 usage/model/stopReason。
+   - 单测：`QueryStreamChunkAdapterTests`（全类型映射）+ `ChatLoopBackendPolicyTests`（默认值/别名/非法回退）。
 3. **能力迁移（按依赖顺序）**：
    a. 流式工具执行器迁入 QueryEngine（或作为 QueryEngine 中间件）。
    b. steer 邮箱与子代理事件通道迁入 QueryEngine。

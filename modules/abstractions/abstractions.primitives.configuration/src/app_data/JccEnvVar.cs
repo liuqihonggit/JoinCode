@@ -261,6 +261,11 @@ public enum JccEnvVar {
     [EnumValue("JCC_MAX_STOP_HOOK_REPLY_ROUNDS")]
     [SubCommandInfo("Stop hook 回灌最大轮次 (默认 5)", "运行时配置")]
     MaxStopHookReplyRounds,
+
+    // TASK103 循环合并 — ChatService 循环后端灰度
+    [EnumValue("JCC_CHAT_LOOP_BACKEND")]
+    [SubCommandInfo("ChatService 循环后端 (legacy/query；默认 legacy)", "运行时配置")]
+    ChatLoopBackend,
 }
 
 /// <summary>

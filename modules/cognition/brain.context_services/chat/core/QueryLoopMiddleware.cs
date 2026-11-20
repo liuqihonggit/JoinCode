@@ -112,6 +112,10 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         var totalToolCalls = 0;
         TokenUsage? finalUsage = null;
         string? finalModelId = null;
+        // TASK102 轮次闸门：与 QueryEngine 共用 RoundGatePolicy，规则只实现一份
+        var roundGateEndSelected = false;
+        var roundGateRejections = 0;
+        var requireRoundGate = context.RequireRoundGate;
 
         // 子代理事件通道 — 挂到 context 显式传递（AsyncLocal 在异步迭代器内跨 yield 不可见，
         // 实测见 AsyncLocalInIteratorTests）；深层发射侧的作用域由 ToolExecutionHandler 进入
@@ -187,6 +191,16 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 }
             }
 
+            // TASK102 轮次闸门：本轮工具调用中是否已选择"5 结束"
+            if (requireRoundGate) {
+                foreach (var toolCall in iterState.ToolCalls) {
+                    if (RoundGatePolicy.TryReadChoiceFromJson(toolCall.Name, toolCall.Arguments, out var gateChoice)
+                        && gateChoice == RoundGateChoice.End) {
+                        roundGateEndSelected = true;
+                    }
+                }
+            }
+
             if (iterState.StreamUsage is not null) finalUsage = iterState.StreamUsage;
             if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
 
@@ -209,6 +223,21 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             if (!string.IsNullOrWhiteSpace(iterState.FullResponse.ToString())) {
                 _emptyResponseTracker.Reset();
                 _services?.MalformedOutputTracker?.Reset();
+
+                // TASK102 轮次闸门：未选择 5 结束 → 注入阻断消息并继续（与 QueryEngine 同一策略）
+                var gateEvaluation = await EvaluateRoundGateStopAsync(
+                    context, requireRoundGate, roundGateEndSelected, roundGateRejections, ct).ConfigureAwait(false);
+                roundGateRejections = gateEvaluation.Rejections;
+
+                switch (gateEvaluation.Decision) {
+                    case RoundGateStopDecision.Blocked:
+                        continue;
+                    case RoundGateStopDecision.Exhausted:
+                        yield return ChatStreamEvent.Text(
+                            $"⚠ 轮次闸门连续 {gateEvaluation.Rejections} 次未通过（上限 {gateEvaluation.MaxRejections}），本轮已强制结束。");
+                        break;
+                }
+
                 // B11 steer：本步无工具调用，但邮箱里还有待注入输入 → 不得收尾（DSH :998-1006），
                 // 否则注入会被丢弃或拖到下一轮。下一步步首统一 drain。
                 if (HasPendingSteerInput(context)) {
@@ -484,6 +513,43 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 }
             }
         }
+    }
+
+    /// <summary>轮次闸门收尾裁决结果</summary>
+    private enum RoundGateStopDecision { Allowed, Blocked, Exhausted }
+
+    /// <summary>轮次闸门评估结果 — 携带更新后的拦截次数与上限（async 方法不能使用 out 参数）。</summary>
+    /// <param name="Decision">裁决结果。</param>
+    /// <param name="Rejections">累计拦截次数。</param>
+    /// <param name="MaxRejections">拦截上限（≤0 表示不限制）。</param>
+    private readonly record struct RoundGateStopEvaluation(RoundGateStopDecision Decision, int Rejections, int MaxRejections);
+
+    /// <summary>
+    /// TASK102 轮次闸门 — 评估本次收尾：未过闸门时注入阻断消息并返回 Blocked；
+    /// 达到上限返回 Exhausted（放行并提示），与 QueryEngine 共用 RoundGatePolicy。
+    /// </summary>
+    /// <param name="context">当前中间件上下文。</param>
+    /// <param name="required">本会话是否启用闸门。</param>
+    /// <param name="endSelected">本轮是否已选择"5 结束"。</param>
+    /// <param name="rejections">已拦截次数。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>收尾裁决与更新后的计数。</returns>
+    private async Task<RoundGateStopEvaluation> EvaluateRoundGateStopAsync(
+        ChatMiddlewareContext context, bool required, bool endSelected, int rejections, CancellationToken ct) {
+        var maxRejections = RoundGatePolicy.ReadMaxStopRejections();
+        if (!required || endSelected)
+            return new(RoundGateStopDecision.Allowed, rejections, maxRejections);
+
+        if (!RoundGatePolicy.CanRejectStop(rejections, maxRejections))
+            return new(RoundGateStopDecision.Exhausted, rejections, maxRejections);
+
+        var next = rejections + 1;
+        Diag.WriteLine($"[GATE] 拦截收尾 第{next}次 上限={maxRejections}");
+        if (!context.IsDryRun)
+            await _contextManager.AddSystemMessageAsync(
+                RoundGatePrompts.BuildStopBlockedMessage(next, maxRejections), ct).ConfigureAwait(false);
+
+        return new(RoundGateStopDecision.Blocked, next, maxRejections);
     }
 
     /// <summary>该会话是否有待注入输入（未装配邮箱时恒 false，等价旧行为）。</summary>

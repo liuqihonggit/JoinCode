@@ -39,6 +39,12 @@ public sealed class QueryOptions {
     /// <summary>获取模型标识。</summary>
     public string? ModelId { get; init; }
 
+    /// <summary>
+    /// 是否启用轮次闸门 — 主代理收尾前必须调用 round_gate 选择下一步，未选择 5（结束）则运行时拦截并继续。
+    /// 由 AgentBase 按 JCC_ROUND_GATE 与角色解析；子代理恒为 false。
+    /// </summary>
+    public bool RequireRoundGate { get; init; }
+
     private HashSet<string> _deniedSet = [];
     private HashSet<string> _allowedSet = [];
 

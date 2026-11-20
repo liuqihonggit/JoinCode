@@ -245,6 +245,14 @@ public enum JccEnvVar {
     [EnumValue("JCC_ABSOLUTE_TIMEOUT_SECONDS")] AbsoluteTimeoutSeconds,
     [EnumValue("JCC_RESUME_TIMEOUT_SECONDS")] ResumeTimeoutSeconds,
     [EnumValue("JCC_CLUSTER_DECOMPOSITION_OVERRIDE")] ClusterDecompositionOverride,
+
+    // TASK102 轮次闸门 — 强制 AI 收尾前必须通过 round_gate 选择下一步
+    [EnumValue("JCC_ROUND_GATE")]
+    [SubCommandInfo("轮次闸门模式 (on/off/auto；auto=仅主代理交互式会话启用)", "运行时配置")]
+    RoundGate,
+    [EnumValue("JCC_ROUND_GATE_MAX_REJECT")]
+    [SubCommandInfo("闸门拦截收尾上限 (默认 6；0=不限制)", "运行时配置")]
+    RoundGateMaxReject,
 }
 
 /// <summary>

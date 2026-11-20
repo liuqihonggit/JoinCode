@@ -134,6 +134,12 @@ public sealed class ChatMiddlewareContext {
     // === QueryLoopMiddleware 填充 ===
 
     /// <summary>
+    /// 是否启用轮次闸门 — 由 ChatService 按 JCC_ROUND_GATE 解析（仅显式 on 时启用），
+    /// QueryLoopMiddleware 在无工具调用收尾时据此拦截并要求调用 round_gate。
+    /// </summary>
+    public bool RequireRoundGate { get; init; }
+
+    /// <summary>
     /// 工具调用总次数
     /// </summary>
     public int TotalToolCalls { get; set; }

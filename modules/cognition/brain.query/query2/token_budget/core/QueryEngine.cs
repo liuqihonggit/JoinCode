@@ -173,6 +173,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var totalReasoning = 0;
         var stopHookReplies = 0;
         var totalTurns = 0;
+        // TASK102 轮次闸门：本轮是否已选择"5 结束"、已拦截收尾次数、是否启用
+        var roundGateEndSelected = false;
+        var roundGateRejections = 0;
+        var requireRoundGate = context.Options is { RequireRoundGate: true }
+            && context.Options.IsToolAllowed(RoundGatePolicy.ToolName);
 
         while (context.TotalToolCalls < _config.MaxToolCallIterations) {
             cancellationToken.ThrowIfCancellationRequested();
@@ -236,6 +241,22 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
             // 处理查询完成（无工具调用）
             if (iterationResult.ToolCalls.Count == 0) {
+                // TASK102 轮次闸门：未选择 5 结束 → 回灌阻断消息并继续一轮（独立于 Stop hook 计数）
+                switch (EvaluateRoundGateStop(requireRoundGate, roundGateEndSelected, ref roundGateRejections, out var gateMaxRejections)) {
+                    case RoundGateStopDecision.Blocked:
+                        context.ChatHistory.AddUserMessage(
+                            RoundGatePrompts.BuildStopBlockedMessage(roundGateRejections, gateMaxRejections));
+                        context.IsQueryComplete = false;
+                        continue;
+
+                    case RoundGateStopDecision.Exhausted:
+                        context.OutputChunks.Enqueue(new QueryStreamChunk {
+                            Type = AgentStreamChunkType.Content,
+                            Content = $"⚠ 轮次闸门连续 {roundGateRejections} 次未通过（上限 {gateMaxRejections}），本轮已强制结束。"
+                        });
+                        break;
+                }
+
                 context.Stopwatch.Stop();
                 context.IsQueryComplete = true;
 
@@ -285,6 +306,12 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 context.TotalToolCalls++;
                 context.ToolName = toolCall.ToolName;
                 context.HasToolCall = true;
+
+                // TASK102 轮次闸门：记录"5 结束"的选择；其余选项由工具结果注入工作流提示词
+                if (RoundGatePolicy.TryReadChoice(toolCall.ToolName, toolCall.Arguments, toolCall.RawArguments, out var gateChoice)
+                    && gateChoice == RoundGateChoice.End) {
+                    roundGateEndSelected = true;
+                }
 
                 context.OutputChunks.Enqueue(new QueryStreamChunk {
                     Type = AgentStreamChunkType.ToolCallStart,
@@ -353,6 +380,32 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
         _logger?.LogWarning("[QueryEngine] 达到最大工具调用次数限制: {Max}", _config.MaxToolCallIterations);
         context.OutputChunks.Enqueue(BuildMaxIterationErrorChunk(_config.MaxToolCallIterations));
+    }
+
+    /// <summary>轮次闸门收尾裁决结果</summary>
+    private enum RoundGateStopDecision { Allowed, Blocked, Exhausted }
+
+    /// <summary>
+    /// TASK102 轮次闸门 — 评估本次收尾是否放行：未过闸门时累计拦截次数并返回 Blocked；
+    /// 达到拦截上限返回 Exhausted（放行并提示），避免模型死不调用闸门时无限燃烧 token。
+    /// </summary>
+    /// <param name="required">本查询是否启用闸门。</param>
+    /// <param name="endSelected">本轮是否已选择"5 结束"。</param>
+    /// <param name="rejections">已拦截次数（拦截时自增）。</param>
+    /// <param name="maxRejections">拦截上限（≤0 表示不限制）。</param>
+    /// <returns>收尾裁决。</returns>
+    private RoundGateStopDecision EvaluateRoundGateStop(bool required, bool endSelected, ref int rejections, out int maxRejections) {
+        maxRejections = RoundGatePolicy.ReadMaxStopRejections();
+        if (!required || endSelected)
+            return RoundGateStopDecision.Allowed;
+
+        if (!RoundGatePolicy.CanRejectStop(rejections, maxRejections))
+            return RoundGateStopDecision.Exhausted;
+
+        rejections++;
+        _logger?.LogWarning("[QueryEngine] 轮次闸门拦截收尾（第 {Count}/{Max} 次）：未调用 {Tool} 选择结束",
+            rejections, maxRejections, RoundGatePolicy.ToolName);
+        return RoundGateStopDecision.Blocked;
     }
 
     /// <summary>

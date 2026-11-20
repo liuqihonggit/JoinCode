@@ -660,8 +660,10 @@ public class AgentBase : Entity, IAgent {
         var effortLevel = JoinCode.Abstractions.LLM.EffortLevelHelper.ParseEffortLevel(Options.Effort);
         var hasRetryNotifier = RetryNotifier is not null;
         var hasTokenBudget = Options.TokenBudget is > 0;
+        // 轮次闸门只作用于主代理（Coordinator）；子代理任务有独立生命周期，过闸门只会浪费轮次
+        var requireRoundGate = Role == AgentRole.Coordinator && RoundGatePolicy.IsEnabledForMainAgent();
 
-        if (!hasAllowed && !hasDenied && !hasCacheSafeParams && !hasContentReplacementState && effortLevel is null && !hasModelName && !hasRetryNotifier && !hasTokenBudget)
+        if (!hasAllowed && !hasDenied && !hasCacheSafeParams && !hasContentReplacementState && effortLevel is null && !hasModelName && !hasRetryNotifier && !hasTokenBudget && !requireRoundGate)
             return null;
 
         return new QueryOptions {
@@ -675,6 +677,7 @@ public class AgentBase : Entity, IAgent {
             ModelId = Options.ModelName,
             OnRetry = RetryNotifier,
             TokenBudget = Options.TokenBudget,
+            RequireRoundGate = requireRoundGate,
         };
     }
 

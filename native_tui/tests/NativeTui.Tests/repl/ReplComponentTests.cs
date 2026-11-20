@@ -32,6 +32,33 @@ public sealed class MessageRendererTests
         Assert.Equal($"{Figures.Pointer} hi ", RowText.Of(screen, 0, 0, 5));
     }
 
+    /// <summary>TASK069 ultrathink 彩虹文字 — 对齐基准 HighlightedThinkingText：用户消息正文命中
+    /// `/\bultrathink\b/gi` 后逐字符 7 色循环（rainbow_red→violet），其余字符 text 色。</summary>
+    [Fact]
+    public void UserMessage_UltrathinkTrigger_RainbowPerChar()
+    {
+        using var screen = new Screen(cols: 40, rows: 1);
+        MessageRenderer.RenderUser(screen, new Rect(0, 0, 40, 1), Theme.Dark, "use ultrathink now");
+        var bg = Theme.Dark.UserMessageBackground;
+        var rainbow = new[]
+        {
+            Theme.Dark.RainbowRed, Theme.Dark.RainbowOrange, Theme.Dark.RainbowYellow,
+            Theme.Dark.RainbowGreen, Theme.Dark.RainbowBlue, Theme.Dark.RainbowIndigo,
+            Theme.Dark.RainbowViolet,
+        };
+        // 正文从 col 2 起："use " 占 col 2-5，"ultrathink" 从 col 6 起逐字符上色
+        var bodyStart = 6;
+        for (var i = 0; i < 10; i++)
+        {
+            var expected = screen.Styles.GetOrAdd(new TextStyle { Foreground = rainbow[i % 7], Background = bg });
+            Assert.Equal(expected, screen[0, bodyStart + i].StyleId);
+        }
+        // "use " 前缀与 " now" 后缀仍是 text 色
+        var text = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Text, Background = bg });
+        Assert.Equal(text, screen[0, 2].StyleId);
+        Assert.Equal(text, screen[0, 17].StyleId); // " now" 的 n
+    }
+
     [Fact]
     public void AssistantMessage_BulletAndBodyInTextColor()
     {

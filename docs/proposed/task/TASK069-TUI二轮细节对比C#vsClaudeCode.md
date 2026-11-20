@@ -94,7 +94,7 @@
 | 自定义 statusline | StatusLine.tsx:30-100 | settings.statusLine 外部命令 |
 | reducedMotion/yank-bug 禁用流式预览 | REPL.tsx:1495 | 无条件渲染 |
 | spinner 连接警告 | Spinner.tsx:348 | Reconnecting/Disconnected 行 |
-| ultrathink 彩虹文字 | HighlightedThinkingText.tsx:87 | 触发词特殊渲染 |
+| ultrathink 彩虹文字 | HighlightedThinkingText.tsx:87 | 触发词特殊渲染 — ✅ 已对齐基准 2026-11-21：落点为**用户消息正文**（基准仅 UserPromptMessage 调用）；算法一手 `utils/thinking.ts` `/\bultrathink\b/gi` + 7 色 `charIndex%7` 循环；C# 加 UltrathinkHighlighter + RenderUser 分段着色 |
 | 工具执行中耗时显示 | BashTool/UI.tsx:145 | elapsedTimeSeconds 进度行 |
 | 用户中断专用消息 | UserTextMessage.tsx:83 | C# 仅红色通用错误 |
 | redacted_thinking 消息 | 独立组件 | 无对应消息项 |

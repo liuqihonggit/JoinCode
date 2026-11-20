@@ -61,6 +61,11 @@ public sealed class ReplBridgeDriver
     /// 后续增量原地追加；AssistantMessage 原位替换为完整消息项；EndTurn 兜底定格/清理。</summary>
     private StreamingTextItem? _streamingItem;
 
+    /// <summary>是否允许逐字流式预览（TASK069 #13 — 对齐基准 REPL.tsx:1495 `showStreamingText`）：
+    /// 宿主按 `!reducedMotion && !hasCursorUpViewportYankBug()` 注入；false 时 TokenDelta 不建
+    /// StreamingTextItem（等整条落定），但 ResponseLength 累加不变。默认 true 保持既有测试/调用语义。</summary>
+    private readonly bool _allowStreamingText;
+
     /// <summary>活动工具流式输出项（TASK065 P3 — Bash 执行中输出实时显示）— 首个 tool_progress
     /// 惰性创建落位 ToolCallItem 之后（spinner 前），后续快照原地 Update；tool_result 到达原位替换为
     /// ToolResultItem（对齐 StreamingTextItem 替换先例）；新 tool_call 到达旧项定格；EndTurn 清引用
@@ -90,7 +95,8 @@ public sealed class ReplBridgeDriver
         ITerminalSizeSource? sizeSource = null,
         IStreamingMarkdownProjector? streamingProjector = null,
         string? issueOwnerRepo = null,
-        int shellTimeoutSeconds = 120)
+        int shellTimeoutSeconds = 120,
+        bool allowStreamingText = true)
     {
         _view = view;
         _spinner = spinner;
@@ -102,6 +108,7 @@ public sealed class ReplBridgeDriver
         _streamingProjector = streamingProjector;
         _issueOwnerRepo = issueOwnerRepo;
         _shellTimeoutSeconds = shellTimeoutSeconds;
+        _allowStreamingText = allowStreamingText;
     }
 
     /// <summary>注入上下文折叠项目标（ReplShell.SeedContent 晚期绑定 — TokenUsage 回填真实 prompt tokens；
@@ -181,9 +188,10 @@ public sealed class ReplBridgeDriver
                 _spinner.Mode = SpinnerMode.Responding;
                 _spinner.HasActiveTools = false;
                 _spinner.ResponseLength += length;
-                if (text is { Length: > 0 }) {
+                if (text is { Length: > 0 } && _allowStreamingText) {
                     // M8-1 逐字流式 — 惰性建流式项（spinner 前）+ 原地追加（每帧全量重渲自然增长）；
                     // 方案 B — 注入投影器则流式期 Markdown 实时渲染（块级增量），null 降级纯文本
+                    // TASK069 #13 — 宿主禁用流式预览时跳过建项（等AssistantMessage 整条落定）；ResponseLength 仍累加
                     if (_streamingItem is null) {
                         CloseActiveToolGroup();
                         _streamingItem = new StreamingTextItem(_streamingProjector);

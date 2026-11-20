@@ -44,7 +44,7 @@ TASK103 合并两套 ReAct 循环后，`QueryEngine` 成为唯一循环，工具
 
 ## 关联
 
-- 任务文档：`docs/proposed/task/TASK103-ReAct循环合并-两套归一.md`
+- 任务文档（已完成）：`docs/implemented/task/TASK103-ReAct循环合并-两套归一.md`
 - 源码生成器：`modules/generators/mcp_tool_dispatch.generator/McpToolDispatchGenerator.cs`（`SafeToolNames`）
 - 只读探测：`modules/guard/guard.security/services/readonly_detector/ReadOnlyCommandDetector.cs`
 - 手动验收：[ADR 0080](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md)

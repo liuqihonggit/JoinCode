@@ -50,5 +50,5 @@ ReAct 循环在"模型无工具调用"时直接判定回合结束（QueryEngine 
 ## 关联
 
 - 任务文档：`docs/proposed/task/TASK102-轮次闸门与循环合并立项.md`
-- 循环合并计划：`docs/proposed/task/TASK103-ReAct循环合并-两套归一.md`
+- 循环合并计划（已完成）：`docs/implemented/task/TASK103-ReAct循环合并-两套归一.md`
 - 手动验收：[ADR 0080](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md)

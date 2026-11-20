@@ -1,8 +1,10 @@
 # TASK103 — ReAct 循环合并：两套归一
 
+- 状态：implemented（2026-11-21 完成，S1-S13）
 - 日期：2026-11-21
 - 来源：TASK102 用户决策"一套规则 + 合并立项（推荐）"
-- 关联 ADR：[0159](../adr/0159-round-gate-turn-termination.md)
+- 关联 ADR：[0159](../../proposed/adr/0159-round-gate-turn-termination.md)、[0160 并行工具执行](../../proposed/adr/0160-query-engine-parallel-tool-execution.md)
+- 结果：ChatService 与 QueryEngine 只保留一条 ReAct 循环（`QueryLoopMiddleware` 为 query 后端桥接），legacy 执行器归档至 `.xxx/task103_legacy_archive/`；并行工具执行按 ADR 0160 在 QueryEngine 内恢复。
 
 ## 现状（证据）
 

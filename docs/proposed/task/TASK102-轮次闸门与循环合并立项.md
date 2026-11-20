@@ -2,7 +2,7 @@
 
 - 日期：2026-11-21
 - 关联 ADR：[0159](../adr/0159-round-gate-turn-termination.md)
-- 后续任务：[TASK103 — ReAct 循环合并](TASK103-ReAct循环合并-两套归一.md)
+- 后续任务：[TASK103 — ReAct 循环合并（已完成）](../../implemented/task/TASK103-ReAct循环合并-两套归一.md)
 
 ## 用户诉求
 
@@ -89,7 +89,7 @@ EXIT=0
 | 闸门接通真实 TODO | choice=2 时从 `ITodoService.GetReadyTodosAsync` 注入就绪项（最多 5 条）；空列表给出改选 3 的引导；服务缺失/异常回退通用提示 | ✅ |
 | 闸门可观测性 | 拦截时 QueryEngine 日志 + QueryLoop `[GATE]` Diag；工具选择记录 `[RoundGate] choice=…`；MockServer dump 可回放完整注入链 | ✅ |
 | 成本提示 | 工具描述明确"可与最后一个动作同轮并行调用，避免额外往返" | ✅ |
-| 两套循环合并 | 已产出的能力矩阵与迁移顺序：TASK103（大迁移，不在本轮范围） | 📋 立项 |
+| 两套循环合并 | 已产出的能力矩阵与迁移顺序：TASK103（已完成，见 implemented/task） | ✅ 完成 |
 
 ### ○ 待用户验收项
 

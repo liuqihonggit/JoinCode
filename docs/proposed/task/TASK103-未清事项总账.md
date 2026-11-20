@@ -43,7 +43,7 @@
 | ~~13~~ | ~~TASK069-缺失~~ | ~~reducedMotion/yank-bug 禁用流式预览~~ | TASK069 缺失 | ✅ **已对齐基准 2026-11-21**（用户拍板 Windows 禁用流式）：`StreamingPreviewPolicy.ShouldAllowStreaming`（纯函数，对齐 REPL.tsx:1495 + terminal.ts:177）+ `ReplBridgeDriver.allowStreamingText` 门控 + ReplShell 接线（Windows/WT_SESSION 默认禁）。流式集成测试显式启用。TDD + 全量 3048/3049（1 flaky RawStdinPump 单跑绿）+ 真机 selftest EXIT=0 |
 | 14 | TASK069-缺失 | spinner 连接警告（Reconnecting/Disconnected 行） | TASK069 缺失 | ✅ **证据不足维持现状 2026-11-21**：Claude Code 2.1.317 exe 无 Reconnecting/Disconnected UI 文案（仅网络层断开串）；C# 亦无。TASK069 转述无一手支撑 |
 | ~~15~~ | ~~TASK069-缺失~~ | ~~ultrathink 彩虹文字~~ | TASK069 缺失 | ✅ **已对齐基准 2026-11-21**：落点纠正为**用户消息正文**（基准仅 `UserPromptMessage` 调用 `HighlightedThinkingText`）。算法一手 `utils/thinking.ts`：`/\bultrathink\b/gi`、命中区每字符 7 色循环 `charIndex%7`、其余 text 色、默认启用。C# 加 `UltrathinkHighlighter` 纯函数 + RenderUser 分段着色 |
-| 16 | TASK069-缺失 | 工具执行中耗时显示（elapsedTimeSeconds） | TASK069 缺失 | ✅ **一手源码到手→待施工（M级，跨域）**：TASK069 转述行号 BashTool.tsx:145 实为命令分类非耗时（转述错误）→ 真组件 `ShellTimeDisplay.tsx`：`(elapsed · timeout N)` dim 显示，`elapsedTimeSeconds*1000` 经 formatDuration。C# 需 BridgeEvent 带 elapsed + 工具结果项渲染分支，跨域（engine+native_tui） |
+| 16 | TASK069-缺失 | 工具执行中耗时显示（elapsedTimeSeconds） | TASK069 缺失 | 🔧 **施工中（M级跨域）**：一手 `ShellTimeDisplay.tsx` `(elapsed · timeout N)` dim；转述行号 BashTool.tsx:145 错。需 BridgeEvent 带 elapsed + 工具结果项渲染 |
 | 17 | TASK069-缺失 | 用户中断专用消息 | TASK069 缺失 | ✅ **证据不足维持现状 2026-11-21**：exe 无 "Interrupted by user" 类文案；C# 仅红色通用错误。TASK069 转述无一手支撑 |
 | 18 | TASK069-缺失 | redacted_thinking 消息 | TASK069 缺失 | ✅ **一手源码到手→待施工（M级，跨域）**：基准 `Message.tsx:524` case `redacted_thinking` → `<AssistantRedactedThinkingMessage addMargin>`，仅 transcript 模式或 verbose 显示（否则 null）。C# 落点 = 新消息项 + BridgeEvent 协议扩展 + 双消费者，跨域（engine+native_tui） |
 

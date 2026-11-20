@@ -1,5 +1,14 @@
 # 覆盖全部功能总测试任务清单
 
+> ## ⚠️ 状态澄清（2026-11-21）
+>
+> 下方 6 个 `- [ ]` **部分是历史快照、部分仍是真欠账**（详见 [TASK102](../../proposed/task/TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.4）：
+> 已做：`5ede42b26` 全参数填充体系 + 76 命令 schema、`ChatCommandArg`/`SlashCommandSchemaCatalog`、
+> `slash_call` 的 JSON/参数归一化。
+> **真欠账 3 项**（复选框保留未勾）：① 97 命令全结构化、`ArgumentHint` 降级清零（`CmdToolDef.cs:49-51` 降级仍在）；
+> ② 覆盖 382 MCP 工具 + 97 斜杠命令的全参数脚本（现有 `e2e_tool_patrol.py` 只做巡检）；
+> ③ `--debuglog` 步骤追踪输出到报告。**勿把整份清单当「全未完成」，也勿当「全完成」。**
+
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 

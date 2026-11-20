@@ -1,5 +1,11 @@
 # TASK072 — 巡检行为验证升级(不崩溃 → 真实行为验证)
 
+> ## 状态说明（2026-11-21）
+>
+> 经代码 + commit 双核验，本文下方 7 个 `- [ ]` **确为真实未完成**（见 [TASK102](TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.5）：
+> `02cc5a9d2` 只交付了巡检引擎本体，`McpToolSmokeTests.cs:65` 仍是 `BuildMinimalArguments`、
+> git_*/mcp_connect 全跳过、临时目录仍是 `jcc-test-` 而非 `patrol-`。清单保持原样，不做勾选。
+
 ## 背景
 
 当前工具巡检机制(ToolPatrolEngine + McpToolSmokeTests + e2e_tool_patrol.py)是**"不崩溃"级别** — 只验证工具不抛异常/不死锁/不超时,**不验证工具业务行为正确**。用户明确要求:"你的工作依然没有办法保证工具没有错误,这样不行,我要真实验证。"

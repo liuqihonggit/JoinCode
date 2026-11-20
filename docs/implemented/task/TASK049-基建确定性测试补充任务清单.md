@@ -1,5 +1,15 @@
 # TASK030 — 基建确定性测试补充任务清单
 
+> ## ⚠️ 状态澄清（2026-11-21）
+>
+> 本文文件名 `TASK049`、标题写 `TASK030`，两者不一致（历史遗留，不改动以保留引用）；
+> 状态「待执行」是 2026-09-29 创建时的快照，**实际早已完成、忘回填**
+> （详见 [TASK102](../proposed/task/TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.3）：
+> `modules/collections/structura.tests/DagTests.cs:190` 起 `TopologicalSort_Empty/SingleNode/IsolatedNodes/Chain/Diamond`
+> 等测试齐全，配套 `DagAlgorithmsTests.cs` / `ConcurrentDagTests.cs`；
+> commit `07db686cd`（1379 测试 + 12 bug）、`012dadad2`（SwissTable/DAG/HamT 拆分）、`fc8bc65fd`（阶段3）三批落地。
+> **判据以代码 + commit 为准，不要只读开头状态。**
+
 > **目标**:给所有基建模块补充确定性测试(不依赖时序),通过拆分长方法的纯计算中间部分为 `internal` 方法,使其可独立单测。
 >
 > **检测方式**:并行 8 个 explore 子代理检测 7 个基建模块 + ActorBase 专项。

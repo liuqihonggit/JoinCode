@@ -1,5 +1,13 @@
 # TASK077 — ReadConsoleInput 输入泵重构（主屏鼠标点击支持）
 
+> ## ⚠️ 状态澄清（2026-11-21）
+>
+> **下方 6 个 `- [ ]` 是施工前计划，实际已全部完成、忘回填**（详见 [TASK102](TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.1）：
+> `Win32ConsoleInputPump : IInputPump` + 非阻塞 `Drain()`（`native_tui/src/NativeTui.Core/repl/input/Win32ConsoleInputPump.cs:12,35`）、
+> `MOUSE_EVENT → KeyPress(Mouse)`（同文件 `:96-99`）、鼠标武装 `EnableMouseInput`（`Win32InputPump.cs:16,38`）、
+> Linux 仍走 `RawStdinPump`（`NativeTui.Host/Program.cs`）、`Win32ConsoleInputPumpTests.cs` / `Win32ConsoleInputTests.cs` 均在、全仓测试绿。
+> **判据以代码为准，不要只读开头复选框。**
+
 ## 背景
 
 用户反馈：jcc 启动后 `PromptContextItem` 渲染的"点击展开"超链接，鼠标左键单击无效，无法进入 transcript 第二屏查看系统提示词全文。

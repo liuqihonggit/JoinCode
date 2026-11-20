@@ -73,6 +73,12 @@
 - 工具路径 assistant 消息保留工具块外纯文本（`AddToolResultToHistory(..., assistantContent)`），对齐 chat 循环。
 - 单测：`QueryEngineTextFallbackTests`（3）覆盖解析成功执行/纠正回灌/超限强制结束。
 
+## S7 取消语义对齐（已实现）
+
+- `ExecuteToolAsync` 不再把取消吞成"工具调用失败"错误结果：`OperationCanceledException` 且令牌已取消 → 原样上抛。
+- 工具执行循环改为下标遍历，`ExecuteToolAsync` / ToolCallEnd / `AddToolResultToHistory` 包在 `when (cancellationToken.IsCancellationRequested)` 捕获中：取消时 `WriteAbortedToolResults` 为当前及剩余调用补写 `assistant + "(aborted)"` 结果后重抛（对齐 chat 循环 `ToolExecutionHandler.WriteAbortedToolResultsAsync`）。
+- 单测：`QueryEngineCancellationTests`（1）断言取消后历史含 2 条 aborted 结果且每条前有 assistant 工具调用消息。
+
 ### 四列验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
@@ -86,6 +92,7 @@
 | 流式增量输出 | `QueryEngine.ExecuteIterationInternalAsync` 即收即入队 | ✅ | ❌ 未走 ADR 0080 真机 exe；`StreamingIncrementalE2ETests` query 跨度断言通过 + legacy 回归通过 |
 | 文本工具调用 fallback | `ITextToolCallFallbackParser`（abstractions.interfaces）+ `TextToolCallParserChain` 实现 + `QueryEngine.ApplyTextToolCallFallback` | ✅ | ❌ 未走 ADR 0080 真机 exe；`QueryEngineTextFallbackTests` 3 通过 + 两后端 MockServer E2E 回归通过 |
 | 异常输出干预同源 | `OutputInterventionPrompts` 被 `MalformedOutputTracker` / `QueryLoopMiddleware` / QueryEngine 共同消费 | ✅ | ❌ 未走 ADR 0080 真机 exe；单测覆盖纠正回灌与超限放行 |
+| 取消语义对齐 | `QueryEngine.ExecuteToolAsync` 取消上抛 + `WriteAbortedToolResults` | ✅ | ❌ 未走 ADR 0080 真机 exe；`QueryEngineCancellationTests` 通过 + query 模式 E2E 回归通过 |
 
 ### 验证记录（2026-11-21）
 
@@ -101,13 +108,15 @@
 | S6 后 `Brain.Context.Tests` 全量 | 977 通过 |
 | S6 后 MockServer E2E（query + legacy 双模式） | `StreamingIncrementalE2ETests` + `SubAgentEventStreamE2ETests` 3/3 通过 ×2 |
 | S6 后全仓编译 | `Build-AllDomains.ps1` 全部通过（solution/native_tui/native_gui） |
+| S7 后 `Brain.Other.Tests` 全量 | 505 通过（含 `QueryEngineCancellationTests`） |
+| S7 后 MockServer E2E（query 模式） | `StreamingIncrementalE2ETests` + `SubAgentEventStreamE2ETests` 3/3 通过（取消路径未破坏泵收尾） |
 
 ### 已知差距（翻转默认前必须补）
 
 1. ~~可疑 XML 标签 fallback 解析仍为 chat-only~~ → 已解决（S6：接口下沉 abstractions，QueryEngine 经 DI 消费同一解析链）。
 2. 上下文预算守卫（ADR 0156 请求前裁剪）为 chat-only；query 后端依赖 QueryEngine 的 TokenBudget/HistorySnip。
 3. 流式工具执行（`UseStreamingToolExecution`，默认 false）为 chat-only；默认配置下两后端行为一致。
-4. 取消语义差异：legacy 取消时为已发出的工具调用补写 `(aborted)` 结果；QueryEngine 在工具执行中取消会丢弃该步（历史保持合法），待对齐。
+4. ~~取消语义差异~~ → 已解决（S7：取消上抛 + `(aborted)` 补写，历史合法性对齐 legacy）。
 5. 宿主 E2E（GUI/slash/bridge）尚未跑 query 后端，默认值保持 legacy；native_gui exe 人工验收待做。
 
 ## 验收标准

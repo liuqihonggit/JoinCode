@@ -310,7 +310,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             }
 
             // 依次执行本轮所有工具调用
-            foreach (var toolCall in iterationResult.ToolCalls) {
+            for (var callIndex = 0; callIndex < iterationResult.ToolCalls.Count; callIndex++) {
+                var toolCall = iterationResult.ToolCalls[callIndex];
                 if (context.TotalToolCalls >= _config.MaxToolCallIterations) {
                     break;
                 }
@@ -333,21 +334,28 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     ToolCallNumber = context.TotalToolCalls
                 });
 
-                // 执行工具调用
-                var toolResult = await ExecuteToolAsync(toolCall, context.Options, cancellationToken).ConfigureAwait(false);
+                ToolResult toolResult;
+                try {
+                    // 执行工具调用
+                    toolResult = await ExecuteToolAsync(toolCall, context.Options, cancellationToken).ConfigureAwait(false);
 
-                context.OutputChunks.Enqueue(new QueryStreamChunk {
-                    Type = AgentStreamChunkType.ToolCallEnd,
-                    ToolName = toolCall.ToolName,
-                    ToolCallId = toolCall.ToolCallId,
-                    ToolResult = toolResult,
-                    ToolResultText = ExtractToolResultText(toolResult),
-                    IsToolError = toolResult.IsError,
-                    ToolCallNumber = context.TotalToolCalls
-                });
+                    context.OutputChunks.Enqueue(new QueryStreamChunk {
+                        Type = AgentStreamChunkType.ToolCallEnd,
+                        ToolName = toolCall.ToolName,
+                        ToolCallId = toolCall.ToolCallId,
+                        ToolResult = toolResult,
+                        ToolResultText = ExtractToolResultText(toolResult),
+                        IsToolError = toolResult.IsError,
+                        ToolCallNumber = context.TotalToolCalls
+                    });
 
-                // 将工具结果添加到对话历史（assistant 文本与工具调用同轮保留，对齐 chat 循环）
-                await AddToolResultToHistory(context, toolCall, toolResult, iterationResult.Content).ConfigureAwait(false);
+                    // 将工具结果添加到对话历史（assistant 文本与工具调用同轮保留，对齐 chat 循环）
+                    await AddToolResultToHistory(context, toolCall, toolResult, iterationResult.Content).ConfigureAwait(false);
+                } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                    // 取消时未完成的工具调用补写 (aborted) — assistant 工具调用消息后必须有对应结果，历史才对下一次请求合法
+                    WriteAbortedToolResults(context, iterationResult.ToolCalls, callIndex, iterationResult.Content);
+                    throw;
+                }
 
                 // TASK071-C6 — 结构化输出捕获：对齐 TS QueryEngine structuredOutputFromTool
                 // 合成工具验证通过时 ToolResult.StructuredOutput 携带验证数据，捕获到 context 供 result 消息填充
@@ -774,6 +782,27 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         return new FallbackParseOutcome([], true);
     }
 
+    /// <summary>
+    /// 取消时为未完成的工具调用补写 assistant + "(aborted)" 结果 — 保持历史合法
+    /// （对齐 chat 循环 WriteAbortedToolResultsAsync；startIndex 起含当前调用）。
+    /// </summary>
+    /// <param name="context">查询上下文。</param>
+    /// <param name="toolCalls">本轮全部工具调用。</param>
+    /// <param name="startIndex">起始下标（当前正在执行的调用）。</param>
+    /// <param name="assistantContent">assistant 同轮文本（可为 null）。</param>
+    private static void WriteAbortedToolResults(
+        QueryMiddlewareContext context, IReadOnlyList<ToolCallRequest> toolCalls, int startIndex, string? assistantContent) {
+        for (var i = startIndex; i < toolCalls.Count; i++) {
+            var toolCall = toolCalls[i];
+            var assistantMetadata = toolCall.ToolCallId != null
+                ? ToolCallEntry.BuildAssistantMetadata([new() { Id = toolCall.ToolCallId, Name = toolCall.ToolName, Arguments = toolCall.RawArguments ?? "{}" }])
+                : new Dictionary<string, JsonElement>();
+            context.ChatHistory.Add(new ApiMessage(MessageRole.Assistant, assistantContent, assistantMetadata));
+            context.ChatHistory.Add(new ApiMessage(MessageRole.Tool, "(aborted)",
+                ToolCallEntry.BuildToolResultMetadata(toolCall.ToolCallId, toolCall.ToolName)));
+        }
+    }
+
     private async Task<ToolResult> ExecuteToolAsync(ToolCallRequest request, QueryOptions? options, CancellationToken cancellationToken) {
         if (options is not null && !options.IsToolAllowed(request.ToolName)) {
             _logger?.LogWarning("[QueryEngine] 工具被过滤拒绝: {ToolName}", request.ToolName);
@@ -794,6 +823,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 : await _toolRegistry.ExecuteToolAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false);
             options?.ProgressTracker?.RecordToolUse(request.ToolName);
             return result;
+        } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+            // 取消不是工具失败 — 向上传播，由调用方补写 (aborted) 结果并终止循环
+            throw;
         } catch (Exception ex) {
             _logger?.LogError(ex, "[QueryEngine] 工具调用失败: {ToolName}", request.ToolName);
             options?.ProgressTracker?.RecordToolUse(request.ToolName);

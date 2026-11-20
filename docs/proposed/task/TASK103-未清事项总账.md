@@ -36,13 +36,13 @@
 |---|------|------|------|
 | ~~7~~ | ~~TASK069-S5~~ | ~~token compact 大小写 `1.3k` vs `1.3K`~~ | TASK069 域1 | ✅ 已完成 2026-11-21：`FormatCompact` 后缀 k→K，红→绿测试 5 项 + `/stats` 真机 EXIT=0 |
 | ~~8~~ | ~~TASK069-S4~~ | ~~流式项前缀跳变~~ | TASK069 域1 | ✅ **裁决维持现状（已对齐基准）2026-11-21**：一手证据 `StreamingTextItem.cs:5` 实现注释「对齐基准 Messages.tsx 尾部 ⎿ 前缀」+ TASK064:12 记基准行 703-709 为 ⎿；TASK069「基准同用 ●」是转述误读（基准落定才 ●）。跳变是基准自身行为 |
-| ~~9~~ | ~~TASK069-M1~~ | ~~❯ 前缀选中变色~~ | TASK069 域6 | ✅ **裁决维持现状（已对齐基准）2026-11-21**：`RenderUser` ❯ 恒 Subtle 是对齐基准；C# picker/dialog 选中态 `MessageRenderer.cs:350,394` 已是 suggestion 色；`MessageCursor` 是 w2 自创无基准对应物，高亮为整块背景覆写。TASK069 误套 picker 选中态到用户消息前缀 |
+| ~~9~~ | ~~TASK069-M1~~ | ~~❯ 前缀选中变色~~ | TASK069 域6 | ✅ **一手源码纠正：TASK069 是对的，待施工 2026-11-21** — 基准 `HighlightedThinkingText.tsx:23-24` `pointerColor = isSelected ? suggestion : subtle`，`Messages.tsx:628` 每行 Provider `value={index===selectedIdx}`，`UserPromptMessage.tsx:71` 同。C# 对应 = `MessageCursor`/ScrollBox.HighlightItem（**非**无基准对应物，是 MessageActions 导航对应实现），选中时整块背景覆写但 ❯ 前景仍 Subtle。之前"维持现状"裁决错误，一手源码已推翻。落点：`ScrollBox.ApplyHighlightBackground` 选中项把 ❯ 前景换 suggestion |
 | ~~10~~ | ~~TASK069-P6~~ | ~~模式切换警告~~ | TASK069 域3 | ✅ **证据不足维持现状 2026-11-21**：Claude Code 2.1.317 exe 提取权限模式明文串（Bypass Permissions/Permission mode downgraded 等），**无**"auto 进入 800ms 防抖警告≤3次"任何文案；C# 亦无。TASK069 一句话转述无一手支撑，不照实现 |
 | ~~11~~ | ~~TASK069-P7~~ | ~~dont-ask-again 文案与行为不符~~ | TASK069 域3 | ✅ **维持现状 2026-11-21**：原文自己标「30分钟系 CLI 先例有意设计→待决策」；C# 文案 "don't ask again for **this tool**" 与会话级语义一致非 bug；基准永久持久化属 P1-P2 权限大工程（已另登记 §2.2），此项非独立欠账 |
 | ~~12~~ | ~~TASK074-D7~~ | ~~bash mode 使用埋点~~ | TASK074 | ✅ **维持现状 2026-11-21**：基准 `logEvent('tengu_input_bash')` 是使用频率埋点，C# 无埋点基础设施；D7 原文自标「低优先级遗留、需埋点基础设施」——可观测性增强非 TUI 对齐，无基础设施时不做空中楼阁 |
 | 13 | TASK069-缺失 | reducedMotion/yank-bug 禁用流式预览 | TASK069 缺失 | ⚠️ 待裁决（规模 S→M）：基准 REPL.tsx:1495；C# 有 ReducedMotion 基础设施缺流式分支；exe 无一手取证。**此项是"尊重 reducedMotion 偏好"的可访问性修正**，非纯视觉，基准细节不可得，待裁决 |
 | 14 | TASK069-缺失 | spinner 连接警告（Reconnecting/Disconnected 行） | TASK069 缺失 | ✅ **证据不足维持现状 2026-11-21**：Claude Code 2.1.317 exe 无 Reconnecting/Disconnected UI 文案（仅网络层断开串）；C# 亦无。TASK069 转述无一手支撑 |
-| 15 | TASK069-缺失 | ultrathink 彩虹文字 | TASK069 缺失 | ⚠️ **规模上调 S→M + 基准细节不可得 2026-11-21**：exe 确证 `ultrathink` 标记存在，但基准 `HighlightedThinkingText.tsx:87` 的触发词/渐变算法源码拿不到（exe 编译后无源码）；C# rainbow 7 色有定义无消费点，落点在 CoT 文本分段着色（AssistantMessageItem/MarkdownMessageItem）。**臆造渐变冒充对齐不可取**，待用户提供基准渲染细节或裁决放弃 |
+| 15 | TASK069-缺失 | ultrathink 彩虹文字 | TASK069 缺失 | ✅ **一手源码到手→待施工 2026-11-21**：AGENTS.md:33 基准路径 `D:\project\claude-code-rust\claude-code-rev-main\src`。`utils/thinking.ts` 算法精确：触发词 `/\bultrathink\b/gi`，命中区每字符 `getRainbowColor(i - t.start)` = 7 色数组按 `charIndex % 7` 循环（rainbow_red→violet），其余 text 色。C# `Theme.cs:182-202` 已有 rainbow 7 色定义无消费点；落点在 UserMessageItem/HighlightedThinking 文本分段着色。**之前"细节不可得"因只查了 exe，忽略 AGENTS.md 源码路径** |
 | 16 | TASK069-缺失 | 工具执行中耗时显示（elapsedTimeSeconds） | TASK069 缺失 | ⚠️ 待裁决（规模 S→M）：基准 BashTool/UI.tsx:145 进度行；C# 有 elapsed 基础设施缺渲染分支；exe 无一手文案取证。待基准细节或裁决 |
 | 17 | TASK069-缺失 | 用户中断专用消息 | TASK069 缺失 | ✅ **证据不足维持现状 2026-11-21**：exe 无 "Interrupted by user" 类文案；C# 仅红色通用错误。TASK069 转述无一手支撑 |
 | 18 | TASK069-缺失 | redacted_thinking 消息 | TASK069 缺失 | ⚠️ **规模上调 S→M + 基准细节不可得 2026-11-21**：exe 确证 `<redacted>` 标记，但基准独立组件的布局/文案源码拿不到；C# 落点 = 新消息项类型 + BridgeEvent 协议扩展（ThinkingContent 旁加 redacted 标志）+ 双消费者，跨域（native_tui + engine）。待基准细节或裁决放弃 |
@@ -143,4 +143,9 @@
   - S4：`StreamingTextItem.cs:5`「对齐基准 Messages.tsx 尾部 ⎿ 前缀行渲染」+ TASK064:12（基准行 703-709 = ⎿）→ 基准流式期本就是 ⎿、落定才 ●；TASK069「基准同用 ●」是转述误读 → **维持 C# 现状（已对齐），关闭**。
   - M1：`RenderUser` ❯ 恒 Subtle 对齐基准；C# picker/dialog 选中态 `MessageRenderer.cs:350,394` 已是 suggestion 色；`MessageCursor` 是 w2 自创无基准对应物（`ReplShell.cs:2465`）→ TASK069 误套 picker 选中态到用户消息前缀 → **维持现状，关闭**。
   - **方法论沉淀**：遇「TASK069 转述 vs 实现注释」冲突，一手证据优先级 = 实现时对照基准写的代码注释 > 早期带行号规划 > 二轮转述表。本机 Claude Code exe 可作最终仲裁（需运行时截图/抓帧，非静态源码）。
-- 下一动作：§2 剩余项施工前一律先做一手证据复核（代码注释 / 原始规划 / 必要时 Claude Code 真机），确认是真差异再请示或对齐。
+- **🔑 一手基准源码路径（2026-11-21 发现，此前一直漏用）**：`AGENTS.md:33/453` 明确写了 Claude Code TUI 源码在 `D:\project\claude-code-rust\claude-code-rev-main\src\`。此前 S4/M1/P6/#14/#17 只用 exe 明文串 + 代码注释推断，**绕过了真正的一手源码**。
+  - **M1 裁决被一手源码推翻**：`HighlightedThinkingText.tsx:23-24` `isSelected ? suggestion : subtle` + `Messages.tsx:628` 每行 Provider + `UserPromptMessage.tsx:71` → 基准用户消息 ❯ **确实**在消息操作选中时变 suggestion 色，TASK069 原文是对的；C# `MessageCursor`/`ScrollBox.HighlightItem` 是基准 MessageActions 导航的对应实现（**非**"无基准对应物"，`ReplShell.cs:2465` 那句仅指"鼠标 Press 不退出光标导航"这一细节）。之前"维持现状"是误判 → 纠正为待施工。
+  - **#15 算法到手**：`utils/thinking.ts` 给出精确算法（触发词 `/\bultrathink\b/gi`、7 色彩虹 `charIndex % 7` 循环、其余 text 色），不再是"细节不可得"→ 待施工。
+  - **方法论最终版（覆盖前面的 exe 结论）**：一手证据优先级 = **AGENTS.md 指定的基准 `.tsx` 源码** > 实现时对照基准写的代码注释 > 早期带行号规划 > 二轮转述表 > exe 明文串（仅证功能存在性）。**遇基准细节问题先查 AGENTS.md:33 的路径**，别再只用 exe 推断。
+  - 教训：本机 Claude Code exe（2.1.317）是编译产物无源码；项目里另有反编译/镜像源码树（AGENTS.md 指定），二者别混。
+- 下一动作：按一手源码施工 M1（❯ 选中变色）与 #15（ultrathink 彩虹）；其余项复核前先查 AGENTS.md:33 基准源码。

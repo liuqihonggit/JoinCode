@@ -2,6 +2,7 @@
 
 > 状态：accepted（复核完成；结论已落档，真实欠账保留在原文档待办）
 > 复核日期：2026-11-21
+> **回填勾选（2026-11-21）**：三份文档滞后文档（TASK077/081/049）已全部勾上；TASK023 已勾 3 项（多参数传递/全参数填充/前置交付）、保留 4 项真欠账；TASK072 七项全保留。
 > 起因：用户问「还有什么东西没有完成」。扫全部任务文档的 `- [ ]` 后发现 6 份有未勾项，
 > 但 TASK068 的先例证明**文档开头的复选框会撒谎** —— 必须代码符号 + commit 双验证，不能只读文档。
 > 方法：每份挑最有辨识度的符号 `grep` 生产代码，再用 `git log --grep` / `git cat-file -t` 核实 commit。
@@ -19,7 +20,7 @@
 | TASK077 ReadConsoleInput pump | 6 项未勾 | `Win32ConsoleInputPump : IInputPump` + `Drain()` + 鼠标武装 `EnableMouseInput` + `Win32ConsoleInputPumpTests.cs` 全在 | ❌ 文档滞后，**实际完成** |
 | TASK081 CS 闭环动态测试 | 21 项未勾 | `e76f4949a` = "TASK081 全部完成 40/40"；`test/mock/mock_server.core/` 全套 MockServer 源码 + 校验脚本归档 | ❌ 文档滞后，**实际完成** |
 | TASK049 基建确定性测试 | 状态「待执行」 | `modules/collections/structura.tests/DagTests.cs` 里 `TopologicalSort`/`HasCycle`/`FindAllCycles`/`WouldCreateCycle` 测试齐全；commit `07db686cd`/`012dadad2`/`fc8bc65fd` 三批 | ❌ 文档滞后，**实际完成** |
-| TASK023 总测试任务清单 | 6 项未勾 | `5ede42b26` 完成全参数填充体系 + 76 命令 schema；但 `ArgumentHint` 降级仍在、无 382+97 覆盖脚本、无 `--debuglog` 步骤追踪脚本 | ⚠️ **部分完成**，剩 3 项真欠账 |
+| TASK023 总测试任务清单 | 7 项未勾 | `5ede42b26` 完成全参数填充体系 + 76 命令 schema；但 `ArgumentHint` 降级仍在、无 382+97 覆盖脚本、无 `--debuglog` 步骤追踪、无全参数 Markdown 总报告 | ⚠️ **部分完成**，勾 3 项、剩 4 项真欠账 |
 | TASK072 巡检行为验证升级 | 7 项未勾 | `02cc5a9d2` 做了 `ToolPatrolEngine`；但 `BuildMinimalArguments` 仍在、git_* 全跳过、mcp_connect 跳过、临时目录仍是 `jcc-test-` 非 `patrol-` | ✅ **真未完成**，7 项全部保留 |
 
 ---
@@ -51,17 +52,20 @@
 - commit 三批：`07db686cd`（基建确定性测试补充 1379 测试 + 12 bug）、`012dadad2`（SwissTable/DAG/HamT 拆分）、`fc8bc65fd`（阶段3，9 模块 227 测试 + 1 bug）
 - 文档状态「待执行」是 2026-09-29 创建时的快照，施工后从未更新
 
-### 1.4 TASK023（部分完成，剩 3 项真欠账）
+### 1.4 TASK023（部分完成，勾 3 项、剩 4 项真欠账）
 
 已做：
 - commit `5ede42b26` —「命令全参数填充测试体系（slash_call 改造 + 76 命令 schema + 每日 CI 脚本）」
 - `ChatCommandArg` / `SlashCommandSchemaCatalog` 已存在
 - `slash_call` 的 JSON/参数归一化（`GetNormalizedArgs` / `GetSplitArgs`）已做
 
-未做（真欠账，保留在原文档）：
+已做（2026-11-21 回填勾选 3 项）：多参数传递 / 全参数填充 / 前置交付（前置 1+2 已补齐）。
+
+未做（真欠账 4 项，保留在原文档）：
 - 97 命令**全部**结构化 `[ChatCommandArg]`、`ArgumentHint` 降级清零 —— `CmdToolDef.cs:49-51` 与 `ChatCommandAttribute.cs:23` 的降级逻辑仍在
-- 脚本覆盖全部 382 MCP 工具 + 97 斜杠命令 —— 现有 `e2e_tool_patrol.py` 只做巡检，不是全参数覆盖
+- 脚本覆盖全部 382 MCP 工具 + 97 斜杠命令 —— 现有 `e2e_tool_patrol.py:91-102` 只写巡检统计 OK/ERROR/CRASH/TIMEOUT，不是全参数覆盖
 - `--debuglog` 步骤追踪输出到报告（定位「条件不满足提前退出」）—— 脚本目录未找到对应实现
+- Markdown 全参数总报告（工具/参数/ok/步骤/退出原因/副作用验证）—— 依赖上一项，尚无对应实现
 
 ### 1.5 TASK072（真未完成，7 项全部保留）
 
@@ -77,7 +81,7 @@
 ## 2. 处置
 
 - **文档滞后（TASK077/081/049）**：在原文档顶部补状态澄清框，按证据勾选/标注「已完成」，避免后来人只读开头误判。
-- **部分完成（TASK023）**：顶部标注已做部分与真欠账 3 项；未勾项保留。
+- **部分完成（TASK023）**：2026-11-21 已勾 3 项（有多参数/全参数/前置交付证据），顶部标注已做部分与真欠账 4 项；未勾项保留。
 - **真未完成（TASK072）**：状态不动，7 项保留为真实待办；如需开工另立单元。
 
 ## 3. 可复用的判据

@@ -2,12 +2,14 @@
 
 > ## ⚠️ 状态澄清（2026-11-21）
 >
-> 下方 6 个 `- [ ]` **部分是历史快照、部分仍是真欠账**（详见 [TASK102](../../proposed/task/TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.4）：
-> 已做：`5ede42b26` 全参数填充体系 + 76 命令 schema、`ChatCommandArg`/`SlashCommandSchemaCatalog`、
-> `slash_call` 的 JSON/参数归一化。
-> **真欠账 3 项**（复选框保留未勾）：① 97 命令全结构化、`ArgumentHint` 降级清零（`CmdToolDef.cs:49-51` 降级仍在）；
-> ② 覆盖 382 MCP 工具 + 97 斜杠命令的全参数脚本（现有 `e2e_tool_patrol.py` 只做巡检）；
-> ③ `--debuglog` 步骤追踪输出到报告。**勿把整份清单当「全未完成」，也勿当「全完成」。**
+> 下方 7 项已于 2026-11-21 逐项取证回填：已完成的勾上，**真欠账 4 项保留未勾**
+> （详见 [TASK102](../../proposed/task/TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.4）。
+> 已勾：`5ede42b26` 全参数填充体系 + 76 命令 schema、`ChatCommandArg`/`SlashCommandSchemaCatalog`、
+> `slash_call` 的 JSON/参数归一化（对应下方「多参数传递」「全参数填充」2 项）。
+> **真欠账 4 项**（复选框保留未勾）：① 97 命令全结构化、`ArgumentHint` 降级清零（`CmdToolDef.cs:49-51` 降级仍在）；
+> ② 覆盖 382 MCP 工具 + 97 斜杠命令的全参数脚本（现有 `e2e_tool_patrol.py:91-102` 只写巡检统计 OK/ERROR/CRASH/TIMEOUT，无参数/步骤/退出原因/副作用列）；
+> ③ `--debuglog` 步骤追踪输出到报告；④ Markdown 全参数总报告（依赖②，尚无对应实现）。
+> **勿把整份清单当「全未完成」，也勿当「全完成」。**
 
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
@@ -105,13 +107,13 @@
 
 ## 完成标准
 
-- [ ] slash_call 支持 `key=value` / JSON / `--args-file` / `--args-stdin` 多种参数传递
+- [x] slash_call 支持 `key=value` / JSON / `--args-file` / `--args-stdin` 多种参数传递
 - [ ] 97 个斜杠命令全部有结构化 `[ChatCommandArg]` schema(无 ArgumentHint 降级)
 - [ ] 脚本覆盖全部 382 MCP 工具 + 97 斜杠命令
-- [ ] 每个工具/命令执行全参数填充(含可选参数)
+- [x] 每个工具/命令执行全参数填充(含可选参数)
 - [ ] `--debuglog` 步骤追踪输出到报告,可定位"条件不满足提前退出"
 - [ ] Markdown 总报告: 工具|参数|ok|步骤|退出原因|副作用验证
-- [ ] MCP 工具侧可先交付(已统一),斜杠命令侧依赖前置1+2
+- [x] MCP 工具侧可先交付(已统一),斜杠命令侧依赖前置1+2(前置均已补齐)
 
 ## 执行顺序
 

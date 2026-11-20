@@ -115,15 +115,25 @@ public static class ConversationOutputParser {
                 continue;
             }
 
+            // 兼容 [Tool] 行参数折行输出 — 归到最近一个尚未结束的调用
+            var unclosed = pendingTools.LastOrDefault(t => t.IsSuccess is null);
+            if (unclosed is not null) {
+                unclosed.ArgumentContinuation.Append('\n').Append(trimmed);
+                continue;
+            }
+
             responseLines.Add(trimmed);
         }
 
         FlushCapture();
 
         foreach (var pending in pendingTools) {
+            var arguments = pending.ArgumentContinuation.Length == 0
+                ? pending.Arguments
+                : pending.Arguments + pending.ArgumentContinuation.ToString();
             toolCalls.Add(new ToolCallRecord {
                 ToolName = pending.ToolName,
-                Arguments = pending.Arguments,
+                Arguments = arguments,
                 IsSuccess = pending.IsSuccess ?? false,
                 Result = pending.Result.Trim()
             });
@@ -320,6 +330,7 @@ public static class ConversationOutputParser {
     private sealed class PendingToolCall {
         public string ToolName { get; init; } = "";
         public string Arguments { get; init; } = "";
+        public StringBuilder ArgumentContinuation { get; } = new();
         public string Result { get; set; } = "";
         public bool? IsSuccess { get; set; }
     }

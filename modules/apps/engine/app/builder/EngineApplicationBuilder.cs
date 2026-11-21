@@ -141,7 +141,7 @@ public sealed class EngineApplicationBuilder {
             return await BuildToolCommandConfigAsync(fs).ConfigureAwait(false);
         }
 
-        if (await IsHubServerAvailableAsync().ConfigureAwait(false)) {
+        if (!ShouldUseDirectEndpoint() && await IsHubServerAvailableAsync().ConfigureAwait(false)) {
             Diag.WriteLine("[HUB] Hub 服务可用，使用 Hub 协议 — 跳过 Provider 配置加载");
             var hubConfig = await LoadHubConfigAsync(fs, options, modelConfigLoader).ConfigureAwait(false);
 
@@ -153,13 +153,21 @@ public sealed class EngineApplicationBuilder {
 
         if (!IsDirectFallbackAllowed()) {
             throw new InvalidOperationException(
-                "Hub 服务不可达，请确认 jcchub.exe 已启动并监听 http://localhost:3457。" +
+                "Hub 服务不可达（jcc 启动时应自动拉起 jcchub.exe 并监听 http://localhost:3457，自动拉起失败时请手动运行）。" +
                 "如需在无 Hub 环境下运行（如 E2E 测试），设置环境变量 JCC_ALLOW_DIRECT_FALLBACK=1。");
         }
 
-        Diag.WriteLine("[HUB] Hub 服务不可达 — 回退到直接连接模式（JCC_ALLOW_DIRECT_FALLBACK=1）");
+        Diag.WriteLine(ShouldUseDirectEndpoint()
+            ? "[HUB] 显式 JCC_ENDPOINT + 直接回退 — 跳过 Hub 探测"
+            : "[HUB] Hub 服务不可达 — 回退到直接连接模式（JCC_ALLOW_DIRECT_FALLBACK=1）");
         return await LoadDirectConfigAsync(options, fs, modelConfigLoader, configLoggerFactory).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// 是否显式走直接连接 — JCC_ENDPOINT 已指定且允许直接回退时（E2E/MockServer），跳过 Hub 探测与自动拉起。
+    /// </summary>
+    public static bool ShouldUseDirectEndpoint() =>
+        IsDirectFallbackAllowed() && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("JCC_ENDPOINT"));
 
     /// <summary>
     /// 检查是否允许 Hub 不可达时回退到直接连接模式 — 默认禁止，JCC_ALLOW_DIRECT_FALLBACK=1 启用

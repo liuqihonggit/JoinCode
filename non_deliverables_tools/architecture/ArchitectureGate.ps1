@@ -61,6 +61,9 @@ function Get-DomainOfPath {
 
 function Test-IsTestProject {
     param([string]$FullPath)
+    # csproj 的 ProjectType=test 是构建期事实，优先于名字/路径启发式
+    # （例: modules/storage/vault.testing.common 是测试辅助库，名字不含 .tests 段）
+    if ((Get-DeclaredProjectType $FullPath) -eq "test") { return $true }
     $rel = Get-RelativePath $FullPath
     $segments = @($rel -split '[\\/]')
     foreach ($segment in $segments) {
@@ -69,6 +72,27 @@ function Test-IsTestProject {
     }
     if ($FullPath -match '\.(tests?|Tests?)\.csproj$') { return $true }
     return $false
+}
+
+$script:projectTypeCache = @{}
+
+function Get-DeclaredProjectType {
+    param([string]$FullPath)
+    if ($script:projectTypeCache.ContainsKey($FullPath)) {
+        return $script:projectTypeCache[$FullPath]
+    }
+    $type = ""
+    try {
+        $xml = Read-CsprojXml $FullPath
+        $nodes = $xml.SelectNodes('//*[local-name()="ProjectType"]')
+        if ($nodes.Count -gt 0) {
+            $type = $nodes[0].InnerText.Trim().ToLowerInvariant()
+        }
+    } catch {
+        $type = ""
+    }
+    $script:projectTypeCache[$FullPath] = $type
+    return $type
 }
 
 function Resolve-ReferencePath {

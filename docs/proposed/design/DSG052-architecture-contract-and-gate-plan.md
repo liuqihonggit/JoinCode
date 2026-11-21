@@ -418,6 +418,11 @@ architecture:
 - `gh` 手工 `new GitHubApiClient(...)`，不经 DI 容器；`[Register]` 仍随程序集生成，主引擎无 `IGitHubApiClient` 解析点，迁移不改运行期注册语义（已由 `jcc-gh.exe alias list` 真实构造验证）。
 - 效果：生产跨域边 478 → 486（`abstractions` −1、`cognition` +3、`mcp/perception/services` 各 +1、`tools` +3），全部是"把原本经 Infrastructure 传递的依赖显式画进图里"，不是新增耦合；生产域环 **15 → 8**（`abstractions ↔ storage` 的 7 条环随 Infrastructure 去掉 Downloader 消失）；`JCC12009` 保持 176。
 
+**已完成 0.7 门禁测试口径修正（`JCC12004` 清零）**：
+- 根因：门禁只用"项目名 `.tests` 结尾 / 路径含 test 段"启发式判定测试项目，`modules/storage/vault.testing.common`（已声明 `ProjectType=test`）被误判为生产项目，导致 `JCC12004 生产→测试` 长期挂 1。
+- 修正：`Test-IsTestProject` 优先读取 csproj 的 `ProjectType`（新增带缓存的 `Get-DeclaredProjectType`，避免每条边重复解析），名字/路径启发式降为兜底。
+- 效果：`JCC12004 1 → 0`；被误判项目从生产图剔除后，生产边 716→713、生产跨域边 486→485；基线重冻结，Validate PASS。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. 补齐域内 slnx 缺口：abstractions 6 个（Brain/Composition/Guard/Memory/Perception/Primitives.Tools.Tests）、generators 1 个（AotHandler.Generator）、perception 4 个（Eyes/Eyes.Tests/Vision/Vision.Tests）；tools 的 13 个 `cli_nodes/groups/*` + sample + onnx 测试先决定"登记或排除"，排除项写入 `JccSlnxExcluded` 并注明打包流程。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
@@ -498,6 +503,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | `ci-architecture.yml` | PR CI | ✅ | ✅ 已接入 `ci.yml` `architecture` job（待 PR 首跑验证） |
 | 模块 README 生成器 | P4 文档同步 | ✅ `Update-ModuleReadme.ps1` | ✅ 16 域已生成；删 1 行后 `JCC12011` 1/2 报错、exit 1，重跑恢复 PASS |
 | `Infrastructure` 拆分第一刀（GitHub 客户端出迁 tools） | `tools/gh`、全仓生产图 | ✅ `GitHubClient.csproj` + `github_client_tests` 随迁 | ✅ 全仓四 target True；`jcc-gh.exe alias list` 真实构造客户端；门禁环 15→8 |
+| `JCC12004` 测试项目口径（`ProjectType=test` 优先） | 门禁分类器 | ✅ `Get-DeclaredProjectType` 缓存 | ✅ `JCC12004 1→0`、`JCC12002 486→485`，Validate PASS |
 
 > 后两列为强制钩子：`已实现` 防止"写了规划没实现"；`已验收` 必须走真实运行（门禁注入违规、分析器 fixture、全仓编译），禁止只写单测。
 
@@ -560,6 +566,8 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 工程事实（目录命名）：新增测试目录一律用 `github_client_tests` 下划线形式；`.tests` 目录名在 `JCC12009` 口径下属于存量违规，新增即会让计数 +1，不要一边清账一边加账。
 - 工程事实（API 准入 > 细粒度引用）：跨域引用必须指向 `JccApiVisibility=public` 的项目。实测把 `GitHubClient` 的 `Abstractions` 门面替换为 7 个细粒度 primitives 项目后，编译通过但 `JCC12003` 从 0 变 5（5 个目标非 public），跨域边 486→491。结论：门面仍存在时，跨域消费走 public 门面；"拆门面"必须先把目标项目纳入 API 准入评审，不能靠消费方单方面细粒度化。
 - 工程事实（`storage/clock` 对 Composition 不是无用引用）：`Clock.csproj → Composition` 是真实依赖（`Core.Context`、`Core.Hooks`、`IEmptyResponseTracker`），删掉后编译报 CS0234/CS0246。要消 `storage→composition` 这条总根（8 条环里 6 条经过它），必须把 Goal 引擎上移或把这些契约下沉，属下一批大手术，不能按"无用引用"处理。
+- 2026-11-21：P4 第七块完成（门禁测试口径修正）。`Test-IsTestProject` 优先读 `ProjectType=test`（带缓存），`vault.testing.common` 不再被算作生产项目；`JCC12004 1→0`、生产跨域边 486→485，基线重冻结，Validate PASS。
+- 工程事实（分类口径）：判断测试项目不能只靠名字/路径启发式。`ProjectType=test` 是构建期事实（决定测试包引用与 `IsTestProject` 语义），门禁必须以它为准；否则纯测试辅助库（名字不含 `.tests`）会被算进生产图，既误报 `JCC12004`，也让生产边/入度虚高。
 - 关键发现（增量构建掩盖）：`solution` target 用增量构建时，删掉被他人传递依赖的 `ProjectReference` 不会立即报错；`native_tui` / `native_gui` 独立 target 才暴露 `CS0246`。跨域引用变更后必须至少跑一次 `-t:Rebuild`。
 - 工程事实（口径）：传递引用显式化会让门禁计数上升（472→478），这是把原本隐形的依赖画进图里，不是新增耦合；清账进度应按"域对集合 + 环数"看，不能只看边计数。
 - 工程事实：`JCC12002` 只靠计数会在"删一条旧边、加一条新边"时漏检；必须同时冻结域对集合。

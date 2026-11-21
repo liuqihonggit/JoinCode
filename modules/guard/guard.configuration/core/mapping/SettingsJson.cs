@@ -192,6 +192,13 @@ public sealed partial class CurrentSettings {
     public bool? ShowTurnDuration { get; init; }
 
     /// <summary>
+    /// 权限解释开关 — 对齐 TS permissionExplainerEnabled（缺省视为 true，显式 false 才关）
+    /// </summary>
+    [JsonPropertyName("permissionExplainerEnabled")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? PermissionExplainerEnabled { get; init; }
+
+    /// <summary>
     /// 扩展思考 — 对齐 ConfigKeys.AlwaysThinkingEnabled
     /// </summary>
     [JsonPropertyName("alwaysThinkingEnabled")]

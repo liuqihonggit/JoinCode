@@ -51,10 +51,12 @@ public sealed class PermissionRequestItemFormTests
         Assert.Equal("   可能递归强制删除文件", RowText.Of(screen, 7, 0, 23));
         Assert.Equal(warning, screen[7, 3].StyleId);
 
-        // row9 问题行下移 + row10 焦点选项 + row14 Esc 变体（ctrl+e 提示）
+        // row9 问题行下移 + row10 焦点选项 + row14 Esc 提示
+        //（P4 改口径：解释未装配时不再承诺 ctrl+e —— 原来那半句在没有消费者的年代是空头承诺）
         Assert.Equal(" Do you want to proceed?", RowText.Of(screen, 9, 0, 24));
         Assert.Equal("❯ 1. Yes", RowText.Of(screen, 10, 0, 8));
-        Assert.StartsWith(" Esc to cancel · ctrl+e", RowText.Of(screen, 14, 0, 40));
+        Assert.StartsWith(" Esc to cancel", RowText.Of(screen, 14, 0, 40));
+        Assert.DoesNotContain("ctrl+e", RowText.Of(screen, 14, 0, 40), StringComparison.Ordinal);
         Assert.Equal(dim, screen[14, 1].StyleId);
     }
 

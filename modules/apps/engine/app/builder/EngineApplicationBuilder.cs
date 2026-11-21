@@ -198,6 +198,7 @@ public sealed class EngineApplicationBuilder {
             AutoDreamEnabled = current.AutoDreamEnabled ?? true,
             CleanupPeriodDays = current.CleanupPeriodDays ?? 30,
             ShowTurnDuration = current.ShowTurnDuration ?? true,
+            PermissionExplainerEnabled = current.PermissionExplainerEnabled ?? true,
         };
     }
 
@@ -268,6 +269,7 @@ public sealed class EngineApplicationBuilder {
             config = config with { AutoDreamEnabled = settings.Current?.AutoDreamEnabled ?? true };
             config = config with { CleanupPeriodDays = settings.Current?.CleanupPeriodDays ?? 30 };
             config = config with { ShowTurnDuration = settings.Current?.ShowTurnDuration ?? true };
+            config = config with { PermissionExplainerEnabled = settings.Current?.PermissionExplainerEnabled ?? true };
             config = config with { AutoCompactEnabled = settings.Current?.AutoCompactEnabled ?? true };
             config = config with { FileCheckpointingEnabled = settings.Current?.FileCheckpointingEnabled ?? true };
 
@@ -477,6 +479,7 @@ public sealed class EngineApplicationBuilder {
                 AutoDreamEnabled = existingSettings?.Current?.AutoDreamEnabled ?? true,
                 CleanupPeriodDays = existingSettings?.Current?.CleanupPeriodDays ?? 30,
                 ShowTurnDuration = existingSettings?.Current?.ShowTurnDuration ?? true,
+                PermissionExplainerEnabled = existingSettings?.Current?.PermissionExplainerEnabled ?? true,
                 AutoCompactEnabled = existingSettings?.Current?.AutoCompactEnabled ?? true,
                 FileCheckpointingEnabled = existingSettings?.Current?.FileCheckpointingEnabled ?? true,
                 DebugLog = existingSettings?.Current?.DebugLog ?? false,

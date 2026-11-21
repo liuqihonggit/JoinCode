@@ -36,6 +36,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
         config = config with { CleanupPeriodDays = settings?.Current?.CleanupPeriodDays ?? 30 };
         config = config with { AvailableModels = settings?.Current?.AvailableModels?.Count > 0 ? settings.Current.AvailableModels : null };
         config = config with { ShowTurnDuration = settings?.Current?.ShowTurnDuration ?? true };
+        config = config with { PermissionExplainerEnabled = settings?.Current?.PermissionExplainerEnabled ?? true };
         config = config with { AutoCompactEnabled = settings?.Current?.AutoCompactEnabled ?? true };
         config = config with { FileCheckpointingEnabled = settings?.Current?.FileCheckpointingEnabled ?? true };
         config = config with { ShellExecution = config.ShellExecution with { IsAntiCharLossConfirm = settings?.Current?.IsAntiCharLossConfirm ?? false } };

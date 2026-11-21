@@ -43,31 +43,21 @@ public sealed class PermissionCoordinatorKeysTests
         Assert.False(coordinator.SelectionToggled);
     }
 
-    /// <summary>ToggleExplanation — 解释展开态翻转。</summary>
-    [Fact]
-    public void ToggleExplanation_TogglesState()
-    {
-        var coordinator = BeginCoordinator();
-
-        Assert.False(coordinator.ExplanationExpanded);
-        coordinator.ToggleExplanation();
-        Assert.True(coordinator.ExplanationExpanded);
-        coordinator.ToggleExplanation();
-        Assert.False(coordinator.ExplanationExpanded);
-    }
-
-    /// <summary>Begin 重置 — 选中/解释态随新请求归位（对齐焦点重置语义）。</summary>
+    /// <summary>Begin 重置 — 选中态/解释区随新请求归位（P4：新请求不能继承上一个对话框的解释或请求历史）。</summary>
     [Fact]
     public void Begin_ResetsSelectionAndExplanation()
     {
         var coordinator = BeginCoordinator();
         coordinator.ToggleSelection();
-        coordinator.ToggleExplanation();
+        coordinator.BeginExplanationLoading();
+        coordinator.CompleteExplanation(new PermissionExplanationView("做什么", "为什么", "风险", PermissionRiskBand.Low));
 
         coordinator.Begin(new PermissionRequest("Edit", "write a.cs"));
 
         Assert.False(coordinator.SelectionToggled);
-        Assert.False(coordinator.ExplanationExpanded);
+        Assert.Equal(PermissionExplanationPhase.Hidden, coordinator.ExplanationPhase);
+        Assert.Null(coordinator.Explanation);
+        Assert.False(coordinator.ExplanationAttempted);
         Assert.Equal(0, coordinator.FocusIndex);
     }
 
@@ -102,7 +92,7 @@ public sealed class PermissionCoordinatorKeysTests
     {
         var coordinator = BeginCoordinator();
         coordinator.ToggleSelection();
-        coordinator.ToggleExplanation();
+        coordinator.BeginExplanationLoading();
         var task = coordinator.Wait();
 
         coordinator.Complete(PermissionChoice.Allow);

@@ -125,6 +125,13 @@ public sealed record WorkflowConfig {
     public bool ShowTurnDuration { get; init; } = true;
 
     /// <summary>
+    /// 权限解释开关 — 对齐 TS permissionExplainerEnabled（默认 true，显式 false 才关）；
+    /// 关掉时权限对话框不提供 ctrl+e 模型解释入口（对齐基准 isPermissionExplainerEnabled 同时门控
+    /// 键位 isActive 与实际请求），避免用户按了没反应。
+    /// </summary>
+    public bool PermissionExplainerEnabled { get; init; } = true;
+
+    /// <summary>
     /// 自动压缩开关 — 对齐 TS autoCompactEnabled（默认 true）；
     /// AutoCompactService.ShouldAutoCompact 门控（false 时即使超硬阈值也不触发）
     /// </summary>

@@ -23,6 +23,45 @@ public enum PermissionChoice
 /// <c>domain:example.com</c>；空串 = 无结构化来源，对话框不渲染原因区）。</param>
 public sealed record PermissionRequest(string ToolName, string Description, string RuleContent = "");
 
+/// <summary>风险三档（P4）— 渲染色唯一来源：低=成功色 / 中=警告色 / 高=错误色。</summary>
+public enum PermissionRiskBand
+{
+    /// <summary>低风险。</summary>
+    Low,
+
+    /// <summary>中风险。</summary>
+    Medium,
+
+    /// <summary>高风险。</summary>
+    High,
+}
+
+/// <summary>
+/// 解释视图（P4）— <see cref="NativeTui.Core"/> 自己的 DTO：Core 保持零依赖，
+/// 由 Host 把契约层的 <c>PermissionExplanation</c> 映射成本类型（照 <c>SessionPickerItem</c> 先例）。
+/// </summary>
+/// <param name="Explanation">这条命令做什么。</param>
+/// <param name="Reasoning">为什么要跑它。</param>
+/// <param name="Risk">可能出什么问题。</param>
+/// <param name="RiskBand">风险档位。</param>
+public sealed record PermissionExplanationView(string Explanation, string Reasoning, string Risk, PermissionRiskBand RiskBand);
+
+/// <summary>解释区状态（P4）— 三态对齐基准 PermissionExplanation 的 visible/loading/unavailable。</summary>
+public enum PermissionExplanationPhase
+{
+    /// <summary>未展开（默认 — 懒加载：没按 ctrl+e 就没发过请求）。</summary>
+    Hidden,
+
+    /// <summary>请求在途（渲染加载行 + 闪烁）。</summary>
+    Loading,
+
+    /// <summary>已拿到结果。</summary>
+    Ready,
+
+    /// <summary>不可用（关闭开关以外的任何失败：超时、无模型、响应不可解析）。</summary>
+    Unavailable,
+}
+
 /// <summary>
 /// 权限对话框协调器（M7-3）— TCS 桥 + 对话框状态：
 /// Begin 建立挂起请求（旧等待者取消，对齐青蛙TUI DialogRequest 取代语义），
@@ -49,8 +88,63 @@ public sealed class PermissionCoordinator
     /// <summary>Space 切换选中态（S8 — 基准 space: confirm:toggle；Begin 重置 false）。</summary>
     public bool SelectionToggled { get; private set; }
 
-    /// <summary>Ctrl+E 解释展开态（S8 — 基准 ctrl+e: confirm:toggleExplanation，命令详情展开；Begin 重置 false）。</summary>
-    public bool ExplanationExpanded { get; private set; }
+    /// <summary>
+    /// 解释功能是否可用（P4 — Host 按 <c>permissionExplainerEnabled</c> 注入；关闭时 ctrl+e 不生效、
+    /// 提示行也不提它 — 对齐基准 <c>useKeybinding(..., { isActive: enabled })</c>）。
+    /// </summary>
+    public bool ExplanationEnabled { get; set; }
+
+    /// <summary>解释区当前状态（P4）。</summary>
+    public PermissionExplanationPhase ExplanationPhase { get; private set; }
+
+    /// <summary>已取回的解释（未取回为 null — Ready 时必非 null）。</summary>
+    public PermissionExplanationView? Explanation { get; private set; }
+
+    /// <summary>本次请求是否已经尝试过解释（对齐基准「一次对话框只发一次请求」：失败后重按不再重试）。</summary>
+    public bool ExplanationAttempted { get; private set; }
+
+    /// <summary>解释区是否占据行（Loading/Ready/Unavailable 三态都占行，Hidden 不占）。</summary>
+    public bool ExplanationVisible => ExplanationPhase != PermissionExplanationPhase.Hidden;
+
+    /// <summary>进入加载态（P4 — 只有「尚未取过结果」时才需要，避免重复请求）。</summary>
+    public void BeginExplanationLoading()
+    {
+        ExplanationAttempted = true;
+        ExplanationPhase = PermissionExplanationPhase.Loading;
+    }
+
+    /// <summary>展开已缓存的解释（再次按 ctrl+e 时不再发请求）。</summary>
+    public void ShowExplanation()
+    {
+        if (Explanation is not null)
+        {
+            ExplanationPhase = PermissionExplanationPhase.Ready;
+        }
+    }
+
+    /// <summary>收起解释区（不丢缓存 — 再按一次 ctrl+e 直接显示，不重新请求）。</summary>
+    public void HideExplanation()
+    {
+        ExplanationPhase = PermissionExplanationPhase.Hidden;
+    }
+
+    /// <summary>请求落定（P4 — view 为 null 即不可用；由主循环线程调用，避免与渲染竞争）。</summary>
+    /// <param name="view">解释视图；null 表示失败/不可用。</param>
+    public void CompleteExplanation(PermissionExplanationView? view)
+    {
+        Explanation = view;
+        // 仅在仍处加载态时推进状态：用户中途收起（Hidden）时只留缓存，不把面板重新弹出来
+        if (ExplanationPhase == PermissionExplanationPhase.Loading)
+        {
+            ExplanationPhase = view is null ? PermissionExplanationPhase.Unavailable : PermissionExplanationPhase.Ready;
+        }
+    }
+
+    /// <summary>上次尝试已失败 — 重按 ctrl+e 直接显示「不可用」，不重复请求。</summary>
+    public void ShowExplanationUnavailable()
+    {
+        ExplanationPhase = PermissionExplanationPhase.Unavailable;
+    }
 
     /// <summary>用户补充说明（P3 — 选项按 Tab 展开输入框填写；Begin 重置，Complete 后由 TuiPermissionBridge 读取）。</summary>
     public string Feedback { get; private set; } = string.Empty;
@@ -89,7 +183,9 @@ public sealed class PermissionCoordinator
         Request = request;
         FocusIndex = 0;
         SelectionToggled = false;
-        ExplanationExpanded = false;
+        ExplanationAttempted = false;
+        ExplanationPhase = PermissionExplanationPhase.Hidden;
+        Explanation = null;
         Feedback = string.Empty;
         FeedbackInputActive = false;
     }
@@ -157,9 +253,6 @@ public sealed class PermissionCoordinator
 
     /// <summary>Space 切换选中（S8 — 基准 space: confirm:toggle；选中态翻转，Begin 重置）。</summary>
     public void ToggleSelection() => SelectionToggled = !SelectionToggled;
-
-    /// <summary>Ctrl+E 解释展开切换（S8 — 基准 ctrl+e: confirm:toggleExplanation；命令详情展开态翻转，Begin 重置）。</summary>
-    public void ToggleExplanation() => ExplanationExpanded = !ExplanationExpanded;
 
     /// <summary>Shift+Tab 权限模式循环请求（S8 — 基准 shift+tab: confirm:cycleMode；触发事件供接线方转发引擎回执通道）。</summary>
     public void RequestModeCycle() => ModeCycleRequested?.Invoke();

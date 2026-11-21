@@ -312,6 +312,13 @@ public sealed class ReplShell
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
     private readonly ConcurrentQueue<BashDirectResult> _bashResults = new();
 
+    /// <summary>权限解释结果缓冲（P4 — 旁路模型调用在线程池完成，状态写入必须回主循环线程，
+    /// 与 <see cref="_bashResults"/> 同一先例）。元素为 null 表示不可用。</summary>
+    private readonly ConcurrentQueue<PermissionExplanationView?> _explanationResults = new();
+
+    /// <summary>解释请求取消源（对话框结束/收起/重开时取消在途请求 — 不让它跑完整超时）。</summary>
+    private CancellationTokenSource? _explanationCts;
+
     /// <summary>bash 直通超时守卫（S10 接线 — 执行命令允许超时：30s 杀进程树返回部分输出 + Interrupted）。</summary>
     private static readonly TimeSpan BashDirectTimeout = TimeSpan.FromSeconds(30);
 
@@ -1066,6 +1073,9 @@ public sealed class ReplShell
         // S10 接线 — bash 直通结果上屏（主循环线程消费并发队列）
         DrainBashResults();
 
+        // P4 — 权限解释结果落定（主循环线程写协调器状态 — 与渲染同线程，无需加锁）
+        DrainExplanationResults();
+
         // TASK064 P3 — 外部编辑器结果回填（主循环线程消费并发队列 — FillInput 与渲染循环同线程）
         DrainExternalEditorResults();
 
@@ -1131,13 +1141,135 @@ public sealed class ReplShell
     /// <param name="ruleContent">触发本次确认的规则内容（如 WebFetch 的 domain:example.com；null 不渲染原因区）。</param>
     public void BeginPermissionRequest(string toolName, string description, string? ruleContent)
     {
+        CancelExplanationRequest();
         _permission.Begin(new PermissionRequest(toolName, description, ruleContent ?? string.Empty));
         AddMessage(new PermissionRequestItem(_permission));
+    }
+
+    /// <summary>
+    /// 权限解释加载器（P4）— Host 注入：把「工具名 + 描述」换成解释视图，null = 不可用。
+    /// Core 零依赖：这里只持有一个委托，模型调用与配置读取都在宿主侧。
+    /// </summary>
+    public Func<string, string, CancellationToken, Task<PermissionExplanationView?>>? PermissionExplanationLoader { get; private set; }
+
+    /// <summary>
+    /// 装配权限解释（P4 — 由宿主在 shell 构造后调用一次）：
+    /// enabled 来自 <c>permissionExplainerEnabled</c>，loader 为 null 表示宿主没有模型能力。
+    /// </summary>
+    /// <param name="enabled">是否启用（关闭时 ctrl+e 整体 no-op，提示行也不提它）。</param>
+    /// <param name="loader">解释加载器（可为 null）。</param>
+    public void BindPermissionExplainer(bool enabled, Func<string, string, CancellationToken, Task<PermissionExplanationView?>>? loader)
+    {
+        _permission.ExplanationEnabled = enabled;
+        PermissionExplanationLoader = loader;
+    }
+
+    /// <summary>
+    /// ctrl+e 解释开关（P4 — 对齐基准 confirm:toggleExplanation）：首次展开才发请求（懒加载），
+    /// 收起不丢缓存，失败后重按不再重试（一次对话框一次请求）。关闭开关时本方法整体 no-op。
+    /// </summary>
+    internal void ToggleExplanationRequest()
+    {
+        if (!_permission.ExplanationEnabled || _permission.Request is null)
+        {
+            return;
+        }
+
+        if (_permission.ExplanationVisible)
+        {
+            CancelExplanationRequest();
+            _permission.HideExplanation();
+            return;
+        }
+
+        if (_permission.Explanation is not null)
+        {
+            _permission.ShowExplanation();
+            return;
+        }
+
+        if (_permission.ExplanationAttempted)
+        {
+            _permission.ShowExplanationUnavailable();
+            return;
+        }
+
+        var loader = PermissionExplanationLoader;
+        if (loader is null)
+        {
+            // 宿主没有解释能力（未接模型）→ 直接落不可用，不假装转圈
+            _permission.BeginExplanationLoading();
+            _permission.CompleteExplanation(null);
+            return;
+        }
+
+        var request = _permission.Request;
+        _permission.BeginExplanationLoading();
+        CancelExplanationRequest();
+        var cts = new CancellationTokenSource();
+        _explanationCts = cts;
+        _ = Task.Run(async () =>
+        {
+            PermissionExplanationView? view;
+            try
+            {
+                view = await loader(request.ToolName, request.Description, cts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception)
+            {
+                view = null;
+            }
+
+            _explanationResults.Enqueue(view);
+        }, CancellationToken.None);
+    }
+
+    /// <summary>取消在途解释请求（对话框结束/收起/重开 — 不让请求跑完整超时）。</summary>
+    private void CancelExplanationRequest()
+    {
+        var cts = _explanationCts;
+        _explanationCts = null;
+        if (cts is null)
+        {
+            return;
+        }
+
+        try
+        {
+            cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // 已释放 — 取消语义已达成
+        }
+        finally
+        {
+            cts.Dispose();
+        }
+    }
+
+    /// <summary>解释结果落定（主循环线程消费并发队列 — 与渲染同线程，直接写协调器状态）。</summary>
+    private void DrainExplanationResults()
+    {
+        while (_explanationResults.TryDequeue(out var view))
+        {
+            if (_permission.Request is null)
+            {
+                continue;
+            }
+
+            _permission.CompleteExplanation(view);
+        }
     }
 
     /// <summary>完成权限请求并移除对话框项。</summary>
     private void CompletePermission(PermissionChoice choice)
     {
+        CancelExplanationRequest();
         _permission.Complete(choice);
         RemoveDialogItem<PermissionRequestItem>();
     }
@@ -1994,10 +2126,10 @@ public sealed class ReplShell
             return;
         }
 
-        // S8 接线 — Ctrl+E 解释展开切换
+        // P4 接线 — Ctrl+E 请求/收起模型解释（懒加载，对齐基准 confirm:toggleExplanation）
         if (key is { Kind: KeyKind.Char, Input: "e", Ctrl: true, Meta: false })
         {
-            _permission.ToggleExplanation();
+            ToggleExplanationRequest();
             return;
         }
 

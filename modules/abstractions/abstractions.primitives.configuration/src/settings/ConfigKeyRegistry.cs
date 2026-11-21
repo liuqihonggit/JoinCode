@@ -155,6 +155,12 @@ public static class ConfigKeyRegistry {
                 Description = "响应后显示轮次耗时",
                 Source = SettingSource.GlobalConfig,
             },
+            [ConfigKeys.PermissionExplainerEnabled] = new() {
+                Key = ConfigKeys.PermissionExplainerEnabled,
+                Type = "boolean",
+                Description = "权限确认时按 ctrl+e 让模型解释命令与风险（关闭后不显示该入口）",
+                Source = SettingSource.GlobalConfig,
+            },
             [ConfigKeys.TerminalProgressBarEnabled] = new() {
                 Key = ConfigKeys.TerminalProgressBarEnabled,
                 Type = "boolean",
@@ -298,6 +304,8 @@ public static class ConfigKeys {
     public const string FileCheckpointingEnabled = "fileCheckpointingEnabled";
     /// <summary>显示轮次耗时。</summary>
     public const string ShowTurnDuration = "showTurnDuration";
+    /// <summary>权限对话框模型解释（ctrl+e）。</summary>
+    public const string PermissionExplainerEnabled = "permissionExplainerEnabled";
     /// <summary>终端进度条。</summary>
     public const string TerminalProgressBarEnabled = "terminalProgressBarEnabled";
     /// <summary>待办/任务跟踪。</summary>

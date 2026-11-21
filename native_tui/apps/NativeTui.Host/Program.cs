@@ -517,6 +517,9 @@ public static class Program {
                 session.PermissionBridge.Bind(shell);
                 session.AskBridge.Bind(shell);
                 shell.AskQuestionInterruptProbe = () => session.AskBridge.HasPendingNotification;
+
+                // P4 — 权限解释接线（侧查询能力由引擎 DI 提供，映射在宿主侧做）
+                PermissionExplainerAssembly.Attach(shell, session.Services);
                 session.CommandCallbacks.Bind(
                     clearScreen: shell.ClearMessagesExceptBannerAndSpinner,
                     onExitRequested: () => shell.RequestExit("exit"));

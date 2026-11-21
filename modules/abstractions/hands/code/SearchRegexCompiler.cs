@@ -20,8 +20,8 @@ public static class SearchRegexCompiler {
     /// <param name="fixedStrings">字面量模式（Regex.Escape）</param>
     /// <param name="wordRegexp">词边界匹配（\b 包裹）</param>
     /// <param name="smartCase">智能大小写（模式全小写则忽略大小写）</param>
-    /// <returns>(Regex, null) 成功; (null, errorMsg) 失败</returns>
-    public static (Regex? Regex, string? Error) Compile(
+    /// <returns>编译成功时带 Regex, 失败时带错误信息</returns>
+    public static RegexCompileResult Compile(
         string pattern,
         bool caseInsensitive = false,
         bool multiline = false,
@@ -45,13 +45,20 @@ public static class SearchRegexCompiler {
             options |= RegexOptions.IgnoreCase;
 
         try {
-            return (new Regex(p, options | RegexOptions.NonBacktracking, RegexTimeout), null);
+            return new RegexCompileResult(new Regex(p, options | RegexOptions.NonBacktracking, RegexTimeout), null);
         } catch (ArgumentException) {
             try {
-                return (new Regex(p, options, RegexTimeout), null);
+                return new RegexCompileResult(new Regex(p, options, RegexTimeout), null);
             } catch (ArgumentException ex) {
-                return (null, ex.Message);
+                return new RegexCompileResult(null, ex.Message);
             }
         }
     }
 }
+
+/// <summary>
+/// 正则编译结果 — 成功时带 Regex, 失败时带错误信息
+/// </summary>
+/// <param name="Regex">编译成功的正则, 失败为 null</param>
+/// <param name="Error">编译错误信息, 成功为 null</param>
+public sealed record RegexCompileResult(Regex? Regex, string? Error);

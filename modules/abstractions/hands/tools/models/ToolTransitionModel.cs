@@ -68,15 +68,22 @@ public sealed class ToolTransitionModel {
     }
 
     /// <summary>获取所有角色推荐（非 null 的角色）。</summary>
-    public IReadOnlyList<(ToolTransitionRole Role, string ToolName)> GetAllRecommendations(string conditionId) {
+    public IReadOnlyList<ToolRecommendation> GetAllRecommendations(string conditionId) {
         if (!_conditions.TryGetValue(conditionId, out var condition)) return [];
-        var result = new List<(ToolTransitionRole, string)>(3);
-        if (condition.Primary is not null) result.Add((ToolTransitionRole.Primary, condition.Primary));
-        if (condition.Fallback is not null) result.Add((ToolTransitionRole.Fallback, condition.Fallback));
-        if (condition.Refine is not null) result.Add((ToolTransitionRole.Refine, condition.Refine));
+        var result = new List<ToolRecommendation>(3);
+        if (condition.Primary is not null) result.Add(new ToolRecommendation(ToolTransitionRole.Primary, condition.Primary));
+        if (condition.Fallback is not null) result.Add(new ToolRecommendation(ToolTransitionRole.Fallback, condition.Fallback));
+        if (condition.Refine is not null) result.Add(new ToolRecommendation(ToolTransitionRole.Refine, condition.Refine));
         return result;
     }
 }
+
+/// <summary>
+/// 工具推荐 — 角色(主/备选/精炼)与推荐工具名
+/// </summary>
+/// <param name="Role">推荐角色</param>
+/// <param name="ToolName">推荐工具名</param>
+public sealed record ToolRecommendation(ToolTransitionRole Role, string ToolName);
 
 /// <summary>
 /// 精炼推荐规则 — 数据过大/过杂时推荐精炼工具

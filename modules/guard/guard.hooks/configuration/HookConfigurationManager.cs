@@ -453,7 +453,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
                 transform(settings);
                 var json = RelaxedJsonSerializer.Serialize(settings, HooksJsonContext.Default);
                 var newBytes = FileEncodingDetector.EncodeString(json, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             var settings = new HookSettingsFile { Hooks = new Dictionary<string, List<HookMatcher>>() };

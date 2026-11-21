@@ -37,8 +37,8 @@ public static class ShellImageOutputDetector {
     /// 返回 (mediaType, base64Data) 或 null
     /// </summary>
     /// <param name="dataUri">Data URI 格式字符串</param>
-    /// <returns>解析成功的 (媒体类型, base64 数据) 元组；格式不合法则返回 null</returns>
-    public static (string MediaType, string Base64Data)? ParseDataUri(string dataUri) {
+    /// <returns>解析成功的图片数据(媒体类型 + base64 数据)；格式不合法则返回 null</returns>
+    public static ShellImageData? ParseDataUri(string dataUri) {
         if (string.IsNullOrEmpty(dataUri))
             return null;
 
@@ -61,7 +61,7 @@ public static class ShellImageOutputDetector {
         if (string.IsNullOrEmpty(base64Data))
             return null;
 
-        return (mediaType, base64Data);
+        return new ShellImageData(mediaType, base64Data);
     }
 
     /// <summary>
@@ -70,15 +70,15 @@ public static class ShellImageOutputDetector {
     /// </summary>
     /// <param name="mediaType">图片媒体类型（如 image/png）</param>
     /// <param name="base64Data">图片 base64 编码数据</param>
-    /// <returns>压缩后的 (媒体类型, base64 数据)；若未超限或压缩失败则返回原始数据</returns>
-    public static async Task<(string MediaType, string Base64Data)?> ResizeIfOversizedAsync(string mediaType, string base64Data) {
+    /// <returns>压缩后的图片数据(媒体类型 + base64 数据)；若未超限或压缩失败则返回原始数据</returns>
+    public static async Task<ShellImageData?> ResizeIfOversizedAsync(string mediaType, string base64Data) {
         var bytes = Convert.FromBase64String(base64Data);
         if (bytes.Length <= MaxImageFileSizeBytes)
-            return (mediaType, base64Data);
+            return new ShellImageData(mediaType, base64Data);
 
         try {
             using var original = SKBitmap.Decode(bytes);
-            if (original is null) return (mediaType, base64Data);
+            if (original is null) return new ShellImageData(mediaType, base64Data);
             var maxDimension = 2048;
             var target = original;
             var shouldDisposeTarget = false;
@@ -106,12 +106,19 @@ public static class ShellImageOutputDetector {
                 using var data = image.Encode(format, quality);
                 var compressedBase64 = Convert.ToBase64String(data.ToArray());
                 var resultMediaType = format == SKEncodedImageFormat.Jpeg ? "image/jpeg" : mediaType;
-                return (resultMediaType, compressedBase64);
+                return new ShellImageData(resultMediaType, compressedBase64);
             } finally {
                 if (shouldDisposeTarget) target.Dispose();
             }
         } catch {
-            return (mediaType, base64Data);
+            return new ShellImageData(mediaType, base64Data);
         }
     }
 }
+
+/// <summary>
+/// Shell 输出图片数据 — 媒体类型与 base64 编码内容
+/// </summary>
+/// <param name="MediaType">图片媒体类型(如 image/png)</param>
+/// <param name="Base64Data">图片 base64 编码数据</param>
+public sealed record ShellImageData(string MediaType, string Base64Data);

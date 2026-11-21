@@ -7,5 +7,5 @@ namespace IO.FileSystem;
 /// </summary>
 public sealed record EditFileCmd(
     string Path,
-    Func<byte[], CancellationToken, Task<(byte[]? NewContent, object? Result)>> Transform,
+    Func<byte[], CancellationToken, Task<EditFileTransformResult<object?>>> Transform,
     TaskCompletionSource<object?> Reply);

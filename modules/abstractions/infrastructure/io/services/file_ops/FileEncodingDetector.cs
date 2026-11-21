@@ -50,10 +50,21 @@ public static class FileEncodingDetector {
     /// <summary>
     /// 从字节数组解码为字符串 — 自动检测 BOM 编码，StreamReader 自动跳过 BOM。
     /// </summary>
-    public static (string Content, Encoding Encoding) DecodeBytes(byte[] bytes) => BclFileIO.Instance.DecodeBytes(bytes);
+    /// <returns>解码后的内容与所用编码</returns>
+    public static DecodedFileContent DecodeBytes(byte[] bytes) {
+        var decoded = BclFileIO.Instance.DecodeBytes(bytes);
+        return new DecodedFileContent(decoded.Content, decoded.Encoding);
+    }
 
     /// <summary>
     /// 将字符串编码为字节数组 — 该编码有 BOM 就带上，没有就不带（原文件有无签名原样保持）。
     /// </summary>
     public static byte[] EncodeString(string content, Encoding encoding) => BclFileIO.EncodeString(content, encoding);
 }
+
+/// <summary>
+/// 字节解码结果 — 解码后的文本内容与所用编码(StreamReader 已跳过 BOM)
+/// </summary>
+/// <param name="Content">解码后的文本内容</param>
+/// <param name="Encoding">实际使用的编码</param>
+public sealed record DecodedFileContent(string Content, Encoding Encoding);

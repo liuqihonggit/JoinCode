@@ -64,11 +64,11 @@ public sealed class HotFileWatchdogTests
     [Fact]
     public void CheckChanges_MixedChanges_ShouldAlertOnlyUnreportedHotFiles()
     {
-        var changes = new List<(string, string)>
+        var changes = new List<HotFileChange>
         {
-            ("src/Abstractions/IFoo.cs", "w1"),
-            ("src/utils/helper.cs", "w1"),
-            ("src/Abstractions/IBar.cs", "w2")
+            new("src/Abstractions/IFoo.cs", "w1"),
+            new("src/utils/helper.cs", "w1"),
+            new("src/Abstractions/IBar.cs", "w2")
         };
 
         var alerts = _sut.CheckChanges(changes);
@@ -80,10 +80,10 @@ public sealed class HotFileWatchdogTests
     [Fact]
     public void CheckChanges_AllNormal_NoAlerts()
     {
-        var changes = new List<(string, string)>
+        var changes = new List<HotFileChange>
         {
-            ("src/utils/a.cs", "w1"),
-            ("src/services/b.cs", "w2")
+            new("src/utils/a.cs", "w1"),
+            new("src/services/b.cs", "w2")
         };
 
         _sut.CheckChanges(changes).Should().BeEmpty();

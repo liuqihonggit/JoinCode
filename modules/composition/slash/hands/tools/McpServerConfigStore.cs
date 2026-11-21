@@ -99,7 +99,7 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
                 config.McpServers[name] = entry;
                 var json = RelaxedJsonSerializer.Serialize(config, McpConfigJsonContext.Default);
                 var newBytes = FileEncodingDetector.EncodeString(json, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, ct).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             var config = new McpConfigFile();
@@ -130,10 +130,10 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
                     config = new McpConfigFile();
                 }
                 if (!config.McpServers.Remove(name))
-                    return (null, false);
+                    return new EditFileTransformResult<bool>(null, false);
                 var json = RelaxedJsonSerializer.Serialize(config, McpConfigJsonContext.Default);
                 var newBytes = FileEncodingDetector.EncodeString(json, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, ct).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             return false;

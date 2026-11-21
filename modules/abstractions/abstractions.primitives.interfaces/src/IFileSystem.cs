@@ -72,7 +72,7 @@ public interface IFileSystem {
     /// <param name="transform">转换函数：接收当前文件字节和 CancellationToken，返回新字节和附加结果</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>transform 返回的附加结果</returns>
-    Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default);
+    Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<EditFileTransformResult<T>>> transform, CancellationToken cancellationToken = default);
 
     // === File 存在/删除/移动/复制 ===
 

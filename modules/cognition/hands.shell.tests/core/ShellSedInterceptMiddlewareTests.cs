@@ -413,7 +413,7 @@ public class ShellSedInterceptMiddlewareTests {
         text.Should().Contain("Replacement: baz");
         text.Should().Contain("Re-run the same sed command to confirm and apply this edit.");
         // 首次不应调用 EditFileAsync
-        fs.Verify(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()), Times.Never);
+        fs.Verify(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<EditFileTransformResult<bool>>>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>
@@ -425,7 +425,7 @@ public class ShellSedInterceptMiddlewareTests {
         var fs = CreateFileSystemMock();
         fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
         fs.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("foo bar");
-        fs.Setup(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()))
+        fs.Setup(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<EditFileTransformResult<bool>>>>(), It.IsAny<CancellationToken>()))
           .ReturnsAsync(true);
         await using var sut = new ShellSedInterceptMiddleware(fs.Object);
         var command = "sed -i 's/foo/baz/g' file.txt";
@@ -441,7 +441,7 @@ public class ShellSedInterceptMiddlewareTests {
 
         secondCtx.SedResult!.IsError.Should().BeFalse();
         secondCtx.SedResult.GetFirstText().Should().Contain("Applied sed substitution to file.txt");
-        fs.Verify(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()), Times.Once);
+        fs.Verify(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<EditFileTransformResult<bool>>>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -453,7 +453,7 @@ public class ShellSedInterceptMiddlewareTests {
         var fs = CreateFileSystemMock();
         fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
         fs.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("foo bar");
-        fs.Setup(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()))
+        fs.Setup(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<EditFileTransformResult<bool>>>>(), It.IsAny<CancellationToken>()))
           .ThrowsAsync(new IOException("disk full"));
         await using var sut = new ShellSedInterceptMiddleware(fs.Object);
         var command = "sed -i 's/foo/baz/g' file.txt";
@@ -497,6 +497,6 @@ public class ShellSedInterceptMiddlewareTests {
         text.Should().Contain("Sed edit preview for file.txt:");
         text.Should().Contain("Pattern: beta");
         // 未进入确认写入分支,EditFileAsync 不应被调用
-        fs.Verify(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<(byte[]?, bool)>>>(), It.IsAny<CancellationToken>()), Times.Never);
+        fs.Verify(x => x.EditFileAsync<bool>(It.IsAny<string>(), It.IsAny<Func<byte[], CancellationToken, Task<EditFileTransformResult<bool>>>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

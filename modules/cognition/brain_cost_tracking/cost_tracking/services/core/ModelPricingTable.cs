@@ -42,5 +42,5 @@ internal sealed class ModelPricingTable {
     /// 获取所有定价表条目
     /// </summary>
     /// <returns>定价条目列表，每项包含关键词、Prompt 成本和 Completion 成本</returns>
-    public IReadOnlyList<(string Keyword, decimal PromptCost, decimal CompletionCost)> GetAllEntries() => _inner.GetAllEntries();
+    public IReadOnlyList<JoinCode.Abstractions.LLM.Execution.Pricing.ModelPricingEntry> GetAllEntries() => _inner.GetAllEntries();
 }

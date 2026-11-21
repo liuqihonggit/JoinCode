@@ -8,21 +8,21 @@ namespace Tools.Handlers;
 public static class AgentTypeSpecParser {
     /// <summary>解析逗号分隔的 agent 类型语法,返回主类型和允许类型列表</summary>
     /// <param name="subagentType">逗号分隔的 agent 类型字符串，如 "worker,researcher"</param>
-    /// <returns>主类型和允许类型列表；无逗号时允许类型为 null</returns>
-    public static (string PrimaryType, IReadOnlyList<string>? AllowedTypes) Parse(string? subagentType) {
+    /// <returns>主类型和允许类型；无逗号时允许类型为 null</returns>
+    public static AgentTypeSpec Parse(string? subagentType) {
         if (string.IsNullOrWhiteSpace(subagentType))
-            return (string.Empty, null);
+            return new AgentTypeSpec(string.Empty, null);
 
         var trimmed = subagentType.Trim();
 
         if (!trimmed.Contains(','))
-            return (trimmed, null);
+            return new AgentTypeSpec(trimmed, null);
 
         var parts = trimmed.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 0)
-            return (string.Empty, null);
+            return new AgentTypeSpec(string.Empty, null);
 
-        return (parts[0], parts);
+        return new AgentTypeSpec(parts[0], parts);
     }
 
     /// <summary>检查请求的 agent 类型是否在允许列表中</summary>
@@ -36,3 +36,10 @@ public static class AgentTypeSpecParser {
         return allowedTypes.Any(t => string.Equals(t, requestedType, StringComparison.OrdinalIgnoreCase));
     }
 }
+
+/// <summary>
+/// Agent 类型语法解析结果 — 主类型 + 允许类型列表
+/// </summary>
+/// <param name="PrimaryType">主类型(逗号分隔列表的第一项)</param>
+/// <param name="AllowedTypes">允许的 agent 类型列表;无逗号语法时为 null(表示不限制)</param>
+public sealed record AgentTypeSpec(string PrimaryType, IReadOnlyList<string>? AllowedTypes);

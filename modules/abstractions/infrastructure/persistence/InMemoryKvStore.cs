@@ -33,7 +33,7 @@ public sealed class InMemoryKvStore : IKvStore {
     }
 
     /// <inheritdoc />
-    public async IAsyncEnumerable<(byte[] Key, byte[] Value)> ScanAsync(
+    public async IAsyncEnumerable<KvStoreEntry> ScanAsync(
         byte[]? from = null,
         byte[]? to = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default) {
@@ -47,7 +47,7 @@ public sealed class InMemoryKvStore : IKvStore {
         }
         foreach (var kvp in sorted) {
             ct.ThrowIfCancellationRequested();
-            yield return (kvp.Key, kvp.Value);
+            yield return new KvStoreEntry(kvp.Key, kvp.Value);
             await Task.CompletedTask.ConfigureAwait(false);
         }
     }

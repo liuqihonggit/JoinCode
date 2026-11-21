@@ -29,7 +29,7 @@ public interface IContentReplacementService {
     /// <param name="neverPersistTools">永不持久化的工具名集合（可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>处理后的消息列表与本次新产生的替换记录</returns>
-    Task<(IReadOnlyList<ApiMessage> Messages, IReadOnlyList<ContentReplacementRecord> NewlyReplaced)> ApplyToolResultBudgetAsync(
+    Task<ContentReplacementOutcome> ApplyToolResultBudgetAsync(
         IReadOnlyList<ApiMessage> messages,
         ContentReplacementState state,
         string sessionId,
@@ -85,3 +85,12 @@ public interface IContentReplacementService {
         IReadOnlyList<ApiMessage> resumedMessages,
         IReadOnlyList<ContentReplacementRecord> sidechainRecords);
 }
+
+/// <summary>
+/// 工具结果预算执行结果 — 处理后的消息列表与本次新产生的替换记录。
+/// </summary>
+/// <param name="Messages">应用预算后的消息列表。</param>
+/// <param name="NewlyReplaced">本次调用新做出的替换决策（不含重新应用）。</param>
+public sealed record ContentReplacementOutcome(
+    IReadOnlyList<ApiMessage> Messages,
+    IReadOnlyList<ContentReplacementRecord> NewlyReplaced);

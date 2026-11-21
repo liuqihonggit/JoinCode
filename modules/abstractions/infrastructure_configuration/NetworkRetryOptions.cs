@@ -56,7 +56,8 @@ public sealed class NetworkRetryOptions {
     /// <summary>
     /// 转换为长连接重连的 ExponentialBackoff 参数 — 供 SSE/SSH/Bridge/MCP 统一取用
     /// </summary>
-    public (TimeSpan BaseDelay, TimeSpan MaxDelay) ToReconnectParams() => (ReconnectBaseDelay, ReconnectMaxDelay);
+    /// <returns>长连接指数退避参数(基础延迟 + 最大延迟)</returns>
+    public ReconnectParams ToReconnectParams() => new(ReconnectBaseDelay, ReconnectMaxDelay);
 
     /// <summary>
     /// 创建测试用重试配置 — 共用生产的策略和开关，时间参数由调用方指定（对齐生产量级，高负载不敏感）
@@ -84,3 +85,10 @@ public sealed class NetworkRetryOptions {
         _ => BackoffStrategy.ExponentialWithJitter,
     };
 }
+
+/// <summary>
+/// 长连接重连的指数退避参数 — 基础延迟与最大延迟
+/// </summary>
+/// <param name="BaseDelay">初始重连延迟</param>
+/// <param name="MaxDelay">重连延迟上限</param>
+public sealed record ReconnectParams(TimeSpan BaseDelay, TimeSpan MaxDelay);

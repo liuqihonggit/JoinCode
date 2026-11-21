@@ -19,7 +19,7 @@ public class EditFileAsyncTests {
                 var lineCount = string.IsNullOrEmpty(content) ? 0 : content.Split('\n').Length;
                 var newContent = lineCount == 0 ? "0" : content + "\n" + lineCount;
                 var newBytes = Encoding.UTF8.GetBytes(newContent);
-                return (newBytes, lineCount);
+                return new EditFileTransformResult<int>(newBytes, lineCount);
             }, default);
         }
         await Task.WhenAll(tasks);
@@ -39,11 +39,11 @@ public class EditFileAsyncTests {
 
         var task1 = fs.EditFileAsync<int>(path1, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
-            return (Encoding.UTF8.GetBytes(content + "1"), 1);
+            return new EditFileTransformResult<int>(Encoding.UTF8.GetBytes(content + "1"), 1);
         }, default);
         var task2 = fs.EditFileAsync<int>(path2, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
-            return (Encoding.UTF8.GetBytes(content + "2"), 2);
+            return new EditFileTransformResult<int>(Encoding.UTF8.GetBytes(content + "2"), 2);
         }, default);
 
         await Task.WhenAll(task1, task2);
@@ -58,7 +58,7 @@ public class EditFileAsyncTests {
         var path = "/test/nonexistent.txt";
 
         await Assert.ThrowsAsync<FileNotFoundException>(async () =>
-            await fs.EditFileAsync<int>(path, async (bytes, ct) => (bytes, 0), default));
+            await fs.EditFileAsync<int>(path, async (bytes, ct) => new EditFileTransformResult<int>(bytes, 0), default));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class EditFileAsyncTests {
         var path = "/test/skip.txt";
         await fs.WriteAllText(path, "original");
 
-        var result = await fs.EditFileAsync<int>(path, async (bytes, ct) => (null, 42), default);
+        var result = await fs.EditFileAsync<int>(path, async (bytes, ct) => new EditFileTransformResult<int>(null, 42), default);
 
         result.Should().Be(42);
         (await fs.ReadAllText(path)).Should().Be("original");
@@ -81,7 +81,7 @@ public class EditFileAsyncTests {
 
         var receivedContent = await fs.EditFileAsync<string>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
-            return (null, content);
+            return new EditFileTransformResult<string>(null, content);
         }, default);
 
         receivedContent.Should().Be("hello world");
@@ -95,17 +95,17 @@ public class EditFileAsyncTests {
 
         await fs.EditFileAsync<int>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
-            return (Encoding.UTF8.GetBytes(content + "1"), 1);
+            return new EditFileTransformResult<int>(Encoding.UTF8.GetBytes(content + "1"), 1);
         }, default);
 
         await fs.EditFileAsync<int>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
-            return (Encoding.UTF8.GetBytes(content + "2"), 2);
+            return new EditFileTransformResult<int>(Encoding.UTF8.GetBytes(content + "2"), 2);
         }, default);
 
         await fs.EditFileAsync<int>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
-            return (Encoding.UTF8.GetBytes(content + "3"), 3);
+            return new EditFileTransformResult<int>(Encoding.UTF8.GetBytes(content + "3"), 3);
         }, default);
 
         (await fs.ReadAllText(path)).Should().Be("0123");

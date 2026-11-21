@@ -27,7 +27,7 @@ public abstract class BuildQueueBase : IBuildQueueService {
     /// </summary>
     /// <param name="request">编译请求。</param>
     /// <returns>已入队的条目及其等待句柄(调用方可继续写入 Channel 或路由到 Worker)。</returns>
-    protected (BuildQueueEntry Entry, TaskCompletionSource<BuildQueueResult> Tcs) CreateQueuedEntry(BuildRequest request) {
+    protected BuildQueueEntryHandle CreateQueuedEntry(BuildRequest request) {
         var entry = new BuildQueueEntry {
             BuildId = NextBuildId(),
             Request = request,
@@ -36,7 +36,7 @@ public abstract class BuildQueueBase : IBuildQueueService {
         };
         var tcs = new TaskCompletionSource<BuildQueueResult>();
         _store.Add(entry.BuildId, entry, tcs);
-        return (entry, tcs);
+        return new BuildQueueEntryHandle(entry, tcs);
     }
 
     /// <inheritdoc />
@@ -209,3 +209,10 @@ public abstract class BuildQueueBase : IBuildQueueService {
     /// <inheritdoc />
     public abstract ValueTask DisposeAsync();
 }
+
+/// <summary>
+/// 已入队编译条目与其等待句柄的成对返回结果 — 条目已注册到队列存储, 调用方继续写入 Channel 或路由到 Worker。
+/// </summary>
+/// <param name="Entry">已入队的编译条目</param>
+/// <param name="Tcs">该条目的完成等待句柄</param>
+public sealed record BuildQueueEntryHandle(BuildQueueEntry Entry, TaskCompletionSource<BuildQueueResult> Tcs);

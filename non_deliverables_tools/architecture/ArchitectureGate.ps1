@@ -5,6 +5,7 @@ param(
     [ValidateSet("Report", "Baseline", "Validate")]
     [string]$Mode = "Report",
     [string]$BaselinePath = "",
+    [string]$AllowlistPath = "",
     [switch]$IncludeTests,
     [string]$Domains = "",
     [string]$OutputPath = ""
@@ -23,6 +24,9 @@ $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path.TrimEnd('\', '/')
 
 if ([string]::IsNullOrWhiteSpace($BaselinePath)) {
     $BaselinePath = Join-Path $PSScriptRoot "baseline.json"
+}
+if ([string]::IsNullOrWhiteSpace($AllowlistPath)) {
+    $AllowlistPath = Join-Path $PSScriptRoot "allowlist.json"
 }
 
 $script:ModuleDomains = @(
@@ -83,6 +87,99 @@ function Resolve-ReferencePath {
 function Get-CsprojFiles {
     return @(Get-ChildItem -LiteralPath $RepoRoot -Recurse -Filter *.csproj -File |
         Where-Object { $_.FullName -notmatch $script:ExcludedPathPattern })
+}
+
+function Read-ArchitectureAllowlist {
+    param([string]$Path)
+
+    $problems = [System.Collections.Generic.List[string]]::new()
+    $entries = [System.Collections.Generic.List[object]]::new()
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return [pscustomobject]@{ Exists = $false; Path = $Path; Entries = $entries; Problems = $problems }
+    }
+
+    try {
+        $document = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    } catch {
+        $problems.Add("allowlist JSON 无法解析: $($_.Exception.Message)")
+        return [pscustomobject]@{ Exists = $true; Path = $Path; Entries = $entries; Problems = $problems }
+    }
+
+    if ($null -eq $document.entries) {
+        $problems.Add("allowlist 缺少 entries 数组")
+        return [pscustomobject]@{ Exists = $true; Path = $Path; Entries = $entries; Problems = $problems }
+    }
+
+    $seen = @{}
+    foreach ($raw in @($document.entries)) {
+        if ($null -eq $raw) { continue }
+        $from = ([string]$raw.from).Trim()
+        $to = ([string]$raw.to).Trim()
+        $reason = ([string]$raw.reason).Trim()
+        $adr = ([string]$raw.adr).Trim()
+        $expiresText = ([string]$raw.expires).Trim()
+        $isValid = $true
+        $isExpired = $false
+        $expires = $null
+
+        if ($from.Length -eq 0 -or $to.Length -eq 0) {
+            $problems.Add("allowlist 条目缺少 from/to: $from -> $to")
+            $isValid = $false
+        } elseif (-not ($script:ContractDomains -contains $from) -or -not ($script:ContractDomains -contains $to)) {
+            $problems.Add("allowlist 条目含未知域: $from -> $to")
+            $isValid = $false
+        } elseif ($from -eq $to) {
+            $problems.Add("allowlist 条目 from/to 相同: $from")
+            $isValid = $false
+        }
+
+        if ($reason.Length -eq 0) {
+            $problems.Add("allowlist 条目缺少 reason: $from -> $to")
+            $isValid = $false
+        }
+        if ($adr.Length -eq 0) {
+            $problems.Add("allowlist 条目缺少 adr: $from -> $to")
+            $isValid = $false
+        }
+
+        if ($expiresText.Length -eq 0) {
+            $problems.Add("allowlist 条目缺少 expires: $from -> $to")
+            $isValid = $false
+        } else {
+            try {
+                $expires = [datetime]::ParseExact($expiresText, "yyyy-MM-dd", [System.Globalization.CultureInfo]::InvariantCulture)
+                if ($expires.Date -lt (Get-Date).Date) {
+                    $isExpired = $true
+                    $problems.Add("allowlist 条目已过期: $from -> $to (expires $expiresText)")
+                }
+            } catch {
+                $problems.Add("allowlist expires 非法（要求 yyyy-MM-dd）: $from -> $to = $expiresText")
+                $isValid = $false
+            }
+        }
+
+        $key = "$from->$to"
+        if ($seen.ContainsKey($key)) {
+            $problems.Add("allowlist 条目重复: $key")
+            $isValid = $false
+        } elseif ($from.Length -gt 0 -and $to.Length -gt 0) {
+            $seen[$key] = $true
+        }
+
+        $entries.Add([pscustomobject]@{
+            From      = $from
+            To        = $to
+            Reason    = $reason
+            Adr       = $adr
+            Expires   = $expires
+            ExpiresText = $expiresText
+            IsValid   = $isValid
+            IsExpired = $isExpired
+        })
+    }
+
+    return [pscustomobject]@{ Exists = $true; Path = $Path; Entries = $entries; Problems = $problems }
 }
 
 function Read-CsprojXml {
@@ -342,6 +439,15 @@ foreach ($project in $projects.Values) {
     }
 }
 
+$allowlist = Read-ArchitectureAllowlist -Path $AllowlistPath
+$allowEntries = @($allowlist.Entries)
+$allowProblems = @($allowlist.Problems)
+$activeAllowPairs = @(
+    $allowEntries |
+        Where-Object { $_.IsValid -and -not $_.IsExpired } |
+        ForEach-Object { "$($_.From)->$($_.To)" }
+)
+
 $cycles = @(Get-DomainCycles -Edges $prodEdges)
 $inDegree = @{}
 foreach ($edge in $prodEdges) {
@@ -432,6 +538,9 @@ $snapshot = [ordered]@{
     }
     ruleCounts      = $ruleCounts
     ruleCountsByDomain = $ruleCountsByDomain
+    crossDomainEdges = @($prodCrossEdges |
+        ForEach-Object { "$($_.FromDomain)->$($_.ToDomain)" } |
+        Sort-Object -Unique)
     cycles          = $cycles
     hubBudget       = @($hubTop | ForEach-Object {
         [ordered]@{ Project = ConvertTo-PortablePath $_.Project; InDegree = $_.InDegree }
@@ -441,7 +550,17 @@ $snapshot = [ordered]@{
     slnxExternal    = @($slnxExternal | ForEach-Object { "$($_.Domain):$(ConvertTo-PortablePath $_.Project)" })
     directoryViolations = @($directoryViolations | ForEach-Object { ConvertTo-PortablePath (Get-RelativePath $_.FullName) })
     ivtProjects     = @($ivtProjects | ForEach-Object { ConvertTo-PortablePath $_.Project })
-    allow           = @()
+    allow           = @($allowEntries | ForEach-Object {
+        [ordered]@{
+            From      = $_.From
+            To        = $_.To
+            Reason    = $_.Reason
+            Adr       = $_.Adr
+            Expires   = $_.ExpiresText
+            IsValid   = $_.IsValid
+            IsExpired = $_.IsExpired
+        }
+    })
 }
 
 # ---------- 报告 ----------
@@ -464,6 +583,14 @@ Add-ReportLine "## 模块文档（JCC12011）"
 Add-ReportLine "  齐备域: $($snapshot.docs.complete)/$($snapshot.docs.expected)"
 foreach ($state in $incompleteDocs) {
     Add-ReportLine ("  {0,-18} 缺: {1}" -f $state.Domain, ($state.Missing -join ", "))
+}
+Add-ReportLine ""
+Add-ReportLine "## allowlist（JCC12002）"
+if (-not $allowlist.Exists) {
+    Add-ReportLine "  文件不存在: $(ConvertTo-PortablePath (Get-RelativePath $AllowlistPath))"
+} else {
+    Add-ReportLine ("  文件: {0} 条目: {1}（生效 {2}）" -f (ConvertTo-PortablePath (Get-RelativePath $AllowlistPath)), $allowEntries.Count, $activeAllowPairs.Count)
+    foreach ($problem in $allowProblems) { Add-ReportLine ("  PROBLEM " + $problem) }
 }
 Add-ReportLine ""
 Add-ReportLine "## 规则计数"
@@ -504,8 +631,38 @@ if ($Mode -eq "Validate") {
     }
     $baseline = Get-Content -LiteralPath $BaselinePath -Raw | ConvertFrom-Json
     $failures = [System.Collections.Generic.List[string]]::new()
+
+    if (-not $allowlist.Exists) {
+        $failures.Add("allowlist 文件不存在: $(ConvertTo-PortablePath (Get-RelativePath $AllowlistPath))")
+    }
+    foreach ($problem in $allowProblems) {
+        $failures.Add("allowlist 校验失败: $problem")
+    }
+
+    $baselineEdgeProperty = $baseline.PSObject.Properties['crossDomainEdges']
+    $allowedNewPairEdges = 0
+    if ($null -eq $baselineEdgeProperty) {
+        Write-Host "baseline 缺少 crossDomainEdges，仅按计数比较；请运行 -Mode Baseline 重新冻结" -ForegroundColor Yellow
+    } else {
+        $baselinePairs = @($baselineEdgeProperty.Value)
+        $allowedNewPairs = @($activeAllowPairs | Where-Object { $baselinePairs -notcontains $_ })
+        $allowedNewPairEdges = @($prodCrossEdges | Where-Object {
+            $pair = "$($_.FromDomain)->$($_.ToDomain)"
+            $allowedNewPairs -contains $pair
+        }).Count
+
+        foreach ($pair in @($snapshot.crossDomainEdges)) {
+            if ($baselinePairs -contains $pair) { continue }
+            if ($activeAllowPairs -contains $pair) { continue }
+            $failures.Add("JCC12002 新增跨域依赖未授权: $pair")
+        }
+    }
+
     foreach ($rule in $ruleCounts.Keys) {
         $current = $ruleCounts[$rule]
+        if ($rule -eq "JCC12002" -and $null -ne $baselineEdgeProperty) {
+            $current = [Math]::Max(0, $current - $allowedNewPairEdges)
+        }
         $allowed = if ($null -ne $baseline.ruleCounts.$rule) { [int]$baseline.ruleCounts.$rule } else { 0 }
         if ($current -gt $allowed) {
             $failures.Add("$rule 增长: $allowed -> $current")
@@ -513,6 +670,7 @@ if ($Mode -eq "Validate") {
             Write-Host "$rule 下降: $allowed -> $current（可更新基线）" -ForegroundColor Yellow
         }
     }
+
     if ($failures.Count -gt 0) {
         foreach ($failure in $failures) { Write-Host "FAIL $failure" -ForegroundColor Red }
         exit 1

@@ -379,21 +379,23 @@ architecture:
 3. `DiagnosticSeverity.Info/suggestion` 不会出现在 `dotnet build` 输出；真实验收必须临时把目标规则升为 warning/error，或等 P5 全局升 error。
 4. `JCC12007` 不能只读 `Compilation.Assembly.GetAttributes()`：生成 `AssemblyInfo.cs` 在 `obj/` 下，会被 `GeneratedCodeAnalysisFlags.None` 的生成代码过滤；必须直接扫描 `Compilation.SyntaxTrees` 的 `[assembly: ...]`，并把诊断落在首个非 `obj/` 源文件上。
 
-### P3 仓库门禁
+### P3 仓库门禁（完成）
 
-**改动**：
-- `RuleGraph.ps1`：12002/12004/12005/12012；
-- `RuleModule.ps1`：12003/12010/12011；
-- `RuleLayout.ps1`：12009（目录命名，含建议新名）；
-- `ArchitectureGate.ps1` 接入 baseline 比较与 allow 到期；
-- `.github/workflows/ci-architecture.yml` + `ci.yml` 调用；
-- `README.md` 使用说明。
+**已落地**：
+- `ArchitectureGate.ps1` 接入 `allowlist.json`：`from/to/reason/adr/expires` 五字段校验，未知域、重复、非法日期、过期即 Validate 失败；
+- baseline 增加 `crossDomainEdges`（474 个生产域对），Validate 同时做"计数只减不增 + 域对集合只减不增"：新增域对不在基线、也不在有效 allowlist → `JCC12002 新增跨域依赖未授权`；
+- `ci-architecture.yml`（`workflow_call` + `workflow_dispatch`，ubuntu `pwsh` 跑 Validate），`ci.yml` 新增 `architecture` job；
+- `README.md` 补 allowlist schema、基线纪律与 CI 用法。
 
-**验收**：
-- 注入一条 `cognition → services` 未授权引用（不在 allowlist、无 allow 条目）→ 门禁 Error 并指出 from/to；
-- 构造一个 `expires` 已过期的 allow 条目 → 门禁 Error；
-- 撤销注入 → 绿灯；
-- PR 上 CI 架构 job 可见且阻断。
+**验收事实**：
+- 注入 `collections → cognition` 未授权引用 → Validate exit 1：`JCC12002 增长 474→475`、`JCC12005 增长 15→18`、`JCC12002 新增跨域依赖未授权: collections->cognition`；撤销后 PASS；
+- 构造 `expires=2020-01-01` 条目 → exit 1：`allowlist 条目已过期`；改成 `2099-12-31` → PASS；
+- 正向允许：新增无环边 `guard->llm` 时，无 allowlist → exit 1（新增域对 + 计数 474→475）；带有效 allowlist → PASS（计数按允许边豁免到 474，域对被授权）；
+- 正常仓库 `-Mode Validate` PASS；`-Mode Baseline` 已重冻结含 `crossDomainEdges`。
+
+**边界**：allowlist 只豁免 `JCC12002` 的新增边与计数；**不豁免 `JCC12005` 环**——引入成环依赖仍失败。长期依赖仍应进基线，allowlist 只做有到期日的临时例外。
+
+**决策**：暂不按原计划拆 `RuleGraph.ps1` / `RuleModule.ps1` / `RuleLayout.ps1`；当前规则数仍少，单脚本闭环更利于一致性。等 P4 债务清偿需要按规则族独立测试时再拆。
 
 ### P4 债务清偿
 
@@ -472,9 +474,9 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | `ProjectContext` 域字段 | 5 条编译期规则 | ✅ | ✅ 6 个单测 + `-p:JccDomain=` 真实构建报错 |
 | `JCC12001` 分析器规则 | `dotnet build`、IDE | ✅ | ✅ `-t:Rebuild -p:JccDomain=` 报 `error JCC12001`；全仓无误报 |
 | `JCC12006/12007/12008/12013` 分析器规则 | `dotnet build`、IDE | ✅ | ✅ 真实 csproj 探针分别命中（12006 17 类型 / 12007 生产 IVT / 12008 18 类型 / 12013 private probe） |
-| `JCC12002/12003/12004/12005/12009/12010/12011/12012` 门禁规则 | `ArchitectureGate.ps1` | ❌ | ❌ |
-| `baseline.json` + 只减不增比较 | 门禁、CI | ❌ | ❌ |
-| `ci-architecture.yml` | PR CI | ❌ | ❌ |
+| `JCC12002/12003/12004/12005/12009/12010/12011/12012` 门禁规则 | `ArchitectureGate.ps1` | ✅ | ✅ 注入新边/过期 allowlist 均 exit 1，撤销后 PASS |
+| `baseline.json` + 只减不增比较 | 门禁、CI | ✅ | ✅ 计数 + `crossDomainEdges` 域对双层比较；P3 重冻结 |
+| `ci-architecture.yml` | PR CI | ✅ | ✅ 已接入 `ci.yml` `architecture` job（待 PR 首跑验证） |
 | 模块 README 生成器 | P4 文档同步 | ❌ | ❌ |
 
 > 后两列为强制钩子：`已实现` 防止"写了规划没实现"；`已验收` 必须走真实运行（门禁注入违规、分析器 fixture、全仓编译），禁止只写单测。
@@ -525,6 +527,8 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 关键发现（JCC12007）：生成 `AssemblyInfo.cs` 位于 `obj/`，`GeneratedCodeAnalysisFlags.None` 会过滤生成代码上的诊断；改为扫描 `Compilation.SyntaxTrees` 的 `[assembly: InternalsVisibleTo]`，并把诊断落到首个非 `obj/` 源文件。
 - 关键发现（可见性）：`Info/suggestion` 诊断不会出现在 `dotnet build` 输出；真实负向验收必须临时升 warning/error，否则会误判"规则没生效"。
 - 2026-11-21：P2 收尾验收。`ArchitectureGate.ps1 -Mode Validate` PASS；全仓 `Build-AllDomains`（带分析器）四 target 全 True；`jcc.exe --version` 启动正常（JoinCode v1.0.0.0 / .NET 10.0.9）。
+- 2026-11-21：P3 完成。`allowlist.json` 五字段校验 + `baseline.crossDomainEdges` 域对集合 + 新增边阻断；注入 `collections->cognition` 与过期 allowlist 均 exit 1，撤销后 PASS；`ci-architecture.yml` 接入 `ci.yml`。
+- 工程事实：`JCC12002` 只靠计数会在"删一条旧边、加一条新边"时漏检；必须同时冻结域对集合。
 - 工程事实：全仓脚本 solution target 带 `--no-restore`；出现 `NETSDK1004` 资产缺失时先 `dotnet restore build/sln/JoinCode.slnx`，不要误判为代码问题。
 - 关键发现：`ProjectContext` 读 `build_property.MSBuildProjectDirectory` 得到空串，生成的 `GeneratedMSBuildEditorConfig.editorconfig` 里只有 `build_property.ProjectDir`；改读 `ProjectDir` 后规则才在真实构建链路生效。
 - 关键发现：`dotnet build` 增量不会重跑分析器，负向验收必须 `-t:Rebuild`，否则会误判"规则没生效"。分析器规则改为 Warning 后，因全仓 `TreatWarningsAsErrors` 在构建中表现为 error。

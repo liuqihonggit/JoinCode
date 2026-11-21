@@ -25,6 +25,7 @@ pwsh non_deliverables_tools/architecture/ArchitectureGate.ps1 -Mode Baseline
 | 参数 | 说明 |
 |---|---|
 | `-RepoRoot` | 仓库根；默认从脚本位置向上两级 |
+| `-AllowlistPath` | 临时例外清单；默认脚本同目录 `allowlist.json` |
 | `-IncludeTests` | 保留测试项目参与统计（默认排除生产图） |
 | `-Domains a,b` | 只统计指定来源域（本地增量） |
 | `-OutputPath` | 报告写到文件；默认 stdout |
@@ -33,8 +34,8 @@ pwsh non_deliverables_tools/architecture/ArchitectureGate.ps1 -Mode Baseline
 
 | 规则 | 判定 | 当前基线 |
 |---|---|---:|
-| `JCC12001` | 18 个域缺 `Directory.Build.props` 或 `JccDomain` 不匹配 | 18 |
-| `JCC12002` | 生产 code 跨域边（待 P3 接 allowlist） | 474 |
+| `JCC12001` | 18 个域缺 `Directory.Build.props` 或 `JccDomain` 不匹配 | 0 |
+| `JCC12002` | 生产 code 跨域边；新增域对不在 `baseline.crossDomainEdges` 且不在 allowlist → Error | 474 |
 | `JCC12003` | 跨域目标不是 `apiProjects` 冻结项 | 0 |
 | `JCC12004` | 生产 → 测试引用 | 1 |
 | `JCC12005` | 生产域图环 | 15 |
@@ -43,13 +44,41 @@ pwsh non_deliverables_tools/architecture/ArchitectureGate.ps1 -Mode Baseline
 | `JCC12011` | 16 个 modules 域缺 `README.md` / `CHANGELOG.md` / `docs/` | 0 |
 | `JCC12012` | Hub 入度超预算（当前仅报告） | 0 |
 
-`JCC12006/12007/12008/12013` 属编译期分析器，不在此脚本内；`JCC12002` 的 allowlist 判定在 P3 接入。`JCC12011` 当前只查文档存在性，README 项目表行数校验收在 P4。
+`JCC12006/12007/12008/12013` 属编译期分析器，不在此脚本内。`JCC12002` 现在同时做两件事：计数不许超过基线；**新增域对**必须出现在 `baseline.crossDomainEdges` 或有效 allowlist，二者都没有即 Error。
+
+## allowlist.json
+
+```json
+{
+  "version": 1,
+  "entries": [
+    {
+      "from": "collections",
+      "to": "cognition",
+      "reason": "为什么必须依赖（评审结论）",
+      "adr": "Docs/ADR 编号或设计文档路径",
+      "expires": "2027-01-31"
+    }
+  ]
+}
+```
+
+- `from` / `to` 必须是 18 个契约域之一，且不能相同；
+- `reason`、`adr`、`expires` 缺一不可；
+- `expires` 严格 `yyyy-MM-dd`，过期即 Validate 失败；
+- 条目重复、未知域、非法日期都会失败；
+- allowlist 只给"临时例外"，长期依赖应直接进基线（清账后重新 `-Mode Baseline`）；
+- allowlist 豁免 `JCC12002` 的新域对与对应计数；**不豁免 `JCC12005` 环**，引入成环依赖仍失败。
+
+## CI
+
+`.github/workflows/ci-architecture.yml` 以 `pwsh` 执行 `-Mode Validate`，由 `ci.yml` 的 `architecture` job 调用；PR 上架构门禁红灯会阻断。
 
 ## 基线纪律
 
 - `baseline.json` 由脚本生成，禁止手改数字。
-- `-Mode Validate` 只允许计数下降；上升即失败。
-- 新增例外必须写 `allow` 条目（`reason` + `adr` + `expires`），过期按 Error 处理。
+- `-Mode Validate` 只允许计数下降；上升即失败；跨域域对集合只允许减少，新增必须有 allowlist 条目。
+- 新增例外必须写 `allowlist.json` 条目（`reason` + `adr` + `expires`），过期按 Error 处理。
 - 分析器规则不进 baseline；用 `.editorconfig` severity 分阶段收紧。
 
 ## 口径

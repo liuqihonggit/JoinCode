@@ -27,6 +27,7 @@ profiles:
       - CliModule
       - HousekeepingModule
       - McpInitModule
+      - SandboxStartupModule
 
   gui:
     # 归属程序集: 引擎（JoinCode.Engine.csproj）；CLI 与 native_gui / native_tui 共用这条装配路径
@@ -38,3 +39,4 @@ profiles:
       - BrowserModule
       - HousekeepingModule
       - McpInitModule
+      - SandboxStartupModule

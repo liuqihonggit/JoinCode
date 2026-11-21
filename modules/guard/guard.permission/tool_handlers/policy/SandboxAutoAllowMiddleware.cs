@@ -53,7 +53,7 @@ public sealed partial class SandboxAutoAllowMiddleware : ServiceEntity, IPermiss
         }
 
         var provider = manager.ActiveProvider;
-        if (provider is null || !HasRealIsolation(provider.Capabilities)) {
+        if (provider is null || !provider.Capabilities.HasRealIsolation()) {
             return false;
         }
 
@@ -75,11 +75,6 @@ public sealed partial class SandboxAutoAllowMiddleware : ServiceEntity, IPermiss
     private static bool IsSandboxableShellTool(string toolName)
         => string.Equals(toolName, ShellToolNameEnumConstants.Bash, StringComparison.OrdinalIgnoreCase)
            || string.Equals(toolName, ShellToolNameEnumConstants.Powershell, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>提供器是否具备真实隔离能力 — 文件系统 + 网络同时隔离才算。</summary>
-    private static bool HasRealIsolation(SandboxCapabilities capabilities)
-        => (capabilities & SandboxCapabilities.FileSystemIsolation) != 0
-           && (capabilities & SandboxCapabilities.NetworkIsolation) != 0;
 
     /// <summary>读取布尔参数 — 缺失或非布尔返回 false。</summary>
     internal static bool ReadBoolArgument(Dictionary<string, JsonElement> arguments, string key)

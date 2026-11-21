@@ -184,9 +184,9 @@
 | P1-2 | `WorkflowConfig.Sandbox`（强类型 `SandboxConfig`）+ `SettingsMapper` 映射 + `ConfigKeyRegistry` 登记 `sandbox.*` 四键 | ✅ 已完成（映射用例：默认值/策略门/不污染 CodeExecution） |
 | P1-3 | 纯函数 `ShouldUseSandbox`（基准 6 维真值表）+ 排除清单匹配 | ✅ `workflow/SandboxGate.cs`（15 条真值表：逃生阀策略门/排除前缀·精确·通配/复合命令逐段/环境变量前缀/平台清单） |
 | P1-4 | `autoAllowBashIfSandboxed` 接入权限判定（仅「确实会沙箱」才免 ask） | ✅ `SandboxAutoAllowMiddleware`（管道 priority 350；要求 `IsInSandbox` + 提供器 FS∩Network 真隔离；11 条用例） |
-| P1-5 | `allowUnsandboxedCommands` 策略门 + `excludedCommands` 生效 + `failIfUnavailable` 启动失败 | 🟡 策略门/排除清单已生效（`ShellSandboxPolicy`）；`failIfUnavailable` 启动硬失败未做 |
-| P1-6 | `BashToolPrompt` 三段式动态措辞（默认留沙箱 / 何时覆盖 / 策略禁止） | ✅ 三段式 + `$TMPDIR` 指引；启动期由 `AddWorkflowServices` 注入；4 条用例 |
-| P1-7 | `/sandbox` 改设置语义（写 settings + 策略锁）；`exclude` 写 `excludedCommands` | 🟡 `exclude` 已改读 `sandbox.excludedCommands`（数组无配置服务写入通道，给可执行指引）；`on/off` 仍为会话级启用/退出，未写 settings |
+| P1-5 | `allowUnsandboxedCommands` 策略门 + `excludedCommands` 生效 + `failIfUnavailable` 启动失败 | ✅ 策略门/排除清单经 `ShellSandboxPolicy` 生效；`failIfUnavailable` 由 `SandboxStartupModule` + `SandboxStartupGate` 落实（不可用→警告或拒绝启动） |
+| P1-6 | `BashToolPrompt` 三段式动态措辞（默认留沙箱 / 何时覆盖 / 策略禁止） | ✅ 三段式 + `$TMPDIR` 指引；启动期由 `AddWorkflowServices` 注入；`/sandbox-toggle on/off` 即时同步；4 条用例 |
+| P1-7 | `/sandbox` 改设置语义（写 settings + 策略锁）；`exclude` 写 `excludedCommands` | 🟡 `on/off` 已写 `sandbox.enabled` 并同步提示词；`exclude` 改读 `sandbox.excludedCommands`（数组无配置服务写入通道，给可执行指引）；**策略锁（企业 managed 设置覆盖）未做** |
 
 ### 7.1 实施记录（2026-11-21）
 
@@ -198,8 +198,13 @@
 - **`/sandbox-toggle exclude` 修正**：原实现写 `sandbox.excludedPaths`（本次 schema 已删除该字段 ⇒ 静默失效）。
   改为读取 `sandbox.excludedCommands` 并提示编辑 settings.json（配置服务只支持标量键，数组写入属独立能力）。
   `/sandbox-toggle on` 的 `AllowedPaths` 改读 `sandbox.filesystem.allowWrite`。
-- **未做（下一批）**：`failIfUnavailable` 启动硬失败；provider 级 per-command 真实隔离（当前仅会话级）；
-  配置热更新后重新注入提示词快照。
+- **`failIfUnavailable` 落点**：新增 `SandboxStartupModule`（engine `[AppModule]`，cli/gui 两个 profile 均登记），
+  启动期用 `SandboxStartupGate` 判定「平台白名单 + 真隔离提供器」：不可用且 `failIfUnavailable=true` → 抛错拒绝启动；
+  否则 `LogWarning` 明说「命令将不经沙箱 + 如何修复」。真隔离口径统一为 `SandboxManagerCapabilityExtensions`（FS∩Network）。
+- **`/sandbox-toggle on/off` 设置语义**：成功进入/退出后写 `sandbox.enabled` 并即时同步 `BashToolPrompt` 快照；
+  `status` 增加设置开关一行。
+- **未做（下一批）**：策略锁（企业 managed 设置覆盖本地 `/sandbox`）；provider 级 per-command 真实隔离（当前仅会话级，Phase 2）；
+  通过 config 工具改 `sandbox.enabled` 后的提示词快照同步（目前只有 `/sandbox-toggle` 路径即时同步）。
 
 ---
 

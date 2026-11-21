@@ -231,6 +231,29 @@ public sealed class SandboxToggleCommandTest {
     }
 
     [Fact]
+    public async Task PersistSandboxEnabled_WritesRegisteredSettingsKey() {
+        var config = new Mock<IConfigurationService>();
+        config.Setup(c => c.SetAsync(ConfigKeys.SandboxEnabled, "true", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var (_, _, _, context, _) = Arrange(configOverride: config);
+
+        var written = await SandboxToggleCommand.PersistSandboxEnabledAsync(context, enabled: true);
+
+        written.Should().BeTrue();
+        config.Verify(c => c.SetAsync(ConfigKeys.SandboxEnabled, "true", It.IsAny<CancellationToken>()), Times.Once,
+            "on/off 必须把 sandbox.enabled 写进 settings，而不是只改会话状态");
+    }
+
+    [Fact]
+    public async Task PersistSandboxEnabled_WithoutConfigService_ReturnsFalse() {
+        var (_, _, _, context, _) = Arrange(withConfig: false);
+
+        var written = await SandboxToggleCommand.PersistSandboxEnabledAsync(context, enabled: false);
+
+        written.Should().BeFalse("配置服务缺失时应返回 false 而不是抛异常");
+    }
+
+    [Fact]
     public void NameAndUsage_MetadataShouldBeConsistent() {
         var cmd = new SandboxToggleCommand();
         cmd.Name.Should().Be("sandbox-toggle");

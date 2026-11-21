@@ -93,6 +93,7 @@ global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.Shell;
 global using JoinCode.Abstractions.State;
+global using JoinCode.Abstractions.Security.Sandbox;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Transport;
 global using JoinCode.Abstractions.UI;

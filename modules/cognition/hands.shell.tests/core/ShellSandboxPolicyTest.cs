@@ -8,10 +8,15 @@ public class ShellSandboxPolicyTest {
     private static readonly ISandboxProvider BubblewrapProvider = Mock.Of<ISandboxProvider>(
         p => p.Capabilities == SandboxCapabilities.FullIsolation);
 
-    private static readonly ISandboxManager SandboxedManager = Mock.Of<ISandboxManager>(
-        m => m.GetAvailableTypes() == new[] { SandboxType.Bubblewrap }
-             && m.IsInSandbox == false
-             && m.ActiveProvider == BubblewrapProvider);
+    private static readonly ISandboxManager SandboxedManager = CreateManager();
+
+    private static ISandboxManager CreateManager() {
+        var manager = new Mock<ISandboxManager>();
+        manager.Setup(m => m.GetAvailableTypes()).Returns([SandboxType.Bubblewrap]);
+        manager.Setup(m => m.GetProvider(SandboxType.Bubblewrap)).Returns(BubblewrapProvider);
+        manager.Setup(m => m.IsInSandbox).Returns(false);
+        return manager.Object;
+    }
 
     private static ISandboxManager ManagerWithProviders() => SandboxedManager;
 

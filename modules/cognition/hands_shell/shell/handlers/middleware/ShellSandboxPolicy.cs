@@ -31,7 +31,7 @@ internal static class ShellSandboxPolicy {
 
         var availability = new SandboxRuntimeAvailability(
             PlatformSupported: SandboxGate.IsPlatformSupported(SandboxGate.CurrentPlatform, sandbox.EnabledPlatforms),
-            ProviderAvailable: sandboxManager is not null && sandboxManager.GetAvailableTypes().Length > 0);
+            ProviderAvailable: sandboxManager.HasRealIsolationProvider());
 
         var decision = SandboxGate.Evaluate(command, sandbox, availability, dangerously);
         Diag.WriteLine($"[SANDBOX] {decision.Describe()} disable={dangerously} session={sandboxManager?.IsInSandbox == true} cmd={command}");

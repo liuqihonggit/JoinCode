@@ -403,9 +403,11 @@ architecture:
 
 **已完成 0.1 无效跨域引用清理**：删除 `Abstractions -> AsyncLock` 与 `Infrastructure -> Plugins.Contracts` 两条未被源码使用的引用；生产跨域边 474 → 472，生产边 703 → 701；全仓 `Build-AllDomains.ps1` 四 target True；门禁 Validate PASS。域环仍为 15（这两条不在环路径上）。
 
+**已完成 0.2 模块 README 项目表**：`Update-ModuleReadme.ps1` 为 16 域生成 202 行项目表；`JCC12011` 从仅检查文件存在扩展为检查行数；负向探针（删 1 行）确认 `1/2` 漂移会 exit 1。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. 补齐域内 slnx 缺口：abstractions 6 个（Brain/Composition/Guard/Memory/Perception/Primitives.Tools.Tests）、generators 1 个（AotHandler.Generator）、perception 4 个（Eyes/Eyes.Tests/Vision/Vision.Tests）；tools 的 13 个 `cli_nodes/groups/*` + sample + onnx 测试先决定"登记或排除"，排除项写入 `JccSlnxExcluded` 并注明打包流程。
-2. 生成 `README.md` 项目表（脚本从 csproj 生成，替换手写表）。
+2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
 3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。
 4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。
 5. 176 个目录名的批量改名（脚本先单域验证再推广）。
@@ -481,7 +483,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | `JCC12002/12003/12004/12005/12009/12010/12011/12012` 门禁规则 | `ArchitectureGate.ps1` | ✅ | ✅ 注入新边/过期 allowlist 均 exit 1，撤销后 PASS |
 | `baseline.json` + 只减不增比较 | 门禁、CI | ✅ | ✅ 计数 + `crossDomainEdges` 域对双层比较；P3 重冻结 |
 | `ci-architecture.yml` | PR CI | ✅ | ✅ 已接入 `ci.yml` `architecture` job（待 PR 首跑验证） |
-| 模块 README 生成器 | P4 文档同步 | ❌ | ❌ |
+| 模块 README 生成器 | P4 文档同步 | ✅ `Update-ModuleReadme.ps1` | ✅ 16 域已生成；删 1 行后 `JCC12011` 1/2 报错、exit 1，重跑恢复 PASS |
 
 > 后两列为强制钩子：`已实现` 防止"写了规划没实现"；`已验收` 必须走真实运行（门禁注入违规、分析器 fixture、全仓编译），禁止只写单测。
 
@@ -534,6 +536,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 2026-11-21：P4 前置（API 准入）完成。51 个被跨域引用项目覆盖 `JccApiVisibility=public`；其余项目保持 internal；全仓带分析器四 target True；门禁 Validate PASS。
 - 2026-11-21：P4 第一块完成。26 个 `module.slnx` 缺口全部登记（abstractions 6、generators 1、perception 4、tools 15），四个域级 slnx 均独立构建通过；门禁 `JCC12010 26 → 0`，基线重冻结。
 - 2026-11-21：P4 第二块完成。清理 2 条源码未使用的跨域引用（`Abstractions -> AsyncLock`、`Infrastructure -> Plugins.Contracts`）；生产跨域边 474 → 472；全仓四 target True；门禁 Validate PASS。
+- 2026-11-21：P4 第三块完成。`Update-ModuleReadme.ps1` 从 csproj 生成 16 域 README 项目表（共 202 行项目）；`JCC12011` 增加行数校验；删除 collections 一行负向探针 → exit 1（1/2），重跑恢复 PASS。
 - 2026-11-21：P3 完成。`allowlist.json` 五字段校验 + `baseline.crossDomainEdges` 域对集合 + 新增边阻断；注入 `collections->cognition` 与过期 allowlist 均 exit 1，撤销后 PASS；`ci-architecture.yml` 接入 `ci.yml`。
 - 工程事实：`JCC12002` 只靠计数会在"删一条旧边、加一条新边"时漏检；必须同时冻结域对集合。
 - 工程事实：全仓脚本 solution target 带 `--no-restore`；出现 `NETSDK1004` 资产缺失时先 `dotnet restore build/sln/JoinCode.slnx`，不要误判为代码问题。

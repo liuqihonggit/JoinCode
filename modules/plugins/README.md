@@ -4,11 +4,13 @@
 
 ## 项目
 
+<!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| plugins.contracts | |
-| plugins.infrastructure | |
-| plugins.tests | |
+| [Plugins.Contracts](plugins.contracts/Plugins.Contracts.csproj) |  |
+| [Plugins.Infrastructure](plugins.infrastructure/Plugins.Infrastructure.csproj) |  |
+| [Plugins.Tests](plugins.tests/Plugins.Tests.csproj) | 测试 |
+<!-- END MODULE PROJECTS -->
 
 ## 用法
 

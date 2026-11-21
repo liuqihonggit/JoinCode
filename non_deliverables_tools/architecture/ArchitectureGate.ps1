@@ -304,8 +304,21 @@ function Get-DomainContractState {
     }
 }
 
+function Get-ReadmeProjectRowCount {
+    param([string]$ReadmePath)
+    if (-not (Test-Path -LiteralPath $ReadmePath -PathType Leaf)) { return -1 }
+    $text = [System.IO.File]::ReadAllText($ReadmePath)
+    $begin = "<!-- BEGIN MODULE PROJECTS -->"
+    $end = "<!-- END MODULE PROJECTS -->"
+    $startIndex = $text.IndexOf($begin, [System.StringComparison]::Ordinal)
+    $endIndex = $text.IndexOf($end, [System.StringComparison]::Ordinal)
+    if ($startIndex -lt 0 -or $endIndex -le $startIndex) { return -1 }
+    $block = $text.Substring($startIndex, $endIndex - $startIndex)
+    return @($block -split "`r?`n" | Where-Object { $_ -match '^\|\s*[^|]+\|\s*[^|]+\|$' -and $_ -notmatch '^\|\s*项目\s*\|' -and $_ -notmatch '^\|\s*-+' }).Count
+}
+
 function Get-DomainDocState {
-    param([string]$Domain)
+    param([string]$Domain, [int]$ExpectedProjects = 0)
     $domainRoot = if ($Domain -eq "native_tui" -or $Domain -eq "native_gui") {
         Join-Path $RepoRoot $Domain
     } else {
@@ -325,11 +338,19 @@ function Get-DomainDocState {
         }
         if (-not $exists) { $missing.Add($item.Name) }
     }
+    $readmePath = Join-Path $domainRoot "README.md"
+    $readmeRows = Get-ReadmeProjectRowCount $readmePath
+    if ($ExpectedProjects -gt 0 -and $readmeRows -ne $ExpectedProjects) {
+        $displayRows = if ($readmeRows -lt 0) { "未生成" } else { "$readmeRows" }
+        $missing.Add("README 项目表 $displayRows/$ExpectedProjects")
+    }
     return [pscustomobject]@{
         Domain      = $Domain
         DomainRoot  = ConvertTo-PortablePath (Get-RelativePath $domainRoot)
         Missing     = @($missing)
         IsComplete  = ($missing.Count -eq 0)
+        ReadmeRows  = $readmeRows
+        ExpectedProjects = $ExpectedProjects
     }
 }
 
@@ -396,7 +417,11 @@ if (-not [string]::IsNullOrWhiteSpace($Domains)) {
 $apiProjects = @($prodCrossEdges | ForEach-Object { ConvertTo-PortablePath (Get-RelativePath $_.To) } | Sort-Object -Unique)
 $contractStates = @($script:ContractDomains | ForEach-Object { Get-DomainContractState $_ })
 $invalidContracts = @($contractStates | Where-Object { -not $_.IsValid })
-$docStates = @($script:ModuleDomains | ForEach-Object { Get-DomainDocState $_ })
+$docStates = @($script:ModuleDomains | ForEach-Object {
+    $domain = $_
+    $expectedProjects = @($projects.Values | Where-Object { $_.Domain -eq $domain }).Count
+    Get-DomainDocState -Domain $domain -ExpectedProjects $expectedProjects
+})
 $incompleteDocs = @($docStates | Where-Object { -not $_.IsComplete })
 
 $slnxMissing = [System.Collections.Generic.List[object]]::new()

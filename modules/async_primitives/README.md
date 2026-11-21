@@ -4,15 +4,17 @@
 
 ## 项目
 
+<!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| async_lock | |
-| async_lock.tests | |
-| bcl_bridge | |
-| bcl_bridge.tests | |
-| transport.contracts | |
-| transport.impl | |
-| transport.impl.tests | |
+| [AsyncLock.Tests](async_lock.tests/AsyncLock.Tests.csproj) | 测试 |
+| [AsyncLock](async_lock/AsyncLock.csproj) |  |
+| [JoinCode.BclBridge.Tests](bcl_bridge.tests/JoinCode.BclBridge.Tests.csproj) | 测试 |
+| [BclBridge](bcl_bridge/BclBridge.csproj) |  |
+| [Transport.Contracts](transport.contracts/Transport.Contracts.csproj) |  |
+| [Transport.Impl.Tests](transport.impl.tests/Transport.Impl.Tests.csproj) | 测试 |
+| [Transport.Impl](transport.impl/Transport.Impl.csproj) |  |
+<!-- END MODULE PROJECTS -->
 
 ## 用法
 

@@ -18,6 +18,12 @@ pwsh non_deliverables_tools/architecture/ArchitectureGate.ps1 -Mode Validate
 
 # 维护者清账后重冻结（不允许手工改 JSON）
 pwsh non_deliverables_tools/architecture/ArchitectureGate.ps1 -Mode Baseline
+
+# 重新生成 16 个模块 README 的项目表（只替换标记区间）
+pwsh non_deliverables_tools/architecture/Update-ModuleReadme.ps1
+
+# 只检查 README 项目表是否漂移；漂移 exit 1
+pwsh non_deliverables_tools/architecture/Update-ModuleReadme.ps1 -Check
 ```
 
 常用参数：
@@ -35,16 +41,32 @@ pwsh non_deliverables_tools/architecture/ArchitectureGate.ps1 -Mode Baseline
 | 规则 | 判定 | 当前基线 |
 |---|---|---:|
 | `JCC12001` | 18 个域缺 `Directory.Build.props` 或 `JccDomain` 不匹配 | 0 |
-| `JCC12002` | 生产 code 跨域边；新增域对不在 `baseline.crossDomainEdges` 且不在 allowlist → Error | 474 |
+| `JCC12002` | 生产 code 跨域边；新增域对不在 `baseline.crossDomainEdges` 且不在 allowlist → Error | 472 |
 | `JCC12003` | 跨域目标不是 `apiProjects` 冻结项 | 0 |
 | `JCC12004` | 生产 → 测试引用 | 1 |
 | `JCC12005` | 生产域图环 | 15 |
 | `JCC12009` | 目录名非 `^[a-z0-9_]+$` | 176 |
-| `JCC12010` | 域内 csproj 未进 `module.slnx` | 26 |
-| `JCC12011` | 16 个 modules 域缺 `README.md` / `CHANGELOG.md` / `docs/` | 0 |
+| `JCC12010` | 域内 csproj 未进 `module.slnx` | 0 |
+| `JCC12011` | 16 个 modules 域缺 `README.md` / `CHANGELOG.md` / `docs/`，或 README 项目表行数 ≠ 域内 csproj 数 | 0 |
 | `JCC12012` | Hub 入度超预算（当前仅报告） | 0 |
 
 `JCC12006/12007/12008/12013` 属编译期分析器，不在此脚本内。`JCC12002` 现在同时做两件事：计数不许超过基线；**新增域对**必须出现在 `baseline.crossDomainEdges` 或有效 allowlist，二者都没有即 Error。
+
+## 模块 README 项目表
+
+`Update-ModuleReadme.ps1` 从域内 `*.csproj` 生成项目表，只替换：
+
+```markdown
+<!-- BEGIN MODULE PROJECTS -->
+| 项目 | 说明 |
+|------|------|
+...
+<!-- END MODULE PROJECTS -->
+```
+
+- 行数必须等于域内 csproj 数；域外构建依赖不写入本表。
+- 旧手写表的说明列会按项目名保留，新增项目按角色（测试/生成器/示例）补齐。
+- 新增/移出项目后执行一次生成脚本；`-Check` 用于本地预检，门禁 `JCC12011` 会校验行数。
 
 ## allowlist.json
 

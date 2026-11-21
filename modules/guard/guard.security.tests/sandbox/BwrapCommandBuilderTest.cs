@@ -13,7 +13,15 @@ public class BwrapCommandBuilderTest {
         List<string>? denyWrite = null,
         List<string>? denyRead = null,
         bool restrictNetwork = true,
-        List<string>? allowedDomains = null)
+        List<string>? allowedDomains = null,
+        bool allowLocalBinding = false,
+        List<string>? allowUnixSockets = null,
+        bool allowAllUnixSockets = false,
+        int? httpProxyPort = null,
+        int? socksProxyPort = null,
+        bool weakerNested = false,
+        bool weakerNetwork = false,
+        Dictionary<string, List<string>>? ignoreViolations = null)
         => new() {
             Command = command,
             WorkingDirectory = workingDirectory,
@@ -23,6 +31,14 @@ public class BwrapCommandBuilderTest {
             DenyReadPaths = denyRead ?? [],
             RestrictNetwork = restrictNetwork,
             AllowedDomains = allowedDomains ?? [],
+            AllowLocalBinding = allowLocalBinding,
+            AllowUnixSockets = allowUnixSockets ?? [],
+            AllowAllUnixSockets = allowAllUnixSockets,
+            HttpProxyPort = httpProxyPort,
+            SocksProxyPort = socksProxyPort,
+            EnableWeakerNestedSandbox = weakerNested,
+            EnableWeakerNetworkIsolation = weakerNetwork,
+            IgnoreViolations = ignoreViolations ?? [],
         };
 
     private static SandboxWrappedCommand Build(SandboxWrapRequest request, params string[] directories)
@@ -98,6 +114,47 @@ public class BwrapCommandBuilderTest {
 
         wrapped.Command.Should().Contain("'--share-net'");
         wrapped.Warning.Should().BeNull();
+    }
+
+    [Fact]
+    public void Given_禁止写入目录_When_Build_Then_用tmpfs覆盖() {
+        var wrapped = Build(Request(denyWrite: ["/repo/.git"]), "/repo/.git");
+
+        wrapped.Command.Should().Contain("'--tmpfs' '/repo/.git'");
+    }
+
+    [Fact]
+    public void Given_允许读取目录_When_Build_Then_ro_bind() {
+        var wrapped = Build(Request(allowRead: ["/data/input"]));
+
+        wrapped.Command.Should().Contain("'--ro-bind' '/data/input' '/data/input'");
+    }
+
+    [Fact]
+    public void Given_bwrap不支持的网络安全选项_When_Build_Then_全部显式告警() {
+        var wrapped = Build(Request(
+            allowLocalBinding: true,
+            allowUnixSockets: ["/tmp/agent.sock"],
+            allowAllUnixSockets: true,
+            httpProxyPort: 8080,
+            socksProxyPort: 1080));
+
+        wrapped.Warning.Should().Contain("allowLocalBinding");
+        wrapped.Warning.Should().Contain("allowUnixSockets");
+        wrapped.Warning.Should().Contain("allowAllUnixSockets");
+        wrapped.Warning.Should().Contain("httpProxyPort/socksProxyPort");
+    }
+
+    [Fact]
+    public void Given_更弱隔离与违规忽略开关_When_Build_Then_显式告警不支持() {
+        var wrapped = Build(Request(
+            weakerNested: true,
+            weakerNetwork: true,
+            ignoreViolations: new Dictionary<string, List<string>> { ["/tmp"] = ["read"] }));
+
+        wrapped.Warning.Should().Contain("enableWeakerNestedSandbox");
+        wrapped.Warning.Should().Contain("enableWeakerNetworkIsolation");
+        wrapped.Warning.Should().Contain("ignoreViolations");
     }
 
     [Fact]

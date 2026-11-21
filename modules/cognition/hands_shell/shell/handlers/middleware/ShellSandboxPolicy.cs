@@ -107,7 +107,13 @@ internal static class ShellSandboxPolicy {
             RestrictNetwork = true,
             AllowedDomains = [.. network.AllowedDomains],
             AllowLocalBinding = network.AllowLocalBinding,
+            AllowUnixSockets = [.. network.AllowUnixSockets],
+            AllowAllUnixSockets = network.AllowAllUnixSockets,
+            HttpProxyPort = network.HttpProxyPort,
+            SocksProxyPort = network.SocksProxyPort,
             EnableWeakerNestedSandbox = sandbox.EnableWeakerNestedSandbox,
+            EnableWeakerNetworkIsolation = sandbox.EnableWeakerNetworkIsolation,
+            IgnoreViolations = sandbox.IgnoreViolations,
         };
     }
 }

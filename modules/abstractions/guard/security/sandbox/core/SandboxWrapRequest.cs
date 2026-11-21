@@ -32,6 +32,24 @@ public sealed partial class SandboxWrapRequest {
     /// <summary>允许本地端口绑定。</summary>
     public bool AllowLocalBinding { get; init; }
 
+    /// <summary>允许访问的 Unix socket 路径（bwrap 不支持按 socket 过滤，由 provider 显式告警）。</summary>
+    public List<string> AllowUnixSockets { get; init; } = [];
+
+    /// <summary>允许全部 Unix socket（bwrap 不支持，由 provider 显式告警）。</summary>
+    public bool AllowAllUnixSockets { get; init; }
+
+    /// <summary>HTTP 代理端口（bwrap 无内置 MITM 代理，由 provider 显式告警）。</summary>
+    public int? HttpProxyPort { get; init; }
+
+    /// <summary>SOCKS 代理端口（同上）。</summary>
+    public int? SocksProxyPort { get; init; }
+
     /// <summary>允许更弱的嵌套沙箱。</summary>
     public bool EnableWeakerNestedSandbox { get; init; }
+
+    /// <summary>允许更弱的网络隔离（基准仅 macOS trustd 语义）。</summary>
+    public bool EnableWeakerNetworkIsolation { get; init; }
+
+    /// <summary>违规忽略表（bwrap 无违规上报通道，由 provider 显式告警）。</summary>
+    public Dictionary<string, List<string>> IgnoreViolations { get; init; } = [];
 }

@@ -43,6 +43,30 @@ internal static class BwrapCommandBuilder {
             warnings.Add("bwrap 不支持 network.allowLocalBinding：已忽略");
         }
 
+        if (request.AllowUnixSockets.Count > 0) {
+            warnings.Add("bwrap 不支持 network.allowUnixSockets：已忽略");
+        }
+
+        if (request.AllowAllUnixSockets) {
+            warnings.Add("bwrap 不支持 network.allowAllUnixSockets：已忽略");
+        }
+
+        if (request.HttpProxyPort is not null || request.SocksProxyPort is not null) {
+            warnings.Add("bwrap 无内置代理端口能力：network.httpProxyPort/socksProxyPort 已忽略");
+        }
+
+        if (request.EnableWeakerNestedSandbox) {
+            warnings.Add("bwrap 不支持 enableWeakerNestedSandbox：已忽略");
+        }
+
+        if (request.EnableWeakerNetworkIsolation) {
+            warnings.Add("bwrap 不支持 enableWeakerNetworkIsolation（macOS trustd 语义）：已忽略");
+        }
+
+        if (request.IgnoreViolations.Count > 0) {
+            warnings.Add("bwrap 无违规上报通道：ignoreViolations 已忽略");
+        }
+
         foreach (var path in BaseSystemPaths) {
             if (exists(path)) {
                 AddBind(args, "--ro-bind", path, path);

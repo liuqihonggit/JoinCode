@@ -54,6 +54,9 @@ public sealed class ReplShell
     /// 优先级低于权限对话框）。</summary>
     private readonly CommandDialogCoordinator _commandDialog = new();
 
+    /// <summary>问答对话框协调器（ask_user_question/confirm_action 挂起时键盘模态改道）。</summary>
+    private readonly AskQuestionCoordinator _askQuestions = new();
+
     /// <summary>模型选择器协调器（M7-6 — 挂起时键盘模态改道，优先级低于权限对话框）。</summary>
     private readonly ModelPickerCoordinator _modelPicker = new();
 
@@ -821,8 +824,47 @@ public sealed class ReplShell
     /// <summary>权限对话框协调器（宿主权限桥 Begin/Wait 消费面 + 测试断言面）。</summary>
     public PermissionCoordinator Permission => _permission;
 
+    /// <summary>
+    /// 问答同步桥（宿主 TuiAskBridge 接线点）：挂起问答对话框 + 同步阻塞等用户按键，
+    /// 引擎线程（回合后台线程）等待 — 主循环线程驱动按键/后台回调唤醒（对齐 ConfirmCommand 先例）。
+    /// </summary>
+    public TuiAskResult AskUserQuestions(IReadOnlyList<TuiAskQuestion> questions)
+    {
+        BeginAskQuestions(questions);
+        return _askQuestions.Wait().GetAwaiter().GetResult();  // style-allow: sync-block — REPL 输入同步契约: UI 线程同步等待对话框结果
+    }
+
+    /// <summary>挂起问答对话框（插入滚动区，模态路由生效；不阻塞 — 测试注入形态）。</summary>
+    public void BeginAskQuestions(IReadOnlyList<TuiAskQuestion> questions)
+    {
+        _askQuestions.Begin(questions);
+        AddMessage(new AskQuestionDialogItem(_askQuestions));
+    }
+
+    /// <summary>完成问答并移除对话框项。</summary>
+    private void CompleteAskQuestions(Action<AskQuestionCoordinator> complete)
+    {
+        complete(_askQuestions);
+        RemoveDialogItem<AskQuestionDialogItem>();
+    }
+
+    /// <summary>后台回调到达时关闭挂起问答（主循环帧拍探测 — 通知注入由查询循环步首完成；internal — 帧拍测试面）。</summary>
+    internal void CheckAskQuestionInterrupt()
+    {
+        if (!_askQuestions.IsPending || AskQuestionInterruptProbe?.Invoke() != true)
+            return;
+
+        CompleteAskQuestions(coordinator => coordinator.Defer());
+    }
+
     /// <summary>命令交互对话框协调器（TASK065 F2 — 宿主命令桥 Begin/Wait 消费面 + 测试断言面）。</summary>
     public CommandDialogCoordinator CommandDialog => _commandDialog;
+
+    /// <summary>问答对话框协调器（宿主问答桥消费面 + 测试断言面）。</summary>
+    public AskQuestionCoordinator AskQuestions => _askQuestions;
+
+    /// <summary>后台回调探测（宿主绑定通知队列；问答挂起期间为 true 时自动关闭对话框并返回 Deferred）。</summary>
+    internal Func<bool>? AskQuestionInterruptProbe { get; set; }
 
     /// <summary>模型选择器协调器（测试断言面）。</summary>
     internal ModelPickerCoordinator ModelPicker => _modelPicker;
@@ -894,6 +936,7 @@ public sealed class ReplShell
             }
 
             DrainEngine();
+            CheckAskQuestionInterrupt();
             RenderAndFlush();
             PaceTick(tickStart);
         }
@@ -1009,6 +1052,12 @@ public sealed class ReplShell
         if (!_driver.IsBusy && _commandDialog.IsPending)
         {
             CompleteCommandDialog(accepted: false, promptInput: null);
+        }
+
+        // 回合结束时挂起中的问答自动收尾（取消语义 — 宿主同步桥解除阻塞，不假定答案）
+        if (!_driver.IsBusy && _askQuestions.IsPending)
+        {
+            CompleteAskQuestions(coordinator => coordinator.Cancel());
         }
 
         // 回合结束 — 排队输入自动发送（TASK060 一问一答节奏：逐回合发队首）
@@ -1321,6 +1370,12 @@ public sealed class ReplShell
         if (_commandDialog.IsPending)
         {
             HandleCommandDialogKey(key);
+            return;
+        }
+
+        if (_askQuestions.IsPending)
+        {
+            HandleAskQuestionKey(key);
             return;
         }
 
@@ -1987,6 +2042,54 @@ public sealed class ReplShell
         }
 
         HandleConfirmDialogKey(key);
+    }
+
+    /// <summary>问答形态按键 — Enter 提交 / 上下环绕 / 数字直选 / Space 多选切换 / Esc 取消。</summary>
+    private void HandleAskQuestionKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Escape)
+        {
+            CompleteAskQuestions(coordinator => coordinator.Cancel());
+            return;
+        }
+
+        if (key.Kind == KeyKind.Return)
+        {
+            if (_askQuestions.Submit())
+                OnAskQuestionAdvanced();
+            return;
+        }
+
+        if (key.Kind == KeyKind.UpArrow)
+        {
+            _askQuestions.MoveFocus(-1);
+            return;
+        }
+
+        if (key.Kind == KeyKind.DownArrow)
+        {
+            _askQuestions.MoveFocus(1);
+            return;
+        }
+
+        if (key is { Kind: KeyKind.Char, Ctrl: false, Meta: false } && key.Input == " " && _askQuestions.Current?.MultiSelect == true)
+        {
+            _askQuestions.ToggleFocus();
+            return;
+        }
+
+        if (key is { Kind: KeyKind.Char, Ctrl: false, Meta: false } && key.Input.Length == 1 && char.IsAsciiDigit(key.Input[0]))
+        {
+            if (_askQuestions.SelectNumber(key.Input[0] - '0'))
+                OnAskQuestionAdvanced();
+        }
+    }
+
+    /// <summary>问答推进后收尾 — 最后一题完成时移除对话框项。</summary>
+    private void OnAskQuestionAdvanced()
+    {
+        if (!_askQuestions.IsPending)
+            RemoveDialogItem<AskQuestionDialogItem>();
     }
 
     /// <summary>confirm 形态按键 — Enter 选焦点档 + 数字直选 + 上下环绕。</summary>
@@ -4527,7 +4630,7 @@ public sealed class ReplShell
     /// <summary>会话三态归并（A5 — 对齐基准 REPL.tsx:1187 sessionStatus 优先级）：
     /// 权限/命令对话框挂起 = waiting（回合挂起等用户）；回合进行 = busy；其余 idle。</summary>
     private TerminalSessionStatus ComputeSessionStatus() =>
-        _permission.IsPending || _commandDialog.IsPending
+        _permission.IsPending || _commandDialog.IsPending || _askQuestions.IsPending
             ? TerminalSessionStatus.Waiting
             : _driver.IsBusy ? TerminalSessionStatus.Busy : TerminalSessionStatus.Idle;
 

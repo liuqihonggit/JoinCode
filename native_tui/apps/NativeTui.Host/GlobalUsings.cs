@@ -19,6 +19,7 @@ global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models.Diff;
+global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.Utils;

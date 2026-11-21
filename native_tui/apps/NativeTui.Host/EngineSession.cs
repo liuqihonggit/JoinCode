@@ -11,15 +11,17 @@ public sealed class EngineSession : IAsyncDisposable {
     private readonly EngineSessionFactory.Result _engine;
     private readonly EngineTurnClient _client;
     private readonly TuiPermissionBridge _permissionBridge;
+    private readonly TuiAskBridge _askBridge;
     private readonly PermissionChecker? _checker;
     private readonly IFastModeService? _fastMode;
     private readonly TuiCommandCallbacks _commandCallbacks;
     private readonly BackgroundTaskEventPump? _backgroundPump;
 
-    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client, TuiPermissionBridge permissionBridge, PermissionChecker? checker, IFastModeService? fastMode, TuiCommandCallbacks commandCallbacks, BackgroundTaskEventPump? backgroundPump) {
+    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client, TuiPermissionBridge permissionBridge, TuiAskBridge askBridge, PermissionChecker? checker, IFastModeService? fastMode, TuiCommandCallbacks commandCallbacks, BackgroundTaskEventPump? backgroundPump) {
         _engine = engine;
         _client = client;
         _permissionBridge = permissionBridge;
+        _askBridge = askBridge;
         _checker = checker;
         _fastMode = fastMode;
         _commandCallbacks = commandCallbacks;
@@ -31,6 +33,9 @@ public sealed class EngineSession : IAsyncDisposable {
 
     /// <summary>权限确认桥 — Program 在 shell 构造后 Bind（引擎 PendingConfirmation → TUI 对话框闭环，M7-3）。</summary>
     public TuiPermissionBridge PermissionBridge => _permissionBridge;
+
+    /// <summary>问答桥 — Program 在 shell 构造后 Bind + 安装通知探测（ask 挂起期间后台回调 → 对话框 Deferred 关闭，TASK103 S14）。</summary>
+    public TuiAskBridge AskBridge => _askBridge;
 
     /// <summary>命令交互回调桥 — Program 在 shell 构造后 Bind（/clear 清滚动区、/exit 结束主循环 → ReplShell 能力，M8-5）。</summary>
     public TuiCommandCallbacks CommandCallbacks => _commandCallbacks;
@@ -53,13 +58,15 @@ public sealed class EngineSession : IAsyncDisposable {
     /// → 解析权限/模型 → 构造回合客户端 → 种子 session_info；失败时释放已建引擎 Host。</summary>
     public static async Task<EngineSession> CreateAsync(CancellationToken cancellationToken = default) {
         var permissionBridge = new TuiPermissionBridge();
+        var askBridge = new TuiAskBridge();
         var engine = await EngineSessionFactory.CreateGuiSessionAsync(
-            extraModules: [new TuiInteractionModule(permissionBridge)],
+            extraModules: [new TuiInteractionModule(permissionBridge, askBridge)],
             loggerProvider: LoggerProvider,
             cancellationToken: cancellationToken).ConfigureAwait(false);
         try {
             var checker = await ResolvePermissionCheckerAsync(engine.Services).ConfigureAwait(false);
             var fastMode = engine.Services.GetService<IFastModeService>();
+            askBridge.AttachNotificationQueue(engine.Services.GetService<IAgentNotificationQueue>());
             var mainAgent = EngineAgentFactory.CreateMainAgent(engine.Services, new Session().ObjectId);
 
             // M8-5 命令交互回调桥 — 回调管道随回合执行器闭包传递（Bind 前回调为 null 安全降级，
@@ -117,7 +124,7 @@ public sealed class EngineSession : IAsyncDisposable {
                 await backgroundPump.StartAsync().ConfigureAwait(false);
             }
 
-            var session = new EngineSession(engine, client, permissionBridge, checker, fastMode, commandCallbacks, backgroundPump);
+            var session = new EngineSession(engine, client, permissionBridge, askBridge, checker, fastMode, commandCallbacks, backgroundPump);
             client.Enqueue(BuildSessionInfoEvent(checker, fastMode, engine.Config));
             return session;
         } catch {

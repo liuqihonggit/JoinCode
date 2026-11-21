@@ -139,56 +139,6 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
 }
 
 /// <summary>
-/// 选择器组合工具
-/// </summary>
-public static class SelectorComposition {
-    /// <summary>
-    /// 组合两个选择器
-    /// </summary>
-    public static Func<TState, (T1, T2)> Combine<TState, T1, T2>(
-        Func<TState, T1> selector1,
-        Func<TState, T2> selector2)
-        where TState : notnull {
-        return state => (selector1(state), selector2(state));
-    }
-
-    /// <summary>
-    /// 组合三个选择器
-    /// </summary>
-    public static Func<TState, (T1, T2, T3)> Combine<TState, T1, T2, T3>(
-        Func<TState, T1> selector1,
-        Func<TState, T2> selector2,
-        Func<TState, T3> selector3)
-        where TState : notnull {
-        return state => (selector1(state), selector2(state), selector3(state));
-    }
-
-    /// <summary>
-    /// 创建记忆化选择器（缓存结果避免重复计算）
-    /// </summary>
-    public static Func<TState, TSelected> Memoized<TState, TSelected>(
-        Func<TState, TSelected> selector,
-        IEqualityComparer<TState>? stateComparer = null)
-        where TState : notnull {
-        var comparer = stateComparer ?? EqualityComparer<TState>.Default;
-        TState? lastState = default;
-        TSelected? lastResult = default;
-        var initialized = false;
-
-        return state => {
-            if (initialized && lastState is not null && comparer.Equals(lastState, state) && lastResult is not null) {
-                return lastResult;
-            }
-
-            lastState = state;
-            lastResult = selector(state);
-            initialized = true;
-            return lastResult;
-        };
-    }
-}
-
-/// <summary>
 /// 引用相等比较器
 /// </summary>
 public sealed class ReferenceEqualityComparer : IEqualityComparer<object> {

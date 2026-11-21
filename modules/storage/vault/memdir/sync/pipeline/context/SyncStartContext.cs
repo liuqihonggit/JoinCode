@@ -56,11 +56,11 @@ public sealed class SyncStartContext : PipelineContextBase, INullCheckContext, I
     /// <summary>
     /// 必填参数枚举 — 用于空检查中间件校验 FileSystem/FileOperationService/Options 是否非空。
     /// </summary>
-    public IEnumerable<(string Name, object? Value)> RequiredParameters =>
+    public IEnumerable<JoinCode.Abstractions.Pipeline.RequiredParameter> RequiredParameters =>
     [
-        (nameof(FileSystem), FileSystem),
-        (nameof(FileOperationService), FileOperationService),
-        (nameof(Options), Options),
+        new(nameof(FileSystem), FileSystem),
+        new(nameof(FileOperationService), FileOperationService),
+        new(nameof(Options), Options),
     ];
 
     // === IMetricsContext ===

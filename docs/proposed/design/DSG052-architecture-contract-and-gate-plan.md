@@ -22,7 +22,7 @@
 | 域内 code 边 / 跨域 code 边 | 320 / 693 | 68.4% 的依赖跨域 |
 | 生产 code 边（排除测试） | 703（域内 229 / 跨域 474） | 排除测试后仍有 67.4% 跨域 |
 | 生产域级环 | 15 条环路径 | 域图不是 DAG |
-| 规则数量 | 99 条（新增 `JCC12001`） | 代码级规则强，架构级规则从 0 到 1 |
+| 规则数量 | 103 条（新增 5 条架构规则：12001/12006/12007/12008/12013） | 代码级规则强，架构级规则 0 → 5 |
 | 规则测试 / CodeFix | 270 个 Fact/Theory 标记；5 个 CodeFixProvider（3 个文件） | 基建成熟可复用 |
 | `module.slnx` 完整性 | 4 个域不一致 | abstractions 自有 37/43（另含 4 个域外项目）、generators 16/17、perception 3/7、tools 8/23 |
 | 目录命名违规 | 176 个目录 | 未按"全小写+下划线"执行 |
@@ -351,30 +351,33 @@ architecture:
 - 18 个域当前统一 `JccApiVisibility=internal`；51 个实际对外项目还需要在 csproj 覆盖 `public`，否则 P2 的 `JCC12006` 会把存量全部报出来。
 - `JccNamespaceRoots` 暂不填：各域真实命名空间高度分散，先做 P4 归一，避免把现状写成契约。
 
-### P2 编译期规则（进行中）
+### P2 编译期规则（完成）
 
 **已落地**：
-- `rules/architecture/ArchitectureDomainCatalog.cs`：18 个合法域的唯一常量源，供分析与门禁共享口径（netstandard2.0 写法，不依赖 `StringComparison.Contains` 重载）；
-- `rules/architecture/ModuleContractRule.cs`（`JCC12001`）：域契约缺失 / 未知域 / allowlist 含未知域；跳过测试项目与非交付工具项目；定位到首个语法 token；`IsCompilationEnd`；
+- `rules/architecture/ArchitectureDomainCatalog.cs`：18 个合法域的唯一常量源 + 契约项目路径判断 + 逗号/分号清单拆分（分析器与门禁共享口径）；
+- `ModuleContractRule`（`JCC12001`）：域契约缺失 / 未知域 / allowlist 含未知域；跳过测试项目与非交付工具项目；定位到首个语法 token；`IsCompilationEnd`；
+- `PublicApiBoundaryRule`（`JCC12006`）：`JccApiVisibility=internal` 下不得声明有效 public 的命名类型（含嵌套可见性链）；
+- `IvtAllowlistRule`（`JCC12007`）：扫描所有 `[assembly: InternalsVisibleTo]` 语法，生产程序集目标必须在 `JccAllowInternalsVisibleTo` 登记，`.Tests/.Test/.Tests.*` 豁免；
+- `NamespaceRootRule`（`JCC12008`）：类型命名空间必须落在 `JccNamespaceRoots` 任一前缀（按 `.` 边界匹配，`JoinCode.LlmX` 不会被 `JoinCode.Llm` 误放行）；
+- `PrivateLayerRule`（`JCC12013`）：`private/` 目录下的 public 类/结构/接口/枚举/record 报违规；
 - `ProjectContext` 扩展：`ProjectDirectory`、`Domain`、`AllowedDomains`、`ApiVisibility`、`NamespaceRoots`、`AllowInternalsVisibleTo`、`SlnxExcluded`，由 `build_property.*` 注入；
-- `modules/generators/aot_safety.tests/ModuleContractRuleTests.cs`：6 个用例（有效契约 / 缺域 / 未知域 / 未知 allowlist / 测试项目 / 非交付工具）。
+- `.editorconfig`：`JCC12001=warning`（缺失契约立即阻断），`JCC12006/12007/12008/12013=suggestion`（观察期只报告存量）。
 
 **验收事实**：
-- `dotnet test ... --filter ModuleContractRuleTests`：6/6 通过；
-- 真实负向探针：`dotnet build modules/collections/structura/Structura.csproj -c Debug -t:Rebuild -p:JccDomain=` → `error JCC12001: 项目域契约非法：缺少 JccDomain`，`1 个错误`；因全仓 `TreatWarningsAsErrors`，Warning 级诊断在构建中表现为 error；
-- 全仓 `Build-AllDomains.ps1`（**带分析器**）四个 target 全 True，无 `JCC12001` 误报。
+- 单测：`ModuleContractRuleTests` 6/6 + `ArchitectureRulesTests` 14/14，共 20/20 通过；
+- 真实负向探针（每条规则都在真实 csproj 触发，不是 fixture 假绿）：
+  - `JCC12001`：`-t:Rebuild -p:JccDomain=` → `error JCC12001: 缺少 JccDomain`；
+  - `JCC12006`：`Abstractions.Configuration` 临时把规则升 warning → 17 个 public 类型命中（`VendorModelEntry`/`HubConfigJsonContext`/`ModelCatalog` 等）；
+  - `JCC12007`：`Abstractions.Exceptions` 的生成 IVT `JoinCode.Plugins.Infrastructure` 未登记 → 命中；
+  - `JCC12008`：`-p:JccNamespaceRoots=ZZZ` → 18 个类型命中，报告实际命名空间 `JoinCode.Abstractions.Configuration.Llm`；
+  - `JCC12013`：临时 `private/PrivateLayerProbe.cs` 声明 public → 命中 `private/ 目录却声明为 public`；
+- 全仓 `Build-AllDomains.ps1`（**带分析器**）四个 target 全 True。
 
-**两条必须记住的工程事实**：
+**四条必须记住的工程事实**：
 1. 生成的 `*GeneratedMSBuildEditorConfig.editorconfig` 中只有 `build_property.ProjectDir`，**没有** `build_property.MSBuildProjectDirectory`；`ProjectContext` 必须读前者。
 2. `dotnet build` 默认增量不会重跑分析器；负向验收必须 `-t:Rebuild`，否则会得到"0 警告"的假阴性。
-
-**待落地**：
-- `PublicApiBoundaryRule`(12006)、`IvtAllowlistRule`(12007)、`NamespaceRootRule`(12008)、`PrivateLayerRule`(12013)；
-- `.editorconfig` 先把新增规则统一设为 `suggestion`（只报告、不阻断存量），P4 起逐条翻 `error`。
-
-**剩余验收**：
-- 每条规则 fixture 正例/反例均触发；
-- 全仓构建通过（存量违规以 `suggestion` 呈现，不阻断）；
+3. `DiagnosticSeverity.Info/suggestion` 不会出现在 `dotnet build` 输出；真实验收必须临时把目标规则升为 warning/error，或等 P5 全局升 error。
+4. `JCC12007` 不能只读 `Compilation.Assembly.GetAttributes()`：生成 `AssemblyInfo.cs` 在 `obj/` 下，会被 `GeneratedCodeAnalysisFlags.None` 的生成代码过滤；必须直接扫描 `Compilation.SyntaxTrees` 的 `[assembly: ...]`，并把诊断落在首个非 `obj/` 源文件上。
 
 ### P3 仓库门禁
 
@@ -468,7 +471,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | `CompilerVisibleProperty` 透传 | `aot_safety.generator` | ✅ | ✅ 真实 `GeneratedMSBuildEditorConfig` 可见 `ProjectDir` / `JccDomain` |
 | `ProjectContext` 域字段 | 5 条编译期规则 | ✅ | ✅ 6 个单测 + `-p:JccDomain=` 真实构建报错 |
 | `JCC12001` 分析器规则 | `dotnet build`、IDE | ✅ | ✅ `-t:Rebuild -p:JccDomain=` 报 `error JCC12001`；全仓无误报 |
-| `JCC12006/12007/12008/12013` 分析器规则 | `dotnet build`、IDE | ❌ | ❌ |
+| `JCC12006/12007/12008/12013` 分析器规则 | `dotnet build`、IDE | ✅ | ✅ 真实 csproj 探针分别命中（12006 17 类型 / 12007 生产 IVT / 12008 18 类型 / 12013 private probe） |
 | `JCC12002/12003/12004/12005/12009/12010/12011/12012` 门禁规则 | `ArchitectureGate.ps1` | ❌ | ❌ |
 | `baseline.json` + 只减不增比较 | 门禁、CI | ❌ | ❌ |
 | `ci-architecture.yml` | PR CI | ❌ | ❌ |
@@ -518,6 +521,11 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 2026-11-21：P0 完成。`ArchitectureGate.ps1` + `baseline.json` v0 + `README.md` 入库；`-Mode Validate` 对基线 PASS。
 - 2026-11-21：P1 完成。18 份域契约（14 新增 + 4 追加）落地；`contracts 18/18`；全仓 `Build-AllDomains -NoAnalyzers` 通过；基线把 `JCC12001` 冻结到 0。
 - 2026-11-21：P2 第一块完成（`JCC12001`）。`ArchitectureDomainCatalog` + `ModuleContractRule` + `ProjectContext` 域字段 + 6 个测试；6/6 绿；真实负向探针报 `error JCC12001`；全仓带分析器构建四 target 全 True。
+- 2026-11-21：P2 完成。补齐 `JCC12006/12007/12008/12013` 四条规则 + 14 个 fixture 测试（含 `JCC12001` 合计 20/20）；四条规则均在真实 csproj 上负向命中；`.editorconfig` 设 `JCC12001=warning`、其余 `suggestion`；全仓带分析器构建通过。
+- 关键发现（JCC12007）：生成 `AssemblyInfo.cs` 位于 `obj/`，`GeneratedCodeAnalysisFlags.None` 会过滤生成代码上的诊断；改为扫描 `Compilation.SyntaxTrees` 的 `[assembly: InternalsVisibleTo]`，并把诊断落到首个非 `obj/` 源文件。
+- 关键发现（可见性）：`Info/suggestion` 诊断不会出现在 `dotnet build` 输出；真实负向验收必须临时升 warning/error，否则会误判"规则没生效"。
+- 2026-11-21：P2 收尾验收。`ArchitectureGate.ps1 -Mode Validate` PASS；全仓 `Build-AllDomains`（带分析器）四 target 全 True；`jcc.exe --version` 启动正常（JoinCode v1.0.0.0 / .NET 10.0.9）。
+- 工程事实：全仓脚本 solution target 带 `--no-restore`；出现 `NETSDK1004` 资产缺失时先 `dotnet restore build/sln/JoinCode.slnx`，不要误判为代码问题。
 - 关键发现：`ProjectContext` 读 `build_property.MSBuildProjectDirectory` 得到空串，生成的 `GeneratedMSBuildEditorConfig.editorconfig` 里只有 `build_property.ProjectDir`；改读 `ProjectDir` 后规则才在真实构建链路生效。
 - 关键发现：`dotnet build` 增量不会重跑分析器，负向验收必须 `-t:Rebuild`，否则会误判"规则没生效"。分析器规则改为 Warning 后，因全仓 `TreatWarningsAsErrors` 在构建中表现为 error。
 - 决策：P0 不按原计划拆 `GraphModel.ps1` / `RuleGraph.ps1` / `RuleLayout.ps1` 三文件，先用单脚本闭环；等 P2 规则数量上来再按职责拆分，避免过早抽象。

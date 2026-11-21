@@ -20,7 +20,7 @@ namespace AotSafety.Generator.Rules;
 public sealed class ModuleContractRule : AnalyzerRuleBase<ModuleContractRule> {
     public override void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {
         if (projectContext.IsTest) return;
-        if (!IsContractProject(projectContext.ProjectDirectory)) return;
+        if (!ArchitectureDomainCatalog.IsContractProject(projectContext.ProjectDirectory)) return;
 
         context.RegisterSyntaxNodeAction(static _ => { }, SyntaxKind.CompilationUnit);
         context.RegisterCompilationEndAction(analysisContext => Analyze(analysisContext, projectContext));
@@ -49,13 +49,5 @@ public sealed class ModuleContractRule : AnalyzerRuleBase<ModuleContractRule> {
         if (tree is null) return;
         var location = tree.GetRoot(context.CancellationToken).GetFirstToken().GetLocation();
         context.ReportDiagnostic(Diagnostic.Create(Descriptor, location, string.Join("; ", problems)));
-    }
-
-    private static bool IsContractProject(string projectDirectory) {
-        if (string.IsNullOrWhiteSpace(projectDirectory)) return false;
-        var normalized = projectDirectory.Replace('\\', '/').TrimEnd('/');
-        return normalized.IndexOf("/modules/", StringComparison.Ordinal) >= 0
-            || normalized.IndexOf("/native_tui/", StringComparison.Ordinal) >= 0
-            || normalized.IndexOf("/native_gui/", StringComparison.Ordinal) >= 0;
     }
 }

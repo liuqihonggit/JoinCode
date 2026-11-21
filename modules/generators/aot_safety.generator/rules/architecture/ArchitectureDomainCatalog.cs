@@ -33,7 +33,17 @@ public static class ArchitectureDomainCatalog {
         return Known.Contains(value);
     }
 
-    public static IReadOnlyList<string> SplitDomains(string? raw) {
+    /// <summary>项目目录是否属于契约域（modules/ 下任一域，或 native_tui / native_gui）。</summary>
+    public static bool IsContractProject(string? projectDirectory) {
+        if (projectDirectory is null || projectDirectory.Trim().Length == 0) return false;
+        var normalized = projectDirectory.Replace('\\', '/').TrimEnd('/');
+        return normalized.IndexOf("/modules/", StringComparison.Ordinal) >= 0
+            || normalized.IndexOf("/native_tui/", StringComparison.Ordinal) >= 0
+            || normalized.IndexOf("/native_gui/", StringComparison.Ordinal) >= 0;
+    }
+
+    /// <summary>按逗号/分号拆分配置值（域名、程序集名、命名空间前缀共用）。</summary>
+    public static IReadOnlyList<string> SplitList(string? raw) {
         var value = raw;
         if (value is null || value.Trim().Length == 0) return Array.Empty<string>();
         return value.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -41,4 +51,6 @@ public static class ArchitectureDomainCatalog {
             .Where(static item => item.Length > 0)
             .ToArray();
     }
+
+    public static IReadOnlyList<string> SplitDomains(string? raw) => SplitList(raw);
 }

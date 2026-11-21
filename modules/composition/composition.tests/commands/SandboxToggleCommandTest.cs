@@ -27,7 +27,8 @@ public sealed class SandboxToggleCommandTest {
         bool withManager = true,
         bool withConfig = true,
         SandboxInfo? currentSandbox = null,
-        bool isInSandbox = false) {
+        bool isInSandbox = false,
+        WorkflowConfig? workflowConfig = null) {
         var manager = managerOverride ?? new Mock<ISandboxManager>();
         manager.Setup(m => m.GetAvailableTypes()).Returns([SandboxType.Soft, SandboxType.Docker]);
         manager.Setup(m => m.IsInSandbox).Returns(isInSandbox);
@@ -41,6 +42,7 @@ public sealed class SandboxToggleCommandTest {
             configureDi: di => {
                 if (withManager) di.AddSingleton(manager.Object);
                 if (withConfig) di.AddSingleton(config.Object);
+                if (workflowConfig is not null) di.AddSingleton(workflowConfig);
             });
         var context = CommandTestHarness.CreateContext(services, arguments: arguments);
         return (new SandboxToggleCommand(), manager, config, context, fs);
@@ -180,131 +182,75 @@ public sealed class SandboxToggleCommandTest {
     }
 
     [Fact]
-    public async Task Execute_Exclude_WithoutPath_ShowsCurrentExclusions() {
-        var config = new Mock<IConfigurationService>();
-        config.Setup(c => c.GetAsync("sandbox.excludedPaths", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(@"C:\path-a");
-        var (cmd, _, _, context, _) = Arrange(arguments: "exclude", configOverride: config);
+    public async Task Execute_Exclude_WithoutPattern_ShowsConfiguredCommands() {
+        var cfg = new WorkflowConfig { Sandbox = new SandboxConfig { ExcludedCommands = ["docker:*", "psql"] } };
+        var (cmd, _, _, context, _) = Arrange(arguments: "exclude", workflowConfig: cfg);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
-        config.Verify(c => c.GetAsync("sandbox.excludedPaths", It.IsAny<CancellationToken>()), Times.Once,
-            "exclude 无参时应读取现有排除路径");
-        output.Should().Contain(@"C:\path-a", "现有排除路径应渲染");
-        output.Should().Contain("/sandbox-toggle exclude <path>");
+        output.Should().Contain("docker:*", "当前排除命令清单应渲染");
+        output.Should().Contain("psql");
+        output.Should().Contain("sandbox.excludedCommands", "应指明配置字段");
     }
 
     [Fact]
-    public async Task Execute_Exclude_MissingPath_ShowsPathNotFound() {
-        var config = new Mock<IConfigurationService>();
-        var (cmd, _, configMock, context, _) = Arrange(
-            arguments: @"exclude c:\no-such-dir", configOverride: config);
+    public async Task Execute_Exclude_EmptyList_ShowsNone() {
+        var cfg = new WorkflowConfig { Sandbox = new SandboxConfig() };
+        var (cmd, _, _, context, _) = Arrange(arguments: "exclude", workflowConfig: cfg);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
-        output.Should().Contain(@"c:\no-such-dir", "路径不存在提示应含原始路径");
+        output.Should().Contain("sandbox.excludedCommands");
+    }
+
+    [Fact]
+    public async Task Execute_Exclude_WithPattern_OnlyGuidesSettingsEdit() {
+        var configMock = new Mock<IConfigurationService>();
+        var (cmd, _, _, context, _) = Arrange(arguments: "exclude docker:*", configOverride: configMock);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("docker:*", "指引应回显用户输入模式");
+        output.Should().Contain("settings.json");
         configMock.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Never, "路径不存在时不应写配置");
+            Times.Never, "配置服务不支持数组写入，命令不得再写已删除的 sandbox.excludedPaths");
     }
 
     [Fact]
-    public async Task Execute_Exclude_ExistingDirectory_PersistsFullPath() {
-        var dir = Path.Combine(Path.GetTempPath(), "sb-exclude-new").ToLowerInvariant();
-        var config = new Mock<IConfigurationService>();
-        config.Setup(c => c.GetAsync("sandbox.excludedPaths", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string?)null);
-        var (cmd, _, _, context, fs) = Arrange(arguments: $"exclude {dir}", configOverride: config);
-        fs.CreateDirectory(dir);
+    public async Task Execute_Exclude_UpperCaseSubCommand_StillDispatches() {
+        var cfg = new WorkflowConfig { Sandbox = new SandboxConfig { ExcludedCommands = ["docker:*"] } };
+        var (cmd, _, _, context, _) = Arrange(arguments: "EXCLUDE", workflowConfig: cfg);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
-        var fullPath = Path.GetFullPath(dir);
-        config.Verify(c => c.SetAsync("sandbox.excludedPaths", fullPath, It.IsAny<CancellationToken>()), Times.Once,
-            "新增排除路径应持久化 Path.GetFullPath 归一后的路径");
-        output.Should().Contain(fullPath);
+        output.Should().Contain("docker:*", "大写子命令应照常小写化分派到 exclude");
     }
 
     [Fact]
-    public async Task Execute_Exclude_AlreadyExcluded_IsIdempotent() {
-        var dir = Path.Combine(Path.GetTempPath(), "sb-exclude-dup").ToLowerInvariant();
-        var fullPath = Path.GetFullPath(dir);
+    public async Task PersistSandboxEnabled_WritesRegisteredSettingsKey() {
         var config = new Mock<IConfigurationService>();
-        config.Setup(c => c.GetAsync("sandbox.excludedPaths", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(fullPath);
-        var (cmd, _, _, context, fs) = Arrange(arguments: $"exclude {dir}", configOverride: config);
-        fs.CreateDirectory(dir);
+        config.Setup(c => c.SetAsync(ConfigKeys.SandboxEnabled, "true", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var (_, _, _, context, _) = Arrange(configOverride: config);
 
-        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+        var written = await SandboxToggleCommand.PersistSandboxEnabledAsync(context, enabled: true);
 
-        result.ShouldContinue.Should().BeTrue();
-        config.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
-            Times.Never, "路径已在排除列表时不应重复写入");
-        output.Should().Contain(fullPath, "重复排除提示应含路径");
+        written.Should().BeTrue();
+        config.Verify(c => c.SetAsync(ConfigKeys.SandboxEnabled, "true", It.IsAny<CancellationToken>()), Times.Once,
+            "on/off 必须把 sandbox.enabled 写进 settings，而不是只改会话状态");
     }
 
     [Fact]
-    public async Task Execute_Exclude_WithoutConfigService_DoesNotThrow() {
-        var dir = Path.Combine(Path.GetTempPath(), "sb-exclude-noconfig");
-        var (cmd, _, config, context, fs) = Arrange(arguments: $"exclude {dir}", withConfig: false);
-        fs.CreateDirectory(dir);
+    public async Task PersistSandboxEnabled_WithoutConfigService_ReturnsFalse() {
+        var (_, _, _, context, _) = Arrange(withConfig: false);
 
-        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+        var written = await SandboxToggleCommand.PersistSandboxEnabledAsync(context, enabled: false);
 
-        result.ShouldContinue.Should().BeTrue("配置服务缺失应优雅降级而非抛异常");
-        config.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    /// <summary>生产 bug 修复(TASK065 第五波): 整串 ToLowerInvariant 导致路径被小写化 —
-    /// 修复后仅命令词小写化分派,路径不存在提示应保留用户输入的原始大小写。</summary>
-    [Fact]
-    public async Task Execute_Exclude_MixedCasePath_PreservesOriginalCaseInPrompt() {
-        var config = new Mock<IConfigurationService>();
-        var (cmd, _, _, context, _) = Arrange(
-            arguments: @"exclude C:\No-Such-Dir", configOverride: config);
-
-        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
-
-        result.ShouldContinue.Should().BeTrue();
-        output.Should().Contain(@"C:\No-Such-Dir", "路径不存在提示应保留用户输入的原始大小写");
-        output.Should().NotContain(@"c:\no-such-dir", "不应出现整串小写化后的路径");
-    }
-
-    /// <summary>生产 bug 修复(TASK065 第五波): 混合大小写目录的排除持久化 —
-    /// 写入配置的完整路径应保留用户输入的原始大小写,而非小写化形态。</summary>
-    [Fact]
-    public async Task Execute_Exclude_MixedCaseDir_PersistsFullPathWithOriginalCase() {
-        var dir = Path.Combine(Path.GetTempPath(), "SB-Case-Keep");
-        var config = new Mock<IConfigurationService>();
-        config.Setup(c => c.GetAsync("sandbox.excludedPaths", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string?)null);
-        var (cmd, _, _, context, fs) = Arrange(arguments: $"exclude {dir}", configOverride: config);
-        fs.CreateDirectory(dir);
-
-        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
-
-        result.ShouldContinue.Should().BeTrue();
-        var fullPath = Path.GetFullPath(dir);
-        config.Verify(c => c.SetAsync("sandbox.excludedPaths", fullPath, It.IsAny<CancellationToken>()), Times.Once,
-            "持久化路径应保留用户输入的原始大小写");
-        output.Should().Contain(fullPath, "排除成功提示应含原始大小写完整路径");
-    }
-
-    /// <summary>回归保障: 修复仅小写化命令词用于分派 — 大写子命令应照常分派到 exclude 列表分支。</summary>
-    [Fact]
-    public async Task Execute_UpperCaseSubCommand_StillDispatches() {
-        var config = new Mock<IConfigurationService>();
-        config.Setup(c => c.GetAsync("sandbox.excludedPaths", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(@"C:\path-a");
-        var (cmd, _, _, context, _) = Arrange(arguments: "EXCLUDE", configOverride: config);
-
-        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
-
-        result.ShouldContinue.Should().BeTrue();
-        output.Should().Contain(@"C:\path-a", "大写子命令应照常小写化分派到 exclude");
-        output.Should().Contain("/sandbox-toggle exclude <path>");
+        written.Should().BeFalse("配置服务缺失时应返回 false 而不是抛异常");
     }
 
     [Fact]

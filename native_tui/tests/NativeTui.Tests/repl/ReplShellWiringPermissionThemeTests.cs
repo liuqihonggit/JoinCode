@@ -94,20 +94,19 @@ public sealed class ReplShellWiringPermissionThemeTests
         Assert.Equal(string.Empty, shell.Input.Text);
     }
 
-    /// <summary>接线点7 — Ctrl+E 切换解释展开态（模态吞键）。</summary>
+    /// <summary>接线点7 — Ctrl+E 在未装配解释能力时整体 no-op（P4：不制造「按了有反应」的假入口）。</summary>
     [Fact]
-    public void PermissionCtrlE_TogglesExplanation()
+    public void PermissionCtrlE_WithoutExplainer_IsNoOp()
     {
         var (shell, _) = CreateShellWithPendingPermission();
-        Assert.False(shell.Permission.ExplanationExpanded);
+        Assert.Equal(PermissionExplanationPhase.Hidden, shell.Permission.ExplanationPhase);
 
-        // \x05 = Ctrl+e（ReadKey 控制字母归一路径）
-        shell.HandleKey(new ConsoleKeyInfo('\x05', ConsoleKey.E, false, false, true));
+        //  = Ctrl+e（ReadKey 控制字母归一路径）
+        shell.HandleKey(new ConsoleKeyInfo('', ConsoleKey.E, false, false, true));
 
-        Assert.True(shell.Permission.ExplanationExpanded);
+        Assert.Equal(PermissionExplanationPhase.Hidden, shell.Permission.ExplanationPhase);
         Assert.Equal(string.Empty, shell.Input.Text);
     }
-
     /// <summary>接线点7 — BackTab 权限模式循环请求：ModeCycleRequested 转发引擎回执通道
     ///（挂起态 BackTab 不再被模态吞掉，复用 Shift+Tab 的 CyclePermissionMode 实现）。</summary>
     [Fact]

@@ -155,6 +155,12 @@ public static class ConfigKeyRegistry {
                 Description = "响应后显示轮次耗时",
                 Source = SettingSource.GlobalConfig,
             },
+            [ConfigKeys.PermissionExplainerEnabled] = new() {
+                Key = ConfigKeys.PermissionExplainerEnabled,
+                Type = "boolean",
+                Description = "权限确认时按 ctrl+e 让模型解释命令与风险（关闭后不显示该入口）",
+                Source = SettingSource.GlobalConfig,
+            },
             [ConfigKeys.TerminalProgressBarEnabled] = new() {
                 Key = ConfigKeys.TerminalProgressBarEnabled,
                 Type = "boolean",
@@ -235,6 +241,34 @@ public static class ConfigKeyRegistry {
                 Description = "启用后台记忆整合",
                 Source = SettingSource.UserSettings,
             },
+            [ConfigKeys.SandboxEnabled] = new() {
+                Key = ConfigKeys.SandboxEnabled,
+                Type = "boolean",
+                Description = "启用命令沙箱（Bash/PowerShell 在 OS 级隔离内执行）",
+                Source = SettingSource.UserSettings,
+                Path = ["current", "sandbox", "enabled"],
+            },
+            [ConfigKeys.SandboxAutoAllowBashIfSandboxed] = new() {
+                Key = ConfigKeys.SandboxAutoAllowBashIfSandboxed,
+                Type = "boolean",
+                Description = "沙箱内的 Bash/PowerShell 免确认（默认开）",
+                Source = SettingSource.UserSettings,
+                Path = ["current", "sandbox", "autoAllowBashIfSandboxed"],
+            },
+            [ConfigKeys.SandboxAllowUnsandboxedCommands] = new() {
+                Key = ConfigKeys.SandboxAllowUnsandboxedCommands,
+                Type = "boolean",
+                Description = "允许 dangerouslyDisableSandbox 跳出沙箱（默认开；关=强制全沙箱）",
+                Source = SettingSource.UserSettings,
+                Path = ["current", "sandbox", "allowUnsandboxedCommands"],
+            },
+            [ConfigKeys.SandboxFailIfUnavailable] = new() {
+                Key = ConfigKeys.SandboxFailIfUnavailable,
+                Type = "boolean",
+                Description = "启用沙箱但沙箱不可用时拒绝启动（默认关=警告后不沙箱）",
+                Source = SettingSource.UserSettings,
+                Path = ["current", "sandbox", "failIfUnavailable"],
+            },
             [ConfigKeys.PermissionsDefaultMode] = new() {
                 Key = ConfigKeys.PermissionsDefaultMode,
                 Type = "string",
@@ -298,6 +332,8 @@ public static class ConfigKeys {
     public const string FileCheckpointingEnabled = "fileCheckpointingEnabled";
     /// <summary>显示轮次耗时。</summary>
     public const string ShowTurnDuration = "showTurnDuration";
+    /// <summary>权限对话框模型解释（ctrl+e）。</summary>
+    public const string PermissionExplainerEnabled = "permissionExplainerEnabled";
     /// <summary>终端进度条。</summary>
     public const string TerminalProgressBarEnabled = "terminalProgressBarEnabled";
     /// <summary>待办/任务跟踪。</summary>
@@ -318,6 +354,14 @@ public static class ConfigKeys {
     public const string AutoDreamEnabled = "autoDreamEnabled";
     /// <summary>默认权限模式（嵌套键 <c>current.permissions.defaultMode</c>）。</summary>
     public const string PermissionsDefaultMode = "permissions.defaultMode";
+    /// <summary>启用命令沙箱（嵌套键 <c>current.sandbox.enabled</c>）。</summary>
+    public const string SandboxEnabled = "sandbox.enabled";
+    /// <summary>沙箱内 Bash 免确认（嵌套键 <c>current.sandbox.autoAllowBashIfSandboxed</c>）。</summary>
+    public const string SandboxAutoAllowBashIfSandboxed = "sandbox.autoAllowBashIfSandboxed";
+    /// <summary>允许跳出沙箱（嵌套键 <c>current.sandbox.allowUnsandboxedCommands</c>）。</summary>
+    public const string SandboxAllowUnsandboxedCommands = "sandbox.allowUnsandboxedCommands";
+    /// <summary>沙箱不可用即拒绝启动（嵌套键 <c>current.sandbox.failIfUnavailable</c>）。</summary>
+    public const string SandboxFailIfUnavailable = "sandbox.failIfUnavailable";
     /// <summary>首选语言。</summary>
     public const string Language = "language";
 }

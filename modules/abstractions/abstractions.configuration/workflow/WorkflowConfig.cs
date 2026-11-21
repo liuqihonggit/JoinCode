@@ -125,6 +125,13 @@ public sealed record WorkflowConfig {
     public bool ShowTurnDuration { get; init; } = true;
 
     /// <summary>
+    /// 权限解释开关 — 对齐 TS permissionExplainerEnabled（默认 true，显式 false 才关）；
+    /// 关掉时权限对话框不提供 ctrl+e 模型解释入口（对齐基准 isPermissionExplainerEnabled 同时门控
+    /// 键位 isActive 与实际请求），避免用户按了没反应。
+    /// </summary>
+    public bool PermissionExplainerEnabled { get; init; } = true;
+
+    /// <summary>
     /// 自动压缩开关 — 对齐 TS autoCompactEnabled（默认 true）；
     /// AutoCompactService.ShouldAutoCompact 门控（false 时即使超硬阈值也不触发）
     /// </summary>
@@ -172,6 +179,12 @@ public sealed record WorkflowConfig {
     /// 从 settings.json 的 current.actor 节点加载,缺失时用默认值
     /// </summary>
     public ActorSettings Actor { get; init; } = new();
+
+    /// <summary>
+    /// 沙箱配置 — 对齐基准 SandboxSettingsSchema（settings.json 的 current.sandbox 节点）
+    /// 驱动 Bash/PowerShell 的每命令沙箱门控与权限免确认（见 SandboxConfig 注释）
+    /// </summary>
+    public SandboxConfig Sandbox { get; init; } = new();
 
     /// <summary>
     /// 当前激活的配置档案名 — 对应 settings.json 中 profiles 字典的键

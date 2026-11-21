@@ -158,6 +158,8 @@ consumers:
         priority: 200
       - id: dangerous-command-mw
         priority: 300
+      - id: sandbox-auto-allow-mw
+        priority: 350
       - id: auto-class-permission-mw
         priority: 400
       - id: config-permission-mw

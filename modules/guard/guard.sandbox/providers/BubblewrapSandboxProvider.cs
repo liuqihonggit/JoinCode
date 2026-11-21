@@ -17,6 +17,9 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase {
     /// <summary>沙箱能力 — 路径重定向、文件系统隔离、网络隔离、进程隔离、用户命名空间</summary>
     public override SandboxCapabilities Capabilities => SandboxCapabilities.PathRedirection | SandboxCapabilities.FileSystemIsolation | SandboxCapabilities.NetworkIsolation | SandboxCapabilities.ProcessIsolation | SandboxCapabilities.UserNamespace;
 
+    /// <inheritdoc/>
+    public override bool SupportsCommandWrapping => true;
+
     /// <summary>
     /// 构造 Bubblewrap 沙箱提供者
     /// </summary>
@@ -122,5 +125,11 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase {
             Success = result.Success,
             TimedOut = !result.Success && result.ExitCode == -1
         };
+    }
+
+    /// <inheritdoc/>
+    public bool TryWrapCommand(SandboxWrapRequest request, [NotNullWhen(true)] out SandboxWrappedCommand? wrapped) {
+        wrapped = BwrapCommandBuilder.Build(request, p => Fs.DirectoryExists(p) || Fs.FileExists(p), Fs.DirectoryExists);
+        return true;
     }
 }

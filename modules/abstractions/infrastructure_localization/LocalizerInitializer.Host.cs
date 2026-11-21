@@ -522,7 +522,7 @@ public static partial class LocalizerInitializer {
         defaultEntries[StringKey.HostSandboxStatusPlatformSupported] = "  Platform supported: {0}";
         defaultEntries[StringKey.HostSandboxUsageEnable] = "Use /sandbox-toggle on to enable sandbox";
         defaultEntries[StringKey.HostSandboxUsageDisable] = "Use /sandbox-toggle off to disable sandbox";
-        defaultEntries[StringKey.HostSandboxUsageExclude] = "Use /sandbox-toggle exclude <path> to exclude paths";
+        defaultEntries[StringKey.HostSandboxUsageExclude] = "Use /sandbox-toggle exclude to view excluded commands (edit settings.json to add)";
         defaultEntries[StringKey.HostSandboxExcludePathsHeader] = "Excluded paths:";
         defaultEntries[StringKey.HostSandboxExcludeNone] = "  (none)";
         defaultEntries[StringKey.HostSandboxExcludeAddUsage] = "Use /sandbox-toggle exclude <path> to add an excluded path";

@@ -11,7 +11,7 @@ namespace NativeTui.Core.Repl;
 /// 状态源 = PermissionCoordinator（焦点/请求），Begin 时插入 Messages，Complete 时移除；
 /// 形态数据 = ToolPermissionForms.Derive（Fallback 时渲染零行为变化 — 既有测试零破坏锚点）。
 /// </summary>
-public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : IScrollItem
+public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : IScrollItem, IAnimatable
 {
     /// <summary>三档选项标签（对齐基准 yes / yes-dont-ask-again / no；dont-ask 文案合并 toolName 语境简化为固定串）。</summary>
     private static readonly string[] OptionLabels =
@@ -28,7 +28,40 @@ public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : I
     /// + 描述(空则 0) + 形态区行数（Bash：命令折行 + 警告 0/1 / File：路径 1 + patch 0/1）
     /// + 反馈输入行（P3 — Tab 展开时 1 行）+ 触发原因区（P5 — 规则内容非空时 2 行）。</summary>
     public int MeasureHeight(int width) =>
-        12 + DescriptionRows + FormRows(width) + FeedbackRows + ReasonRows;
+        12 + DescriptionRows + FormRows(width) + FeedbackRows + ReasonRows + ExplanationRows(width);
+
+    /// <summary>解释区行数（P4 — 未展开 0；加载/不可用各「空行 + 1 行」；就绪为「空行 + 解释 + 空行 + 为什么 + 空行 + 风险」，
+    /// 三段均按显示列宽折行 — 与 Render 用同参数同函数，行数必然一致）。</summary>
+    private int ExplanationRows(int width) => Coordinator.ExplanationPhase switch
+    {
+        PermissionExplanationPhase.Loading => 2,
+        PermissionExplanationPhase.Unavailable => 2,
+        PermissionExplanationPhase.Ready => 1
+            + ExplanationLines(width, Coordinator.Explanation?.Explanation).Length
+            + 1
+            + ExplanationLines(width, Coordinator.Explanation?.Reasoning).Length
+            + 1
+            + ExplanationLines(width, RiskLine(Coordinator.Explanation)).Length,
+        _ => 0,
+    };
+
+    /// <summary>解释文本折行（缩进外的可用列宽 — 与命令区同一折行实现，CJK 按 2 列）。</summary>
+    private static string[] ExplanationLines(int width, string? text) =>
+        string.IsNullOrEmpty(text)
+            ? []
+            : PermissionTextWrap.Wrap(text, Math.Max(1, width - ToolPermissionForms.CommandIndent));
+
+    /// <summary>风险行文本 — 「低风险: 一句话」（等级标签另外上色）。</summary>
+    private static string RiskLine(PermissionExplanationView? view) =>
+        view is null ? string.Empty : $"{RiskLabel(view.RiskBand)}: {view.Risk}";
+
+    /// <summary>风险档位标签（对齐基准 Low risk / Med risk / High risk 三档）。</summary>
+    private static string RiskLabel(PermissionRiskBand band) => band switch
+    {
+        PermissionRiskBand.Low => "低风险",
+        PermissionRiskBand.Medium => "中风险",
+        _ => "高风险",
+    };
 
     /// <summary>触发原因区行数（P5 — 规则内容 + /permissions 引导两行；无规则内容折叠为 0）。</summary>
     private int ReasonRows => string.IsNullOrEmpty(Coordinator.Request?.RuleContent) ? 0 : 2;
@@ -73,6 +106,7 @@ public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : I
 
         RenderFormRegion(screen, frame, theme, ref row, form);
         RenderReasonRegion(screen, frame, ref row, request);
+        RenderExplanationRegion(screen, frame, theme, ref row);
 
         row++;
         MessageRenderer.RenderPermissionQuestion(screen, RowFrame(frame, row++), theme);
@@ -143,6 +177,88 @@ public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : I
         RenderIndentedLine(screen, RowFrame(frame, row++), screen.Styles.GetOrAdd(new TextStyle { Dim = true }), "/permissions 更新规则");
     }
 
+    /// <summary>
+    /// 解释区渲染（P4 — 对齐基准 <c>PermissionExplanation.tsx</c> 三态）：加载态「空行 + 正在生成解释…」，
+    /// 不可用「空行 + dim 解释不可用」，就绪态「空行 + 解释 / 空行 + 为什么 / 空行 + 风险等级: 一句话」。
+    /// <para>与基准的差异（如实记录）：基准加载态是逐字符 shimmer 高亮，本实现用 dim 文本 + 三点循环动画
+    /// （<see cref="AnimTimeMs"/> 驱动）—— 终端逐字符高亮需要在 Screen 上逐 cell 重绘，收益与复杂度不成比例。</para>
+    /// </summary>
+    private void RenderExplanationRegion(Screen screen, Rect frame, Theme theme, ref int row)
+    {
+        var phase = Coordinator.ExplanationPhase;
+        if (phase == PermissionExplanationPhase.Hidden)
+        {
+            return;
+        }
+
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        row++;
+        if (phase == PermissionExplanationPhase.Loading)
+        {
+            RenderIndentedLine(screen, RowFrame(frame, row++), dim, $"正在生成解释{LoadingDots()}");
+            return;
+        }
+
+        if (phase == PermissionExplanationPhase.Unavailable || Coordinator.Explanation is null)
+        {
+            RenderIndentedLine(screen, RowFrame(frame, row++), dim, "解释不可用");
+            return;
+        }
+
+        var view = Coordinator.Explanation;
+        foreach (var line in ExplanationLines(frame.Width, view.Explanation))
+        {
+            RenderIndentedLine(screen, RowFrame(frame, row++), 0, line);
+        }
+
+        row++;
+        foreach (var line in ExplanationLines(frame.Width, view.Reasoning))
+        {
+            RenderIndentedLine(screen, RowFrame(frame, row++), 0, line);
+        }
+
+        row++;
+        RenderRiskLine(screen, RowFrame(frame, row), theme, view);
+        row++;
+    }
+
+    /// <summary>风险行渲染 — 等级标签按档上色（低=成功/中=警告/高=错误），后接一句话风险；
+    /// 超宽时整行（含标签）一起折行，续行只画文本 —— 与 <see cref="MeasureHeight"/> 用同一折行输入，
+    /// 行数不会漂移。极窄宽度下标签自身被折开时不拆色（整行标色），保证不丢字。</summary>
+    private static void RenderRiskLine(Screen screen, Rect frame, Theme theme, PermissionExplanationView view)
+    {
+        var labelStyle = screen.Styles.GetOrAdd(new TextStyle {
+            Foreground = view.RiskBand switch
+            {
+                PermissionRiskBand.Low => theme.Success,
+                PermissionRiskBand.Medium => theme.Warning,
+                _ => theme.Error,
+            },
+        });
+        var label = RiskLabel(view.RiskBand) + ": ";
+        var lines = PermissionTextWrap.Wrap(RiskLine(view), Math.Max(1, frame.Width - ToolPermissionForms.CommandIndent));
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var lineFrame = i == 0 ? frame : frame with { Y = frame.Y + i };
+            var col = screen.WriteText(lineFrame.Y, lineFrame.X, new string(' ', ToolPermissionForms.CommandIndent), 0, lineFrame.Right);
+            if (i > 0 || !lines[i].StartsWith(label, StringComparison.Ordinal))
+            {
+                var style = i == 0 ? labelStyle : 0;
+                screen.WriteText(lineFrame.Y, col, lines[i], style, lineFrame.Right);
+                continue;
+            }
+
+            col = screen.WriteText(lineFrame.Y, col, label, labelStyle, lineFrame.Right);
+            screen.WriteText(lineFrame.Y, col, lines[i].AsSpan(label.Length), 0, lineFrame.Right);
+        }
+    }
+
+    /// <summary>加载动画点（三点循环 — 由 50ms 动画时钟推进，与全实例同相位）。</summary>
+    private string LoadingDots() => new('.', (int)(AnimTimeMs / 300 % 4));
+
+    /// <summary>动画时钟（<see cref="IAnimatable"/> — ReplShell 每拍注入）。</summary>
+    public long AnimTimeMs { get; set; }
+
     /// <summary>缩进行渲染 — 3 空格缩进 + 指定样式整行文本。</summary>
     private static void RenderIndentedLine(Screen screen, Rect frame, int style, string text) =>
         screen.WriteText(frame.Y, frame.X, $"{new string(' ', ToolPermissionForms.CommandIndent)}{text}", style, frame.Right);
@@ -161,12 +277,19 @@ public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : I
         }
     }
 
-    /// <summary>Esc 提示行 — Fallback/File 走基准 "Esc to cancel"（零行为变化）；Bash 附 ctrl+e 展开详情提示
-    ///（对齐基准 "Esc to cancel · ctrl+e to explain"，S8 键位 ToggleExplanation 数据层已就绪）；
-    /// 焦点档支持反馈时附 Tab 说明提示（P3 — 对齐基准 "Esc to cancel · Tab to amend"）。</summary>
+    /// <summary>
+    /// Esc 提示行 — 基准 "Esc to cancel"，可选追加两项：
+    /// ①解释开关打开时 <c>ctrl+e</c> 提示（P4 — 展开时改说「收起解释」，与键的实际效果一致；
+    /// 关闭时不出现，对齐基准 <c>useKeybinding isActive</c>）；②焦点档支持反馈时 <c>Tab</c> 说明（P3）。
+    /// </summary>
     private void RenderEscHint(Screen screen, Rect frame, Theme theme, PermissionFormKind kind)
     {
-        var text = kind == PermissionFormKind.Bash ? " Esc to cancel · ctrl+e 展开详情" : " Esc to cancel";
+        _ = kind;
+        var text = " Esc to cancel";
+        if (Coordinator.ExplanationEnabled)
+        {
+            text += Coordinator.ExplanationVisible ? " · ctrl+e 收起解释" : " · ctrl+e 解释";
+        }
         if (Coordinator.FocusSupportsFeedback)
         {
             text += Coordinator.FeedbackInputActive

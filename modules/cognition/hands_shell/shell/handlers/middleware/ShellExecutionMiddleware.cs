@@ -13,26 +13,42 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
     /// <param name="registry">系统执行器注册表</param>
     /// <param name="foregroundTaskRegistry">前台任务注册表（可选）</param>
     /// <param name="logger">日志器（可选）</param>
-    public ShellExecutionMiddleware(ISystemActuatorRegistry registry, IForegroundTaskRegistry? foregroundTaskRegistry = null, ILogger<ShellExecutionMiddleware>? logger = null) {
+    /// <param name="workflowConfig">工作流配置（可选 — 驱动 sandbox 门控）</param>
+    /// <param name="sandboxManager">沙箱管理器（可选 — 提供运行期可用性）</param>
+    public ShellExecutionMiddleware(
+        ISystemActuatorRegistry registry,
+        IForegroundTaskRegistry? foregroundTaskRegistry = null,
+        ILogger<ShellExecutionMiddleware>? logger = null,
+        IOptions<WorkflowConfig>? workflowConfig = null,
+        ISandboxManager? sandboxManager = null) {
         _registry = registry;
         _foregroundTaskRegistry = foregroundTaskRegistry;
         _logger = logger;
+        _workflowConfig = workflowConfig;
+        _sandboxManager = sandboxManager;
     }
     private readonly ISystemActuatorRegistry _registry;
     private readonly IForegroundTaskRegistry? _foregroundTaskRegistry;
     private readonly ILogger<ShellExecutionMiddleware>? _logger;
+    private readonly IOptions<WorkflowConfig>? _workflowConfig;
+    private readonly ISandboxManager? _sandboxManager;
 
     /// <inheritdoc />
     public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var shouldAutoBackground = context.AutoBackground != false
             && SystemActuatorBackgroundConstants.IsAutoBackgroundAllowed(context.Command);
+        var sandboxDecision = ShellSandboxPolicy.Resolve(
+            context.Command, context.DangerouslyDisableSandbox, _workflowConfig?.Value, _sandboxManager, context.WorkingDirectory);
+        if (sandboxDecision.WrapWarning is { Length: > 0 } warning) {
+            _logger?.LogWarning("沙箱包装降级: {Warning}", warning);
+        }
 
         await using var cmdContext = await context.Provider.StartWithBackgroundSupportAsync(
-            context.Command,
+            sandboxDecision.Command,
             context.OverrideTimeout ?? context.Timeout,
             context.WorkingDirectory,
             shouldAutoBackground: shouldAutoBackground,
-            disableSandbox: context.DangerouslyDisableSandbox == true,
+            disableSandbox: sandboxDecision.DisableSandbox,
             cancellationToken: ct).ConfigureAwait(false);
 
         if (cmdContext is SystemActuatorCommandContext actuatorCtx) {

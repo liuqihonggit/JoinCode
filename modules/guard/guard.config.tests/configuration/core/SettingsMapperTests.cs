@@ -367,30 +367,63 @@ public class SettingsMapperTests {
 
     #endregion
 
-    #region 场景5: SandboxSettings 映射
+    #region 场景5: SandboxSettings 映射（对齐基准 SandboxSettingsSchema）
 
     [Fact]
-    public void Given_SandboxRestrictNetwork_When_ToWorkflowConfig_Then_AllowNetworkAccess取反() {
+    public void Given_SandboxEnabledTrue_When_ToWorkflowConfig_Then_只影响Sandbox不污染CodeExecution() {
         var settings = new SettingsJson {
             Current = new CurrentSettings {
-                Sandbox = new SandboxSettings { RestrictNetwork = true },
+                Sandbox = new SandboxSettings { Enabled = true },
             },
         };
 
         var config = _mapper.ToWorkflowConfig(settings);
-        config.CodeExecution.AllowNetworkAccess.Should().BeFalse();
+        config.Sandbox.Enabled.Should().BeTrue();
+        // 旧实现把 sandbox.enabled 映射成 CodeExecution.ReadOnlyFilesystem —— 语义错位，已删除
+        config.CodeExecution.ReadOnlyFilesystem.Should().BeTrue("CodeExecution 默认值不应被 sandbox 键改写");
     }
 
     [Fact]
-    public void Given_SandboxMemoryLimitMb_When_ToWorkflowConfig_Then_MaxMemoryMB映射() {
+    public void Given_SandboxAllowUnsandboxedFalse_When_ToWorkflowConfig_Then_策略门生效() {
         var settings = new SettingsJson {
             Current = new CurrentSettings {
-                Sandbox = new SandboxSettings { MemoryLimitMb = 512 },
+                Sandbox = new SandboxSettings { Enabled = true, AllowUnsandboxedCommands = false, AutoAllowBashIfSandboxed = false },
             },
         };
 
         var config = _mapper.ToWorkflowConfig(settings);
-        config.CodeExecution.MaxMemoryMB.Should().Be(512);
+        config.Sandbox.AllowUnsandboxedCommands.Should().BeFalse();
+        config.Sandbox.AutoAllowBashIfSandboxed.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Given_SandboxRipgrep_When_ToWorkflowConfig_Then_命令与参数保留() {
+        var settings = new SettingsJson {
+            Current = new CurrentSettings {
+                Sandbox = new SandboxSettings {
+                    Ripgrep = new SandboxRipgrepSettings { Command = "/usr/local/bin/rg", Args = ["--no-config"] },
+                },
+            },
+        };
+
+        var config = _mapper.ToWorkflowConfig(settings);
+
+        var ripgrep = config.Sandbox.Ripgrep;
+        ripgrep.Should().NotBeNull();
+        if (ripgrep is null) {
+            throw new InvalidOperationException("sandbox.ripgrep 未映射");
+        }
+        ripgrep.Command.Should().Be("/usr/local/bin/rg");
+        ripgrep.Args.Should().ContainSingle().Which.Should().Be("--no-config");
+    }
+
+    [Fact]
+    public void Given_Sandbox缺席_When_ToWorkflowConfig_Then_基准默认值() {
+        var config = _mapper.ToWorkflowConfig(new SettingsJson { Current = new CurrentSettings() });
+        config.Sandbox.Enabled.Should().BeFalse("基准 sandbox.enabled 缺省 false");
+        config.Sandbox.AutoAllowBashIfSandboxed.Should().BeTrue("基准 autoAllowBashIfSandboxed 缺省 true");
+        config.Sandbox.AllowUnsandboxedCommands.Should().BeTrue("基准 allowUnsandboxedCommands 缺省 true");
+        config.Sandbox.FailIfUnavailable.Should().BeFalse();
     }
 
     #endregion

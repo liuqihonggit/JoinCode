@@ -104,7 +104,6 @@ public class SettingsJsonDeserializationTests {
 
         settings.Current.Sandbox.Should().NotBeNull();
         settings.Current.Sandbox!.Enabled.Should().BeTrue();
-        settings.Current.Sandbox.Mode.Should().Be("docker");
 
         settings.Current.EnabledPlugins.Should().NotBeNull();
         settings.Current.EnabledPlugins!["dream"].Enabled.Should().BeTrue();
@@ -210,20 +209,40 @@ public class SettingsJsonDeserializationTests {
 
     #endregion
 
-    #region 场景6: SandboxSettings 新字段反序列化
+    #region 场景6: SandboxSettings 反序列化（对齐基准 SandboxSettingsSchema）
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void Given_SandboxSettings含新字段_When_反序列化_Then_AllowedPathsRestrictNetworkMemoryLimitMb正确映射() {
+    public void Given_基准Schema全字段_When_反序列化_Then_逐字段正确() {
         var json = """
             {
               "current": {
                 "sandbox": {
                   "enabled": true,
-                  "mode": "process",
-                  "allowedPaths": ["/tmp", "/home"],
-                  "restrictNetwork": true,
-                  "memoryLimitMb": 512
+                  "failIfUnavailable": true,
+                  "autoAllowBashIfSandboxed": false,
+                  "allowUnsandboxedCommands": false,
+                  "excludedCommands": ["docker:*", "psql"],
+                  "enabledPlatforms": ["linux"],
+                  "network": {
+                    "allowedDomains": ["example.com"],
+                    "allowManagedDomainsOnly": true,
+                    "allowUnixSockets": ["/var/run/docker.sock"],
+                    "allowAllUnixSockets": false,
+                    "allowLocalBinding": true,
+                    "httpProxyPort": 8080,
+                    "socksProxyPort": 1080
+                  },
+                  "filesystem": {
+                    "allowWrite": ["/tmp"],
+                    "denyWrite": ["/etc"],
+                    "denyRead": ["/home"],
+                    "allowRead": ["/home/shared"],
+                    "allowManagedReadPathsOnly": true
+                  },
+                  "ignoreViolations": { "/tmp": ["network"] },
+                  "enableWeakerNestedSandbox": true,
+                  "enableWeakerNetworkIsolation": true
                 }
               }
             }
@@ -231,23 +250,38 @@ public class SettingsJsonDeserializationTests {
 
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         settings.Should().NotBeNull();
-        settings!.Current!.Sandbox.Should().NotBeNull();
-        settings.Current.Sandbox!.Enabled.Should().BeTrue();
-        settings.Current.Sandbox.Mode.Should().Be("process");
-        settings.Current.Sandbox.AllowedPaths.Should().Equal("/tmp", "/home");
-        settings.Current.Sandbox.RestrictNetwork.Should().BeTrue();
-        settings.Current.Sandbox.MemoryLimitMb.Should().Be(512);
+        var sandbox = settings!.Current!.Sandbox;
+        sandbox.Should().NotBeNull();
+        sandbox!.Enabled.Should().BeTrue();
+        sandbox.FailIfUnavailable.Should().BeTrue();
+        sandbox.AutoAllowBashIfSandboxed.Should().BeFalse();
+        sandbox.AllowUnsandboxedCommands.Should().BeFalse();
+        sandbox.ExcludedCommands.Should().Equal("docker:*", "psql");
+        sandbox.EnabledPlatforms.Should().Equal("linux");
+        sandbox.Network!.AllowedDomains.Should().Equal("example.com");
+        sandbox.Network.AllowManagedDomainsOnly.Should().BeTrue();
+        sandbox.Network.AllowUnixSockets.Should().Equal("/var/run/docker.sock");
+        sandbox.Network.AllowLocalBinding.Should().BeTrue();
+        sandbox.Network.HttpProxyPort.Should().Be(8080);
+        sandbox.Network.SocksProxyPort.Should().Be(1080);
+        sandbox.Filesystem!.AllowWrite.Should().Equal("/tmp");
+        sandbox.Filesystem.DenyWrite.Should().Equal("/etc");
+        sandbox.Filesystem.DenyRead.Should().Equal("/home");
+        sandbox.Filesystem.AllowRead.Should().Equal("/home/shared");
+        sandbox.Filesystem.AllowManagedReadPathsOnly.Should().BeTrue();
+        sandbox.IgnoreViolations!["/tmp"].Should().Equal("network");
+        sandbox.EnableWeakerNestedSandbox.Should().BeTrue();
+        sandbox.EnableWeakerNetworkIsolation.Should().BeTrue();
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void Given_SandboxSettings仅旧字段_When_反序列化_Then_新字段为null() {
+    public void Given_仅Enabled字段_When_反序列化_Then_其余为null由映射层补默认() {
         var json = """
             {
               "current": {
                 "sandbox": {
-                  "enabled": false,
-                  "mode": "soft"
+                  "enabled": false
                 }
               }
             }
@@ -255,12 +289,14 @@ public class SettingsJsonDeserializationTests {
 
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         settings.Should().NotBeNull();
-        settings!.Current!.Sandbox.Should().NotBeNull();
-        settings.Current.Sandbox!.Enabled.Should().BeFalse();
-        settings.Current.Sandbox.Mode.Should().Be("soft");
-        settings.Current.Sandbox.AllowedPaths.Should().BeNull();
-        settings.Current.Sandbox.RestrictNetwork.Should().BeNull();
-        settings.Current.Sandbox.MemoryLimitMb.Should().BeNull();
+        var sandbox = settings!.Current!.Sandbox;
+        sandbox.Should().NotBeNull();
+        sandbox!.Enabled.Should().BeFalse();
+        sandbox.AutoAllowBashIfSandboxed.Should().BeNull();
+        sandbox.AllowUnsandboxedCommands.Should().BeNull();
+        sandbox.ExcludedCommands.Should().BeNull("缺省集合字段反序列化为 null（与 AllowedPaths 等既有字段一致），由映射层补默认");
+        sandbox.Network.Should().BeNull();
+        sandbox.Filesystem.Should().BeNull();
     }
 
     #endregion

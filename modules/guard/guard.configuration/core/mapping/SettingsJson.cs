@@ -192,6 +192,13 @@ public sealed partial class CurrentSettings {
     public bool? ShowTurnDuration { get; init; }
 
     /// <summary>
+    /// 权限解释开关 — 对齐 TS permissionExplainerEnabled（缺省视为 true，显式 false 才关）
+    /// </summary>
+    [JsonPropertyName("permissionExplainerEnabled")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? PermissionExplainerEnabled { get; init; }
+
+    /// <summary>
     /// 扩展思考 — 对齐 ConfigKeys.AlwaysThinkingEnabled
     /// </summary>
     [JsonPropertyName("alwaysThinkingEnabled")]
@@ -524,32 +531,125 @@ public sealed class McpServerSettings {
 }
 
 /// <summary>
-/// 沙箱配置 — 对齐 TS 版 SandboxSettingsSchema
+/// 沙箱配置 — 对齐 TS 版 SandboxSettingsSchema（entrypoints/sandboxTypes.ts:91-144）
 /// </summary>
 public sealed class SandboxSettings {
-    /// <summary>是否启用沙箱</summary>
+    /// <summary>是否启用沙箱（缺省 false）</summary>
     [JsonPropertyName("enabled")]
     public bool? Enabled { get; init; }
 
-    /// <summary>沙箱模式</summary>
-    [JsonPropertyName("mode")]
-    public string? Mode { get; init; }
+    /// <summary>启用但不可运行时是否拒绝启动（缺省 false）</summary>
+    [JsonPropertyName("failIfUnavailable")]
+    public bool? FailIfUnavailable { get; init; }
 
-    /// <summary>沙箱镜像名</summary>
-    [JsonPropertyName("image")]
-    public string? Image { get; init; }
+    /// <summary>沙箱内 Bash 是否免确认（缺省 true）</summary>
+    [JsonPropertyName("autoAllowBashIfSandboxed")]
+    public bool? AutoAllowBashIfSandboxed { get; init; }
 
-    /// <summary>允许访问的路径白名单</summary>
-    [JsonPropertyName("allowedPaths")]
-    public List<string> AllowedPaths { get; init; } = [];
+    /// <summary>是否允许 dangerouslyDisableSandbox 跳出（缺省 true）</summary>
+    [JsonPropertyName("allowUnsandboxedCommands")]
+    public bool? AllowUnsandboxedCommands { get; init; }
 
-    /// <summary>是否限制网络访问</summary>
-    [JsonPropertyName("restrictNetwork")]
-    public bool? RestrictNetwork { get; init; }
+    /// <summary>不进入沙箱的命令模式清单</summary>
+    [JsonPropertyName("excludedCommands")]
+    public List<string> ExcludedCommands { get; init; } = [];
 
-    /// <summary>内存上限（MB）</summary>
-    [JsonPropertyName("memoryLimitMb")]
-    public int? MemoryLimitMb { get; init; }
+    /// <summary>允许沙箱生效的平台（未公开的企业设置）</summary>
+    [JsonPropertyName("enabledPlatforms")]
+    public List<string> EnabledPlatforms { get; init; } = [];
+
+    /// <summary>网络访问面</summary>
+    [JsonPropertyName("network")]
+    public SandboxNetworkSettings? Network { get; init; }
+
+    /// <summary>文件系统访问面</summary>
+    [JsonPropertyName("filesystem")]
+    public SandboxFilesystemSettings? Filesystem { get; init; }
+
+    /// <summary>违规忽略表</summary>
+    [JsonPropertyName("ignoreViolations")]
+    public Dictionary<string, List<string>> IgnoreViolations { get; init; } = [];
+
+    /// <summary>允许更弱的嵌套沙箱</summary>
+    [JsonPropertyName("enableWeakerNestedSandbox")]
+    public bool? EnableWeakerNestedSandbox { get; init; }
+
+    /// <summary>允许更弱的网络隔离（仅 macOS 语义）</summary>
+    [JsonPropertyName("enableWeakerNetworkIsolation")]
+    public bool? EnableWeakerNetworkIsolation { get; init; }
+
+    /// <summary>自定义 ripgrep 配置</summary>
+    [JsonPropertyName("ripgrep")]
+    public SandboxRipgrepSettings? Ripgrep { get; init; }
+}
+
+/// <summary>沙箱 ripgrep 配置 — command 必填，args 可选。</summary>
+public sealed class SandboxRipgrepSettings {
+    /// <summary>ripgrep 可执行文件路径/命令</summary>
+    [JsonPropertyName("command")]
+    public string Command { get; init; } = "";
+
+    /// <summary>附加参数</summary>
+    [JsonPropertyName("args")]
+    public List<string> Args { get; init; } = [];
+}
+
+/// <summary>
+/// 沙箱网络配置 — 对齐 TS 版 SandboxNetworkConfigSchema（sandboxTypes.ts:14-42）
+/// </summary>
+public sealed class SandboxNetworkSettings {
+    /// <summary>允许访问的域名列表</summary>
+    [JsonPropertyName("allowedDomains")]
+    public List<string> AllowedDomains { get; init; } = [];
+
+    /// <summary>仅尊重受管设置里的域名</summary>
+    [JsonPropertyName("allowManagedDomainsOnly")]
+    public bool? AllowManagedDomainsOnly { get; init; }
+
+    /// <summary>允许的 Unix socket 路径（仅 macOS）</summary>
+    [JsonPropertyName("allowUnixSockets")]
+    public List<string> AllowUnixSockets { get; init; } = [];
+
+    /// <summary>允许全部 Unix socket</summary>
+    [JsonPropertyName("allowAllUnixSockets")]
+    public bool? AllowAllUnixSockets { get; init; }
+
+    /// <summary>允许本地端口绑定</summary>
+    [JsonPropertyName("allowLocalBinding")]
+    public bool? AllowLocalBinding { get; init; }
+
+    /// <summary>HTTP 代理端口</summary>
+    [JsonPropertyName("httpProxyPort")]
+    public int? HttpProxyPort { get; init; }
+
+    /// <summary>SOCKS 代理端口</summary>
+    [JsonPropertyName("socksProxyPort")]
+    public int? SocksProxyPort { get; init; }
+}
+
+/// <summary>
+/// 沙箱文件系统配置 — 对齐 TS 版 SandboxFilesystemConfigSchema（sandboxTypes.ts:47-86）
+/// </summary>
+public sealed class SandboxFilesystemSettings {
+    /// <summary>额外允许写入的路径</summary>
+    [JsonPropertyName("allowWrite")]
+    public List<string> AllowWrite { get; init; } = [];
+
+    /// <summary>额外禁止写入的路径</summary>
+    [JsonPropertyName("denyWrite")]
+    public List<string> DenyWrite { get; init; } = [];
+
+    /// <summary>额外禁止读取的路径</summary>
+    [JsonPropertyName("denyRead")]
+    public List<string> DenyRead { get; init; } = [];
+
+    /// <summary>在 denyRead 区域内重新允许读取的路径</summary>
+    [JsonPropertyName("allowRead")]
+    public List<string> AllowRead { get; init; } = [];
+
+    /// <summary>仅使用受管设置里的允许读取路径</summary>
+    [JsonPropertyName("allowManagedReadPathsOnly")]
+    public bool? AllowManagedReadPathsOnly { get; init; }
 }
 
 /// <summary>

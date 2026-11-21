@@ -13,6 +13,10 @@ public static partial class ServiceRegistration {
         services.AddSingleton(Options.Create(config));
         services.AddSingleton(config.Provider);
 
+        // TASK104 P1-6：Bash 提示词的沙箱三段式措辞随配置生成（基准 prompt.ts:228-256）。
+        // 静态快照在启动期注入一次；配置热更新后需由 SettingsReload 链路重新调用。
+        BashToolPrompt.SetSandboxPolicy(config.Sandbox.Enabled, config.Sandbox.AllowUnsandboxedCommands);
+
         services.AddSingleton(Options.Create(new Configuration.QueryEngineConfig()));
 
         services.AddSingleton(McpToolDispatch.GeneratedToolHandlerRegistration_JoinCode_Composition.SafeToolNames);

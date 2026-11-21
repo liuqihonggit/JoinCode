@@ -13,12 +13,22 @@ public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMid
     /// </summary>
     /// <param name="registry">系统执行器注册表</param>
     /// <param name="telemetryService">遥测服务（可选）</param>
-    public ShellBackgroundMiddleware(ISystemActuatorRegistry registry, ITelemetryService? telemetryService = null) {
+    /// <param name="workflowConfig">工作流配置（可选 — 驱动 sandbox 门控）</param>
+    /// <param name="sandboxManager">沙箱管理器（可选 — 提供运行期可用性）</param>
+    public ShellBackgroundMiddleware(
+        ISystemActuatorRegistry registry,
+        ITelemetryService? telemetryService = null,
+        IOptions<WorkflowConfig>? workflowConfig = null,
+        ISandboxManager? sandboxManager = null) {
         _registry = registry;
         _telemetryService = telemetryService;
+        _workflowConfig = workflowConfig;
+        _sandboxManager = sandboxManager;
     }
     private readonly ISystemActuatorRegistry _registry;
     private readonly ITelemetryService? _telemetryService;
+    private readonly IOptions<WorkflowConfig>? _workflowConfig;
+    private readonly ISandboxManager? _sandboxManager;
 
     /// <inheritdoc />
 
@@ -30,12 +40,14 @@ public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMid
         }
 
         // 对齐 TS spawnShellTask: 先启动进程，再立即转后台
+        var sandboxDecision = ShellSandboxPolicy.Resolve(
+            context.Command, context.DangerouslyDisableSandbox, _workflowConfig?.Value, _sandboxManager, context.WorkingDirectory);
         var cmdContext = await context.Provider.StartWithBackgroundSupportAsync(
-            context.Command,
+            sandboxDecision.Command,
             context.Timeout,
             context.WorkingDirectory,
             shouldAutoBackground: false,
-            disableSandbox: context.DangerouslyDisableSandbox == true,
+            disableSandbox: sandboxDecision.DisableSandbox,
             cancellationToken: ct).ConfigureAwait(false);
 
         SystemActuatorBackgroundTaskInfo taskInfo;

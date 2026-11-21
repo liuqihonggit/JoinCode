@@ -13,6 +13,8 @@ public interface ISandboxManager : IAsyncDisposable {
     string? CurrentSandboxId { get; }
     /// <summary>获取健康状态。</summary>
     SandboxHealthState HealthState { get; }
+    /// <summary>是否存在可执行逐命令包装的提供器（sandbox.enabled 且未进会话沙箱时使用）。</summary>
+    bool CanWrapCommand { get; }
     /// <summary>
     /// 沙箱类型是否可用 — O(1) 查询
     /// </summary>
@@ -74,6 +76,15 @@ public interface ISandboxManager : IAsyncDisposable {
     /// <param name="action">执行动作。</param>
     /// <param name="ct">取消令牌。</param>
     Task<SandboxExecutionResult> ContinueExecutionAsync(string executionId, string action, CancellationToken ct = default);
+
+    /// <summary>
+    /// 逐命令沙箱包装 — 选择一个具备真隔离能力的 provider 包装命令；
+    /// 无可用 provider 或 provider 不支持包装时返回 false（调用方必须显式降级并告警）。
+    /// </summary>
+    /// <param name="request">包装请求。</param>
+    /// <param name="wrapped">包装结果。</param>
+    /// <returns>成功包装返回 true。</returns>
+    bool TryWrapCommandForSandbox(SandboxWrapRequest request, [NotNullWhen(true)] out SandboxWrappedCommand? wrapped);
 
     /// <summary>运行时添加沙箱提供器 — 插件加载时调用(ADR 0098)</summary>
     bool AddProvider(ISandboxProvider provider);

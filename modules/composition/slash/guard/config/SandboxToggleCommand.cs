@@ -3,7 +3,7 @@ namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /sandbox-toggle 命令 — 切换沙箱模式
-/// 支持启用、禁用、查看状态、管理排除路径、切换沙箱类型
+/// 支持启用、禁用、查看状态、查看命令排除清单、切换沙箱类型
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.SandboxToggle, Description = "切换沙箱模式", Usage = "/sandbox-toggle [on|off|status|exclude|switch]", Category = ChatCommandCategory.Config, Aliases = ["sandbox"], ArgumentHint = "[on|off|status|exclude|switch]", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "沙箱操作", Enum = new[] { "on", "off", "status", "exclude", "switch" }, Default = "status")]
@@ -21,7 +21,7 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         var subCommand = ExtractSubCommand(args);
 
         if (subCommand is "exclude") {
-            await HandleExcludeAsync(context, args).ConfigureAwait(false);
+            HandleExclude(context, args);
         } else if (subCommand is "switch") {
             await HandleSwitchAsync(sandboxManager, context, args).ConfigureAwait(false);
         } else if (sandboxManager is null) {
@@ -33,7 +33,7 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         } else if (subCommand is "off" or "disable") {
             await DisableSandboxAsync(sandboxManager, context).ConfigureAwait(false);
         } else {
-            ShowStatus(sandboxManager);
+            ShowStatus(sandboxManager, context);
         }
 
         return ChatCommandResult.Continue();
@@ -56,14 +56,15 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         }
 
         try {
-            var excludedPaths = await GetExcludedPathsAsync(context).ConfigureAwait(false);
             var options = new SandboxOptions {
                 Type = SandboxType.Soft,
                 RestrictNetwork = true,
                 RestrictFileSystem = true,
-                AllowedPaths = excludedPaths
+                AllowedPaths = GetAllowWritePaths(context)
             };
             var info = await sandboxManager.EnterSandboxAsync(options, context.CancellationToken).ConfigureAwait(false);
+            await PersistSandboxEnabledAsync(context, enabled: true).ConfigureAwait(false);
+            SyncPromptPolicy(context, enabled: true);
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxEnabled), info.Type));
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxRootPath), info.RootPath));
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxNetworkRestricted), info.IsRestricted ? "是" : "否"));
@@ -81,13 +82,54 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
 
         try {
             await sandboxManager.ExitSandboxAsync(context.CancellationToken).ConfigureAwait(false);
+            await PersistSandboxEnabledAsync(context, enabled: false).ConfigureAwait(false);
+            SyncPromptPolicy(context, enabled: false);
             TerminalHelper.WriteLine(L.T(StringKey.HostSandboxDisabled));
         } catch (Exception ex) {
             ChatCommandBase.HandleError("禁用沙箱模式", ex);
         }
     }
 
-    private static void ShowStatus(ISandboxManager sandboxManager) {
+    /// <summary>
+    /// 持久化 <c>sandbox.enabled</c> — /sandbox on/off 从「会话开关」升级为「设置开关」
+    /// （对齐基准 /sandbox 写 settings）。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <param name="enabled">目标状态。</param>
+    /// <returns>写入成功返回 true；配置服务缺失或异常返回 false（命令仍继续）。</returns>
+    internal static async Task<bool> PersistSandboxEnabledAsync(ChatCommandContext context, bool enabled) {
+        var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
+        if (configService is null) {
+            TerminalHelper.WriteLine(L.T(StringKey.HostSandboxConfigUnavailable));
+            return false;
+        }
+
+        try {
+            var written = await configService
+                .SetAsync(ConfigKeys.SandboxEnabled, enabled ? "true" : "false", context.CancellationToken)
+                .ConfigureAwait(false);
+            if (!written) {
+                TerminalHelper.WriteLine(L.T(StringKey.HostSandboxConfigUnavailable));
+            }
+            return written;
+        } catch (Exception ex) {
+            ChatCommandBase.HandleError("写入 sandbox.enabled", ex);
+            return false;
+        }
+    }
+
+    /// <summary>同步提示词快照 — 让下一轮请求立刻使用新的三段式措辞。</summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <param name="enabled">是否启用沙箱。</param>
+    private static void SyncPromptPolicy(ChatCommandContext context, bool enabled) {
+        var config = ChatCommandBase.GetService<WorkflowConfig>(context);
+        BashToolPrompt.SetSandboxPolicy(enabled, config?.Sandbox.AllowUnsandboxedCommands ?? true);
+    }
+
+    /// <summary>渲染沙箱状态 — 会话沙箱状态 + 设置开关 + 可用类型。</summary>
+    /// <param name="sandboxManager">沙箱管理器。</param>
+    /// <param name="context">命令执行上下文（读取 settings 快照）。</param>
+    private static void ShowStatus(ISandboxManager sandboxManager, ChatCommandContext context) {
         var isInSandbox = sandboxManager.IsInSandbox;
         var current = sandboxManager.CurrentSandbox;
         TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxStatusHeader), isInSandbox ? "已启用" : "已禁用"));
@@ -98,6 +140,9 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxEnteredAtLabel), current.EnteredAt));
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxRestrictedLabel), current.IsRestricted ? "是" : "否"));
         }
+
+        var settingsEnabled = ChatCommandBase.GetService<WorkflowConfig>(context)?.Sandbox.Enabled == true;
+        TerminalHelper.WriteLine($"sandbox.enabled 设置: {(settingsEnabled ? "true" : "false")}（/sandbox-toggle on 会写入该设置）");
 
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"可用沙箱类型: {string.Join(", ", sandboxManager.GetAvailableTypes().Select(t => t.ToValue()))}");
@@ -142,61 +187,39 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         }
     }
 
-    private static async Task HandleExcludeAsync(ChatCommandContext context, string args) {
+    /// <summary>
+    /// 查看/提示命令排除清单 — 对齐基准 <c>sandbox.excludedCommands</c>。
+    /// 说明：配置服务只支持标量键，数组字段需直接编辑 settings.json（与基准 settings 同源）。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <param name="args">归一化参数串。</param>
+    private static void HandleExclude(ChatCommandContext context, string args) {
+        var config = ChatCommandBase.GetService<WorkflowConfig>(context);
+        var commands = config?.Sandbox.ExcludedCommands ?? [];
+
         var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 2) {
-            TerminalHelper.WriteLine(L.T(StringKey.HostSandboxExcludePathsHeader));
-            var excluded = await GetExcludedPathsAsync(context).ConfigureAwait(false);
-            if (excluded.Count == 0) {
+        if (parts.Length <= 1) {
+            TerminalHelper.WriteLine("当前排除命令清单（sandbox.excludedCommands）：");
+            if (commands.Count == 0) {
                 TerminalHelper.WriteLine(L.T(StringKey.HostSandboxExcludeNone));
             } else {
-                foreach (var path in excluded) {
-                    TerminalHelper.WriteLine($"  {path}");
+                foreach (var command in commands) {
+                    TerminalHelper.WriteLine($"  {command}");
                 }
             }
             TerminalHelper.NewLine();
-            TerminalHelper.WriteLine(L.T(StringKey.HostSandboxExcludeAddUsage));
+            TerminalHelper.WriteLine("编辑 settings.json 的 current.sandbox.excludedCommands 添加模式（支持 cmd、cmd:*、通配符）；配置服务不支持数组写入。");
             return;
         }
 
-        var pathToAdd = string.Join(' ', parts[1..]);
-        if (!context.GetCommandServices().FileSystem.DirectoryExists(pathToAdd) && !context.GetCommandServices().FileSystem.FileExists(pathToAdd)) {
-            TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxPathNotFound), pathToAdd));
-            return;
-        }
-
-        var fullPath = Path.GetFullPath(pathToAdd);
-        var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
-        if (configService is null) {
-            TerminalHelper.WriteLine(L.T(StringKey.HostSandboxConfigUnavailable));
-            return;
-        }
-
-        try {
-            var existing = await configService.GetAsync("sandbox.excludedPaths", context.CancellationToken).ConfigureAwait(false);
-            var paths = string.IsNullOrEmpty(existing) ? [] : existing.Split(';', StringSplitOptions.RemoveEmptyEntries).ToList();
-            var pathSet = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
-            if (!pathSet.Contains(fullPath)) {
-                paths.Add(fullPath);
-                await configService.SetAsync("sandbox.excludedPaths", string.Join(";", paths), context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxPathExcluded), fullPath));
-            } else {
-                TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxPathAlreadyExcluded), fullPath));
-            }
-        } catch (Exception ex) {
-            ChatCommandBase.HandleError("添加排除路径", ex);
-        }
+        var pattern = string.Join(' ', parts[1..]);
+        TerminalHelper.WriteLine($"命令排除清单只读：请在 settings.json 的 current.sandbox.excludedCommands 中加入 \"{pattern}\"。");
+        TerminalHelper.WriteLine("排除命令不进沙箱，也不享受沙箱内免确认——它是安全边界之外的便利项。");
     }
 
-    private static async Task<List<string>> GetExcludedPathsAsync(ChatCommandContext context) {
-        var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
-        if (configService is null) return [];
-
-        try {
-            var existing = await configService.GetAsync("sandbox.excludedPaths", CancellationToken.None).ConfigureAwait(false);
-            return string.IsNullOrEmpty(existing) ? [] : existing.Split(';', StringSplitOptions.RemoveEmptyEntries).ToList();
-        } catch {
-            return [];
-        }
+    /// <summary>读取沙箱可写路径白名单 — <c>sandbox.filesystem.allowWrite</c>。</summary>
+    private static List<string> GetAllowWritePaths(ChatCommandContext context) {
+        var config = ChatCommandBase.GetService<WorkflowConfig>(context);
+        return config is null ? [] : [.. config.Sandbox.Filesystem.AllowWrite];
     }
 }

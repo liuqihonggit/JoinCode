@@ -34,6 +34,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     private readonly StringBuilder _pending = new();
     private readonly Thread _reader;
     private readonly TerminalQuerier? _querier;
+    private readonly Func<long> _clock;
 
     /// <summary>pending 残留字符量快照（解析 Actor 写，探针/测试读 — 仅近似观测面）。</summary>
     private int _pendingCount;
@@ -43,10 +44,12 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     private long? _prefixStuckSince;
 
     /// <summary>创建并启动读线程（构造即开始消费 stdin — 生命周期由 Dispose/进程退出终结）。
-    /// querier 可选注入 — 终端查询响应前置分流（探测回复路由给等待方，非键事件不入键流）。</summary>
-    public RawStdinPump(TerminalQuerier? querier = null)
+    /// querier 可选注入 — 终端查询响应前置分流（探测回复路由给等待方，非键事件不入键流）。
+    /// clock 可选注入 — 前缀滞留计时源（默认 Environment.TickCount64；测试注入手动时钟消除真实时间竞态）。</summary>
+    public RawStdinPump(TerminalQuerier? querier = null, Func<long>? clock = null)
     {
         _querier = querier;
+        _clock = clock ?? (static () => Environment.TickCount64);
         _reader = new Thread(ReadLoop)
         {
             IsBackground = true,
@@ -233,7 +236,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
                 // 超时强制 flush（基准 App.tsx:309-333 — 不完整前缀滞留超阈值时
                 // 强制产出释放通道：ESC 前缀 50ms / 粘贴 500ms）
                 if (_prefixStuckSince is { } since
-                    && EscapeFlushPolicy.ShouldForceFlush(rest, Environment.TickCount64 - since)
+                    && EscapeFlushPolicy.ShouldForceFlush(rest, _clock() - since)
                     && KeyPressParser.TryParseNext(ref rest, out key, force: true)
                     && _keys.Writer.TryWrite(key))
                 {
@@ -260,7 +263,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
 
         // 滞留计时维护：仍有残留且 ESC 开头 = 不完整前缀滞留（首次打点；新数据到达由
         // Feed/ReadLoop append 前置重置）；无残留或已消耗 = 解析推进，滞留清零
-        _prefixStuckSince = rest.Length > 0 && rest[0] == '\u001b' ? _prefixStuckSince ?? Environment.TickCount64 : null;
+        _prefixStuckSince = rest.Length > 0 && rest[0] == '\u001b' ? _prefixStuckSince ?? _clock() : null;
     }
 
     /// <summary>

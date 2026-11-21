@@ -376,4 +376,4 @@
 - native_tui 自由输入问答（`AskUserQuestionAsync` 无选项）返回 Failure 并给出“至少需要 2 个选项”的诱导：TUI 对话框只呈现结构化选项，不提供自由文本输入模态（避免与主输入行争抢键盘）。
 - native_tui 多选答案以 `", "` 连接后回传；选项标签本身包含该分隔串时会被拆分（当前工具选项标签不含逗号，后续如需支持需扩展 `TuiAskResult` 保留原始选中集合）。
 - 后台任务通知入队诊断 `[NOTIFY-QUEUE]`、注入诊断 `[BACKGROUND-NOTIFY]` 保留，受 `JCC_DEBUGLOG` 控制。
-- `RawStdinPumpTests.IncompleteEscapePrefix_AccumulatesAcrossFeeds` 在本轮全量并发运行中出现一次时序偶发失败，隔离运行与复跑全量均通过；未在本项修改输入泵，记录为既有 flaky 待后续单独治理。
+- `RawStdinPumpTests` 时序竞态已修复（2026-11-21）：根因是 `Drain` 的 50ms 前缀滞留策略使用真实时钟，测试假设 Feed 与首次 Drain 在此窗口内完成；全量并行调度偶发超窗时 `ESC [` 被强制拆成 `Escape` + `[`。修复：`RawStdinPump` 构造注入 `Func<long>` 时钟（默认 `Environment.TickCount64`，生产行为不变），相关用例改用 `ManualClock` 显式推进，删除 3 处 `Thread.Sleep`；新增 16 轮跨块攒齐回归用例。验证：`RawStdinPumpTests` 19/19 连续 16 轮全绿，NativeTui.Tests 3160/3160。

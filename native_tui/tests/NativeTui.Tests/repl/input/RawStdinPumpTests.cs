@@ -8,13 +8,30 @@ namespace NativeTui.Tests.Repl;
 /// </summary>
 public sealed class RawStdinPumpTests
 {
-    /// <summary>构造即启动读线程（IsBackground — stdin Read 阻塞由进程退出回收；测试不依赖它）。</summary>
-    private static RawStdinPump CreatePump() => new();
+    /// <summary>手动时钟 — 前缀滞留计时完全由测试推进（消除全量并行调度导致的真实时间竞态）。</summary>
+    private sealed class ManualClock
+    {
+        private long _now;
+
+        public long Now => Volatile.Read(ref _now);
+
+        public void Advance(long ms) => Volatile.Write(ref _now, Now + ms);
+    }
+
+    /// <summary>构造即启动读线程（IsBackground — stdin Read 阻塞由进程退出回收；测试不依赖它）。
+    /// 默认注入冻结时钟（0）— 前缀滞留策略只由测试显式推进的 <see cref="ManualClock"/> 触发。</summary>
+    private static RawStdinPump CreatePump(ManualClock? clock = null) => new(clock: () => clock?.Now ?? 0);
 
     /// <summary>注入并排空全部产出键（Drain 非阻塞 — feed 后立即收）。</summary>
     private static List<KeyPress> FeedAndDrain(RawStdinPump pump, string text)
     {
         pump.FeedForTest(text);
+        return DrainKeys(pump);
+    }
+
+    /// <summary>非阻塞排空当前产出键。</summary>
+    private static List<KeyPress> DrainKeys(RawStdinPump pump)
+    {
         var keys = new List<KeyPress>();
         pump.Drain(keys.Add);
         return keys;
@@ -87,13 +104,36 @@ public sealed class RawStdinPumpTests
     [Fact]
     public void IncompleteEscapePrefix_AccumulatesAcrossFeeds()
     {
-        using var pump = CreatePump();
+        var clock = new ManualClock();
+        using var pump = CreatePump(clock);
         var first = FeedAndDrain(pump, "\u001b[");
         Assert.Empty(first);
+
+        // 时钟未推进 — 即使真实调度延迟远超 50ms 也不 flush（原缺陷：真实时钟在 Feed 与
+        // 首次 Drain 之间超过 50ms 时强制拆成 Escape + "["，全量并行下偶发）
+        clock.Advance(49);
+        Assert.Empty(DrainKeys(pump));
 
         var second = FeedAndDrain(pump, "D");
         var key = Assert.Single(second);
         Assert.Equal(KeyKind.LeftArrow, key.Kind);
+    }
+
+    /// <summary>跨块攒齐重复 16 轮 — 每轮 split ESC 前缀都不丢键不 flush（时序压力回归，时钟由测试推进）。</summary>
+    [Fact]
+    public void IncompleteEscapePrefix_RepeatedSplit_AccumulatesEveryRound()
+    {
+        var clock = new ManualClock();
+        using var pump = CreatePump(clock);
+        for (var round = 0; round < 16; round++)
+        {
+            clock.Advance(40);
+            Assert.Empty(FeedAndDrain(pump, "\u001b["));
+
+            var key = Assert.Single(FeedAndDrain(pump, "D"));
+            Assert.Equal(KeyKind.LeftArrow, key.Kind);
+            Assert.Equal(0, pump.PendingCount);
+        }
     }
 
     [Fact]
@@ -195,7 +235,7 @@ public sealed class RawStdinPumpTests
     public async Task TerminalReply_RoutesToQuerier_NotIntoKeyStream()
     {
         using var querier = new TerminalQuerier(new StringWriter());
-        using var pump = new RawStdinPump(querier);
+        using var pump = new RawStdinPump(querier, clock: static () => 0);
         var query = querier.QueryAsync("\u001b[c", TerminalResponseKind.Da1, TimeSpan.FromSeconds(5));
 
         var keys = FeedAndDrain(pump, "\u001b[?62;1c" + "a");
@@ -226,19 +266,18 @@ public sealed class RawStdinPumpTests
     [Fact]
     public void IncompleteEscapePrefix_StuckBeyond50Ms_ForcesEscapeFlush()
     {
-        using var pump = CreatePump();
+        var clock = new ManualClock();
+        using var pump = CreatePump(clock);
         pump.FeedForTest("\u001b[1;");
-        var keys = new List<KeyPress>();
-        pump.Drain(keys.Add);
-        Assert.Empty(keys);
+        Assert.Empty(DrainKeys(pump));
 
         // 50ms 内（未超阈值）— 不 flush 继续等待凑齐
-        pump.Drain(keys.Add);
-        Assert.Empty(keys);
+        clock.Advance(50);
+        Assert.Empty(DrainKeys(pump));
         Assert.True(pump.PendingCount > 0);
 
-        Thread.Sleep(80);
-        pump.Drain(keys.Add);
+        clock.Advance(30);
+        var keys = DrainKeys(pump);
         Assert.Contains(keys, static k => k.Kind == KeyKind.Escape);
         Assert.Equal(0, pump.PendingCount);
     }
@@ -248,15 +287,16 @@ public sealed class RawStdinPumpTests
     [Fact]
     public void IncompletePaste_StuckBeyond500Ms_FlushesPartialContent()
     {
-        using var pump = CreatePump();
+        var clock = new ManualClock();
+        using var pump = CreatePump(clock);
         pump.FeedForTest("\u001b[200~partial content");
-        var keys = new List<KeyPress>();
-        pump.Drain(keys.Add);
-        Assert.Empty(keys);
+        Assert.Empty(DrainKeys(pump));
 
-        Thread.Sleep(520);
-        pump.Drain(keys.Add);
-        var paste = Assert.Single(keys);
+        clock.Advance(499);
+        Assert.Empty(DrainKeys(pump));
+
+        clock.Advance(2);
+        var paste = Assert.Single(DrainKeys(pump));
         Assert.Equal(KeyKind.Paste, paste.Kind);
         Assert.Equal("partial content", paste.Input);
         Assert.Equal(0, pump.PendingCount);
@@ -266,9 +306,10 @@ public sealed class RawStdinPumpTests
     [Fact]
     public void StuckPrefix_NewDataCompletesSequence_ParsesNormally()
     {
-        using var pump = CreatePump();
+        var clock = new ManualClock();
+        using var pump = CreatePump(clock);
         pump.FeedForTest("\u001b[1;");
-        Thread.Sleep(20);
+        clock.Advance(20);
 
         var keys = FeedAndDrain(pump, "5D");
 

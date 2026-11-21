@@ -91,13 +91,20 @@ public sealed class WriteDefense {
     /// 执行防御链。顺序调用各步骤，任一步骤返回非 null 拒绝结果即短路返回。
     /// 全部通过则返回 (context, null)。
     /// </summary>
-    public async ValueTask<(WriteDefenseContext Context, ToolResult? Rejection)> ExecuteAsync(CancellationToken ct) {
+    public async ValueTask<WriteDefenseOutcome> ExecuteAsync(CancellationToken ct) {
         foreach (var step in _steps) {
             ct.ThrowIfCancellationRequested();
             var rejection = await step(_context, ct).ConfigureAwait(false);
             if (rejection is not null)
-                return (_context, rejection);
+                return new WriteDefenseOutcome(_context, rejection);
         }
-        return (_context, null);
+        return new WriteDefenseOutcome(_context, null);
     }
 }
+
+/// <summary>
+/// 写入防御链执行结果 — 上下文与拒绝结果（<c>Rejection</c> 为 null 表示全部通过）。
+/// </summary>
+/// <param name="Context">防御上下文。</param>
+/// <param name="Rejection">拒绝结果；null 表示放行。</param>
+public sealed record WriteDefenseOutcome(WriteDefenseContext Context, ToolResult? Rejection);

@@ -9,7 +9,7 @@ public static partial class McpEnvExpander {
     /// </summary>
     /// <param name="value">包含环境变量引用的字符串</param>
     /// <returns>展开后的字符串和未找到的变量名列表</returns>
-    public static (string Expanded, List<string> MissingVars) ExpandEnvVarsInString(string value) {
+    public static ExpandedEnvironment ExpandEnvVarsInString(string value) {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
         var missingVars = new List<string>();
@@ -42,7 +42,7 @@ public static partial class McpEnvExpander {
             return match.Value;
         });
 
-        return (expanded, missingVars);
+        return new ExpandedEnvironment(expanded, missingVars);
     }
 
     /// <summary>
@@ -87,3 +87,10 @@ public static partial class McpEnvExpander {
     [GeneratedRegex(@"\$\{([^}]+)\}", RegexOptions.Compiled)]
     private static partial Regex EnvVarRegex();
 }
+
+/// <summary>
+/// 环境变量展开结果 — 展开后的字符串与未找到的变量名列表。
+/// </summary>
+/// <param name="Expanded">展开后的字符串。</param>
+/// <param name="MissingVars">未找到且无默认值的变量名。</param>
+public sealed record ExpandedEnvironment(string Expanded, List<string> MissingVars);

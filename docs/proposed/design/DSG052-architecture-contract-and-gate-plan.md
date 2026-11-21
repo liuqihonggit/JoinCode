@@ -558,6 +558,8 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 工程事实（迁移与 DI）：把 `[Register]` 类型移出 Infrastructure 前必须确认消费方式。`gh` 是手工 `new`（不走容器），主引擎无 `IGitHubApiClient` 解析点，因此新程序集无需接入任何注册入口；若存在容器解析点，则必须在宿主侧显式调用新程序集的 `Add...AutoRegisteredServices`，否则编译通过、运行期缺服务。
 - 工程事实（测试可见性）：跨程序集迁移后，测试对 `internal` 成员（`ExtractHostPort`/`IsPortReachableAsync`/`BuildNetworkErrorMessageAsync`/`IsZipPrefix`）的访问不能靠"给旧测试项目开 IVT"糊过去——按就近原则把测试迁到被测模块，IVT 只开给 `*.Tests` 目标（`JCC12007` 对测试程序集豁免）。
 - 工程事实（目录命名）：新增测试目录一律用 `github_client_tests` 下划线形式；`.tests` 目录名在 `JCC12009` 口径下属于存量违规，新增即会让计数 +1，不要一边清账一边加账。
+- 工程事实（API 准入 > 细粒度引用）：跨域引用必须指向 `JccApiVisibility=public` 的项目。实测把 `GitHubClient` 的 `Abstractions` 门面替换为 7 个细粒度 primitives 项目后，编译通过但 `JCC12003` 从 0 变 5（5 个目标非 public），跨域边 486→491。结论：门面仍存在时，跨域消费走 public 门面；"拆门面"必须先把目标项目纳入 API 准入评审，不能靠消费方单方面细粒度化。
+- 工程事实（`storage/clock` 对 Composition 不是无用引用）：`Clock.csproj → Composition` 是真实依赖（`Core.Context`、`Core.Hooks`、`IEmptyResponseTracker`），删掉后编译报 CS0234/CS0246。要消 `storage→composition` 这条总根（8 条环里 6 条经过它），必须把 Goal 引擎上移或把这些契约下沉，属下一批大手术，不能按"无用引用"处理。
 - 关键发现（增量构建掩盖）：`solution` target 用增量构建时，删掉被他人传递依赖的 `ProjectReference` 不会立即报错；`native_tui` / `native_gui` 独立 target 才暴露 `CS0246`。跨域引用变更后必须至少跑一次 `-t:Rebuild`。
 - 工程事实（口径）：传递引用显式化会让门禁计数上升（472→478），这是把原本隐形的依赖画进图里，不是新增耦合；清账进度应按"域对集合 + 环数"看，不能只看边计数。
 - 工程事实：`JCC12002` 只靠计数会在"删一条旧边、加一条新边"时漏检；必须同时冻结域对集合。

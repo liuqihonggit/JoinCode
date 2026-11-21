@@ -401,6 +401,8 @@ architecture:
 
 **已完成 0. API 准入**：51 个被跨域引用的项目在 csproj 覆盖 `JccApiVisibility=public`，其余保持 `internal`；全仓带分析器构建通过。
 
+**已完成 0.1 无效跨域引用清理**：删除 `Abstractions -> AsyncLock` 与 `Infrastructure -> Plugins.Contracts` 两条未被源码使用的引用；生产跨域边 474 → 472，生产边 703 → 701；全仓 `Build-AllDomains.ps1` 四 target True；门禁 Validate PASS。域环仍为 15（这两条不在环路径上）。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. 补齐域内 slnx 缺口：abstractions 6 个（Brain/Composition/Guard/Memory/Perception/Primitives.Tools.Tests）、generators 1 个（AotHandler.Generator）、perception 4 个（Eyes/Eyes.Tests/Vision/Vision.Tests）；tools 的 13 个 `cli_nodes/groups/*` + sample + onnx 测试先决定"登记或排除"，排除项写入 `JccSlnxExcluded` 并注明打包流程。
 2. 生成 `README.md` 项目表（脚本从 csproj 生成，替换手写表）。
@@ -530,6 +532,8 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 关键发现（可见性）：`Info/suggestion` 诊断不会出现在 `dotnet build` 输出；真实负向验收必须临时升 warning/error，否则会误判"规则没生效"。
 - 2026-11-21：P2 收尾验收。`ArchitectureGate.ps1 -Mode Validate` PASS；全仓 `Build-AllDomains`（带分析器）四 target 全 True；`jcc.exe --version` 启动正常（JoinCode v1.0.0.0 / .NET 10.0.9）。
 - 2026-11-21：P4 前置（API 准入）完成。51 个被跨域引用项目覆盖 `JccApiVisibility=public`；其余项目保持 internal；全仓带分析器四 target True；门禁 Validate PASS。
+- 2026-11-21：P4 第一块完成。26 个 `module.slnx` 缺口全部登记（abstractions 6、generators 1、perception 4、tools 15），四个域级 slnx 均独立构建通过；门禁 `JCC12010 26 → 0`，基线重冻结。
+- 2026-11-21：P4 第二块完成。清理 2 条源码未使用的跨域引用（`Abstractions -> AsyncLock`、`Infrastructure -> Plugins.Contracts`）；生产跨域边 474 → 472；全仓四 target True；门禁 Validate PASS。
 - 2026-11-21：P3 完成。`allowlist.json` 五字段校验 + `baseline.crossDomainEdges` 域对集合 + 新增边阻断；注入 `collections->cognition` 与过期 allowlist 均 exit 1，撤销后 PASS；`ci-architecture.yml` 接入 `ci.yml`。
 - 工程事实：`JCC12002` 只靠计数会在"删一条旧边、加一条新边"时漏检；必须同时冻结域对集合。
 - 工程事实：全仓脚本 solution target 带 `--no-restore`；出现 `NETSDK1004` 资产缺失时先 `dotnet restore build/sln/JoinCode.slnx`，不要误判为代码问题。

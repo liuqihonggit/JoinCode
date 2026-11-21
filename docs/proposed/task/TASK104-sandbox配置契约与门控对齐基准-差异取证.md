@@ -217,6 +217,46 @@
 
 **`network.allowedDomains` / `filesystem.denyRead` 等细粒度隔离、跨平台矩阵、企业策略锁是否进入 Phase 2？**
 
+> 2026-11-21 用户裁决：**全部做**，先记录未做项并按重要性排序，先做已知部分，再扩展未知部分。
+
+---
+
+## 9. 剩余事项总账（2026-11-21，按优先级）
+
+> 口径：**已知** = 基准有明确实现/证据、本仓已有落点或只需补齐消费；**未知** = 缺基础设施或需跨平台真实验证，须先立方案。
+> 排序原则：先堵「配置写了但不生效 / 安全收益为空转」的洞，再补平台差异与策略层。
+
+| 序 | 优先级 | 事项 | 类别 | 证据/现状 | 验收方式 |
+|----|--------|------|------|-----------|----------|
+| R1 | **P0** | `sandbox.enabled=true` 时命令并未真正进沙箱：`SystemActuatorBase` 仅在 `IsInSandbox`（手动 `/sandbox`）时走沙箱，enabled 只影响 `disableSandbox` 开关 | 已知 | 基准 `BashTool.tsx` 用 `SandboxManager.wrapWithSandbox` 逐命令包装；本仓 `SystemActuatorBase.cs:183/230` 只认会话状态 | ✅ 已实现逐命令包装（`SandboxWrapRequest`/`SandboxWrappedCommand`/`ISandboxManager.TryWrapCommandForSandbox` + `BwrapCommandBuilder`），Shell 前台/后台均接线；单测 7 条 + Shell 策略 12 条；全仓编译通过；**Linux 真机待 R9** |
+| R2 | **P0** | `autoAllowBashIfSandboxed` 空转：免确认要求 `IsInSandbox`，而 enabled 不会自动进沙箱 ⇒ 永远不触发 | 已知 | `SandboxAutoAllowMiddleware` 已按 `IsInSandbox` 判；依赖 R1 修复后自然成立 | ✅ 免确认条件改为「会话真隔离 或 具备逐命令包装能力」，新增 2 条用例（未进会话但可包装 → 免确认；不可包装 → 回落 ask） |
+| R3 | P1 | `filesystem.allowWrite/denyWrite/denyRead/allowRead` 仅契约，未传进 provider | 已知 | `BubblewrapSandboxProvider.ExecuteInSandboxAsync` 只消费 `SandboxInfo.AllowedPaths`；基准 `sandbox-adapter.ts:329-349` 逐项转 runtime config | 纯函数用例：路径→bwrap `--bind/--ro-bind/--tmpfs` 参数；真机文件读写验证 |
+| R4 | P1 | `network.allowedDomains/allowUnixSockets/allowAllUnixSockets/allowLocalBinding/httpProxyPort/socksProxyPort` 未消费 | 已知 | 基准 `sandbox-adapter.ts:359-368`；bwrap 原生只能「开/关网」，域名级需代理 | 先明确 fail-closed：有 allowedDomains 但无代理 → 阻断网络并 warning；单测参数表 |
+| R5 | P1 | `EnableWeakerNestedSandbox/EnableWeakerNetworkIsolation/IgnoreViolations/ripgrep` 未消费 | 已知 | 基准 `sandboxTypes.ts:123-141`；其中 weakerNetwork 仅 macOS trustd | 按平台分支实现 + 用例；Windows/Linux 无对应语义时显式忽略并打点 |
+| R6 | P2 | 策略锁：managed/policy settings 覆盖本地 `sandbox.enabled`、`allowManagedDomainsOnly`、`allowManagedReadPathsOnly` | **未知** | 基准有 `policySettings` 源与 `shouldAllowManaged*Only`；本仓无托管配置载体 | 先立 ADR/基础设施（配置源优先级），再实现 + 企业场景用例 |
+| R7 | P2 | 跨平台 provider 矩阵：macOS Seatbelt（基准 sandbox-runtime）、Windows 无真隔离的显式降级 | **未知** | 本仓仅 Bubblewrap/Docker/Process/Soft；Windows Soft/Process 无 Network | 需 macOS 真机；Windows 保持「不启用 + 明确提示」 |
+| R8 | P2 | `/sandbox` 子命令全对齐（benchmark 的 `/sandbox` 参数矩阵） | 半已知 | 本仓已有 on/off/exclude/status | 逐项对照命令 help + 行为用例 |
+| R9 | P1 | 真机 bwrap 验收（当前仅 Windows 本机单测） | 已知但受环境限制 | 云主机 Linux 可用 | 安装/确认 bwrap → 跑包装命令 → 读 `[SANDBOX]` 打点 |
+| R10 | P1 | 文档收口：TASK103 #35 状态、TASK104 进度与本总账同步 | 已知 | 本文件 §7/§9 | 文档评审 |
+
+**执行顺序**：R1 → R2（回归）→ R3 → R4 → R5 → R9 → R10 → R6 → R7 → R8。
+R1/R2 是「安全收益是否真实」的分水岭，未完成前不宣称 sandbox 已生效。
+
+### 9.1 R1/R2 实施记录（2026-11-21）
+
+- **契约**：`Abstractions.Guard` 新增 `SandboxWrapRequest` / `SandboxWrappedCommand`；`ISandboxProvider` 增
+  `SupportsCommandWrapping` + `TryWrapCommand(out ...)`（默认不支持，避免会话型 provider 假装支持）；
+  `ISandboxManager` 增 `CanWrapCommand` + `TryWrapCommandForSandbox(out ...)`（符合 JCC11005 TryGet 规范）。
+- **包装器**：`BwrapCommandBuilder` 输出一次性 `bwrap --unshare-all --die-with-parent … -- /bin/sh -c <cmd>`；
+  绑定工作目录与 allowWrite（rw）、allowRead（ro）、denyWrite/denyRead（tmpfs 或 `/dev/null` 掩码），
+  最后再覆盖 allowRead（schema 要求 allowRead 优先于 denyRead）。所有参数按单引号转义，适配 Bash actuator 的 `eval` 链。
+- **门控**：`ShellSandboxPolicy.Resolve` 返回 `ShellSandboxDecision`（是否绕过 + 包装命令 + 降级告警）；
+  前台/后台中间件都使用包装后的命令。已手动进入会话沙箱时不重复包装。
+- **权限**：`SandboxAutoAllowMiddleware` 不再要求 `IsInSandbox`，改为「会话真隔离 或 管理器具备逐命令包装能力」，
+  避免 `sandbox.enabled=true` 下免确认永远空转。
+- **已知边界**：bwrap 域名级过滤不支持（`allowedDomains` 非空 → fail-closed 断网 + warning）；
+  Windows 无真隔离 provider 时门控按 unavailable 回落不沙箱（启动期已有 Warn/Fail 门控）。
+
 ---
 
 <!-- 🤖 Auto Decision: 2026-11-21 -->

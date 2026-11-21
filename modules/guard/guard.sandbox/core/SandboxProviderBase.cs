@@ -16,6 +16,9 @@ public abstract class SandboxProviderBase : ISandboxProvider {
     public abstract SandboxType SandboxType { get; }
     /// <inheritdoc/>
     public abstract SandboxCapabilities Capabilities { get; }
+
+    /// <inheritdoc/>
+    public virtual bool SupportsCommandWrapping => false;
     /// <inheritdoc/>
     public SandboxInfo[] GetActiveSandboxes() => _sandboxes.Values.ToArray();
 

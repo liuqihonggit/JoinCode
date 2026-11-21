@@ -127,6 +127,9 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     public SandboxHealthState HealthState => _lifecycleActor.HealthState;
 
     /// <inheritdoc/>
+    public bool CanWrapCommand => SelectWrappingProvider() is { SupportsCommandWrapping: true };
+
+    /// <inheritdoc/>
     public bool IsTypeAvailable(SandboxType type) => _providers.ContainsKey(type);
 
     /// <inheritdoc/>
@@ -212,6 +215,49 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     /// <inheritdoc/>
     public ISandboxProvider? GetProvider(SandboxType type) {
         return _providers.TryGetValue(type, out var provider) ? provider : null;
+    }
+
+    /// <inheritdoc/>
+    public bool TryWrapCommandForSandbox(SandboxWrapRequest request, [NotNullWhen(true)] out SandboxWrappedCommand? wrapped) {
+        ArgumentNullException.ThrowIfNull(request);
+        wrapped = null;
+
+        if (SelectWrappingProvider() is { } provider
+            && provider.TryWrapCommand(request, out wrapped)
+            && wrapped is not null) {
+            _logger?.LogDebug("[SandboxManager] 逐命令包装: provider={Provider} cmd={Command}", provider.SandboxType.ToValue(), request.Command);
+            return true;
+        }
+
+        wrapped = null;
+        _logger?.LogWarning("[SandboxManager] 无具备真隔离且支持逐命令包装的 provider，命令将不沙箱执行");
+        return false;
+    }
+
+    /// <summary>
+    /// 选择逐命令包装 provider — 活跃提供器优先，其次按真隔离能力与固定优先序（bubblewrap → docker）挑选。
+    /// </summary>
+    private ISandboxProvider? SelectWrappingProvider() {
+        var active = _lifecycleActor.ActiveProvider;
+        if (active is not null && active.Capabilities.HasRealIsolation() && active.SupportsCommandWrapping) {
+            return active;
+        }
+
+        if (_providers.TryGetValue(SandboxType.Bubblewrap, out var bubblewrap)) {
+            return bubblewrap;
+        }
+
+        if (_providers.TryGetValue(SandboxType.Docker, out var docker) && docker.SupportsCommandWrapping) {
+            return docker;
+        }
+
+        foreach (var provider in _providers.Values) {
+            if (provider.Capabilities.HasRealIsolation() && provider.SupportsCommandWrapping) {
+                return provider;
+            }
+        }
+
+        return null;
     }
 
     /// <inheritdoc/>

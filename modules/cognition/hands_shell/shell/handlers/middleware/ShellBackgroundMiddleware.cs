@@ -40,13 +40,14 @@ public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMid
         }
 
         // 对齐 TS spawnShellTask: 先启动进程，再立即转后台
+        var sandboxDecision = ShellSandboxPolicy.Resolve(
+            context.Command, context.DangerouslyDisableSandbox, _workflowConfig?.Value, _sandboxManager, context.WorkingDirectory);
         var cmdContext = await context.Provider.StartWithBackgroundSupportAsync(
-            context.Command,
+            sandboxDecision.Command,
             context.Timeout,
             context.WorkingDirectory,
             shouldAutoBackground: false,
-            disableSandbox: ShellSandboxPolicy.ResolveDisableSandbox(
-                context.Command, context.DangerouslyDisableSandbox, _workflowConfig?.Value, _sandboxManager),
+            disableSandbox: sandboxDecision.DisableSandbox,
             cancellationToken: ct).ConfigureAwait(false);
 
         SystemActuatorBackgroundTaskInfo taskInfo;

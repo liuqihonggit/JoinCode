@@ -7,6 +7,9 @@ public interface ISandboxProvider : IAsyncDisposable {
     bool IsAvailable { get; }
     /// <summary>获取沙箱能力。</summary>
     SandboxCapabilities Capabilities { get; }
+
+    /// <summary>是否支持逐命令包装（bwrap 等轻量 provider 支持；会话型 provider 返回 false）。</summary>
+    bool SupportsCommandWrapping => false;
     /// <summary>
     /// 获取活跃沙箱的快照拷贝 — 用于枚举
     /// </summary>
@@ -29,4 +32,16 @@ public interface ISandboxProvider : IAsyncDisposable {
     /// 返回 null 表示 Provider 不支持直接执行，由 SandboxManager 回退到默认执行。
     /// </summary>
     Task<ProviderExecutionResult?> ExecuteAsync(string sandboxId, string command, string? workingDirectory, int timeoutMs, CancellationToken ct) => Task.FromResult<ProviderExecutionResult?>(null);
+
+    /// <summary>
+    /// 逐命令包装 — 返回可直接交给宿主 shell 执行的包装命令串（如 <c>bwrap ... -- sh -c ...</c>）。
+    /// 返回 false 表示该 provider 不支持逐命令包装（由门控回落为不沙箱并给出警告）。
+    /// </summary>
+    /// <param name="request">包装请求（命令、工作目录、文件系统/网络清单）。</param>
+    /// <param name="wrapped">包装结果。</param>
+    /// <returns>支持并完成包装返回 true。</returns>
+    bool TryWrapCommand(SandboxWrapRequest request, [NotNullWhen(true)] out SandboxWrappedCommand? wrapped) {
+        wrapped = null;
+        return false;
+    }
 }

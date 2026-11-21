@@ -44,16 +44,19 @@ public class SandboxAutoAllowMiddlewareTest {
         p => p.Capabilities == (SandboxCapabilities.FileSystemIsolation | SandboxCapabilities.NetworkIsolation));
 
     private static readonly ISandboxManager RealIsolationManager = Mock.Of<ISandboxManager>(
-        m => m.IsInSandbox && m.ActiveProvider == RealIsolationProvider);
+        m => m.IsInSandbox && m.CanWrapCommand && m.ActiveProvider == RealIsolationProvider);
 
     private static readonly ISandboxManager NotInSandboxManager = Mock.Of<ISandboxManager>(
-        m => !m.IsInSandbox && m.ActiveProvider == RealIsolationProvider);
+        m => !m.IsInSandbox && m.CanWrapCommand && m.ActiveProvider == RealIsolationProvider);
+
+    private static readonly ISandboxManager NoWrapManager = Mock.Of<ISandboxManager>(
+        m => !m.IsInSandbox && !m.CanWrapCommand && m.ActiveProvider == RealIsolationProvider);
 
     private static readonly ISandboxProvider PathOnlyProvider = Mock.Of<ISandboxProvider>(
         p => p.Capabilities == (SandboxCapabilities.FileSystemIsolation | SandboxCapabilities.ProcessIsolation));
 
     private static readonly ISandboxManager PathOnlyManager = Mock.Of<ISandboxManager>(
-        m => m.IsInSandbox && m.ActiveProvider == PathOnlyProvider);
+        m => m.IsInSandbox && !m.CanWrapCommand && m.ActiveProvider == PathOnlyProvider);
 
     private static async Task<(SandboxAutoAllowMiddleware Middleware, PermissionCheckContext Context, bool NextCalled)> InvokeAsync(
         SandboxConfig config, PermissionCheckContext context, ISandboxManager? manager) {
@@ -86,11 +89,20 @@ public class SandboxAutoAllowMiddlewareTest {
     }
 
     [Fact]
-    public async Task Given_未进入沙箱_When_Invoke_Then_走后续判定() {
+    public async Task Given_未进入会话沙箱但可逐命令包装_When_Invoke_Then_直接批准() {
         var context = CreateContext();
         var (_, ctx, nextCalled) = await InvokeAsync(EnabledConfig(), context, NotInSandboxManager);
 
-        nextCalled.Should().BeTrue();
+        nextCalled.Should().BeFalse("sandbox.enabled 下每条命令会被逐命令包装，仍属于真沙箱");
+        ctx.Result.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Given_未进入会话沙箱且不可包装_When_Invoke_Then_走后续判定() {
+        var context = CreateContext();
+        var (_, ctx, nextCalled) = await InvokeAsync(EnabledConfig(), context, NoWrapManager);
+
+        nextCalled.Should().BeTrue("无法包装时命令不会进沙箱，不能免确认");
         ctx.Result.Should().BeNull();
     }
 

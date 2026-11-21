@@ -37,14 +37,18 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
     public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var shouldAutoBackground = context.AutoBackground != false
             && SystemActuatorBackgroundConstants.IsAutoBackgroundAllowed(context.Command);
+        var sandboxDecision = ShellSandboxPolicy.Resolve(
+            context.Command, context.DangerouslyDisableSandbox, _workflowConfig?.Value, _sandboxManager, context.WorkingDirectory);
+        if (sandboxDecision.WrapWarning is { Length: > 0 } warning) {
+            _logger?.LogWarning("沙箱包装降级: {Warning}", warning);
+        }
 
         await using var cmdContext = await context.Provider.StartWithBackgroundSupportAsync(
-            context.Command,
+            sandboxDecision.Command,
             context.OverrideTimeout ?? context.Timeout,
             context.WorkingDirectory,
             shouldAutoBackground: shouldAutoBackground,
-            disableSandbox: ShellSandboxPolicy.ResolveDisableSandbox(
-                context.Command, context.DangerouslyDisableSandbox, _workflowConfig?.Value, _sandboxManager),
+            disableSandbox: sandboxDecision.DisableSandbox,
             cancellationToken: ct).ConfigureAwait(false);
 
         if (cmdContext is SystemActuatorCommandContext actuatorCtx) {

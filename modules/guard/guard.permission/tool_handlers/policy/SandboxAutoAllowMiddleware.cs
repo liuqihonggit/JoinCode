@@ -5,7 +5,8 @@ namespace Core.Permission;
 /// （<c>tools/BashTool/bashPermissions.ts:1349-1361</c>、<c>utils/permissions/permissions.ts:1186-1200</c>）。
 /// <para>免确认只在<b>真的会进沙箱</b>时生效，四个条件同时成立：</para>
 /// <para>1. <c>sandbox.enabled=true</c> 且 <c>autoAllowBashIfSandboxed=true</c>；</para>
-/// <para>2. 会话已进入沙箱（<c>ISandboxManager.IsInSandbox</c>）；</para>
+/// <para>2. 存在可用沙箱路径：会话已进入真隔离沙箱（<c>ISandboxManager.IsInSandbox</c>），
+/// 或管理器具备逐命令包装能力（<c>sandbox.enabled=true</c> 时 Shell 会逐条包装）；</para>
 /// <para>3. 当前提供器具备真实隔离能力（文件系统 + 网络隔离）——只有路径重定向的 Soft/Process 不算，
 /// 否则免确认会变成权限绕过（基准在 Windows 上根本不启用沙箱）；</para>
 /// <para>4. 本次命令经 <see cref="SandboxGate"/> 判定仍会进沙箱（排除清单 / 逃生阀命令照常 ask）。</para>
@@ -48,12 +49,13 @@ public sealed partial class SandboxAutoAllowMiddleware : ServiceEntity, IPermiss
         }
 
         var manager = _sandboxManager;
-        if (manager is not { IsInSandbox: true }) {
+        if (manager is null) {
             return false;
         }
 
-        var provider = manager.ActiveProvider;
-        if (provider is null || !provider.Capabilities.HasRealIsolation()) {
+        var inRealSessionSandbox = manager.IsInSandbox
+            && manager.ActiveProvider?.Capabilities.HasRealIsolation() == true;
+        if (!inRealSessionSandbox && !manager.CanWrapCommand) {
             return false;
         }
 

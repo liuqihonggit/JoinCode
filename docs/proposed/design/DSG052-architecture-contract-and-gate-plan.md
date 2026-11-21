@@ -335,18 +335,21 @@ architecture:
 - 报告数字与第 1 章一致；测试项目已排除出生产图（703 边 / 474 跨域）；
 - 基线路径统一 `/`、`repoRoot="."`，可在 CI 复用。
 
-### P1 契约落地（待施工）
+### P1 契约落地 — 已完成（2026-11-21）
 
 **改动**：
 - 18 份契约文件：14 份新增 + 4 份追加（abstractions / generators / native_tui / native_gui 已有 props，只追加属性，不覆盖原内容）；
-- 根 `Directory.Build.props` 增加 `CompilerVisibleProperty`；
-- `ProjectContext` 扩展字段；
+- 根 `Directory.Build.props` 增加 6 个 `CompilerVisibleProperty`，供 P2 的 `ProjectContext` 读取；
 - allowlist 先留空，P3 按域对评审后填入；不在 P1 把现有跨域边直接写成"允许"。
 
 **验收**：
-- `pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -Changed` 通过；
-- 门禁报告 `contracts 18/18`，4 个 slnx 缺口按 baseline 计数；
-- 任一域 `JccDomain` 与目录不一致时门禁报 Error。
+- `pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -NoAnalyzers` 全通过（solution + native_tui + native_gui）；
+- 门禁报告 `contracts 18/18`、`JCC12001 = 0`，基线已同步冻结为 0；
+- `JccDomain` 与目录不一致时门禁报 Error。
+
+**遗留（P1.5）**：
+- 18 个域当前统一 `JccApiVisibility=internal`；51 个实际对外项目还需要在 csproj 覆盖 `public`，否则 P2 的 `JCC12006` 会把存量全部报出来。
+- `JccNamespaceRoots` 暂不填：各域真实命名空间高度分散，先做 P4 归一，避免把现状写成契约。
 
 ### P2 编译期规则
 
@@ -500,6 +503,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 ## 12. 施工记录
 
 - 2026-11-21：P0 完成。`ArchitectureGate.ps1` + `baseline.json` v0 + `README.md` 入库；`-Mode Validate` 对基线 PASS。
+- 2026-11-21：P1 完成。18 份域契约（14 新增 + 4 追加）落地；`contracts 18/18`；全仓 `Build-AllDomains -NoAnalyzers` 通过；基线把 `JCC12001` 冻结到 0。
 - 决策：P0 不按原计划拆 `GraphModel.ps1` / `RuleGraph.ps1` / `RuleLayout.ps1` 三文件，先用单脚本闭环；等 P2 规则数量上来再按职责拆分，避免过早抽象。
 - 口径修正：P0 首次运行发现测试项目分类正则写错（把 `test` 路径漏判），修正后生产边从 728 回到 703、跨域从 491 回到 474、环从 16 回到 15；同时纠正 `JCC12011`（文档齐备）与 `JCC12013`（`private/` 层次）的规则映射，二者不再被误记为 IVT / 命名空间。
 - 发现：各域真实命名空间高度分散（如 storage 的 `Core.Goal`、`Core.Scheduling`，tools 的 `McpToolDispatch`），P1 不猜 `JccNamespaceRoots`；命名空间契约留到 P4 归一后再填。

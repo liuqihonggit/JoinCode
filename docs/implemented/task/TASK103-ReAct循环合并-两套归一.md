@@ -335,6 +335,8 @@
 | `AskUserQuestionResult.Deferred/PartialAnswers/DeferredResult`（`InteractiveModels.cs`） | `TerminalInteractiveService`、`UserInteractionToolHandlers` | ✅ | ✅ 编译 + 处理器测试 |
 | `TerminalInteractiveService` 注入 `IAgentNotificationQueue`，等待输入期间检测待处理通知，到达即返回 `Deferred`（单选/多选/自由输入/多问题逐题） | `UserInteractionToolHandlers.AskUserQuestionAsync` / `ConfirmActionAsync` | ✅ | ⚠️ 真实控制台“等待中后台回调到达”路径需真实 TTY + 后台任务触发，无法无人值守自动驱动；等待器单测 + 处理器映射测试覆盖逻辑 |
 | `AvaloniaInteractiveService` 注入 `IAgentNotificationQueue`，DSH 问答卡片挂起期间收到回调即取消卡片并返回 `Deferred` | `DshWebUiWindow.AskUserQuestionsCallback` → `DshUserQuestionBroker.RequestAsync`（取消触发 cancel 帧） | ✅ | ✅ `AvaloniaInteractiveServiceTests` 3/3（回调唤醒/先答后通知/外层取消传播） |
+| `TuiAskBridge` + `TuiInteractiveService`（`native_tui/apps/NativeTui.Host/`）— 引擎线程 ask → shell 问答对话框同步桥；`TuiInteractionModule` 注册覆盖 Core Planning 自动首选项占位；未绑定/空问题集返回 Failure 诱导不挂起 | `IInteractiveService`（`UserInteractionToolHandlers.AskUserQuestionAsync/ConfirmActionAsync`）；`EngineSession` 组装点 + `Program` shell 绑定 | ✅ | ✅ `TuiAskInteractionTests` 11/11（单问/多问/多选/取消/Deferred 部分答案/Failure/通知探测） |
+| `AskQuestionCoordinator` + `AskQuestionDialogItem` + ReplShell 模态路由（`native_tui/src/NativeTui.Core/repl/`）— 上下/Enter/Space/数字直选/Esc；帧拍通知探测自动 Deferred；回合结束自动取消 | `ReplShell.AskUserQuestions`（引擎后台线程同步阻塞等按键）；`AskQuestionInterruptProbe` 绑定 `TuiAskBridge.HasPendingNotification` | ✅ | ✅ `AskQuestionTests` 15/15 + 全量 NativeTui.Tests 3159/3159 |
 | `IBackgroundNotificationHandler.DrainPendingNotificationTexts/HasPendingNotifications` + `QueryLoopMiddleware` 步首注入 | QueryEngine 每轮迭代（`OnIterationStart`）、回合收尾判定（`HasPendingIterationInput`） | ✅ | ✅ `BackgroundNotificationHandlerTests` 4/4 + `QueryLoopQueryBackendTests` 步首注入用例 |
 | Deferred → 成功工具结果 + 引导文本（收到后台回调、不得假定答案、处理通知后重问） | QueryEngine 工具结果 → 下一轮迭代注入回调 | ✅ | ✅ `UserInteractionToolHandlersTests` 11/11（含 defer 双路径与部分答案） |
 
@@ -346,6 +348,9 @@
 | 单元测试 | `dotnet test Mcp.Tests --filter UserInteractionToolHandlersTests` | 11/11 通过 |
 | 单元测试 | `dotnet test Brain.Context.Tests --filter BackgroundNotificationHandlerTests` | 4/4 通过 |
 | 单元测试 | `dotnet test NativeGui.Host.Tests --filter AvaloniaInteractiveServiceTests` | 3/3 通过 |
+| 单元测试 | `dotnet test NativeTui.Tests --filter AskQuestionTests` | 15/15 通过 |
+| 单元测试 | `dotnet test NativeTui.Host.Tests --filter TuiAskInteractionTests` | 11/11 通过（主机全量 162/162） |
+| 全量单元测试 | `dotnet test NativeTui.Tests` | 3159/3159 通过（首轮 `RawStdinPumpTests.IncompleteEscapePrefix_AccumulatesAcrossFeeds` 偶发失败，隔离与复跑均通过 — 既有输入泵时序测试，与本项无关） |
 | 单元测试 | `dotnet test Brain.Context.Tests --filter QueryLoopQueryBackendTests` | 全绿（含新增步首通知注入用例） |
 | 编译 | `dotnet build modules/apps/cli/JoinCode.csproj -c Debug` | 0 警告 0 错误 |
 | 全仓编译 | `Build-AllDomains.ps1` | 16 域 + native_tui + native_gui 全部通过 |
@@ -358,6 +363,8 @@
 |------|------|------|
 | CLI ask 等待中后台回调到达 | pywinpty 真实 PTY 启动探针（TerminalInteractiveService + 真实 AgentNotificationQueue，无输入；1.5s 后入队通知） | 先显示问题与选项；随后输出 `[ask] 检测到后台任务回调，先关闭本次提问返回控制权…`；`PROBE deferred=True`；进程退出 0 |
 | 主代理路径回调注入 | MockServer 三轮脚本（后台 echo → 前台等待 2s → 收尾）+ 真实 jcc `--trust -p`（JCC_ENDPOINT 直连） | 后台任务 `RanToCompletion` 后 `[NOTIFY-QUEUE] enqueue`；第 3 次请求历史含真实 `<task-notification><task-id>…</task-id>` 用户消息；`[BACKGROUND-NOTIFY] 轮内注入进入主代理历史`；EXIT=0 |
+| native TUI 问答真实按键作答 | 真实 `jcc.exe` TUI（pywinpty 40x120）+ DeepSeek MockServer（首轮 `ask_user_question` 两选项，次轮固定文本），无人工：输入提示后按数字 `2` | 对话框渲染 `Question 1/1` + 选项 + `↑/↓ 移动 · Enter 确认 · Esc 取消`；数字 `2` 提交后工具结果 `User has answered your questions: "请选择部署环境？"="生产"`；次轮文本 `TUI_ASK_ACCEPT_OK` 上屏 |
+| native TUI 问答挂起时后台回调唤醒 | 同一 PTY + MockServer 首轮并行 `bash(run_in_background=true)` + `ask_user_question`，**全程无按键** | 对话框已显示后后台任务完成；工具结果自动变为 `A background task notification arrived while waiting for user input. … Do NOT assume any answer … re-ask`（Deferred）；次轮 `TUI_WAKE_ACCEPT_OK` 上屏，无需用户输入 |
 
 #### 自验收发现并修复的根因（关键）
 
@@ -366,5 +373,7 @@
 
 #### 已知边界（如实记录）
 
-- `native_tui` 交互式问答仍由 Core Planning `InteractiveService` 自动返回首个选项（无真实 TUI 问答 UI），本项未覆盖；CLI 阻塞问答服务与 GUI/DSH 卡片已覆盖。
+- native_tui 自由输入问答（`AskUserQuestionAsync` 无选项）返回 Failure 并给出“至少需要 2 个选项”的诱导：TUI 对话框只呈现结构化选项，不提供自由文本输入模态（避免与主输入行争抢键盘）。
+- native_tui 多选答案以 `", "` 连接后回传；选项标签本身包含该分隔串时会被拆分（当前工具选项标签不含逗号，后续如需支持需扩展 `TuiAskResult` 保留原始选中集合）。
 - 后台任务通知入队诊断 `[NOTIFY-QUEUE]`、注入诊断 `[BACKGROUND-NOTIFY]` 保留，受 `JCC_DEBUGLOG` 控制。
+- `RawStdinPumpTests.IncompleteEscapePrefix_AccumulatesAcrossFeeds` 在本轮全量并发运行中出现一次时序偶发失败，隔离运行与复跑全量均通过；未在本项修改输入泵，记录为既有 flaky 待后续单独治理。

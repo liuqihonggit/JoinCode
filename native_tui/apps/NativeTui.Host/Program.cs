@@ -515,6 +515,8 @@ public static class Program {
 
                 // 绑定回调
                 session.PermissionBridge.Bind(shell);
+                session.AskBridge.Bind(shell);
+                shell.AskQuestionInterruptProbe = () => session.AskBridge.HasPendingNotification;
                 session.CommandCallbacks.Bind(
                     clearScreen: shell.ClearMessagesExceptBannerAndSpinner,
                     onExitRequested: () => shell.RequestExit("exit"));

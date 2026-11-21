@@ -121,9 +121,12 @@ public sealed class TuiPermissionConfirmationTests {
             Config = new WorkflowConfig(),
         };
 
-        new TuiInteractionModule(new TuiPermissionBridge()).ConfigureServices(services, context);
+        new TuiInteractionModule(new TuiPermissionBridge(), new TuiAskBridge()).ConfigureServices(services, context);
 
         Assert.Contains(services, d => d.ServiceType == typeof(TuiPermissionBridge));
+        Assert.Contains(services, d => d.ServiceType == typeof(TuiAskBridge));
+        Assert.Contains(services, d => d.ServiceType == typeof(IInteractiveService)
+            && d.ImplementationType == typeof(TuiInteractiveService));
         Assert.Contains(services, d => d.ServiceType == typeof(IPermissionConfirmationHandler)
             && d.ImplementationType == typeof(TuiPermissionConfirmationHandler));
     }
@@ -355,7 +358,7 @@ public sealed class TuiPermissionConfirmationTests {
             Config = new WorkflowConfig(),
         };
         var bridge = new TuiPermissionBridge();
-        new TuiInteractionModule(bridge).ConfigureServices(services, context);
+        new TuiInteractionModule(bridge, new TuiAskBridge()).ConfigureServices(services, context);
         using var provider = services.BuildServiceProvider();
 
         var resolved = provider.GetRequiredService<IPermissionConfirmationHandler>();

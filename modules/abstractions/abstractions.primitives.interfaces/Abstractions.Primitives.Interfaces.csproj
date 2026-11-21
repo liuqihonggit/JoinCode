@@ -24,4 +24,9 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Models" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- 被 tools/github_client 直接引用（IGitHubApiClient 契约），按 API 准入门暴露 -->
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

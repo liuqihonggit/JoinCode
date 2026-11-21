@@ -1,4 +1,4 @@
-namespace Infra.IO.Tests;
+namespace GitHubClient.Tests;
 
 public sealed class GitHubApiClientPortCheckTests {
     [Theory]

@@ -24,6 +24,8 @@
 | [CtorScanner](ctor_scanner/CtorScanner.csproj) |  |
 | [Gh.Tests](gh.tests/Gh.Tests.csproj) | 测试 |
 | [gh](gh/gh.csproj) |  |
+| [GitHubClient.Tests](github_client_tests/GitHubClient.Tests.csproj) | 测试 |
+| [GitHubClient](github_client/GitHubClient.csproj) |  |
 | [OnnxEmbeddingVerify](onnx_embedding_verify/OnnxEmbeddingVerify.csproj) |  |
 | [OnnxEmbedding.Tests](onnx_embedding.tests/OnnxEmbedding.Tests.csproj) | 测试 |
 | [OnnxEmbeddingExe](onnx_embedding/OnnxEmbeddingExe.csproj) |  |

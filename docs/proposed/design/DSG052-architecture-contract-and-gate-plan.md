@@ -411,10 +411,17 @@ architecture:
 
 **已完成 0.5 `JCC12003` 落地**：门禁里该规则此前硬编码 0（等于没校验）。改为真实计算：跨域 code 边目标项目的 `JccApiVisibility`（项目级覆盖 > 域契约默认 > `internal`）必须为 `public`；负向探针把 `Infrastructure.Telemetry` 降为 `internal` → 报 1 条 `[plugins->abstractions]`，恢复后 PASS。
 
+**已完成 0.6 Infrastructure 拆分第一刀（GitHub 客户端出迁）**：
+- 新增 `modules/tools/github_client/GitHubClient.csproj`（`AssemblyName=JoinCode.GitHub.Client`），承接原 `abstractions/infrastructure/io/process/` 下的 `GitHubApiClient`、`GitHubApiClient.PortCheck`、`GitHubApiJsonContext`；只引用 `Abstractions`、`Abstractions.Primitives.Interfaces`、`Downloader`，不再拖入整个 Infrastructure。
+- `Infrastructure` 移除 `Downloader` 引用与 Downloader 全局 using；原先靠传递引用使用下载器的 6 个生产项目（`hands`、`hands_core`、`hands_web`、`mcp`、`bridge`、`code_index`）与 3 个测试项目改为显式声明 `Downloader`。
+- 测试随实现就近：`GitHubApiClientTests` / `GitHubApiClientPortCheckTests` 从 `test/unit/infra.tests/io/process/` 迁入 `modules/tools/github_client_tests/`（目录名下划线，符合 JCC12009），新项目 `GitHubClient.Tests` 51/51 通过；不再向跨域测试项目开 `InternalsVisibleTo`（仅对本项目 `.Tests` 程序集开）。
+- `gh` 手工 `new GitHubApiClient(...)`，不经 DI 容器；`[Register]` 仍随程序集生成，主引擎无 `IGitHubApiClient` 解析点，迁移不改运行期注册语义（已由 `jcc-gh.exe alias list` 真实构造验证）。
+- 效果：生产跨域边 478 → 486（`abstractions` −1、`cognition` +3、`mcp/perception/services` 各 +1、`tools` +3），全部是"把原本经 Infrastructure 传递的依赖显式画进图里"，不是新增耦合；生产域环 **15 → 8**（`abstractions ↔ storage` 的 7 条环随 Infrastructure 去掉 Downloader 消失）；`JCC12009` 保持 176。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. 补齐域内 slnx 缺口：abstractions 6 个（Brain/Composition/Guard/Memory/Perception/Primitives.Tools.Tests）、generators 1 个（AotHandler.Generator）、perception 4 个（Eyes/Eyes.Tests/Vision/Vision.Tests）；tools 的 13 个 `cli_nodes/groups/*` + sample + onnx 测试先决定"登记或排除"，排除项写入 `JccSlnxExcluded` 并注明打包流程。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
-3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。
+3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖已摘除，环 15→8）
 4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。
 5. 176 个目录名的批量改名（脚本先单域验证再推广）。
 
@@ -490,6 +497,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | `baseline.json` + 只减不增比较 | 门禁、CI | ✅ | ✅ 计数 + `crossDomainEdges` 域对双层比较；P3 重冻结 |
 | `ci-architecture.yml` | PR CI | ✅ | ✅ 已接入 `ci.yml` `architecture` job（待 PR 首跑验证） |
 | 模块 README 生成器 | P4 文档同步 | ✅ `Update-ModuleReadme.ps1` | ✅ 16 域已生成；删 1 行后 `JCC12011` 1/2 报错、exit 1，重跑恢复 PASS |
+| `Infrastructure` 拆分第一刀（GitHub 客户端出迁 tools） | `tools/gh`、全仓生产图 | ✅ `GitHubClient.csproj` + `github_client_tests` 随迁 | ✅ 全仓四 target True；`jcc-gh.exe alias list` 真实构造客户端；门禁环 15→8 |
 
 > 后两列为强制钩子：`已实现` 防止"写了规划没实现"；`已验收` 必须走真实运行（门禁注入违规、分析器 fixture、全仓编译），禁止只写单测。
 
@@ -546,6 +554,10 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 2026-11-21：P3 完成。`allowlist.json` 五字段校验 + `baseline.crossDomainEdges` 域对集合 + 新增边阻断；注入 `collections->cognition` 与过期 allowlist 均 exit 1，撤销后 PASS；`ci-architecture.yml` 接入 `ci.yml`。
 - 2026-11-21：P4 第四块完成（遥测插件归位 + 传递依赖显式化）。`TelemetryPlugin` 移入 `plugins.infrastructure/builtin/telemetry`；`Infrastructure.Telemetry` 去掉 `Plugins.Contracts`、声明 public；5 个生产项目补 `Plugins.Contracts` 显式引用，`apps/engine` 补 `Plugins.Infrastructure`。全量 `JoinCode.slnx -t:Rebuild` 0 警告 0 错误；`Build-AllDomains` 四 target 全 True；门禁 `JCC12003` 探针命中后恢复 PASS，基线重冻结（生产跨域边 478、环 15）。
 - 2026-11-21：P4 第五块完成（`JCC12003` 从占位变真实规则）。负向探针：目标项目 `JccApiVisibility=internal` → `[plugins->abstractions]` 1 条；恢复 public → 0 条。
+- 2026-11-21：P4 第六块完成（Infrastructure 拆分第一刀）。`GitHubApiClient` 及其 JSON 上下文迁入 `modules/tools/github_client`（`JoinCode.GitHub.Client`），测试迁入 `modules/tools/github_client_tests`（51/51 绿）；`Infrastructure` 摘除 `Downloader`，6 个生产项目 + 3 个测试项目显式声明下载器依赖。门禁环 15→8、生产跨域边 478→486（显式化）；全仓 `Build-AllDomains`（含分析器）四 target True；`jcc.exe --version` 与 `jcc-gh.exe alias list`（真实构造客户端）均通过；门禁 Validate PASS，基线重冻结。
+- 工程事实（迁移与 DI）：把 `[Register]` 类型移出 Infrastructure 前必须确认消费方式。`gh` 是手工 `new`（不走容器），主引擎无 `IGitHubApiClient` 解析点，因此新程序集无需接入任何注册入口；若存在容器解析点，则必须在宿主侧显式调用新程序集的 `Add...AutoRegisteredServices`，否则编译通过、运行期缺服务。
+- 工程事实（测试可见性）：跨程序集迁移后，测试对 `internal` 成员（`ExtractHostPort`/`IsPortReachableAsync`/`BuildNetworkErrorMessageAsync`/`IsZipPrefix`）的访问不能靠"给旧测试项目开 IVT"糊过去——按就近原则把测试迁到被测模块，IVT 只开给 `*.Tests` 目标（`JCC12007` 对测试程序集豁免）。
+- 工程事实（目录命名）：新增测试目录一律用 `github_client_tests` 下划线形式；`.tests` 目录名在 `JCC12009` 口径下属于存量违规，新增即会让计数 +1，不要一边清账一边加账。
 - 关键发现（增量构建掩盖）：`solution` target 用增量构建时，删掉被他人传递依赖的 `ProjectReference` 不会立即报错；`native_tui` / `native_gui` 独立 target 才暴露 `CS0246`。跨域引用变更后必须至少跑一次 `-t:Rebuild`。
 - 工程事实（口径）：传递引用显式化会让门禁计数上升（472→478），这是把原本隐形的依赖画进图里，不是新增耦合；清账进度应按"域对集合 + 环数"看，不能只看边计数。
 - 工程事实：`JCC12002` 只靠计数会在"删一条旧边、加一条新边"时漏检；必须同时冻结域对集合。

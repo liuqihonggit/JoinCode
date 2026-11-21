@@ -1,5 +1,5 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-namespace Infra.Tests.Process;
+namespace GitHubClient.Tests.Process;
 
 /// <summary>
 /// GitHubApiClient 单元测试 — 验证 Token 解析 / 请求构造 / 响应解析 / 错误处理 / 分页

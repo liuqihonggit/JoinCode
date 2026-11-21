@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>library</ProjectType>
+    <RootNamespace>IO.ProcessService</RootNamespace>
+    <AssemblyName>JoinCode.GitHub.Client</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions.primitives.interfaces/Abstractions.Primitives.Interfaces.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/storage/downloader/Downloader.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.GitHub.Client.Tests" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- 仅被同域 tools/gh 引用，不进入跨域 API 面；保持域默认 internal（JCC12003 按跨域边判定） -->
+    <JccApiVisibility>internal</JccApiVisibility>
+  </PropertyGroup>
+
+</Project>

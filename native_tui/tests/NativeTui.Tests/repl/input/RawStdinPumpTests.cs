@@ -109,7 +109,7 @@ public sealed class RawStdinPumpTests
         var first = FeedAndDrain(pump, "\u001b[");
         Assert.Empty(first);
 
-        // 时钟未推进 — 即使真实调度延迟远超 50ms 也不 flush（原缺陷：真实时钟在 Feed 与
+        // 推进 49ms（未超 50ms 阈值）— 真实调度延迟再久也不 flush（原缺陷：真实时钟在 Feed 与
         // 首次 Drain 之间超过 50ms 时强制拆成 Escape + "["，全量并行下偶发）
         clock.Advance(49);
         Assert.Empty(DrainKeys(pump));

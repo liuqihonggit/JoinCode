@@ -186,7 +186,8 @@
 | P1-4 | `autoAllowBashIfSandboxed` 接入权限判定（仅「确实会沙箱」才免 ask） | ✅ `SandboxAutoAllowMiddleware`（管道 priority 350；要求 `IsInSandbox` + 提供器 FS∩Network 真隔离；11 条用例） |
 | P1-5 | `allowUnsandboxedCommands` 策略门 + `excludedCommands` 生效 + `failIfUnavailable` 启动失败 | ✅ 策略门/排除清单经 `ShellSandboxPolicy` 生效；`failIfUnavailable` 由 `SandboxStartupModule` + `SandboxStartupGate` 落实（不可用→警告或拒绝启动） |
 | P1-6 | `BashToolPrompt` 三段式动态措辞（默认留沙箱 / 何时覆盖 / 策略禁止） | ✅ 三段式 + `$TMPDIR` 指引；启动期由 `AddWorkflowServices` 注入；`/sandbox-toggle on/off` 即时同步；4 条用例 |
-| P1-7 | `/sandbox` 改设置语义（写 settings + 策略锁）；`exclude` 写 `excludedCommands` | 🟡 `on/off` 已写 `sandbox.enabled` 并同步提示词；`exclude` 改读 `sandbox.excludedCommands`（数组无配置服务写入通道，给可执行指引）；**策略锁（企业 managed 设置覆盖）未做** |
+| P1-7 | `/sandbox` 改设置语义（写 settings + 策略锁）；`exclude` 写 `excludedCommands` | 🟡 `on/off` 已写 `sandbox.enabled` 并同步提示词；`exclude` 改读 `sandbox.excludedCommands`（数组无配置服务写入通道，给可执行指引）；**策略锁（企业 managed 设置覆盖）未做——本仓库无 managed 设置基础设施，单列为独立议题** |
+| P1-8 | 配置变更 → 提示词快照热同步（覆盖 config 工具等一切写 `sandbox.*` 的入口） | ✅ `SandboxPromptPolicySync`（composition singleton，订阅 `SettingChanged`，`SandboxStartupModule` 启动期强制实例化；4 条用例） |
 
 ### 7.1 实施记录（2026-11-21）
 
@@ -203,8 +204,12 @@
   否则 `LogWarning` 明说「命令将不经沙箱 + 如何修复」。真隔离口径统一为 `SandboxManagerCapabilityExtensions`（FS∩Network）。
 - **`/sandbox-toggle on/off` 设置语义**：成功进入/退出后写 `sandbox.enabled` 并即时同步 `BashToolPrompt` 快照；
   `status` 增加设置开关一行。
-- **未做（下一批）**：策略锁（企业 managed 设置覆盖本地 `/sandbox`）；provider 级 per-command 真实隔离（当前仅会话级，Phase 2）；
-  通过 config 工具改 `sandbox.enabled` 后的提示词快照同步（目前只有 `/sandbox-toggle` 路径即时同步）。
+- **提示词热同步（P1-8）**：`SandboxPromptPolicySync`（composition `[Register]` singleton）以启动期 `WorkflowConfig` 为初值，
+  订阅 `IConfigurationService.SettingChanged`，命中 `sandbox.enabled` / `sandbox.allowUnsandboxedCommands` 即刷新 `BashToolPrompt` 快照；
+  由 `SandboxStartupModule.ConfigureAsync` 首行强制实例化（singleton 随根容器释放退订）。至此 `/sandbox-toggle`、config 工具、
+  手工改 settings 三条路径都收敛到同一份提示词策略。
+- **未做（下一批）**：策略锁（企业 managed 设置覆盖本地 `/sandbox`，本仓库无 managed 设置载体，需先立基础设施）；
+  provider 级 per-command 真实隔离（当前仅会话级，Phase 2）。
 
 ---
 

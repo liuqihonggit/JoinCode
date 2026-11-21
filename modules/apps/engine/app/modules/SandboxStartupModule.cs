@@ -22,6 +22,9 @@ public sealed class SandboxStartupModule : IAppModule {
     /// <param name="ct">取消令牌。</param>
     /// <returns>已完成的任务；不可用且要求硬失败时抛出。</returns>
     public Task ConfigureAsync(IServiceProvider services, CancellationToken ct) {
+        // 强制实例化热更新订阅（singleton 随根容器释放时退订）
+        services.GetService<SandboxPromptPolicySync>();
+
         var config = services.GetService<WorkflowConfig>();
         if (config is null || !config.Sandbox.Enabled) {
             return Task.CompletedTask;

@@ -41,6 +41,18 @@ public sealed record SandboxConfig {
 
     /// <summary>允许更弱的网络隔离（基准 sandbox.enableWeakerNetworkIsolation，仅 macOS 语义）。</summary>
     public bool EnableWeakerNetworkIsolation { get; init; }
+
+    /// <summary>自定义 ripgrep 配置（基准 sandbox.ripgrep；bwrap 包装暂不消费，仅保持契约不丢失）。</summary>
+    public SandboxRipgrepConfig? Ripgrep { get; init; }
+}
+
+/// <summary>沙箱内 ripgrep 配置 — 对齐基准 <c>sandbox.ripgrep</c>（command + 可选 args）。</summary>
+public sealed record SandboxRipgrepConfig {
+    /// <summary>ripgrep 可执行文件路径/命令。</summary>
+    public required string Command { get; init; }
+
+    /// <summary>附加参数。</summary>
+    public List<string> Args { get; init; } = [];
 }
 
 /// <summary>沙箱网络配置 — 对齐基准 <c>SandboxNetworkConfigSchema</c>（sandboxTypes.ts:14-42）。</summary>

@@ -67,13 +67,19 @@ internal static class BwrapCommandBuilder {
             warnings.Add("bwrap 无违规上报通道：ignoreViolations 已忽略");
         }
 
+        if (request.RipgrepCommand is { Length: > 0 }) {
+            warnings.Add("bwrap 包装不消费 sandbox.ripgrep：自定义 ripgrep 已忽略");
+        }
+
         foreach (var path in BaseSystemPaths) {
             if (exists(path)) {
                 AddBind(args, "--ro-bind", path, path);
             }
         }
 
-        args.AddRange(["--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"]);
+        // 不挂载 /proc：容器化宿主的 seccomp 常拒绝 proc mount，会导致整个 bwrap 启动失败；
+        // 沙箱内命令因此读不到 /proc（安全上更保守），需要 proc 的工具应在后续按能力探测再开放。
+        args.AddRange(["--dev", "/dev", "--tmpfs", "/tmp"]);
 
         var workingDirectory = NormalizePath(request.WorkingDirectory);
         AddBind(args, "--bind", workingDirectory, workingDirectory);

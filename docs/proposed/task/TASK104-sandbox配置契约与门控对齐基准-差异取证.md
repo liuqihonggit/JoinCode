@@ -232,11 +232,11 @@
 | R2 | **P0** | `autoAllowBashIfSandboxed` 空转：免确认要求 `IsInSandbox`，而 enabled 不会自动进沙箱 ⇒ 永远不触发 | 已知 | `SandboxAutoAllowMiddleware` 已按 `IsInSandbox` 判；依赖 R1 修复后自然成立 | ✅ 免确认条件改为「会话真隔离 或 具备逐命令包装能力」，新增 2 条用例（未进会话但可包装 → 免确认；不可包装 → 回落 ask） |
 | R3 | P1 | `filesystem.allowWrite/denyWrite/denyRead/allowRead` 仅契约，未传进 provider | 已知 | `BubblewrapSandboxProvider.ExecuteInSandboxAsync` 只消费 `SandboxInfo.AllowedPaths`；基准 `sandbox-adapter.ts:329-349` 逐项转 runtime config | ✅ 已消费：rw `--bind`（cwd/allowWrite）、ro `--ro-bind`（allowRead/基础系统路径）、掩码 `--tmpfs`/`/dev/null`（denyWrite/denyRead）；allowRead 最后覆盖 denyRead；12 条参数表用例 |
 | R4 | P1 | `network.allowedDomains/allowUnixSockets/allowAllUnixSockets/allowLocalBinding/httpProxyPort/socksProxyPort` 未消费 | 已知 | 基准 `sandbox-adapter.ts:359-368`；bwrap 原生只能「开/关网」，域名级需代理 | ✅ 已消费到能力边界：默认 `--unshare-all` 断网；`allowedDomains` 非空 fail-closed + warning；其余 bwrap 不支持项逐个显式 warning（不静默丢弃） |
-| R5 | P1 | `EnableWeakerNestedSandbox/EnableWeakerNetworkIsolation/IgnoreViolations/ripgrep` 未消费 | 已知 | 基准 `sandboxTypes.ts:123-141`；其中 weakerNetwork 仅 macOS trustd | 🟡 weakerNested/weakerNetwork/ignoreViolations 已进请求并显式告警；`ripgrep` 本仓 SandboxConfig 尚无字段，待补契约 |
+| R5 | P1 | `EnableWeakerNestedSandbox/EnableWeakerNetworkIsolation/IgnoreViolations/ripgrep` 未消费 | 已知 | 基准 `sandboxTypes.ts:123-141`；其中 weakerNetwork 仅 macOS trustd | ✅ 四项全部进入 `SandboxWrapRequest`：weakerNested/weakerNetwork/ignoreViolations 由 bwrap 显式告警「不支持/已忽略」；`ripgrep` 补齐 `SandboxConfig.Ripgrep`（command/args）→ `SandboxRipgrepSettings` → `SettingsMapper.MapSandboxRipgrep` → `RipgrepCommand` → builder 显式告警「不消费」；映射用例 1 条 + bwrap warning 断言 |
 | R6 | P2 | 策略锁：managed/policy settings 覆盖本地 `sandbox.enabled`、`allowManagedDomainsOnly`、`allowManagedReadPathsOnly` | **未知** | 基准有 `policySettings` 源与 `shouldAllowManaged*Only`；本仓无托管配置载体 | 先立 ADR/基础设施（配置源优先级），再实现 + 企业场景用例 |
 | R7 | P2 | 跨平台 provider 矩阵：macOS Seatbelt（基准 sandbox-runtime）、Windows 无真隔离的显式降级 | **未知** | 本仓仅 Bubblewrap/Docker/Process/Soft；Windows Soft/Process 无 Network | 需 macOS 真机；Windows 保持「不启用 + 明确提示」 |
 | R8 | P2 | `/sandbox` 子命令全对齐（benchmark 的 `/sandbox` 参数矩阵） | 半已知 | 本仓已有 on/off/exclude/status | 逐项对照命令 help + 行为用例 |
-| R9 | P1 | 真机 bwrap 验收（当前仅 Windows 本机单测） | 已知但受环境限制 | 云主机 Linux 可用 | 安装/确认 bwrap → 跑包装命令 → 读 `[SANDBOX]` 打点 |
+| R9 | P1 | 真机 bwrap 验收（当前仅 Windows 本机单测） | 已知但受环境限制 | 云主机 Linux 可用 | 🟢 云主机（Ubuntu，bwrap 0.6.1）实测：`--unshare-all` 下网络被阻断、allowWrite 可写、`--tmpfs` denyRead 掩码生效；发现容器 seccomp 拒绝 `--proc /proc`，已从包装参数移除并注释（沙箱内不暴露 /proc） |
 | R10 | P1 | 文档收口：TASK103 #35 状态、TASK104 进度与本总账同步 | 已知 | 本文件 §7/§9 | 文档评审 |
 
 **执行顺序**：R1 → R2（回归）→ R3 → R4 → R5 → R9 → R10 → R6 → R7 → R8。
@@ -256,6 +256,14 @@ R1/R2 是「安全收益是否真实」的分水岭，未完成前不宣称 sand
   避免 `sandbox.enabled=true` 下免确认永远空转。
 - **已知边界**：bwrap 域名级过滤不支持（`allowedDomains` 非空 → fail-closed 断网 + warning）；
   Windows 无真隔离 provider 时门控按 unavailable 回落不沙箱（启动期已有 Warn/Fail 门控）。
+- **R9 真机结论（云主机 Ubuntu / bwrap 0.6.1）**：网络在 `--unshare-all` 后不可达；工作目录与 allowWrite 可写；
+  `--tmpfs` 掩码使 denyRead 路径不可读；容器 seccomp 拒绝 `--proc /proc`（导致 bwrap 整体退出），
+  已移除 proc 挂载并加注释；`--dev /dev` 在该环境可用，保留以支撑 deny 规则的 `/dev/null` 掩码。
+- **R5 收尾（ripgrep 契约）**：`SandboxConfig.Ripgrep`（`SandboxRipgrepConfig`：required `Command` + `Args`）→
+  `SandboxRipgrepSettings`（`command`/`args`）→ `SettingsMapper.MapSandboxRipgrep`（空 command 保留默认）→
+  `SandboxWrapRequest.RipgrepCommand` → `BwrapCommandBuilder` 显式 warning「bwrap 包装不消费 sandbox.ripgrep」。
+  这样「配置不丢 + 能力缺口可见」，不做静默吞字段。weakerNested / weakerNetwork / ignoreViolations 同样只告警不假装支持。
+- **R10 收口**：本表 R1–R5/R9 状态与 §9.1 记录同时更新；TASK103 #35 指向本节，不重复维护两份进度。
 
 ---
 

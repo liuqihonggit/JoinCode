@@ -21,7 +21,8 @@ public class BwrapCommandBuilderTest {
         int? socksProxyPort = null,
         bool weakerNested = false,
         bool weakerNetwork = false,
-        Dictionary<string, List<string>>? ignoreViolations = null)
+        Dictionary<string, List<string>>? ignoreViolations = null,
+        string? ripgrepCommand = null)
         => new() {
             Command = command,
             WorkingDirectory = workingDirectory,
@@ -39,6 +40,7 @@ public class BwrapCommandBuilderTest {
             EnableWeakerNestedSandbox = weakerNested,
             EnableWeakerNetworkIsolation = weakerNetwork,
             IgnoreViolations = ignoreViolations ?? [],
+            RipgrepCommand = ripgrepCommand,
         };
 
     private static SandboxWrappedCommand Build(SandboxWrapRequest request, params string[] directories)
@@ -150,11 +152,13 @@ public class BwrapCommandBuilderTest {
         var wrapped = Build(Request(
             weakerNested: true,
             weakerNetwork: true,
-            ignoreViolations: new Dictionary<string, List<string>> { ["/tmp"] = ["read"] }));
+            ignoreViolations: new Dictionary<string, List<string>> { ["/tmp"] = ["read"] },
+            ripgrepCommand: "/usr/local/bin/rg"));
 
         wrapped.Warning.Should().Contain("enableWeakerNestedSandbox");
         wrapped.Warning.Should().Contain("enableWeakerNetworkIsolation");
         wrapped.Warning.Should().Contain("ignoreViolations");
+        wrapped.Warning.Should().Contain("sandbox.ripgrep");
     }
 
     [Fact]

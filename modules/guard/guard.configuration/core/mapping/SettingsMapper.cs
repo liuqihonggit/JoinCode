@@ -236,6 +236,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
             EnableWeakerNetworkIsolation = sandbox.EnableWeakerNetworkIsolation ?? defaults.EnableWeakerNetworkIsolation,
             Network = MapSandboxNetwork(sandbox.Network, defaults.Network),
             Filesystem = MapSandboxFilesystem(sandbox.Filesystem, defaults.Filesystem),
+            Ripgrep = MapSandboxRipgrep(sandbox.Ripgrep, defaults.Ripgrep),
         };
 
         return config with { Sandbox = mapped };
@@ -253,6 +254,16 @@ public sealed partial class SettingsMapper : ServiceEntity {
             AllowLocalBinding = settings.AllowLocalBinding ?? defaults.AllowLocalBinding,
             HttpProxyPort = settings.HttpProxyPort ?? defaults.HttpProxyPort,
             SocksProxyPort = settings.SocksProxyPort ?? defaults.SocksProxyPort,
+        };
+    }
+
+    /// <summary>ripgrep 子配置映射 — command 为空视为未配置，保留默认。</summary>
+    private static SandboxRipgrepConfig? MapSandboxRipgrep(SandboxRipgrepSettings? settings, SandboxRipgrepConfig? defaults) {
+        if (settings is null || string.IsNullOrWhiteSpace(settings.Command)) return defaults;
+
+        return new SandboxRipgrepConfig {
+            Command = settings.Command,
+            Args = settings.Args is { Count: > 0 } args ? [.. args] : [],
         };
     }
 

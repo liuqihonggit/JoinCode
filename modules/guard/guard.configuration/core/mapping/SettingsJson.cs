@@ -577,6 +577,21 @@ public sealed class SandboxSettings {
     /// <summary>允许更弱的网络隔离（仅 macOS 语义）</summary>
     [JsonPropertyName("enableWeakerNetworkIsolation")]
     public bool? EnableWeakerNetworkIsolation { get; init; }
+
+    /// <summary>自定义 ripgrep 配置</summary>
+    [JsonPropertyName("ripgrep")]
+    public SandboxRipgrepSettings? Ripgrep { get; init; }
+}
+
+/// <summary>沙箱 ripgrep 配置 — command 必填，args 可选。</summary>
+public sealed class SandboxRipgrepSettings {
+    /// <summary>ripgrep 可执行文件路径/命令</summary>
+    [JsonPropertyName("command")]
+    public string Command { get; init; } = "";
+
+    /// <summary>附加参数</summary>
+    [JsonPropertyName("args")]
+    public List<string> Args { get; init; } = [];
 }
 
 /// <summary>

@@ -397,6 +397,27 @@ public class SettingsMapperTests {
     }
 
     [Fact]
+    public void Given_SandboxRipgrep_When_ToWorkflowConfig_Then_命令与参数保留() {
+        var settings = new SettingsJson {
+            Current = new CurrentSettings {
+                Sandbox = new SandboxSettings {
+                    Ripgrep = new SandboxRipgrepSettings { Command = "/usr/local/bin/rg", Args = ["--no-config"] },
+                },
+            },
+        };
+
+        var config = _mapper.ToWorkflowConfig(settings);
+
+        var ripgrep = config.Sandbox.Ripgrep;
+        ripgrep.Should().NotBeNull();
+        if (ripgrep is null) {
+            throw new InvalidOperationException("sandbox.ripgrep 未映射");
+        }
+        ripgrep.Command.Should().Be("/usr/local/bin/rg");
+        ripgrep.Args.Should().ContainSingle().Which.Should().Be("--no-config");
+    }
+
+    [Fact]
     public void Given_Sandbox缺席_When_ToWorkflowConfig_Then_基准默认值() {
         var config = _mapper.ToWorkflowConfig(new SettingsJson { Current = new CurrentSettings() });
         config.Sandbox.Enabled.Should().BeFalse("基准 sandbox.enabled 缺省 false");

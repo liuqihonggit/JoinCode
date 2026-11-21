@@ -114,6 +114,7 @@ internal static class ShellSandboxPolicy {
             EnableWeakerNestedSandbox = sandbox.EnableWeakerNestedSandbox,
             EnableWeakerNetworkIsolation = sandbox.EnableWeakerNetworkIsolation,
             IgnoreViolations = sandbox.IgnoreViolations,
+            RipgrepCommand = sandbox.Ripgrep?.Command,
         };
     }
 }

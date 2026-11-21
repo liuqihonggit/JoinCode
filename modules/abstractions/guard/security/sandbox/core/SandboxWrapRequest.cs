@@ -52,4 +52,7 @@ public sealed partial class SandboxWrapRequest {
 
     /// <summary>违规忽略表（bwrap 无违规上报通道，由 provider 显式告警）。</summary>
     public Dictionary<string, List<string>> IgnoreViolations { get; init; } = [];
+
+    /// <summary>自定义 ripgrep 命令（null = 未配置；bwrap 包装暂不消费，由 provider 显式告警）。</summary>
+    public string? RipgrepCommand { get; init; }
 }

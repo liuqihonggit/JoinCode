@@ -273,3 +273,116 @@ R1/R2 是「安全收益是否真实」的分水岭，未完成前不宣称 sand
 <!-- 替代方案: 一次性做完整对齐（方案 A 全量，未采用：破坏面跨 4 域，须分批验证） -->
 <!-- 验证: 契约层已编译 + Guard.Config 用例通过；门控层待真值表红绿 -->
 
+---
+
+## 10. 工作交接（2026-11-22）
+
+> **文档编号：TASK104**（本文件即交接书；接手人从 §10 读起即可，无需重读全部取证）
+> **交接分支**：`w2`；交接前 HEAD `3642391db`，`origin/w2` 与本地一致；相对 `origin/main`（本地 ref `9682fee30`）领先 7 个提交；工作树干净。
+> **交接结论**：Phase 1 与 R1–R5 / R9 / R10 **已完成并验证**；R6 / R7 / R8 **未开始**。本分支可评审合并，剩余项按 §10.4 顺序推进。
+
+### 10.1 一分钟摘要
+
+- **修掉的病**：`sandbox.enabled=true` 原先只改门控布尔值，命令不会真的进沙箱，`autoAllowBashIfSandboxed` 因永远不满足 `IsInSandbox` 而空转 —— 即「配置写了不生效 + 安全收益为零」。
+- **现在的行为**：Linux 上 `enabled=true` 时每条 Bash 命令用一次性 `bwrap` 包裹；文件系统 allow/deny 清单、网络开关、工作目录绑定真实生效；真隔离 + 免确认联动；提示词随配置热更新；提供器不可用且在 `failIfUnavailable=true` 时启动即失败。
+- **没做的**：企业策略锁（R6）、macOS Seatbelt / Windows 平台真值矩阵（R7）、`/sandbox` 参数面完整对齐（R8）。这三项不是「补一个字段」，都涉及策略源或跨平台，见 §10.4。
+- **评审注意**：分支含 1 个**与 sandbox 无关**的历史提交 `3cd4dded0`（TASK069-P4 权限确认解释），PR 描述已单列；不要把它与 sandbox 改动混在一起评审。
+
+### 10.2 已完成清单（可直接验收）
+
+| 项 | 落点 | 验收证据 |
+|----|------|----------|
+| Phase 1 契约 | `SandboxSettings` 基准 schema、`WorkflowConfig.Sandbox`、`ConfigKeyRegistry` 四键 | `SettingsJsonDeserializationTests` / `SettingsMapperTests` 全绿 |
+| Phase 1 门控 | `SandboxGate` 六维真值表（enabled/平台/排除/逃生阀/复合命令/env 前缀） | `SandboxGateTests` 全绿 |
+| Phase 1 启动门 | `SandboxStartupGate` + `SandboxStartupModule`（不可用 → Warn 或拒绝启动） | `SandboxStartupGateTests` 全绿；cli/gui profile 均登记 |
+| Phase 1 提示词 | `BashToolPrompt` 三段式（默认留沙箱 / 何时覆盖 / 策略禁止） | `BashToolPromptSandboxTests` 全绿 |
+| Phase 1 热同步 | `SandboxPromptPolicySync` 订阅 `SettingChanged`，配置工具/手改 settings 也会刷新提示词 | `SandboxPromptPolicySyncTest` 4 条全绿 |
+| **R1** 逐命令包装 | `ISandboxManager.TryWrapCommandForSandbox` + `BwrapCommandBuilder`；前台/后台 Shell 中间件都改用包装命令 | `BwrapCommandBuilderTest` 12 条；`ShellSandboxPolicyTest` 12 条 |
+| **R2** 免确认 | `SandboxAutoAllowMiddleware`：会话真隔离 **或** 管理器可逐命令包装 → 直接 allow；否则回落 ask | `SandboxAutoAllowMiddlewareTest`（含 2 条新场景） |
+| **R3** 文件清单 | rw `--bind`（cwd/allowWrite）、ro `--ro-bind`（allowRead/系统路径）、deny 目录 `--tmpfs`、deny 文件 `/dev/null`；allowRead 最后覆盖 denyRead | bwrap 参数表用例 + 云主机手工实测 |
+| **R4** 网络清单 | 默认 `--unshare-all` 断网；`restrictNetwork=false` 才 `--share-net`；域名过滤不支持 → fail-closed 断网 + warning；其余 socket/代理字段逐个 warning | bwrap warning 断言 + 云主机 `getent hosts` 实测无解析 |
+| **R5** 剩余开关 | weakerNested / weakerNetwork / ignoreViolations 进请求并显式告警；`sandbox.ripgrep` 补齐 command/args 契约 → `RipgrepCommand` → 告警「bwrap 不消费」 | 映射用例 + bwrap warning 断言 |
+| **R9** 真机 | 云主机 Ubuntu + bwrap 0.6.1：网络阻断、allowWrite 可写回读、denyRead 掩码生效；`--proc /proc` 被容器 seccomp 拒绝已移除 | §9.1 记录；**注意无 `dotnet`、无仓库，只到参数级真机** |
+| **R10** 文档 | 本文件 §9 总账 + §9.1 记录 + 本节交接 | 本提交 |
+
+**最新验证（交接前）**：`pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -NoAnalyzers` 全通过（solution / native_tui / native_gui 全 True）；`Guard.Config.Tests` 全 37 条通过；`BwrapCommandBuilderTest` 12 条通过；Shell / Composition 相关用例在 R1–R3 阶段全绿。
+
+### 10.3 关键代码地图（改哪里、别改哪里）
+
+| 层 | 文件 | 说明 |
+|----|------|------|
+| 配置契约 | `modules/abstractions/abstractions.configuration/workflow/SandboxConfig.cs` | `SandboxConfig` + `SandboxRipgrepConfig`；新增字段先加这里 |
+| 配置文本 | `modules/guard/guard.configuration/core/mapping/SettingsJson.cs` | `SandboxSettings` / `SandboxNetworkSettings` / `SandboxFilesystemSettings` / `SandboxRipgrepSettings` |
+| 映射 | `modules/guard/guard.configuration/core/mapping/SettingsMapper.cs` | `MapSandbox*`；**只有这里做 settings→强类型**，勿在消费方解析 JSON |
+| 配置源 | `modules/guard/guard.configuration/core/loading/core/SettingsLoader.cs` | 5 源合并已存在（User→Project→Local→Flag→Policy）；`LoadPolicySettingsAsync` / `GetManagedSettingsPath` 可直接用 |
+| 门控 | `.../abstractions.configuration/workflow/SandboxGate.cs` | 纯函数真值表；不碰 I/O |
+| 启动门 | `.../workflow/SandboxStartupGate.cs` + `modules/apps/engine/app/modules/SandboxStartupModule.cs` | 启动期判平台/真隔离/`failIfUnavailable` |
+| 包装契约 | `modules/abstractions/guard/security/sandbox/core/SandboxWrapRequest.cs`、`SandboxWrappedCommand.cs` | `SandboxWrapRequest` 是唯一「一条命令要什么隔离」的描述 |
+| 管理器 | `modules/guard/guard.sandbox/core/SandboxManager.cs` | `SelectWrappingProvider`：活跃真隔离 → bwrap → docker（若支持）→ 遍历 |
+| bwrap | `modules/guard/guard.sandbox/providers/BwrapCommandBuilder.cs`、`BubblewrapSandboxProvider.cs` | 所有参数/告警在此；**没有 `--proc /proc`，别加回** |
+| Shell 接线 | `modules/cognition/hands_shell/shell/handlers/middleware/ShellSandboxPolicy.cs` + `ShellExecutionMiddleware.cs` + `ShellBackgroundMiddleware.cs` | 前台/后台共用同一决策；手动已进会话沙箱时不重复包装 |
+| 权限 | `modules/guard/guard.permission/policy/SandboxAutoAllowMiddleware.cs` | 免确认只给「真隔离或可包装」；排除命令/逃生阀仍 ask |
+| 命令 | `modules/composition/slash/guard/config/SandboxToggleCommand.cs` | `on/off/status/exclude/switch`；`on/off` 写 `sandbox.enabled` |
+| 提示词 | `modules/abstractions/ai/prompts/tool_prompts/shell/BashToolPrompt.cs` | 三段式快照；`SandboxPromptPolicySync` 热更新 |
+
+**不要改的边界**：
+
+1. `SandboxWrapRequest` 字段一旦新增，必须同时接 `ShellSandboxPolicy.BuildWrapRequest` + `BwrapCommandBuilder` 的「不支持就 warning」分支，禁止静默吞字段。
+2. 真隔离口径固定为 `SandboxCapabilities.FileSystemIsolation ∩ NetworkIsolation`（`SandboxManagerCapabilityExtensions`）；Windows Soft/Process 不得享受免确认。
+3. bwrap 参数里 `--unshare-all` 是默认；只有 `RestrictNetwork=false` 才可 `--share-net`。`allowedDomains` 非空但无法域名过滤时必须 **fail-closed**，不能放行全网。
+4. `sandbox.enabled=false`（基准默认）时保持旧行为：只有 `dangerously_disable_sandbox` 影响本次命令；手动 `/sandbox on` 的会话语义照旧。
+5. 配置数组（`excludedCommands` / `allowWrite` 等）没有通过 `IConfigurationService` 写入的通道，`/sandbox exclude` 目前只读+指引编辑 settings.json；不要假装能写数组。
+
+### 10.4 剩余事项（按优先级，接手人从这里继续）
+
+| 序 | 优先级 | 事项 | 现状与关键判断 | 建议做法 / 验收 |
+|----|--------|------|----------------|------------------|
+| **R6** | P1（先做） | 企业策略锁 + managed 源限定 | 原先注记「无托管基础设施」**不准确**：`SettingSource.PolicySettings`、`SettingsLoader.LoadPolicySettingsAsync`、`GetManagedSettingsPath`、hooks 的 managed 源都已存在；缺的是 **sandbox 消费 policy 源** 与 **来源感知**（`LoadAllSourcesAsync` 合并后已丢失「哪个键来自 policy」） | ① 新增 `SandboxPolicyLock`（启动期单独 `LoadPolicySettingsAsync`，只判 `sandbox.enabled/autoAllowBashIfSandboxed/allowUnsandboxedCommands` 是否显式存在）；② `/sandbox on/off/switch/exclude` 命中锁 → 拒绝本地修改并说明「被策略覆盖」；③ `allowManagedDomainsOnly=true` → `allowedDomains` 只取 policy 源；④ `allowManagedReadPathsOnly=true` → `allowRead` 只取 policy 源（基准 `sandbox-adapter.ts:152-164`、`:181-196`、`:343-347`）；⑤ 用例：managed-settings fixture + 本地改被拒 + 域/读清单只认 policy |
+| **R7** | P2 | 平台矩阵：Windows 显式不支持 / macOS Seatbelt | 本仓 provider 只有 bwrap/docker/process/soft，**没有 Seatbelt**；且 `SandboxToggleCommand.cs:150-152` 的平台判断对 Win32NT/Unix/MacOSX 恒真，会误导 Windows 用户「已支持」 | **先做已知部分**：新增 `SandboxPlatformSupport`（Windows=不支持、Linux=bwrap 可用性检查、macOS=Seatbelt 未实现→不支持），替换恒真判断，`/sandbox status` 明确显示原因；**Seatbelt 属未知项**：需 macOS 真机 + 先写 ADR（provider 契约是否复用 `TryWrapCommand`、sandbox-exec profile 生成、路径 deny 语义），无真机不得宣称支持 |
+| **R8** | P2 | `/sandbox` 参数面完整对齐 | 基准 `/sandbox`：无参数 → 交互式设置菜单；只有 `exclude <pattern>` 子命令；本仓：无参数默认 `status`，另有 `on/off/switch` | 先决策「保留本仓扩展还是收敛到基准语义」（建议保留扩展但补：无参数菜单/设置项展示、`exclude` 参数校验与写回指引、各子命令 `--help` 文案）；逐条用例覆盖 `on/off/status/exclude/switch/未知子命令/缺参数`；不要为了对齐删掉现有可用命令 |
+
+**推荐顺序**：R6 → R7（先 Windows 真值，Seatbelt 单独立项）→ R8。R6 是唯一还带「安全承诺」性质的缺口；R7/R8 更偏平台正确性与可用性。
+
+### 10.5 接手后的第一批命令（照抄即可）
+
+```powershell
+cd D:\project\w2
+git --no-pager status --short
+git --no-pager log --oneline -8
+pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -NoAnalyzers   # 日志写 .xxx\logs\
+dotnet test modules\guard\guard.config.tests\Guard.Config.Tests.csproj --no-build --filter "FullyQualifiedName~SettingsMapperTests"
+dotnet test modules\guard\guard.security.tests\Guard.Security.Tests.csproj --no-build --filter "FullyQualifiedName~BwrapCommandBuilderTest|FullyQualifiedName~SandboxAutoAllowMiddlewareTest"
+dotnet test modules\cognition\hands.shell.tests\Hands.Shell.Tests.csproj --no-build --filter "FullyQualifiedName~ShellSandboxPolicyTest"
+```
+
+- **Linux 真机复验**：`manage_environment(action="switch", env_id="vm")`（Ubuntu，bwrap 0.6.1 已装；**无 dotnet、无仓库**）。只做参数级验证：
+  `bwrap --unshare-all --die-with-parent --ro-bind /usr /usr --ro-bind /bin /bin --ro-bind /lib /lib --ro-bind /lib64 /lib64 --ro-bind /sbin /sbin --ro-bind /etc /etc --dev /dev --tmpfs /tmp --bind "$PWD" "$PWD" --chdir "$PWD" -- /bin/sh -c 'getent hosts example.com; echo ok'`
+  期望：`getent` 无输出、`echo ok` 正常。**不要加 `--proc /proc`**（容器 seccomp 会 `Operation not permitted`，整条命令失败）。
+- **Windows 本机**：bwrap 不存在，`SandboxManager` 会回落 soft/process；这不是 bug，不要为了测试去装 WSL 或改 provider 顺序。
+
+### 10.6 已知坑与排错线索
+
+| 现象 | 根因 | 处理 |
+|------|------|------|
+| bwrap 整条命令失败、报 `/newroot/proc` | 容器 seccomp 拒绝 `--proc /proc` | 已移除；不要加回，除非目标环境明确允许 mount proc |
+| `sandbox.enabled=true` 但命令仍未沙箱 | 提供器无 bwrap / `SupportsCommandWrapping=false` / 平台不在白名单 | 看启动期 `SandboxStartupGate` 日志 + `ShellSandboxPolicy` 的 `[SANDBOX]` 打点；Windows 属预期不支持 |
+| 免确认没生效 | 提供器不是「FS∩Network 真隔离」且不可包装 | `SandboxAutoAllowMiddleware` 会回落 ask；查 `SandboxManager.CanWrapCommand` |
+| `allowedDomains` 配了却完全断网 | bwrap 无域名过滤能力，按 fail-closed 处理 | 这是刻意保守；要域名级需引入代理/srt 类运行时（R7/新 ADR），不要擅自改成 `--share-net` |
+| `/sandbox exclude` 写了没生效 | 原实现写 `excludedPaths`，schema 已删；现仅读 `excludedCommands` 并提示手改 settings | 数组写入是独立能力；不要用标量 config 服务硬塞 |
+| 改了 `SandboxSettings` 但测试编译过、运行不生效 | `SettingsMapper` 未映射 / `SandboxConfig` 无字段 | 按 §10.3 三层顺序补：SettingsJson → SettingsMapper → SandboxConfig → 消费方 |
+| 提示词还是旧措辞 | 配置变更未触发 `SettingChanged`（手改文件不会发事件） | 重启进程；或经 `/sandbox on/off`、config 工具写入以触发 `SandboxPromptPolicySync` |
+
+### 10.7 交接 Definition of Done
+
+1. R6 / R7（Windows 真值部分）/ R8 各自：先写差异或 ADR（涉及策略源/平台的先立 ADR）→ 红测试 → 实现 → 编译 → 绿测试 → 文档 §9 状态更新 → 提交。
+2. 每次跨域契约变更后跑全仓 `Build-AllDomains.ps1 -NoAnalyzers`；不并发跑 `dotnet build/test`。
+3. R7 的 Seatbelt 若无 macOS 真机，**只写 ADR + provider 占位声明，不实现假支持**；R6 的 policy 锁必须有 managed-settings fixture 用例，不能只写代码。
+4. 任何文件不删除；需要移除的源码移到仓库根 `.xxx/` 并修引用。
+5. 每轮结束按项目 AGENTS.md 用 `ask_user`（本环境为 `interaction_ask`）向用户提一个与当前上下文相关的问题，不自行扩大范围。
+
+### 10.8 本次交接提交说明
+
+- 本节只写文档，不改生产代码；提交后由 MainAgent 推送 `w2` 并向 `main` 发起 PR。
+- PR 描述应包含：R1–R5/R9/R10 的范围、验证命令与结果、R6–R8 未做、`3cd4dded0` 属独立历史提交。
+- 若 PR CI 报红：按 AGENTS.md「PR 后守 CI」流程，拉失败日志 → 修复 → 本地验证 → 直接 push 同一分支，不 force push、不自行 pull/rebase。
+

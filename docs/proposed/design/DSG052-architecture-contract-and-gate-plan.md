@@ -348,7 +348,7 @@ architecture:
 - `JccDomain` 与目录不一致时门禁报 Error。
 
 **遗留（P1.5）**：
-- 18 个域当前统一 `JccApiVisibility=internal`；51 个实际对外项目还需要在 csproj 覆盖 `public`，否则 P2 的 `JCC12006` 会把存量全部报出来。
+- ✅ 51 个实际对外项目已在 csproj 覆盖 `JccApiVisibility=public`（2026-11-21，P4 前置；51 文件，全仓带分析器构建通过）。其余项目继续继承域默认 `internal`。
 - `JccNamespaceRoots` 暂不填：各域真实命名空间高度分散，先做 P4 归一，避免把现状写成契约。
 
 ### P2 编译期规则（完成）
@@ -397,9 +397,11 @@ architecture:
 
 **决策**：暂不按原计划拆 `RuleGraph.ps1` / `RuleModule.ps1` / `RuleLayout.ps1`；当前规则数仍少，单脚本闭环更利于一致性。等 P4 债务清偿需要按规则族独立测试时再拆。
 
-### P4 债务清偿
+### P4 债务清偿（进行中）
 
-**改动（按顺序，逐项 ADR）**：
+**已完成 0. API 准入**：51 个被跨域引用的项目在 csproj 覆盖 `JccApiVisibility=public`，其余保持 `internal`；全仓带分析器构建通过。
+
+**后续改动（按顺序，逐项 ADR）**：
 1. 补齐域内 slnx 缺口：abstractions 6 个（Brain/Composition/Guard/Memory/Perception/Primitives.Tools.Tests）、generators 1 个（AotHandler.Generator）、perception 4 个（Eyes/Eyes.Tests/Vision/Vision.Tests）；tools 的 13 个 `cli_nodes/groups/*` + sample + onnx 测试先决定"登记或排除"，排除项写入 `JccSlnxExcluded` 并注明打包流程。
 2. 生成 `README.md` 项目表（脚本从 csproj 生成，替换手写表）。
 3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。
@@ -527,6 +529,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 关键发现（JCC12007）：生成 `AssemblyInfo.cs` 位于 `obj/`，`GeneratedCodeAnalysisFlags.None` 会过滤生成代码上的诊断；改为扫描 `Compilation.SyntaxTrees` 的 `[assembly: InternalsVisibleTo]`，并把诊断落到首个非 `obj/` 源文件。
 - 关键发现（可见性）：`Info/suggestion` 诊断不会出现在 `dotnet build` 输出；真实负向验收必须临时升 warning/error，否则会误判"规则没生效"。
 - 2026-11-21：P2 收尾验收。`ArchitectureGate.ps1 -Mode Validate` PASS；全仓 `Build-AllDomains`（带分析器）四 target 全 True；`jcc.exe --version` 启动正常（JoinCode v1.0.0.0 / .NET 10.0.9）。
+- 2026-11-21：P4 前置（API 准入）完成。51 个被跨域引用项目覆盖 `JccApiVisibility=public`；其余项目保持 internal；全仓带分析器四 target True；门禁 Validate PASS。
 - 2026-11-21：P3 完成。`allowlist.json` 五字段校验 + `baseline.crossDomainEdges` 域对集合 + 新增边阻断；注入 `collections->cognition` 与过期 allowlist 均 exit 1，撤销后 PASS；`ci-architecture.yml` 接入 `ci.yml`。
 - 工程事实：`JCC12002` 只靠计数会在"删一条旧边、加一条新边"时漏检；必须同时冻结域对集合。
 - 工程事实：全仓脚本 solution target 带 `--no-restore`；出现 `NETSDK1004` 资产缺失时先 `dotnet restore build/sln/JoinCode.slnx`，不要误判为代码问题。

@@ -65,18 +65,6 @@ public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBack
 
     /// <inheritdoc/>
     public IReadOnlyList<string> DrainPendingNotificationTexts() {
-        if (_notificationQueue is null || !_notificationQueue.HasPendingNotifications)
-            return [];
-
-        var pendingNotifications = _notificationQueue.DequeueAll();
-        var texts = new List<string>(pendingNotifications.Count);
-        foreach (var notification in pendingNotifications) {
-            var isShellNotification = notification.Xml.Contains("<task-notification>", StringComparison.OrdinalIgnoreCase);
-            texts.Add(isShellNotification
-                ? notification.Xml
-                : $"A background agent completed a task:\n{notification.Xml}");
-        }
-
-        return texts;
+        return _notificationQueue?.DrainFormatted() ?? [];
     }
 }

@@ -30,7 +30,7 @@ public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMid
         }
 
         // 对齐 TS spawnShellTask: 先启动进程，再立即转后台
-        await using var cmdContext = await context.Provider.StartWithBackgroundSupportAsync(
+        var cmdContext = await context.Provider.StartWithBackgroundSupportAsync(
             context.Command,
             context.Timeout,
             context.WorkingDirectory,
@@ -38,13 +38,20 @@ public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMid
             disableSandbox: context.DangerouslyDisableSandbox == true,
             cancellationToken: ct).ConfigureAwait(false);
 
-        // 立即转后台 — 对齐 TS shellCommand.background(taskId)
-        var taskId = cmdContext.TaskId;
-        cmdContext.Background(taskId);
+        SystemActuatorBackgroundTaskInfo taskInfo;
+        try {
+            // 立即转后台 — 对齐 TS shellCommand.background(taskId)
+            var taskId = cmdContext.TaskId;
+            cmdContext.Background(taskId);
 
-        // 注册到后台任务服务 — 输出通过 ISystemActuatorCommandContext.GetCurrentStdout() 获取
-        var taskInfo = await _registry.RegisterContextAsync(
-            cmdContext, context.WorkingDirectory, ct).ConfigureAwait(false);
+            // 注册到后台任务服务 — 输出通过 ISystemActuatorCommandContext.GetCurrentStdout() 获取
+            // 所有权移交注册表：此处不得 Dispose，否则会取消进程等待并杀死仍在运行的后台进程
+            taskInfo = await _registry.RegisterContextAsync(
+                cmdContext, context.WorkingDirectory, ct).ConfigureAwait(false);
+        } catch {
+            await cmdContext.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
 
         var shellType = context.Provider.Kind.Id;
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "background", ["result"] = "ok" });

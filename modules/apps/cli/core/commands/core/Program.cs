@@ -920,6 +920,9 @@ class Program {
     /// 退出时通过 DisposeAsync 自动注销。
     /// </summary>
     private static async Task<Api.Chat.HubAgentClient?> RegisterHubAgentAsync() {
+        if (App.Builder.EngineApplicationBuilder.ShouldUseDirectEndpoint())
+            return null;
+
         try {
             using var healthClient = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
             var healthResponse = await healthClient.GetAsync("http://localhost:3457/health").ConfigureAwait(false);
@@ -943,28 +946,52 @@ class Program {
     }
 
     /// <summary>
+    /// 查找 jcchub.exe — 发布布局与 jcc 同目录；开发布局在 artifacts/bin/Hub/{Config}/{TFM}/。
+    /// </summary>
+    private static string? FindHubExecutable() {
+        var baseDir = AppContext.BaseDirectory;
+        var sameDir = Path.Combine(baseDir, "jcchub.exe");
+        if (File.Exists(sameDir))
+            return sameDir;
+
+        var tfmDir = new DirectoryInfo(baseDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        if (tfmDir.Parent?.Parent?.Parent is not { } binRoot
+            || !string.Equals(tfmDir.Parent.Parent.Name, "JoinCode", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        foreach (var config in new[] { tfmDir.Parent.Name, "Debug", "Release" }.Distinct(StringComparer.OrdinalIgnoreCase)) {
+            var candidate = Path.Combine(binRoot.FullName, "Hub", config, tfmDir.Name, "jcchub.exe");
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// ADR 0155: 确保 jcchub.exe 已启动 — 检测端口 3457，没有服务则拉起独立进程。
     /// 固定端口 3457，不需要环境变量控制。一切默认。
     /// </summary>
     private static async Task EnsureHubServerAsync() {
+        if (App.Builder.EngineApplicationBuilder.ShouldUseDirectEndpoint())
+            return;
+
         const string hubEndpoint = "http://localhost:3457";
 
         if (await IsHubServerRunningAsync(hubEndpoint).ConfigureAwait(false))
             return;
 
-        var hubExePath = Path.Combine(
-            AppContext.BaseDirectory,
-            "jcchub.exe");
-
-        if (!File.Exists(hubExePath)) {
+        var hubExePath = FindHubExecutable();
+        if (hubExePath is null) {
             // 同上：没有 jcchub.exe 不是错误，只有「需要 Hub 又连不上」时才由上层报错并给指引
-            Diag.WriteLine($"[HUB] jcchub.exe 未找到: {hubExePath}");
+            Diag.WriteLine($"[HUB] jcchub.exe 未找到（已查找同目录与开发 artifacts/Hub 布局）: {AppContext.BaseDirectory}");
             return;
         }
 
         try {
             var psi = new ProcessStartInfo {
                 FileName = hubExePath,
+                WorkingDirectory = Path.GetDirectoryName(hubExePath) ?? AppContext.BaseDirectory,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };

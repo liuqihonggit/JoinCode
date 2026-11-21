@@ -25,6 +25,7 @@ public sealed partial class AgentNotificationQueue : ServiceEntity, JoinCode.Abs
         _queue.Enqueue(notification);
         _logger?.LogDebug("[AgentNotificationQueue] 入队通知: TargetAgentId={AgentId}, Length={Len}",
             parentAgentId ?? "(main)", notificationXml.Length);
+        Diag.WriteLine($"[NOTIFY-QUEUE] enqueue target={parentAgentId ?? "(main)"} len={notificationXml.Length}");
     }
 
     /// <inheritdoc/>

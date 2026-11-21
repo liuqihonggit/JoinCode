@@ -91,6 +91,18 @@ public sealed class SessionController {
         if (_mainAgent is not null) {
             _mainAgent.RetryNotifier = notification =>
                 _consumer.OnRetry(notification.Reason, notification.Attempt, notification.MaxRetries, notification.DelayMs);
+
+            // 主代理路径绕过 QueryLoopMiddleware — 后台通知在每轮迭代步首注入查询历史，并阻止收尾丢掉回调
+            if (_serviceProvider?.GetService<IAgentNotificationQueue>() is { } notificationQueue) {
+                _mainAgent.IterationStartInjector = (history, _) => {
+                    foreach (var text in notificationQueue.DrainFormatted()) {
+                        history.AddUserMessage(text);
+                        Diag.WriteLine($"[BACKGROUND-NOTIFY] 轮内注入进入主代理历史 长度={text.Length}");
+                    }
+                    return Task.CompletedTask;
+                };
+                _mainAgent.HasPendingIterationInput = () => notificationQueue.HasPendingNotifications;
+            }
         }
 
         // TASK073 Phase 3 — Hook 事件桥接：IHookOrchestrator → HookExecutionEvent → IEventConsumer 回调

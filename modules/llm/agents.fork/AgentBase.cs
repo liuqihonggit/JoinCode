@@ -128,6 +128,16 @@ public class AgentBase : Entity, IAgent {
     public Action<QueryRetryNotification>? RetryNotifier { get; set; }
 
     /// <summary>
+    /// 步首注入器（主代理路径）— 后台通知等轮内输入写入查询实时历史；BuildChatOptions 透传为 QueryOptions.OnIterationStart。
+    /// </summary>
+    public Func<MessageList, CancellationToken, Task>? IterationStartInjector { get; set; }
+
+    /// <summary>
+    /// 是否存在待处理轮内输入 — BuildChatOptions 透传为 QueryOptions.HasPendingIterationInput，阻止收尾丢掉后台回调。
+    /// </summary>
+    public Func<bool>? HasPendingIterationInput { get; set; }
+
+    /// <summary>
     /// AgentBase 构造函数 — 子类通过 base(...) 委托
     /// </summary>
     public AgentBase(
@@ -660,10 +670,11 @@ public class AgentBase : Entity, IAgent {
         var effortLevel = JoinCode.Abstractions.LLM.EffortLevelHelper.ParseEffortLevel(Options.Effort);
         var hasRetryNotifier = RetryNotifier is not null;
         var hasTokenBudget = Options.TokenBudget is > 0;
+        var hasIterationHooks = IterationStartInjector is not null || HasPendingIterationInput is not null;
         // 轮次闸门只作用于主代理（Coordinator）；子代理任务有独立生命周期，过闸门只会浪费轮次
         var requireRoundGate = Role == AgentRole.Coordinator && RoundGatePolicy.IsEnabledForMainAgent();
 
-        if (!hasAllowed && !hasDenied && !hasCacheSafeParams && !hasContentReplacementState && effortLevel is null && !hasModelName && !hasRetryNotifier && !hasTokenBudget && !requireRoundGate)
+        if (!hasAllowed && !hasDenied && !hasCacheSafeParams && !hasContentReplacementState && effortLevel is null && !hasModelName && !hasRetryNotifier && !hasTokenBudget && !requireRoundGate && !hasIterationHooks)
             return null;
 
         return new QueryOptions {
@@ -678,6 +689,8 @@ public class AgentBase : Entity, IAgent {
             OnRetry = RetryNotifier,
             TokenBudget = Options.TokenBudget,
             RequireRoundGate = requireRoundGate,
+            OnIterationStart = IterationStartInjector,
+            HasPendingIterationInput = HasPendingIterationInput,
         };
     }
 

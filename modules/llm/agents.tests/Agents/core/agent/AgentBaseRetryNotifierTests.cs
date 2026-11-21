@@ -34,5 +34,35 @@ public sealed class AgentBaseRetryNotifierTests {
 
         Assert.Null(options);
     }
+
+    [Fact]
+    public async Task BuildChatOptions_WithIterationHooks_CarriesInjectionAndPendingProbe() {
+        var queryEngine = new Mock<IQueryEngine>();
+        await using var agent = new ExposedAgent(queryEngine);
+        Func<MessageList, CancellationToken, Task> injector = (_, _) => Task.CompletedTask;
+        Func<bool> hasPending = () => true;
+        agent.IterationStartInjector = injector;
+        agent.HasPendingIterationInput = hasPending;
+
+        var options = agent.ExposeBuildChatOptions();
+
+        Assert.NotNull(options);
+        Assert.Same(injector, options.OnIterationStart);
+        Assert.Same(hasPending, options.HasPendingIterationInput);
+    }
+
+    [Fact]
+    public async Task BuildChatOptions_WithOnlyPendingProbe_ReturnsOptions() {
+        var queryEngine = new Mock<IQueryEngine>();
+        await using var agent = new ExposedAgent(queryEngine);
+        Func<bool> hasPending = () => false;
+        agent.HasPendingIterationInput = hasPending;
+
+        var options = agent.ExposeBuildChatOptions();
+
+        Assert.NotNull(options);
+        Assert.Same(hasPending, options.HasPendingIterationInput);
+        Assert.Null(options.OnIterationStart);
+    }
 }
 

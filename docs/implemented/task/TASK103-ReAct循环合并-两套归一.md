@@ -351,3 +351,20 @@
 | 全仓编译 | `Build-AllDomains.ps1` | 16 域 + native_tui + native_gui 全部通过 |
 | 风格门禁 | `Verify-StyleGate.py` | 0 findings |
 | 取消语义修正 | `UserInteractionToolHandlers` 将 `Cancelled` 判定提前到 `!Success` 之前（原顺序导致取消永远落到通用错误） | 取消测试断言更新为 `declined` 并通过 |
+
+### S14 真实 exe 自验收（2026-11-21，无人工）
+
+| 场景 | 方式 | 结果 |
+|------|------|------|
+| CLI ask 等待中后台回调到达 | pywinpty 真实 PTY 启动探针（TerminalInteractiveService + 真实 AgentNotificationQueue，无输入；1.5s 后入队通知） | 先显示问题与选项；随后输出 `[ask] 检测到后台任务回调，先关闭本次提问返回控制权…`；`PROBE deferred=True`；进程退出 0 |
+| 主代理路径回调注入 | MockServer 三轮脚本（后台 echo → 前台等待 2s → 收尾）+ 真实 jcc `--trust -p`（JCC_ENDPOINT 直连） | 后台任务 `RanToCompletion` 后 `[NOTIFY-QUEUE] enqueue`；第 3 次请求历史含真实 `<task-notification><task-id>…</task-id>` 用户消息；`[BACKGROUND-NOTIFY] 轮内注入进入主代理历史`；EXIT=0 |
+
+#### 自验收发现并修复的根因（关键）
+
+1. **后台任务被中间件提前释放**：`ShellBackgroundMiddleware` 用 `await using var cmdContext`，注册后立即 Dispose，取消进程等待并杀死仍在执行的后台进程，导致完成回调永不触发、通知永不入队（此前所有"后台监控"链路实际是死的）。修复：所有权移交注册表，仅注册失败时 Dispose；新增 `ShellBackgroundMiddlewareTests` 2/2 防回归。
+2. **主代理路径绕过 QueryLoopMiddleware**：CLI `-p`/bridge 主路径走 `AgentBase.ExecuteStreamAsync`，通知既不步首注入也不阻止收尾。修复：`AgentBase` 增加 `IterationStartInjector` / `HasPendingIterationInput`（BuildChatOptions 透传），`SessionController` 绑定 `IAgentNotificationQueue`，每轮步首排空并通过 `AgentNotificationQueueExtensions.DrainFormatted` 注入；`AgentBaseRetryNotifierTests` 扩至 4/4。
+
+#### 已知边界（如实记录）
+
+- `native_tui` 交互式问答仍由 Core Planning `InteractiveService` 自动返回首个选项（无真实 TUI 问答 UI），本项未覆盖；CLI 阻塞问答服务与 GUI/DSH 卡片已覆盖。
+- 后台任务通知入队诊断 `[NOTIFY-QUEUE]`、注入诊断 `[BACKGROUND-NOTIFY]` 保留，受 `JCC_DEBUGLOG` 控制。

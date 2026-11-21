@@ -13,6 +13,8 @@ public sealed class QueryLoopQueryBackendTests {
         public List<QueryOptions?> ReceivedOptions { get; } = [];
         public List<int> HistoryCountsBeforeUser { get; } = [];
         public List<int> HistoryCountsAfterHook { get; } = [];
+        public int Iterations { get; set; } = 1;
+        public Action<int, MessageList>? OnIteration { get; set; }
         public Action<MessageList>? OnQuery { get; set; }
 
         public void Enqueue(params QueryStreamChunk[] chunks) => _chunks.AddRange(chunks);
@@ -32,9 +34,12 @@ public sealed class QueryLoopQueryBackendTests {
             ReceivedOptions.Add(options);
             HistoryCountsBeforeUser.Add(chatHistory.Count);
             chatHistory.AddUserMessage(userInput);
-            if (options?.OnIterationStart is { } onIterationStart)
-                await onIterationStart(chatHistory, cancellationToken);
-            HistoryCountsAfterHook.Add(chatHistory.Count);
+            for (var iteration = 0; iteration < Iterations; iteration++) {
+                if (options?.OnIterationStart is { } onIterationStart)
+                    await onIterationStart(chatHistory, cancellationToken);
+                HistoryCountsAfterHook.Add(chatHistory.Count);
+                OnIteration?.Invoke(iteration, chatHistory);
+            }
             OnQuery?.Invoke(chatHistory);
 
             foreach (var chunk in _chunks) {
@@ -168,6 +173,38 @@ public sealed class QueryLoopQueryBackendTests {
         engine.ReceivedOptions[0].Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task QueryBackend_InjectsBackgroundNotificationAtIterationStart() {
+        var contextManager = CreateContextManager(new MessageList(), assistantWrites: []);
+        var queue = new AgentNotificationQueue();
+        const string xml = "<task-notification><task-id>t-1</task-id><status>completed</status></task-notification>";
+
+        var engine = new FakeQueryEngine { Iterations = 2 };
+        var injected = new List<string>();
+        engine.OnIteration = (iteration, history) => {
+            if (iteration == 0) {
+                queue.Enqueue(null, xml);
+                return;
+            }
+            injected.AddRange(history.Select(m => m.Content ?? string.Empty)
+                .Where(content => content.Contains("<task-notification>", StringComparison.Ordinal)));
+        };
+        engine.Enqueue(new QueryStreamChunk {
+            Type = AgentStreamChunkType.Complete,
+            StopReason = "end_turn",
+            TotalTurns = 2
+        });
+
+        await using var middleware = CreateMiddleware(contextManager, engine, notificationQueue: queue);
+
+        await foreach (var _ in middleware.InvokeAsync(
+            CreateContext(), (_, _) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None)) {
+        }
+
+        injected.Should().ContainSingle().Which.Should().Contain("t-1");
+        queue.HasPendingNotifications.Should().BeFalse("通知已在步首注入并排空");
+    }
+
     private static ChatMiddlewareContext CreateContext() => new() {
         Message = "hello",
         ToolUseContext = new ToolUseContext()
@@ -200,9 +237,10 @@ public sealed class QueryLoopQueryBackendTests {
     private static QueryLoopMiddleware CreateMiddleware(
         Mock<IChatContextManager> contextManager,
         FakeQueryEngine engine,
-        ISteerInputMailbox? steerMailbox = null) =>
+        ISteerInputMailbox? steerMailbox = null,
+        IAgentNotificationQueue? notificationQueue = null) =>
         new(
-            new BackgroundNotificationHandler(contextManager.Object),
+            new BackgroundNotificationHandler(contextManager.Object, notificationQueue),
             new TelemetryRecorder(),
             contextManager.Object,
             engine,

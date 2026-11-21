@@ -9,6 +9,17 @@ public interface IBackgroundNotificationHandler {
     /// </summary>
     /// <returns>注入的通知数量</returns>
     Task<int> ProcessPendingNotificationsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// 排空并返回待处理通知文本（不写聊天上下文 — 供轮内注入方自行消费）
+    /// </summary>
+    /// <returns>待注入的通知文本列表</returns>
+    IReadOnlyList<string> DrainPendingNotificationTexts();
+
+    /// <summary>
+    /// 是否存在待处理通知（供循环判定是否继续一轮以注入通知）
+    /// </summary>
+    bool HasPendingNotifications { get; }
 }
 
 /// <summary>
@@ -37,22 +48,35 @@ public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBack
 
     /// <inheritdoc/>
     public async Task<int> ProcessPendingNotificationsAsync(CancellationToken ct) {
-        if (_notificationQueue is null || !_notificationQueue.HasPendingNotifications)
-            return 0;
-
-        var pendingNotifications = _notificationQueue.DequeueAll();
+        var pendingNotifications = DrainPendingNotificationTexts();
         if (pendingNotifications.Count == 0)
             return 0;
 
         foreach (var notification in pendingNotifications) {
-            var isShellNotification = notification.Xml.Contains("<task-notification>", StringComparison.OrdinalIgnoreCase);
-            var wrappedContent = isShellNotification
-                ? notification.Xml
-                : $"A background agent completed a task:\n{notification.Xml}";
-            await _contextManager.AddUserMessageAsync(wrappedContent, MessageOriginKind.TaskNotification, ct).ConfigureAwait(false);
+            await _contextManager.AddUserMessageAsync(notification, MessageOriginKind.TaskNotification, ct).ConfigureAwait(false);
         }
 
         _logger?.LogInformation("[BackgroundNotificationHandler] 注入 {Count} 条后台代理通知", pendingNotifications.Count);
         return pendingNotifications.Count;
+    }
+
+    /// <inheritdoc/>
+    public bool HasPendingNotifications => _notificationQueue?.HasPendingNotifications == true;
+
+    /// <inheritdoc/>
+    public IReadOnlyList<string> DrainPendingNotificationTexts() {
+        if (_notificationQueue is null || !_notificationQueue.HasPendingNotifications)
+            return [];
+
+        var pendingNotifications = _notificationQueue.DequeueAll();
+        var texts = new List<string>(pendingNotifications.Count);
+        foreach (var notification in pendingNotifications) {
+            var isShellNotification = notification.Xml.Contains("<task-notification>", StringComparison.OrdinalIgnoreCase);
+            texts.Add(isShellNotification
+                ? notification.Xml
+                : $"A background agent completed a task:\n{notification.Xml}");
+        }
+
+        return texts;
     }
 }

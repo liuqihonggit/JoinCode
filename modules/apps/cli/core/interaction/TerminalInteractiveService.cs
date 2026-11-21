@@ -4,25 +4,25 @@ namespace JoinCode.Cli.Interaction;
 /// 终端交互服务 — 真正的控制台多选交互实现，替代 Core 层的 Mock InteractiveService
 /// 消费方: UserInteractionToolHandlers (MCP AskUserQuestion 工具)
 /// 注册: CliModule 中覆盖 Mock 注册，Order=80 在 CoreModule(Order=30) 之后
-/// 用户空闲超时（默认 30 秒）未输入时返回 Deferred，让 Agent 循环恢复后台监控而非永久阻塞
+/// 等待输入期间若后台任务回调到达，立即关闭本次提问返回 Deferred，让 Agent 循环先处理回调
 /// </summary>
 public sealed class TerminalInteractiveService : IInteractiveService {
     private readonly ILogger<TerminalInteractiveService>? _logger;
-    private readonly IdleInputWaiter _idleWaiter;
-    private readonly TimeSpan _idleTimeout;
-
-    /// <summary>默认用户空闲超时 — 30 秒无输入即交还控制权。</summary>
-    internal static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromSeconds(30);
+    private readonly IAgentNotificationQueue? _notificationQueue;
+    private readonly InteractiveInputWaiter _inputWaiter;
 
     /// <summary>
-    /// 构造函数 — 注入可选日志记录器与空闲超时
+    /// 构造函数 — 注入可选日志记录器与后台通知队列
     /// </summary>
     /// <param name="logger">日志记录器，可选</param>
-    /// <param name="idleTimeout">用户空闲超时，默认 30 秒</param>
-    public TerminalInteractiveService(ILogger<TerminalInteractiveService>? logger = null, TimeSpan? idleTimeout = null) {
+    /// <param name="notificationQueue">后台代理/任务完成通知队列，可选；存在时用于唤醒阻塞中的提问</param>
+    public TerminalInteractiveService(ILogger<TerminalInteractiveService>? logger = null, IAgentNotificationQueue? notificationQueue = null) {
         _logger = logger;
-        _idleTimeout = idleTimeout ?? DefaultIdleTimeout;
-        _idleWaiter = new IdleInputWaiter(IsInputReady, ct => Task.Delay(100, ct));
+        _notificationQueue = notificationQueue;
+        _inputWaiter = new InteractiveInputWaiter(
+            IsInputReady,
+            HasPendingBackgroundNotification,
+            ct => Task.Delay(100, ct));
     }
 
     /// <summary>非阻塞检查输入是否就绪；无控制台句柄（如 ForceInteractive + 重定向）时退化为立即读取。</summary>
@@ -33,6 +33,9 @@ public sealed class TerminalInteractiveService : IInteractiveService {
             return true;
         }
     }
+
+    /// <summary>是否收到后台任务回调 — 有待处理通知即视为需要立即交还控制权。</summary>
+    private bool HasPendingBackgroundNotification() => _notificationQueue?.HasPendingNotifications == true;
 
     /// <summary>
     /// 单问题提问 — 显示选项列表，读取用户数字选择
@@ -163,18 +166,19 @@ public sealed class TerminalInteractiveService : IInteractiveService {
     }
 
     /// <summary>
-    /// 等待输入就绪，超过空闲时长返回 false 并提示用户稍后重新提问
+    /// 等待输入就绪；若后台任务回调到达则提前交还控制权
     /// </summary>
     private async Task<bool> WaitForInputOrDeferAsync(CancellationToken ct) {
         if (TerminalHelper.IsHeadless)
             return true;
 
-        if (await _idleWaiter.WaitAsync(_idleTimeout, ct).ConfigureAwait(false))
+        var outcome = await _inputWaiter.WaitAsync(ct).ConfigureAwait(false);
+        if (outcome == InputWaitOutcome.InputReady)
             return true;
 
         TerminalHelper.WriteLine();
-        TerminalHelper.WriteError($"[ask] 已等待 {_idleTimeout.TotalSeconds:F0} 秒无输入，先返回控制权继续监控后台；稍后可再次提问（本次未作答不会假定任何选择）。");
-        _logger?.LogInformation("[TerminalInteractive] Deferred after idle timeout {Timeout}", _idleTimeout);
+        TerminalHelper.WriteError("[ask] 检测到后台任务回调，先关闭本次提问返回控制权；稍后可重新提问（本次未作答不会假定任何选择）。");
+        _logger?.LogInformation("[TerminalInteractive] Background notification arrived, closing pending ask");
         return false;
     }
 
@@ -266,11 +270,11 @@ public sealed class TerminalInteractiveService : IInteractiveService {
     /// <summary>描述行缩进列。</summary>
     private const int DescriptionIndent = 5;
 
-    /// <summary>选择读取结果 — 选中索引 / 取消 / 用户空闲超时延迟。</summary>
+    /// <summary>选择读取结果 — 选中索引 / 取消 / 后台回调提前关闭。</summary>
     private sealed record SelectionReadResult(List<int> Indices, bool Deferred) {
         /// <summary>用户取消选择（输入 0 或空）。</summary>
         public static SelectionReadResult CancelledResult { get; } = new([], Deferred: false);
-        /// <summary>用户空闲超时未作答，控制权交还调用方。</summary>
+        /// <summary>后台回调到达，提前关闭提问并交还控制权。</summary>
         public static SelectionReadResult DeferredResult { get; } = new([], Deferred: true);
     }
 }

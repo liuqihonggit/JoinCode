@@ -99,7 +99,7 @@ public sealed class UserInteractionToolHandlersTests {
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("has not responded yet");
+        text.Should().Contain("background task notification arrived");
         text.Should().Contain("delete file");
         text.Should().Contain("NOT executed");
         text.Should().Contain("re-ask");
@@ -115,7 +115,7 @@ public sealed class UserInteractionToolHandlersTests {
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("has not responded yet");
+        text.Should().Contain("background task notification arrived");
         text.Should().Contain("Do NOT assume any answer");
         text.Should().Contain("Partial answers already collected");
         text.Should().Contain("\"Q1\"=\"A\"");

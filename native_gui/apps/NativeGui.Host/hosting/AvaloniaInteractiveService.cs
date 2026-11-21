@@ -8,6 +8,10 @@ namespace JoinCode.Gui.Hosting;
 /// </summary>
 public sealed class AvaloniaInteractiveService : IInteractiveService {
     private readonly ILogger<AvaloniaInteractiveService>? _logger;
+    private readonly IAgentNotificationQueue? _notificationQueue;
+
+    /// <summary>后台通知轮询间隔 — 问答卡片挂起期间检测待处理通知。</summary>
+    private const int BackgroundNotificationPollMs = 100;
 
     /// <summary>
     /// 弹窗回调 — 由 MainWindow 在初始化时设置，提供父窗口引用。
@@ -22,8 +26,11 @@ public sealed class AvaloniaInteractiveService : IInteractiveService {
     public Func<List<QuestionItem>, CancellationToken, Task<AskUserQuestionResult>>? ShowQuestionsCallback { get; set; }
 
     /// <summary>初始化 AvaloniaInteractiveService 实例</summary>
-    public AvaloniaInteractiveService(ILogger<AvaloniaInteractiveService>? logger = null) {
+    /// <param name="logger">日志记录器，可选</param>
+    /// <param name="notificationQueue">后台通知队列，可选；存在时问答卡片挂起期间收到回调即关闭卡片返回 Deferred</param>
+    public AvaloniaInteractiveService(ILogger<AvaloniaInteractiveService>? logger = null, IAgentNotificationQueue? notificationQueue = null) {
         _logger = logger;
+        _notificationQueue = notificationQueue;
     }
 
     /// <summary>异步询问用户单个问题（通过弹窗呈现选项并等待用户选择）</summary>
@@ -55,7 +62,7 @@ public sealed class AvaloniaInteractiveService : IInteractiveService {
 
         // DSH Web UI：一张卡片承载全部问题（前端答案批次经 $events 回帖）
         if (ShowQuestionsCallback is { } askBatch) {
-            return await askBatch(questions, cancellationToken);
+            return await AskWithBackgroundWakeAsync(askBatch, questions, cancellationToken);
         }
 
         var answers = new Dictionary<string, string>();
@@ -94,5 +101,37 @@ public sealed class AvaloniaInteractiveService : IInteractiveService {
         }
 
         return AskUserQuestionResult.QuestionsResult(answers);
+    }
+
+    /// <summary>问答卡片挂起期间检测后台通知 — 回调到达即取消卡片并返回 Deferred，让循环先处理回调。</summary>
+    private async Task<AskUserQuestionResult> AskWithBackgroundWakeAsync(
+        Func<List<QuestionItem>, CancellationToken, Task<AskUserQuestionResult>> askBatch,
+        List<QuestionItem> questions,
+        CancellationToken cancellationToken) {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var askTask = askBatch(questions, linkedCts.Token);
+
+        while (!askTask.IsCompleted) {
+            if (_notificationQueue?.HasPendingNotifications == true) {
+                await linkedCts.CancelAsync();
+                await AwaitAskQuietlyAsync(askTask);
+                _logger?.LogInformation("[AvaloniaInteractive] Background notification arrived, closing pending question card");
+                return AskUserQuestionResult.DeferredResult();
+            }
+
+            await Task.WhenAny(askTask, Task.Delay(BackgroundNotificationPollMs, cancellationToken));
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        return await askTask;
+    }
+
+    /// <summary>等待被取消的问答任务收尾 — 仅吞取消异常，其他异常不掩盖。</summary>
+    private async Task AwaitAskQuietlyAsync(Task<AskUserQuestionResult> askTask) {
+        try {
+            await askTask;
+        } catch (OperationCanceledException) {
+            _logger?.LogDebug("[AvaloniaInteractive] Pending question card cancelled by background wake");
+        }
     }
 }

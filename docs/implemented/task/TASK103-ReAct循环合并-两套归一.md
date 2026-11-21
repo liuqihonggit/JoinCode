@@ -334,6 +334,7 @@
 | `InteractiveInputWaiter`（`modules/abstractions/abstractions.utils/core/misc/InteractiveInputWaiter.cs`）轮询输入就绪/后台唤醒信号，无超时 | `TerminalInteractiveService.WaitForInputOrDeferAsync`（CLI 所有 ask 提示） | ✅ | ✅ 单元测试 6/6（就绪/信号/优先级/轮询/取消） |
 | `AskUserQuestionResult.Deferred/PartialAnswers/DeferredResult`（`InteractiveModels.cs`） | `TerminalInteractiveService`、`UserInteractionToolHandlers` | ✅ | ✅ 编译 + 处理器测试 |
 | `TerminalInteractiveService` 注入 `IAgentNotificationQueue`，等待输入期间检测待处理通知，到达即返回 `Deferred`（单选/多选/自由输入/多问题逐题） | `UserInteractionToolHandlers.AskUserQuestionAsync` / `ConfirmActionAsync` | ✅ | ⚠️ 真实控制台“等待中后台回调到达”路径需真实 TTY + 后台任务触发，无法无人值守自动驱动；等待器单测 + 处理器映射测试覆盖逻辑 |
+| `AvaloniaInteractiveService` 注入 `IAgentNotificationQueue`，DSH 问答卡片挂起期间收到回调即取消卡片并返回 `Deferred` | `DshWebUiWindow.AskUserQuestionsCallback` → `DshUserQuestionBroker.RequestAsync`（取消触发 cancel 帧） | ✅ | ✅ `AvaloniaInteractiveServiceTests` 3/3（回调唤醒/先答后通知/外层取消传播） |
 | `IBackgroundNotificationHandler.DrainPendingNotificationTexts/HasPendingNotifications` + `QueryLoopMiddleware` 步首注入 | QueryEngine 每轮迭代（`OnIterationStart`）、回合收尾判定（`HasPendingIterationInput`） | ✅ | ✅ `BackgroundNotificationHandlerTests` 4/4 + `QueryLoopQueryBackendTests` 步首注入用例 |
 | Deferred → 成功工具结果 + 引导文本（收到后台回调、不得假定答案、处理通知后重问） | QueryEngine 工具结果 → 下一轮迭代注入回调 | ✅ | ✅ `UserInteractionToolHandlersTests` 11/11（含 defer 双路径与部分答案） |
 
@@ -344,6 +345,7 @@
 | 单元测试 | `dotnet test Abs.Core.Tests --filter InteractiveInputWaiterTests` | 6/6 通过 |
 | 单元测试 | `dotnet test Mcp.Tests --filter UserInteractionToolHandlersTests` | 11/11 通过 |
 | 单元测试 | `dotnet test Brain.Context.Tests --filter BackgroundNotificationHandlerTests` | 4/4 通过 |
+| 单元测试 | `dotnet test NativeGui.Host.Tests --filter AvaloniaInteractiveServiceTests` | 3/3 通过 |
 | 单元测试 | `dotnet test Brain.Context.Tests --filter QueryLoopQueryBackendTests` | 全绿（含新增步首通知注入用例） |
 | 编译 | `dotnet build modules/apps/cli/JoinCode.csproj -c Debug` | 0 警告 0 错误 |
 | 全仓编译 | `Build-AllDomains.ps1` | 16 域 + native_tui + native_gui 全部通过 |

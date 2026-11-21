@@ -105,58 +105,58 @@ public static partial class SecurityPatterns {
     /// 对齐 TS: secretScanner.ts SECRET_RULES（30+ 条规则）
     /// 仅包含具有独特前缀、误报率近零的规则
     /// </summary>
-    public static readonly (string Id, string Pattern, string? Flags)[] GitleaksRules =
+    public static readonly GitleaksRule[] GitleaksRules =
     [
         // — 云服务商 —
-        ("aws-access-token", @"\b((?:A3T[A-Z0-9]|AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16})\b", null),
-        ("gcp-api-key", @"\b(AIza[\w-]{35})(?:[`'""\s;]|\\[nr]|$)", null),
-        ("azure-ad-client-secret", @"(?:^|[\\""'`\s>=:(,)]) ([a-zA-Z0-9_~.]{3}\dQ~[a-zA-Z0-9_~.-]{31,34})(?:$|[\\""'`\s<),])", null),
-        ("digitalocean-pat", @"\b(dop_v1_[a-f0-9]{64})(?:[`'""\s;]|\\[nr]|$)", null),
-        ("digitalocean-access-token", @"\b(doo_v1_[a-f0-9]{64})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("aws-access-token", @"\b((?:A3T[A-Z0-9]|AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16})\b", null),
+        new("gcp-api-key", @"\b(AIza[\w-]{35})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("azure-ad-client-secret", @"(?:^|[\\""'`\s>=:(,)]) ([a-zA-Z0-9_~.]{3}\dQ~[a-zA-Z0-9_~.-]{31,34})(?:$|[\\""'`\s<),])", null),
+        new("digitalocean-pat", @"\b(dop_v1_[a-f0-9]{64})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("digitalocean-access-token", @"\b(doo_v1_[a-f0-9]{64})(?:[`'""\s;]|\\[nr]|$)", null),
 
         // — AI API —
-        ("anthropic-api-key", @"\b(sk-ant-api03-[a-zA-Z0-9_\-]{93}AA)(?:[`'""\s;]|\\[nr]|$)", null),
-        ("anthropic-admin-api-key", @"\b(sk-ant-admin01-[a-zA-Z0-9_\-]{93}AA)(?:[`'""\s;]|\\[nr]|$)", null),
-        ("openai-api-key", @"\b(sk-(?:proj|svcacct|admin)-(?:[A-Za-z0-9_-]{74}|[A-Za-z0-9_-]{58})T3BlbkFJ(?:[A-Za-z0-9_-]{74}|[A-Za-z0-9_-]{58})\b|sk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20})(?:[`'""\s;]|\\[nr]|$)", null),
-        ("huggingface-access-token", @"\b(hf_[a-zA-Z]{34})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("anthropic-api-key", @"\b(sk-ant-api03-[a-zA-Z0-9_\-]{93}AA)(?:[`'""\s;]|\\[nr]|$)", null),
+        new("anthropic-admin-api-key", @"\b(sk-ant-admin01-[a-zA-Z0-9_\-]{93}AA)(?:[`'""\s;]|\\[nr]|$)", null),
+        new("openai-api-key", @"\b(sk-(?:proj|svcacct|admin)-(?:[A-Za-z0-9_-]{74}|[A-Za-z0-9_-]{58})T3BlbkFJ(?:[A-Za-z0-9_-]{74}|[A-Za-z0-9_-]{58})\b|sk-[a-zA-Z0-9]{20}T3BlbkFJ[a-zA-Z0-9]{20})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("huggingface-access-token", @"\b(hf_[a-zA-Z]{34})(?:[`'""\s;]|\\[nr]|$)", null),
 
         // — 版本控制 —
-        ("github-pat", @"ghp_[0-9a-zA-Z]{36}", null),
-        ("github-fine-grained-pat", @"github_pat_\w{82}", null),
-        ("github-app-token", @"(?:ghu|ghs)_[0-9a-zA-Z]{36}", null),
-        ("github-oauth", @"gho_[0-9a-zA-Z]{36}", null),
-        ("github-refresh-token", @"ghr_[0-9a-zA-Z]{36}", null),
-        ("gitlab-pat", @"glpat-[\w-]{20}", null),
-        ("gitlab-deploy-token", @"gldt-[0-9a-zA-Z_\-]{20}", null),
+        new("github-pat", @"ghp_[0-9a-zA-Z]{36}", null),
+        new("github-fine-grained-pat", @"github_pat_\w{82}", null),
+        new("github-app-token", @"(?:ghu|ghs)_[0-9a-zA-Z]{36}", null),
+        new("github-oauth", @"gho_[0-9a-zA-Z]{36}", null),
+        new("github-refresh-token", @"ghr_[0-9a-zA-Z]{36}", null),
+        new("gitlab-pat", @"glpat-[\w-]{20}", null),
+        new("gitlab-deploy-token", @"gldt-[0-9a-zA-Z_\-]{20}", null),
 
         // — 通讯 —
-        ("slack-bot-token", @"xoxb-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*", null),
-        ("slack-user-token", @"xox[pe](?:-[0-9]{10,13}){3}-[a-zA-Z0-9-]{28,34}", null),
-        ("slack-app-token", @"xapp-\d-[A-Z0-9]+-\d+-[a-z0-9]+", "i"),
-        ("twilio-api-key", @"SK[0-9a-fA-F]{32}", null),
-        ("sendgrid-api-token", @"\b(SG\.[a-zA-Z0-9=_\-.]{66})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("slack-bot-token", @"xoxb-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*", null),
+        new("slack-user-token", @"xox[pe](?:-[0-9]{10,13}){3}-[a-zA-Z0-9-]{28,34}", null),
+        new("slack-app-token", @"xapp-\d-[A-Z0-9]+-\d+-[a-z0-9]+", "i"),
+        new("twilio-api-key", @"SK[0-9a-fA-F]{32}", null),
+        new("sendgrid-api-token", @"\b(SG\.[a-zA-Z0-9=_\-.]{66})(?:[`'""\s;]|\\[nr]|$)", null),
 
         // — 开发工具 —
-        ("npm-access-token", @"\b(npm_[a-zA-Z0-9]{36})(?:[`'""\s;]|\\[nr]|$)", null),
-        ("pypi-upload-token", @"pypi-AgEIcHlwaS5vcmc[\w-]{50,1000}", null),
-        ("databricks-api-token", @"\b(dapi[a-f0-9]{32}(?:-\d)?)(?:[`'""\s;]|\\[nr]|$)", null),
-        ("hashicorp-tf-api-token", @"[a-zA-Z0-9]{14}\.atlasv1\.[a-zA-Z0-9\-_=]{60,70}", null),
-        ("pulumi-api-token", @"\b(pul-[a-f0-9]{40})(?:[`'""\s;]|\\[nr]|$)", null),
-        ("postman-api-token", @"\b(PMAK-[a-fA-F0-9]{24}-[a-fA-F0-9]{34})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("npm-access-token", @"\b(npm_[a-zA-Z0-9]{36})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("pypi-upload-token", @"pypi-AgEIcHlwaS5vcmc[\w-]{50,1000}", null),
+        new("databricks-api-token", @"\b(dapi[a-f0-9]{32}(?:-\d)?)(?:[`'""\s;]|\\[nr]|$)", null),
+        new("hashicorp-tf-api-token", @"[a-zA-Z0-9]{14}\.atlasv1\.[a-zA-Z0-9\-_=]{60,70}", null),
+        new("pulumi-api-token", @"\b(pul-[a-f0-9]{40})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("postman-api-token", @"\b(PMAK-[a-fA-F0-9]{24}-[a-fA-F0-9]{34})(?:[`'""\s;]|\\[nr]|$)", null),
 
         // — 可观测性 —
-        ("grafana-api-key", @"\b(eyJrIjoi[A-Za-z0-9+/]{70,400}={0,3})(?:[`'""\s;]|\\[nr]|$)", null),
-        ("grafana-cloud-api-token", @"\b(glc_[A-Za-z0-9+/]{32,400}={0,3})(?:[`'""\s;]|\\[nr]|$)", null),
-        ("grafana-service-account-token", @"\b(glsa_[A-Za-z0-9]{32}_[A-Fa-f0-9]{8})(?:[`'""\s;]|\\[nr]|$)", null),
-        ("sentry-user-token", @"\b(sntryu_[a-f0-9]{64})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("grafana-api-key", @"\b(eyJrIjoi[A-Za-z0-9+/]{70,400}={0,3})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("grafana-cloud-api-token", @"\b(glc_[A-Za-z0-9+/]{32,400}={0,3})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("grafana-service-account-token", @"\b(glsa_[A-Za-z0-9]{32}_[A-Fa-f0-9]{8})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("sentry-user-token", @"\b(sntryu_[a-f0-9]{64})(?:[`'""\s;]|\\[nr]|$)", null),
 
         // — 支付/电商 —
-        ("stripe-access-token", @"\b((?:sk|rk)_(?:test|live|prod)_[a-zA-Z0-9]{10,99})(?:[`'""\s;]|\\[nr]|$)", null),
-        ("shopify-access-token", @"shpat_[a-fA-F0-9]{32}", null),
-        ("shopify-shared-secret", @"shpss_[a-fA-F0-9]{32}", null),
+        new("stripe-access-token", @"\b((?:sk|rk)_(?:test|live|prod)_[a-zA-Z0-9]{10,99})(?:[`'""\s;]|\\[nr]|$)", null),
+        new("shopify-access-token", @"shpat_[a-fA-F0-9]{32}", null),
+        new("shopify-shared-secret", @"shpss_[a-fA-F0-9]{32}", null),
 
         // — 加密 —
-        ("private-key", @"-----BEGIN[ A-Z0-9_-]{0,100}PRIVATE KEY(?: BLOCK)?-----[\s\S-]{64,}?-----END[ A-Z0-9_-]{0,100}PRIVATE KEY(?: BLOCK)?-----", "i"),
+        new("private-key", @"-----BEGIN[ A-Z0-9_-]{0,100}PRIVATE KEY(?: BLOCK)?-----[\s\S-]{64,}?-----END[ A-Z0-9_-]{0,100}PRIVATE KEY(?: BLOCK)?-----", "i"),
     ];
 
     /// <summary>
@@ -242,15 +242,15 @@ public static partial class SecurityPatterns {
     /// <summary>
     /// 惰性编译的 gitleaks 规则缓存
     /// </summary>
-    private static (string Id, Regex Re)[]? _compiledGitleaksRules;
+    private static CompiledGitleaksRule[]? _compiledGitleaksRules;
 
     /// <summary>
     /// 获取编译后的 gitleaks 规则（首次调用时编译）
     /// </summary>
-    public static (string Id, Regex Re)[] GetCompiledGitleaksRules() {
+    public static CompiledGitleaksRule[] GetCompiledGitleaksRules() {
         if (_compiledGitleaksRules is null) {
             _compiledGitleaksRules = GitleaksRules
-                .Select(r => (r.Id, new Regex(r.Pattern, r.Flags == "i" ? RegexOptions.IgnoreCase : RegexOptions.None, TimeSpan.FromSeconds(5))))
+                .Select(r => new CompiledGitleaksRule(r.Id, new Regex(r.Pattern, r.Flags == "i" ? RegexOptions.IgnoreCase : RegexOptions.None, TimeSpan.FromSeconds(5))))
                 .ToArray();
         }
         return _compiledGitleaksRules;
@@ -530,3 +530,18 @@ public static partial class SecurityPatterns {
         return Convert.ToHexString(hashBytes).AsSpan(0, 16).ToString();
     }
 }
+
+/// <summary>
+/// gitleaks 密钥扫描规则 — 规则 ID、正则模式与标志
+/// </summary>
+/// <param name="Id">规则 ID(如 aws-access-token)</param>
+/// <param name="Pattern">正则模式</param>
+/// <param name="Flags">正则标志("i"=忽略大小写, null=默认)</param>
+public sealed record GitleaksRule(string Id, string Pattern, string? Flags);
+
+/// <summary>
+/// 编译后的 gitleaks 规则 — 规则 ID 与已编译正则
+/// </summary>
+/// <param name="Id">规则 ID</param>
+/// <param name="Re">已编译正则(带 5 秒匹配超时)</param>
+public sealed record CompiledGitleaksRule(string Id, Regex Re);

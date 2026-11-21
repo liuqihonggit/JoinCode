@@ -6,6 +6,23 @@
   <Project Path="rg/rg.csproj" />
   <Project Path="rg.tests/Rg.Tests.csproj" />
   <Project Path="gh/gh.csproj" />
+  <Project Path="github_client/GitHubClient.csproj" />
+  <Project Path="github_client_tests/GitHubClient.Tests.csproj" />
   <Project Path="gh.tests/Gh.Tests.csproj" />
+  <Project Path="onnx_embedding.tests/OnnxEmbedding.Tests.csproj" />
+  <Project Path="cli_nodes/groups/agent/jcc_tool_agent.csproj" />
+  <Project Path="cli_nodes/groups/code/jcc_tool_code.csproj" />
+  <Project Path="cli_nodes/groups/file/jcc_tool_file.csproj" />
+  <Project Path="cli_nodes/groups/git/jcc_tool_git.csproj" />
+  <Project Path="cli_nodes/groups/github/jcc_tool_github.csproj" />
+  <Project Path="cli_nodes/groups/mcp/jcc_tool_mcp.csproj" />
+  <Project Path="cli_nodes/groups/media/jcc_tool_media.csproj" />
+  <Project Path="cli_nodes/groups/search/jcc_tool_search.csproj" />
+  <Project Path="cli_nodes/groups/shell/jcc_tool_shell.csproj" />
+  <Project Path="cli_nodes/groups/slash/jcc_tool_slash.csproj" />
+  <Project Path="cli_nodes/groups/system/jcc_tool_system.csproj" />
+  <Project Path="cli_nodes/groups/tools/jcc_tool_tools.csproj" />
+  <Project Path="cli_nodes/groups/web/jcc_tool_web.csproj" />
+  <Project Path="cli_nodes/sample/jcc_tool_sample.csproj" />
   <!-- REMOVED: scripts/scripts.csproj (no .csproj found) -->
 </Solution>

@@ -1179,8 +1179,8 @@ public interface ITokenCostTracker {
     /// <summary>
     /// 获取累计使用情况
     /// </summary>
-    /// <returns>输入 Token 数、输出 Token 数、成本</returns>
-    (int InputTokens, int OutputTokens, decimal Cost) GetUsage();
+    /// <returns>累计使用快照(输入 Token 数、输出 Token 数、成本)</returns>
+    TokenCostUsage GetUsage();
 }
 
 /// <summary>
@@ -1203,8 +1203,8 @@ public partial class NullTokenCostTracker : ITokenCostTracker {
     /// <summary>
     /// 返回零使用
     /// </summary>
-    /// <returns>零使用元组</returns>
-    public (int InputTokens, int OutputTokens, decimal Cost) GetUsage() => (0, 0, 0m);
+    /// <returns>零使用快照</returns>
+    public TokenCostUsage GetUsage() => new(0, 0, 0m);
 }
 
 /// <summary>
@@ -1250,9 +1250,17 @@ public partial class TokenCostTracker : ITokenCostTracker {
     /// <summary>
     /// 获取累计使用情况
     /// </summary>
-    /// <returns>输入 Token 数、输出 Token 数、成本</returns>
-    public (int InputTokens, int OutputTokens, decimal Cost) GetUsage() {
+    /// <returns>累计使用快照(输入 Token 数、输出 Token 数、成本)</returns>
+    public TokenCostUsage GetUsage() {
         var cost = GetTotalCost();
-        return (_totalInputTokens, _totalOutputTokens, cost);
+        return new TokenCostUsage(_totalInputTokens, _totalOutputTokens, cost);
     }
 }
+
+/// <summary>
+/// Token 累计使用快照 — 输入 Token 数、输出 Token 数、累计成本
+/// </summary>
+/// <param name="InputTokens">累计输入 Token 数</param>
+/// <param name="OutputTokens">累计输出 Token 数</param>
+/// <param name="Cost">累计成本(美元)</param>
+public sealed record TokenCostUsage(int InputTokens, int OutputTokens, decimal Cost);

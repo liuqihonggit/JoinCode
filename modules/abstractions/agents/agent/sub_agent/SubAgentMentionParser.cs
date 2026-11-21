@@ -9,8 +9,8 @@ public static class SubAgentMentionParser {
     /// <summary>
     /// 尝试解析 @agentName 消息 语法
     /// </summary>
-    /// <returns>(agentName, message) 或 null（非 @ 语法或格式无效）</returns>
-    public static (string AgentName, string Message)? Parse(string input) {
+    /// <returns>解析结果(agentName + message)；非 @ 语法或格式无效时返回 null</returns>
+    public static SubAgentMention? Parse(string input) {
         if (string.IsNullOrWhiteSpace(input) || input[0] != '@') return null;
 
         var spaceIndex = input.IndexOf(' ');
@@ -21,7 +21,7 @@ public static class SubAgentMentionParser {
 
         if (string.IsNullOrWhiteSpace(agentName) || string.IsNullOrWhiteSpace(message)) return null;
 
-        return (agentName, message.Trim());
+        return new SubAgentMention(agentName, message.Trim());
     }
 
     /// <summary>
@@ -42,3 +42,10 @@ public static class SubAgentMentionParser {
             a.Id.StartsWith(agentName, StringComparison.OrdinalIgnoreCase));
     }
 }
+
+/// <summary>
+/// @agentName 语法解析结果 — 目标子代理名与注入的消息正文
+/// </summary>
+/// <param name="AgentName">@ 后指定的子代理名</param>
+/// <param name="Message">注入给该子代理的消息正文(已 Trim)</param>
+public sealed record SubAgentMention(string AgentName, string Message);

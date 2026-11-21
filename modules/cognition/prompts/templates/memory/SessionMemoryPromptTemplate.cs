@@ -177,7 +177,8 @@ public static class SessionMemoryPromptTemplate {
     /// <summary>
     /// 截断会话记忆用于压缩
     /// </summary>
-    public static (string TruncatedContent, bool WasTruncated) TruncateSessionMemoryForCompact(string content) {
+    /// <returns>截断后的内容与是否发生过截断</returns>
+    public static SessionMemoryTruncation TruncateSessionMemoryForCompact(string content) {
         var lines = content.Split('\n');
         var maxCharsPerSection = MaxSectionLength * 4;
         var outputLines = new List<string>();
@@ -202,7 +203,7 @@ public static class SessionMemoryPromptTemplate {
         outputLines.AddRange(finalResult.Lines);
         wasTruncated = wasTruncated || finalResult.WasTruncated;
 
-        return (string.Join("\n", outputLines), wasTruncated);
+        return new SessionMemoryTruncation(string.Join("\n", outputLines), wasTruncated);
     }
 
     private static (List<string> Lines, bool WasTruncated) FlushSessionSection(
@@ -234,3 +235,10 @@ public static class SessionMemoryPromptTemplate {
         return (keptLines, true);
     }
 }
+
+/// <summary>
+/// 会话记忆截断结果 — 截断后的内容与是否发生过截断
+/// </summary>
+/// <param name="TruncatedContent">按分节长度上限截断后的内容</param>
+/// <param name="WasTruncated">是否至少发生过一次截断</param>
+public sealed record SessionMemoryTruncation(string TruncatedContent, bool WasTruncated);

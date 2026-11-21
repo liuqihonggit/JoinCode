@@ -40,11 +40,11 @@ public sealed class V2BridgeInitContext : ITokenValidationContext, INullCheckCon
     Func<string?> ITokenValidationContext.GetAccessToken => Parameters.GetAccessToken;
 
     /// <summary>必填参数列表 — 实现空值检查上下文接口,用于启动前校验</summary>
-    IEnumerable<(string Name, object? Value)> INullCheckContext.RequiredParameters =>
+    IEnumerable<JoinCode.Abstractions.Pipeline.RequiredParameter> INullCheckContext.RequiredParameters =>
     [
-        (nameof(Parameters), Parameters),
-        (nameof(HttpClient), HttpClient),
-        (nameof(TransportFactory), TransportFactory),
+        new(nameof(Parameters), Parameters),
+        new(nameof(HttpClient), HttpClient),
+        new(nameof(TransportFactory), TransportFactory),
     ];
 
     /// <summary>

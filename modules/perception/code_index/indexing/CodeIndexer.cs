@@ -285,10 +285,10 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         // Phase E: 批量索引写入
         var phaseESw = Stopwatch.StartNew();
-        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(filesToIndex.Count);
+        var batch = new List<CodeIndexBatchFile>(filesToIndex.Count);
         for (var i = 0; i < filesToIndex.Count; i++) {
             var (filePath, sourceCode, hash) = filesToIndex[i];
-            batch.Add((filePath, sourceCode, hash, extractionResults[i]));
+            batch.Add(new CodeIndexBatchFile(filePath, sourceCode, hash, extractionResults[i]));
         }
         await _symbolIndex.IndexFilesBatchAsync(batch, ct).ConfigureAwait(false);
         phaseESw.Stop();
@@ -445,10 +445,10 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         List<(string FilePath, string SourceCode, string Hash)> files,
         List<ExtractionResult> extractionResults,
         CancellationToken ct) {
-        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(files.Count);
+        var batch = new List<CodeIndexBatchFile>(files.Count);
         for (var i = 0; i < files.Count; i++) {
             var (filePath, sourceCode, hash) = files[i];
-            batch.Add((filePath, sourceCode, hash, extractionResults[i]));
+            batch.Add(new CodeIndexBatchFile(filePath, sourceCode, hash, extractionResults[i]));
         }
 
         var symbolTask = _symbolIndex.IndexFilesBatchAsync(batch, ct);

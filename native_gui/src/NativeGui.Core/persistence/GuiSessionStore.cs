@@ -227,17 +227,24 @@ public sealed class GuiSessionStore {
     private string GetSessionPath(string sessionId) => _fs.CombinePath(_sessionsDir, sessionId, "gui.json");
 
     /// <summary>枚举主会话的子会话(subagents/agent-xxx/) — 用目录名作子会话Id</summary>
-    public IReadOnlyList<(string Id, string Title)> ListSubSessions(string parentSessionId) {
+    public IReadOnlyList<SubSessionSummary> ListSubSessions(string parentSessionId) {
         var subAgentsDir = _fs.CombinePath(_sessionsDir, parentSessionId, "subagents");
         if (!_fs.DirectoryExists(subAgentsDir))
             return [];
-        var result = new List<(string, string)>();
+        var result = new List<SubSessionSummary>();
         foreach (var dir in _fs.EnumerateDirectories(subAgentsDir, "*", SearchOption.TopDirectoryOnly)) {
             var agentId = System.IO.Path.GetFileName(dir);
             if (string.IsNullOrEmpty(agentId))
                 continue;
-            result.Add((agentId, agentId));
+            result.Add(new SubSessionSummary(agentId, agentId));
         }
         return result;
     }
 }
+
+/// <summary>
+/// 子会话摘要 — 子代理会话标识与其展示标题（当前均取目录名）。
+/// </summary>
+/// <param name="Id">子会话标识。</param>
+/// <param name="Title">展示标题。</param>
+public sealed record SubSessionSummary(string Id, string Title);

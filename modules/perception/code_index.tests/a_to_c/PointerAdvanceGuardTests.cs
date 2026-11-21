@@ -72,9 +72,9 @@ public sealed class PointerAdvanceGuardTests {
         // 层级初始化/逐层下降/逐层插入三个守卫(上限128)均不得误触发
         var ann = new HnswAnn(m: 8, efConstruction: 32, efSearch: 16);
         var rng = new Random(42);
-        var items = new List<(string Id, float[] Vector)>();
+        var items = new List<AnnVectorInput>();
         for (var i = 0; i < 200; i++)
-            items.Add(($"v{i}", [rng.NextSingle(), rng.NextSingle(), rng.NextSingle()]));
+            items.Add(new($"v{i}", [rng.NextSingle(), rng.NextSingle(), rng.NextSingle()]));
 
         ann.AddRange(items);
 

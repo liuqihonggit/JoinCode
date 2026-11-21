@@ -51,7 +51,7 @@ public sealed partial class ApplyPatchLogic : ServiceEntity {
             }
 
             try {
-                var (hunkFailed, hunkCount) = await _fs.EditFileAsync<(bool Failed, int Count)>(filePath, async (bytes, ct) => {
+                var (hunkFailed, hunkCount) = await _fs.EditFileAsync<PatchHunkOutcome>(filePath, async (bytes, ct) => {
                     var (originalContent, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                     var originalLines = SplitLines(originalContent);
                     var modifiedLines = new List<string>(originalLines);
@@ -73,14 +73,14 @@ public sealed partial class ApplyPatchLogic : ServiceEntity {
                     }
 
                     if (failed)
-                        return (null, (true, group.Count()));
+                        return new EditFileTransformResult<PatchHunkOutcome>(null, new PatchHunkOutcome(true, group.Count()));
 
                     if (dryRun)
-                        return (null, (false, group.Count()));
+                        return new EditFileTransformResult<PatchHunkOutcome>(null, new PatchHunkOutcome(false, group.Count()));
 
                     var newContent = string.Join("\n", modifiedLines);
                     var newBytes = FileEncodingDetector.EncodeString(newContent, encoding);
-                    return (newBytes, (false, group.Count()));
+                    return new EditFileTransformResult<PatchHunkOutcome>(newBytes, new PatchHunkOutcome(false, group.Count()));
                 }, cancellationToken).ConfigureAwait(false);
 
                 if (hunkFailed) {
@@ -263,3 +263,10 @@ public sealed partial class ApplyPatchLogic : ServiceEntity {
         public List<string> Lines { get; } = [];
     }
 }
+
+/// <summary>
+/// 单个文件补丁应用结果 — 是否有 hunk 应用失败与 hunk 数量
+/// </summary>
+/// <param name="Failed">是否至少有一个 hunk 上下文不匹配</param>
+/// <param name="Count">该文件的 hunk 数量</param>
+public sealed record PatchHunkOutcome(bool Failed, int Count);

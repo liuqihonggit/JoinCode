@@ -21,16 +21,16 @@ public sealed class McpNameNormalizerTests {
     public void McpInfoFromString_ParsesValidToolString() {
         var result = McpNameNormalizer.McpInfoFromString("mcp__my-server__my-tool");
         result.Should().NotBeNull();
-        result.Value.ServerName.Should().Be("my-server");
-        result.Value.ToolName.Should().Be("my-tool");
+        result.ServerName.Should().Be("my-server");
+        result.ToolName.Should().Be("my-tool");
     }
 
     [Fact]
     public void McpInfoFromString_ParsesServerOnly() {
         var result = McpNameNormalizer.McpInfoFromString("mcp__my-server__");
         result.Should().NotBeNull();
-        result.Value.ServerName.Should().Be("my-server");
-        result.Value.ToolName.Should().BeEmpty();
+        result.ServerName.Should().Be("my-server");
+        result.ToolName.Should().BeEmpty();
     }
 
     [Fact]

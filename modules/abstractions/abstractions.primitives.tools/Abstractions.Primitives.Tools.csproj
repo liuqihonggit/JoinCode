@@ -20,4 +20,8 @@
     <InternalsVisibleTo Include="JoinCode.CliNodes.Tests" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

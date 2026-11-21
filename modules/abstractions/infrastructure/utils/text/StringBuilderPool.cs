@@ -42,7 +42,7 @@ public sealed class PooledStringBuilder : IDisposable {
     /// <summary>
     /// 获取池统计信息
     /// </summary>
-    public static (int Count, int MaxSize) GetStats() => Pool.GetStats();
+    public static Core.Utils.PoolStats GetStats() => Pool.GetStats();
 }
 
 /// <summary>

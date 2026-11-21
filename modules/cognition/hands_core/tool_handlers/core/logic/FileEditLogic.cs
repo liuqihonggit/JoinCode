@@ -53,7 +53,7 @@ public sealed partial class FileEditLogic : ServiceEntity {
                 var (originalContent, encoding) = FileEncodingDetector.DecodeBytes(bytes);
 
                 if (!regex.IsMatch(originalContent))
-                    return (null, FileEditResult.FailureResult(filePath, pattern, replacement, L.T(StringKey.FileEditPatternNotFound)));
+                    return new EditFileTransformResult<FileEditResult>(null, FileEditResult.FailureResult(filePath, pattern, replacement, L.T(StringKey.FileEditPatternNotFound)));
 
                 var count = replaceAll ? regex.Matches(originalContent).Count : 1;
                 var updatedContent = replaceAll
@@ -61,7 +61,7 @@ public sealed partial class FileEditLogic : ServiceEntity {
                     : regex.Replace(originalContent, replacement, 1);
 
                 var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
-                return (newBytes, FileEditResult.SuccessResult(filePath, pattern, replacement, originalContent, updatedContent, count));
+                return new EditFileTransformResult<FileEditResult>(newBytes, FileEditResult.SuccessResult(filePath, pattern, replacement, originalContent, updatedContent, count));
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             return FileEditResult.FailureResult(filePath, pattern, replacement, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
@@ -98,7 +98,7 @@ public sealed partial class FileEditLogic : ServiceEntity {
                 var allLines = SplitLines(content);
 
                 if (afterLine < 0 || afterLine > allLines.Count)
-                    return (null, FileLineEditResult.FailureResult(filePath, afterLine, afterLine, L.T(StringKey.FileEditLineOutOfRange, afterLine, allLines.Count)));
+                    return new EditFileTransformResult<FileLineEditResult>(null, FileLineEditResult.FailureResult(filePath, afterLine, afterLine, L.T(StringKey.FileEditLineOutOfRange, afterLine, allLines.Count)));
 
                 var newLines = newContent.Split('\n');
                 var resultLines = new List<string>();
@@ -112,7 +112,7 @@ public sealed partial class FileEditLogic : ServiceEntity {
 
                 var updatedFileContent = string.Join("\n", resultLines);
                 var newBytes = FileEncodingDetector.EncodeString(updatedFileContent, encoding);
-                return (newBytes, FileLineEditResult.SuccessResult(filePath, afterLine, afterLine + newLines.Length, string.Empty, newContent, updatedFileContent, newLines.Length));
+                return new EditFileTransformResult<FileLineEditResult>(newBytes, FileLineEditResult.SuccessResult(filePath, afterLine, afterLine + newLines.Length, string.Empty, newContent, updatedFileContent, newLines.Length));
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
@@ -152,7 +152,7 @@ public sealed partial class FileEditLogic : ServiceEntity {
                 var allLines = SplitLines(content);
 
                 if (startLine < 1 || startLine > allLines.Count)
-                    return (null, FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditStartLineOutOfRange, startLine, allLines.Count)));
+                    return new EditFileTransformResult<FileLineEditResult>(null, FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditStartLineOutOfRange, startLine, allLines.Count)));
 
                 var actualEndLine = Math.Min(endLine, allLines.Count);
                 var originalContent = string.Join("\n", allLines.Skip(startLine - 1).Take(actualEndLine - startLine + 1));
@@ -167,7 +167,7 @@ public sealed partial class FileEditLogic : ServiceEntity {
                 var updatedFileContent = string.Join("\n", resultLines);
                 var newBytes = FileEncodingDetector.EncodeString(updatedFileContent, encoding);
                 var deletedCount = actualEndLine - startLine + 1;
-                return (newBytes, FileLineEditResult.SuccessResult(filePath, startLine, actualEndLine, originalContent, string.Empty, updatedFileContent, deletedCount));
+                return new EditFileTransformResult<FileLineEditResult>(newBytes, FileLineEditResult.SuccessResult(filePath, startLine, actualEndLine, originalContent, string.Empty, updatedFileContent, deletedCount));
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             return FileLineEditResult.FailureResult(filePath, startLine, endLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
@@ -210,7 +210,7 @@ public sealed partial class FileEditLogic : ServiceEntity {
 
                     if (!originalContent.Contains(oldString)) {
                         var diagnostic = EditDiagnosticBuilder.BuildDiagnostic(originalContent, oldString);
-                        return (null, FileEditResult.FailureResult(filePath, oldString, newString, diagnostic.ToToolDiagnostic()));
+                        return new EditFileTransformResult<FileEditResult>(null, FileEditResult.FailureResult(filePath, oldString, newString, diagnostic.ToToolDiagnostic()));
                     }
 
                     string updatedContent;
@@ -230,7 +230,7 @@ public sealed partial class FileEditLogic : ServiceEntity {
                     }
 
                     var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
-                    return (newBytes, FileEditResult.SuccessResult(filePath, oldString, newString, originalContent, updatedContent, replaceCount));
+                    return new EditFileTransformResult<FileEditResult>(newBytes, FileEditResult.SuccessResult(filePath, oldString, newString, originalContent, updatedContent, replaceCount));
                 }, cancellationToken).ConfigureAwait(false);
 
                 results.Add(new BatchEditResult(filePath, editResult));

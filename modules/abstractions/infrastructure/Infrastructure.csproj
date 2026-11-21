@@ -29,10 +29,6 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Hands" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/storage/downloader/Downloader.csproj" />
-    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Downloader" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/plugins/plugins.contracts/Plugins.Contracts.csproj" />
-    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Plugins.Contracts" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/async_primitives/transport.contracts/Transport.Contracts.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Transport.Contracts" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
@@ -98,4 +94,8 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/infrastructure_http/Infrastructure.Http.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Infrastructure.Http" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

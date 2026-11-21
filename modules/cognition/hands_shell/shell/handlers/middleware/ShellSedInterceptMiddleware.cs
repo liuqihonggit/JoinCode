@@ -84,7 +84,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
                         var newContent = SedEditParser.ApplySedSubstitution(normalizedContent, sedInfo);
                         var finalContent = newContent.Replace("\n", lineEnding);
                         var newBytes = FileEncodingDetector.EncodeString(finalContent, encoding);
-                        return (newBytes, true);
+                        return new EditFileTransformResult<bool>(newBytes, true);
                     }, cancellationToken).ConfigureAwait(false);
                 } catch (Exception ex) {
                     var diag = BuildWriteFailedDiagnostic(filePath, ex.Message);

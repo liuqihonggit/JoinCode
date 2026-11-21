@@ -221,11 +221,11 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
     // === File 原子编辑 ===
 
     /// <inheritdoc />
-    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default) {
+    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<EditFileTransformResult<T>>> transform, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<object?>();
-        Func<byte[], CancellationToken, Task<(byte[]? NewContent, object? Result)>> wrapped = async (bytes, ct) => {
+        Func<byte[], CancellationToken, Task<EditFileTransformResult<object?>>> wrapped = async (bytes, ct) => {
             var (newContent, result) = await transform(bytes, ct).ConfigureAwait(false);
-            return (newContent, (object?)result);
+            return new EditFileTransformResult<object?>(newContent, (object?)result);
         };
         _editActor.Tell(new EditFileCmd(path, wrapped, reply));
         var replyResult = await _editActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);

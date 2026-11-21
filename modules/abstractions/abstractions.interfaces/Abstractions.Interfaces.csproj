@@ -56,4 +56,8 @@
     <ProjectReference Include="$(RepoRoot)modules/generators/param_metadata.generator/ParamMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

@@ -59,4 +59,11 @@
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!-- P1 契约骨架：allowlist 待 P3 按域对评审；对外项目在 csproj 覆盖 JccApiVisibility=public -->
+    <JccDomain>generators</JccDomain>
+    <JccAllowedDomains></JccAllowedDomains>
+    <JccApiVisibility>internal</JccApiVisibility>
+  </PropertyGroup>
 </Project>

@@ -133,7 +133,7 @@ public static class BridgeSessionApi {
     /// 获取 Bridge 会话信息 — 对齐 TS 端 getBridgeSession
     /// GET /v1/sessions/{sessionId} — 返回 (environment_id, title)
     /// </summary>
-    public static async Task<(string? EnvironmentId, string? Title)> GetAsync(
+    public static async Task<BridgeSessionLookup> GetAsync(
         string sessionId,
         string baseUrl,
         string accessToken,
@@ -141,7 +141,7 @@ public static class BridgeSessionApi {
         HttpClient httpClient,
         CancellationToken ct = default) {
         if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(orgUUID)) {
-            return (null, null);
+            return new BridgeSessionLookup(null, null);
         }
 
         var compatId = SessionIdCompat.ToCompatSessionId(sessionId);
@@ -157,22 +157,21 @@ public static class BridgeSessionApi {
         try {
             using var response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
             if (response.StatusCode != HttpStatusCode.OK) {
-                return (null, null);
+                return new BridgeSessionLookup(null, null);
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             var envId = ExtractJsonString(responseJson, "environment_id");
             var title = ExtractJsonString(responseJson, "title");
-            return (envId, title);
+            return new BridgeSessionLookup(envId, title);
         } catch {
-            return (null, null);
+            return new BridgeSessionLookup(null, null);
         }
     }
 
     #endregion
 
     #region updateBridgeSessionTitle
-
     /// <summary>
     /// 更新 Bridge 会话标题 — 对齐 TS 端 updateBridgeSessionTitle
     /// PATCH /v1/sessions/{sessionId} — best-effort, 错误被吞掉
@@ -401,3 +400,10 @@ public static class BridgeSessionApi {
 
     #endregion
 }
+
+/// <summary>
+/// getBridgeSession 查询结果 — environment_id 与 title，任一缺失时为 null。
+/// </summary>
+/// <param name="EnvironmentId">会话绑定的环境标识；缺失为 null。</param>
+/// <param name="Title">会话标题；缺失为 null。</param>
+public sealed record BridgeSessionLookup(string? EnvironmentId, string? Title);

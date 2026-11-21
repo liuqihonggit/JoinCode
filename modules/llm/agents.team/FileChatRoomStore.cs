@@ -88,14 +88,14 @@ public sealed class FileChatRoomStore : IChatRoomStore {
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<(string TeamId, int MessageCount, int MaxCount)>> GetRoomsNeedingCleanupAsync(CancellationToken ct = default) {
+    public async Task<IReadOnlyList<ChatRoomCleanupCandidate>> GetRoomsNeedingCleanupAsync(CancellationToken ct = default) {
         var roomIds = await ListRoomIdsAsync(ct).ConfigureAwait(false);
-        var result = new List<(string, int, int)>();
+        var result = new List<ChatRoomCleanupCandidate>();
 
         foreach (var teamId in roomIds) {
             var state = await LoadAsync(teamId, ct).ConfigureAwait(false);
             if (state is not null && state.NeedsCleanup) {
-                result.Add((teamId, state.MessageCount, state.MaxMessageCount));
+                result.Add(new ChatRoomCleanupCandidate(teamId, state.MessageCount, state.MaxMessageCount));
             }
         }
 

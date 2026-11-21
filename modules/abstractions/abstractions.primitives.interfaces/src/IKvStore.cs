@@ -32,9 +32,16 @@ public interface IKvStore : IAsyncDisposable {
     /// <param name="from">起始键(含), null 表示从头开始</param>
     /// <param name="to">结束键(含), null 表示到末尾</param>
     /// <param name="ct">取消令牌</param>
-    /// <returns>排序的 (Key, Value) 对</returns>
-    IAsyncEnumerable<(byte[] Key, byte[] Value)> ScanAsync(
+    /// <returns>排序的键值对</returns>
+    IAsyncEnumerable<KvStoreEntry> ScanAsync(
         byte[]? from = null,
         byte[]? to = null,
         CancellationToken ct = default);
 }
+
+/// <summary>
+/// 键值存储条目 — 键与值字节
+/// </summary>
+/// <param name="Key">键(UTF-8 字节)</param>
+/// <param name="Value">值字节</param>
+public sealed record KvStoreEntry(byte[] Key, byte[] Value);

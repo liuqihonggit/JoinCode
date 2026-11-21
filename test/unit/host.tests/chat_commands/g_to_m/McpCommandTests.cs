@@ -190,7 +190,7 @@ public sealed class McpCommandTests {
         // mock IMcpServerConfigStore 和 IMcpToolRegistry,避免 ListServersAsync 抛 "服务未初始化"
         var configStoreMock = new Mock<IMcpServerConfigStore>();
         configStoreMock.Setup(s => s.GetAllServersAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<string, (string Scope, McpServerConfigEntry Entry)>());
+            .ReturnsAsync(new Dictionary<string, McpServerScopedEntry>());
 
         var mcpRegistryMock = new Mock<IMcpToolRegistry>();
         mcpRegistryMock.Setup(r => r.GetAllRemoteClientsAsync(It.IsAny<CancellationToken>()))

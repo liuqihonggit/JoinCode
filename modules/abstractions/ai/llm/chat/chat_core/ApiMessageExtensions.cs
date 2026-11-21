@@ -36,8 +36,9 @@ public static class ApiMessageExtensions {
     /// 从 Assistant 消息的 Metadata 中提取工具调用列表
     /// 对齐 ChatService 写入: Metadata["ToolCalls"] = [{Id, Name, Arguments}]
     /// </summary>
-    public static List<(string Id, string Name)> ExtractToolCalls(this ApiMessage msg) {
-        var result = new List<(string Id, string Name)>();
+    /// <returns>工具调用引用列表(调用 ID + 工具名)</returns>
+    public static List<ToolCallReference> ExtractToolCalls(this ApiMessage msg) {
+        var result = new List<ToolCallReference>();
 
         if (msg.Metadata is null)
             return result;
@@ -52,7 +53,7 @@ public static class ApiMessageExtensions {
                 var id = idProp.GetString();
                 var name = nameProp.GetString();
                 if (id is not null && name is not null) {
-                    result.Add((id, name));
+                    result.Add(new ToolCallReference(id, name));
                 }
             }
         }
@@ -76,3 +77,10 @@ public static class ApiMessageExtensions {
         return null;
     }
 }
+
+/// <summary>
+/// 工具调用引用 — 调用 ID 与工具名（从 Assistant 消息 Metadata 提取）
+/// </summary>
+/// <param name="Id">工具调用 ID</param>
+/// <param name="Name">工具名称</param>
+public sealed record ToolCallReference(string Id, string Name);

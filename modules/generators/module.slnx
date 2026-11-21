@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="aot_safety.generator/AotSafety.Generator.csproj" />
+  <Project Path="aot_handler.generator/AotHandler.Generator.csproj" />
   <Project Path="aot_safety.shared/AotSafety.Shared.csproj" />
   <Project Path="aot_safety.tests/AotSafety.Tests.csproj" />
   <Project Path="app_module.generator/AppModule.Generator.csproj" />

@@ -43,7 +43,7 @@ public sealed class LeasedKvStoreAdapter : IKvStore {
 
     /// <inheritdoc />
     /// <para>范围扫描在枚举期间持有租约(yield 需要底层 db 存活),枚举结束/中断释放 — using 保证。</para>
-    public async IAsyncEnumerable<(byte[] Key, byte[] Value)> ScanAsync(
+    public async IAsyncEnumerable<KvStoreEntry> ScanAsync(
         byte[]? from = null, byte[]? to = null, [EnumeratorCancellation] CancellationToken ct = default) {
         using var serial = await _gate.AcquireAsync(ct).ConfigureAwait(false);
         using var lease = await _factory.AcquireAsync().ConfigureAwait(false);

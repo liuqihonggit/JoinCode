@@ -57,9 +57,9 @@ public sealed class HotFileWatchdog : IHotFileWatchdog {
     /// <summary>
     /// 批量检查文件变更是否违规
     /// </summary>
-    /// <param name="changes">文件变更列表(路径, 修改者标识)</param>
+    /// <param name="changes">文件变更列表(路径 + 修改者标识)</param>
     /// <returns>所有违规变更的告警列表</returns>
-    public IReadOnlyList<HotFileAlert> CheckChanges(IReadOnlyList<(string FilePath, string ChangerId)> changes) {
+    public IReadOnlyList<HotFileAlert> CheckChanges(IReadOnlyList<HotFileChange> changes) {
         ArgumentNullException.ThrowIfNull(changes);
         var alerts = new List<HotFileAlert>();
         foreach (var (filePath, changerId) in changes) {

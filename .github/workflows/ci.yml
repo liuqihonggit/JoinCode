@@ -36,6 +36,11 @@ jobs:
     if: needs.detect.outputs.non-docs == 'true'
     uses: ./.github/workflows/ci-build.yml
 
+  architecture:
+    needs: detect
+    if: needs.detect.outputs.non-docs == 'true'
+    uses: ./.github/workflows/ci-architecture.yml
+
   unit-tests:
     needs: [detect, build]
     if: needs.detect.outputs.non-docs == 'true'

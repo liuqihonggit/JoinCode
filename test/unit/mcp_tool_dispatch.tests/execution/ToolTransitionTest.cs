@@ -150,8 +150,8 @@ public sealed class ToolTransitionModelTest {
 
         var all = model.GetAllRecommendations("partial");
         all.Should().HaveCount(2);
-        all.Should().Contain((ToolTransitionRole.Primary, "tool_a"));
-        all.Should().Contain((ToolTransitionRole.Refine, "tool_c"));
+        all.Should().Contain(new ToolRecommendation(ToolTransitionRole.Primary, "tool_a"));
+        all.Should().Contain(new ToolRecommendation(ToolTransitionRole.Refine, "tool_c"));
     }
 }
 

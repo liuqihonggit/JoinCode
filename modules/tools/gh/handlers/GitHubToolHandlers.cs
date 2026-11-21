@@ -87,7 +87,7 @@ public partial class GitHubToolHandlers {
     private static string TruncateLines(string output, int maxLines) {
         if (string.IsNullOrEmpty(output) || maxLines <= 0) return output;
         var ranges = LineSpanIndexer.BuildLineRanges(output.AsSpan());
-        var (selectedRanges, hasMore, _) = LineRangeReader.Slice<(int Start, int Length)>(ranges, 0, maxLines);
+        var (selectedRanges, hasMore, _) = LineRangeReader.Slice<LineCharRange>(ranges, 0, maxLines);
         if (!hasMore) return output;
         var sb = new StringBuilder(maxLines * 80);
         var span = output.AsSpan();

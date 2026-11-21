@@ -387,7 +387,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>文件持久化 — NDJSON 模式输出 SdkFilesPersistedMessage</summary>
-    public void OnFilesPersisted(System.Collections.Generic.List<(string Filename, string FileId)>? files = null, System.Collections.Generic.List<(string Filename, string Error)>? failed = null) {
+    public void OnFilesPersisted(System.Collections.Generic.List<JoinCode.Abstractions.Interfaces.PersistedFileInfo>? files = null, System.Collections.Generic.List<JoinCode.Abstractions.Interfaces.FailedPersistedFileInfo>? failed = null) {
         if (_agentMode) {
             EnsureSystemInit();
             var msg = Cli.Output.SdkFilesPersistedMessage.Create(_sessionId) with {

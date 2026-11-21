@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>test</ProjectType>
+    <RootNamespace>GitHubClient.Tests</RootNamespace>
+    <AssemblyName>JoinCode.GitHub.Client.Tests</AssemblyName>
+    <Description>JoinCode GitHub REST 客户端单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;JCC9001</NoWarn>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/tools/github_client/GitHubClient.csproj" />
+    <!-- InMemoryFileSystem 测试替身位于 abstractions/infrastructure（测试边，不参与生产域图） -->
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

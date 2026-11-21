@@ -99,7 +99,7 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
                 config.McpServers[name] = entry;
                 var json = RelaxedJsonSerializer.Serialize(config, McpConfigJsonContext.Default);
                 var newBytes = FileEncodingDetector.EncodeString(json, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, ct).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             var config = new McpConfigFile();
@@ -130,10 +130,10 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
                     config = new McpConfigFile();
                 }
                 if (!config.McpServers.Remove(name))
-                    return (null, false);
+                    return new EditFileTransformResult<bool>(null, false);
                 var json = RelaxedJsonSerializer.Serialize(config, McpConfigJsonContext.Default);
                 var newBytes = FileEncodingDetector.EncodeString(json, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, ct).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             return false;
@@ -145,18 +145,18 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>服务器名到（作用域, 配置条目）的字典</returns>
-    public async Task<Dictionary<string, (string Scope, McpServerConfigEntry Entry)>> GetAllServersAsync(CancellationToken ct = default) {
-        var result = new Dictionary<string, (string Scope, McpServerConfigEntry Entry)>(StringComparer.OrdinalIgnoreCase);
+    public async Task<Dictionary<string, McpServerScopedEntry>> GetAllServersAsync(CancellationToken ct = default) {
+        var result = new Dictionary<string, McpServerScopedEntry>(StringComparer.OrdinalIgnoreCase);
 
         var userConfig = await LoadAsync(AgentMemoryScope.User.ToValue(), ct).ConfigureAwait(false);
         foreach (var (name, entry) in userConfig.McpServers) {
-            result[name] = (AgentMemoryScope.User.ToValue(), entry);
+            result[name] = new McpServerScopedEntry(AgentMemoryScope.User.ToValue(), entry);
         }
 
         var projectConfig = await LoadAsync(AgentMemoryScope.Project.ToValue(), ct).ConfigureAwait(false);
         foreach (var (name, entry) in projectConfig.McpServers) {
             if (!result.ContainsKey(name)) {
-                result[name] = (AgentMemoryScope.Project.ToValue(), entry);
+                result[name] = new McpServerScopedEntry(AgentMemoryScope.Project.ToValue(), entry);
             }
         }
 

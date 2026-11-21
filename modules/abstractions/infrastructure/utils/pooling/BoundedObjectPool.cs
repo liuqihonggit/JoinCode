@@ -69,6 +69,13 @@ public sealed class BoundedObjectPool<T> where T : class {
     /// <summary>
     /// 获取池统计信息 — 当前数量和容量上限
     /// </summary>
-    /// <returns>(当前对象数量, 容量上限)</returns>
-    public (int Count, int MaxSize) GetStats() => (_pool.Count, _maxPoolSize);
+    /// <returns>池统计(当前对象数量 + 容量上限)</returns>
+    public PoolStats GetStats() => new(_pool.Count, _maxPoolSize);
 }
+
+/// <summary>
+/// 对象池统计 — 当前池内对象数量与容量上限
+/// </summary>
+/// <param name="Count">当前池内对象数量</param>
+/// <param name="MaxSize">池容量上限</param>
+public sealed record PoolStats(int Count, int MaxSize);

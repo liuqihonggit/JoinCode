@@ -246,3 +246,13 @@ dotnet_diagnostic.JCC1009.severity = error
 dotnet_diagnostic.JCC2010.severity = error
 
 #### 档3：卫语句检测 ####
+
+#### P2 架构规则：JCC12001 立即阻断，其余观察期 suggestion（P5 升 error） ####
+dotnet_diagnostic.JCC12001.severity = warning
+dotnet_diagnostic.JCC12006.severity = suggestion
+dotnet_diagnostic.JCC12007.severity = suggestion
+dotnet_diagnostic.JCC12008.severity = suggestion
+dotnet_diagnostic.JCC12013.severity = suggestion
+
+#### 公开 API 禁元组：先观察存量，清账后升 error ####
+dotnet_diagnostic.JCC10011.severity = suggestion

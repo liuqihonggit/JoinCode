@@ -222,7 +222,7 @@ public sealed class InMemoryFileSystem : IFileSystem {
     // === IFileSystem: File 原子编辑 ===
 
     /// <inheritdoc />
-    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default) {
+    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<EditFileTransformResult<T>>> transform, CancellationToken cancellationToken = default) {
         var normalizedPath = NormalizePath(path);
         var gate = _editGates.GetOrAdd(normalizedPath, _ => new AsyncGate());
         using var releaser = await gate.AcquireAsync(cancellationToken).ConfigureAwait(true);

@@ -29,9 +29,9 @@ public sealed class BruteForceAnnTests {
     public void AddRange_BatchAdd() {
         var ann = new BruteForceAnn();
         ann.AddRange([
-            ("v1", MakeVector(1f, 0f)),
-            ("v2", MakeVector(0f, 1f)),
-            ("v3", MakeVector(1f, 1f))
+            new("v1", MakeVector(1f, 0f)),
+            new("v2", MakeVector(0f, 1f)),
+            new("v3", MakeVector(1f, 1f))
         ]);
 
         Assert.Equal(3, ann.Count);

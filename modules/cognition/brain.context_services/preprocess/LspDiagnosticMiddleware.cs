@@ -51,7 +51,7 @@ public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePre
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private static string FormatLspDiagnostics(List<(string ServerName, List<JoinCode.Abstractions.Interfaces.Lsp.LspDiagnosticSummary> Files)> pendingDiagnostics) {
+    private static string FormatLspDiagnostics(List<JoinCode.Abstractions.Interfaces.Lsp.LspPendingDiagnostics> pendingDiagnostics) {
         var sb = new StringBuilder();
         sb.AppendLine("<new-diagnostics>The following new diagnostic issues were detected:");
         sb.AppendLine();

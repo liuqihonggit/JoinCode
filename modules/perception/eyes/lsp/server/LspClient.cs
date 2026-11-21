@@ -383,7 +383,7 @@ public sealed partial class LspClient : ILspClient {
     public bool IsConnected => _channel.IsConnected;
 
     /// <summary>收到通知时触发，参数为 (方法名, 参数)</summary>
-    public event EventHandler<(string Method, JsonNode? Params)>? NotificationReceived;
+    public event EventHandler<LspNotification>? NotificationReceived;
 
     /// <summary>
     /// 构造 LspClient — 组合根:持有进程通道 + 消息路由
@@ -398,7 +398,7 @@ public sealed partial class LspClient : ILspClient {
         _router.NotificationReceived += OnRouterNotificationReceived;
     }
 
-    private void OnRouterNotificationReceived(object? sender, (string Method, JsonNode? Params) e) => NotificationReceived?.Invoke(this, e);
+    private void OnRouterNotificationReceived(object? sender, LspNotification e) => NotificationReceived?.Invoke(this, e);
 
     /// <summary>注册通知处理程序</summary>
     public void OnNotification(string method, Func<JsonNode?, CancellationToken, ValueTask> handler) {

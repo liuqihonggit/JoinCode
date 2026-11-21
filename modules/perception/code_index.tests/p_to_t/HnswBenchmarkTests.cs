@@ -24,9 +24,9 @@ public sealed class HnswBenchmarkTests
         const int searchIterations = 50;
         var rng = new Random(42);
 
-        var vectors = new (string Id, float[] Vector)[size];
+        var vectors = new AnnVectorInput[size];
         for (var i = 0; i < size; i++)
-            vectors[i] = ($"v{i}", MakeRandomVector(dims, rng));
+            vectors[i] = new($"v{i}", MakeRandomVector(dims, rng));
 
         var queries = new float[searchIterations][];
         for (var q = 0; q < searchIterations; q++)
@@ -43,13 +43,13 @@ public sealed class HnswBenchmarkTests
         hnswSw.Stop();
 
         var bfSearchSw = System.Diagnostics.Stopwatch.StartNew();
-        var bfResults = new List<IReadOnlyList<(string Id, float Score)>>(searchIterations);
+        var bfResults = new List<IReadOnlyList<AnnSearchHit>>(searchIterations);
         for (var q = 0; q < searchIterations; q++)
             bfResults.Add(bf.Search(queries[q], topK, CancellationToken.None));
         bfSearchSw.Stop();
 
         var hnswSearchSw = System.Diagnostics.Stopwatch.StartNew();
-        var hnswResults = new List<IReadOnlyList<(string Id, float Score)>>(searchIterations);
+        var hnswResults = new List<IReadOnlyList<AnnSearchHit>>(searchIterations);
         for (var q = 0; q < searchIterations; q++)
             hnswResults.Add(hnsw.Search(queries[q], topK, CancellationToken.None));
         hnswSearchSw.Stop();
@@ -78,9 +78,9 @@ public sealed class HnswBenchmarkTests
     public async Task Benchmark_LoadGraph_vs_Reconstruct(int size) {
         const int dims = 384;
         var rng = new Random(42);
-        var vectors = new (string Id, float[] Vector)[size];
+        var vectors = new AnnVectorInput[size];
         for (var i = 0; i < size; i++)
-            vectors[i] = ($"v{i}", MakeRandomVector(dims, rng));
+            vectors[i] = new($"v{i}", MakeRandomVector(dims, rng));
 
         var hnsw = new HnswAnn(m: HP.HnswM, efConstruction: HP.HnswEfConstruction, efSearch: HP.HnswEfSearch);
         hnsw.AddRange(vectors);
@@ -110,8 +110,8 @@ public sealed class HnswBenchmarkTests
     }
 
     private static double ComputeRecall(
-        List<IReadOnlyList<(string Id, float Score)>> bfResults,
-        List<IReadOnlyList<(string Id, float Score)>> hnswResults) {
+        List<IReadOnlyList<AnnSearchHit>> bfResults,
+        List<IReadOnlyList<AnnSearchHit>> hnswResults) {
         var total = 0;
         var matched = 0;
         for (var q = 0; q < bfResults.Count; q++) {

@@ -354,6 +354,51 @@ function Get-DomainDocState {
     }
 }
 
+function Get-DomainPropsApiVisibility {
+    param([string]$Domain)
+    $propsPath = if ($Domain -eq "native_tui" -or $Domain -eq "native_gui") {
+        Join-Path (Join-Path $RepoRoot $Domain) "Directory.Build.props"
+    } else {
+        Join-Path (Join-Path (Join-Path $RepoRoot "modules") $Domain) "Directory.Build.props"
+    }
+    if (-not (Test-Path -LiteralPath $propsPath -PathType Leaf)) { return $null }
+    try {
+        $xml = Read-CsprojXml $propsPath
+    } catch {
+        return $null
+    }
+    $node = $xml.SelectSingleNode('//*[local-name()="JccApiVisibility"]')
+    if ($null -eq $node) { return $null }
+    $value = $node.InnerText.Trim()
+    if ([string]::IsNullOrWhiteSpace($value)) { return $null }
+    return $value
+}
+
+# 项目级覆盖优先，其次域契约默认，都没有按 internal（未准入）
+$script:apiVisibilityCache = @{}
+function Get-ProjectApiVisibility {
+    param([string]$ProjectPath, [string]$Domain)
+    if ($script:apiVisibilityCache.ContainsKey($ProjectPath)) {
+        return $script:apiVisibilityCache[$ProjectPath]
+    }
+    $value = $null
+    try {
+        $xml = Read-CsprojXml $ProjectPath
+        $node = $xml.SelectSingleNode('//*[local-name()="JccApiVisibility"]')
+        if ($null -ne $node -and -not [string]::IsNullOrWhiteSpace($node.InnerText)) {
+            $value = $node.InnerText.Trim()
+        }
+    } catch {
+        $value = $null
+    }
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        $value = Get-DomainPropsApiVisibility $Domain
+    }
+    if ([string]::IsNullOrWhiteSpace($value)) { $value = "internal" }
+    $script:apiVisibilityCache[$ProjectPath] = $value
+    return $value
+}
+
 # ---------- 扫描 ----------
 $projectFiles = Get-CsprojFiles
 $projects = @{}
@@ -415,6 +460,10 @@ if (-not [string]::IsNullOrWhiteSpace($Domains)) {
 }
 
 $apiProjects = @($prodCrossEdges | ForEach-Object { ConvertTo-PortablePath (Get-RelativePath $_.To) } | Sort-Object -Unique)
+# JCC12003：跨域 code 边目标必须是显式 public 的项目（项目级覆盖 > 域契约默认 > internal）
+$apiVisibilityViolations = @($prodCrossEdges | Where-Object {
+    (Get-ProjectApiVisibility -ProjectPath $_.To -Domain $_.ToDomain) -ne "public"
+})
 $contractStates = @($script:ContractDomains | ForEach-Object { Get-DomainContractState $_ })
 $invalidContracts = @($contractStates | Where-Object { -not $_.IsValid })
 $docStates = @($script:ModuleDomains | ForEach-Object {
@@ -486,7 +535,7 @@ $hubTop = @($inDegree.GetEnumerator() | Sort-Object Value -Descending | Select-O
 $ruleCounts = [ordered]@{
     "JCC12001" = $invalidContracts.Count
     "JCC12002" = $prodCrossEdges.Count
-    "JCC12003" = 0
+    "JCC12003" = $apiVisibilityViolations.Count
     "JCC12004" = $prodToTestEdges.Count
     "JCC12005" = $cycles.Count
     "JCC12009" = $directoryViolations.Count
@@ -508,6 +557,12 @@ foreach ($edge in $prodCrossEdges) {
         $ruleCountsByDomain["JCC12002"][$edge.FromDomain] = 0
     }
     $ruleCountsByDomain["JCC12002"][$edge.FromDomain] = $ruleCountsByDomain["JCC12002"][$edge.FromDomain] + 1
+}
+foreach ($edge in $apiVisibilityViolations) {
+    if (-not $ruleCountsByDomain["JCC12003"].Contains($edge.ToDomain)) {
+        $ruleCountsByDomain["JCC12003"][$edge.ToDomain] = 0
+    }
+    $ruleCountsByDomain["JCC12003"][$edge.ToDomain] = $ruleCountsByDomain["JCC12003"][$edge.ToDomain] + 1
 }
 foreach ($edge in $prodToTestEdges) {
     if (-not $ruleCountsByDomain["JCC12004"].Contains($edge.FromDomain)) {
@@ -623,6 +678,16 @@ foreach ($key in $ruleCounts.Keys) { Add-ReportLine ("  {0} = {1}" -f $key, $rul
 Add-ReportLine ""
 Add-ReportLine "## 生产域环（JCC12005，$($cycles.Count) 条）"
 if ($cycles.Count -eq 0) { Add-ReportLine "  无" } else { foreach ($cycle in $cycles) { Add-ReportLine "  $cycle" } }
+Add-ReportLine ""
+Add-ReportLine "## 跨域目标 API 准入（JCC12003，$($apiVisibilityViolations.Count) 条）"
+if ($apiVisibilityViolations.Count -eq 0) {
+    Add-ReportLine "  无"
+} else {
+    foreach ($edge in ($apiVisibilityViolations | Select-Object -First 30)) {
+        Add-ReportLine ("  [{0}->{1}] {2}" -f $edge.FromDomain, $edge.ToDomain, (ConvertTo-PortablePath (Get-RelativePath $edge.To)))
+    }
+    if ($apiVisibilityViolations.Count -gt 30) { Add-ReportLine "  ... 其余 $($apiVisibilityViolations.Count - 30) 条见基线" }
+}
 Add-ReportLine ""
 Add-ReportLine "## code 入度 TOP 15（Hub 预算）"
 foreach ($hub in ($hubTop | Select-Object -First 15)) { Add-ReportLine ("  {0,-6} {1}" -f $hub.InDegree, $hub.Project) }

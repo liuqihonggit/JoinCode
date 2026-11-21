@@ -405,6 +405,12 @@ architecture:
 
 **已完成 0.2 模块 README 项目表**：`Update-ModuleReadme.ps1` 为 16 域生成 202 行项目表；`JCC12011` 从仅检查文件存在扩展为检查行数；负向探针（删 1 行）确认 `1/2` 漂移会 exit 1。
 
+**已完成 0.3 遥测插件归位**：`TelemetryPlugin` 从 `abstractions/infrastructure_telemetry` 移入 `plugins/plugins.infrastructure/builtin/telemetry`（插件实现归插件域）；`Infrastructure.Telemetry` 移除 `Plugins.Contracts` 引用并声明 `JccApiVisibility=public`（被 plugins 域引用）；`Plugins.Infrastructure` 显式引用 `Infrastructure.Telemetry`。生产跨域边 472 → 478，其中 6 条是**传递依赖显式化**（见 0.4），非新增耦合；域环仍 15（未触及环路径）。
+
+**已完成 0.4 传递依赖显式化**：删 `Infrastructure -> Plugins.Contracts` 后，`llm/core`、`services/dream`、`services/bridge`、`perception/code_index`、`apps/engine` 这几个直接使用 `IWorkflowPlugin` / `WorkflowPluginBase` / `PluginContext` / `PluginResourceBase` 的项目原先靠传递引用编译；现各自显式声明 `Plugins.Contracts`，`apps/engine` 另加 `Plugins.Infrastructure`（`McpInitModule` 编译期引用 `TelemetryPlugin`）。暴露口径问题：`solution` 增量构建会掩盖传递引用断裂，只有 `native_tui` / `native_gui` 独立 target 才报错；修复后全量 `-t:Rebuild` 通过（0 警告 0 错误）。
+
+**已完成 0.5 `JCC12003` 落地**：门禁里该规则此前硬编码 0（等于没校验）。改为真实计算：跨域 code 边目标项目的 `JccApiVisibility`（项目级覆盖 > 域契约默认 > `internal`）必须为 `public`；负向探针把 `Infrastructure.Telemetry` 降为 `internal` → 报 1 条 `[plugins->abstractions]`，恢复后 PASS。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. 补齐域内 slnx 缺口：abstractions 6 个（Brain/Composition/Guard/Memory/Perception/Primitives.Tools.Tests）、generators 1 个（AotHandler.Generator）、perception 4 个（Eyes/Eyes.Tests/Vision/Vision.Tests）；tools 的 13 个 `cli_nodes/groups/*` + sample + onnx 测试先决定"登记或排除"，排除项写入 `JccSlnxExcluded` 并注明打包流程。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
@@ -538,6 +544,10 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 2026-11-21：P4 第二块完成。清理 2 条源码未使用的跨域引用（`Abstractions -> AsyncLock`、`Infrastructure -> Plugins.Contracts`）；生产跨域边 474 → 472；全仓四 target True；门禁 Validate PASS。
 - 2026-11-21：P4 第三块完成。`Update-ModuleReadme.ps1` 从 csproj 生成 16 域 README 项目表（共 202 行项目）；`JCC12011` 增加行数校验；删除 collections 一行负向探针 → exit 1（1/2），重跑恢复 PASS。
 - 2026-11-21：P3 完成。`allowlist.json` 五字段校验 + `baseline.crossDomainEdges` 域对集合 + 新增边阻断；注入 `collections->cognition` 与过期 allowlist 均 exit 1，撤销后 PASS；`ci-architecture.yml` 接入 `ci.yml`。
+- 2026-11-21：P4 第四块完成（遥测插件归位 + 传递依赖显式化）。`TelemetryPlugin` 移入 `plugins.infrastructure/builtin/telemetry`；`Infrastructure.Telemetry` 去掉 `Plugins.Contracts`、声明 public；5 个生产项目补 `Plugins.Contracts` 显式引用，`apps/engine` 补 `Plugins.Infrastructure`。全量 `JoinCode.slnx -t:Rebuild` 0 警告 0 错误；`Build-AllDomains` 四 target 全 True；门禁 `JCC12003` 探针命中后恢复 PASS，基线重冻结（生产跨域边 478、环 15）。
+- 2026-11-21：P4 第五块完成（`JCC12003` 从占位变真实规则）。负向探针：目标项目 `JccApiVisibility=internal` → `[plugins->abstractions]` 1 条；恢复 public → 0 条。
+- 关键发现（增量构建掩盖）：`solution` target 用增量构建时，删掉被他人传递依赖的 `ProjectReference` 不会立即报错；`native_tui` / `native_gui` 独立 target 才暴露 `CS0246`。跨域引用变更后必须至少跑一次 `-t:Rebuild`。
+- 工程事实（口径）：传递引用显式化会让门禁计数上升（472→478），这是把原本隐形的依赖画进图里，不是新增耦合；清账进度应按"域对集合 + 环数"看，不能只看边计数。
 - 工程事实：`JCC12002` 只靠计数会在"删一条旧边、加一条新边"时漏检；必须同时冻结域对集合。
 - 工程事实：全仓脚本 solution target 带 `--no-restore`；出现 `NETSDK1004` 资产缺失时先 `dotnet restore build/sln/JoinCode.slnx`，不要误判为代码问题。
 - 关键发现：`ProjectContext` 读 `build_property.MSBuildProjectDirectory` 得到空串，生成的 `GeneratedMSBuildEditorConfig.editorconfig` 里只有 `build_property.ProjectDir`；改读 `ProjectDir` 后规则才在真实构建链路生效。

@@ -42,7 +42,7 @@ pwsh non_deliverables_tools/architecture/Update-ModuleReadme.ps1 -Check
 |---|---|---:|
 | `JCC12001` | 18 个域缺 `Directory.Build.props` 或 `JccDomain` 不匹配 | 0 |
 | `JCC12002` | 生产 code 跨域边；新增域对不在 `baseline.crossDomainEdges` 且不在 allowlist → Error | 472 |
-| `JCC12003` | 跨域目标不是 `apiProjects` 冻结项 | 0 |
+| `JCC12003` | 跨域 code 边目标项目未声明 `JccApiVisibility=public`（项目级覆盖 > 域契约默认 > internal） | 0 |
 | `JCC12004` | 生产 → 测试引用 | 1 |
 | `JCC12005` | 生产域图环 | 15 |
 | `JCC12009` | 目录名非 `^[a-z0-9_]+$` | 176 |

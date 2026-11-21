@@ -181,6 +181,12 @@ public sealed record WorkflowConfig {
     public ActorSettings Actor { get; init; } = new();
 
     /// <summary>
+    /// 沙箱配置 — 对齐基准 SandboxSettingsSchema（settings.json 的 current.sandbox 节点）
+    /// 驱动 Bash/PowerShell 的每命令沙箱门控与权限免确认（见 SandboxConfig 注释）
+    /// </summary>
+    public SandboxConfig Sandbox { get; init; } = new();
+
+    /// <summary>
     /// 当前激活的配置档案名 — 对应 settings.json 中 profiles 字典的键
     /// </summary>
     public string? CurrentProfile { get; init; }

@@ -136,6 +136,7 @@ public static class DataDrivenPipelineComposition {
         yield return F("permission-pipeline:bypass-permission-mw", sp => sp.GetRequiredService<BypassPermissionMiddleware>());
         yield return F("permission-pipeline:agent-restriction-mw", sp => sp.GetRequiredService<AgentRestrictionMiddleware>());
         yield return F("permission-pipeline:dangerous-command-mw", sp => sp.GetRequiredService<DangerousCommandProtectionMiddleware>());
+        yield return F("permission-pipeline:sandbox-auto-allow-mw", sp => sp.GetRequiredService<SandboxAutoAllowMiddleware>());
         yield return F("permission-pipeline:auto-class-permission-mw", sp => sp.GetRequiredService<AutoClassifierMiddleware>());
         yield return F("permission-pipeline:config-permission-mw", sp => sp.GetRequiredService<ConfigGetOperationMiddleware>());
         yield return F("permission-pipeline:web-fetch-permission-mw", sp => sp.GetRequiredService<WebFetchPermissionMiddleware>());

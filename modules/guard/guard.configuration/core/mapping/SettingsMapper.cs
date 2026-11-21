@@ -26,7 +26,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
         var config = new WorkflowConfig();
 
         config = ApplyProviderSettings(config, settings);
-        config = ApplyCodeExecutionSettings(config, settings);
+        config = ApplySandboxSettings(config, settings);
         config = ApplyWorktreeSettings(config, settings);
         config = config with { FastMode = settings?.Current?.FastMode ?? false };
         config = config with { Language = settings?.Current?.Language };
@@ -211,21 +211,62 @@ public sealed partial class SettingsMapper : ServiceEntity {
         return config;
     }
 
-    private static WorkflowConfig ApplyCodeExecutionSettings(WorkflowConfig config, SettingsJson? settings) {
+    /// <summary>
+    /// 沙箱配置映射 — settings.json 的 <c>current.sandbox</c> → <see cref="SandboxConfig"/>。
+    /// <para>字段名与基准 SandboxSettingsSchema 一一对应；可空布尔只在显式出现时覆盖默认值，
+    /// 缺省（null）保留 <see cref="SandboxConfig"/> 的基准默认（enabled=false / autoAllow=true /
+    /// allowUnsandboxed=true），不能用 <c>?? false</c> 把「未配置」误判成「关闭」。</para>
+    /// </summary>
+    private static WorkflowConfig ApplySandboxSettings(WorkflowConfig config, SettingsJson? settings) {
         var sandbox = settings?.Current?.Sandbox;
         if (sandbox is null) return config;
 
-        var ce = config.CodeExecution;
-        if (sandbox.Enabled.HasValue)
-            ce = ce with { ReadOnlyFilesystem = sandbox.Enabled.Value };
-        if (sandbox.RestrictNetwork.HasValue)
-            ce = ce with { AllowNetworkAccess = !sandbox.RestrictNetwork.Value };
-        if (sandbox.MemoryLimitMb.HasValue && sandbox.MemoryLimitMb.Value > 0)
-            ce = ce with { MaxMemoryMB = sandbox.MemoryLimitMb.Value };
-        if (sandbox.AllowedPaths is not null && sandbox.AllowedPaths.Count > 0)
-            ce = ce with { AllowedDirectories = string.Join(";", sandbox.AllowedPaths) };
+        var defaults = config.Sandbox;
+        var mapped = defaults with {
+            Enabled = sandbox.Enabled ?? defaults.Enabled,
+            FailIfUnavailable = sandbox.FailIfUnavailable ?? defaults.FailIfUnavailable,
+            AutoAllowBashIfSandboxed = sandbox.AutoAllowBashIfSandboxed ?? defaults.AutoAllowBashIfSandboxed,
+            AllowUnsandboxedCommands = sandbox.AllowUnsandboxedCommands ?? defaults.AllowUnsandboxedCommands,
+            ExcludedCommands = sandbox.ExcludedCommands is { Count: > 0 } excluded ? [.. excluded] : defaults.ExcludedCommands,
+            EnabledPlatforms = sandbox.EnabledPlatforms is { Count: > 0 } platforms ? [.. platforms] : defaults.EnabledPlatforms,
+            IgnoreViolations = sandbox.IgnoreViolations is { Count: > 0 } violations
+                ? violations.ToDictionary(static kv => kv.Key, static kv => new List<string>(kv.Value), StringComparer.Ordinal)
+                : defaults.IgnoreViolations,
+            EnableWeakerNestedSandbox = sandbox.EnableWeakerNestedSandbox ?? defaults.EnableWeakerNestedSandbox,
+            EnableWeakerNetworkIsolation = sandbox.EnableWeakerNetworkIsolation ?? defaults.EnableWeakerNetworkIsolation,
+            Network = MapSandboxNetwork(sandbox.Network, defaults.Network),
+            Filesystem = MapSandboxFilesystem(sandbox.Filesystem, defaults.Filesystem),
+        };
 
-        return config with { CodeExecution = ce };
+        return config with { Sandbox = mapped };
+    }
+
+    /// <summary>网络子配置映射 — null 子节点保留默认（不是「全部禁止」）。</summary>
+    private static SandboxNetworkConfig MapSandboxNetwork(SandboxNetworkSettings? settings, SandboxNetworkConfig defaults) {
+        if (settings is null) return defaults;
+
+        return defaults with {
+            AllowedDomains = settings.AllowedDomains is { Count: > 0 } domains ? [.. domains] : defaults.AllowedDomains,
+            AllowManagedDomainsOnly = settings.AllowManagedDomainsOnly ?? defaults.AllowManagedDomainsOnly,
+            AllowUnixSockets = settings.AllowUnixSockets is { Count: > 0 } sockets ? [.. sockets] : defaults.AllowUnixSockets,
+            AllowAllUnixSockets = settings.AllowAllUnixSockets ?? defaults.AllowAllUnixSockets,
+            AllowLocalBinding = settings.AllowLocalBinding ?? defaults.AllowLocalBinding,
+            HttpProxyPort = settings.HttpProxyPort ?? defaults.HttpProxyPort,
+            SocksProxyPort = settings.SocksProxyPort ?? defaults.SocksProxyPort,
+        };
+    }
+
+    /// <summary>文件系统子配置映射 — null 子节点保留默认（空清单 = 不增不减，由 provider 决定基线）。</summary>
+    private static SandboxFilesystemConfig MapSandboxFilesystem(SandboxFilesystemSettings? settings, SandboxFilesystemConfig defaults) {
+        if (settings is null) return defaults;
+
+        return defaults with {
+            AllowWrite = settings.AllowWrite is { Count: > 0 } allowWrite ? [.. allowWrite] : defaults.AllowWrite,
+            DenyWrite = settings.DenyWrite is { Count: > 0 } denyWrite ? [.. denyWrite] : defaults.DenyWrite,
+            DenyRead = settings.DenyRead is { Count: > 0 } denyRead ? [.. denyRead] : defaults.DenyRead,
+            AllowRead = settings.AllowRead is { Count: > 0 } allowRead ? [.. allowRead] : defaults.AllowRead,
+            AllowManagedReadPathsOnly = settings.AllowManagedReadPathsOnly ?? defaults.AllowManagedReadPathsOnly,
+        };
     }
 
     private static WorkflowConfig ApplyWorktreeSettings(WorkflowConfig config, SettingsJson? settings) {

@@ -253,3 +253,6 @@ dotnet_diagnostic.JCC12006.severity = suggestion
 dotnet_diagnostic.JCC12007.severity = suggestion
 dotnet_diagnostic.JCC12008.severity = suggestion
 dotnet_diagnostic.JCC12013.severity = suggestion
+
+#### 公开 API 禁元组：先观察存量，清账后升 error ####
+dotnet_diagnostic.JCC10011.severity = suggestion

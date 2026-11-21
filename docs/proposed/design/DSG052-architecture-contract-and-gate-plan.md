@@ -423,6 +423,14 @@ architecture:
 - 修正：`Test-IsTestProject` 优先读取 csproj 的 `ProjectType`（新增带缓存的 `Get-DeclaredProjectType`，避免每条边重复解析），名字/路径启发式降为兜底。
 - 效果：`JCC12004 1 → 0`；被误判项目从生产图剔除后，生产边 716→713、生产跨域边 486→485；基线重冻结，Validate PASS。
 
+**已完成 0.8 公开 API 禁元组规则（`JCC10011`）**：
+- 规则：`PublicTupleApiRule`（`AnalyzerId=CodeOrganization`、`Id=JCC10011`、`Category=CodeStyle`、`Severity=Info`），`SymbolAction` 覆盖方法/属性/字段/事件；递归查泛型实参、数组元素（深度上限 6）；可见性要求自身与所有外层类型均为 public/protected/protected-or-internal；跳过隐式成员、属性访问器、非 ordinary 方法体与测试项目。
+- 测试：`PublicTupleApiRuleTests` 8 用例（公开方法返回元组 / 公开方法元组参数 / 公开属性嵌套 `List<(int,string)>` / 公开字段 → 报；internal 方法 / internal 类型内公开方法 / 具名 record / 测试项目 → 不报），8/8 绿。
+- 真实构建探针：`JCC10011` 临时升 `warning`（`TreatWarningsAsErrors` 表现为 error）→ `Structura.csproj` 报 4 条 `SkipList.Range/RangeFrom/PrefixRange/Enumerate`；确认规则在真实构建链路命中（不是 fixture 假绿）。
+- 债务清理：`SkipList` 4 个公开签名由 `IEnumerable<(TKey Key, TValue Value)>` 改为 `IEnumerable<KeyValuePair<TKey, TValue>>`（唯一消费方是同模块测试，`.Key`/`.Value` 访问不变）；`Structura.Tests` 401/401 绿，collections 域在 `JCC10011=warning` 下零命中。
+- 收口：`.editorconfig` 还原为 `suggestion`（观察存量），P5 清账后升 error。
+- 债务口径：全仓存量尚未精确盘点——增量构建不会重跑分析器（只有被重建的项目才报），抽样 `abstractions` 域仍有 14 处公开元组。精确清单需按域 `-t:Rebuild` 逐个采集，归入 P4 债务 5 之后的独立小项。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. 补齐域内 slnx 缺口：abstractions 6 个（Brain/Composition/Guard/Memory/Perception/Primitives.Tools.Tests）、generators 1 个（AotHandler.Generator）、perception 4 个（Eyes/Eyes.Tests/Vision/Vision.Tests）；tools 的 13 个 `cli_nodes/groups/*` + sample + onnx 测试先决定"登记或排除"，排除项写入 `JccSlnxExcluded` 并注明打包流程。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
@@ -504,6 +512,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | 模块 README 生成器 | P4 文档同步 | ✅ `Update-ModuleReadme.ps1` | ✅ 16 域已生成；删 1 行后 `JCC12011` 1/2 报错、exit 1，重跑恢复 PASS |
 | `Infrastructure` 拆分第一刀（GitHub 客户端出迁 tools） | `tools/gh`、全仓生产图 | ✅ `GitHubClient.csproj` + `github_client_tests` 随迁 | ✅ 全仓四 target True；`jcc-gh.exe alias list` 真实构造客户端；门禁环 15→8 |
 | `JCC12004` 测试项目口径（`ProjectType=test` 优先） | 门禁分类器 | ✅ `Get-DeclaredProjectType` 缓存 | ✅ `JCC12004 1→0`、`JCC12002 486→485`，Validate PASS |
+| `JCC10011` 公开 API 禁元组 | `dotnet build`、IDE | ✅ `PublicTupleApiRule` + 8 fixture | ✅ 真实 `Structura` 构建报 4 条；清理后该域 0 命中、`Structura.Tests` 401/401 |
 
 > 后两列为强制钩子：`已实现` 防止"写了规划没实现"；`已验收` 必须走真实运行（门禁注入违规、分析器 fixture、全仓编译），禁止只写单测。
 
@@ -567,6 +576,8 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 工程事实（API 准入 > 细粒度引用）：跨域引用必须指向 `JccApiVisibility=public` 的项目。实测把 `GitHubClient` 的 `Abstractions` 门面替换为 7 个细粒度 primitives 项目后，编译通过但 `JCC12003` 从 0 变 5（5 个目标非 public），跨域边 486→491。结论：门面仍存在时，跨域消费走 public 门面；"拆门面"必须先把目标项目纳入 API 准入评审，不能靠消费方单方面细粒度化。
 - 工程事实（`storage/clock` 对 Composition 不是无用引用）：`Clock.csproj → Composition` 是真实依赖（`Core.Context`、`Core.Hooks`、`IEmptyResponseTracker`），删掉后编译报 CS0234/CS0246。要消 `storage→composition` 这条总根（8 条环里 6 条经过它），必须把 Goal 引擎上移或把这些契约下沉，属下一批大手术，不能按"无用引用"处理。
 - 2026-11-21：P4 第七块完成（门禁测试口径修正）。`Test-IsTestProject` 优先读 `ProjectType=test`（带缓存），`vault.testing.common` 不再被算作生产项目；`JCC12004 1→0`、生产跨域边 486→485，基线重冻结，Validate PASS。
+- 2026-11-21：P4 第八块完成（`JCC10011` 公开 API 禁元组）。规则 + 8 fixture 全绿；真实 `Structura` 构建命中 4 条并清理为 `KeyValuePair`，该域 warning 级别零命中、401/401 测试通过；`.editorconfig` 收口为 `suggestion`。
+- 工程事实（债务盘点）：`dotnet build` 增量不重跑分析器，新规则的全仓存量必须按域 `-t:Rebuild` 采集；用增量全仓构建统计会把存量严重低估。
 - 工程事实（分类口径）：判断测试项目不能只靠名字/路径启发式。`ProjectType=test` 是构建期事实（决定测试包引用与 `IsTestProject` 语义），门禁必须以它为准；否则纯测试辅助库（名字不含 `.tests`）会被算进生产图，既误报 `JCC12004`，也让生产边/入度虚高。
 - 关键发现（增量构建掩盖）：`solution` target 用增量构建时，删掉被他人传递依赖的 `ProjectReference` 不会立即报错；`native_tui` / `native_gui` 独立 target 才暴露 `CS0246`。跨域引用变更后必须至少跑一次 `-t:Rebuild`。
 - 工程事实（口径）：传递引用显式化会让门禁计数上升（472→478），这是把原本隐形的依赖画进图里，不是新增耦合；清账进度应按"域对集合 + 环数"看，不能只看边计数。

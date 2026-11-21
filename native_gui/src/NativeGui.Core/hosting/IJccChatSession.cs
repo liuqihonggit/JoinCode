@@ -109,7 +109,7 @@ public interface IJccChatSession : IAsyncDisposable {
     /// 发送时 LLM 能收到完整历史。对齐 CLI /resume 的 <c>LoadContextAsync</c> 语义。
     /// </summary>
     /// <param name="messages">按时间顺序的历史消息（Role + Content），不含当前轮新消息</param>
-    Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default);
+    Task LoadHistoryAsync(IReadOnlyList<EngineHistoryMessage> messages, CancellationToken cancellationToken = default);
 
     /// <summary>切换当前模型（回写共享 WorkflowConfig.Provider.ModelId，下次请求引擎即生效）</summary>
     Task SetModelAsync(string modelId, CancellationToken cancellationToken = default);
@@ -356,3 +356,10 @@ public interface IJccChatSession : IAsyncDisposable {
 
 /// <summary>子会话信息 — 供 GUI 树形展示（需求11）</summary>
 public sealed record SubSessionInfo(string Id, string ParentSessionId, string Title, string State, string? WorktreePath);
+
+/// <summary>
+/// 灌入引擎的对话历史条目 — 角色与正文成对出现，替代 <c>(MessageRole, string)</c> 元组。
+/// </summary>
+/// <param name="Role">消息角色。</param>
+/// <param name="Content">消息正文。</param>
+public sealed record EngineHistoryMessage(MessageRole Role, string Content);

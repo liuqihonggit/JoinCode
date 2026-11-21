@@ -93,14 +93,14 @@ public static class BridgeStatusUtil {
     /// 按视觉宽度将文本分割为三段 — 对齐 TS 端 computeShimmerSegments
     /// 使用 StringInfo 处理多字节字符
     /// </summary>
-    public static (string Before, string Shimmer, string After) ComputeShimmerSegments(
+    public static ShimmerSegments ComputeShimmerSegments(
         string text, int glimmerIndex) {
-        if (string.IsNullOrEmpty(text)) return (string.Empty, string.Empty, string.Empty);
+        if (string.IsNullOrEmpty(text)) return new ShimmerSegments(string.Empty, string.Empty, string.Empty);
 
         var si = new StringInfo(text);
         var totalLength = si.LengthInTextElements;
 
-        if (totalLength == 0) return (string.Empty, string.Empty, string.Empty);
+        if (totalLength == 0) return new ShimmerSegments(string.Empty, string.Empty, string.Empty);
 
         var idx = Math.Min(glimmerIndex, totalLength - 1);
 
@@ -111,7 +111,7 @@ public static class BridgeStatusUtil {
             ? si.SubstringByTextElements(idx + 1, totalLength - idx - 1)
             : string.Empty;
 
-        return (before, shimmer, after);
+        return new ShimmerSegments(before, shimmer, after);
     }
 
     /// <summary>
@@ -154,3 +154,11 @@ public static class BridgeStatusUtil {
         return $"\x1b]8;;{url}\x1b\\{text}\x1b]8;;\x1b\\";
     }
 }
+
+/// <summary>
+/// 文本按视觉宽度切分出的三段 — 闪烁高亮前段、高亮字符、后段。
+/// </summary>
+/// <param name="Before">高亮字符之前的部分。</param>
+/// <param name="Shimmer">当前高亮的单个字符。</param>
+/// <param name="After">高亮字符之后的部分。</param>
+public sealed record ShimmerSegments(string Before, string Shimmer, string After);

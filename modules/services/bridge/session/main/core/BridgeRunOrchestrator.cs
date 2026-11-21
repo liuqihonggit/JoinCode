@@ -155,7 +155,7 @@ internal sealed class BridgeRunOrchestrator {
             var found = await _owner._deps.PointerService.ReadAcrossWorktreesAsync(
                 _owner._deps.WorkingDirectory, ct).ConfigureAwait(false);
             if (found is not null) {
-                var (pointerWithAge, pointerDir) = found.Value;
+                var (pointerWithAge, pointerDir) = found;
                 resumeSessionId = pointerWithAge.Pointer.SessionId;
                 reuseEnvironmentId = pointerWithAge.Pointer.EnvironmentId;
                 _owner._pointerManager.ResumePointerDir = pointerDir; // 记录指针来源目录 — 恢复失败时清除正确的指针

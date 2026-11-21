@@ -182,7 +182,7 @@ internal sealed class WebUiWindow : Window {
             _activeSessionId = sessionId;
             if (_session is { } target) {
                 var history = entries
-                    .Select(e => (MessageRoleExtensions.FromValue(e.Role) ?? MessageRole.User, e.Content))
+                    .Select(e => new JoinCode.Gui.Hosting.EngineHistoryMessage(MessageRoleExtensions.FromValue(e.Role) ?? MessageRole.User, e.Content))
                     .ToList();
                 await target.LoadHistoryAsync(history, cancellationToken);
             }

@@ -337,11 +337,11 @@ internal sealed class DshSessionStore {
     /// </summary>
     /// <param name="sessionId">目标会话</param>
     /// <param name="cancellationToken">取消令牌</param>
-    internal async Task<IReadOnlyList<(MessageRole Role, string Content)>?> HistoryAsync(string sessionId, CancellationToken cancellationToken) {
+    internal async Task<IReadOnlyList<Hosting.EngineHistoryMessage>?> HistoryAsync(string sessionId, CancellationToken cancellationToken) {
         var read = await ReadAsync(sessionId, cancellationToken);
         return read?.Entries
             .Where(entry => entry.Type is null && !entry.IsSidechain && entry.Role is "user" or "assistant" && !string.IsNullOrWhiteSpace(entry.Content))
-            .Select(entry => (entry.Role == "user" ? MessageRole.User : MessageRole.Assistant, entry.Content))
+            .Select(entry => new Hosting.EngineHistoryMessage(entry.Role == "user" ? MessageRole.User : MessageRole.Assistant, entry.Content))
             .ToArray();
     }
 

@@ -337,7 +337,7 @@ internal sealed class JccChatSession : IJccChatSession {
     /// 先 ClearMessagesAsync 清空当前桶，再逐条灌入历史消息到 IChatContextManager。
     /// 对齐 CLI /resume 的 LoadContextAsync 语义。
     /// </summary>
-    public async Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) {
+    public async Task LoadHistoryAsync(IReadOnlyList<EngineHistoryMessage> messages, CancellationToken cancellationToken = default) {
         var ctxMgr = _services.GetService<IChatContextManager>();
         if (ctxMgr is null)
             return;

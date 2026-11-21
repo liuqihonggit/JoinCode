@@ -226,7 +226,7 @@ public sealed class ReasoningAgentBaseTests {
         public new Task<string> CompressPromptIfNeededAsync(ReasoningContext context, AgentRole role, string userPrompt, CancellationToken ct)
             => base.CompressPromptIfNeededAsync(context, role, userPrompt, ct);
 
-        public new Task<(string? Content, TokenUsage? Usage, int EstimatedPromptTokens)> CallLlmAsync(string userPrompt, float temperature = 0.3f, int maxTokens = 2000, CancellationToken ct = default)
+        public new Task<ReasoningCallResult> CallLlmAsync(string userPrompt, float temperature = 0.3f, int maxTokens = 2000, CancellationToken ct = default)
             => base.CallLlmAsync(userPrompt, temperature, maxTokens, ct);
 
         public new Task SendMessageAsync(string toAgentId, string messageType, string content, CancellationToken ct = default)

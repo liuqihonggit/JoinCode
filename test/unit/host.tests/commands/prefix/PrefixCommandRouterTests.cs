@@ -36,8 +36,8 @@ public class PrefixCommandRouterTests {
     public void Parse_SingleExclamation_ReturnsPrefixAndCommand() {
         var result = PrefixCommandRouter.Parse("!git status");
         result.Should().NotBeNull();
-        result!.Value.Prefix.Should().Be("!");
-        result.Value.Command.Should().Be("git status");
+        result!.Prefix.Should().Be("!");
+        result.Command.Should().Be("git status");
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -45,8 +45,8 @@ public class PrefixCommandRouterTests {
     public void Parse_DoubleExclamation_ReturnsPrefixAndCommand() {
         var result = PrefixCommandRouter.Parse("!!dir");
         result.Should().NotBeNull();
-        result!.Value.Prefix.Should().Be("!!");
-        result.Value.Command.Should().Be("dir");
+        result!.Prefix.Should().Be("!!");
+        result.Command.Should().Be("dir");
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -54,8 +54,8 @@ public class PrefixCommandRouterTests {
     public void Parse_DoubleExclamation_TakesPriorityOverSingle() {
         var result = PrefixCommandRouter.Parse("!!echo hello");
         result.Should().NotBeNull();
-        result!.Value.Prefix.Should().Be("!!");
-        result.Value.Command.Should().Be("echo hello");
+        result!.Prefix.Should().Be("!!");
+        result.Command.Should().Be("echo hello");
     }
 
     [Fact]
@@ -78,13 +78,13 @@ public class PrefixCommandRouterTests {
     public void Parse_TrimLeadingWhitespace_AfterPrefix() {
         var single = PrefixCommandRouter.Parse("!  cmd");
         single.Should().NotBeNull();
-        single!.Value.Prefix.Should().Be("!");
-        single.Value.Command.Should().Be("cmd");
+        single!.Prefix.Should().Be("!");
+        single.Command.Should().Be("cmd");
 
         var dbl = PrefixCommandRouter.Parse("!!  cmd");
         dbl.Should().NotBeNull();
-        dbl!.Value.Prefix.Should().Be("!!");
-        dbl.Value.Command.Should().Be("cmd");
+        dbl!.Prefix.Should().Be("!!");
+        dbl.Command.Should().Be("cmd");
     }
 
     #endregion

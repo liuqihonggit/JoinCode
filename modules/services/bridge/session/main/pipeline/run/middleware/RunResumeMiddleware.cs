@@ -30,7 +30,7 @@ public sealed partial class RunResumeMiddleware : ServiceEntity, IBridgeRunMiddl
             var found = await _deps.PointerService.ReadAcrossWorktreesAsync(
                 _deps.WorkingDirectory, ct).ConfigureAwait(false);
             if (found is not null) {
-                var (pointerWithAge, pointerDir) = found.Value;
+                var (pointerWithAge, pointerDir) = found;
                 ctx.ResumeSessionId = pointerWithAge.Pointer.SessionId;
                 ctx.ReuseEnvironmentId = pointerWithAge.Pointer.EnvironmentId;
                 ctx.ResumePointerDir = pointerDir;

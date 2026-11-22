@@ -50,6 +50,7 @@
     <Project Path="../../modules/plugins/plugins_contracts/Plugins.Contracts.csproj" />
     <Project Path="../../modules/plugins/plugins_infrastructure/Plugins.Infrastructure.csproj" />
     <Project Path="../../modules/persistence/pithosdb/PithosDB.Core.csproj" />
+    <Project Path="../../modules/persistence/kv_store/KvStore.csproj" />
     <Project Path="../../modules/tools/onnx_embedding/OnnxEmbeddingExe.csproj" />
     <Project Path="../../modules/tools/rg/rg.csproj" />
     <Project Path="../../modules/tools/gh/gh.csproj" />

@@ -459,10 +459,19 @@ architecture:
 - 校验：全部 `.slnx` 与 `ProjectReference` 路径 0 缺失（静态检查）；`generators`、`mcp`、`llm` 三个域、`apps/cli` 全闭包、`Brain.Context.Tests` 定点编译均 0 警告 0 错误；未跑全量编译/测试，交由 CI。
 - 指标：`JCC12009 173 → 0`；`JCC12001 0`、`JCC12002 469`、`JCC12003 0`、`JCC12004 0`、`JCC12005 0`、`JCC12010 0`、`JCC12011 0`、`JCC12012 0` 保持不变；目录改名不改变程序集名、命名空间与运行时行为。
 
+**已完成 0.13 Infrastructure 拆分第二刀（PithosDB KV 适配层出迁，2026-11-23）**：
+- 新增 `modules/persistence/kv_store/KvStore.csproj`（`AssemblyName=JoinCode.Persistence.KvStore`、`JccApiVisibility=public`），6 个 KV 适配文件从 `modules/abstractions/infrastructure/persistence/` 整体迁入，命名空间改为 `JoinCode.Persistence.KvStore`（`git mv` 保留历史）。
+- `Infrastructure` 删除 `PithosDB.Core` 项目引用与 `global using PithosDB.Core;`，不再直连 persistence 域；KV 契约仍由 `Abstractions.Primitives.Interfaces` 提供。
+- 锁依赖收敛：`PithosKvStoreLeaseFactory` 改走公开 `NamedMutexMailboxLock.AcquireAsync`，不再直接调用 internal `CrossProcessLock` / `InProcessLeaseRegistry`；`NamedMutexMailboxLock` 新增 public `Release()` 供同步 lease 释放（不新增 `IDisposable`，避免触发 `JCC9102`），未开 IVT、未扩大 internal 类型可见性。
+- 消费者显式引用：`composition` / `code_index` / `gh` / `apps/cli` 4 个生产项目直接引用 `KvStore`；`mcp_tests` / `code_index_tests` / `scheduling_tests` / `gh_tests` / `persistence.benchmarks` / `infra.io+services+utils tests` 同步引用；10 处 global using、2 处完全限定名更新。
+- 工程注册：`modules/persistence/module.slnx`、`JoinCode.slnx` / `Dev` / `Pack` 登记新项目；persistence README 项目表重建为 2 个项目。
+- 指标：`JCC12002 469 → 475`（`Infrastructure -> PithosDB` −1；`KvStore -> Abstractions.Primitives.Interfaces/Abstractions.Utils/Infrastructure` +3；`composition/perception/tools/apps` 直接显式化 +4；`apps->persistence` 域对原已存在，净 +6）；项目 261 → 262，边 1187 → 1202，code 1030 → 1045，生产 712 → 719；`JCC12005` 保持 0，`JCC12003/12004/12009/12010/12011/12012` 保持 0；基线按 P4 重冻结，`Validate` PASS。
+- 定点验证：`KvStore`、`Infra.IO.Tests`、`gh` 均 0 警告 0 错误；全量构建/测试交由 CI。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. ✅ 补齐域内 slnx 缺口（`827e8fca0`，26→0；abstractions/generators/perception 全部登记，tools 的 13 个 `cli_nodes/groups/*` 与 sample/onnx 测试直接纳入，无排除项）。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
-3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖已摘除，环 15→8）
+3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖与 `Infrastructure -> PithosDB` 边均已摘除；PithosDB KV 适配层已下沉 `persistence/kv_store`。`Infrastructure` 仍保留 cache/io/pipeline 等共享能力，后续按能力包继续拆。）
 4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。（已完成：`storage ↔ composition`、`abstractions ↔ async_primitives`、`apps ↔ native_tui` 三条均清零，生产域环 8→0）
 5. ✅ 176 个目录名的批量改名（脚本先单域验证再推广；最终 173 个现存违规清零，`JCC12009=0`）。
 
@@ -539,6 +548,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | `ci-architecture.yml` | PR CI | ✅ | ✅ 已接入 `ci.yml` `architecture` job（待 PR 首跑验证） |
 | 模块 README 生成器 | P4 文档同步 | ✅ `Update-ModuleReadme.ps1` | ✅ 16 域已生成；删 1 行后 `JCC12011` 1/2 报错、exit 1，重跑恢复 PASS |
 | `Infrastructure` 拆分第一刀（GitHub 客户端出迁 tools） | `tools/gh`、全仓生产图 | ✅ `GitHubClient.csproj` + `github_client_tests` 随迁 | ✅ 全仓四 target True；`jcc-gh.exe alias list` 真实构造客户端；门禁环 15→8 |
+| `Infrastructure` 拆分第二刀（PithosDB KV 出迁 persistence） | `KvStore`、`composition`/`code_index`/`gh`/`apps/cli` | ✅ `KvStore.csproj` + 6 文件整体迁入；`NamedMutexMailboxLock.Release()` 公开 | ✅ `KvStore`/`Infra.IO.Tests`/`gh` 定点编译 0 警告 0 错误；`JCC12002 469→475`、环 0、`Validate` PASS |
 | `JCC12004` 测试项目口径（`ProjectType=test` 优先） | 门禁分类器 | ✅ `Get-DeclaredProjectType` 缓存 | ✅ `JCC12004 1→0`、`JCC12002 486→485`，Validate PASS |
 | `JCC10011` 公开 API 禁元组 | `dotnet build`、IDE | ✅ `PublicTupleApiRule` + 8 fixture | ✅ 全仓 `-t:Rebuild` 采集 79 处，交付代码清零；非交付工具残留 11 处亦清零；`warning` 级 0 命中，工具测试 61/61 |
 
@@ -608,6 +618,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 2026-11-22：P4 第九块完成（`JCC10011` 全仓存量归零）。按域五批把交付代码 79 处公开元组改为具名 `record`（跨批新增 DTO 三十余个），非交付工具 `jcc_audit_ast_cli` 残留 11 处同批清零（新增 10 个 record）；`JoinCode.slnx -t:Rebuild -m:1` 在 `warning` 级 0 命中 0 错误；`.editorconfig` 升 `warning` 防新增（P5 再统一升 `error`）。
 - 2026-11-22：P4 第十块完成（`storage ↔ composition` 环清零）。`IEmptyResponseTracker` 契约下沉到 `Abstractions.Brain.Context`，`ClusterPlanApprovalHook*` 下沉到 `Abstractions.Hooks`；`Clock` 删除 `Composition` 引用后 0 警告编译。门禁 `JCC12005 8→2`、`JCC12002 485→484`、`JCC12003 0`；全仓 218 项目串行重建 0 警告 0 错误、`Build-AllDomains` 四 target 全 True；`Clock.Tests` 519/519、`Guard.Hooks.Tests` 598/598；全量 60 项目 24678 通过 / 0 失败（`full-tests-final3`）。顺带把满载下过紧的 150ms 时序上限放宽到 400ms（仍低于未限速 500ms），`Infra.Utils` 复跑 561/561。
 - 2026-11-23：P4 第十一块完成（`abstractions ↔ async_primitives` 环清零）。`BclBridge`、`AsyncLock`、`Transport.Contracts` 三项基础库从 `async_primitives` 域迁入 `abstractions` 域，测试/目录同步改为 `bcl_bridge_tests`、`async_lock_tests`、`transport_contracts`；`async_primitives` 只保留 `Transport.Impl` 及测试。门禁 `JCC12005 2→1`、`JCC12002 484→469`、`JCC12009 175→173`、`JCC12003 0`；全仓 218 项目串行重建 0 警告 0 错误；`BclBridge` 41/41、`AsyncLock.Tests` 546/546、`Transport.Impl.Tests` 218/218 通过（全量交由 CI）；剩余 `apps ↔ native_tui` 1 条环。
+- 2026-11-23：P4 第十二块完成（Infrastructure 拆分第二刀）。PithosDB KV 适配层 6 文件迁入 `modules/persistence/kv_store/KvStore.csproj`（`JoinCode.Persistence.KvStore`）；`Infrastructure` 摘除 `PithosDB.Core` 与全局 using，租约工厂改走公开 `NamedMutexMailboxLock`（新增 `Release()`），不开 IVT。门禁 `JCC12002 469→475`（删 1 条 `abstractions->persistence`、新增 3 条 `persistence->abstractions` 与 4 条消费方显式引用）、项目 261→262、环保持 0；`KvStore`/`Infra.IO.Tests`/`gh` 定点编译 0 警告 0 错误；基线按 P4 重冻结，`Validate` PASS（全量构建/测试交由 CI）。
 - 工程事实（债务盘点）：`dotnet build` 增量不重跑分析器，新规则的全仓存量必须按域 `-t:Rebuild` 采集；用增量全仓构建统计会把存量严重低估。
 - 工程事实（全量采集的并行陷阱）：`JoinCode.slnx -t:Rebuild -m`（默认并行）会在重建时先清掉依赖项目的 `ref` 程序集，导致下游 CS0006（实测 645 个错误）；要一次采集全仓，必须 `-t:Rebuild -m:1` 串行按依赖序重建，或按域分别 Rebuild。
 - 工程事实（分类口径）：判断测试项目不能只靠名字/路径启发式。`ProjectType=test` 是构建期事实（决定测试包引用与 `IsTestProject` 语义），门禁必须以它为准；否则纯测试辅助库（名字不含 `.tests`）会被算进生产图，既误报 `JCC12004`，也让生产边/入度虚高。

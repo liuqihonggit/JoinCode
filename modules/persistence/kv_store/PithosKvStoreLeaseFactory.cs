@@ -1,11 +1,10 @@
-namespace Infrastructure.Persistence;
+namespace JoinCode.Persistence.KvStore;
 
 /// <summary>
 /// PithosDB 租约工厂 — AcquireAsync 时 Open PithosDb + 获取两层租约，租约被占时降级内存。
-/// <para>第1层：<see cref="InProcessLeaseRegistry"/> 原子占位 — 非阻塞，同进程已占立即降级。</para>
-/// <para>第2层：<see cref="CrossProcessLock"/> 原子文件租约（CreateNew + token + TTL + 心跳）— 非阻塞，被占立即降级；过期租约当场接管。</para>
+/// <para>两层互斥由 <see cref="NamedMutexMailboxLock"/> 封装：进程内原子占位（同进程防重入）+ 跨进程原子文件租约（CreateNew + token + TTL + 心跳）。</para>
 /// <para>获取顺序：先进程内占位再跨进程租约；释放顺序相反（lease.Dispose 负责）。</para>
-/// <para>非阻塞获取：租约被占时立即降级 OpenInMemory，不等待。</para>
+/// <para>非阻塞获取：租约被任一层占用时立即降级 OpenInMemory，不等待；过期租约当场接管。</para>
 /// </summary>
 public sealed class PithosKvStoreLeaseFactory : IKvStoreLeaseFactory {
     private readonly string _dataDirectory;
@@ -27,17 +26,11 @@ public sealed class PithosKvStoreLeaseFactory : IKvStoreLeaseFactory {
     public async Task<IKvStoreLease> AcquireAsync() {
         var lockKey = Path.GetFullPath(_dataDirectory);
 
-        if (!InProcessLeaseRegistry.TryClaim(lockKey)) {
-            _logger?.LogDebug("[PithosKvStoreLeaseFactory] 进程内租约已占用，降级内存: {LockKey}", lockKey);
-            return CreateInMemoryLease();
-        }
-
-        CrossProcessLock? crossProcessLock = null;
+        NamedMutexMailboxLock? mailboxLock;
         try {
-            crossProcessLock = await CrossProcessLock.AcquireAsync(lockKey, TimeSpan.Zero, CancellationToken.None, _logger).ConfigureAwait(false);
+            mailboxLock = await NamedMutexMailboxLock.AcquireAsync(lockKey, TimeSpan.Zero, CancellationToken.None, _logger).ConfigureAwait(false);
         } catch (TimeoutException ex) {
-            InProcessLeaseRegistry.Release(lockKey);
-            _logger?.LogDebug("[PithosKvStoreLeaseFactory] 跨进程租约被占，降级内存: {LockKey} ({Reason})", lockKey, ex.Message);
+            _logger?.LogDebug("[PithosKvStoreLeaseFactory] 租约已占用，降级内存: {LockKey} ({Reason})", lockKey, ex.Message);
             return CreateInMemoryLease();
         }
 
@@ -45,21 +38,20 @@ public sealed class PithosKvStoreLeaseFactory : IKvStoreLeaseFactory {
             var db = _options is not null
                 ? PithosDb.Open(_dataDirectory, _options)
                 : PithosDb.Open(_dataDirectory);
-            return new PithosKvStoreLease(db, crossProcessLock, lockKey, ownsDb: true, isInMemory: false);
+            return new PithosKvStoreLease(db, mailboxLock, ownsDb: true, isInMemory: false);
         } catch (Exception ex) {
             _logger?.LogError(ex, "[PithosKvStoreLeaseFactory] PithosDb 打开失败，释放租约: {LockKey}", lockKey);
-            crossProcessLock.DisposeSafe(_logger);
-            InProcessLeaseRegistry.Release(lockKey);
+            try {
+                mailboxLock.Release();
+            } catch (Exception releaseEx) {
+                _logger?.LogWarning(releaseEx, "[PithosKvStoreLeaseFactory] 打开失败后释放租约失败: {LockKey}", lockKey);
+            }
             throw;
         }
     }
 
     private static PithosKvStoreLease CreateInMemoryLease()
-        => new(PithosDb.OpenInMemory(), null, null, ownsDb: true, isInMemory: true);
-
-    /// <summary>计算数据目录对应的租约文件路径 — 供测试占住租约验证降级路径。</summary>
-    public static string GetLeasePath(string dataDirectory)
-        => CrossProcessLock.ResolveLeasePath(FileSystemFactory.Create(), Path.GetFullPath(dataDirectory));
+        => new(PithosDb.OpenInMemory(), null, ownsDb: true, isInMemory: true);
 }
 
 /// <summary>
@@ -71,5 +63,5 @@ public sealed class InMemoryKvStoreLeaseFactory : IKvStoreLeaseFactory {
 
     /// <inheritdoc />
     public Task<IKvStoreLease> AcquireAsync() =>
-        Task.FromResult<IKvStoreLease>(new PithosKvStoreLease(_db, null, null, ownsDb: false, isInMemory: true));
+        Task.FromResult<IKvStoreLease>(new PithosKvStoreLease(_db, null, ownsDb: false, isInMemory: true));
 }

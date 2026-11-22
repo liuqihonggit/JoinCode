@@ -62,9 +62,9 @@ public sealed class NamedMutexMailboxLock : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 同步释放锁，语义与 DisposeAsync 等价
+    /// 同步释放锁 — 语义与 <see cref="DisposeAsync"/> 等价，供同步租约/适配层使用。
     /// </summary>
-    internal void Release() {
+    public void Release() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _lease.Dispose();

@@ -1,4 +1,4 @@
-namespace Infrastructure.Persistence;
+namespace JoinCode.Persistence.KvStore;
 
 /// <summary>
 /// 内存键值存储 — IKvStore 的纯内存实现,用于测试和临时数据。

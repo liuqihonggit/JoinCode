@@ -13,7 +13,7 @@ internal static class GhHost {
         var git = new IO.ProcessService.GitCommandRunner(processService);
         var kvDir = System.IO.Path.Combine(JoinCode.Abstractions.Configuration.AppData.AppDataConstants.Paths.GhCacheDirectory, "kvstore");
         System.IO.Directory.CreateDirectory(kvDir);
-        var kvStore = new Infrastructure.Persistence.PithosKvStore(kvDir);
+        var kvStore = new JoinCode.Persistence.KvStore.PithosKvStore(kvDir);
         s_handler = new GitHubToolHandlers(downloader, fs, apiClient, git, kvStore: kvStore);
         return s_handler;
     }

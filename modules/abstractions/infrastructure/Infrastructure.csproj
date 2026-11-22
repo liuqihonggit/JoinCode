@@ -67,12 +67,6 @@
     <PackageReference Include="YamlDotNet" Version="$(YamlDotNetVersion)" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/persistence/pithosdb/PithosDB.Core.csproj" />
-  </ItemGroup>
-
-
-
     <ItemGroup>
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/memory/Abstractions.Memory.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Memory" Version="$(JccComponentPackageVersion)" />

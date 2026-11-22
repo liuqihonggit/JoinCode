@@ -1,4 +1,4 @@
-namespace Infrastructure.Persistence;
+namespace JoinCode.Persistence.KvStore;
 
 /// <summary>
 /// 短租约 KV 存储适配器 — 每次 KV 操作独立租约(Acquire→执行→Dispose),遵守 ADR 0139 短租约协议。

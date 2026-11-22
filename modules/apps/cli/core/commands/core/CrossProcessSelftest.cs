@@ -128,7 +128,7 @@ internal static class CrossProcessSelftest {
             var killedAt = System.Diagnostics.Stopwatch.StartNew();
             Console.WriteLine($"[crossproc] killed owner pid={worker.Process.Id}, waiting TTL takeover...");
 
-            var factory = new Infrastructure.Persistence.PithosKvStoreLeaseFactory(dataDir);
+            var factory = new JoinCode.Persistence.KvStore.PithosKvStoreLeaseFactory(dataDir);
             IKvStoreLease? lease = null;
             while (killedAt.Elapsed < TakeoverWaitTimeout) {
                 var candidate = await factory.AcquireAsync().ConfigureAwait(false);
@@ -219,7 +219,7 @@ internal static class CrossProcessSelftest {
             return false;
         }
 
-        var factory = new Infrastructure.Persistence.PithosKvStoreLeaseFactory(dataDir);
+        var factory = new JoinCode.Persistence.KvStore.PithosKvStoreLeaseFactory(dataDir);
         using var lease = await factory.AcquireAsync().ConfigureAwait(false);
         if (lease.IsInMemory) {
             Console.WriteLine("[crossproc] FAIL 校验阶段无法获取磁盘租约");
@@ -253,7 +253,7 @@ internal static class CrossProcessSelftest {
     private static async Task<int> RunCompeteWorkerAsync(string dataDir, string workerId, int durationMs) {
         var fs = Fs;
         var ownershipLog = Path.Combine(Path.GetDirectoryName(dataDir) ?? dataDir, "ownership.log");
-        var factory = new Infrastructure.Persistence.PithosKvStoreLeaseFactory(dataDir);
+        var factory = new JoinCode.Persistence.KvStore.PithosKvStoreLeaseFactory(dataDir);
         var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(durationMs);
         var acquires = 0;
         var degrades = 0;
@@ -289,7 +289,7 @@ internal static class CrossProcessSelftest {
     }
 
     private static async Task<int> RunCrashWorkerAsync(string dataDir, string workerId) {
-        var factory = new Infrastructure.Persistence.PithosKvStoreLeaseFactory(dataDir);
+        var factory = new JoinCode.Persistence.KvStore.PithosKvStoreLeaseFactory(dataDir);
         using var lease = await factory.AcquireAsync().ConfigureAwait(false);
         if (lease.IsInMemory) {
             Console.WriteLine($"[worker {workerId}] REFUSED 未拿到磁盘租约");

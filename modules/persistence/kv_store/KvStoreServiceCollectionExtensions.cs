@@ -1,4 +1,4 @@
-namespace Infrastructure.Persistence;
+namespace JoinCode.Persistence.KvStore;
 
 /// <summary>
 /// KV 存储服务注册扩展 — 提供 AddPithosKvStore/AddInMemoryKvStore DI 扩展方法。

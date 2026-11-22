@@ -11,7 +11,7 @@ global using McpToolDispatch;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Utils;
 global using Infrastructure.Network.Downloader;
-global using Infrastructure.Persistence;
+global using JoinCode.Persistence.KvStore;
 global using IO.FileSystem;
 global using Xunit;
 global using FluentAssertions;

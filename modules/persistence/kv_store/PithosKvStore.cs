@@ -1,4 +1,4 @@
-namespace Infrastructure.Persistence;
+namespace JoinCode.Persistence.KvStore;
 
 /// <summary>
 /// PithosDB LSM-Tree 键值存储实现 — 通用持久化层。

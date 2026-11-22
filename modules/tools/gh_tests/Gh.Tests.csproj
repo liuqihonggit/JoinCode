@@ -17,6 +17,7 @@
     <ProjectReference Include="$(RepoRoot)modules/tools/gh/gh.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/persistence/kv_store/KvStore.csproj" />
   </ItemGroup>
 
   <ItemGroup>

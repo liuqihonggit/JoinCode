@@ -68,7 +68,10 @@ internal sealed class DshHostServices {
 
     /// <summary>注入已组装的引擎（DshWebUiWindow 完成后台初始化时调用）</summary>
     /// <param name="engine">引擎会话门面</param>
-    internal void AttachEngine(Hosting.IJccChatSession engine) => Engine = engine;
+    internal void AttachEngine(Hosting.IJccChatSession engine) {
+        Engine = engine;
+        Questions.AttachNotificationQueue(engine.NotificationQueue);
+    }
 
     /// <summary>控制帧序号（会话 → 最后分配值；前端按 seq 单调丢弃过期帧）</summary>
     private readonly ConcurrentDictionary<string, long> _controlSeq = new(StringComparer.Ordinal);

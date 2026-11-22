@@ -12,7 +12,7 @@ public sealed class TuiAskInteractionTests {
         public IReadOnlyList<TuiAskQuestion>? LastQuestions { get; private set; }
 
         /// <summary>返回固定结果并记录问题集。</summary>
-        public override TuiAskResult Ask(IReadOnlyList<TuiAskQuestion> questions) {
+        public override TuiAskResult Ask(IReadOnlyList<TuiAskQuestion> questions, CancellationToken cancellationToken = default) {
             LastQuestions = questions;
             return result;
         }

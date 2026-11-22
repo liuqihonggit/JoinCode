@@ -36,14 +36,14 @@ public sealed class PermissionCheckContext {
     public required HashSet<string> AutoRejectedTools { get; init; }
 
     /// <summary>
-    /// 当前子代理允许的工具白名单 — 来自 SubAgentContext；null 表示无白名单限制
+    /// 当前子代理允许的工具白名单 — 来自 SubAgentContext；空集合表示无白名单限制
     /// </summary>
-    public IReadOnlySet<string>? AllowedTools { get; init; }
+    public IReadOnlySet<string> AllowedTools { get; init; } = FrozenSet<string>.Empty;
 
     /// <summary>
-    /// 当前子代理拒绝的工具集合 — 来自 SubAgentContext；null 表示无代理级拒绝
+    /// 当前子代理拒绝的工具集合 — 来自 SubAgentContext；空集合表示无代理级拒绝
     /// </summary>
-    public IReadOnlySet<string>? DeniedTools { get; init; }
+    public IReadOnlySet<string> DeniedTools { get; init; } = FrozenSet<string>.Empty;
 
     /// <summary>
     /// 会话级已批准的危险等级集合 — 用户确认某等级后，同会话内同等级操作自动通过

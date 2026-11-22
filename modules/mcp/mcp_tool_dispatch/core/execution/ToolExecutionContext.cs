@@ -20,11 +20,11 @@ public sealed class ToolExecutionContext {
     /// <summary>当前 Agent 权限模式</summary>
     public PermissionMode AgentMode { get; init; } = PermissionMode.Auto;
 
-    /// <summary>当前子代理允许的工具白名单 — 来自 <c>SubAgentContext.AllowedTools</c>；null 表示无白名单限制</summary>
-    public IReadOnlySet<string>? AllowedTools { get; init; }
+    /// <summary>当前子代理允许的工具白名单 — 来自 <c>SubAgentContext.AllowedTools</c>；空集合表示无白名单限制</summary>
+    public IReadOnlySet<string> AllowedTools { get; init; } = FrozenSet<string>.Empty;
 
-    /// <summary>当前子代理拒绝的工具集合 — 来自 <c>SubAgentContext.DeniedTools</c>；null 表示无代理级拒绝</summary>
-    public IReadOnlySet<string>? DeniedTools { get; init; }
+    /// <summary>当前子代理拒绝的工具集合 — 来自 <c>SubAgentContext.DeniedTools</c>；空集合表示无代理级拒绝</summary>
+    public IReadOnlySet<string> DeniedTools { get; init; } = FrozenSet<string>.Empty;
 
     /// <summary>执行结果 — 由终端执行器或短路中间件设置</summary>
     public ToolResult? Result { get; set; }

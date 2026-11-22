@@ -25,7 +25,7 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IPermiss
         if (context.CurrentMode == PermissionMode.Bypass)
             return next(context, ct);
 
-        if (_agentToolRestrictions is null && context.AllowedTools is null && context.DeniedTools is null)
+        if (_agentToolRestrictions is null && context.AllowedTools.Count == 0 && context.DeniedTools.Count == 0)
             return next(context, ct);
 
         var agentMode = context.CurrentMode;

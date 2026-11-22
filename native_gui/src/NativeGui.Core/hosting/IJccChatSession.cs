@@ -23,6 +23,12 @@ public interface IJccChatSession : IAsyncDisposable {
     /// </summary>
     ITranscriptService? TranscriptService { get; }
 
+    /// <summary>
+    /// 引擎后台通知队列 — 供宿主在用户交互挂起时探测后台完成事件并主动 Defer。
+    /// 占位会话/测试桩默认 null（不启用后台唤醒）。
+    /// </summary>
+    IAgentNotificationQueue? NotificationQueue => null;
+
     /// <summary>初始化引擎会话（加载配置 + 组装 DI + 解析 IChatService）</summary>
     Task InitializeAsync(CancellationToken cancellationToken = default);
 

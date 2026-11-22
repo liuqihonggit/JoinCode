@@ -25,6 +25,12 @@ internal sealed class DshUserQuestionBroker {
     /// <summary>waterfall 帧的目标会话（DshTurnRunner 轮次开始时设置）</summary>
     private volatile string? _agentId;
 
+    /// <summary>后台通知队列（宿主引擎注入；挂起卡片期间有后台完成通知时主动 Defer，避免主线程被问题卡片占住）</summary>
+    private IAgentNotificationQueue? _notificationQueue;
+
+    /// <summary>后台通知轮询间隔 — 与 AvaloniaInteractiveService 的 100ms 帧拍一致</summary>
+    private const int BackgroundPollIntervalMs = 100;
+
     /// <summary>$events 流打开时挂接发送通道（连接级单例；旧连接被新连接替换）</summary>
     /// <param name="send">帧值发送委托（宿主闭包绑定 streamId）</param>
     /// <param name="clientId">就绪帧下发的客户端标识</param>
@@ -46,6 +52,14 @@ internal sealed class DshUserQuestionBroker {
 
     /// <summary>设置 waterfall 目标会话（前端按 agentId 路由到对应会话 scope）</summary>
     internal void SetAgent(string? sessionId) => _agentId = sessionId;
+
+    /// <summary>
+    /// 注入后台通知队列（宿主引擎组装完成后调用）。提问卡片挂起期间若队列出现后台完成通知，
+    /// 立即取消卡片并返回 Deferred，让主代理先消费通知；提问方按既有 Deferred 引导重试。
+    /// </summary>
+    /// <param name="queue">引擎通知队列；null 表示不启用后台唤醒</param>
+    internal void AttachNotificationQueue(IAgentNotificationQueue? queue) =>
+        Volatile.Write(ref _notificationQueue, queue);
 
     /// <summary>
     /// 轮次收尾：取消该会话仍挂起的提问并补发 cancel 帧（对齐 DSH signal aborted → cancelled）。
@@ -121,7 +135,46 @@ internal sealed class DshUserQuestionBroker {
             return AskUserQuestionResult.FailureResult($"提问卡片发送失败：{ex.Message}");
         }
 
-        return await completion.Task;
+        return await WaitForAnswerAsync(pending, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 等待前端回帖，同时以 100ms 帧拍探测后台通知队列。
+    /// 命中后台通知 → 移除挂起项、补发 cancel 帧、返回 Deferred，把控制权交还主代理轮次；
+    /// 取消令牌触发 → 由 <see cref="RequestAsync"/> 的注册回调取消并补发 cancel 帧。
+    /// </summary>
+    /// <param name="pending">挂起中的提问</param>
+    /// <param name="cancellationToken">轮次取消令牌</param>
+    /// <returns>答案批次 / Deferred / Cancelled</returns>
+    private async Task<AskUserQuestionResult> WaitForAnswerAsync(Pending pending, CancellationToken cancellationToken) {
+        while (!pending.Completion.Task.IsCompleted) {
+            if (Volatile.Read(ref _notificationQueue)?.HasPendingNotifications == true
+                && _pending.TryRemove(pending.EventId, out var backgroundPending)) {
+                await DeferPendingAsync(backgroundPending).ConfigureAwait(false);
+                break;
+            }
+            try {
+                _ = await Task.WhenAny(
+                    pending.Completion.Task,
+                    Task.Delay(BackgroundPollIntervalMs, cancellationToken)).ConfigureAwait(false);
+            } catch (OperationCanceledException) {
+                break;
+            }
+            if (cancellationToken.IsCancellationRequested) {
+                if (_pending.TryRemove(pending.EventId, out var cancelled)) {
+                    await CancelPendingAsync(cancelled).ConfigureAwait(false);
+                }
+                break;
+            }
+        }
+        return await pending.Completion.Task.ConfigureAwait(false);
+    }
+
+    /// <summary>后台通知到达时让出提问：先发 cancel 帧停掉前端等待，再唤醒提问方为 Deferred</summary>
+    /// <param name="pending">挂起中的提问</param>
+    private async Task DeferPendingAsync(Pending pending) {
+        await SendCancelAsync(pending.EventId).ConfigureAwait(false);
+        pending.Completion.TrySetResult(AskUserQuestionResult.DeferredResult());
     }
 
     /// <summary>

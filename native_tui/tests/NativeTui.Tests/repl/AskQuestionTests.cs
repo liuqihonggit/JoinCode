@@ -282,4 +282,22 @@ public sealed class AskQuestionTests
         Assert.True(result.Succeeded);
         Assert.Equal("A", result.Answers["选哪个？"]);
     }
+
+    /// <summary>引擎取消令牌 — 帧拍关闭挂起问答返回 Cancelled（不依赖用户按键）。</summary>
+    [Fact]
+    public async Task Shell_CancellationToken_CancelsPending()
+    {
+        var (shell, _) = CreateShell();
+        using var cancellation = new CancellationTokenSource();
+        var bridge = Task.Run(() => shell.AskUserQuestions([Single("A", "B")], cancellation.Token));
+
+        Assert.True(SpinWaitUntil(() => shell.AskQuestions.IsPending), "桥线程应挂起问答对话框");
+        cancellation.Cancel();
+        shell.CheckAskQuestionInterrupt();
+
+        var winner = await Task.WhenAny(bridge, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.Same(bridge, winner);
+        Assert.True((await bridge).Cancelled);
+        Assert.False(shell.AskQuestions.IsPending);
+    }
 }

@@ -28,7 +28,7 @@ public sealed class TuiInteractiveService(TuiAskBridge bridge) : IInteractiveSer
             Header: "问题",
             Options: options.Select(label => new TuiAskOption(label, string.Empty)).ToList(),
             MultiSelect: multiSelect);
-        var result = bridge.Ask([item]);
+        var result = bridge.Ask([item], cancellationToken);
 
         if (result.Succeeded && result.Answers.TryGetValue(question, out var answer)) {
             var labels = SplitAnswer(answer);
@@ -55,7 +55,7 @@ public sealed class TuiInteractiveService(TuiAskBridge bridge) : IInteractiveSer
             Header: q.Header,
             Options: q.Options.Select(o => new TuiAskOption(o.Label, o.Description)).ToList(),
             MultiSelect: q.MultiSelect)).ToList();
-        var result = bridge.Ask(items);
+        var result = bridge.Ask(items, cancellationToken);
 
         if (result.Succeeded)
             return Task.FromResult(AskUserQuestionResult.QuestionsResult(new Dictionary<string, string>(result.Answers)));

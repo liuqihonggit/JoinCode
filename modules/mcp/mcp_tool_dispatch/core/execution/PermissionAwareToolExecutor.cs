@@ -140,14 +140,14 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         return PermissionModeExtensions.FromValue(scoped) ?? globalMode;
     }
 
-    /// <summary>把可空字符串集合投影为 O(1) 查找集合；空集合返回 null（表示无该层限制）。</summary>
-    private static IReadOnlySet<string>? ToToolSet(IEnumerable<string>? tools) {
+    /// <summary>把可空字符串集合投影为 O(1) 查找集合；null/空集合统一返回空集合（表示无该层限制）。</summary>
+    private static IReadOnlySet<string> ToToolSet(IEnumerable<string>? tools) {
         if (tools is null)
-            return null;
+            return FrozenSet<string>.Empty;
 
         var set = tools.Where(static t => !string.IsNullOrWhiteSpace(t))
             .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-        return set.Count > 0 ? set : null;
+        return set.Count > 0 ? set : FrozenSet<string>.Empty;
     }
 
     /// <summary>

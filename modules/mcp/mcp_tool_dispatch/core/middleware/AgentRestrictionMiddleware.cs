@@ -43,7 +43,7 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
             return;
         }
 
-        if (_agentToolRestrictions is null && context.AllowedTools is null && context.DeniedTools is null) {
+        if (_agentToolRestrictions is null && context.AllowedTools.Count == 0 && context.DeniedTools.Count == 0) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }

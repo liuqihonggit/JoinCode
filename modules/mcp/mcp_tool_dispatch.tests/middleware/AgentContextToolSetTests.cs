@@ -8,7 +8,7 @@ public sealed class AgentContextToolSetTests {
     [Fact]
     public async Task Invoke_AllowedToolsExcludesAsk_DeniesAskUserQuestion() {
         await using var restrictions = new Core.Utils.AgentToolRestrictions();
-        var middleware = new McpToolRegistry.AgentRestrictionMiddleware(
+        await using var middleware = new McpToolRegistry.AgentRestrictionMiddleware(
             restrictions,
             NullLogger<McpToolRegistry.AgentRestrictionMiddleware>.Instance,
             new Core.Utils.ToolFilterPolicy());
@@ -34,7 +34,7 @@ public sealed class AgentContextToolSetTests {
     [Fact]
     public async Task Invoke_DeniedToolsContainsAsk_DeniesAskUserQuestion() {
         await using var restrictions = new Core.Utils.AgentToolRestrictions();
-        var middleware = new McpToolRegistry.AgentRestrictionMiddleware(
+        await using var middleware = new McpToolRegistry.AgentRestrictionMiddleware(
             restrictions,
             NullLogger<McpToolRegistry.AgentRestrictionMiddleware>.Instance,
             new Core.Utils.ToolFilterPolicy());
@@ -59,7 +59,7 @@ public sealed class AgentContextToolSetTests {
     [Fact]
     public async Task Invoke_AllowedToolsContainsRead_AllowsRead() {
         await using var restrictions = new Core.Utils.AgentToolRestrictions();
-        var middleware = new McpToolRegistry.AgentRestrictionMiddleware(
+        await using var middleware = new McpToolRegistry.AgentRestrictionMiddleware(
             restrictions,
             NullLogger<McpToolRegistry.AgentRestrictionMiddleware>.Instance,
             new Core.Utils.ToolFilterPolicy());

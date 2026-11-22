@@ -297,6 +297,9 @@ internal sealed class JccChatSession : IJccChatSession {
     /// <inheritdoc />
     public ITranscriptService? TranscriptService => _services.GetService<ITranscriptService>();
 
+    /// <inheritdoc />
+    public IAgentNotificationQueue? NotificationQueue => _services.GetService<IAgentNotificationQueue>();
+
     /// <summary>当前供应商名称（deepseek/openai/azure/anthropic/agnes/sensenova）</summary>
     public string CurrentVendor => _config.Provider.Vendor;
 

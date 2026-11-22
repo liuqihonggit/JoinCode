@@ -16,15 +16,15 @@ public sealed class AgentRestrictionContextTests {
             Config = PermissionConfig.CreateDefault(),
             AutoApprovedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             AutoRejectedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            AllowedTools = allowed,
-            DeniedTools = denied,
+            AllowedTools = allowed ?? FrozenSet<string>.Empty,
+            DeniedTools = denied ?? FrozenSet<string>.Empty,
         };
     }
 
     [Fact]
     public async Task Invoke_AskNotInAllowedTools_DeniedEvenIfAutoApproved() {
         await using var restrictions = new Core.Utils.AgentToolRestrictions();
-        var middleware = new Core.Permission.AgentRestrictionMiddleware(
+        await using var middleware = new Core.Permission.AgentRestrictionMiddleware(
             restrictions,
             new Core.Utils.ToolFilterPolicy());
         var context = CreateContext(
@@ -39,15 +39,15 @@ public sealed class AgentRestrictionContextTests {
         }, CancellationToken.None);
 
         nextCalled.Should().BeFalse("模式/白名单限制必须优先于 auto-approved 快捷路径");
-        context.Result.Should().NotBeNull();
-        context.Result!.IsApproved.Should().BeFalse();
-        context.Result.Reason.Should().Contain("白名单");
+        var result = context.Result ?? throw new Xunit.Sdk.XunitException("期望权限管道给出拒绝结果");
+        result.IsApproved.Should().BeFalse();
+        result.Reason.Should().Contain("白名单");
     }
 
     [Fact]
     public async Task Invoke_AskInDeniedTools_Denied() {
         await using var restrictions = new Core.Utils.AgentToolRestrictions();
-        var middleware = new Core.Permission.AgentRestrictionMiddleware(
+        await using var middleware = new Core.Permission.AgentRestrictionMiddleware(
             restrictions,
             new Core.Utils.ToolFilterPolicy());
         var context = CreateContext(
@@ -61,14 +61,14 @@ public sealed class AgentRestrictionContextTests {
         }, CancellationToken.None);
 
         nextCalled.Should().BeFalse("显式拒绝集合必须生效");
-        context.Result.Should().NotBeNull();
-        context.Result!.IsApproved.Should().BeFalse();
+        var result = context.Result ?? throw new Xunit.Sdk.XunitException("期望权限管道给出拒绝结果");
+        result.IsApproved.Should().BeFalse();
     }
 
     [Fact]
     public async Task Invoke_ReadAllowed_Allows() {
         await using var restrictions = new Core.Utils.AgentToolRestrictions();
-        var middleware = new Core.Permission.AgentRestrictionMiddleware(
+        await using var middleware = new Core.Permission.AgentRestrictionMiddleware(
             restrictions,
             new Core.Utils.ToolFilterPolicy());
         var context = CreateContext(

@@ -173,5 +173,13 @@ public sealed class QueryMiddlewareContext {
     /// StructuredOutput 合成工具重试上限 — 对齐 TS MAX_STRUCTURED_OUTPUT_RETRIES（默认5）
     /// 可通过环境变量 MAX_STRUCTURED_OUTPUT_RETRIES 覆盖
     /// </summary>
-    public int MaxStructuredOutputRetries { get; init; } = 5;
+    public int MaxStructuredOutputRetries { get; init; } =
+        ResolveMaxStructuredOutputRetries(Environment.GetEnvironmentVariable("MAX_STRUCTURED_OUTPUT_RETRIES"));
+
+    /// <summary>
+    /// 解析重试上限 — 纯函数：仅接受正整数，空串/非法/≤0 一律回退 5。
+    /// 注释承诺 env 可覆盖但全仓长期无消费点（TASK103 #45a），在此补上唯一解析入口。
+    /// </summary>
+    internal static int ResolveMaxStructuredOutputRetries(string? envValue) =>
+        int.TryParse(envValue, out var value) && value > 0 ? value : 5;
 }

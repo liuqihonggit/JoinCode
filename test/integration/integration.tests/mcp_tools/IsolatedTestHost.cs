@@ -52,6 +52,10 @@ public sealed class IsolatedTestHost : IAsyncDisposable {
         services.AddWorkflowServices(config ?? new WorkflowConfig());
         if (withTestPipelines) services.AddTestPipelines();
 
+        // 隔离宿主不注册 LLM 链；AutoClassifierMiddleware 的 LLM 阶段在生成式 DI 中是必填依赖，
+        // 这里用规则分类器替身截断 ChatClient -> IQueryService 的重链路（生产容器仍走真实 Llm judge）。
+        services.AddSingleton<ILlmAutoModeClassifier>(new RuleOnlyLlmAutoModeClassifierStub());
+
         // 后置覆盖：AddEnvSwitch 用 AddSingleton（后注册 wins），必须放在 AddWorkflowServices 之后。
         services.AddSingleton<IFileSystem>(fileSystem);
         if (injectStubGitRunner) {
@@ -85,6 +89,18 @@ public sealed class IsolatedTestHost : IAsyncDisposable {
 
     public ValueTask DisposeAsync() =>
         _disposeProvider ? _provider.DisposeAsync() : ValueTask.CompletedTask;
+}
+
+/// <summary>
+/// LLM 分类器测试替身 — 只走规则分类，不触碰 ChatClient / IQueryService。
+/// 隔离宿主不装配 LLM；真实 LLM 灰区判定由 Guard.Security 单测与生产容器覆盖。
+/// </summary>
+public sealed class RuleOnlyLlmAutoModeClassifierStub : ILlmAutoModeClassifier {
+    private readonly AutoModeClassifier _rules = new();
+
+    /// <inheritdoc />
+    public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default) =>
+        _rules.ClassifyAsync(request, ct);
 }
 
 /// <summary>

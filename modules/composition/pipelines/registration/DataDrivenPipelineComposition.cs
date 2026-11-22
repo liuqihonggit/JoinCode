@@ -20,6 +20,37 @@ public static class DataDrivenPipelineComposition {
         services.AddSingleton(sp => new MetricsMiddleware<SkillContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<CodeContext>(sp.GetService<ITelemetryService>()));
 
+        // TASK126（#40）：回合结束 → dream 自动整合。落在 query_stop_hooks 而不是 query-pipeline
+        // 节点 —— 生产查询链取的是 DI 集合（IEnumerable<IQueryMiddleware>），profile 组装的
+        // MiddlewarePipeline<QueryMiddlewareContext> 没有消费方，加节点等于永不执行。
+        // 依赖缺失（未加载 Dream 插件 / 无 dream 子系统）时注册成「永不触发」而不是抛异常。
+        services.AddSingleton<Core.Query.StopHooks.IQueryStopHook>(sp => {
+            var logger = sp.GetService<ILogger<AutoDreamStopHook>>();
+            try {
+                var config = sp.GetService<JoinCode.Dream.AutoDreamConfig>();
+                var feature = sp.GetService<JoinCode.Dream.IDreamFeature>();
+                var scanner = sp.GetService<JoinCode.Dream.Services.ISessionScanner>();
+                if (config is null || feature is null || scanner is null) {
+                    Diag.WriteLine("[DREAM-AUTO] hook disabled: dream subsystem not registered");
+                    return new AutoDreamStopHook(null, logger);
+                }
+
+                var trigger = new JoinCode.Dream.AutoDreamTrigger(
+                    feature,
+                    scanner,
+                    config,
+                    @lock: sp.GetService<JoinCode.Dream.Services.ConsolidationLock>(),
+                    logger: sp.GetService<ILogger<JoinCode.Dream.AutoDreamTrigger>>());
+                return new AutoDreamStopHook(trigger, logger);
+            } catch (Exception ex) {
+                // 别忘了 GetService 只兜「没注册」，构造过程本身仍会抛（例如 IChatClient 缺失时
+                // ChatCompletionClient 激活失败）。这里是查询链的构造路径，绝不能让一个后台
+                // 功能把回合拖垮 —— 降级成永不触发，并把原因写进诊断。
+                Diag.WriteLine($"[DREAM-AUTO] hook disabled: {ex.GetType().Name}: {ex.Message}");
+                return new AutoDreamStopHook(null, logger);
+            }
+        });
+
         return services;
     }
 

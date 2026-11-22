@@ -129,13 +129,29 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
     private readonly ITelemetryService? _telemetryService;
 
     /// <summary>
-    /// 构造函数 — 注入日志和遥测服务（均可选）
+    /// 构造函数 — 注入日志、遥测与**容器里已登记的停止 hook 实现**（均可选）
+    /// <para>
+    /// TASK126（#40）：<c>IEnumerable&lt;IQueryStopHook&gt;</c> 是这条链唯一的「填入口」。
+    /// 在此之前 <c>RegisterStopHook</c> 只有测试在调，<c>resources/orders.yaml</c> 的
+    /// <c>query_stop_hooks</c> 恒为空 —— 扩展点齐了、没人往里填，等价于永不触发。
+    /// 现在由 DI 收集：实现类只需注册成 <c>IQueryStopHook</c>，顺序由各自的
+    /// <see cref="IQueryStopHook.Priority"/>（orders.yaml 派生）决定。
+    /// </para>
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="telemetryService">遥测服务</param>
-    public QueryStopHookManager(ILogger<QueryStopHookManager>? logger = null, ITelemetryService? telemetryService = null) {
+    /// <param name="hooks">容器中登记的停止 hook 实现</param>
+    public QueryStopHookManager(
+        ILogger<QueryStopHookManager>? logger = null,
+        ITelemetryService? telemetryService = null,
+        IEnumerable<IQueryStopHook>? hooks = null) {
         _logger = logger;
         _telemetryService = telemetryService;
+
+        if (hooks is null) return;
+        foreach (var hook in hooks) {
+            RegisterStopHook(hook);
+        }
     }
 
     /// <summary>

@@ -105,7 +105,10 @@ def implementations(interface: str) -> dict[str, pathlib.Path]:
     pattern = re.compile(rf"class\s+(\w+)[^{{]*\b{interface}\b")
     for path in REPO.rglob("*.cs"):
         posix = path.as_posix()
-        if "/obj/" in posix or "/bin/" in posix or "/tests/" in posix:
+        # 测试项目目录名是 `xxx.tests/`（如 guard.hooks.tests），只挡 `/tests/` 会漏，
+        # 测试替身（private sealed class StubInterceptor : ICommandInterceptor）就会被当成
+        # 生产实现，逼着它进顺序表 —— 单测替身没有顺序语义，进表反而是污染。
+        if "/obj/" in posix or "/bin/" in posix or "/tests/" in posix or ".tests/" in posix:
             continue
         try:
             text = path.read_text(encoding="utf-8")
@@ -131,8 +134,10 @@ def main() -> int:
         registered = declared[list_name]
         impls = implementations(interface)
         # 只认源码目录内的实现（测试替身不在生产顺序表里）
+        # 未声明目录范围的列表（如 query_stop_hooks）用全仓实现做对账 —— 否则 scoped 恒为空，
+        # 「登记了不存在的实现」必然误报，等于这类列表永远填不进去（TASK126 实测踩到）。
         scoped = {name: path for name, path in impls.items()
-                  if any(d in path.as_posix() for d in dirs)} if dirs else {}
+                  if any(d in path.as_posix() for d in dirs)} if dirs else impls
 
         missing = sorted(set(scoped) - set(registered))
         if missing:

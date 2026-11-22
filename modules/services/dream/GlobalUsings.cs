@@ -17,6 +17,7 @@ global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Utils;
+global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Dream;
 global using JoinCode.Dream.Commands;
 global using JoinCode.Dream.DependencyInjection;

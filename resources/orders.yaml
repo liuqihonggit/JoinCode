@@ -45,5 +45,8 @@ lists:
     - AgentStreamExecutionMiddleware
     - AgentHandoffMiddleware
 
-  # 查询停止 hook — 目前没有实现
-  query_stop_hooks: []
+  # 查询停止 hook — 回合完成时依次执行，首个 ShouldStop=true 的赢
+  # AutoDreamStopHook：把回合结束投递给 dream 自动整合（TASK126 / TASK103 #40）。
+  # 它返回 Continue（不阻止停止），所以不会抢占排在它后面的 hook。
+  query_stop_hooks:
+    - AutoDreamStopHook

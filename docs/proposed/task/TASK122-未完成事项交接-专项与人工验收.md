@@ -28,7 +28,7 @@ TASK103 §2.3 的 #35–#41、#43、#44、#45a、#46、#47、#48、#49、#49a、
 | ~~#50~~ | ~~团队记忆写入前 `validateInput` 密钥拦截~~ ✅ 已闭合（[TASK124](TASK124-团队记忆写入前密钥门禁-从断言到真拦截.md)） | — | — | — |
 | ~~#46~~ | ~~`permission_denials` 结构化收集~~ ✅ 已闭合（[TASK125](TASK125-permission_denials结构化收集.md)） | — | — | — |
 | #42 | 查询期自动记忆召回（sideQuery） | L | 新行为：每回合 LLM + 附件通道 + 会话曝光状态 | 5 |
-| #40 | dream 回合结束自动触发 | L | 新行为：后台 LLM 整合，改变延迟与 token 成本 | 6 |
+| ~~#40~~ | ~~dream 回合结束自动触发~~ ✅ 已闭合（[TASK126](TASK126-dream自动触发-三问决策与接线.md)） | — | — | ~~6~~ |
 | #51 | Ctrl+B 主会话后台化 | L | 新行为：独立 transcript、前后台切换、取消归属 | 7 |
 
 ## 三、逐项交接
@@ -114,18 +114,15 @@ CLI 按 `ToolErrorCodes.IsPermissionDenial` 判定（收录全部 `DeniedBy*`，
 **不要做**：把显式 `/memory search` 的关键词打分直接换成 sideQuery——那只会给低频命令加 LLM 依赖，
 不会产生基准的自动召回。
 
-### #40 dream 回合结束自动触发
+### ~~#40 dream 回合结束自动触发~~ — ✅ 2026-11-23 已完成
 
-**现状**：本仓有独立 dream pipeline exe、`/dream` 命令、`ConsolidationLock`、`AutoDreamConfig`，
-但没有“回合 Stop 事件 → dream pipeline”的接线。
+**结论与实现见 [TASK126](TASK126-dream自动触发-三问决策与接线.md)。** 三问答案：①不污染历史由 `DreamFeature` 自建 `MessageList` 结构性保证；②失败四层 fail-open（后台任务内全捕获、失败回滚锁、异常不外溢、门控读不到按未合并放行）；③门沿用既有默认值不加新开关。
 
-**先回答三问**（见 [TASK107](TASK107-dream自动触发路径-差异取证.md) §3）：
+落点是 `IQueryStopHook`（`QueryStopHookManager` 构造期收 `IEnumerable<IQueryStopHook>` + `Pipelines` 的 `AutoDreamStopHook` + `orders.yaml` 的 `query_stop_hooks`），**不是** query-pipeline 节点 —— profile 的 query-pipeline 声明对生产链不生效（登记为总账 **#53**）。
 
-1. 自动触发是否用 sideQuery，不污染会话历史？
-2. 触发失败如何降级，确保不阻塞回合、不吞用户消息？
-3. 默认开关与频率门（基准默认开 + 24h/5 session，本仓配置已同默认值）是否照搬？
+接线时顺带修了两个会让它烧钱的洞：时间门原用 `UtcNow-MinHours` 假值（生产唯一路径，每回合放行）→ 改读真锁；新增原子占锁（`pid:ts` + 存活/过期 + 写后复核）。
 
-三问答完再立 ADR + TDD；这是新增后台 LLM 行为，不是补断链。
+**残余**：回合级真机探针未做（本机 7 个 vendor 的 apiKey 全空，真实回合到不了 `OnCompleteHooks`），补验步骤见 TASK126 §5.3；基准的 `!agentId` 子代理门因本仓无 agent 标识未加（影响被节流+时间门+占锁压到 0）。
 
 ### #51 Ctrl+B 主会话后台化
 
@@ -152,4 +149,4 @@ CLI 按 `ToolErrorCodes.IsPermissionDenial` 判定（收录全部 `DeniedBy*`，
 ## 五、一句话交接
 
 **能自动化的已知断链已经清完；剩下的不是“再补一根线”，而是六个需要产品/契约决策的新行为，
-加一个只能由用户在真实终端完成的键位矩阵。** 建议从 #52 人工矩阵开始，再按 #45 → #50 → #46 → #42 → #40 → #51 推进。
+加一个只能由用户在真实终端完成的键位矩阵。** 建议从 #52 人工矩阵开始，再按 #42 → #51 推进（#45/#50/#46/#40 已闭合）。

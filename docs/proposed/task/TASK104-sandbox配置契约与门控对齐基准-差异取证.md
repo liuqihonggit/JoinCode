@@ -48,17 +48,17 @@
 
 | 事项 | 证据（文件:行号） | 实际行为 |
 |------|------------------|----------|
-| settings 字段 | `modules/guard/guard.configuration/core/mapping/SettingsJson.cs:283-285`、`:534-559` | `SandboxSettings` = `enabled/mode/image/allowedPaths/restrictNetwork/memoryLimitMb`（`mode/image` 为自造字段，全仓无消费） |
-| 配置映射 | `modules/guard/guard.configuration/core/mapping/SettingsMapper.cs:214-229` | `enabled → CodeExecution.ReadOnlyFilesystem`（**语义错位**：开启沙箱变成只读文件系统）、`restrictNetwork → AllowNetworkAccess` 取反、`memoryLimitMb → MaxMemoryMB`、`allowedPaths → AllowedDirectories` |
-| 映射目标 | `modules/abstractions/abstractions.primitives.configuration/src/workflow/WorkflowSubConfigs.cs:3-18` | `CodeExecutionConfig` 的隔离字段（ET/内存/网络/进程/句柄/只读/目录） |
+| settings 字段 | `modules/guard/guard_configuration/core/mapping/SettingsJson.cs:283-285`、`:534-559` | `SandboxSettings` = `enabled/mode/image/allowedPaths/restrictNetwork/memoryLimitMb`（`mode/image` 为自造字段，全仓无消费） |
+| 配置映射 | `modules/guard/guard_configuration/core/mapping/SettingsMapper.cs:214-229` | `enabled → CodeExecution.ReadOnlyFilesystem`（**语义错位**：开启沙箱变成只读文件系统）、`restrictNetwork → AllowNetworkAccess` 取反、`memoryLimitMb → MaxMemoryMB`、`allowedPaths → AllowedDirectories` |
+| 映射目标 | `modules/abstractions/abstractions_primitives_configuration/src/workflow/WorkflowSubConfigs.cs:3-18` | `CodeExecutionConfig` 的隔离字段（ET/内存/网络/进程/句柄/只读/目录） |
 | 实际消费 | `modules/cognition/hands_core/skills/services/code/CodeSandboxMiddleware.cs:31` | **只读** `ExecutionTimeoutSeconds`；其余字段无运行时读取（全仓 `rg` 仅命中映射与测试） |
 | `/sandbox` 命令 | `modules/composition/slash/guard/config/SandboxToggleCommand.cs:8`、`:51-73`、`:90-114`、`:145-189` | 运行期进出会话沙箱；硬编码 `Soft` + 双 true；平台判断恒真（Win32NT/Unix/MacOSX 永远「支持」）；`exclude` 写 `sandbox.excludedPaths`（路径，供进入时当 `AllowedPaths`） |
 | 会话级生效 | `modules/cognition/hands_shell/system_actuator/abstractions/SystemActuatorBase.cs:183-186`、`:230-233`、`:258-259` | `useSandbox = !disableSandbox && _sandboxManager.IsInSandbox`；未进入沙箱时命令**原样执行**，路径也不重映射 |
 | 逃生阀 | `modules/cognition/hands_shell/shell/handlers/middleware/ShellExecutionMiddleware.cs:35`、`ShellBackgroundMiddleware.cs:38`、`shell/handlers/tool_handlers/ShellToolHandlers.cs:72,97` | `DangerouslyDisableSandbox → disableSandbox` 直通，无策略闸门、无审计 |
 | 提示词 | `modules/abstractions/ai/prompts/tool_prompts/shell/BashToolPrompt.cs:20` | 仅一行「`dangerously_disable_sandbox` 参数覆盖沙箱模式」，无「默认留沙箱 / 何时可覆盖 / 策略禁止」三段 |
-| 沙箱子系统 | `modules/guard/guard.sandbox/core/SandboxManager.cs:47-71`、`modules/abstractions/guard/security/sandbox/core/ISandboxProvider.cs:31`、`SandboxOptions.cs:3-24` | 提供器链（bwrap/docker/process/soft）、profile 排序、provider 级执行能力**都已具备**；`SandboxOptions` 只有粗粒度 `RestrictNetwork/RestrictFileSystem/AllowedPaths/MemoryLimitMb` |
-| 权限侧 | `modules/guard/guard.permission/GlobalUsings.cs:44` | 全模块仅此一处出现 sandbox，无 auto-allow、无排除清单联动 |
-| 配置键登记 | `modules/abstractions/abstractions.primitives.configuration/src/settings/ConfigKeyRegistry.cs`（无 `sandbox.*` 条目；`:46-47` 表外键回落 `UserSettings` + 扁平 `current.<key>`） | `/sandbox exclude` 写的路径**不是** `SettingsJson.Sandbox.AllowedPaths`（后者走对象路径），两条数据路互不相通 |
+| 沙箱子系统 | `modules/guard/guard_sandbox/core/SandboxManager.cs:47-71`、`modules/abstractions/guard/security/sandbox/core/ISandboxProvider.cs:31`、`SandboxOptions.cs:3-24` | 提供器链（bwrap/docker/process/soft）、profile 排序、provider 级执行能力**都已具备**；`SandboxOptions` 只有粗粒度 `RestrictNetwork/RestrictFileSystem/AllowedPaths/MemoryLimitMb` |
+| 权限侧 | `modules/guard/guard_permission/GlobalUsings.cs:44` | 全模块仅此一处出现 sandbox，无 auto-allow、无排除清单联动 |
+| 配置键登记 | `modules/abstractions/abstractions_primitives_configuration/src/settings/ConfigKeyRegistry.cs`（无 `sandbox.*` 条目；`:46-47` 表外键回落 `UserSettings` + 扁平 `current.<key>`） | `/sandbox exclude` 写的路径**不是** `SettingsJson.Sandbox.AllowedPaths`（后者走对象路径），两条数据路互不相通 |
 
 ---
 
@@ -321,17 +321,17 @@ R1/R2 是「安全收益是否真实」的分水岭，未完成前不宣称 sand
 
 | 层 | 文件 | 说明 |
 |----|------|------|
-| 配置契约 | `modules/abstractions/abstractions.configuration/workflow/SandboxConfig.cs` | `SandboxConfig` + `SandboxRipgrepConfig`；新增字段先加这里 |
-| 配置文本 | `modules/guard/guard.configuration/core/mapping/SettingsJson.cs` | `SandboxSettings` / `SandboxNetworkSettings` / `SandboxFilesystemSettings` / `SandboxRipgrepSettings` |
-| 映射 | `modules/guard/guard.configuration/core/mapping/SettingsMapper.cs` | `MapSandbox*`；**只有这里做 settings→强类型**，勿在消费方解析 JSON |
-| 配置源 | `modules/guard/guard.configuration/core/loading/core/SettingsLoader.cs` | 5 源合并已存在（User→Project→Local→Flag→Policy）；`LoadPolicySettingsAsync` / `GetManagedSettingsPath` 可直接用 |
+| 配置契约 | `modules/abstractions/abstractions_configuration/workflow/SandboxConfig.cs` | `SandboxConfig` + `SandboxRipgrepConfig`；新增字段先加这里 |
+| 配置文本 | `modules/guard/guard_configuration/core/mapping/SettingsJson.cs` | `SandboxSettings` / `SandboxNetworkSettings` / `SandboxFilesystemSettings` / `SandboxRipgrepSettings` |
+| 映射 | `modules/guard/guard_configuration/core/mapping/SettingsMapper.cs` | `MapSandbox*`；**只有这里做 settings→强类型**，勿在消费方解析 JSON |
+| 配置源 | `modules/guard/guard_configuration/core/loading/core/SettingsLoader.cs` | 5 源合并已存在（User→Project→Local→Flag→Policy）；`LoadPolicySettingsAsync` / `GetManagedSettingsPath` 可直接用 |
 | 门控 | `.../abstractions.configuration/workflow/SandboxGate.cs` | 纯函数真值表；不碰 I/O |
 | 启动门 | `.../workflow/SandboxStartupGate.cs` + `modules/apps/engine/app/modules/SandboxStartupModule.cs` | 启动期判平台/真隔离/`failIfUnavailable` |
 | 包装契约 | `modules/abstractions/guard/security/sandbox/core/SandboxWrapRequest.cs`、`SandboxWrappedCommand.cs` | `SandboxWrapRequest` 是唯一「一条命令要什么隔离」的描述 |
-| 管理器 | `modules/guard/guard.sandbox/core/SandboxManager.cs` | `SelectWrappingProvider`：活跃真隔离 → bwrap → docker（若支持）→ 遍历 |
-| bwrap | `modules/guard/guard.sandbox/providers/BwrapCommandBuilder.cs`、`BubblewrapSandboxProvider.cs` | 所有参数/告警在此；**没有 `--proc /proc`，别加回** |
+| 管理器 | `modules/guard/guard_sandbox/core/SandboxManager.cs` | `SelectWrappingProvider`：活跃真隔离 → bwrap → docker（若支持）→ 遍历 |
+| bwrap | `modules/guard/guard_sandbox/providers/BwrapCommandBuilder.cs`、`BubblewrapSandboxProvider.cs` | 所有参数/告警在此；**没有 `--proc /proc`，别加回** |
 | Shell 接线 | `modules/cognition/hands_shell/shell/handlers/middleware/ShellSandboxPolicy.cs` + `ShellExecutionMiddleware.cs` + `ShellBackgroundMiddleware.cs` | 前台/后台共用同一决策；手动已进会话沙箱时不重复包装 |
-| 权限 | `modules/guard/guard.permission/policy/SandboxAutoAllowMiddleware.cs` | 免确认只给「真隔离或可包装」；排除命令/逃生阀仍 ask |
+| 权限 | `modules/guard/guard_permission/policy/SandboxAutoAllowMiddleware.cs` | 免确认只给「真隔离或可包装」；排除命令/逃生阀仍 ask |
 | 命令 | `modules/composition/slash/guard/config/SandboxToggleCommand.cs` | `on/off/status/exclude/switch`；`on/off` 写 `sandbox.enabled` |
 | 提示词 | `modules/abstractions/ai/prompts/tool_prompts/shell/BashToolPrompt.cs` | 三段式快照；`SandboxPromptPolicySync` 热更新 |
 
@@ -362,9 +362,9 @@ cd D:\project\w2
 git --no-pager status --short
 git --no-pager log --oneline -8
 pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -NoAnalyzers   # 日志写 .xxx\logs\
-dotnet test modules\guard\guard.config.tests\Guard.Config.Tests.csproj --no-build --filter "FullyQualifiedName~SettingsMapperTests"
-dotnet test modules\guard\guard.security.tests\Guard.Security.Tests.csproj --no-build --filter "FullyQualifiedName~BwrapCommandBuilderTest|FullyQualifiedName~SandboxAutoAllowMiddlewareTest"
-dotnet test modules\cognition\hands.shell.tests\Hands.Shell.Tests.csproj --no-build --filter "FullyQualifiedName~ShellSandboxPolicyTest"
+dotnet test modules\guard\guard_config_tests\Guard.Config.Tests.csproj --no-build --filter "FullyQualifiedName~SettingsMapperTests"
+dotnet test modules\guard\guard_security_tests\Guard.Security.Tests.csproj --no-build --filter "FullyQualifiedName~BwrapCommandBuilderTest|FullyQualifiedName~SandboxAutoAllowMiddlewareTest"
+dotnet test modules\cognition\hands_shell_tests\Hands.Shell.Tests.csproj --no-build --filter "FullyQualifiedName~ShellSandboxPolicyTest"
 ```
 
 - **Linux 真机复验**：`manage_environment(action="switch", env_id="vm")`（Ubuntu，bwrap 0.6.1 已装；**无 dotnet、无仓库**）。只做参数级验证：
@@ -436,10 +436,10 @@ dotnet test modules\cognition\hands.shell.tests\Hands.Shell.Tests.csproj --no-bu
 | 验证 | 命令 | 结果 |
 |------|------|------|
 | 全仓编译 | `pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -NoAnalyzers` | 全部通过（solution / native_tui / native_gui ×2） |
-| Guard.Config 全量 | `dotnet test modules\guard\guard.config.tests\Guard.Config.Tests.csproj --no-build` | 1354 通过 / 0 失败 |
-| Guard.Security 全量 | `dotnet test modules\guard\guard.security.tests\Guard.Security.Tests.csproj --no-build` | 1256 通过 / 0 失败 |
-| Hands.Shell 全量 | `dotnet test modules\cognition\hands.shell.tests\Hands.Shell.Tests.csproj --no-build` | 541 通过 / 0 失败 |
-| Composition 全量 | `dotnet test modules\composition\composition.tests\Composition.Tests.csproj --no-build` | 1144 通过 / 0 失败 |
+| Guard.Config 全量 | `dotnet test modules\guard\guard_config_tests\Guard.Config.Tests.csproj --no-build` | 1354 通过 / 0 失败 |
+| Guard.Security 全量 | `dotnet test modules\guard\guard_security_tests\Guard.Security.Tests.csproj --no-build` | 1256 通过 / 0 失败 |
+| Hands.Shell 全量 | `dotnet test modules\cognition\hands_shell_tests\Hands.Shell.Tests.csproj --no-build` | 541 通过 / 0 失败 |
+| Composition 全量 | `dotnet test modules\composition\composition_tests\Composition.Tests.csproj --no-build` | 1144 通过 / 0 失败 |
 
 日志在 `.xxx/logs/`：`build_all_r6r7r8_final.txt`、`test_config_full.txt`、`test_security_full.txt`、`test_shell_full.txt`、`test_composition_full.txt`。
 

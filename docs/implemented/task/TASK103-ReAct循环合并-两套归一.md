@@ -10,8 +10,8 @@
 
 | 循环 | 位置 | 消费方 |
 |------|------|--------|
-| `QueryEngine` | `modules/cognition/brain.query/query2/token_budget/core/QueryEngine.cs` | 主代理（`EngineAgentFactory`）、子代理、工作流、`-p` |
-| `QueryLoopMiddleware` | `modules/cognition/brain.context_services/chat/core/QueryLoopMiddleware.cs` | `ChatService.StreamWithEventsAsync`：GUI/TUI 回退路径（`SessionController` 无主代理时）、slash 命令（如 `AskClarifyCommand`）、Bridge `MessageHandlers` |
+| `QueryEngine` | `modules/cognition/brain_query/query2/token_budget/core/QueryEngine.cs` | 主代理（`EngineAgentFactory`）、子代理、工作流、`-p` |
+| `QueryLoopMiddleware` | `modules/cognition/brain_context_services/chat/core/QueryLoopMiddleware.cs` | `ChatService.StreamWithEventsAsync`：GUI/TUI 回退路径（`SessionController` 无主代理时）、slash 命令（如 `AskClarifyCommand`）、Bridge `MessageHandlers` |
 
 两套循环都实现"无工具调用 → 收尾"，并各自维护：
 
@@ -44,7 +44,7 @@
 
 1. **规则单源冻结（已完成）**：闸门（`RoundGatePolicy`）、循环上限（`LoopLimits`：`JCC_MAX_TOOL_CALL_ITERATIONS` / `JCC_MAX_STOP_HOOK_REPLY_ROUNDS`）已抽为共享单源；新规则禁止写进任一循环。
    - 已完成证据：TASK102 第二轮，两套循环共同消费，单测覆盖默认/覆盖/非法回退。
-2. **事件适配层（已完成）**：`QueryStreamChunkAdapter`（`modules/abstractions/abstractions.interfaces/interfaces/llm/QueryStreamChunkAdapter.cs`）覆盖全部 chunk 类型；`JCC_CHAT_LOOP_BACKEND=legacy|query` 开关（`ChatLoopBackendPolicy`）曾用于灰度，S9 旧循环归档后随 legacy 一并移除（2026-11-21）。
+2. **事件适配层（已完成）**：`QueryStreamChunkAdapter`（`modules/abstractions/abstractions_interfaces/interfaces/llm/QueryStreamChunkAdapter.cs`）覆盖全部 chunk 类型；`JCC_CHAT_LOOP_BACKEND=legacy|query` 开关（`ChatLoopBackendPolicy`）曾用于灰度，S9 旧循环归档后随 legacy 一并移除（2026-11-21）。
    - 映射决策：`Error → SystemNotice`（失败原因上屏，不静默丢弃）；`ThinkingEnd` 无对应事件返回 null；`Complete → Done` 透传 usage/model/stopReason。
    - 单测：`QueryStreamChunkAdapterTests`（全类型映射）+ `ChatLoopBackendPolicyTests`（默认值/别名/非法回退）。
 3. **能力迁移（部分完成）**：
@@ -294,7 +294,7 @@
 
 | 组件 | 位置 | 说明 |
 |------|------|------|
-| `IToolConcurrencyClassifier` / `ToolConcurrencyClassifier` | `modules/cognition/brain.query/query2/token_budget/tools/` | `[Register]` 自动注册；消费生成器 `SafeToolNames`；Bash/PowerShell 经 `ReadOnlyCommandProbe` 只读探测；交互工具强制独占 |
+| `IToolConcurrencyClassifier` / `ToolConcurrencyClassifier` | `modules/cognition/brain_query/query2/token_budget/tools/` | `[Register]` 自动注册；消费生成器 `SafeToolNames`；Bash/PowerShell 经 `ReadOnlyCommandProbe` 只读探测；交互工具强制独占 |
 | `ReadOnlyCommandProbe` 注册 | `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | 委托 `IReadOnlyCommandDetector.CheckReadOnlyConstraints`，避免 brain.query 反向依赖 guard |
 | 合批执行 | `QueryEngine.ExecuteCoreLoopAsync` | 连续并发安全调用同批先全部启动、再按原调用顺序逐条 await/回写；非并发安全调用独占批次 |
 | 诊断打点 | `QueryEngine` | `[TOOL-PARALLEL] batch=N tools=...`（JCC_DEBUGLOG 控制） |
@@ -331,7 +331,7 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `InteractiveInputWaiter`（`modules/abstractions/abstractions.utils/core/misc/InteractiveInputWaiter.cs`）轮询输入就绪/后台唤醒信号，无超时 | `TerminalInteractiveService.WaitForInputOrDeferAsync`（CLI 所有 ask 提示） | ✅ | ✅ 单元测试 6/6（就绪/信号/优先级/轮询/取消） |
+| `InteractiveInputWaiter`（`modules/abstractions/abstractions_utils/core/misc/InteractiveInputWaiter.cs`）轮询输入就绪/后台唤醒信号，无超时 | `TerminalInteractiveService.WaitForInputOrDeferAsync`（CLI 所有 ask 提示） | ✅ | ✅ 单元测试 6/6（就绪/信号/优先级/轮询/取消） |
 | `AskUserQuestionResult.Deferred/PartialAnswers/DeferredResult`（`InteractiveModels.cs`） | `TerminalInteractiveService`、`UserInteractionToolHandlers` | ✅ | ✅ 编译 + 处理器测试 |
 | `TerminalInteractiveService` 注入 `IAgentNotificationQueue`，等待输入期间检测待处理通知，到达即返回 `Deferred`（单选/多选/自由输入/多问题逐题） | `UserInteractionToolHandlers.AskUserQuestionAsync` / `ConfirmActionAsync` | ✅ | ⚠️ 真实控制台“等待中后台回调到达”路径需真实 TTY + 后台任务触发，无法无人值守自动驱动；等待器单测 + 处理器映射测试覆盖逻辑 |
 | `AvaloniaInteractiveService` 注入 `IAgentNotificationQueue`，DSH 问答卡片挂起期间收到回调即取消卡片并返回 `Deferred` | `DshWebUiWindow.AskUserQuestionsCallback` → `DshUserQuestionBroker.RequestAsync`（取消触发 cancel 帧） | ✅ | ✅ `AvaloniaInteractiveServiceTests` 3/3（回调唤醒/先答后通知/外层取消传播） |

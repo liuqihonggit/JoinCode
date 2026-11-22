@@ -55,7 +55,7 @@ modules/composition/composition/dependency_injection/core/
 modules/composition/composition/dependency_injection/infrastructure/
   PluginFileWatcherHostedService.cs       — 插件文件监控 IHostedService ✅
 
-modules/plugins/plugins.infrastructure/services/
+modules/plugins/plugins_infrastructure/services/
   PluginServiceRegistration.cs            — 动态插件服务 DI 注册扩展 ✅
 ```
 
@@ -78,11 +78,11 @@ modules/composition/composition/node_registry/consumers/
   CommandDispatchConsumer.cs  — 命令分发消费点
   PromptAssemblyConsumer.cs   — 提示词组装消费点
 
-modules/plugins/plugins.contracts/registry/
+modules/plugins/plugins_contracts/registry/
   DynamicPluginRegistry.cs    — 改造（现有文件）
   AotHandlerRegistry.cs       — AOT handler 注册表接口
 
-modules/plugins/plugins.infrastructure/services/
+modules/plugins/plugins_infrastructure/services/
   PluginAotHandlerRegistry.cs — AOT handler 注册表实现
 ```
 

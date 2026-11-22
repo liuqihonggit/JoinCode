@@ -7,8 +7,8 @@
 <!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| [Transport.Impl.Tests](transport.impl.tests/Transport.Impl.Tests.csproj) | 测试 |
-| [Transport.Impl](transport.impl/Transport.Impl.csproj) |  |
+| [Transport.Impl.Tests](transport_impl_tests/Transport.Impl.Tests.csproj) | 测试 |
+| [Transport.Impl](transport_impl/Transport.Impl.csproj) |  |
 <!-- END MODULE PROJECTS -->
 
 ## 用法

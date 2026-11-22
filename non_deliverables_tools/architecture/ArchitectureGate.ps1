@@ -62,7 +62,7 @@ function Get-DomainOfPath {
 function Test-IsTestProject {
     param([string]$FullPath)
     # csproj 的 ProjectType=test 是构建期事实，优先于名字/路径启发式
-    # （例: modules/storage/vault.testing.common 是测试辅助库，名字不含 .tests 段）
+    # （例: modules/storage/vault_testing_common 是测试辅助库，名字不含 .tests 段）
     if ((Get-DeclaredProjectType $FullPath) -eq "test") { return $true }
     $rel = Get-RelativePath $FullPath
     $segments = @($rel -split '[\\/]')

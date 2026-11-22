@@ -206,10 +206,10 @@ P6 的 AOT 改造已完整实现，通过 `AotHandlerRegistryGenerator` 源码�
 
 | 组件 | 位置 | 说明 |
 |------|------|------|
-| 源码生成器 | `modules/generators/aot_handler.generator/AotHandlerRegistryGenerator.cs` | 扫描 `[McpToolDispatch]` + `[McpTool]` 特性 |
+| 源码生成器 | `modules/generators/aot_handler_generator/AotHandlerRegistryGenerator.cs` | 扫描 `[McpToolDispatch]` + `[McpTool]` 特性 |
 | 生成产物 | `AotHandlerRegistrations_JoinCode_Composition` | 含 `Register` + `AddAotHandlerRegistry` 方法 |
 | DI 注册 | `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | 调用 `AddAotHandlerRegistry(services)` |
-| 双路径调用 | `modules/plugins/plugins.contracts/registry/DynamicPluginRegistry.cs` | AOT handler 表 → 动态运行实例 handler 表 |
+| 双路径调用 | `modules/plugins/plugins_contracts/registry/DynamicPluginRegistry.cs` | AOT handler 表 → 动态运行实例 handler 表 |
 | 特性使用 | 99 个 `[McpToolDispatch]` 特性 | 覆盖全部工具分发场景 |
 
 ---

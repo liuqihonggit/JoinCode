@@ -24,7 +24,7 @@
     <!-- 配置链（SettingsLoader/SettingsJson，DshModelCatalogSource/DshSettingsStore 消费，与 TUI 同源） -->
     <ProjectReference Include="$(RepoRoot)modules/guard/guard/Guard.csproj" />
     <!-- 枚举 [EnumValue] 元数据生成（PermissionConfirmationDecision/GuiThemeVariant 等） -->
-    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata_generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

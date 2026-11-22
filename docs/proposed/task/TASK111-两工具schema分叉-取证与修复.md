@@ -23,8 +23,8 @@
 ### 问2 原始素材（一手）
 - 基准 TaskCreate：`src/tools/TaskCreateTool/TaskCreateTool.ts:18-33`（`subject` 必填、`description` 必填、`activeForm?`、`metadata?`）、`:130-137`（结果文本）。
 - 基准 AskUserQuestion：`src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx:19-31`（question/header/options 2-4/multiSelect/annotations）、`:55-73`（`answers:record<string,string>?` + 顶层 `z.strictObject{questions:array(1-4)}`）、`:224-244`（结果文本）；权限层注入答案：`components/permissions/AskUserQuestionPermissionRequest/AskUserQuestionPermissionRequest.tsx:398-407`（`updatedInput={...input, answers, annotations}`）。
-- 本仓 TaskCreate：`modules/storage/vault/todo/TaskToolHandlers.cs:22-31`（`title` 必填 + description/assignee/due_date/priority/tags）；提示词 `modules/abstractions/ai/prompts/tool_prompts/planning/TaskToolsPrompt.cs:50-56`（**subject/activeForm**）；别名表 `modules/abstractions/abstractions.primitives.tools/src/tool_parameters/ToolParameterNameRepairer.cs:19-53`（无 subject）。
-- 本仓 AskUserQuestion：`modules/mcp/mcp.tool_handlers/user/core/UserInteractionToolHandlers.cs:25-51`（`string questions` + `LlmJsonHelper.DeserializeValue`）、`:59-76`（Cancelled/Deferred/Answers 文本回传）；派发兜底 `modules/generators/mcp_tool_dispatch.generator/McpToolDispatchGenerator.cs:588-593`（非 string → `GetRawText()`）。
+- 本仓 TaskCreate：`modules/storage/vault/todo/TaskToolHandlers.cs:22-31`（`title` 必填 + description/assignee/due_date/priority/tags）；提示词 `modules/abstractions/ai/prompts/tool_prompts/planning/TaskToolsPrompt.cs:50-56`（**subject/activeForm**）；别名表 `modules/abstractions/abstractions_primitives_tools/src/tool_parameters/ToolParameterNameRepairer.cs:19-53`（无 subject）。
+- 本仓 AskUserQuestion：`modules/mcp/mcp_tool_handlers/user/core/UserInteractionToolHandlers.cs:25-51`（`string questions` + `LlmJsonHelper.DeserializeValue`）、`:59-76`（Cancelled/Deferred/Answers 文本回传）；派发兜底 `modules/generators/mcp_tool_dispatch_generator/McpToolDispatchGenerator.cs:588-593`（非 string → `GetRawText()`）。
 - 结果模型：`abstractions.primitives.models/src/models_chat/interactive/InteractiveModels.cs:23-39`（`Answers` 字典在内部结果 DTO 里存在，但 handler 只把它拼成文本，全仓无 `ToolResult.WithStructuredOutput` 通道）。
 
 ### 问3 具体方法与工具

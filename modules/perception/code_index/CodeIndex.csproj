@@ -22,7 +22,7 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/tools/onnx_embedding/OnnxEmbeddingExe.csproj" />
     <!-- CSharpLanguagePlugin 直接实现插件契约，显式声明，禁止依赖 Infrastructure 的传递引用 -->
-    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins.contracts/Plugins.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins_contracts/Plugins.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

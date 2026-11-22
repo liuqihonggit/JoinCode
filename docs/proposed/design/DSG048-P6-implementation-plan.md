@@ -178,7 +178,7 @@ methods:
 
 | 项目 | 内容 |
 |------|------|
-| 位置 | `modules/plugins/plugins.contracts/registry/IAotHandlerRegistry.cs` |
+| 位置 | `modules/plugins/plugins_contracts/registry/IAotHandlerRegistry.cs` |
 | 接口 | `FrozenDictionary<string, Func<object?[], object?>>? GetHandlers(string nodeId)` |
 | 命名空间 | `JoinCode.Abstractions.Entity` |
 
@@ -192,7 +192,7 @@ public interface IAotHandlerRegistry {
 
 | 项目 | 内容 |
 |------|------|
-| 位置 | `modules/plugins/plugins.contracts/registry/IAotHandlerRegistryBuilder.cs` |
+| 位置 | `modules/plugins/plugins_contracts/registry/IAotHandlerRegistryBuilder.cs` |
 | 接口 | `void AddHandler(string nodeId, string method, Func<IServiceProvider, object?[], object?> handler)` |
 | 命名空间 | `JoinCode.Abstractions.Entity` |
 
@@ -202,7 +202,7 @@ public interface IAotHandlerRegistry {
 
 | 项目 | 内容 |
 |------|------|
-| 位置 | `modules/generators/aot_handler.generator/` |
+| 位置 | `modules/generators/aot_handler_generator/` |
 | 目标框架 | `netstandard2.0` |
 | 扫描 | `[McpToolDispatch]` 类 + `[McpTool]` 方法 |
 | 生成 | `AotHandlerRegistrations.Register(builder)` 方法 |
@@ -218,7 +218,7 @@ public interface IAotHandlerRegistry {
 
 | 项目 | 内容 |
 |------|------|
-| 位置 | `modules/plugins/plugins.infrastructure/services/PluginAotHandlerRegistry.cs` |
+| 位置 | `modules/plugins/plugins_infrastructure/services/PluginAotHandlerRegistry.cs` |
 | 实现 | `IAotHandlerRegistry` |
 | 依赖 | `IServiceProvider` |
 
@@ -232,7 +232,7 @@ public interface IAotHandlerRegistry {
 
 | 项目 | 内容 |
 |------|------|
-| 位置 | `modules/plugins/plugins.contracts/registry/DynamicPluginRegistry.cs` |
+| 位置 | `modules/plugins/plugins_contracts/registry/DynamicPluginRegistry.cs` |
 | 改造 | `Invoke` 方法增加 AOT 路径 |
 
 改造后的 `Invoke`：
@@ -292,7 +292,7 @@ tool-dispatch:
 
 | 项目 | 内容 |
 |------|------|
-| 位置 | `modules/plugins/plugins.infrastructure/services/PluginFileWatcher.cs` |
+| 位置 | `modules/plugins/plugins_infrastructure/services/PluginFileWatcher.cs` |
 | 约定文件夹 | `~/.jcc/plugins/` |
 | YAML 格式 | 见 §3.6 |
 
@@ -447,19 +447,19 @@ P6 改造后，`DynamicPluginRegistry` 成为 `NodeRegistry` 的补充：`NodeRe
 ### 9.4 文件清单
 
 **新增文件**：
-- `modules/abstractions/abstractions.interfaces/interfaces/tools/IAotHandlerRegistry.cs`
-- `modules/abstractions/abstractions.interfaces/interfaces/tools/IAotHandlerRegistryBuilder.cs`
-- `modules/generators/aot_handler.generator/` — 源码生成器项目（3 个文件）
-- `modules/plugins/plugins.infrastructure/services/PluginAotHandlerRegistry.cs`
-- `modules/plugins/plugins.infrastructure/services/AotHandlerRegistryBuilder.cs`
-- `modules/plugins/plugins.infrastructure/services/PluginYamlConfig.cs`
-- `modules/plugins/plugins.infrastructure/services/ExternalPluginLoader.cs`
-- `modules/plugins/plugins.infrastructure/services/PluginFileWatcher.cs`
+- `modules/abstractions/abstractions_interfaces/interfaces/tools/IAotHandlerRegistry.cs`
+- `modules/abstractions/abstractions_interfaces/interfaces/tools/IAotHandlerRegistryBuilder.cs`
+- `modules/generators/aot_handler_generator/` — 源码生成器项目（3 个文件）
+- `modules/plugins/plugins_infrastructure/services/PluginAotHandlerRegistry.cs`
+- `modules/plugins/plugins_infrastructure/services/AotHandlerRegistryBuilder.cs`
+- `modules/plugins/plugins_infrastructure/services/PluginYamlConfig.cs`
+- `modules/plugins/plugins_infrastructure/services/ExternalPluginLoader.cs`
+- `modules/plugins/plugins_infrastructure/services/PluginFileWatcher.cs`
 - `test/integration/integration.tests/plugins/AotHandlerRegistryIntegrationTests.cs`
 
 **修改文件**：
-- `modules/plugins/plugins.contracts/registry/DynamicPluginRegistry.cs` — Invoke 改造
-- `modules/generators/aot_handler.generator/AotHandlerRegistryGenerator.cs` — 生成 `AddAotHandlerRegistry` 方法
+- `modules/plugins/plugins_contracts/registry/DynamicPluginRegistry.cs` — Invoke 改造
+- `modules/generators/aot_handler_generator/AotHandlerRegistryGenerator.cs` — 生成 `AddAotHandlerRegistry` 方法
 - `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` — DI 注册调用
 - `modules/composition/composition/GlobalUsings.cs` — 添加 `JoinCode.Plugins.Infrastructure.Generated`
 - `resources/profiles/base.yaml` — YAML 节点 ID 对齐

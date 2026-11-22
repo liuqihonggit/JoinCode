@@ -59,4 +59,4 @@ DeepSeek 官方推出独立的 Search & Fetch API（2026-10）：
 | `FetchProviderDescriptor` | `modules/cognition/hands/web/provider_catalog/FetchProviderDescriptor.cs` |
 | `WebService` 改造 | `modules/cognition/hands/web/services/WebService.cs` |
 | `ProviderCategory` 枚举 | `modules/abstractions/abstractions/abs_core/configuration/providers/ProviderCategory.cs` |
-| 单元测试 | `modules/cognition/hands.api.tests/web/SearchProvidersTests.cs` + `DeepSeekFetchProviderTests.cs` |
+| 单元测试 | `modules/cognition/hands_api_tests/web/SearchProvidersTests.cs` + `DeepSeekFetchProviderTests.cs` |

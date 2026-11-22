@@ -229,5 +229,5 @@ TUI: 工具栏按钮/FooterTab 页签
 - 共享执行器：`modules/apps/cli/core/commands/core/SlashCommandRunner.cs`
 - 缝消费：`CommitCommand.cs:127`、`LoginCommand.cs:86,97,142`、`ResumeCommand.cs:217`
 - GUI 会话门面：`modules/apps/gui/hosting/JccChatSession.cs:497-505`
-- 插件 UI 资源：`modules/plugins/plugins.contracts/resource/`（UiResourceTable/UiResourceKind）
+- 插件 UI 资源：`modules/plugins/plugins_contracts/resource/`（UiResourceTable/UiResourceKind）
 - DSH 参考：deepseekdocs.com `/docs/learn/core/web-ui`、`/docs/learn/core/interaction-seams`

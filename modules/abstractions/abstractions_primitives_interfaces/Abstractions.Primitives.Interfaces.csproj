@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>library</ProjectType>
+    <Description>JoinCode 抽象接口层 — 服务接口/缓存接口/状态接口等</Description>
+    <ExcludeStructura>true</ExcludeStructura>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <IsAotCompatible>true</IsAotCompatible>
+    <AllowPack>true</AllowPack>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata_generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_primitives_shared/Abstractions.Primitives.Shared.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Shared" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_primitives_configuration/Abstractions.Primitives.Configuration.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Configuration" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_primitives_utils/Abstractions.Primitives.Utils.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Utils" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_primitives_models/Abstractions.Primitives.Models.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Models" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- 被 tools/github_client 直接引用（IGitHubApiClient 契约），按 API 准入门暴露 -->
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
+</Project>

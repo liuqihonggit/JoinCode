@@ -4,7 +4,7 @@
 
 ## 1. 背景与结论
 
-JCC10011（公开 API 禁止元组，规则实现 `modules/generators/aot_safety.generator/rules/code_organization/PublicTupleApiRule.cs`）在 2026-11-21 全仓 Rebuild 采集到 79 处存量，按域分五批清理：
+JCC10011（公开 API 禁止元组，规则实现 `modules/generators/aot_safety_generator/rules/code_organization/PublicTupleApiRule.cs`）在 2026-11-21 全仓 Rebuild 采集到 79 处存量，按域分五批清理：
 
 | 批次 | 提交 | 覆盖域 |
 |---|---|---|
@@ -37,7 +37,7 @@ JCC10011（公开 API 禁止元组，规则实现 `modules/generators/aot_safety
 
 新增文件 2 个：
 
-- `modules/abstractions/abstractions.primitives.interfaces/src/EditFileTransformResult.cs`
+- `modules/abstractions/abstractions_primitives_interfaces/src/EditFileTransformResult.cs`
 - `modules/abstractions/agents/hot_spot/hot_file/HotFileChange.cs`
 
 新增具名 DTO 共 **28 个**（清单见附录 A）。所有公开元组均替换为 `public sealed record`，私有方法内部的临时元组（如并行分块 `(int Start, int End)`）保留。

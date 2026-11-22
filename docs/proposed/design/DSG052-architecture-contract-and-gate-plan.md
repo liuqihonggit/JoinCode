@@ -87,7 +87,7 @@
 
 ### 1.4 为什么现有分析器抓不到（精确到代码）
 
-1. `ProjectContext` 只有 `ProjectType` 与 `AllowModuleInitializer` 两个字段（`modules/generators/aot_safety.generator/infrastructure/IAnalyzerRule.cs:48-64`），没有任何域/API/白名单信息。
+1. `ProjectContext` 只有 `ProjectType` 与 `AllowModuleInitializer` 两个字段（`modules/generators/aot_safety_generator/infrastructure/IAnalyzerRule.cs:48-64`），没有任何域/API/白名单信息。
 2. `Directory.Build.props` 只向分析器暴露 `ProjectType` 与 `JccAllowModuleInitializer`（`Directory.Build.props:140-143`），没有模块属性。
 3. 现有结构规则只有 `JCC10001/10002`（`rules/code_organization/ProjectStructureRule.cs`），只看目录内文件数量与混放，不看命名与层次。
 4. Roslyn 分析器运行在单个 compilation 内，无法读取 `ProjectReference` 图；域级环、跨域白名单必须由仓库级工具完成。
@@ -200,7 +200,7 @@
 | `JCC12006` | 公开类型越过 API 可见性 | 分析器 | Warning→Error | `JccApiVisibility=internal` 的项目声明 `public` 类型（排除生成代码） | 51 个对外项目标 public 后，其余 131 个声明公开类型的项目先进报告，再逐步 internal 化 |
 | `JCC12007` | IVT 未登记/生产互开 | 分析器 | Error | 程序集 `InternalsVisibleTo` 不在 `JccAllowInternalsVisibleTo`；或生产→生产互开 | 96 个项目（modules 口径）随时间翻 `error` 清账 |
 | `JCC12008` | 命名空间根不符 | 分析器 | Warning→Error | 类型命名空间不以 `JccNamespaceRoots` 任一前缀开头 | 先以 Info 上架，按域校准前缀 |
-| `JCC12009` | 目录命名违规 | 门禁 | Warning | 项目内目录段不匹配 `^[a-z0-9_]+$`（`private` 白名单） | 176 处进 baseline，P4 批量改名 |
+| `JCC12009` | 目录命名违规 | 门禁 | Warning | 项目内目录段不匹配 `^[a-z0-9_]+$`（`private` 白名单） | 176 处进 baseline，P4 已全部清零（2026-11-23） |
 | `JCC12010` | `module.slnx` 未登记项目 | 门禁 | Error | 域内 csproj 未出现在 `module.slnx`，且不在 `JccSlnxExcluded`；slnx 允许含域外构建依赖 | 4 域缺口进 baseline；tools 的 13 个分组项目先声明排除理由 |
 | `JCC12011` | 模块文档齐备 | 门禁 | Warning | `README.md`/`CHANGELOG.md`/`docs/` 缺失，或 README 项目表条目数 ≠ csproj 数 | 不存在缺失，存在内容漂移（abstractions 2/43） |
 | `JCC12012` | Hub 入度预算 | 门禁 | Warning | 单个项目 code 入度超过 baseline 预算 | `Abstractions` 88、`Infrastructure` 53 先冻结（生产口径；含测试 108/94） |
@@ -208,7 +208,7 @@
 
 ### 规则实现要点
 
-- **分析器规则**统一放 `modules/generators/aot_safety.generator/rules/architecture/`，每条规则一个文件，沿用 `[AnalyzerRule]` 特性与 `IAnalyzerRule` 接口；由 `ArchitectureRules.cs` 聚合注册。
+- **分析器规则**统一放 `modules/generators/aot_safety_generator/rules/architecture/`，每条规则一个文件，沿用 `[AnalyzerRule]` 特性与 `IAnalyzerRule` 接口；由 `ArchitectureRules.cs` 聚合注册。
 - **测试项目豁免**：`ProjectType=test`（`*.tests` / `test/`）不要求 `JccDomain`，12001/12006/12007/12008 对测试项目跳过；图模型中 test 域默认 `*` 允许依赖任意域。
 - **非交付工具豁免**：`non_deliverables_tools/`、`build/`、`scripts/` 不在契约范围，12001 只对 `modules/`、`native_tui/`、`native_gui/` 下的项目生效。
 - **生成代码豁免**：以 `GeneratedCodeAttribute`、`obj/`、`*.g.cs` 为准；生成代码不参与 API/命名空间规则。
@@ -270,7 +270,7 @@ non_deliverables_tools/architecture/
   "ruleCounts": {
     "JCC12002": { "abstractions": 32, "cognition": 6 },
     "JCC12003": { "abstractions": 32 },
-    "JCC12009": { "modules/cognition/brain.context_core": 1 }
+    "JCC12009": { "modules/cognition/brain_context_core": 1 }
   },
   "hubBudget": {
     "modules/abstractions/abstractions/Abstractions.csproj": 88,
@@ -279,7 +279,7 @@ non_deliverables_tools/architecture/
   "allow": [
     {
       "rule": "JCC12004",
-      "from": "modules/storage/vault.testing.common",
+      "from": "modules/storage/vault_testing_common",
       "to": "test/unit/testing.common",
       "reason": "测试辅助项目被 Vault 测试复用；不属于生产依赖",
       "adr": "0161",
@@ -419,7 +419,7 @@ architecture:
 - 效果：生产跨域边 478 → 486（`abstractions` −1、`cognition` +3、`mcp/perception/services` 各 +1、`tools` +3），全部是"把原本经 Infrastructure 传递的依赖显式画进图里"，不是新增耦合；生产域环 **15 → 8**（`abstractions ↔ storage` 的 7 条环随 Infrastructure 去掉 Downloader 消失）；`JCC12009` 保持 176。
 
 **已完成 0.7 门禁测试口径修正（`JCC12004` 清零）**：
-- 根因：门禁只用"项目名 `.tests` 结尾 / 路径含 test 段"启发式判定测试项目，`modules/storage/vault.testing.common`（已声明 `ProjectType=test`）被误判为生产项目，导致 `JCC12004 生产→测试` 长期挂 1。
+- 根因：门禁只用"项目名 `.tests` 结尾 / 路径含 test 段"启发式判定测试项目，`modules/storage/vault_testing_common`（已声明 `ProjectType=test`）被误判为生产项目，导致 `JCC12004 生产→测试` 长期挂 1。
 - 修正：`Test-IsTestProject` 优先读取 csproj 的 `ProjectType`（新增带缓存的 `Get-DeclaredProjectType`，避免每条边重复解析），名字/路径启发式降为兜底。
 - 效果：`JCC12004 1 → 0`；被误判项目从生产图剔除后，生产边 716→713、生产跨域边 486→485；基线重冻结，Validate PASS。
 
@@ -451,12 +451,20 @@ architecture:
 - 指标：`JCC12005 1 → 0`（生产域环 **0 条**），`JCC12002=469`、`JCC12003=0`、`JCC12009=173` 不变；`NativeTui.Host` 定点编译 0 警告 0 错误，`NativeTui.Host.Tests` 169/169 通过，`apps/cli` 编译通过（全量构建与测试交由 CI）。
 - 至此 P4 第 4 项完成：`abstractions ↔ async_primitives` 与 `apps ↔ native_tui` 两条环均已清零，生产域环归零。
 
+**已完成 0.12 目录命名存量清零（2026-11-23）**：
+- 范围：`JCC12009` 初始 176 处，进入本轮时基线 173 处（`collections` / `persistence` 已先行试点）；实际处理 173 个目录，最终 `JCC12009=0`。
+- 命名映射：点号分隔的项目目录统一改为下划线（如 `abstractions.configuration → abstractions_configuration`）；CamelCase 目录按词边界转 snake_case（如 `ToolHandlers → tool_handlers`、`OpenAI → open_ai`）；纯大小写目录用临时名两段式 `git mv` 保留历史。
+- 试点验证：先做 `collections/structura.tests → structura_tests` 与 `persistence/pithosdb/{Core,Storage,Compaction}` 两组试点，分别覆盖点号名与大小写名，单域编译 0 警告后推广。
+- 批量改动：169 个剩余目录一次迁移；同步重写 `.slnx` / `.csproj` 路径、CI 分片、`build/sln` 四个解决方案、锁原语基线、`Directory.Build.props` 路径引用；16 域 README 项目表重生成。
+- 校验：全部 `.slnx` 与 `ProjectReference` 路径 0 缺失（静态检查）；`generators`、`mcp`、`llm` 三个域、`apps/cli` 全闭包、`Brain.Context.Tests` 定点编译均 0 警告 0 错误；未跑全量编译/测试，交由 CI。
+- 指标：`JCC12009 173 → 0`；`JCC12001 0`、`JCC12002 469`、`JCC12003 0`、`JCC12004 0`、`JCC12005 0`、`JCC12010 0`、`JCC12011 0`、`JCC12012 0` 保持不变；目录改名不改变程序集名、命名空间与运行时行为。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. ✅ 补齐域内 slnx 缺口（`827e8fca0`，26→0；abstractions/generators/perception 全部登记，tools 的 13 个 `cli_nodes/groups/*` 与 sample/onnx 测试直接纳入，无排除项）。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
 3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖已摘除，环 15→8）
 4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。（已完成：`storage ↔ composition`、`abstractions ↔ async_primitives`、`apps ↔ native_tui` 三条均清零，生产域环 8→0）
-5. 176 个目录名的批量改名（脚本先单域验证再推广）。
+5. ✅ 176 个目录名的批量改名（脚本先单域验证再推广；最终 173 个现存违规清零，`JCC12009=0`）。
 
 **验收**：
 - `slnx 16/16`（域内项目全部覆盖或显式排除）；

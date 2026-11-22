@@ -1,6 +1,6 @@
 # 注册顺序表 — 「谁先执行」的唯一数据源。
 #
-# 消费方: OrderIndex（modules/abstractions/abstractions.primitives.utils/src/order/OrderIndex.cs）
+# 消费方: OrderIndex（modules/abstractions/abstractions_primitives_utils/src/order/OrderIndex.cs）
 #         → CommandInterceptionDispatcher / ToolFixHookRegistry / AgentWorktreeService /
 #           QueryStopHookManager 按本表顺序装配。
 #

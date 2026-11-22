@@ -66,8 +66,8 @@
 | `modules/mcp/mcp/mcp_protocol/McpAuthToken.cs`（新） | 生成 + 校验（唯一数据源） |
 | `modules/apps/cli/core/commands/core/JccMcpServer.cs` | gateway 注入 + 执行路径切换 |
 | `modules/apps/cli/core/commands/core/McpCommand.cs` | serve 流程获取 gateway + token 用法打印 |
-| `modules/mcp/mcp.tests/core/mcp/McpHttpServerTests.cs` `McpHttpServerE2ETests.cs` | 存量用例补 token 头（回归防护） |
-| `modules/mcp/mcp.tests/core/mcp/McpAuthTokenTests.cs` 等（新） | 红测试先行 |
+| `modules/mcp/mcp_tests/core/mcp/McpHttpServerTests.cs` `McpHttpServerE2ETests.cs` | 存量用例补 token 头（回归防护） |
+| `modules/mcp/mcp_tests/core/mcp/McpAuthTokenTests.cs` 等（新） | 红测试先行 |
 
 ## 4. 验收（2026-10-17 完成，ADR 0080 手动 exe 冒烟）
 

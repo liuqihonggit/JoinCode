@@ -4,12 +4,12 @@
   <Project Path="onnx_embedding_verify/OnnxEmbeddingVerify.csproj" />
   <Project Path="simd_vector_verify/SimdVectorVerify.csproj" />
   <Project Path="rg/rg.csproj" />
-  <Project Path="rg.tests/Rg.Tests.csproj" />
+  <Project Path="rg_tests/Rg.Tests.csproj" />
   <Project Path="gh/gh.csproj" />
   <Project Path="github_client/GitHubClient.csproj" />
   <Project Path="github_client_tests/GitHubClient.Tests.csproj" />
-  <Project Path="gh.tests/Gh.Tests.csproj" />
-  <Project Path="onnx_embedding.tests/OnnxEmbedding.Tests.csproj" />
+  <Project Path="gh_tests/Gh.Tests.csproj" />
+  <Project Path="onnx_embedding_tests/OnnxEmbedding.Tests.csproj" />
   <Project Path="cli_nodes/groups/agent/jcc_tool_agent.csproj" />
   <Project Path="cli_nodes/groups/code/jcc_tool_code.csproj" />
   <Project Path="cli_nodes/groups/file/jcc_tool_file.csproj" />

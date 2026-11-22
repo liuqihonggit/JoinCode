@@ -872,7 +872,7 @@ Commits: `c1e88d80c`, `4bbaa9598`, `522485a00`
 |------|------|---------|
 | 7-A | 落地 `IRegistryHub` 实现 — `RegistryHub` 聚合9个通用Registry | `modules/composition/composition/dependency_injection/core/RegistryHub.cs` |
 | 7-A | `FileReadListenerRegistry` 纳入 DI 注册 | `ServiceRegistration.cs` |
-| 7-B | `PluginApprovalRegistry` + `DynamicPluginRegistry` + `ExternalPluginLoader` + `PluginFileWatcher` 纳入 DI Singleton | `modules/plugins/plugins.infrastructure/services/PluginServiceRegistration.cs` |
+| 7-B | `PluginApprovalRegistry` + `DynamicPluginRegistry` + `ExternalPluginLoader` + `PluginFileWatcher` 纳入 DI Singleton | `modules/plugins/plugins_infrastructure/services/PluginServiceRegistration.cs` |
 | 7-B | `PluginFileWatcherHostedService` — IHostedService 自动启动文件监控 | `modules/composition/composition/dependency_injection/infrastructure/PluginFileWatcherHostedService.cs` |
 | 7-C | `CategorizedRegistry` 从 `CachedRegistry` 改为 `MapRegistry(trackCanonical: true)` | `modules/abstractions/infrastructure/utils/collections/CategorizedRegistry.cs` |
 | 7-C | `CachedRegistry` 归档到 `.xxx/` | 消除向后兼容别名冗余 |

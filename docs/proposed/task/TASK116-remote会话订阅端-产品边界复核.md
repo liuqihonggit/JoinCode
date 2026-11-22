@@ -11,7 +11,7 @@
 原文「remote 会话订阅端（CCR viewer）」属实，但它是**云端产品形态**而非本地 CLI 缺的功能：
 
 - 基准 `src/remote/RemoteSessionManager.ts:49-61` 的 `RemoteSessionConfig` 要求 `sessionId + getAccessToken() + orgUuid`，`viewerOnly=true` 时"Ctrl+C/Escape 不发送中断、关闭 60s 重连超时、不改会话标题——**Used by `claude assistant`**"（`:55-59`）。配套 `SessionsWebSocket.ts`/`remotePermissionBridge.ts`/`sdkMessageAdapter.ts` 构成 OAuth + 组织维度 + 远程权限回传的 viewer 客户端。
-- 本仓的 "remote" 是 engine bridge：`modules/apps/engine/bridge/BridgeProtocol.cs:47-59`（本地 UI 协议事件）、`modules/async_primitives/transport.impl/bridge/v2/V2ReplBridgeTransport.cs:5-9`（SSE 读 + HTTP POST `/worker/*`）。本仓 worker 桥也带组织标识（`BridgeApiClient.cs:255-256/347-348` 的 `orgUUID` + `x-organization-uuid` 头）与 token 刷新（`BridgeTokenRefreshScheduler.cs:146`），但**没有 `viewerOnly` / 只读订阅语义 / `RemoteSessionManager`**（三者全仓 grep 零命中）：worker 桥是"我的会话被远端控制"，viewer 是"我只看别人的会话"。
+- 本仓的 "remote" 是 engine bridge：`modules/apps/engine/bridge/BridgeProtocol.cs:47-59`（本地 UI 协议事件）、`modules/async_primitives/transport_impl/bridge/v2/V2ReplBridgeTransport.cs:5-9`（SSE 读 + HTTP POST `/worker/*`）。本仓 worker 桥也带组织标识（`BridgeApiClient.cs:255-256/347-348` 的 `orgUUID` + `x-organization-uuid` 头）与 token 刷新（`BridgeTokenRefreshScheduler.cs:146`），但**没有 `viewerOnly` / 只读订阅语义 / `RemoteSessionManager`**（三者全仓 grep 零命中）：worker 桥是"我的会话被远端控制"，viewer 是"我只看别人的会话"。
 - 与 #47 类似：这是服务端产品（组织账号 + Web/桌面 viewer）的客户端，不是本机 CLI 可单独补齐的能力。按无产生点 + 产品边界判不适用，零代码。
 
 ---
@@ -23,7 +23,7 @@
 
 ### 问2 原始素材（一手）
 - 基准：`src/remote/RemoteSessionManager.ts:49-61/325-355`（config 字段与 viewerOnly 注释）、`SessionsWebSocket.ts`/`remotePermissionBridge.ts`/`sdkMessageAdapter.ts`（订阅/权限/消息适配三件套）。
-- 本仓：`modules/apps/engine/bridge/BridgeProtocol.cs:47-59`、`modules/async_primitives/transport.impl/bridge/v2/V2ReplBridgeTransport.cs:5-9/158-167`、`modules/async_primitives/transport.impl/bridge/shared/auth/BridgeTokenRefreshScheduler.cs:146-151`（worker 通道 token，非 OAuth viewer）。
+- 本仓：`modules/apps/engine/bridge/BridgeProtocol.cs:47-59`、`modules/async_primitives/transport_impl/bridge/v2/V2ReplBridgeTransport.cs:5-9/158-167`、`modules/async_primitives/transport_impl/bridge/shared/auth/BridgeTokenRefreshScheduler.cs:146-151`（worker 通道 token，非 OAuth viewer）。
 
 ### 问3 具体方法与工具
 读基准 config 定义与 viewerOnly 注释确定产品归属（"Used by claude assistant"），再全仓 grep `orgUuid`/`viewerOnly`/远程订阅 API 验证本仓零产生点；对照 bridge v2 的读写通道确认名称相近但域不同。

@@ -15,9 +15,9 @@
 
 | 组件 | 位置 |
 |------|------|
-| 策略单源（选项解析/开关/上限/阻断消息） | `modules/abstractions/abstractions.utils/core/misc/RoundGatePolicy.cs` |
-| 提示词目录（5 个选项注入文本） | `modules/abstractions/abstractions.utils/core/misc/RoundGatePrompts.cs` |
-| `round_gate` 工具 | `modules/mcp/mcp.tool_handlers/agent/core/RoundGateToolHandlers.cs` |
+| 策略单源（选项解析/开关/上限/阻断消息） | `modules/abstractions/abstractions_utils/core/misc/RoundGatePolicy.cs` |
+| 提示词目录（5 个选项注入文本） | `modules/abstractions/abstractions_utils/core/misc/RoundGatePrompts.cs` |
+| `round_gate` 工具 | `modules/mcp/mcp_tool_handlers/agent/core/RoundGateToolHandlers.cs` |
 | 工具名枚举 | `SystemToolName.RoundGate`（`round_gate`） |
 | 系统提示 Section | `modules/cognition/prompts/sections/workflow/RoundGateSection.cs` + `resources/prompts/sections.yaml` |
 | 开关 | `JCC_ROUND_GATE`（on/off/auto）、`JCC_ROUND_GATE_MAX_REJECT`（默认 6，0=不限制） |

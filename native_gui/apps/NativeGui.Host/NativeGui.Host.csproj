@@ -47,7 +47,7 @@
 
   <ItemGroup>
     <!-- 枚举 [EnumValue] 元数据生成（GuiThemeVariant 等扩展；Core 内生成物 internal 不可跨程序集，Host 独立生成一份） -->
-    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata_generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

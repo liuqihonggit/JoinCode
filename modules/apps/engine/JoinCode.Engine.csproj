@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <ProjectType>app</ProjectType>
@@ -23,16 +23,16 @@
     <ProjectReference Include="$(RepoRoot)modules/composition/pipelines/Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/persistence/pithosdb/PithosDB.Core.csproj" />
     <!-- McpInitModule 编译期引用 Core.Telemetry.TelemetryPlugin / 插件契约 -->
-    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins.contracts/Plugins.Contracts.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins_contracts/Plugins.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins_infrastructure/Plugins.Infrastructure.csproj" />
   </ItemGroup>
 
   <!-- 源码生成器 — 扫描 engine 程序集 [Register] 类型生成 AddJoinCodeEngineAutoRegisteredServices/Options（ADR 0143 Step 3c） -->
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)modules/generators/aot_handler.generator/AotHandler.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch_generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/aot_handler_generator/AotHandler.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <!-- 模块装配目录 — 与 CLI 共用 resources/app/modules.yaml，gui profile 归属本程序集 -->
-    <ProjectReference Include="$(RepoRoot)modules/generators/app_module.generator/AppModule.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/app_module_generator/AppModule.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -61,7 +61,7 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Memory" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_configuration/Abstractions.Configuration.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
   <PropertyGroup>

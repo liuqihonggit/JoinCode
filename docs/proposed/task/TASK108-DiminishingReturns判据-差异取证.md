@@ -14,7 +14,7 @@
 - 本仓的 `DiminishingReturnsMiddleware` 是**单次查询内的工具调用级断路器**：连续 3 次token 相对增长率 <0.1 就发警告并 `ShouldBreak = true` 结束本查询，没有续跑循环、没有预算百分比门槛、没有 nudge 消息。
 - 因此「把 C# 判据换成 delta<500」单独做没有落点：本仓没有 `continuationCount`/`lastGlobalTurnTokens`/`isMeta` 续跑机制；要对齐就得整套移植 TOKEN_BUDGET 续跑循环，那属于**新行为**（与 #40 dream 同类），不在无人值守「先修已知问题」的边界内。
 
-**裁决：判据差异保留本仓设计、本项关闭。** 但取证中发现一个真缺口，属"Reset 泄漏未修干净"：检测器是 Singleton + 中间件是 Singleton，而 `IQueryEngine` 也是 Singleton 且 fork 子代理会并发调用 `QueryAsync`（`modules/llm/agents.fork/AgentBase.cs:279/423`）——每次查询开始 `Reset()` 会清掉另一条在途查询的计数，两条查询的消耗序列互相污染。本次把检测器改为**无状态**（计数随调用出入参，存到每查询的 `QueryMiddlewareContext`），从结构上消除跨查询共享，而不是继续用 `Reset()` 打补丁。
+**裁决：判据差异保留本仓设计、本项关闭。** 但取证中发现一个真缺口，属"Reset 泄漏未修干净"：检测器是 Singleton + 中间件是 Singleton，而 `IQueryEngine` 也是 Singleton 且 fork 子代理会并发调用 `QueryAsync`（`modules/llm/agents_fork/AgentBase.cs:279/423`）——每次查询开始 `Reset()` 会清掉另一条在途查询的计数，两条查询的消耗序列互相污染。本次把检测器改为**无状态**（计数随调用出入参，存到每查询的 `QueryMiddlewareContext`），从结构上消除跨查询共享，而不是继续用 `Reset()` 打补丁。
 
 ---
 
@@ -25,8 +25,8 @@
 
 ### 问2 原始素材（一手）
 - 基准：`src/query/tokenBudget.ts:3-4`（`COMPLETION_THRESHOLD=0.9`、`DIMINISHING_THRESHOLD=500`）、`:6-11`（`BudgetTracker` 四字段）、`:45-93`（`checkTokenBudget` 全流程）、`:64-76`（未达 diminishing 且未到 90% → `continue` + `getBudgetContinuationMessage`）、`:78-90`（diminishing 或已有续跑 → `stop` + `completionEvent`）；`src/utils/tokenBudget.ts:66-73`（nudge 文案）；`src/query.ts:280`（`feature('TOKEN_BUDGET') ? createBudgetTracker() : null`）、`:1308-1355`（消费 decision：`:1325-1328` 注入 `isMeta: true` 的 nudge 后 `continue`；`:1344-1353` diminishing 早停记 event）。
-- 本仓：`modules/cognition/brain.query/query2/token_budget/core/DiminishingReturnsDetector.cs:50-52`（`0.1`/`3`/最小样本 2）、`:81-102`（逐对求 `curr/prev` 比值取均值）、`:104-119`（CAS 累加连续低值、命中给两档建议）、`:135-137`（`Reset`）；`middleware/DiminishingReturnsMiddleware.cs:30-39`（每查询 `Reset()` + 注册 `AfterToolCallHooks`）、`:41-53`（`RecentConsumptions.Count>=3` → 检测 → 警告 + 输出 `⚠️` + `ShouldBreak = true`）；`middleware/CostTrackingMiddleware.cs:46-56`（消费序列由 AfterLlmCall 钩子写入，Amount = `InputTokens + OutputTokens`）；`core/QueryEngine.cs:403-419`（钩子执行后应 `ShouldBreak` 跳出批次/查询）；`middleware/TokenBudgetMiddleware.cs:38-44`（只做预算消耗，无续跑）；`middleware/PreRequestBudgetGuardMiddleware.cs:12-15`（上下文窗口 0.7/1.0 预防裁剪，与 token 目标续跑无关）。
-- 并发证据：`modules/llm/agents.fork/AgentBase.cs:279/423-424`（fork 子代理调 `IQueryEngine.QueryAsync`）；`core/QueryEngine.cs:21` + 中间件 `[Register(..., Singleton)]` → 同一实例被多条查询共享。
+- 本仓：`modules/cognition/brain_query/query2/token_budget/core/DiminishingReturnsDetector.cs:50-52`（`0.1`/`3`/最小样本 2）、`:81-102`（逐对求 `curr/prev` 比值取均值）、`:104-119`（CAS 累加连续低值、命中给两档建议）、`:135-137`（`Reset`）；`middleware/DiminishingReturnsMiddleware.cs:30-39`（每查询 `Reset()` + 注册 `AfterToolCallHooks`）、`:41-53`（`RecentConsumptions.Count>=3` → 检测 → 警告 + 输出 `⚠️` + `ShouldBreak = true`）；`middleware/CostTrackingMiddleware.cs:46-56`（消费序列由 AfterLlmCall 钩子写入，Amount = `InputTokens + OutputTokens`）；`core/QueryEngine.cs:403-419`（钩子执行后应 `ShouldBreak` 跳出批次/查询）；`middleware/TokenBudgetMiddleware.cs:38-44`（只做预算消耗，无续跑）；`middleware/PreRequestBudgetGuardMiddleware.cs:12-15`（上下文窗口 0.7/1.0 预防裁剪，与 token 目标续跑无关）。
+- 并发证据：`modules/llm/agents_fork/AgentBase.cs:279/423-424`（fork 子代理调 `IQueryEngine.QueryAsync`）；`core/QueryEngine.cs:21` + 中间件 `[Register(..., Singleton)]` → 同一实例被多条查询共享。
 
 ### 问3 具体方法与工具
 两侧源码逐行对照 + 全仓 grep（确认本仓零 `continuation`/`nudge`/`isMeta` 续跑结构、零 `DIMINISHING_THRESHOLD` 等价常量）；对照类名易混淆点：`query-token-budget-mw` 是 `TokenBudgetMiddleware` 的全局 using 别名（`modules/composition/pipelines/GlobalUsings.cs:36`），**不是**基准的 `checkTokenBudget` 续跑控制器。

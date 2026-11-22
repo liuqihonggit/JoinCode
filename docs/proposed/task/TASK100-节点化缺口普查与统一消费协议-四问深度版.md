@@ -466,7 +466,7 @@ consumers:
 | `non_deliverables_tools/scripts/Verify-NodeConsistency.py` | 新增门禁：dump 三方一致 + 契约合法 + 磁盘 profile 全部入 dump |
 | `.github/workflows/ci-unit-tests.yml` | 新增门禁步骤 |
 | `resources/profiles/base.yaml` / `sdk.yaml` | 删除 5 条 `tool-dispatch` 死声明（0 工厂 0 消费方） |
-| `modules/composition/composition.tests/node_registry/NodeContractTest.cs` | 新增 6 个测试（缺省/继承/覆写/非法值） |
+| `modules/composition/composition_tests/node_registry/NodeContractTest.cs` | 新增 6 个测试（缺省/继承/覆写/非法值） |
 
 **真机验收**
 
@@ -485,7 +485,7 @@ consumers:
 
 | 文件 | 改动 |
 |---|---|
-| `modules/guard/guard.hooks/execution/core/NodeChainOrder.cs` | 新增：按 profile 排任意节点链；kebab ID ↔ Pascal 实现名比对；profile 缺失退回 Priority；实现缺失fail-closed抛错；实现未声明追加链尾并打点 |
+| `modules/guard/guard_hooks/execution/core/NodeChainOrder.cs` | 新增：按 profile 排任意节点链；kebab ID ↔ Pascal 实现名比对；profile 缺失退回 Priority；实现缺失fail-closed抛错；实现未声明追加链尾并打点 |
 | `.../interception/core/CommandInterceptionDispatcher.cs` | 构造改为 `NodeChainOrder.Order(...)`，新增可选 `IProfileManager` 参数 |
 | `modules/composition/pipelines/registration/DataDrivenPipelineComposition.cs` | 新增 8 个 `command-guard-chain:*` 工厂 |
 | `resources/profiles/base.yaml` | 新增 `command-guard-chain`（8 守卫，priority 800→100） |
@@ -507,7 +507,7 @@ consumers:
 
 | 文件 | 改动 |
 |---|---|
-| `modules/guard/guard.hooks/execution/fix_hooks/ToolFixHooks.cs` | 3 个修正器加 `[Register(typeof(IToolFixHook))]` |
+| `modules/guard/guard_hooks/execution/fix_hooks/ToolFixHooks.cs` | 3 个修正器加 `[Register(typeof(IToolFixHook))]` |
 | `.../execution/core/ToolFixHookRegistry.cs` | 构造注入 `IEnumerable<IToolFixHook>` + `IProfileManager`，`NodeChainOrder` 排序；删除 `RegisterDefaultFixHooks`（硬编码 new 三个）；`Register` 改为「已声明段之后按 priority 降序插入」 |
 | `modules/guard/guard/plugins/FixHooksPlugin.cs` | **删除**（只做 `new` 的插件已无用），同步移除 `McpInitModule` 清单项 |
 | `resources/profiles/base.yaml` | 新增 `tool-fix-chain`（`contract: guard`，3 节点，priority 300/200/100） |
@@ -531,9 +531,9 @@ consumers:
 
 | 文件 | 改动 |
 |---|---|
-| `modules/guard/guard.sandbox/providers/*.cs` | 4 个提供器加 `[Register(typeof(ISandboxProvider))]` |
+| `modules/guard/guard_sandbox/providers/*.cs` | 4 个提供器加 `[Register(typeof(ISandboxProvider))]` |
 | `modules/guard/guard/plugins/SandboxProvidersPlugin.cs` | **删除**（只做 4 连 `new`），同步移除 `McpInitModule` 清单项与 `Core.Plugins` 全局 using |
-| `modules/guard/guard.sandbox/core/SandboxManager.cs` | 构造注入 `IProfileManager`，降级链改读 `_fallbackOrder`（profile 消费点 `sandbox-providers`，缺失时退回 OS 默认）；`AddProvider` 仍保留供运行期热插 |
+| `modules/guard/guard_sandbox/core/SandboxManager.cs` | 构造注入 `IProfileManager`，降级链改读 `_fallbackOrder`（profile 消费点 `sandbox-providers`，缺失时退回 OS 默认）；`AddProvider` 仍保留供运行期热插 |
 | `modules/abstractions/composition/node/chain/NodeChainOrder.cs` | 从 guard.hooks **下沉到契约层**（S3/S4 都要用），命名空间 `JoinCode.Abstractions.Composition` |
 | `Guard.Sandbox.csproj` | 补 `Abstractions.Composition` 引用 |
 

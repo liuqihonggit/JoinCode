@@ -69,5 +69,5 @@ ADR 0138 决策 2（tools/call 接入 `IToolExecutionGateway` 权限管道）落
 | checker 缺失 fail-closed | `PathPermissionMiddleware` null 分支 | 第 9 层 | ✅ | ✅ 单测 |
 | 管道全量回归 | — | guard 1096 / host 1279 / mcp 1000 | ✅ | ✅ dotnet test 全绿 |
 
-红测试：`modules/guard/guard.security.tests/permission/permission_pipeline/PipelinePathBoundaryTests.cs`
+红测试：`modules/guard/guard_security_tests/permission/permission_pipeline/PipelinePathBoundaryTests.cs`
 （真实 12 层管道 + 真实 `PathPermissionChecker` + 真实 `AutoModeClassifier`，无 mock 中间件）。

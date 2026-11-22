@@ -47,7 +47,7 @@
 代表行：
 
 - `modules/apps/cli/app/diagnostics/ErrorConsole.cs:22,47,55,73,83`
-- `modules/abstractions/abstractions.primitives.utils/src/diagnostics/ConsoleSuppressionGate.cs:40,49,68,80,109`
+- `modules/abstractions/abstractions_primitives_utils/src/diagnostics/ConsoleSuppressionGate.cs:40,49,68,80,109`
 - `modules/tools/cli_nodes/groups/code/private/LspConnection.cs:90,116` + `SemaphoreSlim _writeLock` 第 23 行
 - `modules/tools/rg/RgEngine.cs:40`（PLINQ `ForAll` 内）
 - `modules/guard/guard/configuration/services/ConfigurationService.cs:59`
@@ -129,7 +129,7 @@
 |------|------|
 | `docs/proposed/task/TASK079-锁改造为只读不可变CAS-杜绝死锁.md:68-82` | “必须保留锁”清单与新零锁目标冲突，B0 标注被 ADR 0158 取代 |
 | `modules/cognition/prompts/sections/domain/DeadlockAuditSection.cs:23,52` | 推荐 `TimeoutLock`、分片 `TimeoutLock`，与新目标相反 |
-| `modules/generators/aot_safety.generator/rules/concurrency/LockInAsyncMethodRule.cs:10` | JCC4001 建议“改用 SemaphoreSlim(1,1)”，与新目标相反 |
+| `modules/generators/aot_safety_generator/rules/concurrency/LockInAsyncMethodRule.cs:10` | JCC4001 建议“改用 SemaphoreSlim(1,1)”，与新目标相反 |
 | JCC4001-JCC4007 | 全部围绕“锁内风险”，没有“禁止锁原语”；JCC4008 编号未占用 |
 | `REF006` / `REF007` / `DSG038` | 记录的是“lock → AsyncLock / Channel”中间态，需要在 B6 标注终态 |
 
@@ -263,7 +263,7 @@ UI 规则：UI 线程只消费消息、渲染快照；后台 Actor 不得直接�
 
 #### B3 执行记录
 
-- 新增无锁原语：`AsyncGate`（任务链门闩，`modules/abstractions/abstractions.utils/state/AsyncGate.cs`）与 `PermitPool`（Channel 令牌池，支持热调整容量），统一承载互斥与 (N,N) 限流。
+- 新增无锁原语：`AsyncGate`（任务链门闩，`modules/abstractions/abstractions_utils/state/AsyncGate.cs`）与 `PermitPool`（Channel 令牌池，支持热调整容量），统一承载互斥与 (N,N) 限流。
 - 单飞初始化：`PuppeteerBrowserAutomationService`、`ConfigPersistentServiceBase`、`FileBasedTaskService` 改 `TaskCompletionSource` 单飞信号（CAS 创建、初始化完成统一 `TrySetResult`），消除 `AsyncLock` + double-check 模式。
 - 状态机/暂停：`AgentStateMachine` 内部 `AsyncGate`；`AgentBase` 暂停语义重写为 TCS 门闩（Pause 创建、Resume/5s 超时清除），删除死代码 `_pauseLock`；`BridgeDeviceTokenService` 存储互斥改 `AsyncGate`。
 - 并发限流：`ExecutionContext.ConcurrencyLock` → `PermitPool`；`GoalGraphEngine` 并发限流 → `PermitPool`；`ForkSubAgentManagerActor` 并发槽 → 热替换 `PermitPool`；`IOThrottleService`、`DeferredMailService`、`HotSpotSpawnIntegration` 去 `AsyncLock`/`LockRef`。

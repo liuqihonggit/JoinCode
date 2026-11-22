@@ -44,7 +44,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions_primitives_tools/Abstractions.Primitives.Tools.csproj" />
   </ItemGroup>
 
 </Project>

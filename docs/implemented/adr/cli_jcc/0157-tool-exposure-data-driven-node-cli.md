@@ -40,7 +40,7 @@
 | 已有独立 exe 样板 | `modules/tools/rg/rg.csproj:4-13`（`OutputType=Exe` + `IsAotCompatible` + `ExcludeJccAnalyzers`，仅引 3 个 abstractions）；`modules/tools/gh/gh.csproj` 同构 |
 | 已有 `-h` 自描述机制 | `CliSubCommand.cs:83,89` 的 `SelfHelp = true`（rg / gh 两个子命令自带帮助） |
 | 已有 YAML 基础设施 | `NodeProfileLoader.cs:44` 使用 YamlDotNet `YamlStream`；`resources/profiles/*.yaml` 已内嵌资源化 |
-| 已有工具 schema DTO | `modules/abstractions/abstractions.primitives.tools/src/ToolSchema.cs:6-50`（`ToolSchema` / `ToolSchemaProperty`） |
+| 已有工具 schema DTO | `modules/abstractions/abstractions_primitives_tools/src/ToolSchema.cs:6-50`（`ToolSchema` / `ToolSchemaProperty`） |
 | 目录现状 | 16 功能域就近隔离（ADR 0137），非「一节点一目录」自包含 |
 
 ---
@@ -271,7 +271,7 @@
 | 无 Hub 直接调用 | `jcc mcp_call config_list '{}'` → 致命错误「Hub 服务不可达」 |
 | `JCC_ALLOW_DIRECT_FALLBACK=1` | `jcc mcp_list` → `total_count: 0`；`mcp_call config_list` → `TOOL_ERROR 未找到工具` |
 
-结论：**`modules/generators/mcp_tool_dispatch.generator/` 现在不能归档**（TASK082 步骤 9 的前提不成立）——转发兜底正是靠它注册的 handler。这也解释了为什么「剩下 250 个 host 工具真隔离」不能靠转发达成，只能逐组做实或改走 delegate。无 Hub 环境下的转发验收需先起 `jcchub.exe`，或在 CI 里注入假 Hub。
+结论：**`modules/generators/mcp_tool_dispatch_generator/` 现在不能归档**（TASK082 步骤 9 的前提不成立）——转发兜底正是靠它注册的 handler。这也解释了为什么「剩下 250 个 host 工具真隔离」不能靠转发达成，只能逐组做实或改走 delegate。无 Hub 环境下的转发验收需先起 `jcchub.exe`，或在 CI 里注入假 Hub。
 
 ### 3.3 对 ADR 0149 的显式收窄
 

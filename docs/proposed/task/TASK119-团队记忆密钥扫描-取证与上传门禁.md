@@ -23,7 +23,7 @@
 
 ### 问2 原始素材（一手）
 - 基准：`src/services/teamMemorySync/secretScanner.ts:48-224/227-237/277/312-324`（规则、惰性编译、扫描、redact）、`teamMemSecretGuard.ts:15-44`（路径判定 + 写入拒绝）、`index.ts:567-615/889-945`（上传逐文件扫描 + 跳过 + warn/埋点）、`tools/FileWriteTool/FileWriteTool.ts:157-160` 与 `FileEditTool/FileEditTool.ts:144-147`（写入前 validateInput）。
-- 本仓：`modules/abstractions/guard/security/scanning/SecurityPatterns.cs:104-300`（同款规则/扫描）、`modules/guard/guard.hooks/lifecycle/SubagentStopCheckpoint.cs:41-55` + `modules/cognition/hands_core/tool_handlers/dev_tools/handlers/GitToolHandlers.cs:39`（已有消费点）、`modules/storage/vault/memdir/sync/helpers/SyncFileTransfer.cs:35-66`（上传链，读内容但零扫描）。
+- 本仓：`modules/abstractions/guard/security/scanning/SecurityPatterns.cs:104-300`（同款规则/扫描）、`modules/guard/guard_hooks/lifecycle/SubagentStopCheckpoint.cs:41-55` + `modules/cognition/hands_core/tool_handlers/dev_tools/handlers/GitToolHandlers.cs:39`（已有消费点）、`modules/storage/vault/memdir/sync/helpers/SyncFileTransfer.cs:35-66`（上传链，读内容但零扫描）。
 
 ### 问3 具体方法与工具
 按基准"写入前 + 上传前"双门禁对照本仓；全仓 grep `ScanForSecretMatches` 确认已有规则库但同步链零调用；选 `PushToRemoteAsync` 作为出站卡点（内容已读入，改动最小且不改跨 slnx 契约）。

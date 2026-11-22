@@ -23,7 +23,7 @@
 
 ### 问2 原始素材（一手）
 - 基准：`src/server/createDirectConnectSession.ts:1-40`（`POST /sessions`、`authToken`、`cwd`、`dangerouslySkipPermissions`）、`directConnectManager.ts:12-60/…`（WS + Bearer + SDKMessage/permission 回调）、`types.ts`（connectResponseSchema）。
-- 本仓：`modules/async_primitives/transport.impl/bridge/v2/V2ReplBridgeTransport.cs:5-9/158-167`、`modules/async_primitives/transport.contracts/bridge/messages/SessionIdCompat.cs:21-22`、`modules/apps/engine/bridge/BridgeProtocol.cs:47-59`。
+- 本仓：`modules/async_primitives/transport_impl/bridge/v2/V2ReplBridgeTransport.cs:5-9/158-167`、`modules/async_primitives/transport.contracts/bridge/messages/SessionIdCompat.cs:21-22`、`modules/apps/engine/bridge/BridgeProtocol.cs:47-59`。
 - 零产生点：`grep -rni "directConnect|direct_connect" modules --include=*.cs` 无命中；`wsUrl`/`serverUrl` 的命中均属自有 bridge 端点转换或 MCP OAuth 通用参数，不具备 `POST /sessions` + SDKMessage WS 的直连托管语义。
 
 ### 问3 具体方法与工具

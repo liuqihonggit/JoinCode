@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="cli/JoinCode.csproj" />
   <Project Path="engine/JoinCode.Engine.csproj" />
+  <Project Path="native_tui_host/NativeTui.Host.csproj" />
   <Project Path="sdk/Sdk.csproj" />
 </Solution>

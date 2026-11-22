@@ -442,13 +442,20 @@ architecture:
 - 域归属修正：`BclBridge`、`AsyncLock`、`Transport.Contracts` 从 `async_primitives` 迁入 `abstractions`；测试目录同步为 `bcl_bridge_tests` / `async_lock_tests`，契约目录改为 `transport_contracts`；`async_primitives` 只保留 `Transport.Impl` 及测试。
 - 同步改动：30+ 个消费方 csproj、`JoinCode.slnx` / `Dev` / `Pack` / `Stryker` 四个 slnx、CI 单元与 Flaky 分片、`JCC4008` 锁原语存量基线路径、两个域 README 项目表。
 - 指标：`JCC12005 2 → 1`、`JCC12002 484 → 469`、`JCC12009 175 → 173`、`JCC12003 0`；全仓 218 项目 `-t:Rebuild -m:1` 0 警告 0 错误；`BclBridge` 41/41、`AsyncLock.Tests` 546/546、`Transport.Impl.Tests` 218/218 通过（全量测试交由 CI）。
-- 剩余 1 条环：`apps ↔ native_tui`（`apps/cli` 引用 `NativeTui.Host`，后者引用 `apps/engine`）。
+- 剩余 1 条环：`apps ↔ native_tui`（`apps/cli` 引用 `NativeTui.Host`，后者引用 `apps/engine`），已在 0.11 清零。
+
+**已完成 0.11 `apps ↔ native_tui` 环清零（2026-11-23）**：
+- 根因：`apps/cli` 引用 `native_tui/apps/NativeTui.Host`，而宿主又引用 `apps/engine`，形成 `apps → native_tui → apps` 的双向域边。
+- 归位方案：`NativeTui.Host` 从 `native_tui/apps/NativeTui.Host` 迁入 `modules/apps/native_tui_host`（`git mv` 保留历史），宿主归 `apps` 域，两条跨域边同时变为域内边；`apps/cli`、`NativeTui.Host.Tests` 的引用同步新路径，`native_tui.slnx` 移除宿主、`apps/module.slnx` 登记宿主，`apps/README.md` 重生成。
+- 构建策略：宿主原在 `native_tui` 独立 props 下不启用 JCC/Structura 分析器；迁入 `apps` 后在宿主 csproj 显式声明 `ExcludeJccAnalyzers=true`、`ExcludeStructura=true`、`GenerateDocumentationFile=false`，保留 UI 宿主的既有构建口径，不改宿主业务代码。`NativeTui.Core` / `NativeTui.Markdown` 因被跨域引用补 `JccApiVisibility=public`。
+- 指标：`JCC12005 1 → 0`（生产域环 **0 条**），`JCC12002=469`、`JCC12003=0`、`JCC12009=173` 不变；`NativeTui.Host` 定点编译 0 警告 0 错误，`NativeTui.Host.Tests` 169/169 通过，`apps/cli` 编译通过（全量构建与测试交由 CI）。
+- 至此 P4 第 4 项完成：`abstractions ↔ async_primitives` 与 `apps ↔ native_tui` 两条环均已清零，生产域环归零。
 
 **后续改动（按顺序，逐项 ADR）**：
 1. ✅ 补齐域内 slnx 缺口（`827e8fca0`，26→0；abstractions/generators/perception 全部登记，tools 的 13 个 `cli_nodes/groups/*` 与 sample/onnx 测试直接纳入，无排除项）。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
 3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖已摘除，环 15→8）
-4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。（进行中：`storage ↔ composition` 6 条清零，`abstractions ↔ async_primitives` 清零，环 8→1；仅剩 `apps ↔ native_tui`）
+4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。（已完成：`storage ↔ composition`、`abstractions ↔ async_primitives`、`apps ↔ native_tui` 三条均清零，生产域环 8→0）
 5. 176 个目录名的批量改名（脚本先单域验证再推广）。
 
 **验收**：

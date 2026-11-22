@@ -9,6 +9,7 @@
 |------|------|
 | [JoinCode](cli/JoinCode.csproj) |  |
 | [JoinCode.Engine](engine/JoinCode.Engine.csproj) | 应用入口 |
+| [NativeTui.Host](native_tui_host/NativeTui.Host.csproj) | 应用入口 |
 | [Sdk](sdk/Sdk.csproj) |  |
 <!-- END MODULE PROJECTS -->
 

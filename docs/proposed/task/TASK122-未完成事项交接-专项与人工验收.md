@@ -140,3 +140,12 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 
 **能自动化的已知断链已经清完；剩下的不是“再补一根线”，而是六个需要产品/契约决策的新行为，
 加一个只能由用户在真实终端完成的键位矩阵。** 建议从 #52 人工矩阵开始，再按 #45 → #50 → #46 → #42 → #40 → #51 推进。
+
+## 六、合并流程（PR 自动合并）
+
+- 仓库侧：`allow_auto_merge=true`、`allow_squash_merge=true`；`main` 保护为 required checks 38 项 + `strict=true`（分支须先与 main 同步）+ `enforce_admins=true`，没有 review 要求。
+- **分支保护里没有「自动合并」字段** —— 自动合并是 PR 自身属性，受仓库级 `allow_auto_merge` 约束。建 PR 后必须显式 `gh pr merge <n> --squash --auto`，否则 CI 全绿也不会自己合（2026-11-23 的 #718 就漏了这一步，靠人工补合）。
+- `delete_branch_on_merge` 已改为 `false`（2026-11-23）：此前合 PR 会连带删掉 `w2`，造成远端分支消失、本地与远端分叉。`w1–w4` 是复用的长期工作分支，不该由合并来清理。
+- 合并后 `gh pr merge` 会把**本地** head 分支切到合并结果（squash 后等于 main），远端则停在旧 tip；对齐远端用 `git push --force-with-lease=w2:<已知远端 sha> origin w2`，禁止裸 `--force`。
+- `gh api pulls/N` 有结果缓存：合并后确认终态要加 `?nocache=$(date +%s)`，或直接看 `git log origin/main`。
+- `gh` 内置 jq 是阉割版：`"\(.a) \(.b)"` 字符串内插、`keys` 都不支持，复杂解析改用 python 读 stdin（记得先剥离 `<gh-meta>` 行）。

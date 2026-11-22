@@ -56,6 +56,12 @@ public sealed class AgentStreamChunk {
     public bool IsToolError { get; init; }
 
     /// <summary>
+    /// 工具错误码（ToolCallEnd 类型）— <c>ToolErrorCode</c> 的字符串值，
+    /// 对齐 ChatStreamEvent.ToolErrorCode；供权限拒绝等结构化判定，禁止消费方用结果文本猜（TASK125）
+    /// </summary>
+    public string? ToolErrorCode { get; init; }
+
+    /// <summary>
     /// 结构化 Patch（ToolCallEnd 类型）— 对齐 ChatStreamEvent.StructuredPatch
     /// </summary>
     public StructuredPatchHunk[]? StructuredPatch { get; init; }
@@ -150,6 +156,7 @@ public sealed class AgentStreamChunk {
                 ToolCallId = evt.ToolCallId,
                 ToolResultText = evt.ToolResultText,
                 IsToolError = evt.IsToolError,
+                ToolErrorCode = evt.ToolErrorCode,
                 StructuredPatch = evt.StructuredPatch,
                 AgentId = agentId
             },

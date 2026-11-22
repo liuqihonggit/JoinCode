@@ -171,8 +171,12 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>工具调用结束</summary>
-    public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
-        if (isError && resultText is not null && resultText.Contains("拒绝")) {
+    public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch, string? errorCode = null) {
+        // 结构化优先：错误码是权威判定；只有旧路径不产出错误码时才退回文本兜底（TASK125）
+        var isPermissionDenial = errorCode is not null
+            ? JoinCode.Abstractions.Tools.ToolErrorCodes.IsPermissionDenial(errorCode)
+            : isError && resultText is not null && resultText.Contains("拒绝");
+        if (isPermissionDenial) {
             _toolInputs.TryGetValue(toolCallId ?? string.Empty, out var toolArgs);
             _permissionDenials.Add(new Cli.Output.SdkPermissionDenial {
                 ToolName = toolName,

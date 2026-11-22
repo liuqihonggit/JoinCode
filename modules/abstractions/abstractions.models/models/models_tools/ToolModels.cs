@@ -116,6 +116,13 @@ public sealed record ToolResult {
     public bool IsError { get; init; }
 
     /// <summary>
+    /// 结构化错误码 — <see cref="ToolErrorCode"/> 的字符串值（如 <c>PD002</c>）。
+    /// 仅供进程内消费方判定失败原因（权限拒绝等），不进传输 JSON：线上文本里已有 <c>error_code</c>（TASK125）。
+    /// </summary>
+    [JsonIgnore]
+    public string? ErrorCode { get; init; }
+
+    /// <summary>
     /// 工具调用请求（内部使用，不序列化）
     /// </summary>
     [JsonIgnore]

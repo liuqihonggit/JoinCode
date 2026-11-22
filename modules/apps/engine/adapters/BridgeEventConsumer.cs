@@ -72,7 +72,7 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
 
     /// <summary>工具调用结束 → tool_result(截断摘要 + 结构化 isError + 结构化补丁投影 + 原始输出预截断投影)。
     /// TASK069-M2/M5 — isError 以结构化字段下发（此前只折进摘要文本前缀，TUI 无法给圆点上色/走错误形态）。</summary>
-    public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
+    public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch, string? errorCode = null) {
         var (rawOutput, hiddenLines) = ProjectRawOutput(resultText);
         WriteEvent(new Cli.Bridge.BridgeEvent.ToolResult(BuildSummary(resultText), ProjectPatch(patch), rawOutput, hiddenLines, isError));
     }

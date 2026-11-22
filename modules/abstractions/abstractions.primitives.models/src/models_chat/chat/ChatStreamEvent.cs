@@ -38,6 +38,12 @@ public sealed class ChatStreamEvent {
     public string? ToolResultText { get; init; }
     /// <summary>获取是否为工具错误。</summary>
     public bool IsToolError { get; init; }
+    /// <summary>
+    /// 工具错误码 — <c>ToolErrorCode</c> 的字符串值（如 <c>PD002</c>）。
+    /// 消费方按码判定失败原因（权限拒绝等），不得再用结果文本猜语义（TASK125）。
+    /// 用字符串而非枚举：本层为更低层的 primitives，不能反向依赖 models 层枚举。
+    /// </summary>
+    public string? ToolErrorCode { get; init; }
     /// <summary>获取令牌使用情况。</summary>
     public TokenUsage? Usage { get; init; }
     /// <summary>获取模型标识。</summary>
@@ -136,13 +142,14 @@ public sealed class ChatStreamEvent {
     };
 
     /// <summary>创建工具调用结束事件。</summary>
-    public static ChatStreamEvent ToolEnd(string toolName, string? resultText = null, string? toolCallId = null, bool isError = false, StructuredPatchHunk[]? structuredPatch = null) => new() {
+    public static ChatStreamEvent ToolEnd(string toolName, string? resultText = null, string? toolCallId = null, bool isError = false, StructuredPatchHunk[]? structuredPatch = null, string? toolErrorCode = null) => new() {
         Type = ChatStreamEventType.ToolCallEnd,
         ToolName = toolName,
         ToolCallId = toolCallId,
         ToolResultText = resultText,
         IsToolError = isError,
-        StructuredPatch = structuredPatch
+        StructuredPatch = structuredPatch,
+        ToolErrorCode = toolErrorCode
     };
 
     /// <summary>

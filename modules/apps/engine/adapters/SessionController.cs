@@ -391,7 +391,7 @@ public sealed class SessionController {
                 _consumer.OnToolStart(toolName, callId, arguments);
             },
             onToolEnd: (toolName, resultText, callId, isToolError, structuredPatch) => {
-                _consumer.OnToolEnd(toolName, resultText, callId, isToolError, structuredPatch);
+                _consumer.OnToolEnd(toolName, resultText, callId, isToolError, structuredPatch, evt.ToolErrorCode);
                 _turnToolCalls.Add((toolName, callId));
                 RecordToolCallForTurnDiff(toolName, resultText, structuredPatch);
             },

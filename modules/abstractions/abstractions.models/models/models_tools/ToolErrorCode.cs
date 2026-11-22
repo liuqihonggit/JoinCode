@@ -42,3 +42,27 @@ public enum ToolErrorCode {
     [EnumValue("CNL002")] CancelledBySiblingError,
     [EnumValue("CNL003")] CancelledByTimeout,
 }
+
+/// <summary>
+/// 工具错误码判定 — 把「哪些码算权限拒绝」收敛到一处（TASK125）。
+/// 消费方（CLI 的 <c>permission_denials</c> 收集、GUI 拒绝卡片等）一律调这里，
+/// 禁止各自散落 "PD002" 字面量或对结果文本做关键词匹配。
+/// </summary>
+public static class ToolErrorCodes {
+    /// <summary>
+    /// 是否属于权限拒绝。收录全部 <c>DeniedBy*</c>：
+    /// 用户/策略/代理限制/远端策略/特性开关/hook 拒绝都算；
+    /// <c>PR002 PermissionRequiredPendingConfirmation</c> 是「待确认」而非拒绝，不收录。
+    /// </summary>
+    public static bool IsPermissionDenial(string? errorCode) =>
+        errorCode is not null && DenialCodes.Contains(errorCode);
+
+    private static readonly FrozenSet<string> DenialCodes = new[] {
+        ToolErrorCode.PermissionDeniedByUser,
+        ToolErrorCode.PermissionDeniedByPolicy,
+        ToolErrorCode.PermissionDeniedByAgentRestriction,
+        ToolErrorCode.PermissionDeniedByRemotePolicy,
+        ToolErrorCode.PermissionDeniedByFeatureFlag,
+        ToolErrorCode.PermissionDeniedByHook,
+    }.Select(code => code.ToValue()).ToFrozenSet(StringComparer.Ordinal);
+}

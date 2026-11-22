@@ -26,7 +26,7 @@ TASK103 §2.3 的 #35–#41、#43、#44、#45a、#46、#47、#48、#49、#49a、
 | #52 | WT/conhost 双终端键位矩阵 | S/M | 需用户在真实终端逐项操作，自动化探针不能替代 | 1 |
 | ~~#45~~ | ~~`TaskOutput` block/timeout 等待语义~~ ✅ 已闭合（[TASK123](TASK123-TaskOutput等待语义-shell后台输出阻塞与超时.md)） | — | — | — |
 | ~~#50~~ | ~~团队记忆写入前 `validateInput` 密钥拦截~~ ✅ 已闭合（[TASK124](TASK124-团队记忆写入前密钥门禁-从断言到真拦截.md)） | — | — | — |
-| #46 | `permission_denials` 结构化收集 | M | 需改跨 slnx 引擎事件契约与各宿主适配 | 4 |
+| ~~#46~~ | ~~`permission_denials` 结构化收集~~ ✅ 已闭合（[TASK125](TASK125-permission_denials结构化收集.md)） | — | — | — |
 | #42 | 查询期自动记忆召回（sideQuery） | L | 新行为：每回合 LLM + 附件通道 + 会话曝光状态 | 5 |
 | #40 | dream 回合结束自动触发 | L | 新行为：后台 LLM 整合，改变延迟与 token 成本 | 6 |
 | #51 | Ctrl+B 主会话后台化 | L | 新行为：独立 transcript、前后台切换、取消归属 | 7 |
@@ -84,7 +84,11 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 
 **参考**：[TASK119](TASK119-团队记忆密钥扫描-取证与上传门禁.md) §2/§4。
 
-### #46 `permission_denials` 结构化收集
+### #46 `permission_denials` 结构化收集 — ✅ 已闭合 2026-11-23（[TASK125](TASK125-permission_denials结构化收集.md)）
+
+**已做**：`ToolResult.ErrorCode` → `ChatStreamEvent.ToolErrorCode` → `IEventConsumer.OnToolEnd(..., errorCode)` 全链贯通，
+CLI 按 `ToolErrorCodes.IsPermissionDenial` 判定（收录全部 `DeniedBy*`，`PR002` 待确认不算拒绝）；
+仅当无码时才保留一行文本兜底。事件层用 PD 码字符串而非枚举，避免 primitives 层反向依赖 models。
 
 **现状**：`SdkMessage` 字段存在，`CliEventConsumer` 仍用 `resultText.Contains("拒绝")` 文本启发式；
 英文/其他措辞会漏，OS 权限错误也可能被误报成用户拒绝。

@@ -47,9 +47,14 @@ public sealed class QueryMiddlewareContext {
     public System.Collections.Concurrent.ConcurrentQueue<QueryStreamChunk> OutputChunks { get; } = new();
 
     /// <summary>
-    /// 计时器
+    /// 计时器（整条查询的墙上时间）
     /// </summary>
     public Stopwatch Stopwatch { get; } = Stopwatch.StartNew();
+
+    /// <summary>
+    /// LLM API 调用累计耗时 — 映射 SDK result.duration_api_ms（不含工具执行/中间件等待）。
+    /// </summary>
+    public long ApiDurationMs { get; set; }
 
     /// <summary>
     /// 总工具调用次数

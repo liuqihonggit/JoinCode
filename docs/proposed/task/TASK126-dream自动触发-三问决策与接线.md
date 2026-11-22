@@ -166,7 +166,7 @@ JCC_DEBUGLOG=1 jcc -p "ok"     # 期望无 [DREAM-AUTO] 之外的副作用；会
 
 跑的时候修掉一个**门禁自身缺陷**（不是本轮功能的一部分，但不修就带病）：`implementations()` 排除测试路径只写了 `/tests/`，而本仓测试项目目录名是 `xxx.tests/`（如 `guard.hooks.tests`），于是测试替身 `StubInterceptor`（`private sealed class ... : ICommandInterceptor`）一直被当成生产实现。此前没暴露，是因为 `command_interceptors` 声明了目录范围把它挡掉了；`query_stop_hooks` 未声明目录范围，一放开就露出来。修法两处：①排除条件补 `.tests/`；②未声明目录范围的列表做全仓对账（原逻辑 `if dirs else {}` 让这类列表的 `scoped` 恒空，「登记了不存在的实现」必然误报，等于永远填不进去）。修完仍是 17 项双向对账，`Verify-ExplicitOrder.py` 一行未改也依然通过。
 
-> 性能教训（与功能无关但会反复踩）：这两个门禁合计 18 秒，曾被 `python xxx.py 2>&1 | tail -10` 拖成后台 16 分 26 秒后被杀、0 字节输出。原因是 `tail` 要等 stdin EOF，而 `Verify-ExplicitOrder.py` 内部 `subprocess` 起的 `jcc.exe` 会留下继承 stdout 的孙进程，EOF 迟迟不到。**跑门禁不要接 `tail`**，重定向到文件再读；两个门禁互不依赖，可以并行（墙钟取 Max 而非 Sum）。
+> 性能教训（与功能无关但会反复踩）：这两个门禁合计 18 秒，曾被 `python xxx.py 2>&1 | tail -10` 拖成后台 16 分 26 秒后被杀、0 字节输出。原因是 `tail` 要等 stdin EOF，而 `Verify-ExplicitOrder.py` 内部 `subprocess` 起的 `jcc.exe` 会留下继承 stdout 的孙进程，EOF 迟迟不到。**跑门禁不要接 `tail`**，重定向到文件再读；两个门禁互不依赖，可以并行（墙钟取 Max 而非 Sum）。此教训已上升为强制条款：`AGENTS.md` §平台专属操作禁令「短任务脚本必须 30 秒内结束（超时即缺陷）」。
 
 
 ---

@@ -586,6 +586,20 @@ public void Dispose() {
 
 > ADR: [0084](docs/implemented/adr/platform_transport/0084-platform-windows-env-rules.md) — 详见 ADR 文档（含 PowerShell 禁令、路径格式、命令分隔、脚本语言优先级[AST CLI/Python/PowerShell/jcc gh/Agent grep]）
 
+### ⏱️ 短任务脚本必须 30 秒内结束（强制，超时即缺陷）
+
+**适用范围**：`non_deliverables_tools/scripts/` 下的门禁、校验、取证、探针类脚本（`Verify-*.py`、`Check-*.py`、`Audit-*.py` 等），以及一切「读文件 → 比对 → 打印结论」的命令。
+
+- **✅ 必须**：一律带硬上限，`timeout 30 python -u xxx.py`（Git Bash）；PowerShell 走执行工具自带的 timeout 参数。不写裸命令。
+- **🚫 禁止**：裸跑、无上限挂后台、以及 `python xxx.py | tail -N`。`tail` 要等 stdin EOF 才吐字，任何继承 stdout 的孙进程（如脚本内部 `subprocess` 起的 `jcc.exe`）都会让 EOF 永不到——实测把 18 秒的活拖成 16 分 26 秒后被杀、0 字节输出（TASK126 §5.5）。
+- **判定**：超过 30 秒不代表「机器慢」，代表**脚本有缺陷**。禁止用加大 timeout 掩盖，必须改脚本。
+- **排查顺序**（命中即修，不接受「它就是这么慢」）：
+  1. `rglob("*.cs")` / `os.walk` 是否漏排 `artifacts/`、`obj/`、`bin/`、`.git/`；
+  2. 是否 `subprocess` 起了长驻进程（`jcc mcp_serve`、watch、`dotnet run`），或子进程未回收导致句柄泄漏；
+  3. 是否同一脚本里重复扫同一棵树（多次 `rglob`）。
+- **互不依赖的脚本并行跑**：墙钟取 Max 而非 Sum（两个顺序门禁串行 18 秒、并行 11 秒）。
+- **例外**（不受 30 秒约束，但仍须显式给上限，禁止无限等待）：`dotnet build` / `dotnet test` / `dotnet restore`、全仓编译、包安装。这类按域大小给 5–10 分钟，并优先用 `--no-restore`、`-m:1`、`-p:BuildProjectReferences=false` 压缩时间。
+
 ### ⛔ bash 中禁止 `2>nul` 重定向（强制，pre-commit hook 拦截）
 
 - **🚫 禁止**：在 bash 命令中使用 `2>nul`、`>nul`、`2>&1>nul` 等任何含 `nul` 的重定向

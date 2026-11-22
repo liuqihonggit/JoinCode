@@ -344,7 +344,7 @@ latencyMs, cacheHit, fallbackReason, userOverride
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---|---|---|---|
-| `IPermissionJudgeClient`（独立轻量判定通道，防递归） | `LlmAutoModeClassifier` Stage 2 | ✅ `PermissionJudgeClient` + 3s 超时 + 30min 缓存 | ❌ 手动 exe 未做；✅ 单测 9 项通过 |
+| `IPermissionJudgeClient`（独立轻量判定通道，防递归） | `LlmAutoModeClassifier` Stage 2 | ✅ `PermissionJudgeClient` + 3s 超时 + 30min 缓存；非 Shell 工具只传路径/URL/查询摘要 | ❌ 手动 exe 未做；✅ 单测 12 项通过 |
 | `ai-judge-permission-mw`（pipeline 450） | `resources/profiles/base.yaml` | ➖ Phase 1 复用 400 `auto-class-permission-mw`，不新增节点 | ➖ 不适用 |
 | `PermissionContext`（scope + allowAsk + judge policy） | 所有权限中间件 / `PermissionAwareToolExecutor` | ✅ Phase 1 用 `SubAgentContext` 承载 mode/allowed/denied | ❌ 手动 exe 未做；✅ 作用域/白名单单测通过 |
 | `autonomous` 模式 | `PermissionMode` + `AutoClassifierMiddleware` | ✅ `[EnumValue("autonomous")]` 别名映射 `Unattended` | ❌ 手动 exe 未做；✅ 别名单测 2 项通过 |

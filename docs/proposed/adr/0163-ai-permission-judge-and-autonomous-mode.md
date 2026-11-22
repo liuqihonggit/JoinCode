@@ -75,12 +75,12 @@
 
 | 模块 | 变更 |
 |---|---|
-| `guard.security` | `LlmAutoModeClassifier` 已改用 `IPermissionJudgeClient`；规则 Block/Dangerous 不被 AI 改判；3s 超时 + 30min 缓存 |
+| `guard.security` | `LlmAutoModeClassifier` 已改用 `IPermissionJudgeClient`；规则 Block/Dangerous 不被 AI 改判；3s 超时 + 30min 缓存；非 Shell 工具只传路径/URL/查询摘要 |
 | `guard.permission` | `AutoClassifierMiddleware` 已注入 LLM 阶段；`Auto/Unattended` 生效；AI 高风险不得自动批准 |
 | `resources/profiles/base.yaml` | Phase 1 未新增 450 节点（复用 400）；Phase 2 如拆独立 Judge 再加 |
 | `abstractions.primitives.security` | `autonomous` 作为 `Unattended` 的 `[EnumValue]` 别名 |
 | `storage.clock.goal` | Goal 已切 `Unattended`；`GoalUserInteractionService` 在 Unattended/Bypass 跳过交互 |
-| `native_tui` / `native_gui` / `apps.cli` | footer / 审计查看 / DSH 接后台通知仍待 Phase 2-4 |
+| `native_tui` / `native_gui` / `apps.cli` | DSH/TUI 挂起提问已接后台通知 Defer + 取消令牌；footer / 审计查看待 Phase 2-4 |
 | `infrastructure` | 通知队列已按 target 分桶；`PendingConfirmationQueue` 待做 |
 
 ---
@@ -90,8 +90,8 @@
 以 [DSG053 §8](../design/DSG053-unified-permission-decision-architecture.md) 为准：
 
 - Shadow 对比：Phase 1 未做 shadow（`LlmJudgeEnabled` 默认 true，直接 pre），后续用固定样本补一致率报告；
-- Phase 1：已通过 1270 项 Guard.Security 单测 + 定向构建；ask 率下降与 false-allow 需真机采样，尚未验收；
-- Phase 2：`autonomous` 别名单测通过，独立模式矩阵/TUI 真机未做；
+- Phase 1：已通过 1272 项 Guard.Security 单测 + 定向构建；ask 率下降与 false-allow 需真机采样，尚未验收；
+- Phase 2：`autonomous` 别名单测通过，独立模式矩阵/TUI 真机未做；DSH/TUI 后台 Defer 与取消令牌已补单测；
 - Phase 3：后台任务零阻塞仅完成权限层与通知分桶，`PendingConfirmationQueue` 未做；
 - 全仓编译 `Build-AllDomains.ps1` 本轮已跑一次通过（后续按用户要求改为按需编译）。
 

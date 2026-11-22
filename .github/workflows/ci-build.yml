@@ -2,6 +2,12 @@ name: CI Build
 
 on:
   workflow_call:
+    inputs:
+      contract-changed:
+        description: 'PR 是否改动契约面（接口/模型层/构建属性）— true 时加跑全量编译'
+        type: string
+        required: false
+        default: 'false'
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -82,6 +88,46 @@ jobs:
             artifacts/bin/JoinCode/Debug/net10.0/
             artifacts/bin/Hub/Debug/net10.0/
           retention-days: 1
+
+  # 契约面改动专用闸门（PR #723 事故）：`Build` 只编 source-only 的 Pack.slnx（设计如此，跳过 tests），
+  # 于是「接口加一个参数、4 个测试 fake 没跟」漂移要等 9 个测试 job 各自编到才暴露 —— 一次红九份。
+  # 这里在 PR 早期用全量解决方案（含 test/ 全部实现方）编一遍，让漂移变成 1 个红。
+  # 只在改动命中 interfaces/ models/ Directory.Build.* 时运行，普通 PR 不付这份成本。
+  contract-compile:
+    name: Contract Compile (all implementers)
+    if: inputs.contract-changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore (full solution — tests included)
+        run: dotnet restore build/sln/JoinCode.slnx --nologo
+
+      - name: Compile all implementers (JoinCode.slnx: modules + test/unit + test/mock + test/integration)
+        run: >
+          dotnet build build/sln/JoinCode.slnx
+          -c Debug --no-restore --nologo -m
+          -p:SkipLocalPack=true -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+
+      - name: Compile native_tui (UI 域不在 JoinCode.slnx 内 — AGENTS「全量」口径)
+        run: >
+          dotnet build native_tui/native_tui.slnx
+          -c Debug --nologo -m
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
 
   # UI 域（native_tui / native_gui）编译验证已移到定期 CI（ci-gui-daily.yml, 每 2 天）。
   # 决策（用户指令 2026-11-20）: PR 必跑的 windows 构建成本过高；跨域契约漂移由定期 job 兜底。

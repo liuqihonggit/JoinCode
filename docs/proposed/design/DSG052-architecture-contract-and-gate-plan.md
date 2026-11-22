@@ -431,11 +431,17 @@ architecture:
 - 收口：`.editorconfig` 还原为 `suggestion`（观察存量），P5 清账后升 error。
 - 债务口径与清偿（2026-11-22）：按 20 个 target（16 域 `module.slnx` + `native_tui` + `native_gui` 两测试项目 + `host.tests`）临时升 `warning` 后 `-t:Rebuild` 精确盘点，全仓存量 **79 处 / 32 项目**（增量构建不重跑分析器，会把存量严重低估）。按域分五批清偿：mcp/guard/apps（`a7bbfc59b`）、composition/services/llm/native_gui（`3341efa00`）、storage（`74da2d5af`）、perception（`fb219f4f0`）、abstractions+cognition+tools（`8f12a7d6b`，新增 28 个具名 record）；随后清掉非交付工具 `jcc_audit_ast_cli` 残留 11 处（新增 10 个 record，工具测试 61/61 绿）。最终 `JoinCode.slnx` 218 项目在 `JCC10011=warning` 下 `-t:Rebuild -m:1` 得 **0 命中 / 0 错误**；`native_tui`、`native_gui` core/host、`host.tests` 亦 0 命中；`.editorconfig` 由 `suggestion` 升为 `warning` 防新增（P5 再统一升 `error`）。
 
+**已完成 0.9 `storage ↔ composition` 环清零（2026-11-22）**：
+- 根因：`storage/clock` 通过 `Composition` 传递引用消费 cognition 的 `IEmptyResponseTracker` 与 guard 的 `ClusterPlanApprovalHook*`，使 `storage -> composition` 成立，叠加 `composition -> storage` 形成 6 条生产域环。
+- 契约上移：`IEmptyResponseTracker` 迁入 `Abstractions.Brain.Context`（`modules/abstractions/brain/context/loop`），实现 `EmptyResponseTracker` 仍留 cognition；`IClusterPlanApprovalHookManager` / `ClusterPlanApprovalHookContext` / `ClusterPlanApprovalHookResult` 迁入 `Abstractions.Hooks`（`abstractions.primitives.pipeline`），实现 `ClusterPlanApprovalHookManager` 仍留 `Guard.Hooks`。
+- `Clock` 删除 `Composition` 引用（不再依赖 guard 或 cognition 的传递引用）；`JCC12005 8 → 2`、`JCC12002 485 → 484`、`JCC12003 0`。全仓 218 项目 `-t:Rebuild -m:1` 0 警告 0 错误；`Clock.Tests` 519/519、`Guard.Hooks.Tests` 598/598。全量 60 个单元测试项目首轮 59 通过，唯一 `Infra.Utils.Tests` 时序用例在满载下超时（隔离复跑 561/561）；放宽上限后复跑 561/561，合计 24678 通过 / 0 失败。
+- 剩余 2 条环：`abstractions ↔ async_primitives`（Infrastructure 系 8 个项目依赖 `BclBridge`，而 `AsyncLock`/`Transport.*` 依赖 abstractions）与 `apps ↔ native_tui`（`apps/cli` 引用 `NativeTui.Host`，后者引用 `apps/engine`）。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. ✅ 补齐域内 slnx 缺口（`827e8fca0`，26→0；abstractions/generators/perception 全部登记，tools 的 13 个 `cli_nodes/groups/*` 与 sample/onnx 测试直接纳入，无排除项）。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
 3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖已摘除，环 15→8）
-4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。
+4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。（进行中：`storage ↔ composition` 6 条已清零，环 8→2；剩 `abstractions ↔ async_primitives`、`apps ↔ native_tui`）
 5. 176 个目录名的批量改名（脚本先单域验证再推广）。
 
 **验收**：
@@ -574,10 +580,11 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 工程事实（测试可见性）：跨程序集迁移后，测试对 `internal` 成员（`ExtractHostPort`/`IsPortReachableAsync`/`BuildNetworkErrorMessageAsync`/`IsZipPrefix`）的访问不能靠"给旧测试项目开 IVT"糊过去——按就近原则把测试迁到被测模块，IVT 只开给 `*.Tests` 目标（`JCC12007` 对测试程序集豁免）。
 - 工程事实（目录命名）：新增测试目录一律用 `github_client_tests` 下划线形式；`.tests` 目录名在 `JCC12009` 口径下属于存量违规，新增即会让计数 +1，不要一边清账一边加账。
 - 工程事实（API 准入 > 细粒度引用）：跨域引用必须指向 `JccApiVisibility=public` 的项目。实测把 `GitHubClient` 的 `Abstractions` 门面替换为 7 个细粒度 primitives 项目后，编译通过但 `JCC12003` 从 0 变 5（5 个目标非 public），跨域边 486→491。结论：门面仍存在时，跨域消费走 public 门面；"拆门面"必须先把目标项目纳入 API 准入评审，不能靠消费方单方面细粒度化。
-- 工程事实（`storage/clock` 对 Composition 不是无用引用）：`Clock.csproj → Composition` 是真实依赖（`Core.Context`、`Core.Hooks`、`IEmptyResponseTracker`），删掉后编译报 CS0234/CS0246。要消 `storage→composition` 这条总根（8 条环里 6 条经过它），必须把 Goal 引擎上移或把这些契约下沉，属下一批大手术，不能按"无用引用"处理。
+- 工程事实（`storage/clock` 对 Composition 的依赖本质是契约错位，2026-11-22 已解除）：`Clock.csproj → Composition` 表面是真实依赖（`Core.Context`、`Core.Hooks`、`IEmptyResponseTracker`），但实际只需 cognition/guard 的两个契约——`IEmptyResponseTracker` 与 `ClusterPlanApprovalHook*`。把契约分别下沉到 `Abstractions.Brain.Context` 与 `Abstractions.Hooks` 后，`Clock` 摘除 `Composition` 可 0 警告编译（实现仍留 cognition/guard）。原判"必须上移 Goal 引擎"过重，正确做法是先把被消费的契约下沉。
 - 2026-11-21：P4 第七块完成（门禁测试口径修正）。`Test-IsTestProject` 优先读 `ProjectType=test`（带缓存），`vault.testing.common` 不再被算作生产项目；`JCC12004 1→0`、生产跨域边 486→485，基线重冻结，Validate PASS。
 - 2026-11-21：P4 第八块完成（`JCC10011` 公开 API 禁元组）。规则 + 8 fixture 全绿；真实 `Structura` 构建命中 4 条并清理为 `KeyValuePair`，该域 warning 级别零命中、401/401 测试通过；`.editorconfig` 收口为 `suggestion`。
 - 2026-11-22：P4 第九块完成（`JCC10011` 全仓存量归零）。按域五批把交付代码 79 处公开元组改为具名 `record`（跨批新增 DTO 三十余个），非交付工具 `jcc_audit_ast_cli` 残留 11 处同批清零（新增 10 个 record）；`JoinCode.slnx -t:Rebuild -m:1` 在 `warning` 级 0 命中 0 错误；`.editorconfig` 升 `warning` 防新增（P5 再统一升 `error`）。
+- 2026-11-22：P4 第十块完成（`storage ↔ composition` 环清零）。`IEmptyResponseTracker` 契约下沉到 `Abstractions.Brain.Context`，`ClusterPlanApprovalHook*` 下沉到 `Abstractions.Hooks`；`Clock` 删除 `Composition` 引用后 0 警告编译。门禁 `JCC12005 8→2`、`JCC12002 485→484`、`JCC12003 0`；全仓 218 项目串行重建 0 警告 0 错误；`Clock.Tests` 519/519、`Guard.Hooks.Tests` 598/598。全量 60 项目首轮 59 通过，`Infra.Utils.Tests` 时序用例满载超时、隔离复跑 561/561，放宽上限后复跑 561/561，合计 24678 通过 / 0 失败。
 - 工程事实（债务盘点）：`dotnet build` 增量不重跑分析器，新规则的全仓存量必须按域 `-t:Rebuild` 采集；用增量全仓构建统计会把存量严重低估。
 - 工程事实（全量采集的并行陷阱）：`JoinCode.slnx -t:Rebuild -m`（默认并行）会在重建时先清掉依赖项目的 `ref` 程序集，导致下游 CS0006（实测 645 个错误）；要一次采集全仓，必须 `-t:Rebuild -m:1` 串行按依赖序重建，或按域分别 Rebuild。
 - 工程事实（分类口径）：判断测试项目不能只靠名字/路径启发式。`ProjectType=test` 是构建期事实（决定测试包引用与 `IsTestProject` 语义），门禁必须以它为准；否则纯测试辅助库（名字不含 `.tests`）会被算进生产图，既误报 `JCC12004`，也让生产边/入度虚高。

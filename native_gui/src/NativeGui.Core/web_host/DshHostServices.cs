@@ -35,6 +35,7 @@ internal sealed class DshHostServices {
             Audit = (sessionId, type, payload) => Streams.PublishElementAsync(sessionId, type, payload),
         };
         Questions = new DshUserQuestionBroker();
+        PendingConfirmations = new DshPendingConfirmationBroker();
         WorkspaceFiles = new DshWorkspaceFilesService(Sessions, fileSystem);
         Attachments = new DshAttachmentStore(fileSystem);
         Goals = new DshGoalStore(fileSystem, Path.Combine(paths.JccDirectory, "dsh_goals.json"));
@@ -71,6 +72,7 @@ internal sealed class DshHostServices {
     internal void AttachEngine(Hosting.IJccChatSession engine) {
         Engine = engine;
         Questions.AttachNotificationQueue(engine.NotificationQueue);
+        PendingConfirmations.Attach(engine.PendingConfirmationQueue, engine.PendingConfirmationResolver);
     }
 
     /// <summary>控制帧序号（会话 → 最后分配值；前端按 seq 单调丢弃过期帧）</summary>
@@ -197,6 +199,9 @@ internal sealed class DshHostServices {
 
     /// <summary>提问卡片桥（引擎 ask_user_question → $events waterfall → 前端问题卡片，TASK066 C7）</summary>
     internal DshUserQuestionBroker Questions { get; }
+
+    /// <summary>待确认收件箱（后台 Defer 票据 → 前端批量展示/批准/拒绝）。</summary>
+    internal DshPendingConfirmationBroker PendingConfirmations { get; }
 
     /// <summary>工作区文件树（workspaceFiles/list|read|readBytes|stat，TASK058 P2-B1）</summary>
     internal DshWorkspaceFilesService WorkspaceFiles { get; }

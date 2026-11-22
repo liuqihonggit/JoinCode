@@ -489,3 +489,56 @@ internal sealed class DshDiscoveredModel {
     public List<string> InputModalities { get; set; } = [];
 }
 
+/// <summary>待确认收件箱列表（pendingConfirmations/list 结果）。</summary>
+internal sealed class DshPendingConfirmationList {
+    /// <summary>队列是否可用（引擎未就绪时为 false）。</summary>
+    public bool Available { get; set; }
+    /// <summary>不可用/为空时的引导文案（可用且为空时省略）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; set; }
+    /// <summary>待确认项（按登记时间升序）。</summary>
+    public List<DshPendingConfirmationItem> Items { get; set; } = [];
+}
+
+/// <summary>单条待确认项（参数已由队列脱敏，可直接投影到前端）。</summary>
+internal sealed class DshPendingConfirmationItem {
+    /// <summary>票据 ID。</summary>
+    public string Id { get; set; } = "";
+    /// <summary>发起票据的后台代理 ID（主线程为 null）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AgentId { get; set; }
+    /// <summary>待执行工具名。</summary>
+    public string ToolName { get; set; } = "";
+    /// <summary>权限管道给出的确认原因。</summary>
+    public string Reason { get; set; } = "";
+    /// <summary>脱敏后的参数快照。</summary>
+    public Dictionary<string, JsonElement> Arguments { get; set; } = new(StringComparer.Ordinal);
+    /// <summary>登记时间（Unix 毫秒）。</summary>
+    public long CreatedAt { get; set; }
+}
+
+/// <summary>pendingConfirmations/resolve 参数。</summary>
+internal sealed class DshPendingConfirmationResolveArgs {
+    /// <summary>票据 ID。</summary>
+    public string Id { get; set; } = "";
+    /// <summary>决策（approve / deny）。</summary>
+    public string Decision { get; set; } = "";
+}
+
+/// <summary>pendingConfirmations/resolveAll 参数。</summary>
+internal sealed class DshPendingConfirmationResolveAllArgs {
+    /// <summary>决策（approve / deny）。</summary>
+    public string Decision { get; set; } = "";
+}
+
+/// <summary>待确认结算结果。</summary>
+internal sealed class DshPendingConfirmationResolveResult {
+    /// <summary>是否至少结算一条。</summary>
+    public bool Resolved { get; set; }
+    /// <summary>剩余待确认条数。</summary>
+    public int Remaining { get; set; }
+    /// <summary>失败/批量结果的引导文案（成功单条结算时省略）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; set; }
+}
+

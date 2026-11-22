@@ -220,6 +220,30 @@ public class PermissionAwareToolExecutorTest {
     }
 
     [Fact]
+    public async Task ExecuteAsync_OutputWithSecret_RegistersPostExecutionReviewTicket() {
+        var handler = CreateStubHandler();
+        var secret = "ghp_" + new string('a', 36);
+        var success = new ToolResult {
+            Content = [new() { Type = ToolContentType.Text, Text = $"command output: API_KEY={secret}" }],
+            IsError = false,
+        };
+        await using var pending = new PendingConfirmationQueue();
+
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler), CreatePipeline(new ResultSettingMiddleware(success)),
+            CreatePermissionManager(PermissionMode.Auto), pendingConfirmations: pending,
+            logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        var result = await executor.ExecuteAsync("test_tool", []);
+
+        result.IsError.Should().BeFalse("事后监督不改变已经返回的工具结果");
+        pending.Snapshot().Should().ContainSingle(
+            item => item.ToolName == "test_tool" && item.Reason.Contains("执行后监控"),
+            "输出疑似凭据时必须登记待复核票据");
+        pending.Snapshot()[0].Reason.Should().NotContain(secret, "复核原因只能带规则标签，不能回传密钥原文");
+    }
+
+    [Fact]
     public async Task HandlePendingConfirmation_Foreground_RegistersTicketAndResolvesAfterAnswer() {
         var handler = CreateStubHandler();
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();

@@ -92,7 +92,7 @@ public static class Program {
             ("/skills", "自定义技能列表"),
             ("/hooks", "Hook配置列表"),
             ("/plugin", "插件列表"),
-            ("/permissions", "权限规则列表"),
+            ("/permissions", "权限规则列表与后台待确认收件箱"),
             ("/workflows", "工作流列表"),
             ("/debuglog", "调试日志状态"),
             ("/statusline", "状态栏当前配置"),

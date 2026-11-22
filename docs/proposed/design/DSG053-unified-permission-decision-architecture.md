@@ -1,7 +1,7 @@
 # DSG053 — 统一权限判定架构：硬规则 + AI 灰区判定 + 监控升级 + 按需 ask
 
-> 状态：**Phase 1、Phase 3 基础设施已实施（2026-11-23）；Phase 2 收尾与 Phase 4 待做** · 日期：2026-11-22
-> 实施说明：本文描述的 `Autonomous` 语义当前由 `PermissionMode.Unattended` 承载，`autonomous` 作为 `[EnumValue]` 别名解析到同一枚举值；未新增第 6 个枚举，避免模式矩阵扩散。`PendingConfirmationQueue` 已落地并接入执行器（前台登记/结算、无人值守登记即 Defer）；异步 Supervisor 与 UI footer 仍属 Phase 2/4。DSH Web GUI 与 TUI 挂起问答的后台 Defer / 取消令牌已闭环（2026-11-23 第二轮）。
+> 状态：**Phase 1、Phase 3 与 Phase 4 基础版已实施（2026-11-23 收尾）；Phase 4 的文件 diff/行为监控与指标看板待做** · 日期：2026-11-22（2026-11-23 收尾更新）
+> 实施说明：本文描述的 `Autonomous` 语义当前由 `PermissionMode.Unattended` 承载，`autonomous` 作为 `[EnumValue]` 别名解析到同一枚举值；未新增第 6 个枚举，避免模式矩阵扩散。`PendingConfirmationQueue` 已落地并接入执行器（前台登记/结算、无人值守登记即 Defer），并完成 TTL/上限/参数脱敏硬化；`IPendingConfirmationResolver` 提供统一批准/拒绝出口，DSH Web GUI 收件箱与 TUI `/permissions pending` 已消费；执行后 Supervisor 基础版（工具输出凭据扫描）、AI 判定 JSONL 审计与 `LlmJudgeShadow` 已落地。DSH Web GUI 与 TUI 挂起问答的后台 Defer / 取消令牌已闭环（2026-11-23 第二轮）。
 > 关联：[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)（AI 灰区判定 + Autonomous 模式）、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)（任务作用域权限覆盖）、[TASK105](../task/TASK105-ask后台任务临时关闭-现状取证与修复方案.md)（ask 临时关闭取证）、[TASK104](../task/TASK104-sandbox配置契约与门控对齐基准-差异取证.md)（sandbox 门控）
 > 本仓库：`D:\project\w3`（下文行号均指该树，2026-11-22 快照）
 
@@ -159,9 +159,9 @@ public sealed record PermissionContext {
 | 形态 | 时机 | 适用 | 输出 |
 |---|---|---|---|
 | **PreJudge（同步）** | 工具执行前，层 4 | 不可逆/敏感：写、删、网络、git push、支付、配置修改 | allow/ask/deny + reason + confidence |
-| **Supervisor（异步）** | 执行中/执行后，旁路 | 只读、可逆、沙箱内、批量操作 | anomaly 信号 → 暂停/入队 ask + 审计 |
+| **Supervisor（执行后基础版）** | 工具结果返回后同步扫描 | 只读、可逆、沙箱内、批量操作 | 命中凭据/异常信号 → 登记待复核票据 + 审计；不阻塞本轮、不改变已返回结果 |
 
-Supervisor 不能“撤销”已执行的不可逆操作，所以不可逆操作必须由 PreJudge + HardPolicy 覆盖；Supervisor 只负责“发现偏离目标、异常放量、越界趋势”。
+当前 Supervisor 只覆盖“工具输出疑似凭据”（GitHub PAT、AWS Key、私钥等高置信度规则），扫描范围前 64K 文本，不返回密钥原文；**文件 diff、命令输出行为异常、执行中暂停/升级仍未实现**，不可误认为完整异步监控。Supervisor 不能“撤销”已执行的不可逆操作，所以不可逆操作必须由 PreJudge + HardPolicy 覆盖。
 
 ### 3.5 ask 三条出口
 
@@ -242,7 +242,10 @@ latencyMs, cacheHit, fallbackReason, userOverride
 | `PermissionMode` | **Phase 1 用 `autonomous` 别名映射到 `Unattended`**；Phase 2 再评估独立枚举 | 与 `Bypass` 区分：保留硬规则 |
 | 任务作用域 | **Phase 1 用 `SubAgentContext.AllowedTools/DeniedTools/PermissionMode`**；Phase 2 收口为 `PermissionContext` | 所有层读同一份 AsyncLocal 作用域 |
 | `BackgroundExecutionPolicy` | **已实现**：`Mode=Unattended`、`Denied=[ask_user_question, confirm_action]`；async 默认白名单，fork/resume 保留父工具池 | Goal/fork/resume/async |
-| `PendingConfirmationQueue` | ✅ 票据队列 + `PermissionAwareToolExecutor` 接线：前台登记/结算，无人值守登记后立即 `Defer` | 前台批量展示 UI 仍待做 |
+| `PendingConfirmationQueue` | ✅ 票据队列 + `PermissionAwareToolExecutor` 接线：前台登记/结算，无人值守登记后立即 `Defer`；TTL 30min/上限 200/参数脱敏；`IPendingConfirmationResolver` 统一批准/拒绝 | 前台 DSH 收件箱与 TUI `/permissions pending` 已消费 |
+| `PendingConfirmationResolver` | ✅ `[Register]` 实现：批准/拒绝只做复核 + 向发起代理入队通知；不自动恢复原调用、不写永久 allow | DSH RPC / TUI 命令共用 |
+| `ToolExecutionSupervisor` | ✅ 执行后同步凭据扫描：命中登记 `Defer` 票据，不阻塞、不改结果 | 文件 diff/行为监控待做 |
+| AI 判定审计 / shadow | ✅ `PermissionConfig.LlmJudgeShadow`（默认 false）+ `PermissionJudgeAuditRecord` JSONL；shadow 仍调 AI 但返回规则结果 | 审计路径 `JCC_PERMISSION_AUDIT_PATH` 可覆盖 |
 | `AgentNotificationQueue` | **已实现按 target 分桶**，修 `DequeueAll` 丢弃 | 支撑 TASK103 的 Defer |
 | `IInteractiveService` 默认实现 | 部分：`GoalUserInteractionService` 在 Unattended/Bypass 跳过交互；TUI Defer 仍按 TASK103 | 无宿主时明确失败 |
 
@@ -250,10 +253,11 @@ latencyMs, cacheHit, fallbackReason, userOverride
 
 ## 6. 分阶段落地
 
-### Phase 0 — Shadow（未做；Phase 1 直接 pre，风险见 §9）
+### Phase 0 — Shadow（已实现开关，默认关闭）
 
-- 把 `LlmAutoModeClassifier` 接到 `AutoClassifierMiddleware`，但 `judge.enabled=true, mode=shadow`：只记录 `wouldDecision`，不改变实际结果。
-- 产出：一周（或固定样本）的“AI 判定 vs 静态判定”一致性报告。
+- `LlmAutoModeClassifier` 已接入 `AutoClassifierMiddleware`；
+- `PermissionConfig.LlmJudgeShadow=true` 时：仍走规则 + AI 并写审计，但返回规则结果，线上权限行为不变；
+- 审计记录 `rule/llm/applied/shadow/confidence/reason`，用于对比 false-allow/false-deny；默认关闭，需显式开启采样。
 
 **退出条件**：硬规则零绕过；shadow 数据可回放；p95 延迟可接受。
 
@@ -274,20 +278,25 @@ latencyMs, cacheHit, fallbackReason, userOverride
 
 **退出条件**：硬规则绕过 = 0；用户可随时降级；审计完整。
 
-### Phase 3 — 待确认队列（已落地基础设施 + 执行器接线）
+### Phase 3 — 待确认队列与前台收件箱（已落地）
 
 - `PendingConfirmationQueue` 已实现：按票据快照、只结算一次、释放时统一 `Defer`；
+- 队列硬化：默认 TTL 30 分钟、上限 200 条；过期/超限先完成等待再移除，避免后台悬挂；登记参数按敏感键整值 `[REDACTED]`，字符串折叠换行并截断 512 字符，最多 32 个键；
 - `PermissionAwareToolExecutor` 已接入：前台确认登记票据并在用户回答后结算；无人值守只登记并立即 `Defer`，**不等待、不弹窗**；
+- `IPendingConfirmationResolver`：`ListPending / Resolve / ResolveAll`，批准/拒绝只做复核并通知发起代理，不自动恢复原后台调用、不写永久 allow；
+- DSH Web GUI：`pendingConfirmations/list|resolve|resolveAll` RPC + 右下角“待确认 N”收件箱（2s 轮询、逐条/批量复核），前端脚本独立注入，不改第三方 DSH 构建产物；
+- TUI：`/permissions pending [list|approve <id>|deny <id>|approve-all|deny-all]`，列表展示工具/代理/时间/原因/脱敏参数；
 - 后台 ask 仍不会阻塞：无人值守下返回 `permission_required` + 诱导文案，提示到前台确认后重试；
 - Goal/fork/resume/cron 继续通过 `BackgroundExecutionPolicy` 固定 `Unattended` 并拒绝 ask/confirm 工具。
 
-**退出条件**：后台任务零阻塞（已满足）；待确认项不丢失（已登记）；“前台批量展示/一键批准”的 UI 消费仍属未做。
+**退出条件**：后台任务零阻塞（已满足）；待确认项不丢失（已登记）；前台批量展示/一键批准代码与单测已闭环（真人 UI 验收记录见 §8.2）。
 
-### Phase 4 — Supervisor 与学习（未做）
+### Phase 4 — Supervisor、审计与学习（基础版已落地）
 
-- 异步 Supervisor：工具流/文件 diff/命令输出采样；异常 → 暂停/入队 ask；
-- 用户 override → 规则沉淀（`permissions.rules`），下次确定性命中；
-- 指标看板：ask 率、AI 一致率、false-allow、延迟、硬拒绝命中。
+- 执行后 Supervisor（同步）：扫描工具输出前 64K，命中高置信度凭据规则 → 登记 `Defer` 待复核票据 + 审计，不阻塞、不改变结果；
+- AI 判定审计：每次实际调用 AI 写 JSONL（`rule/llm/applied/shadow/confidence/reason`），操作摘要脱敏截断；落盘失败不影响决策；
+- `LlmJudgeShadow` 支持上线前 shadow 对比；
+- **未做**：文件 diff/命令输出行为异常/执行中暂停升级；用户 override → 规则沉淀；指标看板。
 
 ---
 
@@ -325,6 +334,8 @@ latencyMs, cacheHit, fallbackReason, userOverride
 - `defaultMode` 增加 `autonomous`；
 - 配置非法 → 回落 `judge.enabled=false`（不阻断启动），并给可操作诊断（AGENTS.md 错误诱导）。
 
+**当前已落地配置字段**：`PermissionConfig.LlmJudgeEnabled`、`PermissionConfig.LlmJudgeShadow`（默认 false）；审计路径环境变量 `JCC_PERMISSION_AUDIT_PATH`。上面 JSON 中的 `model/timeoutMs/maxCallsPerTurn` 等仍是目标态，尚未全部映射为配置项。
+
 ---
 
 ## 8. 验收与指标
@@ -349,14 +360,19 @@ latencyMs, cacheHit, fallbackReason, userOverride
 | `ai-judge-permission-mw`（pipeline 450） | `resources/profiles/base.yaml` | ➖ 复用 `auto-class-permission-mw`，节点移到 1150（硬规则之后、兜底之前） | ➖ 不适用 |
 | `PermissionContext`（scope + allowAsk + judge policy） | 所有权限中间件 / `PermissionAwareToolExecutor` | ✅ Phase 1 用 `SubAgentContext` 承载 mode/allowed/denied | ❌ 手动 exe 未做；✅ 作用域/白名单单测通过 |
 | `autonomous` 模式 | `PermissionMode` + `AutoClassifierMiddleware` | ✅ `[EnumValue("autonomous")]` 别名映射 `Unattended` | ❌ 手动 exe 未做；✅ 别名单测 2 项通过 |
-| `PendingConfirmationQueue` | `PermissionAwareToolExecutor`（前台登记/结算；无人值守登记后立即 Defer） | ✅ 队列 + 执行器接线；✅ 单测 6 项 + 执行器 2 项通过 | ❌ 前台批量展示 UI 未做 |
+| `PendingConfirmationQueue` | `PermissionAwareToolExecutor`（前台登记/结算；无人值守登记后立即 Defer） | ✅ 队列 + 执行器接线；TTL 30min/上限 200/惰性清理/参数脱敏 | ❌ 真人 UI 未验收；✅ 队列 9 项 + 执行器 23 项通过 |
+| `IPendingConfirmationResolver` | DSH RPC / TUI 命令 / 发起代理通知 | ✅ 批准/拒绝复核 + 通知；不自动恢复原调用 | ❌ 真人 UI 未验收；✅ DSH 7 项 + TUI 24 项通过 |
+| DSH 待确认收件箱 | `DshPendingConfirmationBroker` + `/api/pendingConfirmations/ui.js` | ✅ list/resolve/resolveAll + 2s 轮询右下角面板 | ❌ 真人 WebView 未验收；✅ 7 项单测通过 |
+| TUI `/permissions pending` | `PermissionsCommand` + `PermissionsAction.Pending` | ✅ list/approve/deny/approve-all/deny-all + 别名 | ❌ 真实 TTY 未验收；✅ 24 项单测通过 |
+| 执行后 `ToolExecutionSupervisor` | `PermissionAwareToolExecutor.RaiseToolExecutionCompleted` | ✅ 工具输出凭据扫描 → Defer 票据，不阻塞不改结果 | ❌ 真人 UI 未验收；✅ 1 项定向测试通过 |
+| AI 判定审计 / shadow | `LlmAutoModeClassifier` + `AutoClassifierMiddleware` | ✅ JSONL 审计 + `LlmJudgeShadow` 透传；脱敏/截断 | ❌ 手动 exe 未验收；✅ 分类器 14 项 + 中间件 6 项通过 |
 | 通知队列分桶 | `TuiAskBridge` / `TerminalInteractiveService` / `AvaloniaInteractiveService` / DSH | ✅ `AgentNotificationQueue` 按 target 分桶 | ❌ 手动 exe 未做；✅ A/B 目标并发单测 8 项通过 |
 | DSH Web GUI 后台 Defer | `DshUserQuestionBroker.RequestAsync` ← `IJccChatSession.NotificationQueue` | ✅ `AttachNotificationQueue` + 100ms 帧拍；命中通知 → cancel 帧 + `DeferredResult` | ❌ 手动 exe 未做；✅ `DshUserQuestionsTests` 11 项通过（含新增 Defer） |
 | TUI 取消令牌 | `TuiAskBridge.Ask` → `ReplShell.AskUserQuestions(ct)` → `CheckAskQuestionInterrupt` | ✅ 取消只置 volatile 标记，主循环帧拍关闭对话框返回 `Cancelled` | ❌ 手动 exe 未做；✅ `AskQuestionTests` 16 项通过（含新增取消） |
-| 审计 `PermissionJudgeAudit` | 现有 audit 通道 | ❌ 仅命令审计，Judge 审计未落盘 | ❌ 未验收 |
+| 审计 `PermissionJudgeAudit` | `LlmSecurityJsonContext` + `AppDataPaths.JccDirectory/audit/permission_judge.jsonl` | ✅ 每次 AI 判定写 JSONL；`JCC_PERMISSION_AUDIT_PATH` 可覆盖；无文件系统只写 Diag | ❌ 手动 exe 未验收；✅ 审计/shadow 单测通过 |
 | 真实工具名测试 | `AsyncAgentAllowedToolsTests` 等 | ✅ 已改用真实工具名 + 后台拒绝集测试 | ✅ 单元测试通过 |
 
-> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。本轮已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）：引擎进程内组装、session_info 握手、权限模式回执通过；但 DSH/TUI 提问 Defer 的真机交互仍标未完成。
+> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。本轮已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）：引擎进程内组装、session_info 握手、权限模式回执通过；DSH WebView 收件箱与真实 TTY `/permissions pending` 的真机交互仍需在有图形/TTY 的宿主上验收。
 
 ---
 

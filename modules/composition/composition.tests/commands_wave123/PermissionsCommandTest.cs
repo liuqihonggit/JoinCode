@@ -19,7 +19,8 @@ public sealed class PermissionsCommandTest {
         Mock<IAgentPermissionManager>? manager = null,
         Mock<IWorkspaceService>? workspace = null,
         Mock<ITrustFolderManager>? trustManager = null,
-        Func<string, bool>? confirm = null) {
+        Func<string, bool>? confirm = null,
+        Mock<IPendingConfirmationResolver>? pendingResolver = null) {
         var fs = TestFileSystem.Current;
         var services = CommandTestHarness.CreateServices(
             fileSystem: fs,
@@ -27,6 +28,7 @@ public sealed class PermissionsCommandTest {
             workspaceService: workspace?.Object,
             configureDi: di => {
                 if (trustManager is not null) di.AddSingleton(trustManager.Object);
+                if (pendingResolver is not null) di.AddSingleton(pendingResolver.Object);
             });
         var context = CommandTestHarness.CreateContext(services, arguments: arguments, confirm: confirm);
         return (new PermissionsCommand(), context, fs);
@@ -305,6 +307,65 @@ public sealed class PermissionsCommandTest {
 
         result.ShouldContinue.Should().BeTrue();
         output.Should().Contain("bogus", "未知操作提示应包含操作名");
+    }
+
+    [Fact]
+    public async Task Execute_Pending_WithoutResolver_ShowsGracefulGuidance() {
+        var (cmd, context, _) = Arrange("pending");
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("IPendingConfirmationResolver", "缺少收件箱服务时应说明原因而非抛异常");
+    }
+
+    [Fact]
+    public async Task Execute_Pending_ListsDeferredTickets() {
+        var item = new PendingConfirmationItem {
+            Id = "ticket-1",
+            AgentId = "agent-bg",
+            ToolName = "Bash",
+            Reason = "后台执行需要确认",
+            Arguments = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal) {
+                ["command"] = System.Text.Json.JsonSerializer.SerializeToElement("rm -rf build"),
+            },
+            CreatedAtUtc = DateTime.UtcNow,
+            Decision = Task.FromResult(PendingConfirmationDecision.Defer),
+        };
+        var resolver = new Mock<IPendingConfirmationResolver>();
+        resolver.Setup(r => r.ListPending()).Returns([item]);
+        var (cmd, context, _) = Arrange("pending list", pendingResolver: resolver);
+
+        var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        output.Should().Contain("ticket-1");
+        output.Should().Contain("Bash");
+        output.Should().Contain("rm -rf build");
+    }
+
+    [Fact]
+    public async Task Execute_Pending_ApproveAndDeny_RouteToResolver() {
+        var resolver = new Mock<IPendingConfirmationResolver>();
+        resolver.Setup(r => r.Resolve(It.IsAny<string>(), It.IsAny<PendingConfirmationDecision>())).Returns(true);
+        var (cmd, context, _) = Arrange("pending approve ticket-1", pendingResolver: resolver);
+        await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+        resolver.Verify(r => r.Resolve("ticket-1", PendingConfirmationDecision.Approve), Times.Once);
+
+        var (denyCmd, denyContext, _) = Arrange("pending deny ticket-1", pendingResolver: resolver);
+        await CommandTestHarness.CaptureOutputAsync(() => denyCmd.ExecuteAsync(denyContext));
+        resolver.Verify(r => r.Resolve("ticket-1", PendingConfirmationDecision.Deny), Times.Once);
+    }
+
+    [Fact]
+    public async Task Execute_Pending_ApproveAll_RoutesBatch() {
+        var resolver = new Mock<IPendingConfirmationResolver>();
+        resolver.Setup(r => r.ResolveAll(It.IsAny<PendingConfirmationDecision>())).Returns(2);
+        var (cmd, context, _) = Arrange("pending approve-all", pendingResolver: resolver);
+
+        var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        output.Should().Contain("2");
+        resolver.Verify(r => r.ResolveAll(PendingConfirmationDecision.Approve), Times.Once);
     }
 
     [Fact]

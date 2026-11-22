@@ -11,6 +11,12 @@ public class PermissionConfig {
     public bool LlmJudgeEnabled { get; set; } = true;
 
     /// <summary>
+    /// AI 判定 shadow 模式 — 仍调用 AI 并落审计，但实际决策只采用规则分类结果；
+    /// 用于上线前对比 false-allow/false-deny，不改变线上权限行为。
+    /// </summary>
+    public bool LlmJudgeShadow { get; set; }
+
+    /// <summary>
     /// 自动批准的工具列表
     /// </summary>
     public ImmutableHamT<string, ToolPermissionRule> AutoApprovedTools { get; set; } = ImmutableHamT<string, ToolPermissionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);

@@ -1,8 +1,8 @@
 # TASK105 — ask 在后台任务中的临时关闭：现状取证与修复方案
 
-> 状态：**P0 修复已实施（2026-11-23）；通知队列/Goal/AI Judge 已接线，Phase 2+ 见 DSG053** · 日期 2026-11-22
+> 状态：**P0 修复已实施（2026-11-23）；通知队列/Goal/AI Judge/待确认收件箱已接线，Phase 2+ 见 DSG053** · 日期 2026-11-22（2026-11-23 收尾更新）
 > 关联：[TASK103 S14](../../implemented/task/TASK103-ReAct循环合并-两套归一.md)（后台回调到达即关闭 ask）、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)（proposed，任务作用域权限覆盖）
-> **统一方案**：[DSG053](../design/DSG053-unified-permission-decision-architecture.md)（硬规则 + AI 灰区判定 + 监控升级 + 按需 ask）。本文是 DSG053 Phase 1 的前置取证与最小闭环，Phase 2+ 的 AI Judge / `Autonomous` 以 DSG053 为准；`PendingConfirmationQueue` 已落地并接入执行器。
+> **统一方案**：[DSG053](../design/DSG053-unified-permission-decision-architecture.md)（硬规则 + AI 灰区判定 + 监控升级 + 按需 ask）。本文是 DSG053 Phase 1 的前置取证与最小闭环，Phase 2+ 的 AI Judge / `Autonomous` 以 DSG053 为准；`PendingConfirmationQueue` 已落地并接入执行器，DSH/TUI 前台收件箱与执行后 Supervisor/审计已收尾。
 > 范围：`guard.permission` / `mcp.tool_dispatch` / `llm.agents.*` / `storage.clock.goal` / `native_tui` / `native_gui`
 > 本仓库：`D:\project\w3`（下文行号均指该树，2026-11-22 快照）
 
@@ -35,10 +35,14 @@
 | D4 Web GUI 通知到达不 Defer | `IJccChatSession.NotificationQueue` → `DshHostServices.AttachEngine` → `DshUserQuestionBroker.AttachNotificationQueue`；`RequestAsync` 100ms 帧拍命中通知即 cancel + Deferred | `DshUserQuestionsTests` 11 项通过 |
 | D5 TUI 忽略取消令牌 | `TuiAskBridge.Ask(..., ct)` 透传；`ReplShell.AskUserQuestions` 注册 `RequestAskQuestionCancel`；`CheckAskQuestionInterrupt` 帧拍优先消费取消标记 | `AskQuestionTests` 16 项通过 |
 
-| D6 后台确认等待 | `PendingConfirmationQueue` + `PermissionAwareToolExecutor`：前台登记/结算；无人值守只登记并立即 `Defer`，返回 `permission_required` + 诱导 | 队列 5 项 + 执行器 2 项通过 |
+| D6 后台确认等待 | `PendingConfirmationQueue` + `PermissionAwareToolExecutor`：前台登记/结算；无人值守只登记并立即 `Defer`，返回 `permission_required` + 诱导 | 队列 9 项 + 执行器 23 项通过 |
 | D7 AI 判定短路硬规则 | `auto-class-permission-mw` 从 400 移到 1150（硬规则之后、兜底之前），`AutoApprove` 不再绕过 1000 删除/破坏判定 | 权限管道顺序已调整 |
+| D8 待确认项无前台消费 | `IPendingConfirmationResolver` + DSH `pendingConfirmations/*` RPC/注入式收件箱 + TUI `/permissions pending` | DSH 7 项 + TUI 24 项通过 |
+| D9 队列堆积/泄密 | TTL 30min、上限 200、惰性清理；敏感键整值脱敏、字符串折叠截断 512、最多 32 键 | 队列 9 项通过 |
+| D10 执行后凭据外泄 | `ToolExecutionSupervisor` 扫描工具输出前 64K，命中凭据规则登记复核票据，不返回密钥原文 | 执行器定向测试 1 项通过 |
+| D11 AI 判定不可审计/不可回滚 | `PermissionJudgeAuditRecord` JSONL + `LlmJudgeShadow`（默认 false） | 分类器 14 项 + 中间件 6 项通过 |
 
-**未完成**：异步 Supervisor、DSH/TUI 待确认项的批量展示 UI、DSH/TUI 提问 Defer 的真机交互验收。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
+**未完成**：DSH WebView/TUI 真机 UI 验收（需图形/TTY 宿主）；Supervisor 的文件 diff/命令输出行为监控；用户 override → 规则沉淀；指标看板。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
 
 ---
 
@@ -279,17 +283,19 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---|---|---|---|
-| `PermissionScope`（任务作用域 mode/denied） | `ToolExecutionContext.AgentMode`、`AgentRestrictionMiddleware` | ❌ | ❌ 计划：单测（嵌套/并发/恢复）+ TUI 真机 |
-| `BackgroundExecutionPolicy`（唯一后台入口策略） | async spawn / fork / resume / team / cron / goal | ❌ | ❌ 计划：每个入口一条工具表断言 + 真机 |
-| EffectiveToolSet（工具表/prompt/门禁同源） | 工具表构建、`EnabledTools`、`QueryEngine` 门禁 | ❌ | ❌ 计划：`--dump-tools` 产物对比 + 交互拒绝 E2E |
-| 通知队列按 target 分桶 | `TuiAskBridge`、`TerminalInteractiveService`、`AvaloniaInteractiveService`、`DshUserQuestionBroker` | ❌ | ❌ 计划：A/B 目标并发单测 + TUI PTY 真机 |
-| Goal 模式单源 | `GoalPermissionModeMiddleware` / `GoalEngine` | ❌ | ❌ 计划：Goal start 读 mode 断言 + 长任务真机 |
-| Goal 交互侧门守卫 | `GoalUserInteractionService` → `NodeCompletionPipeline` | ❌ | ❌ 计划：Unattended 下不弹窗单测 + TUI 真机 |
-| 提示词模式感知 | `FactInquirySection` / `SessionGuidanceSection` | ❌ | ❌ 计划：`/prompt` 产物断言（Unattended 无 ask 段） |
-| 拒绝文案诱导 | `AgentRestrictionMiddleware` | ❌ | ❌ 计划：错误结果文本断言 |
-| 真实工具名测试 | `AsyncAgentAllowedToolsTests` 等 | ❌ | ❌ 计划：红→绿 |
+| 任务作用域（`SubAgentContext.PermissionMode/Allowed/Denied`） | `PermissionChecker.ResolveScopedMode`、`PermissionAwareToolExecutor`、`AgentRestrictionMiddleware` | ✅ 用 `SubAgentContext` 承载，未新建 `PermissionScope` 类型 | ❌ 手动 exe 未做；✅ 作用域/白名单单测通过 |
+| `BackgroundExecutionPolicy`（唯一后台入口策略） | async spawn / fork / resume / team / cron / goal | ✅ `Mode=Unattended` + 拒绝交互工具；fork/resume 保留父工具池并剔除交互工具 | ❌ 手动 exe 未做；✅ Hands fork/whitelist 8 项通过 |
+| EffectiveToolSet（工具表/prompt/门禁同源） | 工具表构建、`EnabledTools`、`QueryEngine` 门禁 | ✅ 空交集回退默认白名单；工具过滤文案恢复 | ❌ 手动 exe 未做；✅ 相关单测通过 |
+| 通知队列按 target 分桶 | `TuiAskBridge`、`TerminalInteractiveService`、`AvaloniaInteractiveService`、`DshUserQuestionBroker` | ✅ `AgentNotificationQueue` 按 target 分桶；DSH 100ms 帧拍 Defer | ❌ 手动 exe 未做；✅ A/B 目标并发 8 项 + DSH 11 项通过 |
+| Goal 模式单源 | `GoalPermissionModeMiddleware` / `GoalEngine` | ✅ Start → `Unattended`；已是 Bypass/Unattended 则跳过 | ❌ 长任务真机未做；✅ Clock Goal 413 项通过 |
+| Goal 交互侧门守卫 | `GoalUserInteractionService` → `NodeCompletionPipeline` | ✅ Unattended/Bypass 跳过交互，返回 Stop | ❌ TUI 真机未做；✅ Clock Goal 测试通过 |
+| 提示词模式感知 | `FactInquirySection` / `SessionGuidanceSection` | ✅ 已接入模式感知 | ❌ 手动 exe 未做；✅ prompt 产物单测通过 |
+| 拒绝文案诱导 | `AgentRestrictionMiddleware` | ✅ 恢复工具过滤文案并给可操作引导 | ❌ 手动 exe 未做；✅ 文案单测通过 |
+| 真实工具名测试 | `AsyncAgentAllowedToolsTests` 等 | ✅ 改用真实工具名 + 后台拒绝集 | ✅ 单元测试通过 |
+| `PendingConfirmationQueue` + `IPendingConfirmationResolver` | `PermissionAwareToolExecutor`、DSH RPC、TUI 命令 | ✅ TTL 30min/上限 200/脱敏；批准/拒绝复核 + 通知 | ❌ 真人 UI 未验收；✅ 队列 9 项 + 执行器 23 项 + DSH 7 项 + TUI 24 项通过 |
+| 执行后 Supervisor + AI 审计/shadow | `PermissionAwareToolExecutor`、`LlmAutoModeClassifier`、`AutoClassifierMiddleware` | ✅ 凭据扫描登记复核票据；JSONL 审计 + `LlmJudgeShadow` 透传 | ❌ 手动 exe 未验收；✅ 执行器 1 项 + 分类器 14 项 + 中间件 6 项通过 |
 
-> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。
+> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。DSH WebView/TUI 真机 UI 验收仍待图形/TTY 宿主；已跑 `jcc --selftest-tui` 通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
 
 ---
 

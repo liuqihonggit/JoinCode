@@ -4,8 +4,8 @@ namespace JoinCode.ChatCommands;
 /// /permissions 命令 — 管理权限规则和工作区目录
 /// 支持列出、添加、移除、清除权限规则,以及管理工作区额外目录
 /// </summary>
-[ChatCommand(Name = ChatCommandNameEnumConstants.Permissions, Description = "管理权限规则和工作区目录", Usage = "/permissions [list|add|remove|clear|workspace] [args]", Category = ChatCommandCategory.Config, Aliases = ["perm"], ArgumentHint = "[list|add|remove|clear|workspace]")]
-[ChatCommandArg("action", Type = "string", Description = "权限操作", Enum = new[] { "list", "add", "remove", "clear", "workspace" }, Default = "list")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Permissions, Description = "管理权限规则和工作区目录", Usage = "/permissions [list|add|remove|clear|workspace|pending] [args]", Category = ChatCommandCategory.Config, Aliases = ["perm"], ArgumentHint = "[list|add|remove|clear|workspace|pending]")]
+[ChatCommandArg("action", Type = "string", Description = "权限操作", Enum = new[] { "list", "add", "remove", "clear", "workspace", "pending" }, Default = "list")]
 [ChatCommandArg("args", Type = "string", Description = "操作特定参数,如 add 的权限规则")]
 public sealed class PermissionsCommand : ChatCommandBase {
     /// <summary>
@@ -40,6 +40,9 @@ public sealed class PermissionsCommand : ChatCommandBase {
             case (_, PermissionsAction.Dirs):
             case (_, PermissionsAction.Directories):
             await ManageWorkspaceAsync(context, args).ConfigureAwait(false);
+            break;
+            case (_, PermissionsAction.Pending):
+            await ManagePendingAsync(context, args).ConfigureAwait(false);
             break;
             default:
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsUnknownAction, action)}{AnsiStyleEnumConstants.Reset}");
@@ -237,6 +240,104 @@ public sealed class PermissionsCommand : ChatCommandBase {
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.PermissionsRuleNotFound), agentPattern));
         }
     }
+
+    /// <summary>
+    /// 后台待确认事项 — 查看后台任务因权限确认被 Defer 的票据，并逐条/批量批准或拒绝。
+    /// 批准只代表复核通过并把结果通知发起代理，不会自动恢复原调用（原调用已按 Defer 结束）。
+    /// </summary>
+    /// <param name="context">命令上下文（服务容器提供 <see cref="IPendingConfirmationResolver"/>）。</param>
+    /// <param name="args">命令参数（pending [approve|deny|approve-all|deny-all] [id]）。</param>
+    private static Task ManagePendingAsync(ChatCommandContext context, string[] args) {
+        var resolver = ChatCommandBase.GetService<IPendingConfirmationResolver>(context, typeof(IPendingConfirmationResolver));
+        if (resolver is null) {
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}待确认收件箱不可用：当前宿主未注册 IPendingConfirmationResolver；后台票据仍保留，可在 GUI 收件箱处理。{AnsiStyleEnumConstants.Reset}");
+            return Task.CompletedTask;
+        }
+
+        var action = args.Length > 1 ? args[1].ToLowerInvariant() : CrudActionEnumConstants.List;
+        switch (action) {
+            case "approve":
+            case "allow":
+                ResolveOne(resolver, args, PendingConfirmationDecision.Approve);
+                break;
+            case "deny":
+            case "reject":
+                ResolveOne(resolver, args, PendingConfirmationDecision.Deny);
+                break;
+            case "approve-all":
+            case "allow-all":
+                ResolveBatch(resolver, PendingConfirmationDecision.Approve);
+                break;
+            case "deny-all":
+            case "reject-all":
+                ResolveBatch(resolver, PendingConfirmationDecision.Deny);
+                break;
+            case CrudActionEnumConstants.List:
+            case "ls":
+                RenderPendingList(resolver);
+                break;
+            default:
+                TerminalHelper.WriteLine($"{TerminalColors.Error}未知的待确认操作: {action}{AnsiStyleEnumConstants.Reset}");
+                TerminalHelper.WriteLine(PendingUsage);
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>列出待确认票据；空列表给出“后台任务均未触发确认”的明确结论。</summary>
+    private static void RenderPendingList(IPendingConfirmationResolver resolver) {
+        var items = resolver.ListPending();
+        if (items.Count == 0) {
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}当前没有后台待确认事项。{AnsiStyleEnumConstants.Reset}");
+            return;
+        }
+
+        TerminalHelper.WriteLine($"后台待确认事项（{items.Count}）");
+        foreach (var item in items) {
+            var agent = string.IsNullOrEmpty(item.AgentId) ? "main" : item.AgentId;
+            var created = item.CreatedAtUtc.ToLocalTime().ToString("HH:mm:ss");
+            TerminalHelper.WriteLine($"  {TerminalColors.Warning}[{item.Id}]{AnsiStyleEnumConstants.Reset} {item.ToolName} · {agent} · {created}");
+            TerminalHelper.WriteLine($"    {item.Reason}");
+            if (item.Arguments.Count > 0) {
+                var preview = string.Join(", ", item.Arguments.Select(pair => $"{pair.Key}={pair.Value.GetRawText()}"));
+                TerminalHelper.WriteLine($"    {TerminalColors.Muted}{preview}{AnsiStyleEnumConstants.Reset}");
+            }
+        }
+        TerminalHelper.WriteLine();
+        TerminalHelper.WriteLine($"  {TerminalColors.Muted}{PendingUsage}{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Muted}批准只代表复核通过，不会自动恢复原调用；代理会收到通知，可在交互模式重试。{AnsiStyleEnumConstants.Reset}");
+    }
+
+    /// <summary>结算指定票据；缺 ID 时输出用法，不存在/过期由 resolver 返回 false。</summary>
+    private static void ResolveOne(IPendingConfirmationResolver resolver, string[] args, PendingConfirmationDecision decision) {
+        if (args.Length < 3) {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}缺少票据 ID；用法: /permissions pending approve|deny <id>{AnsiStyleEnumConstants.Reset}");
+            RenderPendingList(resolver);
+            return;
+        }
+        var id = args[2];
+        if (resolver.Resolve(id, decision)) {
+            var verb = decision == PendingConfirmationDecision.Approve ? "已复核通过" : "已拒绝";
+            TerminalHelper.WriteLine($"{TerminalColors.Success}票据 {id} {verb}，已通知发起代理。{AnsiStyleEnumConstants.Reset}");
+        } else {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}票据 {id} 不存在、已过期或已被处理；请用 /permissions pending 刷新列表。{AnsiStyleEnumConstants.Reset}");
+        }
+    }
+
+    /// <summary>批量结算当前全部票据。</summary>
+    private static void ResolveBatch(IPendingConfirmationResolver resolver, PendingConfirmationDecision decision) {
+        var count = resolver.ResolveAll(decision);
+        if (count == 0) {
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}当前没有可结算的待确认事项。{AnsiStyleEnumConstants.Reset}");
+            return;
+        }
+        var verb = decision == PendingConfirmationDecision.Approve ? "复核通过" : "拒绝";
+        TerminalHelper.WriteLine($"{TerminalColors.Success}已批量{verb} {count} 条待确认事项，并通知各自发起代理。{AnsiStyleEnumConstants.Reset}");
+    }
+
+    /// <summary>待确认命令用法提示（唯一文案源，渲染与错误分支共用）。</summary>
+    private const string PendingUsage = "/permissions pending [list|approve <id>|deny <id>|approve-all|deny-all]";
 
     /// <summary>
     /// 清空全部权限规则 — 破坏性操作,先经用户确认再执行

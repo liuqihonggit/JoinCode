@@ -22,6 +22,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
     private const string ChangesOpenPath = "/api/changes.open";
     private const string PresentHostPath = "/api/present.host";
     private const string PresentOpenPath = "/api/present.open";
+    private const string PendingUiPath = "/api/pendingConfirmations/ui.js";
 
     private static readonly FrozenDictionary<string, string> ContentTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
@@ -110,6 +111,11 @@ internal sealed class DshWebHost : IAsyncDisposable {
         }
         var path = request.Url?.AbsolutePath ?? "/";
         if (path.StartsWith(ApiPrefix, StringComparison.Ordinal) || path == "/api") {
+            // 待确认收件箱脚本（独立注入资产，避免修改第三方 DSH 构建产物）
+            if (string.Equals(path, PendingUiPath, StringComparison.Ordinal)) {
+                await ServePendingUiAsync(context);
+                return;
+            }
             // deliverables 文档路由（TASK066 C7）：改动摘要/对比/原生打开 + 桌面能力
             if (await TryHandleDeliverablesAsync(context, path)) {
                 return;
@@ -976,7 +982,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
         TryClose(response, 200);
     }
 
-    /// <summary>静态文件（index.html 不缓存；资产短缓存）</summary>
+    /// <summary>静态文件（index.html 不缓存并注入待确认收件箱脚本；资产短缓存）</summary>
     private async Task ServeFileAsync(HttpListenerContext context, string relative) {
         var response = context.Response;
         var file = ResolveUnderRoot(relative);
@@ -989,9 +995,48 @@ internal sealed class DshWebHost : IAsyncDisposable {
         response.StatusCode = 200;
         response.ContentType = ContentTypes.TryGetValue(extension, out var contentType) ? contentType : "application/octet-stream";
         response.Headers["Cache-Control"] = "no-store";
-        var content = await File.ReadAllBytesAsync(file);
+        byte[] content;
+        if (string.Equals(relative, "index.html", StringComparison.OrdinalIgnoreCase)) {
+            content = InjectPendingConfirmationUi(await File.ReadAllTextAsync(file, Encoding.UTF8));
+        } else {
+            content = await File.ReadAllBytesAsync(file);
+        }
         response.ContentLength64 = content.Length;
         await response.OutputStream.WriteAsync(content);
+        TryClose(response, 200);
+    }
+
+    /// <summary>
+    /// 在 DSH index.html 的 <c>&lt;/body&gt;</c> 前注入收件箱脚本；已含标记时原样返回（幂等）。
+    /// 资产由第三方构建产物提供，不直接改写缓存目录，避免升级资产覆盖。
+    /// </summary>
+    /// <param name="html">原始 index.html 文本。</param>
+    /// <returns>注入后的 UTF-8 字节。</returns>
+    internal static byte[] InjectPendingConfirmationUi(string html) {
+        if (html.Contains(DshPendingConfirmationUi.InjectionMarker, StringComparison.Ordinal)) {
+            return Encoding.UTF8.GetBytes(html);
+        }
+        var tag = DshPendingConfirmationUi.ScriptTag;
+        var closeBody = html.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
+        var injected = closeBody >= 0
+            ? string.Concat(html.AsSpan(0, closeBody), tag, html.AsSpan(closeBody))
+            : string.Concat(html, tag);
+        return Encoding.UTF8.GetBytes(injected);
+    }
+
+    /// <summary>待确认收件箱脚本（只读静态资产；非 GET 返回 405，避免被误用为 RPC 路径）。</summary>
+    private async Task ServePendingUiAsync(HttpListenerContext context) {
+        var response = context.Response;
+        if (!string.Equals(context.Request.HttpMethod, "GET", StringComparison.OrdinalIgnoreCase)) {
+            TryClose(response, 405);
+            return;
+        }
+        var payload = Encoding.UTF8.GetBytes(DshPendingConfirmationUi.Script);
+        response.StatusCode = 200;
+        response.ContentType = "text/javascript; charset=utf-8";
+        response.Headers["Cache-Control"] = "no-store";
+        response.ContentLength64 = payload.Length;
+        await response.OutputStream.WriteAsync(payload);
         TryClose(response, 200);
     }
 

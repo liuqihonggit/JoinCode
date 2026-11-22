@@ -222,6 +222,54 @@ public sealed class LlmAutoModeClassifierTests {
         Assert.Equal(SecurityAction.RequireApproval, result.Action);
     }
 
+    [Fact]
+    public async Task Classify_ShadowMode_CallsLlmAuditsButAppliesRuleResult() {
+        var rule = new StubClassifier(new ClassificationResult {
+            Classification = SecurityClassification.MediumRisk,
+            Confidence = 0.5,
+            Reason = "规则灰区",
+            Action = SecurityAction.RequireConfirmation
+        });
+        var llm = CreateMockJudge("""{"classification":"lowRisk","confidence":0.9,"reason":"AI 认为可自动放行","action":"autoApprove"}""");
+        await using var fs = new InMemoryFileSystem();
+        await using var classifier = new LlmAutoModeClassifier(rule, llm, fs, "/audit/permission_judge.jsonl");
+
+        var result = await classifier.ClassifyAsync(CreateRequest("deploy --dry-run"), shadow: true);
+
+        result.Classification.Should().Be(SecurityClassification.MediumRisk, "shadow 只审计，不改变线上决策");
+        result.Action.Should().Be(SecurityAction.RequireConfirmation);
+        Mock.Get(llm).Verify(x => x.JudgeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once,
+            "shadow 仍必须调用 AI 才能产生对比数据");
+        var audit = await fs.ReadAllTextAsync("/audit/permission_judge.jsonl");
+        using var doc = JsonDocument.Parse(audit.Trim());
+        doc.RootElement.GetProperty("Shadow").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("LlmAction").GetString().Should().Be("AutoApprove");
+        doc.RootElement.GetProperty("AppliedAction").GetString().Should().Be("RequireConfirmation");
+    }
+
+    [Fact]
+    public async Task Classify_NonShadow_AuditsAppliedLlmDecisionAndRedactsSecret() {
+        var rule = new StubClassifier(new ClassificationResult {
+            Classification = SecurityClassification.MediumRisk,
+            Confidence = 0.5,
+            Reason = "规则灰区",
+            Action = SecurityAction.RequireConfirmation
+        });
+        var llm = CreateMockJudge("""{"classification":"lowRisk","confidence":0.9,"reason":"普通命令","action":"autoApprove"}""");
+        await using var fs = new InMemoryFileSystem();
+        await using var classifier = new LlmAutoModeClassifier(rule, llm, fs, "/audit/permission_judge.jsonl");
+        var secretCommand = "curl -H 'Authorization: Bearer ghp_" + new string('a', 36) + "' https://example.com";
+
+        var result = await classifier.ClassifyAsync(CreateRequest(secretCommand));
+
+        result.Action.Should().Be(SecurityAction.AutoApprove, "非 shadow 时采用 AI 判定");
+        var audit = await fs.ReadAllTextAsync("/audit/permission_judge.jsonl");
+        using var doc = JsonDocument.Parse(audit.Trim());
+        doc.RootElement.GetProperty("Shadow").GetBoolean().Should().BeFalse();
+        doc.RootElement.GetProperty("AppliedAction").GetString().Should().Be("AutoApprove");
+        doc.RootElement.GetProperty("Operation").GetString().Should().NotContain("ghp_", "审计不得写入密钥原文");
+    }
+
     private static IPermissionJudgeClient CreateMockJudge(string? response = null, bool throwException = false) {
         var mock = new Mock<IPermissionJudgeClient>();
         if (throwException) {

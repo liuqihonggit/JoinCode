@@ -358,6 +358,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         ToolResult? result,
         Dictionary<string, JsonElement> arguments,
         string? errorMessage = null) {
+        Supervise(toolName, result, arguments);
         ToolExecutionCompleted?.Invoke(this, new ToolExecutionCompletedEventArgs {
             ToolName = toolName,
             IsError = result?.IsError ?? true,
@@ -365,6 +366,27 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             Duration = TimeSpan.Zero,
             Arguments = arguments
         });
+    }
+
+    /// <summary>
+    /// 执行后监督：结果里出现凭据特征时登记待复核票据（立即 Defer，不阻塞本轮）。
+    /// 结果已经返回给模型，监督只做可见性与后续处置提醒，不改变工具结果。
+    /// </summary>
+    private void Supervise(string toolName, ToolResult? result, Dictionary<string, JsonElement> arguments) {
+        if (result is null) {
+            return;
+        }
+        var reason = ToolExecutionSupervisor.Inspect(result);
+        if (reason is null) {
+            return;
+        }
+
+        var ticket = _pendingConfirmations?.Enqueue(SubAgentContext.Current?.AgentId, toolName, reason, arguments);
+        if (ticket is not null && _pendingConfirmations is not null) {
+            _pendingConfirmations.TryResolve(ticket.Id, PendingConfirmationDecision.Defer);
+        }
+        _logger.LogWarning("执行后监督发现疑似凭据输出: {ToolName}", toolName);
+        Diag.WriteLine($"[TOOL-SUPERVISOR] secret-in-output tool={toolName} ticket={ticket?.Id ?? "(none)"}");
     }
 }
 

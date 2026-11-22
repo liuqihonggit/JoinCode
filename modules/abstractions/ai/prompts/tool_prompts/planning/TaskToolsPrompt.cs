@@ -49,9 +49,11 @@ public static class TaskCreateToolPrompt {
 
 ## 任务字段
 
-- **subject**: 一个简短的、可操作的命令式标题（例如，""修复登录流程中的认证错误""）
-- **description**: 需要做什么
-- **activeForm** (可选): 任务处于 in_progress 状态时旋转器中显示的现在进行时形式（例如，""修复认证错误""）。如果省略，旋转器显示 subject。
+- **title**: 一个简短的、可操作的命令式标题（例如，""修复登录流程中的认证错误""）
+- **description** (可选): 需要做什么
+- 其他可选字段：`assignee`、`due_date`、`priority`（low/medium/high，默认 medium）、`tags`
+
+本工具没有 `activeForm` 参数；任务列表中显示的标题就是 `title`。
 
 所有任务都以状态 `pending` 创建。
 

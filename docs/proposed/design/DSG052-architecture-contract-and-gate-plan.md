@@ -434,7 +434,7 @@ architecture:
 **已完成 0.9 `storage ↔ composition` 环清零（2026-11-22）**：
 - 根因：`storage/clock` 通过 `Composition` 传递引用消费 cognition 的 `IEmptyResponseTracker` 与 guard 的 `ClusterPlanApprovalHook*`，使 `storage -> composition` 成立，叠加 `composition -> storage` 形成 6 条生产域环。
 - 契约上移：`IEmptyResponseTracker` 迁入 `Abstractions.Brain.Context`（`modules/abstractions/brain/context/loop`），实现 `EmptyResponseTracker` 仍留 cognition；`IClusterPlanApprovalHookManager` / `ClusterPlanApprovalHookContext` / `ClusterPlanApprovalHookResult` 迁入 `Abstractions.Hooks`（`abstractions.primitives.pipeline`），实现 `ClusterPlanApprovalHookManager` 仍留 `Guard.Hooks`。
-- `Clock` 删除 `Composition` 引用（不再依赖 guard 或 cognition 的传递引用）；`JCC12005 8 → 2`、`JCC12002 485 → 484`、`JCC12003 0`。全仓 218 项目 `-t:Rebuild -m:1` 0 警告 0 错误；`Clock.Tests` 519/519、`Guard.Hooks.Tests` 598/598。全量 60 个单元测试项目首轮 59 通过，唯一 `Infra.Utils.Tests` 时序用例在满载下超时（隔离复跑 561/561）；放宽上限后复跑 561/561，合计 24678 通过 / 0 失败。
+- `Clock` 删除 `Composition` 引用（不再依赖 guard 或 cognition 的传递引用）；`JCC12005 8 → 2`、`JCC12002 485 → 484`、`JCC12003 0`。全仓 218 项目 `-t:Rebuild -m:1` 0 警告 0 错误；`Clock.Tests` 519/519、`Guard.Hooks.Tests` 598/598；全量 60 个单元测试项目 24678 通过 / 0 失败（日志 `.xxx/logs/full-tests-final3`）。此前满载首轮暴露 `Infra.Utils` 的 `SingleDelayCap` 时序断言过紧（150ms），放宽到 400ms（仍低于未限速 500ms）后复跑 561/561。
 - 剩余 2 条环：`abstractions ↔ async_primitives`（Infrastructure 系 8 个项目依赖 `BclBridge`，而 `AsyncLock`/`Transport.*` 依赖 abstractions）与 `apps ↔ native_tui`（`apps/cli` 引用 `NativeTui.Host`，后者引用 `apps/engine`）。
 
 **后续改动（按顺序，逐项 ADR）**：
@@ -584,7 +584,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 2026-11-21：P4 第七块完成（门禁测试口径修正）。`Test-IsTestProject` 优先读 `ProjectType=test`（带缓存），`vault.testing.common` 不再被算作生产项目；`JCC12004 1→0`、生产跨域边 486→485，基线重冻结，Validate PASS。
 - 2026-11-21：P4 第八块完成（`JCC10011` 公开 API 禁元组）。规则 + 8 fixture 全绿；真实 `Structura` 构建命中 4 条并清理为 `KeyValuePair`，该域 warning 级别零命中、401/401 测试通过；`.editorconfig` 收口为 `suggestion`。
 - 2026-11-22：P4 第九块完成（`JCC10011` 全仓存量归零）。按域五批把交付代码 79 处公开元组改为具名 `record`（跨批新增 DTO 三十余个），非交付工具 `jcc_audit_ast_cli` 残留 11 处同批清零（新增 10 个 record）；`JoinCode.slnx -t:Rebuild -m:1` 在 `warning` 级 0 命中 0 错误；`.editorconfig` 升 `warning` 防新增（P5 再统一升 `error`）。
-- 2026-11-22：P4 第十块完成（`storage ↔ composition` 环清零）。`IEmptyResponseTracker` 契约下沉到 `Abstractions.Brain.Context`，`ClusterPlanApprovalHook*` 下沉到 `Abstractions.Hooks`；`Clock` 删除 `Composition` 引用后 0 警告编译。门禁 `JCC12005 8→2`、`JCC12002 485→484`、`JCC12003 0`；全仓 218 项目串行重建 0 警告 0 错误；`Clock.Tests` 519/519、`Guard.Hooks.Tests` 598/598。全量 60 项目首轮 59 通过，`Infra.Utils.Tests` 时序用例满载超时、隔离复跑 561/561，放宽上限后复跑 561/561，合计 24678 通过 / 0 失败。
+- 2026-11-22：P4 第十块完成（`storage ↔ composition` 环清零）。`IEmptyResponseTracker` 契约下沉到 `Abstractions.Brain.Context`，`ClusterPlanApprovalHook*` 下沉到 `Abstractions.Hooks`；`Clock` 删除 `Composition` 引用后 0 警告编译。门禁 `JCC12005 8→2`、`JCC12002 485→484`、`JCC12003 0`；全仓 218 项目串行重建 0 警告 0 错误；`Clock.Tests` 519/519、`Guard.Hooks.Tests` 598/598；全量 60 项目 24678 通过 / 0 失败（`full-tests-final3`）。顺带把满载下过紧的 150ms 时序上限放宽到 400ms（仍低于未限速 500ms），`Infra.Utils` 复跑 561/561。
 - 工程事实（债务盘点）：`dotnet build` 增量不重跑分析器，新规则的全仓存量必须按域 `-t:Rebuild` 采集；用增量全仓构建统计会把存量严重低估。
 - 工程事实（全量采集的并行陷阱）：`JoinCode.slnx -t:Rebuild -m`（默认并行）会在重建时先清掉依赖项目的 `ref` 程序集，导致下游 CS0006（实测 645 个错误）；要一次采集全仓，必须 `-t:Rebuild -m:1` 串行按依赖序重建，或按域分别 Rebuild。
 - 工程事实（分类口径）：判断测试项目不能只靠名字/路径启发式。`ProjectType=test` 是构建期事实（决定测试包引用与 `IsTestProject` 语义），门禁必须以它为准；否则纯测试辅助库（名字不含 `.tests`）会被算进生产图，既误报 `JCC12004`，也让生产边/入度虚高。

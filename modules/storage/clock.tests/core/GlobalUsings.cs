@@ -9,6 +9,7 @@ global using Infrastructure.Localization;
 global using Infrastructure.Time;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;
+global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Execution;

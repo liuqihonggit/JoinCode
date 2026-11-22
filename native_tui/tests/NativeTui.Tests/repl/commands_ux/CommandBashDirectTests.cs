@@ -12,9 +12,9 @@ public sealed class CommandBashDirectTests
         ? new BashDirectExecutor("cmd.exe", "/c")
         : new BashDirectExecutor("/bin/sh", "-c");
 
-    /// <summary>按平台的长驻命令（取消用例 — 至少运行 30 秒）。</summary>
+    /// <summary>按平台的长驻命令（取消用例 — 至少运行 30 秒；Windows 用 System32 绝对路径，避免宿主 PATH 缺失）。</summary>
     private static string LongRunningCommand => OperatingSystem.IsWindows()
-        ? "ping -n 30 127.0.0.1"
+        ? $"{Path.Combine(Environment.SystemDirectory, "ping.exe")} -n 30 127.0.0.1"
         : "sleep 30";
 
     /// <summary>echo 输出：stdout 采集 + 退出码 0。</summary>
@@ -56,7 +56,7 @@ public sealed class CommandBashDirectTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         var result = await CreatePlatformExecutor().ExecuteAsync(LongRunningCommand, cts.Token);
 
-        Assert.True(result.Interrupted);
+        Assert.True(result.Interrupted, $"exit={result.ExitCode} stderr={result.StdErr}");
         Assert.Equal(-1, result.ExitCode);
     }
 

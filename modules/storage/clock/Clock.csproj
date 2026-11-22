@@ -19,7 +19,6 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/composition/composition/Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/storage/vault/Vault.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/storage/scheduling/Scheduling.csproj" /></ItemGroup>
 

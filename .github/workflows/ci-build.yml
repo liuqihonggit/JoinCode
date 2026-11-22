@@ -117,7 +117,7 @@ jobs:
       - name: Restore (full solution — tests included)
         run: dotnet restore build/sln/JoinCode.slnx --nologo
 
-      - name: Compile all implementers (JoinCode.slnx: modules + test/unit + test/mock + test/integration)
+      - name: Compile all implementers (JoinCode.slnx — modules + test/unit + test/mock + test/integration)
         run: >
           dotnet build build/sln/JoinCode.slnx
           -c Debug --no-restore --nologo -m

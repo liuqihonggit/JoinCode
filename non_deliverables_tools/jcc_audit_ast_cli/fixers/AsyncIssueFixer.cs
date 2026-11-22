@@ -10,7 +10,7 @@ public static class AsyncIssueFixer {
     /// 加载解决方案，用语义模型检测并修复所有异步相关问题
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    public static async Task<(int FixedFiles, int FixedIssues, int SkippedFiles)> FixAllAsync(
+    public static async Task<AsyncIssueFixResult> FixAllAsync(
         string solutionPath, bool dryRun, CancellationToken ct = default) {
 
         var solutionFullPath = Path.GetFullPath(solutionPath);
@@ -57,7 +57,7 @@ public static class AsyncIssueFixer {
                 fixedIssues += rewriter.FixedIssues;
             }
         }
-        return (fixedFiles, fixedIssues, skippedFiles);
+        return new AsyncIssueFixResult(fixedFiles, fixedIssues, skippedFiles);
     }
 
     private static bool ShouldSkipPath(string path) {

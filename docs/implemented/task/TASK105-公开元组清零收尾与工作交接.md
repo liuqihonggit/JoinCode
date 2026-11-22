@@ -1,6 +1,6 @@
 # TASK105 — 公开元组清零收尾与工作交接
 
-> 状态：代码完成、全仓编译通过、相关单元测试通过；**提交被运行环境阻塞**（详见第 7 节），提交信息统一使用本编号 `TASK105`。
+> 状态：已完成。交付代码批已提交 `8f12a7d6b`；非交付工具 `jcc_audit_ast_cli` 残留 11 处已在后续提交清零，`JCC10011` 升 `warning`（详见第 8 节）。
 
 ## 1. 背景与结论
 
@@ -12,7 +12,7 @@ JCC10011（公开 API 禁止元组，规则实现 `modules/generators/aot_safety
 | 第二批 | `3341efa00` | composition / services / llm / native_gui |
 | 第三批 | `74da2d5af` | storage |
 | 第四批 | `fb219f4f0` | perception |
-| 第五批（本批） | 工作区未提交 | abstractions 全域 + cognition + tools + native_gui 消费适配 + 测试适配 |
+| 第五批（本批） | `8f12a7d6b` | abstractions 全域 + cognition + tools + native_gui 消费适配 + 测试适配 |
 
 **结论**：2026-11-22 以 `.editorconfig` 临时提升 `JCC10011.severity = warning` 做全仓 `-t:Rebuild` 重采：
 
@@ -95,9 +95,9 @@ JCC10011（公开 API 禁止元组，规则实现 `modules/generators/aot_safety
 
 | 优先级 | 事项 | 说明 |
 |---|---|---|
-| P2 | `non_deliverables_tools/jcc_audit_ast_cli` 11 处元组 | 非交付工具，不在交付代码范围；如需彻底清零：`SyncAsyncFixer.SyncAllAsync`、`GetAwaiterFixer.FixAllAsync`、`AsyncMethodFixer.FixDirectoryAsync`、`AsyncIssueFixer.FixAllAsync`、`AnalyzerDrivenFixer.FixAsync`、`BuildErrorFixer.FixFromBuildErrorsAsync`、`CascadeAsyncFixer.FixCascadeAsync`、`DiCycleAnalysis.Edges`、`DiRegistrationExtractor.Extract`、`FastProjectLoader.LoadCompilationsAsync/LoadCompilationsToChannelAsync` |
-| P3 | 提升 JCC10011 严重级别 | 当前 `.editorconfig`: `dotnet_diagnostic.JCC10011.severity = suggestion`。交付代码已零命中，可评估升 `warning`；若同时纳入非交付工具，需先清 11 处或加入项目级排除 |
-| P3 | 全仓单元测试 | 本批只跑了 10 个相关项目（3969 个）；完整 CI 由 PR 流水线覆盖 |
+| ✅ 已完成 | `non_deliverables_tools/jcc_audit_ast_cli` 11 处元组 | 2026-11-22 清零（10 个 record），工具测试 61/61；见第 8 节 |
+| ✅ 已完成 | 提升 JCC10011 严重级别 | `.editorconfig` 由 `suggestion` 升 `warning`（交付代码全仓 0 命中）；统一升 `error` 留 P5 |
+| P3 | 全仓单元测试 | 本批只跑了相关项目；完整 CI 由 PR 流水线覆盖 |
 | P3 | 编译脚本改进 | 见第 6 节，可选 |
 
 ### 如何重采 JCC10011 存量
@@ -138,6 +138,7 @@ JCC10011（公开 API 禁止元组，规则实现 `modules/generators/aot_safety
    - 增加 `-MaxCpuCount` 参数；
    - 增加 `-Verbose` 开关（`-v m`）以观察进度；
    - 清理 `module.slnx` 间 4 个重复项目归属。
+6. **实测缺陷（2026-11-22）**：`git` / `dotnet` 不在 PATH 时，脚本内调用失败却仍打印“无源码改动，跳过编译”或“按需编译全部通过”——未检查 `$LASTEXITCODE`。建议每个外部命令后校验退出码并以非零退出，避免假绿。
 
 ## 7. ⚠️ 环境阻塞：git 无法写入主仓库 `.git`
 
@@ -164,6 +165,18 @@ git commit -m "refactor: 公开元组签名改具名 record（abstractions 收�
 ```
 
 提交后可用 `git log -1 --format=%s` 确认包含 `TASK105`，交接时以该编号检索本文件。
+
+> 后续已在无限制终端完成提交：`8f12a7d6b`（`git log -1 --format=%s` 包含 `TASK105`）。
+
+## 8. 收尾（2026-11-22）
+
+| 事项 | 结果 |
+|---|---|
+| 非交付工具 11 处 | `SyncAsyncFixer` / `GetAwaiterFixer` / `AsyncMethodFixer` / `AsyncIssueFixer` / `AnalyzerDrivenFixer` / `BuildErrorFixer` / `CascadeAsyncFixer` / `DiCycleInfo.Edges`+构造参数 / `DiRegistrationExtractor.Extract` / `FastProjectLoader.LoadCompilationsAsync`+`LoadCompilationsToChannelAsync` 全部改具名 record（`Models.cs` 新增 10 个） |
+| 工具测试 | `JccAuditCli.Tests` 61/61 通过 |
+| JCC10011 重采 | `JoinCode.slnx` 218 项目 `-t:Rebuild -m:1` + `warning`：0 命中 / 0 错误（日志 `.xxx/logs/jcc10011/full-slnx-20261122-serial.log`） |
+| 严重级别 | `.editorconfig`: `JCC10011.severity` `suggestion` → `warning`（P5 统一升 `error`） |
+| 工程事实 | solution 级 `-t:Rebuild -m`（并行）会因先清掉依赖项目 ref 程序集而报大量 CS0006；全量采集必须 `-m:1` |
 
 ## 附录 A — 本批新增具名 record（28 个）
 

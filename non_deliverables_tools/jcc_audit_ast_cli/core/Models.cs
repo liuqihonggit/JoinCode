@@ -141,6 +141,86 @@ public sealed record BomStripEntry {
 }
 
 /// <summary>
+/// 同步化修复结果
+/// </summary>
+/// <param name="FixedFiles">已修改文件数。</param>
+/// <param name="FixedMethods">已修改方法数。</param>
+/// <param name="FixedAwaits">已处理 await 数。</param>
+/// <param name="SkippedFiles">跳过文件数。</param>
+public sealed record SyncFixResult(int FixedFiles, int FixedMethods, int FixedAwaits, int SkippedFiles);
+
+/// <summary>
+/// GetAwaiter().GetResult() 修复结果
+/// </summary>
+/// <param name="FixedFiles">已修改文件数。</param>
+/// <param name="FixedIssues">已修复问题数。</param>
+/// <param name="Skipped">跳过数。</param>
+public sealed record AwaiterFixResult(int FixedFiles, int FixedIssues, int Skipped);
+
+/// <summary>
+/// 异步方法修饰符修复结果
+/// </summary>
+/// <param name="FixedFiles">已修改文件数。</param>
+/// <param name="FixedMethods">已修改方法数。</param>
+/// <param name="SkippedFiles">跳过文件数。</param>
+public sealed record AsyncMethodFixResult(int FixedFiles, int FixedMethods, int SkippedFiles);
+
+/// <summary>
+/// 异步问题修复结果
+/// </summary>
+/// <param name="FixedFiles">已修改文件数。</param>
+/// <param name="FixedIssues">已修复问题数。</param>
+/// <param name="SkippedFiles">跳过文件数。</param>
+public sealed record AsyncIssueFixResult(int FixedFiles, int FixedIssues, int SkippedFiles);
+
+/// <summary>
+/// 分析器驱动修复结果
+/// </summary>
+/// <param name="FixedFiles">已修改文件数。</param>
+/// <param name="FixedIssues">已修复问题数。</param>
+/// <param name="Skipped">跳过数。</param>
+public sealed record AnalyzerFixResult(int FixedFiles, int FixedIssues, int Skipped);
+
+/// <summary>
+/// 编译错误驱动修复结果
+/// </summary>
+/// <param name="FixedFiles">已修改文件数。</param>
+/// <param name="FixedIssues">已修复问题数。</param>
+public sealed record BuildErrorFixResult(int FixedFiles, int FixedIssues);
+
+/// <summary>
+/// 级联修复结果
+/// </summary>
+/// <param name="Iterations">迭代次数。</param>
+/// <param name="TotalFixed">累计修复数。</param>
+public sealed record CascadeFixResult(int Iterations, int TotalFixed);
+
+/// <summary>
+/// DI 循环依赖中的一条边
+/// </summary>
+/// <param name="From">起点服务。</param>
+/// <param name="To">终点服务。</param>
+/// <param name="File">来源文件路径。</param>
+/// <param name="Line">来源行号。</param>
+public sealed record DiCycleEdge(string From, string To, string? File, int? Line);
+
+/// <summary>
+/// DI 注册与构造函数依赖的提取结果
+/// </summary>
+/// <param name="Registrations">服务注册列表。</param>
+/// <param name="Dependencies">构造函数依赖列表。</param>
+public sealed record DiRegistrationExtraction(
+    List<ServiceRegistration> Registrations, List<ConstructorDependency> Dependencies);
+
+/// <summary>
+/// 已加载的项目编译单元
+/// </summary>
+/// <param name="Name">项目名（AssemblyName）。</param>
+/// <param name="FilePath">项目文件路径。</param>
+/// <param name="Compilation">Roslyn 编译对象。</param>
+public sealed record LoadedProjectCompilation(string Name, string FilePath, CSharpCompilation Compilation);
+
+/// <summary>
 /// UTF-8 BOM 移除报告
 /// </summary>
 public sealed record BomStripReport {

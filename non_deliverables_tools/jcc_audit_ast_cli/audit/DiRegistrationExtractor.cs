@@ -15,7 +15,7 @@ public static class DiRegistrationExtractor {
     /// <summary>从编译中提取 DI 注册信息和构造函数依赖。</summary>
     /// <param name="compilation">Roslyn 编译。</param>
     /// <returns>注册信息和依赖的元组。</returns>
-    public static (List<ServiceRegistration> Registrations, List<ConstructorDependency> Dependencies) Extract(Compilation compilation) {
+    public static DiRegistrationExtraction Extract(Compilation compilation) {
         var registrations = new List<ServiceRegistration>();
         var dependencies = new List<ConstructorDependency>();
 
@@ -35,7 +35,7 @@ public static class DiRegistrationExtractor {
             ExtractConstructorDeps(syntaxTree, compilation, dependencies);
         }
 
-        return (registrations, dependencies);
+        return new DiRegistrationExtraction(registrations, dependencies);
     }
 
     private static bool IsDiRelatedFile(string fileName) {

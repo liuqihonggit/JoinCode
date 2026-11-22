@@ -429,7 +429,7 @@ architecture:
 - 真实构建探针：`JCC10011` 临时升 `warning`（`TreatWarningsAsErrors` 表现为 error）→ `Structura.csproj` 报 4 条 `SkipList.Range/RangeFrom/PrefixRange/Enumerate`；确认规则在真实构建链路命中（不是 fixture 假绿）。
 - 债务清理：`SkipList` 4 个公开签名由 `IEnumerable<(TKey Key, TValue Value)>` 改为 `IEnumerable<KeyValuePair<TKey, TValue>>`（唯一消费方是同模块测试，`.Key`/`.Value` 访问不变）；`Structura.Tests` 401/401 绿，collections 域在 `JCC10011=warning` 下零命中。
 - 收口：`.editorconfig` 还原为 `suggestion`（观察存量），P5 清账后升 error。
-- 债务口径：全仓存量尚未精确盘点——增量构建不会重跑分析器（只有被重建的项目才报），抽样 `abstractions` 域仍有 14 处公开元组。精确清单需按域 `-t:Rebuild` 逐个采集，归入 P4 债务 5 之后的独立小项。
+- 债务口径与清偿（2026-11-22）：按 20 个 target（16 域 `module.slnx` + `native_tui` + `native_gui` 两测试项目 + `host.tests`）临时升 `warning` 后 `-t:Rebuild` 精确盘点，全仓存量 **79 处 / 32 项目**（增量构建不重跑分析器，会把存量严重低估）。按域分五批清偿：mcp/guard/apps（`a7bbfc59b`）、composition/services/llm/native_gui（`3341efa00`）、storage（`74da2d5af`）、perception（`fb219f4f0`）、abstractions+cognition+tools（`8f12a7d6b`，新增 28 个具名 record）；随后清掉非交付工具 `jcc_audit_ast_cli` 残留 11 处（新增 10 个 record，工具测试 61/61 绿）。最终 `JoinCode.slnx` 218 项目在 `JCC10011=warning` 下 `-t:Rebuild -m:1` 得 **0 命中 / 0 错误**；`native_tui`、`native_gui` core/host、`host.tests` 亦 0 命中；`.editorconfig` 由 `suggestion` 升为 `warning` 防新增（P5 再统一升 `error`）。
 
 **后续改动（按顺序，逐项 ADR）**：
 1. 补齐域内 slnx 缺口：abstractions 6 个（Brain/Composition/Guard/Memory/Perception/Primitives.Tools.Tests）、generators 1 个（AotHandler.Generator）、perception 4 个（Eyes/Eyes.Tests/Vision/Vision.Tests）；tools 的 13 个 `cli_nodes/groups/*` + sample + onnx 测试先决定"登记或排除"，排除项写入 `JccSlnxExcluded` 并注明打包流程。
@@ -512,7 +512,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | 模块 README 生成器 | P4 文档同步 | ✅ `Update-ModuleReadme.ps1` | ✅ 16 域已生成；删 1 行后 `JCC12011` 1/2 报错、exit 1，重跑恢复 PASS |
 | `Infrastructure` 拆分第一刀（GitHub 客户端出迁 tools） | `tools/gh`、全仓生产图 | ✅ `GitHubClient.csproj` + `github_client_tests` 随迁 | ✅ 全仓四 target True；`jcc-gh.exe alias list` 真实构造客户端；门禁环 15→8 |
 | `JCC12004` 测试项目口径（`ProjectType=test` 优先） | 门禁分类器 | ✅ `Get-DeclaredProjectType` 缓存 | ✅ `JCC12004 1→0`、`JCC12002 486→485`，Validate PASS |
-| `JCC10011` 公开 API 禁元组 | `dotnet build`、IDE | ✅ `PublicTupleApiRule` + 8 fixture | ✅ 真实 `Structura` 构建报 4 条；清理后该域 0 命中、`Structura.Tests` 401/401 |
+| `JCC10011` 公开 API 禁元组 | `dotnet build`、IDE | ✅ `PublicTupleApiRule` + 8 fixture | ✅ 全仓 `-t:Rebuild` 采集 79 处，交付代码清零；非交付工具残留 11 处亦清零；`warning` 级 0 命中，工具测试 61/61 |
 
 > 后两列为强制钩子：`已实现` 防止"写了规划没实现"；`已验收` 必须走真实运行（门禁注入违规、分析器 fixture、全仓编译），禁止只写单测。
 
@@ -577,7 +577,9 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 工程事实（`storage/clock` 对 Composition 不是无用引用）：`Clock.csproj → Composition` 是真实依赖（`Core.Context`、`Core.Hooks`、`IEmptyResponseTracker`），删掉后编译报 CS0234/CS0246。要消 `storage→composition` 这条总根（8 条环里 6 条经过它），必须把 Goal 引擎上移或把这些契约下沉，属下一批大手术，不能按"无用引用"处理。
 - 2026-11-21：P4 第七块完成（门禁测试口径修正）。`Test-IsTestProject` 优先读 `ProjectType=test`（带缓存），`vault.testing.common` 不再被算作生产项目；`JCC12004 1→0`、生产跨域边 486→485，基线重冻结，Validate PASS。
 - 2026-11-21：P4 第八块完成（`JCC10011` 公开 API 禁元组）。规则 + 8 fixture 全绿；真实 `Structura` 构建命中 4 条并清理为 `KeyValuePair`，该域 warning 级别零命中、401/401 测试通过；`.editorconfig` 收口为 `suggestion`。
+- 2026-11-22：P4 第九块完成（`JCC10011` 全仓存量归零）。按域五批把交付代码 79 处公开元组改为具名 `record`（跨批新增 DTO 三十余个），非交付工具 `jcc_audit_ast_cli` 残留 11 处同批清零（新增 10 个 record）；`JoinCode.slnx -t:Rebuild -m:1` 在 `warning` 级 0 命中 0 错误；`.editorconfig` 升 `warning` 防新增（P5 再统一升 `error`）。
 - 工程事实（债务盘点）：`dotnet build` 增量不重跑分析器，新规则的全仓存量必须按域 `-t:Rebuild` 采集；用增量全仓构建统计会把存量严重低估。
+- 工程事实（全量采集的并行陷阱）：`JoinCode.slnx -t:Rebuild -m`（默认并行）会在重建时先清掉依赖项目的 `ref` 程序集，导致下游 CS0006（实测 645 个错误）；要一次采集全仓，必须 `-t:Rebuild -m:1` 串行按依赖序重建，或按域分别 Rebuild。
 - 工程事实（分类口径）：判断测试项目不能只靠名字/路径启发式。`ProjectType=test` 是构建期事实（决定测试包引用与 `IsTestProject` 语义），门禁必须以它为准；否则纯测试辅助库（名字不含 `.tests`）会被算进生产图，既误报 `JCC12004`，也让生产边/入度虚高。
 - 关键发现（增量构建掩盖）：`solution` target 用增量构建时，删掉被他人传递依赖的 `ProjectReference` 不会立即报错；`native_tui` / `native_gui` 独立 target 才暴露 `CS0246`。跨域引用变更后必须至少跑一次 `-t:Rebuild`。
 - 工程事实（口径）：传递引用显式化会让门禁计数上升（472→478），这是把原本隐形的依赖画进图里，不是新增耦合；清账进度应按"域对集合 + 环数"看，不能只看边计数。

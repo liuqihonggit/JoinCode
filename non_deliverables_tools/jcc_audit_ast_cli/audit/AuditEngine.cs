@@ -81,7 +81,7 @@ public sealed class AuditEngine {
             .ToList();
 
         // 流水线：用 Channel 连接编译创建 → 分析，重叠执行
-        var channel = System.Threading.Channels.Channel.CreateBounded<(string Name, string FilePath, CSharpCompilation Compilation)>(
+        var channel = System.Threading.Channels.Channel.CreateBounded<LoadedProjectCompilation>(
             new System.Threading.Channels.BoundedChannelOptions(MaxConcurrency) { SingleReader = false, SingleWriter = false });
 
         // 启动编译创建生产者（后台并行加载 + 创建 Compilation，完成后写入 Channel）
@@ -674,10 +674,9 @@ public sealed class AuditEngine {
 
             var compilation = await project.GetCompilationAsync(projectCts.Token).ConfigureAwait(false);
             if (compilation is null)
-                return (Enumerable.Empty<ServiceRegistration>(), Enumerable.Empty<ConstructorDependency>());
+                return new DiRegistrationExtraction([], []);
 
-            var (regs, deps) = DiRegistrationExtractor.Extract(compilation);
-            return (regs, deps);
+            return DiRegistrationExtractor.Extract(compilation);
         });
 
         var extractResults = await Task.WhenAll(extractTasks).ConfigureAwait(false);

@@ -7,7 +7,7 @@ public sealed class DiCycleInfo {
     /// <summary>获取循环路径。</summary>
     public string[] Path { get; }
     /// <summary>获取循环边集合。</summary>
-    public (string From, string To, string? File, int? Line)[] Edges { get; }
+    public DiCycleEdge[] Edges { get; }
     /// <summary>获取严重程度。</summary>
     public int Severity { get; }
 
@@ -15,7 +15,7 @@ public sealed class DiCycleInfo {
     /// <param name="path">循环路径。</param>
     /// <param name="edges">循环边集合。</param>
     /// <param name="severity">严重程度。</param>
-    public DiCycleInfo(string[] path, (string From, string To, string? File, int? Line)[] edges, int severity) {
+    public DiCycleInfo(string[] path, DiCycleEdge[] edges, int severity) {
         Path = path;
         Edges = edges;
         Severity = severity;

@@ -1,7 +1,7 @@
 # DSG053 — 统一权限判定架构：硬规则 + AI 灰区判定 + 监控升级 + 按需 ask
 
 > 状态：**Phase 1 已实施（2026-11-23）；Phase 2-4 待做** · 日期：2026-11-22
-> 实施说明：本文描述的 `Autonomous` 语义当前由 `PermissionMode.Unattended` 承载，`autonomous` 作为 `[EnumValue]` 别名解析到同一枚举值；未新增第 6 个枚举，避免模式矩阵扩散。独立 `PendingConfirmationQueue`、异步 Supervisor 与 UI footer 仍属 Phase 2-4。
+> 实施说明：本文描述的 `Autonomous` 语义当前由 `PermissionMode.Unattended` 承载，`autonomous` 作为 `[EnumValue]` 别名解析到同一枚举值；未新增第 6 个枚举，避免模式矩阵扩散。独立 `PendingConfirmationQueue`、异步 Supervisor 与 UI footer 仍属 Phase 2-4。DSH Web GUI 与 TUI 挂起问答的后台 Defer / 取消令牌已闭环（2026-11-23 第二轮）。
 > 关联：[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)（AI 灰区判定 + Autonomous 模式）、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)（任务作用域权限覆盖）、[TASK105](../task/TASK105-ask后台任务临时关闭-现状取证与修复方案.md)（ask 临时关闭取证）、[TASK104](../task/TASK104-sandbox配置契约与门控对齐基准-差异取证.md)（sandbox 门控）
 > 本仓库：`D:\project\w3`（下文行号均指该树，2026-11-22 快照）
 
@@ -350,6 +350,8 @@ latencyMs, cacheHit, fallbackReason, userOverride
 | `autonomous` 模式 | `PermissionMode` + `AutoClassifierMiddleware` | ✅ `[EnumValue("autonomous")]` 别名映射 `Unattended` | ❌ 手动 exe 未做；✅ 别名单测 2 项通过 |
 | `PendingConfirmationQueue` | 后台 Goal/fork/resume/cron | ❌ Phase 2/3 待做 | ❌ 未验收 |
 | 通知队列分桶 | `TuiAskBridge` / `TerminalInteractiveService` / `AvaloniaInteractiveService` / DSH | ✅ `AgentNotificationQueue` 按 target 分桶 | ❌ 手动 exe 未做；✅ A/B 目标并发单测 8 项通过 |
+| DSH Web GUI 后台 Defer | `DshUserQuestionBroker.RequestAsync` ← `IJccChatSession.NotificationQueue` | ✅ `AttachNotificationQueue` + 100ms 帧拍；命中通知 → cancel 帧 + `DeferredResult` | ❌ 手动 exe 未做；✅ `DshUserQuestionsTests` 11 项通过（含新增 Defer） |
+| TUI 取消令牌 | `TuiAskBridge.Ask` → `ReplShell.AskUserQuestions(ct)` → `CheckAskQuestionInterrupt` | ✅ 取消只置 volatile 标记，主循环帧拍关闭对话框返回 `Cancelled` | ❌ 手动 exe 未做；✅ `AskQuestionTests` 16 项通过（含新增取消） |
 | 审计 `PermissionJudgeAudit` | 现有 audit 通道 | ❌ 仅命令审计，Judge 审计未落盘 | ❌ 未验收 |
 | 真实工具名测试 | `AsyncAgentAllowedToolsTests` 等 | ✅ 已改用真实工具名 + 后台拒绝集测试 | ✅ 单元测试通过 |
 

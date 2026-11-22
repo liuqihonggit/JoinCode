@@ -32,8 +32,10 @@
 | D3 Goal 绕过工具层 | `GoalUserInteractionService` 在 Unattended/Bypass 跳过 `IInteractiveService`，返回 Stop，避免 TUI 同步阻塞 | Clock Goal 测试通过 |
 | 通知跨目标丢弃 | `AgentNotificationQueue` 按 target 分桶；`SessionController` 用 `_mainAgent.UniqueId` 消费；`BackgroundNotificationHandler` 用当前 AgentId | Infra queue 8 项通过 |
 | 后台工具集空集合反向放大 | `EffectiveAllowedTools` 空交集回退默认白名单；`PreserveToolsExceptDenied` 空结果回退默认白名单 | 相关单测通过 |
+| D4 Web GUI 通知到达不 Defer | `IJccChatSession.NotificationQueue` → `DshHostServices.AttachEngine` → `DshUserQuestionBroker.AttachNotificationQueue`；`RequestAsync` 100ms 帧拍命中通知即 cancel + Deferred | `DshUserQuestionsTests` 11 项通过 |
+| D5 TUI 忽略取消令牌 | `TuiAskBridge.Ask(..., ct)` 透传；`ReplShell.AskUserQuestions` 注册 `RequestAskQuestionCancel`；`CheckAskQuestionInterrupt` 帧拍优先消费取消标记 | `AskQuestionTests` 16 项通过 |
 
-**未完成**：Web GUI `DshUserQuestionBroker` Defer、`PendingConfirmationQueue`、TUI 取消令牌真机、手动 exe 验收（ADR 0080）。
+**未完成**：`PendingConfirmationQueue`、异步 Supervisor、手动 exe 验收（ADR 0080）。
 
 ---
 

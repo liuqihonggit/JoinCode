@@ -18,7 +18,7 @@
     <ProjectReference Include="$(RepoRoot)modules/composition/pipelines/Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/persistence/pithosdb/PithosDB.Core.csproj" />
     <!-- ADR 0149: jcc 默认 TUI 宿主,引用 NativeTui.Host(Library) 调 RunInteractiveAsync -->
-    <ProjectReference Include="$(RepoRoot)native_tui/apps/NativeTui.Host/NativeTui.Host.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/apps/native_tui_host/NativeTui.Host.csproj" />
 </ItemGroup>
 
   <ItemGroup>

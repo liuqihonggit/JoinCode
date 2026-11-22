@@ -11,7 +11,7 @@
     <PackageReference Include="System.IO.Hashing" Version="$(SystemIOHashingVersion)" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/async_primitives/async_lock/AsyncLock.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/async_lock/AsyncLock.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />

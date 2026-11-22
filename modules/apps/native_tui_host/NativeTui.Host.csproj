@@ -8,6 +8,10 @@
     <AllowPack>false</AllowPack>
     <IsPackable>false</IsPackable>
     <ServerGarbageCollection>true</ServerGarbageCollection>
+    <!-- 沿用 native_tui 独立构建策略：UI 宿主不走 JCC 分析器与 Structura 全局引用 -->
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <ExcludeStructura>true</ExcludeStructura>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,15 +20,15 @@
 
   <ItemGroup>
     <!-- ADR 0140：NativeTui.Core 保持零依赖；引擎组装全在本宿主层 -->
-    <ProjectReference Include="..\..\src\NativeTui.Core\NativeTui.Core.csproj" />
+    <ProjectReference Include="$(RepoRoot)native_tui/src/NativeTui.Core/NativeTui.Core.csproj" />
     <!-- M7-4：Markdown 投影卫星层（Markdig 隔离在此，Core 零依赖不变） -->
-    <ProjectReference Include="..\..\src\NativeTui.Markdown\NativeTui.Markdown.csproj" />
+    <ProjectReference Include="$(RepoRoot)native_tui/src/NativeTui.Markdown/NativeTui.Markdown.csproj" />
     <!-- ADR 0143：跨 slnx 直引引擎库（照抄 gui 先例），不走 bridge_serve 子进程协议 -->
-    <ProjectReference Include="..\..\..\modules\apps\engine\JoinCode.Engine.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/apps/engine/JoinCode.Engine.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="..\..\..\modules\abstractions\abstractions.configuration\Abstractions.Configuration.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
   <PropertyGroup>

@@ -435,13 +435,27 @@ architecture:
 - 根因：`storage/clock` 通过 `Composition` 传递引用消费 cognition 的 `IEmptyResponseTracker` 与 guard 的 `ClusterPlanApprovalHook*`，使 `storage -> composition` 成立，叠加 `composition -> storage` 形成 6 条生产域环。
 - 契约上移：`IEmptyResponseTracker` 迁入 `Abstractions.Brain.Context`（`modules/abstractions/brain/context/loop`），实现 `EmptyResponseTracker` 仍留 cognition；`IClusterPlanApprovalHookManager` / `ClusterPlanApprovalHookContext` / `ClusterPlanApprovalHookResult` 迁入 `Abstractions.Hooks`（`abstractions.primitives.pipeline`），实现 `ClusterPlanApprovalHookManager` 仍留 `Guard.Hooks`。
 - `Clock` 删除 `Composition` 引用（不再依赖 guard 或 cognition 的传递引用）；`JCC12005 8 → 2`、`JCC12002 485 → 484`、`JCC12003 0`。全仓 218 项目 `-t:Rebuild -m:1` 0 警告 0 错误，`Build-AllDomains` 四 target 全 True；`Clock.Tests` 519/519、`Guard.Hooks.Tests` 598/598；全量 60 个单元测试项目 24678 通过 / 0 失败（日志 `.xxx/logs/full-tests-final3`）。此前满载首轮暴露 `Infra.Utils` 的 `SingleDelayCap` 时序断言过紧（150ms），放宽到 400ms（仍低于未限速 500ms）后复跑 561/561。
-- 剩余 2 条环：`abstractions ↔ async_primitives`（Infrastructure 系 8 个项目依赖 `BclBridge`，而 `AsyncLock`/`Transport.*` 依赖 abstractions）与 `apps ↔ native_tui`（`apps/cli` 引用 `NativeTui.Host`，后者引用 `apps/engine`）。
+- 当时剩余 2 条环：`abstractions ↔ async_primitives` 与 `apps ↔ native_tui`（前者已在 0.10 清零）。
+
+**已完成 0.10 `abstractions ↔ async_primitives` 环清零（2026-11-23）**：
+- 根因：`Abstractions.Utils` / `Infrastructure` 系项目依赖 `BclBridge`、`AsyncLock`、`Transport.Contracts`，而三者又依赖 `Abstractions.Primitives`，形成域级双向边。
+- 域归属修正：`BclBridge`、`AsyncLock`、`Transport.Contracts` 从 `async_primitives` 迁入 `abstractions`；测试目录同步为 `bcl_bridge_tests` / `async_lock_tests`，契约目录改为 `transport_contracts`；`async_primitives` 只保留 `Transport.Impl` 及测试。
+- 同步改动：30+ 个消费方 csproj、`JoinCode.slnx` / `Dev` / `Pack` / `Stryker` 四个 slnx、CI 单元与 Flaky 分片、`JCC4008` 锁原语存量基线路径、两个域 README 项目表。
+- 指标：`JCC12005 2 → 1`、`JCC12002 484 → 469`、`JCC12009 175 → 173`、`JCC12003 0`；全仓 218 项目 `-t:Rebuild -m:1` 0 警告 0 错误；`BclBridge` 41/41、`AsyncLock.Tests` 546/546、`Transport.Impl.Tests` 218/218 通过（全量测试交由 CI）。
+- 剩余 1 条环：`apps ↔ native_tui`（`apps/cli` 引用 `NativeTui.Host`，后者引用 `apps/engine`），已在 0.11 清零。
+
+**已完成 0.11 `apps ↔ native_tui` 环清零（2026-11-23）**：
+- 根因：`apps/cli` 引用 `native_tui/apps/NativeTui.Host`，而宿主又引用 `apps/engine`，形成 `apps → native_tui → apps` 的双向域边。
+- 归位方案：`NativeTui.Host` 从 `native_tui/apps/NativeTui.Host` 迁入 `modules/apps/native_tui_host`（`git mv` 保留历史），宿主归 `apps` 域，两条跨域边同时变为域内边；`apps/cli`、`NativeTui.Host.Tests` 的引用同步新路径，`native_tui.slnx` 移除宿主、`apps/module.slnx` 登记宿主，`apps/README.md` 重生成。
+- 构建策略：宿主原在 `native_tui` 独立 props 下不启用 JCC/Structura 分析器；迁入 `apps` 后在宿主 csproj 显式声明 `ExcludeJccAnalyzers=true`、`ExcludeStructura=true`、`GenerateDocumentationFile=false`，保留 UI 宿主的既有构建口径，不改宿主业务代码。`NativeTui.Core` / `NativeTui.Markdown` 因被跨域引用补 `JccApiVisibility=public`。
+- 指标：`JCC12005 1 → 0`（生产域环 **0 条**），`JCC12002=469`、`JCC12003=0`、`JCC12009=173` 不变；`NativeTui.Host` 定点编译 0 警告 0 错误，`NativeTui.Host.Tests` 169/169 通过，`apps/cli` 编译通过（全量构建与测试交由 CI）。
+- 至此 P4 第 4 项完成：`abstractions ↔ async_primitives` 与 `apps ↔ native_tui` 两条环均已清零，生产域环归零。
 
 **后续改动（按顺序，逐项 ADR）**：
 1. ✅ 补齐域内 slnx 缺口（`827e8fca0`，26→0；abstractions/generators/perception 全部登记，tools 的 13 个 `cli_nodes/groups/*` 与 sample/onnx 测试直接纳入，无排除项）。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
 3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖已摘除，环 15→8）
-4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。（进行中：`storage ↔ composition` 6 条已清零，环 8→2；剩 `abstractions ↔ async_primitives`、`apps ↔ native_tui`）
+4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。（已完成：`storage ↔ composition`、`abstractions ↔ async_primitives`、`apps ↔ native_tui` 三条均清零，生产域环 8→0）
 5. 176 个目录名的批量改名（脚本先单域验证再推广）。
 
 **验收**：
@@ -585,6 +599,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 2026-11-21：P4 第八块完成（`JCC10011` 公开 API 禁元组）。规则 + 8 fixture 全绿；真实 `Structura` 构建命中 4 条并清理为 `KeyValuePair`，该域 warning 级别零命中、401/401 测试通过；`.editorconfig` 收口为 `suggestion`。
 - 2026-11-22：P4 第九块完成（`JCC10011` 全仓存量归零）。按域五批把交付代码 79 处公开元组改为具名 `record`（跨批新增 DTO 三十余个），非交付工具 `jcc_audit_ast_cli` 残留 11 处同批清零（新增 10 个 record）；`JoinCode.slnx -t:Rebuild -m:1` 在 `warning` 级 0 命中 0 错误；`.editorconfig` 升 `warning` 防新增（P5 再统一升 `error`）。
 - 2026-11-22：P4 第十块完成（`storage ↔ composition` 环清零）。`IEmptyResponseTracker` 契约下沉到 `Abstractions.Brain.Context`，`ClusterPlanApprovalHook*` 下沉到 `Abstractions.Hooks`；`Clock` 删除 `Composition` 引用后 0 警告编译。门禁 `JCC12005 8→2`、`JCC12002 485→484`、`JCC12003 0`；全仓 218 项目串行重建 0 警告 0 错误、`Build-AllDomains` 四 target 全 True；`Clock.Tests` 519/519、`Guard.Hooks.Tests` 598/598；全量 60 项目 24678 通过 / 0 失败（`full-tests-final3`）。顺带把满载下过紧的 150ms 时序上限放宽到 400ms（仍低于未限速 500ms），`Infra.Utils` 复跑 561/561。
+- 2026-11-23：P4 第十一块完成（`abstractions ↔ async_primitives` 环清零）。`BclBridge`、`AsyncLock`、`Transport.Contracts` 三项基础库从 `async_primitives` 域迁入 `abstractions` 域，测试/目录同步改为 `bcl_bridge_tests`、`async_lock_tests`、`transport_contracts`；`async_primitives` 只保留 `Transport.Impl` 及测试。门禁 `JCC12005 2→1`、`JCC12002 484→469`、`JCC12009 175→173`、`JCC12003 0`；全仓 218 项目串行重建 0 警告 0 错误；`BclBridge` 41/41、`AsyncLock.Tests` 546/546、`Transport.Impl.Tests` 218/218 通过（全量交由 CI）；剩余 `apps ↔ native_tui` 1 条环。
 - 工程事实（债务盘点）：`dotnet build` 增量不重跑分析器，新规则的全仓存量必须按域 `-t:Rebuild` 采集；用增量全仓构建统计会把存量严重低估。
 - 工程事实（全量采集的并行陷阱）：`JoinCode.slnx -t:Rebuild -m`（默认并行）会在重建时先清掉依赖项目的 `ref` 程序集，导致下游 CS0006（实测 645 个错误）；要一次采集全仓，必须 `-t:Rebuild -m:1` 串行按依赖序重建，或按域分别 Rebuild。
 - 工程事实（分类口径）：判断测试项目不能只靠名字/路径启发式。`ProjectType=test` 是构建期事实（决定测试包引用与 `IsTestProject` 语义），门禁必须以它为准；否则纯测试辅助库（名字不含 `.tests`）会被算进生产图，既误报 `JCC12004`，也让生产边/入度虚高。

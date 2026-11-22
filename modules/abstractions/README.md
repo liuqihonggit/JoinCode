@@ -1,4 +1,4 @@
-# abstractions — 抽象接口+基础设施
+# abstractions — 抽象接口+基础设施+异步原语
 
 > 📍 **导航**: [modules/](../README.md) › abstractions
 
@@ -34,6 +34,10 @@
 | [Abstractions](abstractions/Abstractions.csproj) |  |
 | [Abstractions.Agents](agents/Abstractions.Agents.csproj) |  |
 | [Abstractions.AI](ai/Abstractions.AI.csproj) |  |
+| [AsyncLock.Tests](async_lock_tests/AsyncLock.Tests.csproj) | 测试 |
+| [AsyncLock](async_lock/AsyncLock.csproj) |  |
+| [JoinCode.BclBridge.Tests](bcl_bridge_tests/JoinCode.BclBridge.Tests.csproj) | 测试 |
+| [BclBridge](bcl_bridge/BclBridge.csproj) |  |
 | [Abstractions.Brain](brain/Abstractions.Brain.csproj) |  |
 | [Abstractions.Composition](composition/Abstractions.Composition.csproj) |  |
 | [Abstractions.Exceptions](exceptions/Abstractions.Exceptions.csproj) |  |
@@ -50,6 +54,7 @@
 | [Abstractions.Memory](memory/Abstractions.Memory.csproj) |  |
 | [Abstractions.Perception](perception/Abstractions.Perception.csproj) |  |
 | [Abstractions.Primitives](primitives/Abstractions.Primitives.csproj) |  |
+| [Transport.Contracts](transport_contracts/Transport.Contracts.csproj) |  |
 <!-- END MODULE PROJECTS -->
 
 ## 用法

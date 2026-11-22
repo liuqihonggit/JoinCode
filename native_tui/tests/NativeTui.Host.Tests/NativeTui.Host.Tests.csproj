@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\apps\NativeTui.Host\NativeTui.Host.csproj" />
+    <ProjectReference Include="..\..\..\modules\apps\native_tui_host\NativeTui.Host.csproj" />
     <ProjectReference Include="..\..\..\modules\cognition\prompts\Prompts.csproj" />
   </ItemGroup>
 

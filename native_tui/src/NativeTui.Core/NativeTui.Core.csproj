@@ -8,6 +8,11 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- 被 apps 域 NativeTui.Host 跨域消费，按 JCC12003 明确声明为公开 API -->
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="NativeTui.Tests" />
     <InternalsVisibleTo Include="NativeTui.Host.Tests" />

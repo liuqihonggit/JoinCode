@@ -46,7 +46,7 @@
     <Project Path="../../modules/abstractions/memory/Abstractions.Memory.csproj" />
     <Project Path="../../modules/storage/downloader/Downloader.csproj" />
     <Project Path="../../modules/collections/structura/Structura.csproj" />
-    <Project Path="../../modules/async_primitives/transport.contracts/Transport.Contracts.csproj" />
+    <Project Path="../../modules/abstractions/transport_contracts/Transport.Contracts.csproj" />
     <Project Path="../../modules/plugins/plugins.contracts/Plugins.Contracts.csproj" />
     <Project Path="../../modules/plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
     <Project Path="../../modules/persistence/pithosdb/PithosDB.Core.csproj" />
@@ -115,7 +115,7 @@
     <Project Path="../../modules/cognition/hands/Hands.csproj" />
     <Project Path="../../modules/storage/scheduling/Scheduling.csproj" />
     <Project Path="../../modules/mcp/mcp_tool_dispatch/McpToolDispatch.csproj" />
-    <Project Path="../../modules/async_primitives/async_lock/AsyncLock.csproj" />
+    <Project Path="../../modules/abstractions/async_lock/AsyncLock.csproj" />
   </Folder>
   <Folder Name="/core/safety/">
     <Project Path="../../modules/guard/guard/Guard.csproj" />
@@ -171,5 +171,5 @@
   <Project Path="../../modules/abstractions/abstractions.models/Abstractions.Models.csproj" />
   <Project Path="../../modules/abstractions/abstractions.entity/Abstractions.Entity.csproj" />
   <Project Path="../../modules/abstractions/abstractions.interfaces/Abstractions.Interfaces.csproj" />
-  <Project Path="../../modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+  <Project Path="../../modules/abstractions/bcl_bridge/BclBridge.csproj" />
 </Solution>

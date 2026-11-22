@@ -57,4 +57,9 @@
   <Project Path="perception/Abstractions.Perception.csproj" />
   <Project Path="brain/Abstractions.Brain.csproj" />
   <Project Path="abstractions.primitives.tools.tests/Abstractions.Primitives.Tools.Tests.csproj" />
+  <Project Path="bcl_bridge/BclBridge.csproj" />
+  <Project Path="bcl_bridge_tests/JoinCode.BclBridge.Tests.csproj" />
+  <Project Path="async_lock/AsyncLock.csproj" />
+  <Project Path="async_lock_tests/AsyncLock.Tests.csproj" />
+  <Project Path="transport_contracts/Transport.Contracts.csproj" />
 </Solution>

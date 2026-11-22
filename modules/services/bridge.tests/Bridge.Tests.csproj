@@ -14,7 +14,7 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/services/bridge/Bridge.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/async_primitives/transport.contracts/Transport.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/transport_contracts/Transport.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

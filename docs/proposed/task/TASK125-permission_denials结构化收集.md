@@ -56,9 +56,10 @@ QueryEngine（ToolResult）
 
 | 项 | 结果 |
 |----|------|
-| `Build-AllDomains.ps1 -Changed` | 8 个项目全部通过 |
+| `Build-AllDomains.ps1 -Changed` | 8 个项目通过 —— **但这次通过是假绿**，见 §五 |
 | `Hands.ToolHandlers.Tests` | 626/626（新增 `ToolErrorCodeTests` 15 项） |
 | `NativeTui.Tests` | 3182/3182（host 两个实现跟随签名） |
+| 真机 CI（PR #723 首轮） | **9 个 job 红**，全部同一个 `CS0535` —— 见 §五 |
 
 新增测试锁的点：
 
@@ -74,3 +75,42 @@ QueryEngine（ToolResult）
 
 - TUI/GUI 侧目前只跟随签名，未消费 `errorCode`（拒绝卡片沿用通用错误样式）；若要「因权限被拒」专门样式，属 UI 层另立项。
 - 旧路径（无码）保留文本兜底一行，属过渡；待所有错误产生点都经 `ToolErrorJsonBuilder`/`ToolResultBuilder` 后可删除。
+
+## 五、CI 事故复盘（2026-11-23，PR #723 首轮）
+
+**症状**：`unit-tests / Unit - apps`、`Integration - Safety`、`e2e / E2E - *` 共 9 个 job 全红，日志里同一条错：
+
+```text
+error CS0535: '...RecordingSubagentConsumer' does not implement interface member
+'IEventConsumer.OnToolEnd(string, string?, string?, bool, StructuredPatchHunk[]?, string?)'
+```
+
+**根因**：接口加了第 6 个可选参数（`errorCode`），C# **不会**因为「有默认值」就放过实现方，签名必须逐字匹配。
+生产侧 4 个实现（CLI / bridge / 进程内直连 / selftest）已改；**测试侧 4 个手写 fake 没改** ——
+
+| 文件 | fake |
+|------|------|
+| `test/unit/host.tests/adapters/SessionControllerTests.cs` | `RecordingEventConsumer` |
+| `test/unit/host.tests/adapters/SessionControllerSubagentEventTests.cs` | `RecordingSubagentConsumer` |
+| `test/unit/host.tests/bridge/BackgroundTaskEventPumpTests.cs` | `RecordingConsumer` |
+| `test/mock/mock_server.e2e.tests/e2e/s_to_z/SubAgentEventMainAgentPathE2ETests.cs` | `RecordingSubagentConsumer` |
+
+**为什么本地没拦住（这条比 bug 本身值钱）**：
+`Build-AllDomains.ps1 -Changed` 只编「改动文件所在目录的 csproj」。改 `IEventConsumer.cs` → 只编
+`Abstractions.Primitives.Interfaces.csproj`，接口单独编译必然通过；断裂在**实现方**，而实现方散在
+`test/` 与 `native_tui`，按需模式一个都不碰 —— 所以「8 个项目全部通过」是**真跑出来的假绿**，
+不是漏跑。CI 的 `build / Build` 只编 `JoinCode.Pack.slnx`（source only，本来就跳过 tests），
+于是第一道真拦截落在 9 个测试 job 上，一次红 9 份。
+
+**已修**：
+
+1. 4 个 fake 跟随签名；`RecordingEventConsumer` 顺手把 `errorCode` 记进元组；
+2. 新增 `StreamResponseAsync_ToolEnd_ForwardsStructuredErrorCode` —— 先做负向验证（去掉
+   `SessionController` 的 `evt.ToolErrorCode` 实参 → `Expected: "PD002" / Actual: null` 红），
+   再恢复转绿，证明这条透传真的有活消费点，而不是「字段存在」；
+3. `Build-AllDomains.ps1 -Changed` 增加契约面自动升级：命中 `interfaces/`、`models/`、
+   `Directory.Build.(props|targets)` 时打印命中的文件并**改为全仓编译**（含 `test/` 与 UI 域），
+   不再给出「接口项目绿 = 契约没破」的假绿。
+
+**判据（下次直接套）**：改了 `I*` 接口成员或共享 DTO 的签名 → 验证单位不是「改动的项目」，
+而是「所有实现方的项目」。数一遍实现方（`grep "public void OnXxx("`）比相信一次编译快得多。

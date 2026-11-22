@@ -51,6 +51,7 @@
 4. **工具使用不舒服** → 记录到过程笔记，收尾时汇总报告给用户作为修复建议
 5. **禁止预估上下文剩余量**（用户指令 2026-10-24）— AI 对上下文余量的预估反复出错且无必要：用户的 Agent 具备自动压缩上下文能力，长任务持续推进即可，**不要因"上下文快满"而提前收工、砍批次、压缩交付**；不要在回复中报告上下文焦虑。
 6. **跨域契约变更必须全仓编译**（CI #959 事故）— 接口新增成员/协议扩展/共享 DTO 变更后，本地跑 `pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1` 全仓编译（16 域 slnx + host.tests + native_gui），禁止只编译改动域——其他域的 fake 实现/消费方遗漏由 CS0535 类错误暴露
+   - **假绿陷阱（PR #723 事故）**：`-Changed` 按需模式只编「改动文件所在的 csproj」，改 `IEventConsumer` 只编接口项目必然通过，断裂在 `test/` 与 `native_tui` 的实现方 → 一次红 9 个 CI job。现脚本命中 `interfaces/`、`models/`、`Directory.Build.*` 会自动升级全仓；即便如此，**判据仍是「所有实现方」**：改 `I*` 接口签名后先 `grep "public void OnXxx("` 数实现方，别信「接口项目绿」。
 7. **测试路径字面量跨平台纪律（分析器 JCC1018 强制）**— 测试项目禁止 Windows 盘符路径字面量（`@"D:\..."`），用 `Path.Combine(Path.GetTempPath(), ...)` 跨平台构造；Linux CI 的 Path.GetFullPath 不识别盘符/反斜杠，归一化语义分叉会静默破坏匹配。确需 Windows 路径行为测试用文件级 `#pragma warning disable JCC1018` + 理由注释豁免
 
 ## 基础规范

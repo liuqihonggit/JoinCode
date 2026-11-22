@@ -44,6 +44,27 @@ public sealed class SessionControllerTests {
         Assert.False(consumer.ToolEnds[0].isError);
     }
 
+    /// <summary>
+    /// TASK125 #46 — 结构化错误码必须原样传到消费方：权限拒绝等判定只认错误码，消费方拿不到就只能回去猜文本。
+    /// </summary>
+    [Fact]
+    public async Task StreamResponseAsync_ToolEnd_ForwardsStructuredErrorCode() {
+        var events = new List<ChatStreamEvent>
+        {
+            ChatStreamEvent.ToolEnd("Bash", "permission denied", "call1", true, toolErrorCode: "PD002"),
+            ChatStreamEvent.Done()
+        };
+        var chatService = CreateMockChatService(events);
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session");
+
+        await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        var end = Assert.Single(consumer.ToolEnds);
+        Assert.True(end.isError);
+        Assert.Equal("PD002", end.errorCode);
+    }
+
     [Fact]
     public async Task StreamResponseAsync_Thinking_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
@@ -869,7 +890,7 @@ public sealed class SessionControllerTests {
         public List<string> TextEvents { get; } = [];
         public List<string> ThinkingEvents { get; } = [];
         public List<(string toolName, string? toolCallId, string? arguments)> ToolStarts { get; } = [];
-        public List<(string toolName, string? resultText, string? toolCallId, bool isError)> ToolEnds { get; } = [];
+        public List<(string toolName, string? resultText, string? toolCallId, bool isError, string? errorCode)> ToolEnds { get; } = [];
         public List<(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs)> ToolProgressEvents { get; } = [];
         public List<(int triggerCount, int loopStartIndex, string? repeatedPattern)> LoopDetectedEvents { get; } = [];
         public List<string> TimingSummaryEvents { get; } = [];
@@ -884,7 +905,7 @@ public sealed class SessionControllerTests {
         public int RedactedThinkingCount { get; private set; }
         public void OnThinkingRedacted() => RedactedThinkingCount++;
         public void OnToolStart(string toolName, string? toolCallId, string? arguments) => ToolStarts.Add((toolName, toolCallId, arguments));
-        public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) => ToolEnds.Add((toolName, resultText, toolCallId, isError));
+        public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch, string? errorCode = null) => ToolEnds.Add((toolName, resultText, toolCallId, isError, errorCode));
         public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) => ToolProgressEvents.Add((toolName, progressType, progressMessage, elapsedTimeMs));
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) => LoopDetectedEvents.Add((triggerCount, loopStartIndex, repeatedPattern));
         public void OnTimingSummary(string summary) => TimingSummaryEvents.Add(summary);

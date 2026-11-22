@@ -2,7 +2,7 @@
 
 > 状态：**P0 修复已实施（2026-11-23）；通知队列/Goal/AI Judge 已接线，Phase 2+ 见 DSG053** · 日期 2026-11-22
 > 关联：[TASK103 S14](../../implemented/task/TASK103-ReAct循环合并-两套归一.md)（后台回调到达即关闭 ask）、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)（proposed，任务作用域权限覆盖）
-> **统一方案**：[DSG053](../design/DSG053-unified-permission-decision-architecture.md)（硬规则 + AI 灰区判定 + 监控升级 + 按需 ask）。本文是 DSG053 Phase 1 的前置取证与最小闭环，Phase 2+ 的 AI Judge / `Autonomous` / `PendingConfirmationQueue` 以 DSG053 为准。
+> **统一方案**：[DSG053](../design/DSG053-unified-permission-decision-architecture.md)（硬规则 + AI 灰区判定 + 监控升级 + 按需 ask）。本文是 DSG053 Phase 1 的前置取证与最小闭环，Phase 2+ 的 AI Judge / `Autonomous` 以 DSG053 为准；`PendingConfirmationQueue` 已落地并接入执行器。
 > 范围：`guard.permission` / `mcp.tool_dispatch` / `llm.agents.*` / `storage.clock.goal` / `native_tui` / `native_gui`
 > 本仓库：`D:\project\w3`（下文行号均指该树，2026-11-22 快照）
 
@@ -35,7 +35,10 @@
 | D4 Web GUI 通知到达不 Defer | `IJccChatSession.NotificationQueue` → `DshHostServices.AttachEngine` → `DshUserQuestionBroker.AttachNotificationQueue`；`RequestAsync` 100ms 帧拍命中通知即 cancel + Deferred | `DshUserQuestionsTests` 11 项通过 |
 | D5 TUI 忽略取消令牌 | `TuiAskBridge.Ask(..., ct)` 透传；`ReplShell.AskUserQuestions` 注册 `RequestAskQuestionCancel`；`CheckAskQuestionInterrupt` 帧拍优先消费取消标记 | `AskQuestionTests` 16 项通过 |
 
-**未完成**：`PendingConfirmationQueue`、异步 Supervisor、DSH/TUI 提问 Defer 的真机交互验收。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
+| D6 后台确认等待 | `PendingConfirmationQueue` + `PermissionAwareToolExecutor`：前台登记/结算；无人值守只登记并立即 `Defer`，返回 `permission_required` + 诱导 | 队列 5 项 + 执行器 2 项通过 |
+| D7 AI 判定短路硬规则 | `auto-class-permission-mw` 从 400 移到 1150（硬规则之后、兜底之前），`AutoApprove` 不再绕过 1000 删除/破坏判定 | 权限管道顺序已调整 |
+
+**未完成**：异步 Supervisor、DSH/TUI 待确认项的批量展示 UI、DSH/TUI 提问 Defer 的真机交互验收。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
 
 ---
 
@@ -116,6 +119,7 @@
 | `UserInteractionToolName.cs:14-23` | `ask_user_question` 标 `PlanAllowed=false`，但不在 `PlanDeniedTools` → Plan 模式仍可 ask |
 
 **影响**：`AutoAllowed / PlanAllowed / AskAllowed / UnattendedAllowed` 四个标记全部不生效，只有显式 `*Denied` 有用；以后新增交互工具只要漏标 `UnattendedDenied` 就会漏网。
+**结论（2026-11-23）**：保留“deny 优先”语义，`Unattended` 允许集 = `AutoAllowed - UnattendedDenied`，与 `BackgroundExecutionPolicy` 的后台白名单一致；`UnattendedAllowed` 当前没有显式标记成员，不再作为独立白名单消费，避免两套白名单分叉。
 
 ### D5（P1）通知队列是全局单桶，误唤醒 + 丢通知
 

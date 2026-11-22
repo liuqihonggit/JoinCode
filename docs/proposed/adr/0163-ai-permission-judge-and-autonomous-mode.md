@@ -1,7 +1,7 @@
 # 0163 — AI 灰区权限判定与 Autonomous 模式
 
-- 状态：**Phase 1 已实施（2026-11-23）；Phase 2-4 待做**
-- 实施说明：`autonomous` 以 `[EnumValue]` 别名映射到 `Unattended`，未新增第 6 个枚举；AI Judge 复用 400 `auto-class-permission-mw`，未新增 450 节点；`PendingConfirmationQueue` 与 Supervisor 仍待做。
+- 状态：**Phase 1、Phase 3 基础设施已实施（2026-11-23）；Phase 2/4 待做**
+- 实施说明：`autonomous` 以 `[EnumValue]` 别名映射到 `Unattended`，未新增第 6 个枚举；AI Judge 复用 `auto-class-permission-mw`，节点移到 1150（所有硬规则之后、兜底之前）；`PendingConfirmationQueue` 已落地并接入执行器；Supervisor 仍待做。
 - 日期：2026-11-22
 - 关联：[DSG053](../design/DSG053-unified-permission-decision-architecture.md)、[ADR 0162](0162-task-scoped-permission-overlay.md)、[TASK105](../task/TASK105-ask后台任务临时关闭-现状取证与修复方案.md)
 - 影响域：`guard.security`、`guard.permission`、`mcp_tool_dispatch`、`storage.clock.goal`、`native_tui`、`native_gui`、`apps.cli`
@@ -36,8 +36,8 @@
 同时：
 
 - **引入 `autonomous` 自动化模式（Phase 1 用 `Unattended` 别名承载）**：硬规则内全部自动批准 + AI 灰区判定 + 监控；与 `Bypass` 的区别是保留硬规则。
-- **Ask 三出口**：前台同步 ask（保留 TASK103 Defer）/ 后台 `PendingConfirmationQueue`（Phase 2-3 待做；Phase 1 后台直接 deny + 诱导）/ deny + 诱导。
-- **复用现有基础设施**：`AutoModeClassifier` 保留为 Stage 1；`LlmAutoModeClassifier` 已改为独立 `IPermissionJudgeClient`（不经过 `IQueryEngine`）；`AutoClassifierMiddleware` 已接线 LLM 阶段并支持 `Auto/Unattended`；未新增 450 节点。
+- **Ask 三出口**：前台同步 ask（保留 TASK103 Defer）/ 后台 `PendingConfirmationQueue`（已实现：只登记不等待，前台可快照）/ deny + 诱导。
+- **复用现有基础设施**：`AutoModeClassifier` 保留为 Stage 1；`LlmAutoModeClassifier` 已改为独立 `IPermissionJudgeClient`（不经过 `IQueryEngine`）；`AutoClassifierMiddleware` 已接线 LLM 阶段并支持 `Auto/Unattended`，节点从 400 移到 1150，避免 `AutoApprove` 短路 1000 的危险操作判定。
 - **作用域**：所有层消费 `PermissionContext`（mode/judge/allowAsk/denied/reason），由 ADR 0162 的 `PermissionScope` 提供。
 
 ---
@@ -77,11 +77,12 @@
 |---|---|
 | `guard.security` | `LlmAutoModeClassifier` 已改用 `IPermissionJudgeClient`；规则 Block/Dangerous 不被 AI 改判；3s 超时 + 30min 缓存；非 Shell 工具只传路径/URL/查询摘要 |
 | `guard.permission` | `AutoClassifierMiddleware` 已注入 LLM 阶段；`Auto/Unattended` 生效；AI 高风险不得自动批准 |
-| `resources/profiles/base.yaml` | Phase 1 未新增 450 节点（复用 400）；Phase 2 如拆独立 Judge 再加 |
+| `resources/profiles/base.yaml` | `auto-class-permission-mw` 从 400 移到 1150（硬规则之后、兜底之前）；未新增独立 Judge 节点 |
 | `abstractions.primitives.security` | `autonomous` 作为 `Unattended` 的 `[EnumValue]` 别名 |
 | `storage.clock.goal` | Goal 已切 `Unattended`；`GoalUserInteractionService` 在 Unattended/Bypass 跳过交互 |
 | `native_tui` / `native_gui` / `apps.cli` | DSH/TUI 挂起提问已接后台通知 Defer + 取消令牌；footer / 审计查看待 Phase 2-4 |
-| `infrastructure` | 通知队列已按 target 分桶；`PendingConfirmationQueue` 待做 |
+| `infrastructure` | 通知队列已按 target 分桶；`PendingConfirmationQueue` 已实现，释放时统一 `Defer` |
+| `mcp_tool_dispatch` | `PermissionAwareToolExecutor` 前台登记/结算待确认票据；无人值守登记后立即 `Defer`，不弹窗不阻塞 |
 
 ---
 
@@ -92,7 +93,7 @@
 - Shadow 对比：Phase 1 未做 shadow（`LlmJudgeEnabled` 默认 true，直接 pre），后续用固定样本补一致率报告；
 - Phase 1：已通过 1272 项 Guard.Security 单测 + 定向构建；ask 率下降与 false-allow 需真机采样，尚未验收；
 - Phase 2：`autonomous` 别名单测通过，独立模式矩阵/TUI 真机未做；DSH/TUI 后台 Defer 与取消令牌已补单测；
-- Phase 3：后台任务零阻塞仅完成权限层与通知分桶，`PendingConfirmationQueue` 未做；
+- Phase 3：`PendingConfirmationQueue` 已实现并接入执行器（前台登记/结算、无人值守登记即 Defer），票据队列单测 5 项 + 执行器 2 项通过；后台任务零阻塞，但前台批量展示 UI 未做；
 - 全仓编译 `Build-AllDomains.ps1` 本轮已跑一次通过（后续按用户要求改为按需编译）。
 
 ---

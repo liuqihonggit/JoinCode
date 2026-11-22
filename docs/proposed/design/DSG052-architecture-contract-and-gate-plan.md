@@ -477,6 +477,12 @@ architecture:
 - 指标：项目 262 → 263，边 1202 → 1204（`Infrastructure -> Cache`、`Cache -> Abstractions` 两条同域边），code 1045 → 1047，生产 719 → 721；生产跨域边保持 **475**，`JCC12002` 保持 475，`JCC12005` 保持 0，`JCC12003/12004/12009/12010/12011/12012` 均为 0；基线按 P4 重冻结，`Validate` PASS。
 - 定点验证：`Infrastructure.Cache`、`Infrastructure`、`Composition` 均 0 警告 0 错误；`Infra.Utils.Tests` 仅编译不运行，0 警告 0 错误；全量构建/测试交由 CI。
 
+**已完成 0.15 rebase 合并收口（2026-11-23）**：
+- 将 `w4` rebase 到 `44fa59e30`；冲突集中在 7 个上游新增文件仍位于旧点号目录，按 `cf989434c` 的 snake_case 目标路径保留，文件内容不变。
+- 上游新增的 `modules/services/dream.tests/services/AutoDreamTriggerTests.cs` 因同一次目录改名落在旧目录；`git mv` 到 `modules/services/dream_tests/services/`，`Dream.Tests` 定点编译 0 警告 0 错误，并确认该文件进入 `Compile` 项；`JCC12009 1 → 0`。
+- 上游 `MemoryRecall` 功能新增 `brain_context_services -> Vault` 一条生产跨域边（cognition → storage），非本轮引入；合并后 `JCC12002 475 → 476`，基线重冻结吸收，`Validate` PASS。
+- 指标：项目 263，边 1205，code 1048，生产 722，生产跨域 476；`JCC12001/12003/12004/12005/12009/12010/12011/12012` 均为 0；全量构建/测试交由 CI。
+
 **后续改动（按顺序，逐项 ADR）**：
 1. ✅ 补齐域内 slnx 缺口（`827e8fca0`，26→0；abstractions/generators/perception 全部登记，tools 的 13 个 `cli_nodes/groups/*` 与 sample/onnx 测试直接纳入，无排除项）。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
@@ -558,7 +564,7 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | 模块 README 生成器 | P4 文档同步 | ✅ `Update-ModuleReadme.ps1` | ✅ 16 域已生成；删 1 行后 `JCC12011` 1/2 报错、exit 1，重跑恢复 PASS |
 | `Infrastructure` 拆分第一刀（GitHub 客户端出迁 tools） | `tools/gh`、全仓生产图 | ✅ `GitHubClient.csproj` + `github_client_tests` 随迁 | ✅ 全仓四 target True；`jcc-gh.exe alias list` 真实构造客户端；门禁环 15→8 |
 | `Infrastructure` 拆分第二刀（PithosDB KV 出迁 persistence） | `KvStore`、`composition`/`code_index`/`gh`/`apps/cli` | ✅ `KvStore.csproj` + 6 文件整体迁入；`NamedMutexMailboxLock.Release()` 公开 | ✅ `KvStore`/`Infra.IO.Tests`/`gh` 定点编译 0 警告 0 错误；`JCC12002 469→475`、环 0、`Validate` PASS |
-| `Infrastructure` 拆分第三刀（cache 能力包出迁 abstractions） | `Infrastructure.Cache`、`Infrastructure`、`Composition`、`infra.tests` | ✅ `Infrastructure.Cache.csproj` + 7 文件整体迁入；命名空间不变 | ✅ 新项目/Infrastructure/Composition 定点编译 0 警告 0 错误；`Composition` 重建后 5 个 DI 注册保留；跨域 475 不变、`Validate` PASS |
+| `Infrastructure` 拆分第三刀（cache 能力包出迁 abstractions） | `Infrastructure.Cache`、`Infrastructure`、`Composition`、`infra.tests` | ✅ `Infrastructure.Cache.csproj` + 7 文件整体迁入；命名空间不变 | ✅ 新项目/Infrastructure/Composition 定点编译 0 警告 0 错误；`Composition` 重建后 5 个 DI 注册保留；本地跨域 475 不变；rebase 后吸收上游 MemoryRecall→Vault 1 条，基线 476、`Validate` PASS |
 | `JCC12004` 测试项目口径（`ProjectType=test` 优先） | 门禁分类器 | ✅ `Get-DeclaredProjectType` 缓存 | ✅ `JCC12004 1→0`、`JCC12002 486→485`，Validate PASS |
 | `JCC10011` 公开 API 禁元组 | `dotnet build`、IDE | ✅ `PublicTupleApiRule` + 8 fixture | ✅ 全仓 `-t:Rebuild` 采集 79 处，交付代码清零；非交付工具残留 11 处亦清零；`warning` 级 0 命中，工具测试 61/61 |
 
@@ -630,6 +636,8 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 - 2026-11-23：P4 第十一块完成（`abstractions ↔ async_primitives` 环清零）。`BclBridge`、`AsyncLock`、`Transport.Contracts` 三项基础库从 `async_primitives` 域迁入 `abstractions` 域，测试/目录同步改为 `bcl_bridge_tests`、`async_lock_tests`、`transport_contracts`；`async_primitives` 只保留 `Transport.Impl` 及测试。门禁 `JCC12005 2→1`、`JCC12002 484→469`、`JCC12009 175→173`、`JCC12003 0`；全仓 218 项目串行重建 0 警告 0 错误；`BclBridge` 41/41、`AsyncLock.Tests` 546/546、`Transport.Impl.Tests` 218/218 通过（全量交由 CI）；剩余 `apps ↔ native_tui` 1 条环。
 - 2026-11-23：P4 第十二块完成（Infrastructure 拆分第二刀）。PithosDB KV 适配层 6 文件迁入 `modules/persistence/kv_store/KvStore.csproj`（`JoinCode.Persistence.KvStore`）；`Infrastructure` 摘除 `PithosDB.Core` 与全局 using，租约工厂改走公开 `NamedMutexMailboxLock`（新增 `Release()`），不开 IVT。门禁 `JCC12002 469→475`（删 1 条 `abstractions->persistence`、新增 3 条 `persistence->abstractions` 与 4 条消费方显式引用）、项目 261→262、环保持 0；`KvStore`/`Infra.IO.Tests`/`gh` 定点编译 0 警告 0 错误；基线按 P4 重冻结，`Validate` PASS（全量构建/测试交由 CI）。
 - 2026-11-23：P4 第十三块完成（Infrastructure 拆分第三刀）。cache 能力包 7 文件迁入 `modules/abstractions/infrastructure_cache/Infrastructure.Cache.csproj`，命名空间保持 `Infrastructure.Cache` / `Core.Utils`；`Infrastructure` 同域引用新项目以维持 `FileStateCache`/`CpuParallelism` 编译，`Composition` 生成器仍扫描到 5 个 `[Register]` 实现。门禁项目 262→263、边 1202→1204（两条同域边）、生产跨域 475 不变、`JCC12002` 475 不变；`Infrastructure.Cache`/`Infrastructure`/`Composition` 定点编译 0 警告 0 错误，`Infra.Utils.Tests` 仅编译（未运行）；基线重冻结，`Validate` PASS（全量构建/测试交由 CI）。
+- 2026-11-23：rebase 到 `44fa59e30` 后收口。7 个上游新增文件落在旧点号目录、与 snake_case 改名提交冲突，按新路径保留；遗漏的 `services/dream.tests/services/AutoDreamTriggerTests.cs` 并入 `services/dream_tests/services/`，`Dream.Tests` 定点编译 0 警告 0 错误且确认进入 `Compile`；上游 `MemoryRecall` 新增 `brain_context_services -> Vault` 跨域边，`JCC12002 475→476`、`JCC12009 1→0`，基线重冻结后 `Validate` PASS。
+- 工程事实（rebase 与目录改名）：上游在旧点号目录新增文件、而本地提交把目录整体改名时，Git 会把这些文件报成 `AU`（added by us）；不能简单删除旧路径，必须按改名后的目标路径保留文件，否则会把上游功能静默丢在旧目录（`dream.tests` 的残留文件就是实例）。
 - 工程事实（能力包出迁与 DI）：`[Register]` 类型从 `Infrastructure` 迁到同域子项目后，只要消费方（这里是 `Infrastructure`）仍引用新项目，`Composition` 的生成器就能通过传递引用扫描并保留注册；本次无需改 `Composition` 注册入口。若后续摘掉 `Infrastructure -> Cache` 边，必须同时确认 `Composition` 仍直接或经其他路径引用 `Cache`，否则注册会静默丢失。
 - 工程事实（同域能力包）：`Infrastructure` 继续引用 `Infrastructure.Cache` 不算跨域新增，`JCC12002` 不增长；但这是“物理出迁”而非“依赖摘除”，只有移走 `FileStateCache` / `CpuParallelism` 两个使用点后，`Infrastructure` 才真正不再依赖 cache 包。
 - 工程事实（债务盘点）：`dotnet build` 增量不重跑分析器，新规则的全仓存量必须按域 `-t:Rebuild` 采集；用增量全仓构建统计会把存量严重低估。

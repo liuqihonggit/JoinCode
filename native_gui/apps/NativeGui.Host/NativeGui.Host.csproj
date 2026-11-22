@@ -42,7 +42,7 @@
     <ProjectReference Include="$(RepoRoot)modules/apps/engine/JoinCode.Engine.csproj" />
     <!-- Hosting 层（JccChatSession）读取 teammate 子会话列表，需直接引用 Scheduling -->
     <ProjectReference Include="$(RepoRoot)modules/storage/scheduling/Scheduling.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/bcl_bridge/BclBridge.csproj" />
   </ItemGroup>
 
   <ItemGroup>

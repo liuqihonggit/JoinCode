@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/bcl_bridge/BclBridge.csproj" />
   </ItemGroup>
 
 </Project>

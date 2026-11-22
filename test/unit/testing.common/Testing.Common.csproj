@@ -20,9 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/async_primitives/async_lock/AsyncLock.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/async_primitives/transport.contracts/Transport.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/async_lock/AsyncLock.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/bcl_bridge/BclBridge.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/transport_contracts/Transport.Contracts.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/async_primitives/transport.impl/Transport.Impl.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/llm/core/Llm.csproj" />

@@ -28,8 +28,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - domain: async_primitives
-            csprojs: modules/async_primitives/async_lock.tests/AsyncLock.Tests.csproj
+          - domain: abstractions
+            csprojs: modules/abstractions/async_lock_tests/AsyncLock.Tests.csproj
     steps:
       - name: Checkout
         uses: actions/checkout@v5

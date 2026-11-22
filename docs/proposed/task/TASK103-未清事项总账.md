@@ -75,7 +75,7 @@
 | # | 编号 | 事项 | 来源 |
 |---|------|------|------|
 | ~~35~~ | ~~TASK068-C1~~ | ~~sandbox（需 OS 级沙箱子系统）~~ — ✅ **R1–R9 全闭合 2026-11-22**（逐命令 bwrap 包装 / 免确认联动 / FS·网络细粒度 / 策略锁 / Windows 平台真值 / `/sandbox` 参数面 / 云主机真机验收），见 [TASK104](TASK104-sandbox配置契约与门控对齐基准-差异取证.md) §9/§11；**剩余仅 macOS Seatbelt（无真机，另立 ADR）与 flag settings 策略锁** | TASK068 |
-| 36 | TASK068-C2 | enabledPlugins（PluginContext 无 IServiceProvider） | TASK068 |
+| ~~36~~ | ~~TASK068-C2~~ | ~~enabledPlugins（PluginContext 无 IServiceProvider）~~ — ✅ **判不适用/关闭 2026-11-22**（用户裁决 A）：一手取证见 [TASK105](TASK105-enabledPlugins配置驱动插件开关-差异取证.md)。**前提推翻**：`IWorkflowPlugin` 三段生命周期（LoadAsync(ctx)→InitializeAsync(IServiceProvider)），插件读服务走 InitializeAsync（TelemetryPlugin 已用），`WorkflowPluginHost` 早已持有 rootServiceProvider——「ctx 无 provider 无法读配置」是伪命题。**真缺口**是 `SettingsJson.EnabledPlugins` 零运行时消费（同 #35 假配置）；**但不接**：本仓已有 `capabilities`/profile 插件开关生效（`McpInitModule:88-102` 按 CapabilityNodes.Dream/CodeIndex 加载），裁为唯一事实源，再接一套 settings 开关会造成「哪里关才是真的」二义性。零生产代码。 | TASK068 |
 | 37 | TASK068-C3 | actor（10+ Actor 子类硬编码背压） | TASK068 |
 | 38 | TASK071-B1 | 工具命名体系 snake_case vs PascalCase | TASK071 |
 | 39 | TASK071-B4 | 插件钩子链 PluginHookInjector 无消费方（死链） | TASK071 |
@@ -251,4 +251,5 @@
 - **#35 TASK068-C1 sandbox 取证完成（2026-11-21）**：按四问深度取证，产出 [TASK104](TASK104-sandbox配置契约与门控对齐基准-差异取证.md)。三条硬结论：①`settings.sandbox` 被映射进 `CodeExecution`（`SettingsMapper.cs:214-229`），而映射出的 `ReadOnlyFilesystem/AllowNetworkAccess/MaxMemoryMB/AllowedDirectories` **全仓无运行时消费方**（仅 `ExecutionTimeoutSeconds` 被 `CodeSandboxMiddleware.cs:31` 读）——写了不生效的安全假配置；②Bash 真沙箱是会话级手动 `/sandbox-toggle on`（`SystemActuatorBase.cs:183-186`），与 settings 无连接；③权限 `autoAllowBashIfSandboxed`、逃生阀 `allowUnsandboxedCommands`、`excludedCommands` 三处全缺（`guard.permission` 仅 `GlobalUsings.cs:44` 提及 sandbox）。基准侧 schema/默认值/门控/权限/提示词证据见 TASK104 §1。~~未改生产代码~~ → **2026-11-21 用户指示继续，按方案 B（= 方案 A Phase 1）实施**：契约层（schema/强类型映射/配置键）、门控层（`SandboxGate` + Shell 策略）、权限层（`SandboxAutoAllowMiddleware`）、提示词三段式已完成并有单测。
   - **R1–R9 全闭合（2026-11-22）**：Phase 1 之外的细粒度隔离与策略层亦已落地 —— R1 逐命令 bwrap 包装（`SandboxWrappedCommand` + `BwrapCommandBuilder`，前台/后台 Shell 均接线）、R2 免确认联动（会话真隔离或可包装即免确认）、R3 FS 四项 rw/ro/tmpfs 掩码、R4 网络断网 fail-closed + 不支持项显式 warning、R5 weaker* / ripgrep 显式告警不静默吞、R6 企业策略锁（`SandboxPolicyResolver` 投影 policy 源 + `/sandbox` 命中锁拒绝）、R7 平台真值（Windows 不支持 / Linux bwrap / macOS Seatbelt 未实现按 ADR 0161 不假支持）、R8 `/sandbox` 参数面（无参设置菜单 / help / exclude 校验）、R9 云主机 Ubuntu bwrap 0.6.1 真机验收。完整进度与证据见 TASK104 **§9 总账 / §11 实施记录**（旧 §7 已被 §9 取代，勿再据 §7 判断"剩余 Phase 2"）。
   - **真实剩余（非 Phase 2 整体，仅两项待外部条件）**：①macOS Seatbelt —— 需 macOS 真机 + 独立 ADR 才能接，当前显式报"未实现"不进 provider 链；②flag settings 路径的策略锁未接入（ADR 0161 已注明，现只消费 `managed-settings.json`）。两项都需外部条件，非本仓可以直接施工的缺口。
-- 下一动作：§2.3 按顺序推进 —— #35 sandbox 已全闭合，下一项为 **#36 TASK068-C2 enabledPlugins（PluginContext 无 IServiceProvider）**，属 L 级架构分歧，先按四问取证再请示。
+- **#36 TASK068-C2 关闭（2026-11-22）**：用户裁决 A（判不适用）。四问取证推翻原「PluginContext 无 IServiceProvider」前提——三段生命周期让 InitializeAsync 成为读服务入口；真缺口（enabledPlugins 零消费）不接，因本仓 capabilities/profile 开关已是唯一事实源（详见 TASK105）。零生产代码。
+- 下一动作：§2.3 按顺序推进 —— #35/#36 已闭合，下一项为 **#37 TASK068-C3 actor（10+ Actor 子类硬编码背压）**，属 L 级架构分歧，先按四问取证再请示。

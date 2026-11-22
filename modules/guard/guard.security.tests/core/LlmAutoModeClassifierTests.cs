@@ -55,6 +55,39 @@ public sealed class LlmAutoModeClassifierTests {
     }
 
     [Fact]
+    public async Task Classify_NonShellTool_LowConfidence_UsesPathSummaryWithoutContent() {
+        var rule = new StubClassifier(new ClassificationResult {
+            Classification = SecurityClassification.MediumRisk,
+            Confidence = 0.6,
+            Reason = "未知写入路径",
+            Action = SecurityAction.RequireConfirmation
+        });
+        string? capturedPrompt = null;
+        var judge = new Mock<IPermissionJudgeClient>();
+        judge.Setup(x => x.JudgeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, CancellationToken>((_, prompt, _) => capturedPrompt = prompt)
+            .ReturnsAsync("""{"classification":"lowRisk","confidence":0.9,"reason":"普通工作区路径","action":"autoApprove"}""");
+        await using var classifier = new LlmAutoModeClassifier(rule, judge.Object);
+        var request = new ClassificationRequest {
+            ToolName = FileToolNameEnumConstants.FileWrite,
+            Parameters = new Dictionary<string, JsonElement> {
+                ["file_path"] = JsonSerializer.SerializeToElement("/workspace/notes.md", HooksJsonContext.Default.String),
+                ["content"] = JsonSerializer.SerializeToElement("secret file body", HooksJsonContext.Default.String),
+            },
+            OperationType = OperationType.Auto,
+        };
+
+        var result = await classifier.ClassifyAsync(request);
+
+        Assert.Equal(SecurityClassification.LowRisk, result.Classification);
+        Assert.Equal(SecurityAction.AutoApprove, result.Action);
+        var prompt = capturedPrompt ?? throw new Xunit.Sdk.XunitException("期望 AI Judge 收到判定提示词");
+        prompt.Should().Contain("file_path");
+        prompt.Should().Contain("/workspace/notes.md");
+        prompt.Should().NotContain("secret file body", "文件正文不得进入判定提示词");
+    }
+
+    [Fact]
     public async Task Classify_ComplexCommand_TriggersLlm() {
         var rule = new StubClassifier(new ClassificationResult {
             Classification = SecurityClassification.LowRisk,

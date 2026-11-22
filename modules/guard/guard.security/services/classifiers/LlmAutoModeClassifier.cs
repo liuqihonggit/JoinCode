@@ -22,6 +22,11 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
 
     private static readonly FrozenSet<char> CommandSeparators = FrozenSet.Create('&', '|', ';');
 
+    /// <summary>非 Shell 工具的可判定摘要字段 — 只取路径/URL/查询等定位信息，禁止把文件正文/密钥送进判定模型。</summary>
+    private static readonly string[] OperationSummaryKeys = [
+        "file_path", "path", "url", "query", "pattern", "description", "name", "target", "action"
+    ];
+
     /// <summary>
     /// 判定用系统提示词 — 固定边界：AI 不能推翻硬规则，不能执行工具，只能给判定。
     /// </summary>
@@ -71,12 +76,12 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
             return stage1;
         }
 
-        var command = GetCommandString(request);
-        if (string.IsNullOrEmpty(command)) {
+        var operation = GetOperationText(request);
+        if (string.IsNullOrEmpty(operation)) {
             return stage1;
         }
 
-        var cacheKey = $"{request.ToolName}\0{command}";
+        var cacheKey = $"{request.ToolName}\0{operation}";
         if (_cache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAtUtc > DateTime.UtcNow) {
             return cached.Result;
         }
@@ -133,12 +138,12 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
             return null;
         }
 
-        var command = GetCommandString(request);
-        if (string.IsNullOrEmpty(command)) {
+        var operation = GetOperationText(request);
+        if (string.IsNullOrEmpty(operation)) {
             return null;
         }
 
-        var userPrompt = BuildClassificationPrompt(request.ToolName, command);
+        var userPrompt = BuildClassificationPrompt(request.ToolName, operation);
 
         try {
             var response = await judgeClient.JudgeAsync(JudgeSystemPrompt, userPrompt, ct).ConfigureAwait(false);
@@ -172,6 +177,29 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
             return cmd.GetString() ?? string.Empty;
         }
         return string.Empty;
+    }
+
+    /// <summary>
+    /// 构造判定摘要 — Shell 用完整命令；其它工具只取路径/URL/查询等定位字段，
+    /// 让 AI 灰区判定覆盖文件、Web、搜索和 MCP 工具，同时避免发送文件正文或凭据。
+    /// </summary>
+    private static string GetOperationText(ClassificationRequest request) {
+        var command = GetCommandString(request);
+        if (!string.IsNullOrWhiteSpace(command)) {
+            return command;
+        }
+
+        var parts = new List<string>();
+        foreach (var key in OperationSummaryKeys) {
+            if (!request.Parameters.TryGetValue(key, out var value) ||
+                value.ValueKind != JsonValueKind.String ||
+                value.GetString() is not { Length: > 0 } text) {
+                continue;
+            }
+            parts.Add($"{key}: {text}");
+        }
+
+        return parts.Count > 0 ? string.Join("\n", parts) : request.ToolName;
     }
 
     private static string BuildClassificationPrompt(string toolName, string operationText) {

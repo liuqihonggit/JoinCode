@@ -132,6 +132,12 @@ public sealed record WorkflowConfig {
     public bool PermissionExplainerEnabled { get; init; } = true;
 
     /// <summary>
+    /// 查询期自动记忆召回 — TASK127（#42）。默认 true：走确定性打分（<c>ScanMemoriesAsync</c>），
+    /// 零 LLM 调用，只把已有能力接到缺失的自动召回流水线上；关掉后 <c>MemoryRecallMiddleware</c> 直接放行。
+    /// </summary>
+    public bool MemoryAutoRecallEnabled { get; init; } = true;
+
+    /// <summary>
     /// 自动压缩开关 — 对齐 TS autoCompactEnabled（默认 true）；
     /// AutoCompactService.ShouldAutoCompact 门控（false 时即使超硬阈值也不触发）
     /// </summary>

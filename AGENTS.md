@@ -597,7 +597,7 @@ public void Dispose() {
   1. `rglob("*.cs")` / `os.walk` 是否漏排 `artifacts/`、`obj/`、`bin/`、`.git/`；
   2. 是否 `subprocess` 起了长驻进程（`jcc mcp_serve`、watch、`dotnet run`），或子进程未回收导致句柄泄漏；
   3. 是否同一脚本里重复扫同一棵树（多次 `rglob`）。
-- **互不依赖的脚本并行跑**：墙钟取 Max 而非 Sum（两个顺序门禁串行 18 秒、并行 11 秒）。
+- **不要盲目并行**：并行只在两者都是轻量纯计算（几十毫秒级）时才划算。凡是要起 `jcc` / `dotnet` 子进程或重扫目录的脚本，并行会让进程抢 CPU 与文件缓存，**反而突破 30 秒**——实测两个顺序门禁单独跑 12.0s + 11.3s，并行时 `Verify-ExplicitOrder` 直接超 30s 被杀。这类脚本串行跑，每个都带 `timeout 30`。
 - **例外**（不受 30 秒约束，但仍须显式给上限，禁止无限等待）：`dotnet build` / `dotnet test` / `dotnet restore`、全仓编译、包安装。这类按域大小给 5–10 分钟，并优先用 `--no-restore`、`-m:1`、`-p:BuildProjectReferences=false` 压缩时间。
 
 ### ⛔ bash 中禁止 `2>nul` 重定向（强制，pre-commit hook 拦截）

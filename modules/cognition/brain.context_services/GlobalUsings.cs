@@ -3,6 +3,7 @@ global using Core.Context.Collapse;
 global using Core.Context.Compact;
 global using Core.Context.Modality;
 global using Core.CostTracking;
+global using Core.Memdir;
 global using Core.Prompts;
 global using Core.Prompts.Sections;
 global using Core.Prompts.Services;

@@ -85,10 +85,26 @@ def is_subsequence(actual: list[str], expected: list[str]) -> bool:
 
 
 def run(args: list[str]) -> str:
+    """跑 jcc 子命令，最多 25 秒。
+
+    超时不丢弃已产出的输出：`-p hi` 的真实耗时取决于 LLM 是否可达（本机无 key 时
+    会在 401 后重试），但 `[MODULE] ... start` 在启动阶段就打完了，所以拿到部分输出
+    仍能完成顺序比对。超时只意味着「这一截没跑完」，不该让门禁挂 4 分钟。
+    """
     env = dict(os.environ)
     env["JCC_ALLOW_DIRECT_FALLBACK"] = "1"
-    proc = subprocess.run([str(JCC), *args], capture_output=True, text=True,
-                          encoding="utf-8", errors="replace", env=env, timeout=240)
+    try:
+        proc = subprocess.run([str(JCC), *args], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", env=env, timeout=25)
+    except subprocess.TimeoutExpired as ex:
+        partial = ""
+        for chunk in (ex.stdout, ex.stderr):
+            if isinstance(chunk, bytes):
+                partial += chunk.decode("utf-8", "replace")
+            elif chunk:
+                partial += chunk
+        print(f"  ! 子命令超时（jcc {' '.join(args)}，25s）—— 通常是 LLM 不可达仍在重试，不是顺序漂移", file=sys.stderr)
+        return partial
     return (proc.stdout or "") + (proc.stderr or "")
 
 

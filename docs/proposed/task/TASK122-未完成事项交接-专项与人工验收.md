@@ -27,7 +27,7 @@ TASK103 §2.3 的 #35–#41、#43、#44、#45a、#46、#47、#48、#49、#49a、
 | ~~#45~~ | ~~`TaskOutput` block/timeout 等待语义~~ ✅ 已闭合（[TASK123](TASK123-TaskOutput等待语义-shell后台输出阻塞与超时.md)） | — | — | — |
 | ~~#50~~ | ~~团队记忆写入前 `validateInput` 密钥拦截~~ ✅ 已闭合（[TASK124](TASK124-团队记忆写入前密钥门禁-从断言到真拦截.md)） | — | — | — |
 | ~~#46~~ | ~~`permission_denials` 结构化收集~~ ✅ 已闭合（[TASK125](TASK125-permission_denials结构化收集.md)） | — | — | — |
-| #42 | 查询期自动记忆召回（sideQuery） | L | 新行为：每回合 LLM + 附件通道 + 会话曝光状态 | 5 |
+| ~~#42~~ | ~~查询期自动记忆召回~~ ✅ 已闭合（[TASK127](TASK127-查询期自动记忆召回.md)） | — | — | ~~5~~ |
 | ~~#40~~ | ~~dream 回合结束自动触发~~ ✅ 已闭合（[TASK126](TASK126-dream自动触发-三问决策与接线.md)） | — | — | ~~6~~ |
 | #51 | Ctrl+B 主会话后台化 | L | 新行为：独立 transcript、前后台切换、取消归属 | 7 |
 
@@ -99,7 +99,11 @@ CLI 按 `ToolErrorCodes.IsPermissionDenial` 判定（收录全部 `DeniedBy*`，
 
 **参考**：[TASK114](TASK114-Complete协议字段复核与api时长修正.md) §0/§2。
 
-### #42 查询期自动记忆召回
+### ~~#42 查询期自动记忆召回~~ — ✅ 2026-11-23 已完成
+
+**结论与实现见 [TASK127](TASK127-查询期自动记忆召回.md)。** 四问答案：①落点写动态系统消息（`SystemPromptMiddleware` 每回合清空重建），结构性不污染会话历史、不动静态前缀；②五门（开关 / 斜杠命令 / 最短 4 字符 / 记忆非空 / 最高分 ≥0.15），预算 5 条 / 1500 字符；③**不调 LLM** —— 复用 `ScanMemoriesAsync`（确定性打分），零 token，sideQuery 留作可替换实现；④`MemoryEntry` 的 `Title`（缺失取内容首行）+ 内容前 240 字符。
+
+原文下面的四问与「不要做」保留作历史记录：
 
 **现状**：本仓 `MemoryRelevanceSelector` 服务 `/memory search` 与 `memory_search`，是显式检索；
 基准 `findRelevantMemories` 是每回合 sideQuery 自动附件召回，两者不同语义层。
@@ -149,4 +153,4 @@ CLI 按 `ToolErrorCodes.IsPermissionDenial` 判定（收录全部 `DeniedBy*`，
 ## 五、一句话交接
 
 **能自动化的已知断链已经清完；剩下的不是“再补一根线”，而是六个需要产品/契约决策的新行为，
-加一个只能由用户在真实终端完成的键位矩阵。** 建议从 #52 人工矩阵开始，再按 #42 → #51 推进（#45/#50/#46/#40 已闭合）。
+加一个只能由用户在真实终端完成的键位矩阵。** 建议先做 #52 人工矩阵，再评估 #51（#45/#50/#46/#40/#42 已闭合）。

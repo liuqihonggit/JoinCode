@@ -47,7 +47,7 @@ SDK 的 `duration_ms`（总墙钟）与 `duration_api_ms`（仅 API 调用）必
 | duration_api_ms | API 调用累计 | 整查询墙钟（语义错） | API 调用累计 |
 | num_turns | 迭代轮次 | 同 | 不变 |
 | modelUsage | 多模型 usage map | 当前单模型项 | 不变（无多模型同回合场景） |
-| permission_denials | 权限决策结构化列表 | 文本含"拒绝"启发式 | 不变（登记残余差异） |
+| permission_denials | 权限决策结构化列表 | 文本含"拒绝"启发式 | ✅ 2026-11-23 已结构化，见 [TASK125](TASK125-permission_denials结构化收集.md) |
 
 **为何不改权限收集**：`CliEventConsumer.OnToolEnd` 目前只接收 `resultText`/`isError`，没有权限决策结构；要对齐需改引擎事件契约、事件消费者与各宿主适配层，跨 slnx 影响面大。当前字段能回传"工具结果文本显示被拒"的基本语义，不属静默失效；登记为后续专项。
 

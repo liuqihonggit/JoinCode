@@ -30,7 +30,13 @@ public interface IEventConsumer {
     /// <summary>
     /// 工具调用结束
     /// </summary>
-    void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch);
+    /// <param name="toolName">工具名称</param>
+    /// <param name="resultText">工具结果文本</param>
+    /// <param name="toolCallId">工具调用标识</param>
+    /// <param name="isError">是否失败</param>
+    /// <param name="patch">结构化补丁（编辑类工具）</param>
+    /// <param name="errorCode">结构化错误码 — 权限拒绝等判定必须靠它，禁止用结果文本猜（TASK125）</param>
+    void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch, string? errorCode = null);
 
     /// <summary>
     /// 工具调用进度

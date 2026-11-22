@@ -20,7 +20,50 @@ public static class DataDrivenPipelineComposition {
         services.AddSingleton(sp => new MetricsMiddleware<SkillContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<CodeContext>(sp.GetService<ITelemetryService>()));
 
+        // TASK126（#40）：回合结束 → dream 自动整合。落在 query_stop_hooks 而不是 query-pipeline
+        // 节点 —— 生产查询链取的是 DI 集合（IEnumerable<IQueryMiddleware>），profile 组装的
+        // MiddlewarePipeline<QueryMiddlewareContext> 没有消费方，加节点等于永不执行。
+        //
+        // 依赖必须**延迟解析**：McpInitModule 把插件加载后台化（「启动不阻塞等待加载墙钟」），
+        // 而本 hook 在首次查询构建管道时就被构造。构造期抓 IDreamFeature 的写法实测稳定失败
+        // —— 真机 `jcc -p hi` 打出 [DREAM-AUTO] hook disabled: dream subsystem not registered，
+        // 尽管同一份日志里 [CAPS-PLUGIN] dream=load。短会话（单回合 -p）会永久降级。
+        // 改为每次 OnStop 尝试解析，成功即缓存（AutoDreamTrigger 持有扫描节流状态，不能每回合新建）。
+        services.AddSingleton<Core.Query.StopHooks.IQueryStopHook>(sp =>
+            new AutoDreamStopHook(
+                () => ResolveAutoDreamTrigger(sp),
+                sp.GetService<ILogger<AutoDreamStopHook>>()));
+
         return services;
+    }
+
+    /// <summary>
+    /// 解析自动整合触发器 —— Dream 插件尚未加载完成时返回 <c>null</c>（hook 降级为「永不触发」，下个回合重试）。
+    /// </summary>
+    /// <remarks>
+    /// 不能只依赖 <c>GetService</c> 的「没注册」判定：构造过程本身也会抛（例如 <c>IChatClient</c> 缺失时
+    /// <c>ChatCompletionClient</c> 激活失败）。这里同样兜住，理由与 hook 一致 —— 后台功能不许拖垮回合。
+    /// </remarks>
+    private static JoinCode.Dream.AutoDreamTrigger? ResolveAutoDreamTrigger(IServiceProvider sp) {
+        // 解析本身也要进 try：「没注册」由 GetService 返回 null，但「注册了却激活失败」是抛出来的。
+        try {
+            var config = sp.GetService<JoinCode.Dream.AutoDreamConfig>();
+            var feature = sp.GetService<JoinCode.Dream.IDreamFeature>();
+            var scanner = sp.GetService<JoinCode.Dream.Services.ISessionScanner>();
+            if (config is null || feature is null || scanner is null) {
+                return null;
+            }
+
+            return new JoinCode.Dream.AutoDreamTrigger(
+                feature,
+                scanner,
+                config,
+                @lock: sp.GetService<JoinCode.Dream.Services.ConsolidationLock>(),
+                logger: sp.GetService<ILogger<JoinCode.Dream.AutoDreamTrigger>>());
+        } catch (Exception ex) {
+            Diag.WriteLine($"[DREAM-AUTO] hook disabled: {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>
@@ -83,6 +126,9 @@ public static class DataDrivenPipelineComposition {
         // preprocess-prepare-pipeline — IMiddleware<PreprocessContext>（准备阶段）
         yield return F("preprocess-prepare-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-prepare-pipeline"));
         yield return F("preprocess-prepare-pipeline:system-prompt-mw", sp => sp.GetRequiredService<SystemPromptMiddleware>());
+        // TASK127（#42）：查询期自动记忆召回。必须排在 system-prompt-mw 之后 —— 它在自己里面
+        // ClearDynamicSystemMessagesAsync，排在前面写的动态消息会被清掉。
+        yield return F("preprocess-prepare-pipeline:memory-recall-mw", sp => sp.GetRequiredService<MemoryRecallMiddleware>());
         yield return F("preprocess-prepare-pipeline:reminder-injection-mw", sp => sp.GetRequiredService<ReminderInjectionMiddleware>());
         yield return F("preprocess-prepare-pipeline:tool-listing-injection-mw", sp => sp.GetRequiredService<ToolListingInjectionMiddleware>());
         yield return F("preprocess-prepare-pipeline:lsp-diagnostic-mw", sp => sp.GetRequiredService<LspDiagnosticMiddleware>());

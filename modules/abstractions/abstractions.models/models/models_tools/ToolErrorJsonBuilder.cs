@@ -75,6 +75,7 @@ public static class ToolErrorJsonBuilder {
         return new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = json }],
             IsError = true,
+            ErrorCode = error.ErrorCode,
             Diagnostic = ToolDiagnostic.Create(
                 error.Type,
                 message,

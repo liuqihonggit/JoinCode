@@ -133,6 +133,39 @@ public class QueryStopHookManagerTests {
         hook2.Verify(h => h.Name, Times.AtLeastOnce());
     }
 
+    /// <summary>
+    /// TASK126（#40）— 容器里登记的 IQueryStopHook 必须在构造时被收进来。
+    /// 这条用例盯的是「扩展点齐了但没人填」：过去 RegisterStopHook 只有测试在调，
+    /// orders.yaml 的 query_stop_hooks 恒空，链跑得到、钩子永远是 0 个。
+    /// </summary>
+    [Fact]
+    public async Task Constructor_CollectsInjectedHooks() {
+        var hook = CreateMockHook("injected", 1, StopHookResult.Continue());
+        await using var manager = new QueryStopHookManager(hooks: [hook.Object]);
+
+        await manager.ExecuteStopHooksAsync("session-1", "query-complete").ConfigureAwait(true);
+
+        hook.Verify(h => h.OnStopAsync(It.IsAny<StopHookContext>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Constructor_InjectedHooksRespectPriority() {
+        var order = new List<string>();
+        var late = CreateMockHook("late", 9, StopHookResult.Continue());
+        late.Setup(h => h.OnStopAsync(It.IsAny<StopHookContext>(), It.IsAny<CancellationToken>()))
+            .Callback(() => order.Add("late"))
+            .ReturnsAsync(StopHookResult.Continue());
+        var early = CreateMockHook("early", 1, StopHookResult.Continue());
+        early.Setup(h => h.OnStopAsync(It.IsAny<StopHookContext>(), It.IsAny<CancellationToken>()))
+            .Callback(() => order.Add("early"))
+            .ReturnsAsync(StopHookResult.Continue());
+        await using var manager = new QueryStopHookManager(hooks: [late.Object, early.Object]);
+
+        await manager.ExecuteStopHooksAsync("session-1", "query-complete").ConfigureAwait(true);
+
+        order.Should().Equal(["early", "late"], "注入顺序无关，执行顺序由 Priority（orders.yaml 派生）决定");
+    }
+
     private static Mock<IQueryStopHook> CreateMockHook(string name, int priority, StopHookResult result) {
         var mock = new Mock<IQueryStopHook>();
         mock.SetupGet(h => h.Name).Returns(name);

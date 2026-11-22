@@ -192,7 +192,7 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
         public List<(string toolName, string? resultText, bool isError)> ToolEnds { get; } = [];
         public void OnThinking(string thinking) { }
         public void OnToolStart(string toolName, string? toolCallId, string? arguments) => ToolStarts.Add((toolName, arguments));
-        public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, JoinCode.Abstractions.Models.Diff.StructuredPatchHunk[]? patch) => ToolEnds.Add((toolName, resultText is null ? null : resultText[..Math.Min(80, resultText.Length)], isError));
+        public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, JoinCode.Abstractions.Models.Diff.StructuredPatchHunk[]? patch, string? errorCode = null) => ToolEnds.Add((toolName, resultText is null ? null : resultText[..Math.Min(80, resultText.Length)], isError));
         public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) { }
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) { }
         public void OnTimingSummary(string summary) { }

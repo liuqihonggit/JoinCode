@@ -64,6 +64,8 @@ consumers:
           pipeline-name: PreprocessPrepare
       - id: system-prompt-mw
         priority: 100
+      - id: memory-recall-mw
+        priority: 150
       - id: reminder-injection-mw
         priority: 200
       - id: tool-listing-injection-mw

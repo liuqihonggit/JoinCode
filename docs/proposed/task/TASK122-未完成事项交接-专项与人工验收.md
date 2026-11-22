@@ -14,20 +14,21 @@ TASK103 §2.3 的 #35–#41、#43、#44、#45a、#46、#47、#48、#49、#49a、
 - #45a `MAX_STRUCTURED_OUTPUT_RETRIES` 从注释承诺落为真实解析；
 - #46 `duration_api_ms` 改为 LLM API 累计耗时；
 - #50 团队记忆上传前密钥扫描门禁；
+- #45 `shell_background_output` 补 `block`/`timeout_ms` 与 `retrieval_status` 三态（超时不杀任务）；
 - #52 Windows 默认 `RawStdinPump` 事实纠正 + 零引用 `ReadKeyPump` 归档。
 
-本分支相对 `origin/w2` 领先 8 个提交，工作区干净。
+本分支已随 PR #718 合入 `main`（`eeb5a2f19`），工作区干净，`w2` 与 `main` 同步。
 
 ## 二、剩余事项总表
 
 | 编号 | 事项 | 规模 | 阻塞原因 | 建议顺序 |
 |------|------|------|----------|----------|
 | #52 | WT/conhost 双终端键位矩阵 | S/M | 需用户在真实终端逐项操作，自动化探针不能替代 | 1 |
-| #45 | `TaskOutput` block/timeout 等待语义 | M | 需先定挂哪个工具、默认是否阻塞、超时返回什么 | 2 |
-| #50 | 团队记忆写入前 `validateInput` 密钥拦截 | M | 需改工具写入层，当前只堵了出站 | 3 |
-| #46 | `permission_denials` 结构化收集 | M | 需改跨 slnx 引擎事件契约与各宿主适配 | 4 |
-| #42 | 查询期自动记忆召回（sideQuery） | L | 新行为：每回合 LLM + 附件通道 + 会话曝光状态 | 5 |
-| #40 | dream 回合结束自动触发 | L | 新行为：后台 LLM 整合，改变延迟与 token 成本 | 6 |
+| ~~#45~~ | ~~`TaskOutput` block/timeout 等待语义~~ ✅ 已闭合（[TASK123](TASK123-TaskOutput等待语义-shell后台输出阻塞与超时.md)） | — | — | — |
+| ~~#50~~ | ~~团队记忆写入前 `validateInput` 密钥拦截~~ ✅ 已闭合（[TASK124](TASK124-团队记忆写入前密钥门禁-从断言到真拦截.md)） | — | — | — |
+| ~~#46~~ | ~~`permission_denials` 结构化收集~~ ✅ 已闭合（[TASK125](TASK125-permission_denials结构化收集.md)） | — | — | — |
+| ~~#42~~ | ~~查询期自动记忆召回~~ ✅ 已闭合（[TASK127](TASK127-查询期自动记忆召回.md)） | — | — | ~~5~~ |
+| ~~#40~~ | ~~dream 回合结束自动触发~~ ✅ 已闭合（[TASK126](TASK126-dream自动触发-三问决策与接线.md)） | — | — | ~~6~~ |
 | #51 | Ctrl+B 主会话后台化 | L | 新行为：独立 transcript、前后台切换、取消归属 | 7 |
 
 ## 三、逐项交接
@@ -47,7 +48,11 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 
 **参考**：[TASK121](TASK121-DSG042-P3输入泵默认与退役复核.md)、`DSG042-tui-raw-stdin-input-pump-migration.md`。
 
-### #45 TaskOutput block/timeout 等待语义
+### #45 TaskOutput block/timeout 等待语义 — ✅ 已闭合 2026-11-23（[TASK123](TASK123-TaskOutput等待语义-shell后台输出阻塞与超时.md)）
+
+**已做**：`shell_background_output` 增 `block`（默认 true）/`timeout_ms`（默认 30000，上限 600000），
+返回 `retrieval_status=success|not_ready|timeout`；超时只结束等待窗口、不取消任务；任务不存在改诊断错误。
+`task_output`（todo 库）保持不动 —— 数据源不同域，不得混入后台进程语义。
 
 **现状**：基准 `TaskOutput` 读后台 shell 任务，`block` 默认 true、`timeout` 30s；
 本仓 `task_output` 读 todo 任务库，真正的后台 shell 输出是 `shell_background_output`；
@@ -64,7 +69,11 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 `modules/cognition/hands_shell/system_actuator/abstractions/SystemActuatorRegistry.cs:206-215`、
 工具 schema/CLI 节点帮助与 TDD。
 
-### #50 团队记忆写入前 `validateInput` 密钥拦截
+### #50 团队记忆写入前 `validateInput` 密钥拦截 — ✅ 已闭合 2026-11-23（[TASK124](TASK124-团队记忆写入前密钥门禁-从断言到真拦截.md)）
+
+**已做**：写入链本来就有 `CheckTeamMemSecrets`，坏在 `TeamMemSecretGuard` 构造参数恒为 `null`（无人注入），
+`IsTeamMemPath` 永远 false → 门禁常年敞开。改为按 `TeamMemoryLayout` 解析 `<memdir>/team-memories` 根，
+并顺带统一 `TeamMemoryPaths` 的默认布局（原先两套默认目录漂移）。真机三态已验证，错误信息只回 ruleId。
 
 **现状**：上传前门禁已补（`SyncFileTransfer.PushToRemoteAsync` 命中密钥则跳过本文件、不写索引、不发 Synced），
 但工具写入前仍可把密钥写进团队记忆，属于“先落盘、出站再拦”的次优路径。
@@ -75,7 +84,11 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 
 **参考**：[TASK119](TASK119-团队记忆密钥扫描-取证与上传门禁.md) §2/§4。
 
-### #46 `permission_denials` 结构化收集
+### #46 `permission_denials` 结构化收集 — ✅ 已闭合 2026-11-23（[TASK125](TASK125-permission_denials结构化收集.md)）
+
+**已做**：`ToolResult.ErrorCode` → `ChatStreamEvent.ToolErrorCode` → `IEventConsumer.OnToolEnd(..., errorCode)` 全链贯通，
+CLI 按 `ToolErrorCodes.IsPermissionDenial` 判定（收录全部 `DeniedBy*`，`PR002` 待确认不算拒绝）；
+仅当无码时才保留一行文本兜底。事件层用 PD 码字符串而非枚举，避免 primitives 层反向依赖 models。
 
 **现状**：`SdkMessage` 字段存在，`CliEventConsumer` 仍用 `resultText.Contains("拒绝")` 文本启发式；
 英文/其他措辞会漏，OS 权限错误也可能被误报成用户拒绝。
@@ -86,7 +99,11 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 
 **参考**：[TASK114](TASK114-Complete协议字段复核与api时长修正.md) §0/§2。
 
-### #42 查询期自动记忆召回
+### ~~#42 查询期自动记忆召回~~ — ✅ 2026-11-23 已完成
+
+**结论与实现见 [TASK127](TASK127-查询期自动记忆召回.md)。** 四问答案：①落点写动态系统消息（`SystemPromptMiddleware` 每回合清空重建），结构性不污染会话历史、不动静态前缀；②五门（开关 / 斜杠命令 / 最短 4 字符 / 记忆非空 / 最高分 ≥0.15），预算 5 条 / 1500 字符；③**不调 LLM** —— 复用 `ScanMemoriesAsync`（确定性打分），零 token，sideQuery 留作可替换实现；④`MemoryEntry` 的 `Title`（缺失取内容首行）+ 内容前 240 字符。
+
+原文下面的四问与「不要做」保留作历史记录：
 
 **现状**：本仓 `MemoryRelevanceSelector` 服务 `/memory search` 与 `memory_search`，是显式检索；
 基准 `findRelevantMemories` 是每回合 sideQuery 自动附件召回，两者不同语义层。
@@ -101,18 +118,15 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 **不要做**：把显式 `/memory search` 的关键词打分直接换成 sideQuery——那只会给低频命令加 LLM 依赖，
 不会产生基准的自动召回。
 
-### #40 dream 回合结束自动触发
+### ~~#40 dream 回合结束自动触发~~ — ✅ 2026-11-23 已完成
 
-**现状**：本仓有独立 dream pipeline exe、`/dream` 命令、`ConsolidationLock`、`AutoDreamConfig`，
-但没有“回合 Stop 事件 → dream pipeline”的接线。
+**结论与实现见 [TASK126](TASK126-dream自动触发-三问决策与接线.md)。** 三问答案：①不污染历史由 `DreamFeature` 自建 `MessageList` 结构性保证；②失败四层 fail-open（后台任务内全捕获、失败回滚锁、异常不外溢、门控读不到按未合并放行）；③门沿用既有默认值不加新开关。
 
-**先回答三问**（见 [TASK107](TASK107-dream自动触发路径-差异取证.md) §3）：
+落点是 `IQueryStopHook`（`QueryStopHookManager` 构造期收 `IEnumerable<IQueryStopHook>` + `Pipelines` 的 `AutoDreamStopHook` + `orders.yaml` 的 `query_stop_hooks`），**不是** query-pipeline 节点 —— profile 的 query-pipeline 声明对生产链不生效（登记为总账 **#53**）。
 
-1. 自动触发是否用 sideQuery，不污染会话历史？
-2. 触发失败如何降级，确保不阻塞回合、不吞用户消息？
-3. 默认开关与频率门（基准默认开 + 24h/5 session，本仓配置已同默认值）是否照搬？
+接线时顺带修了两个会让它烧钱的洞：时间门原用 `UtcNow-MinHours` 假值（生产唯一路径，每回合放行）→ 改读真锁；新增原子占锁（`pid:ts` + 存活/过期 + 写后复核）。
 
-三问答完再立 ADR + TDD；这是新增后台 LLM 行为，不是补断链。
+**残余**：回合级真机探针未做（本机 7 个 vendor 的 apiKey 全空，真实回合到不了 `OnCompleteHooks`），补验步骤见 TASK126 §5.3；基准的 `!agentId` 子代理门因本仓无 agent 标识未加（影响被节流+时间门+占锁压到 0）。
 
 ### #51 Ctrl+B 主会话后台化
 
@@ -139,4 +153,4 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 ## 五、一句话交接
 
 **能自动化的已知断链已经清完；剩下的不是“再补一根线”，而是六个需要产品/契约决策的新行为，
-加一个只能由用户在真实终端完成的键位矩阵。** 建议从 #52 人工矩阵开始，再按 #45 → #50 → #46 → #42 → #40 → #51 推进。
+加一个只能由用户在真实终端完成的键位矩阵。** 建议先做 #52 人工矩阵，再评估 #51（#45/#50/#46/#40/#42 已闭合）。

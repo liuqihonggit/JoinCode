@@ -170,6 +170,7 @@ public sealed class ToolResultBuilder {
         return new ToolResult {
             Content = newContent,
             IsError = true,
+            ErrorCode = _errorCode?.ToValue(),
             EntityMetadata = _entityMetadata,
             Diagnostic = diagnostic
         };

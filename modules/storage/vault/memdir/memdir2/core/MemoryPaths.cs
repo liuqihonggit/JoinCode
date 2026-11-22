@@ -133,10 +133,9 @@ public sealed partial class TeamMemoryPaths : ServiceEntity, ITeamMemoryPaths {
     /// </summary>
     /// <param name="options">Memdir 配置选项,为 null 则使用默认团队基础目录</param>
     public TeamMemoryPaths(IOptions<MemdirOptions> options) {
-        var storagePath = options?.Value?.StoragePath;
-        _baseDirectory = storagePath is not null
-            ? Path.Combine(storagePath, "team-memories")
-            : GetDefaultTeamBaseDirectory();
+        // 单一真相源：布局与「写入前密钥门禁」共用 TeamMemoryLayout，禁止各自拼 "team-memories"
+        _baseDirectory = TeamMemoryLayout.ResolveRoot(
+            options?.Value?.StoragePath ?? AppDataConstants.Paths.MemdirDirectory);
     }
 
     /// <inheritdoc />
@@ -152,12 +151,5 @@ public sealed partial class TeamMemoryPaths : ServiceEntity, ITeamMemoryPaths {
     /// <inheritdoc />
     public string GetTeamMemberDirectory(string teamId, string userId) {
         return Path.Combine(GetTeamMemoryDirectory(teamId), "members", userId);
-    }
-
-    private static string GetDefaultTeamBaseDirectory() {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            AppDataConstants.AppDataFolder,
-            "team-memories");
     }
 }

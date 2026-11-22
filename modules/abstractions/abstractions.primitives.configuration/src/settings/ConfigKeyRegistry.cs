@@ -161,6 +161,12 @@ public static class ConfigKeyRegistry {
                 Description = "权限确认时按 ctrl+e 让模型解释命令与风险（关闭后不显示该入口）",
                 Source = SettingSource.GlobalConfig,
             },
+            [ConfigKeys.MemoryAutoRecallEnabled] = new() {
+                Key = ConfigKeys.MemoryAutoRecallEnabled,
+                Type = "boolean",
+                Description = "每回合按当前输入自动检索相关记忆并注入动态系统消息（确定性打分，不调用模型）",
+                Source = SettingSource.GlobalConfig,
+            },
             [ConfigKeys.TerminalProgressBarEnabled] = new() {
                 Key = ConfigKeys.TerminalProgressBarEnabled,
                 Type = "boolean",
@@ -334,6 +340,8 @@ public static class ConfigKeys {
     public const string ShowTurnDuration = "showTurnDuration";
     /// <summary>权限对话框模型解释（ctrl+e）。</summary>
     public const string PermissionExplainerEnabled = "permissionExplainerEnabled";
+    /// <summary>查询期自动记忆召回（TASK127，默认开；无 LLM 成本）。</summary>
+    public const string MemoryAutoRecallEnabled = "memoryAutoRecallEnabled";
     /// <summary>终端进度条。</summary>
     public const string TerminalProgressBarEnabled = "terminalProgressBarEnabled";
     /// <summary>待办/任务跟踪。</summary>

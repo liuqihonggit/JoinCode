@@ -5,6 +5,9 @@
 # 用法（日常优先按需，别动不动跑全量）:
 #   pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -Changed
 #       只编译 git 改动涉及的 csproj，秒级。AI 助手日常改代码后用这个。
+#       *** 契约面改动（interfaces/ models/ Directory.Build.*）会自动升级为全仓编译 ***：
+#       按需模式只编「改动文件所在的 csproj」，看不到实现方/消费方（测试 fake 尤甚），
+#       IEventConsumer 加一个可选参数 → 接口项目绿、4 个测试 fake CS0535、CI 9 个 job 同时红（PR #723）就是这条路。
 #   pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -Changed -LastCommit
 #       连同最近一次提交一起算改动范围（刚提交完想复核时用）。
 #   pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -Changed -Since HEAD~3
@@ -68,7 +71,11 @@ if ($NoAnalyzers) {
     )
 }
 
-function Get-ChangedProjectPaths {
+# 契约面路径 — 命中即代表「别人怎么实现/消费我」变了，按需编译不构成验证：
+# 只编接口项目永远绿，断裂发生在实现方（含 test/ 下的 fake），只有编实现方才报 CS0535。
+$script:ContractSurfacePattern = '[./](interfaces|models)/|Directory\.Build\.(props|targets)$'
+
+function Get-ChangedFiles {
     param([string]$Root)
 
     $files = @()
@@ -83,9 +90,14 @@ function Get-ChangedProjectPaths {
     if ($IncludeUntracked) {
         $files += @(& $script:gitExe ls-files --others --exclude-standard)
     }
+    return @($files | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+}
+
+function Get-ChangedProjectPaths {
+    param([string]$Root, [string[]]$ChangedFiles)
 
     $projects = @()
-    foreach ($file in $files) {
+    foreach ($file in $ChangedFiles) {
         if ([string]::IsNullOrWhiteSpace($file)) { continue }
         if ($file -notmatch '\.(cs|csproj|props|targets)$') { continue }
         $full = Join-Path $Root $file
@@ -125,7 +137,18 @@ function Invoke-BuildTarget {
 
 # 按需编译 — 日常默认推荐路径
 if ($Changed) {
-    $projects = @(Get-ChangedProjectPaths -Root $repoRoot)
+    $changedFiles = @(Get-ChangedFiles -Root $repoRoot)
+    $contractHits = @($changedFiles | Where-Object { $_ -match $script:ContractSurfacePattern })
+    if ($contractHits.Count -gt 0) {
+        Write-Host "[契约面] 改动命中接口/模型层 $($contractHits.Count) 个文件 — 按需模式看不到实现方（fake/消费方），自动升级全仓编译。" -ForegroundColor Yellow
+        $contractHits | Select-Object -First 5 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkYellow }
+        $Changed = $false
+        $Domains = ""
+    }
+}
+
+if ($Changed) {
+    $projects = @(Get-ChangedProjectPaths -Root $repoRoot -ChangedFiles $changedFiles)
     if ($projects.Count -eq 0) {
         Write-Host "无源码改动，跳过编译。" -ForegroundColor Green
         Pop-Location

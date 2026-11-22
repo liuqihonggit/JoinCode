@@ -43,6 +43,9 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Brain.Prompts" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/cognition/brain_cost_tracking/Brain.CostTracking.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Brain.CostTracking" Version="$(JccComponentPackageVersion)" />
+    <!-- TASK127：查询期自动记忆召回要读 IMemoryManagementService（Core.Memdir）；Vault 只依赖 abstractions，无环 -->
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/storage/vault/Vault.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Vault" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

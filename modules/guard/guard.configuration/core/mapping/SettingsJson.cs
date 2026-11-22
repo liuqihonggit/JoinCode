@@ -199,6 +199,13 @@ public sealed partial class CurrentSettings {
     public bool? PermissionExplainerEnabled { get; init; }
 
     /// <summary>
+    /// 查询期自动记忆召回 — TASK127（缺省视为 true，显式 false 才关）
+    /// </summary>
+    [JsonPropertyName("memoryAutoRecallEnabled")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? MemoryAutoRecallEnabled { get; init; }
+
+    /// <summary>
     /// 扩展思考 — 对齐 ConfigKeys.AlwaysThinkingEnabled
     /// </summary>
     [JsonPropertyName("alwaysThinkingEnabled")]

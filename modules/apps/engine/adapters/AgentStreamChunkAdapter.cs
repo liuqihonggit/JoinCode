@@ -27,7 +27,8 @@ public static class AgentStreamChunkAdapter {
                 chunk.ToolResultText,
                 chunk.ToolCallId,
                 chunk.IsToolError,
-                chunk.StructuredPatch),
+                chunk.StructuredPatch,
+                chunk.ToolResult?.ErrorCode ?? chunk.ToolErrorCode),
 
             AgentStreamChunkType.ToolProgress => ChatStreamEvent.ToolProgress(
                 chunk.ToolName ?? string.Empty,

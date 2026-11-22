@@ -116,7 +116,7 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
 
     /// <summary>工具调用结束 → tool_result(截断摘要 + 结构化 isError + 结构化补丁投影 + 原始输出预截断投影)。
     /// TASK069-M2/M5 — isError 结构化下发（此前只折成摘要文本前缀，TUI 拿不到权威标记）。</summary>
-    public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
+    public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch, string? errorCode = null) {
         var (rawOutput, hiddenLines) = ProjectRawOutput(resultText);
         _events.Enqueue(new BridgeEvent.ToolResult(BuildSummary(resultText), ProjectPatch(patch), rawOutput, hiddenLines, isError));
     }

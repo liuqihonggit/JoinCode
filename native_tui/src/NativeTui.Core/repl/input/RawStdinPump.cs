@@ -5,8 +5,8 @@ namespace NativeTui.Core.Repl;
 /// <see cref="Console.OpenStandardInput"/> 字节流 → UTF-8 增量解码（跨块不完整多字节序列保留）
 /// → <see cref="KeyPressParser"/> 逐键解析（不完整前缀攒齐重试；bracketed paste 整块直出
 /// — ReadKey 通道的重组状态机在本通道天然不需要）→ 有界通道缓冲。
-/// 主循环帧拍 <see cref="Drain"/> 非阻塞排空。与 <see cref="ReadKeyPump"/> 互斥
-///（ReadKey 独占控制台输入缓冲）— 构造期二选一，通道切换由宿主开关注入。
+/// 主循环帧拍 <see cref="Drain"/> 非阻塞排空。与旧 ReadKeyPump 通道互斥
+///（ReadKey 独占控制台输入缓冲；该类已归档，见 TASK121）— 构造期选路由宿主注入。
 /// 读线程 IsBackground：进程退出自动终止（stdin Read 阻塞不可中断 — 无需优雅停机）。
 /// 线程模型：pending 缓冲与前缀状态由单写者解析 Actor 独占（读线程投递解码块，Drain/测试投递
 /// 冲刷屏障）；键投递纯非阻塞（TryWrite 满即停，剩余留 pending 等下一条命令续投，不丢键不阻塞），

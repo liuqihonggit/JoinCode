@@ -4,7 +4,7 @@ namespace NativeTui.Core.Repl;
 /// Win32 ReadConsoleInput 输入泵（TASK077）— 后台线程阻塞读 <see cref="Win32ConsoleInput.ReadEvents"/>
 /// → KEY_EVENT 经 <see cref="ConsoleKeyAdapter"/> 归一 KeyPress / MOUSE_EVENT 包 KeyPress(Mouse) →
 /// 无界通道缓冲 → 主循环帧拍 <see cref="Drain"/> 非阻塞排空。
-/// 替代 <see cref="ReadKeyPump"/>（Console.ReadKey 跳过 MOUSE_EVENT）+ <see cref="RawStdinPump"/>
+/// 替代旧 ReadKeyPump（Console.ReadKey 跳过 MOUSE_EVENT）+ <see cref="RawStdinPump"/>
 /// （stdin ReadFile 同跳过）— ReadConsoleInput P/Invoke 直读 INPUT_RECORD，键盘鼠标同通道。
 /// 仅 Windows（Linux 走 RawStdinPump VT 序列天然含鼠标）。线程模型对齐 RawStdinPump：
 /// IsBackground 后台线程，Dispose 不等线程终结（ReadConsoleInput 阻塞由进程退出回收）。

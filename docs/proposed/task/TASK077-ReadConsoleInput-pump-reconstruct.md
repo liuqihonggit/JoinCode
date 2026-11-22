@@ -5,8 +5,10 @@
 > **下方 6 项已于 2026-11-21 回填勾选**——施工前计划，实际早已全部完成（详见 [TASK102](TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.1）：
 > `Win32ConsoleInputPump : IInputPump` + 非阻塞 `Drain()`（`native_tui/src/NativeTui.Core/repl/input/Win32ConsoleInputPump.cs:12,35`）、
 > `MOUSE_EVENT → KeyPress(Mouse)`（同文件 `:96-99`）、鼠标武装 `EnableMouseInput`（`Win32InputPump.cs:16,38`）、
-> Linux 仍走 `RawStdinPump`（`NativeTui.Host/Program.cs`）、`Win32ConsoleInputPumpTests.cs` / `Win32ConsoleInputTests.cs` 均在、全仓测试绿。
-> **判据以代码为准，不要只读开头复选框。**
+> `Win32ConsoleInputPumpTests.cs` / `Win32ConsoleInputTests.cs` 均在、全仓测试绿。
+> **代码事实纠正（TASK121）**：当前 Host 默认注入 `RawStdinPump`（`Program.cs:317`），
+> `Win32ConsoleInputPump` 类与测试仍在但生产无构造点；未注入泵时 `ReplShell.cs:729` 回退 `Win32InputPump`。
+> 本节早期「Windows 默认新泵 / Linux 仍走 Raw」的表述作废。判据以代码为准，不要只读开头复选框。
 
 ## 背景
 

@@ -35,11 +35,22 @@ public class SandboxStartupGateTests {
     [Fact]
     public void Given_启用但平台不支持_When_Evaluate_Then_Warn并指出平台() {
         var decision = SandboxStartupGate.Evaluate(
-            new SandboxConfig { Enabled = true }, platformSupported: false, realIsolationAvailable: true);
+            new SandboxConfig { Enabled = true }, platformSupported: false, realIsolationAvailable: true, platform: SandboxGate.PlatformLinux);
 
         decision.Outcome.Should().Be(SandboxStartupOutcome.Warn);
         decision.Message.Should().Contain("enabledPlatforms");
-        decision.Message.Should().Contain(SandboxGate.CurrentPlatform);
+        decision.Message.Should().Contain(SandboxGate.PlatformLinux);
+    }
+
+    [Fact]
+    public void Given_启用但Windows原生不支持_When_Evaluate_Then_Warn并指出Windows() {
+        var decision = SandboxStartupGate.Evaluate(
+            new SandboxConfig { Enabled = true }, platformSupported: false, realIsolationAvailable: true, platform: SandboxGate.PlatformWindows);
+
+        decision.Outcome.Should().Be(SandboxStartupOutcome.Warn);
+        decision.Message.Should().Contain("Windows");
+        decision.Message.Should().Contain("不支持原生沙箱");
+        decision.Message.Should().NotContain("enabledPlatforms");
     }
 
     [Fact]

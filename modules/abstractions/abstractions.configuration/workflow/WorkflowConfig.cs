@@ -187,6 +187,12 @@ public sealed record WorkflowConfig {
     public SandboxConfig Sandbox { get; init; } = new();
 
     /// <summary>
+    /// 沙箱策略投影 — 仅由 managed-settings（policySettings）派生：
+    /// 记录策略锁与 managed 源限定（allowManagedDomainsOnly / allowManagedReadPathsOnly）。
+    /// </summary>
+    public SandboxPolicyConfig SandboxPolicy { get; init; } = new();
+
+    /// <summary>
     /// 当前激活的配置档案名 — 对应 settings.json 中 profiles 字典的键
     /// </summary>
     public string? CurrentProfile { get; init; }

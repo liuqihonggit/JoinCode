@@ -15,16 +15,28 @@ namespace Core.Permission;
 public sealed partial class SandboxAutoAllowMiddleware : ServiceEntity, IPermissionMiddleware {
     private readonly JoinCode.Abstractions.Configuration.SandboxConfig _sandbox;
     private readonly ISandboxManager? _sandboxManager;
+    private readonly string _platform;
 
     /// <summary>
-    /// 构造中间件。
+    /// 构造中间件（生产路径 — 使用当前平台）。
     /// </summary>
     /// <param name="config">工作流配置（读取 <c>sandbox</c> 节点）。</param>
     /// <param name="sandboxManager">沙箱管理器（可选 — 无沙箱子系统时免确认不生效）。</param>
-    public SandboxAutoAllowMiddleware(WorkflowConfig config, ISandboxManager? sandboxManager = null) {
+    public SandboxAutoAllowMiddleware(WorkflowConfig config, ISandboxManager? sandboxManager = null)
+        : this(config, sandboxManager, platform: null) {
+    }
+
+    /// <summary>
+    /// 构造中间件（可显式指定平台 — 供跨平台真值测试使用）。
+    /// </summary>
+    /// <param name="config">工作流配置（读取 <c>sandbox</c> 节点）。</param>
+    /// <param name="sandboxManager">沙箱管理器（可选 — 无沙箱子系统时免确认不生效）。</param>
+    /// <param name="platform">平台标识（null = 当前平台）。</param>
+    public SandboxAutoAllowMiddleware(WorkflowConfig config, ISandboxManager? sandboxManager, string? platform) {
         ArgumentNullException.ThrowIfNull(config);
         _sandbox = config.Sandbox;
         _sandboxManager = sandboxManager;
+        _platform = platform ?? SandboxGate.CurrentPlatform;
     }
 
     /// <inheritdoc />
@@ -61,7 +73,7 @@ public sealed partial class SandboxAutoAllowMiddleware : ServiceEntity, IPermiss
 
         var command = PermissionRuleParser.ExtractCommand(context.Arguments);
         var availability = new SandboxRuntimeAvailability(
-            PlatformSupported: SandboxGate.IsPlatformSupported(SandboxGate.CurrentPlatform, _sandbox.EnabledPlatforms),
+            PlatformSupported: SandboxGate.IsPlatformSupported(_platform, _sandbox.EnabledPlatforms),
             ProviderAvailable: true);
         var dangerously = ReadBoolArgument(context.Arguments, "dangerously_disable_sandbox");
         var decision = SandboxGate.Evaluate(command, _sandbox, availability, dangerously);

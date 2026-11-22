@@ -55,6 +55,24 @@ public sealed record SandboxRipgrepConfig {
     public List<string> Args { get; init; } = [];
 }
 
+/// <summary>
+/// 运行期沙箱策略投影 — 只从 managed-settings（policySettings）派生，不参与用户配置合并。
+/// <para>用于两件事：① <c>/sandbox</c> 判断本地修改是否被企业策略锁定；② 记录 managed 源限定是否生效。</para>
+/// </summary>
+public sealed record SandboxPolicyConfig {
+    /// <summary>策略是否锁定了可本地修改的 sandbox 键（enabled / autoAllowBashIfSandboxed / allowUnsandboxedCommands）。</summary>
+    public bool Locked { get; init; }
+
+    /// <summary>被策略锁定的 settings 键名（用于给用户可操作提示）。</summary>
+    public List<string> LockedKeys { get; init; } = [];
+
+    /// <summary>是否只允许 policySettings 的 network.allowedDomains。</summary>
+    public bool AllowManagedDomainsOnly { get; init; }
+
+    /// <summary>是否只允许 policySettings 的 filesystem.allowRead。</summary>
+    public bool AllowManagedReadPathsOnly { get; init; }
+}
+
 /// <summary>沙箱网络配置 — 对齐基准 <c>SandboxNetworkConfigSchema</c>（sandboxTypes.ts:14-42）。</summary>
 public sealed record SandboxNetworkConfig {
     /// <summary>允许访问的域名列表。</summary>

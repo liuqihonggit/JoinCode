@@ -67,12 +67,19 @@ public static class SandboxGate {
         : OperatingSystem.IsMacOS() ? PlatformMacOs
         : PlatformLinux;
 
-    /// <summary>判定平台是否被 <c>enabledPlatforms</c> 允许 — 空清单 = 不限制；比较大小写不敏感。</summary>
+    /// <summary>
+    /// 判定平台是否可启用沙箱 — 先看原生实现（Windows 不支持 / macOS Seatbelt 未实现），
+    /// 再看 <c>enabledPlatforms</c> 企业白名单（空清单 = 不限制）；比较大小写不敏感。
+    /// </summary>
     /// <param name="platform">当前平台标识（<see cref="CurrentPlatform"/>）。</param>
     /// <param name="enabledPlatforms">配置的平台清单。</param>
     /// <returns>允许返回 true。</returns>
     public static bool IsPlatformSupported(string platform, IReadOnlyList<string>? enabledPlatforms) {
         ArgumentException.ThrowIfNullOrEmpty(platform);
+        if (!SandboxPlatformSupport.IsSupported(platform)) {
+            return false;
+        }
+
         if (enabledPlatforms is null || enabledPlatforms.Count == 0) {
             return true;
         }

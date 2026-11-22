@@ -233,9 +233,9 @@
 | R3 | P1 | `filesystem.allowWrite/denyWrite/denyRead/allowRead` 仅契约，未传进 provider | 已知 | `BubblewrapSandboxProvider.ExecuteInSandboxAsync` 只消费 `SandboxInfo.AllowedPaths`；基准 `sandbox-adapter.ts:329-349` 逐项转 runtime config | ✅ 已消费：rw `--bind`（cwd/allowWrite）、ro `--ro-bind`（allowRead/基础系统路径）、掩码 `--tmpfs`/`/dev/null`（denyWrite/denyRead）；allowRead 最后覆盖 denyRead；12 条参数表用例 |
 | R4 | P1 | `network.allowedDomains/allowUnixSockets/allowAllUnixSockets/allowLocalBinding/httpProxyPort/socksProxyPort` 未消费 | 已知 | 基准 `sandbox-adapter.ts:359-368`；bwrap 原生只能「开/关网」，域名级需代理 | ✅ 已消费到能力边界：默认 `--unshare-all` 断网；`allowedDomains` 非空 fail-closed + warning；其余 bwrap 不支持项逐个显式 warning（不静默丢弃） |
 | R5 | P1 | `EnableWeakerNestedSandbox/EnableWeakerNetworkIsolation/IgnoreViolations/ripgrep` 未消费 | 已知 | 基准 `sandboxTypes.ts:123-141`；其中 weakerNetwork 仅 macOS trustd | ✅ 四项全部进入 `SandboxWrapRequest`：weakerNested/weakerNetwork/ignoreViolations 由 bwrap 显式告警「不支持/已忽略」；`ripgrep` 补齐 `SandboxConfig.Ripgrep`（command/args）→ `SandboxRipgrepSettings` → `SettingsMapper.MapSandboxRipgrep` → `RipgrepCommand` → builder 显式告警「不消费」；映射用例 1 条 + bwrap warning 断言 |
-| R6 | P2 | 策略锁：managed/policy settings 覆盖本地 `sandbox.enabled`、`allowManagedDomainsOnly`、`allowManagedReadPathsOnly` | **未知** | 基准有 `policySettings` 源与 `shouldAllowManaged*Only`；本仓无托管配置载体 | 先立 ADR/基础设施（配置源优先级），再实现 + 企业场景用例 |
-| R7 | P2 | 跨平台 provider 矩阵：macOS Seatbelt（基准 sandbox-runtime）、Windows 无真隔离的显式降级 | **未知** | 本仓仅 Bubblewrap/Docker/Process/Soft；Windows Soft/Process 无 Network | 需 macOS 真机；Windows 保持「不启用 + 明确提示」 |
-| R8 | P2 | `/sandbox` 子命令全对齐（benchmark 的 `/sandbox` 参数矩阵） | 半已知 | 本仓已有 on/off/exclude/status | 逐项对照命令 help + 行为用例 |
+| R6 | P2 | 策略锁：managed/policy settings 覆盖本地 `sandbox.enabled`、`allowManagedDomainsOnly`、`allowManagedReadPathsOnly` | 已知 | `SettingSource.PolicySettings`、`SettingsLoader.LoadPolicySettingsAsync`、`GetManagedSettingsPath` 已存在；缺 sandbox 消费 policy 源与来源感知 | ✅ `SandboxPolicyResolver` 启动期单独投影 policy：三键显式即 `SandboxPolicyConfig.Locked`；managed 域名/读清单只取 policy 源；`/sandbox` 命中锁拒绝本地修改；`SandboxPolicyResolverTests` + `ConfigLoaderTests` managed fixture |
+| R7 | P2 | 跨平台 provider 矩阵：macOS Seatbelt（基准 sandbox-runtime）、Windows 无真隔离的显式降级 | **半已知** | 本仓仅 Bubblewrap/Docker/Process/Soft；Windows 判断恒真 | ✅ Windows/Linux 真值：`SandboxPlatformSupport`（Linux 支持、Windows 不支持、macOS Seatbelt 未实现）；`SandboxGate` 先判原生再判白名单；状态/启动警告展示原因；🟡 macOS Seatbelt 经 ADR 0161 明确不支持，待真机另立项 |
+| R8 | P2 | `/sandbox` 子命令全对齐（benchmark 的 `/sandbox` 参数矩阵） | 半已知 | 本仓已有 on/off/exclude/status/switch | ✅ 无参数改为设置面板（保留 status 详情）；新增 `help/--help`、未知子命令提示、`exclude` 引号/空模式校验；25 条命令用例 |
 | R9 | P1 | 真机 bwrap 验收（当前仅 Windows 本机单测） | 已知但受环境限制 | 云主机 Linux 可用 | 🟢 云主机（Ubuntu，bwrap 0.6.1）实测：`--unshare-all` 下网络被阻断、allowWrite 可写、`--tmpfs` denyRead 掩码生效；发现容器 seccomp 拒绝 `--proc /proc`，已从包装参数移除并注释（沙箱内不暴露 /proc） |
 | R10 | P1 | 文档收口：TASK103 #35 状态、TASK104 进度与本总账同步 | 已知 | 本文件 §7/§9 | 文档评审 |
 
@@ -264,6 +264,16 @@ R1/R2 是「安全收益是否真实」的分水岭，未完成前不宣称 sand
   `SandboxWrapRequest.RipgrepCommand` → `BwrapCommandBuilder` 显式 warning「bwrap 包装不消费 sandbox.ripgrep」。
   这样「配置不丢 + 能力缺口可见」，不做静默吞字段。weakerNested / weakerNetwork / ignoreViolations 同样只告警不假装支持。
 - **R10 收口**：本表 R1–R5/R9 状态与 §9.1 记录同时更新；TASK103 #35 指向本节，不重复维护两份进度。
+- **R6 落地（2026-11-22 接手）**：`SandboxPolicyResolver` 在 `ConfigLoader` 启动期单独读 `managed-settings.json`，
+  把 `SandboxPolicyConfig`（Locked/LockedKeys/AllowManagedDomainsOnly/AllowManagedReadPathsOnly）投影进 `WorkflowConfig`；
+  policy 声明 `enabled/autoAllowBashIfSandboxed/allowUnsandboxedCommands` 即锁 `/sandbox`；两个 `allowManaged*Only` 只在 policy 源生效，
+  无 policy 时清除用户侧伪造开关。验收：`SandboxPolicyResolverTests` 5 条 + `ConfigLoaderTests` managed fixture。
+- **R7 落地（2026-11-22 接手）**：`SandboxPlatformSupport` 区分「原生实现」与 `enabledPlatforms` 白名单 —
+  Linux 支持（bwrap 需安装）、Windows 不支持、macOS Seatbelt 未实现；`SandboxGate` 先判原生再判白名单，
+  `/sandbox status` 与启动警告展示原因；测试用显式平台参数覆盖（Windows 不再因白名单为真）。
+- **R8 落地（2026-11-22 接手）**：`/sandbox` 无参数改为设置面板（保留 `status` 详情），新增 `help/--help`、
+  未知子命令提示、`exclude` 引号/空模式校验；`on/off/switch <type>/exclude <pattern>` 命中策略锁一律拒绝本地修改。
+  验收：`SandboxToggleCommandTest` 25 条全绿。
 
 ---
 
@@ -278,15 +288,15 @@ R1/R2 是「安全收益是否真实」的分水岭，未完成前不宣称 sand
 ## 10. 工作交接（2026-11-22）
 
 > **文档编号：TASK104**（本文件即交接书；接手人从 §10 读起即可，无需重读全部取证）
-> **交接分支**：`w2`；交接前 HEAD `3642391db`，`origin/w2` 与本地一致；相对 `origin/main`（本地 ref `9682fee30`）领先 7 个提交；工作树干净。
-> **交接结论**：Phase 1 与 R1–R5 / R9 / R10 **已完成并验证**；R6 / R7 / R8 **未开始**。本分支可评审合并，剩余项按 §10.4 顺序推进。
+> **交接分支**：`w2`；接手前 PR #715 已 squash 合并，HEAD `5d182607e`（`origin/main`、`origin/w2` 同点）；本轮 R6/R7/R8 改动在工作树，待提交为新 PR。
+> **交接结论**：Phase 1 与 R1–R5 / R9 / R10 **已完成并验证**；R6 / R7（除 Seatbelt）/ R8 **本轮已完成**（2026-11-22 接手），见 §9 与 §11。
 
 ### 10.1 一分钟摘要
 
 - **修掉的病**：`sandbox.enabled=true` 原先只改门控布尔值，命令不会真的进沙箱，`autoAllowBashIfSandboxed` 因永远不满足 `IsInSandbox` 而空转 —— 即「配置写了不生效 + 安全收益为零」。
 - **现在的行为**：Linux 上 `enabled=true` 时每条 Bash 命令用一次性 `bwrap` 包裹；文件系统 allow/deny 清单、网络开关、工作目录绑定真实生效；真隔离 + 免确认联动；提示词随配置热更新；提供器不可用且在 `failIfUnavailable=true` 时启动即失败。
-- **没做的**：企业策略锁（R6）、macOS Seatbelt / Windows 平台真值矩阵（R7）、`/sandbox` 参数面完整对齐（R8）。这三项不是「补一个字段」，都涉及策略源或跨平台，见 §10.4。
-- **评审注意**：分支含 1 个**与 sandbox 无关**的历史提交 `3cd4dded0`（TASK069-P4 权限确认解释），PR 描述已单列；不要把它与 sandbox 改动混在一起评审。
+- **没做的**：macOS Seatbelt（需真机与独立 ADR；`SandboxPlatformSupport` 已明确报「未实现」，不冒充支持）。R6/R7 平台真值/R8 于 2026-11-22 接手后已补齐。
+- **评审注意**：`3cd4dded0` 已随 PR #715 合并进 `main`，本轮 PR 不再包含它；PR 描述无需重复。
 
 ### 10.2 已完成清单（可直接验收）
 
@@ -333,7 +343,9 @@ R1/R2 是「安全收益是否真实」的分水岭，未完成前不宣称 sand
 4. `sandbox.enabled=false`（基准默认）时保持旧行为：只有 `dangerously_disable_sandbox` 影响本次命令；手动 `/sandbox on` 的会话语义照旧。
 5. 配置数组（`excludedCommands` / `allowWrite` 等）没有通过 `IConfigurationService` 写入的通道，`/sandbox exclude` 目前只读+指引编辑 settings.json；不要假装能写数组。
 
-### 10.4 剩余事项（按优先级，接手人从这里继续）
+### 10.4 剩余事项（接手前快照；R6/R7/R8 已于 2026-11-22 完成）
+
+> 本节保留接手时的差异分析作为追溯记录，不再作为待办清单；完成证据见 §9 总账与 §11。
 
 | 序 | 优先级 | 事项 | 现状与关键判断 | 建议做法 / 验收 |
 |----|--------|------|----------------|------------------|
@@ -372,7 +384,7 @@ dotnet test modules\cognition\hands.shell.tests\Hands.Shell.Tests.csproj --no-bu
 | 改了 `SandboxSettings` 但测试编译过、运行不生效 | `SettingsMapper` 未映射 / `SandboxConfig` 无字段 | 按 §10.3 三层顺序补：SettingsJson → SettingsMapper → SandboxConfig → 消费方 |
 | 提示词还是旧措辞 | 配置变更未触发 `SettingChanged`（手改文件不会发事件） | 重启进程；或经 `/sandbox on/off`、config 工具写入以触发 `SandboxPromptPolicySync` |
 
-### 10.7 交接 Definition of Done
+### 10.7 交接 Definition of Done（R6/R7/R8 已满足）
 
 1. R6 / R7（Windows 真值部分）/ R8 各自：先写差异或 ADR（涉及策略源/平台的先立 ADR）→ 红测试 → 实现 → 编译 → 绿测试 → 文档 §9 状态更新 → 提交。
 2. 每次跨域契约变更后跑全仓 `Build-AllDomains.ps1 -NoAnalyzers`；不并发跑 `dotnet build/test`。
@@ -382,7 +394,57 @@ dotnet test modules\cognition\hands.shell.tests\Hands.Shell.Tests.csproj --no-bu
 
 ### 10.8 本次交接提交说明
 
-- 本节只写文档，不改生产代码；提交后由 MainAgent 推送 `w2` 并向 `main` 发起 PR。
-- PR 描述应包含：R1–R5/R9/R10 的范围、验证命令与结果、R6–R8 未做、`3cd4dded0` 属独立历史提交。
+- 本节记录接手轮次：文档 + R6/R7/R8 生产代码与测试；提交后由 MainAgent 推送分支并向 `main` 发起 PR。
+- PR 描述应包含：R1–R5/R9/R10 的既有范围、R6/R7（Windows 真值）/R8 本轮追加范围、验证命令与结果、Seatbelt 明确未实现（ADR 0161）、`3cd4dded0` 属独立历史提交。
 - 若 PR CI 报红：按 AGENTS.md「PR 后守 CI」流程，拉失败日志 → 修复 → 本地验证 → 直接 push 同一分支，不 force push、不自行 pull/rebase。
 
+## 11. R6/R7/R8 实施记录（2026-11-22 接手）
+
+### 11.1 R6 — 企业策略锁 + managed 源限定
+
+- **投影层**：新增 `SandboxPolicyResolver`（`guard.configuration/core/mapping`），`ConfigLoader` 在启动期单独调用
+  `SettingsLoader.LoadPolicySettingsAsync`，把 policy 快照投影为 `WorkflowConfig.SandboxPolicy`：
+  - `sandbox.enabled` / `sandbox.autoAllowBashIfSandboxed` / `sandbox.allowUnsandboxedCommands` 任一显式存在 → `Locked=true` 并记录 `LockedKeys`；
+  - `network.allowManagedDomainsOnly=true` → `Sandbox.Network.AllowedDomains` 只保留 policy 源；
+  - `filesystem.allowManagedReadPathsOnly=true` → `Sandbox.Filesystem.AllowRead` 只保留 policy 源；
+  - 无 policy 时把两个 managed 开关强制置 false，用户/项目侧伪造无效。
+- **命令消费**：`SandboxToggleCommand` 对 `on/enable`、`off/disable`、`switch <type>`、`exclude <pattern>` 在确认与执行前拒绝；
+  `EnableSandboxAsync` / `DisableSandboxAsync` / `PersistSandboxEnabledAsync` 各自再做一次守卫，防内部直接调用绕过。
+- **文件**：`SandboxConfig.cs`（`SandboxPolicyConfig`）、`WorkflowConfig.cs`、`SandboxPolicyResolver.cs`、
+  `ConfigLoader.cs`、`SandboxToggleCommand.cs`。
+- **测试**：`SandboxPolicyResolverTests` 5 条（三键锁、network 不锁、托管域名、托管读路径、无 policy 伪造失效）；
+  `ConfigLoaderTests.LoadConfig_ManagedSettings_AppliesPolicyLockAndManagedLists` 用临时 `managed-settings.json` 做端到端断言。
+
+### 11.2 R7 — 平台真值矩阵
+
+- 新增 `SandboxPlatformSupport`：Linux 支持（bubblewrap，需安装）、Windows 不支持、macOS Seatbelt 未实现、未知平台不支持；`Reason` 直接供状态/启动警告使用。
+- `SandboxGate.IsPlatformSupported` 改为「先判原生实现，再判 `enabledPlatforms` 白名单」：Windows/macOS 即使白名单包含也返回 false。
+- `SandboxStartupGate.Evaluate` 增加可选 `platform` 参数并区分原因：
+  原生不支持 → 平台原因；原生支持但白名单不含 → `enabledPlatforms`；平台/提供器都可用但无真隔离 → 提供器原因。
+- `ShellSandboxPolicy` 与 `SandboxAutoAllowMiddleware` 增加可选平台参数（生产默认当前平台，测试显式指定）。
+- macOS 按决策**不实现假支持**：仅显式报缺口，后续需 macOS 真机 + 独立 ADR 才能接 Seatbelt。
+
+### 11.3 R8 — `/sandbox` 参数面
+
+- 无参数 → `ShowSettingsMenu`：先展示 `status`，再展示 `current.sandbox` 的 `enabled/failIfUnavailable/autoAllowBashIfSandboxed/allowUnsandboxedCommands/excludedCommands/network.allowedDomains/filesystem.allowWrite/allowRead`。
+- 新增 `help` / `--help` / `-h`，含无参数、status、on/off、exclude、switch 与示例；未知子命令输出错误后展示帮助。
+- `exclude` 模式参数做首尾引号裁剪；裁剪后为空给用法提示；仍保持只读 + 指引编辑 settings.json。
+- `status` 增加策略锁行与平台说明行，平台支持判断改用 `SandboxPlatformSupport`，不再用恒真的 `PlatformID`。
+
+### 11.4 验证结果（本机 Windows，2026-11-22）
+
+| 验证 | 命令 | 结果 |
+|------|------|------|
+| 全仓编译 | `pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -NoAnalyzers` | 全部通过（solution / native_tui / native_gui ×2） |
+| Guard.Config 全量 | `dotnet test modules\guard\guard.config.tests\Guard.Config.Tests.csproj --no-build` | 1354 通过 / 0 失败 |
+| Guard.Security 全量 | `dotnet test modules\guard\guard.security.tests\Guard.Security.Tests.csproj --no-build` | 1256 通过 / 0 失败 |
+| Hands.Shell 全量 | `dotnet test modules\cognition\hands.shell.tests\Hands.Shell.Tests.csproj --no-build` | 541 通过 / 0 失败 |
+| Composition 全量 | `dotnet test modules\composition\composition.tests\Composition.Tests.csproj --no-build` | 1144 通过 / 0 失败 |
+
+日志在 `.xxx/logs/`：`build_all_r6r7r8_final.txt`、`test_config_full.txt`、`test_security_full.txt`、`test_shell_full.txt`、`test_composition_full.txt`。
+
+### 11.5 已知边界
+
+- macOS 无真机：Seatbelt 仅 `SandboxPlatformSupport` 报「未实现」，不进入 provider 选择链；接 Seatbelt 另立 ADR。
+- `ConfigLoader` 未接入 flag settings 路径：本轮策略锁只消费 `managed-settings.json`，flag 锁待后续接入（ADR 0161 已注明）。
+- Windows 本机只做单测与编译验证；`/sandbox status` 的人工交互输出未在真实终端逐行核对，命令测试覆盖了文案关键行。

@@ -18,25 +18,77 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var sandboxManager = ChatCommandBase.GetService<ISandboxManager>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context);
+        var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var subCommand = ExtractSubCommand(args);
+        var hasArgument = parts.Length > 1;
+
+        if (subCommand is "help" or "--help" or "-h" || (hasArgument && parts[1] is "--help" or "-h")) {
+            ShowHelp();
+            return ChatCommandResult.Continue();
+        }
+
+        var config = ChatCommandBase.GetService<WorkflowConfig>(context);
+        if (config?.SandboxPolicy.Locked == true && IsPolicyLockedMutation(subCommand, hasArgument)) {
+            WritePolicyLocked(config.SandboxPolicy);
+            return ChatCommandResult.Continue();
+        }
 
         if (subCommand is "exclude") {
             HandleExclude(context, args);
         } else if (subCommand is "switch") {
             await HandleSwitchAsync(sandboxManager, context, args).ConfigureAwait(false);
-        } else if (sandboxManager is null) {
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
-                TerminalHelper.WriteLine(L.T(StringKey.HostSandboxServiceNotInitialized));
-            }
         } else if (subCommand is "on" or "enable") {
-            await EnableSandboxAsync(sandboxManager, context).ConfigureAwait(false);
+            if (sandboxManager is null) {
+                ReportUninitialized();
+            } else {
+                await EnableSandboxAsync(sandboxManager, context).ConfigureAwait(false);
+            }
         } else if (subCommand is "off" or "disable") {
-            await DisableSandboxAsync(sandboxManager, context).ConfigureAwait(false);
+            if (sandboxManager is null) {
+                ReportUninitialized();
+            } else {
+                await DisableSandboxAsync(sandboxManager, context).ConfigureAwait(false);
+            }
+        } else if (subCommand is "status") {
+            if (sandboxManager is null) {
+                ReportUninitialized();
+            } else {
+                ShowStatus(sandboxManager, context);
+            }
+        } else if (subCommand.Length == 0) {
+            if (sandboxManager is null) {
+                ReportUninitialized();
+            } else {
+                ShowSettingsMenu(sandboxManager, context);
+            }
         } else {
-            ShowStatus(sandboxManager, context);
+            TerminalHelper.WriteLine($"未知沙箱子命令: {subCommand}");
+            ShowHelp();
         }
 
         return ChatCommandResult.Continue();
+    }
+
+    /// <summary>是否为会被企业策略锁定的本地修改 — 只读子命令（status/help/无参数/exclude 无模式）不拦。</summary>
+    private static bool IsPolicyLockedMutation(string subCommand, bool hasArgument) => subCommand switch {
+        "on" or "enable" or "off" or "disable" => true,
+        "switch" => hasArgument,
+        "exclude" => hasArgument,
+        _ => false,
+    };
+
+    /// <summary>输出策略锁原因与下一步 — 对齐「错误提示必须带诱导方式」。</summary>
+    private static void WritePolicyLocked(SandboxPolicyConfig policy) {
+        var keys = policy.LockedKeys.Count > 0 ? string.Join(", ", policy.LockedKeys) : "sandbox.*";
+        TerminalHelper.WriteLine($"沙箱设置被企业策略锁定：managed-settings.json 已定义 {keys}。");
+        TerminalHelper.WriteLine("本地 /sandbox 不能修改这些键；请让管理员修改托管策略文件，或移除对应键后重启。");
+    }
+
+    /// <summary>管理器缺失时的统一提示（非交互环境保持静默）。</summary>
+    private static void ReportUninitialized() {
+        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
+            TerminalHelper.WriteLine(L.T(StringKey.HostSandboxServiceNotInitialized));
+        }
     }
 
     /// <summary>
@@ -49,6 +101,12 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         (args.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty).ToLowerInvariant();
 
     private static async Task EnableSandboxAsync(ISandboxManager sandboxManager, ChatCommandContext context) {
+        var workflow = ChatCommandBase.GetService<WorkflowConfig>(context);
+        if (workflow?.SandboxPolicy.Locked == true) {
+            WritePolicyLocked(workflow.SandboxPolicy);
+            return;
+        }
+
         var confirmed = await Confirmation.ConfirmAsync("确定要启用沙箱模式吗？启用后将限制文件系统和网络访问。", context.CancellationToken).ConfigureAwait(false);
         if (!confirmed) {
             TerminalHelper.WriteLine(L.T(StringKey.HostSandboxCancelled));
@@ -74,6 +132,12 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
     }
 
     private static async Task DisableSandboxAsync(ISandboxManager sandboxManager, ChatCommandContext context) {
+        var workflow = ChatCommandBase.GetService<WorkflowConfig>(context);
+        if (workflow?.SandboxPolicy.Locked == true) {
+            WritePolicyLocked(workflow.SandboxPolicy);
+            return;
+        }
+
         var confirmed = await Confirmation.ConfirmAsync("确定要禁用沙箱模式吗？", context.CancellationToken).ConfigureAwait(false);
         if (!confirmed) {
             TerminalHelper.WriteLine(L.T(StringKey.HostSandboxCancelled));
@@ -98,6 +162,12 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
     /// <param name="enabled">目标状态。</param>
     /// <returns>写入成功返回 true；配置服务缺失或异常返回 false（命令仍继续）。</returns>
     internal static async Task<bool> PersistSandboxEnabledAsync(ChatCommandContext context, bool enabled) {
+        var workflow = ChatCommandBase.GetService<WorkflowConfig>(context);
+        if (workflow?.SandboxPolicy.Locked == true) {
+            WritePolicyLocked(workflow.SandboxPolicy);
+            return false;
+        }
+
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
         if (configService is null) {
             TerminalHelper.WriteLine(L.T(StringKey.HostSandboxConfigUnavailable));
@@ -144,18 +214,59 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         var settingsEnabled = ChatCommandBase.GetService<WorkflowConfig>(context)?.Sandbox.Enabled == true;
         TerminalHelper.WriteLine($"sandbox.enabled 设置: {(settingsEnabled ? "true" : "false")}（/sandbox-toggle on 会写入该设置）");
 
+        var workflow = ChatCommandBase.GetService<WorkflowConfig>(context);
+        if (workflow?.SandboxPolicy.Locked == true) {
+            TerminalHelper.WriteLine($"策略锁: 已锁定（{string.Join(", ", workflow.SandboxPolicy.LockedKeys)}）");
+        } else {
+            TerminalHelper.WriteLine("策略锁: 无（本地 /sandbox 可修改）");
+        }
+
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"可用沙箱类型: {string.Join(", ", sandboxManager.GetAvailableTypes().Select(t => t.ToValue()))}");
 
-        var platform = Environment.OSVersion.Platform;
-        var isSupported = platform == PlatformID.Win32NT || platform == PlatformID.Unix || platform == PlatformID.MacOSX;
-        TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostSandboxStatusPlatformSupported), isSupported ? "是" : "未知"));
+        var platformSupport = SandboxPlatformSupport.Evaluate(SandboxGate.CurrentPlatform);
+        TerminalHelper.WriteLine(string.Format(
+            L.T(StringKey.HostSandboxStatusPlatformSupported),
+            platformSupport.Supported ? "是" : "否"));
+        TerminalHelper.WriteLine($"  平台说明: {platformSupport.Reason}");
 
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine(L.T(StringKey.HostSandboxUsageEnable));
         TerminalHelper.WriteLine(L.T(StringKey.HostSandboxUsageDisable));
         TerminalHelper.WriteLine(L.T(StringKey.HostSandboxUsageExclude));
         TerminalHelper.WriteLine("  /sandbox-toggle switch <soft|process|docker|bubblewrap>  — 切换沙箱类型");
+        TerminalHelper.WriteLine("  /sandbox-toggle help  — 查看全部子命令与示例");
+    }
+
+    /// <summary>无参数时的设置面板 — 对齐基准 /sandbox 无参数进入设置视图；本仓先落可读面板，不改已有子命令。</summary>
+    private static void ShowSettingsMenu(ISandboxManager sandboxManager, ChatCommandContext context) {
+        ShowStatus(sandboxManager, context);
+
+        var config = ChatCommandBase.GetService<WorkflowConfig>(context);
+        var sandbox = config?.Sandbox ?? new SandboxConfig();
+        TerminalHelper.NewLine();
+        TerminalHelper.WriteLine("沙箱设置（settings.json current.sandbox）：");
+        TerminalHelper.WriteLine($"  enabled={sandbox.Enabled.ToString().ToLowerInvariant()}  failIfUnavailable={sandbox.FailIfUnavailable.ToString().ToLowerInvariant()}");
+        TerminalHelper.WriteLine($"  autoAllowBashIfSandboxed={sandbox.AutoAllowBashIfSandboxed.ToString().ToLowerInvariant()}  allowUnsandboxedCommands={sandbox.AllowUnsandboxedCommands.ToString().ToLowerInvariant()}");
+        TerminalHelper.WriteLine($"  excludedCommands: {(sandbox.ExcludedCommands.Count == 0 ? "（无）" : string.Join(", ", sandbox.ExcludedCommands))}");
+        TerminalHelper.WriteLine($"  network.allowedDomains: {(sandbox.Network.AllowedDomains.Count == 0 ? "（无）" : string.Join(", ", sandbox.Network.AllowedDomains))}");
+        TerminalHelper.WriteLine($"  filesystem.allowWrite: {(sandbox.Filesystem.AllowWrite.Count == 0 ? "（无）" : string.Join(", ", sandbox.Filesystem.AllowWrite))}");
+        TerminalHelper.WriteLine($"  filesystem.allowRead: {(sandbox.Filesystem.AllowRead.Count == 0 ? "（无）" : string.Join(", ", sandbox.Filesystem.AllowRead))}");
+
+        TerminalHelper.WriteLine("使用 /sandbox-toggle help 查看子命令；直接修改 settings.json 后需重启生效。");    }
+
+    /// <summary>帮助文本 — 覆盖全部子命令、只读/写入语义与示例。</summary>
+    private static void ShowHelp() {
+        TerminalHelper.WriteLine("用法: /sandbox-toggle <子命令>");
+        TerminalHelper.WriteLine("  （无参数）         显示设置面板：会话状态 + 当前 settings.json 沙箱值");
+        TerminalHelper.WriteLine("  status             查看会话沙箱、设置开关、平台支持与策略锁");
+        TerminalHelper.WriteLine("  on|enable          写入 sandbox.enabled=true 并进入会话沙箱");
+        TerminalHelper.WriteLine("  off|disable        写入 sandbox.enabled=false 并退出会话沙箱");
+        TerminalHelper.WriteLine("  exclude           查看 sandbox.excludedCommands；带模式时给出写回指引");
+        TerminalHelper.WriteLine("  switch <type>      切换沙箱提供器：soft|process|docker|bubblewrap");
+        TerminalHelper.WriteLine("  help|--help        显示本帮助");
+        TerminalHelper.WriteLine("示例: /sandbox-toggle exclude \"npm run test:*\"");
+        TerminalHelper.WriteLine("说明: excludedCommands 是安全边界之外的便利项；配置服务只支持标量键，数组需编辑 settings.json。");
     }
 
     private static async Task HandleSwitchAsync(ISandboxManager? sandboxManager, ChatCommandContext context, string args) {
@@ -212,7 +323,12 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
             return;
         }
 
-        var pattern = string.Join(' ', parts[1..]);
+        var pattern = string.Join(' ', parts[1..]).Trim().Trim('"', '\'');
+        if (pattern.Length == 0) {
+            TerminalHelper.WriteLine("请提供命令模式，例如 /sandbox-toggle exclude \"npm run test:*\"。");
+            return;
+        }
+
         TerminalHelper.WriteLine($"命令排除清单只读：请在 settings.json 的 current.sandbox.excludedCommands 中加入 \"{pattern}\"。");
         TerminalHelper.WriteLine("排除命令不进沙箱，也不享受沙箱内免确认——它是安全边界之外的便利项。");
     }

@@ -47,9 +47,14 @@ public sealed class QueryMiddlewareContext {
     public System.Collections.Concurrent.ConcurrentQueue<QueryStreamChunk> OutputChunks { get; } = new();
 
     /// <summary>
-    /// 计时器
+    /// 计时器（整条查询的墙上时间）
     /// </summary>
     public Stopwatch Stopwatch { get; } = Stopwatch.StartNew();
+
+    /// <summary>
+    /// LLM API 调用累计耗时 — 映射 SDK result.duration_api_ms（不含工具执行/中间件等待）。
+    /// </summary>
+    public long ApiDurationMs { get; set; }
 
     /// <summary>
     /// 总工具调用次数
@@ -60,6 +65,11 @@ public sealed class QueryMiddlewareContext {
     /// 最近的 Token 消耗记录
     /// </summary>
     public List<TokenConsumption> RecentConsumptions { get; } = [];
+
+    /// <summary>
+    /// 递减回报连续低效计数 — 每查询上下文独立持有，避免 Singleton 检测器在 fork 并发查询间串状态。
+    /// </summary>
+    public int DiminishingLowValueIterations { get; set; }
 
     /// <summary>
     /// 当前迭代的输入 Token 数（由核心引擎设置）
@@ -168,5 +178,13 @@ public sealed class QueryMiddlewareContext {
     /// StructuredOutput 合成工具重试上限 — 对齐 TS MAX_STRUCTURED_OUTPUT_RETRIES（默认5）
     /// 可通过环境变量 MAX_STRUCTURED_OUTPUT_RETRIES 覆盖
     /// </summary>
-    public int MaxStructuredOutputRetries { get; init; } = 5;
+    public int MaxStructuredOutputRetries { get; init; } =
+        ResolveMaxStructuredOutputRetries(Environment.GetEnvironmentVariable("MAX_STRUCTURED_OUTPUT_RETRIES"));
+
+    /// <summary>
+    /// 解析重试上限 — 纯函数：仅接受正整数，空串/非法/≤0 一律回退 5。
+    /// 注释承诺 env 可覆盖但全仓长期无消费点（TASK103 #45a），在此补上唯一解析入口。
+    /// </summary>
+    internal static int ResolveMaxStructuredOutputRetries(string? envValue) =>
+        int.TryParse(envValue, out var value) && value > 0 ? value : 5;
 }

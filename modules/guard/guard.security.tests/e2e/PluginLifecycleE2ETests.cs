@@ -1,28 +1,20 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace Core.Tests.Services.E2E;
 
-public sealed class PluginLifecycleE2ETests : IAsyncDisposable {
+/// <summary>
+/// 插件命令生命周期 E2E（TASK103 #39 收窄）。
+/// <para>原文件混测 PluginHookInjector（死链，见 TASK103 #39）+ PluginCommandRegistry（活功能）；
+/// hook 部分随注入器一并归档，本文件只保留命令注册/注销/别名/隔离的真实生命周期覆盖。</para>
+/// </summary>
+public sealed class PluginLifecycleE2ETests {
     private readonly PluginCommandRegistry _commandRegistry;
-    private readonly PluginHookInjector _hookInjector;
-    private readonly Mock<IPluginManager> _pluginManager;
-    private bool _disposed;
 
     public PluginLifecycleE2ETests() {
         _commandRegistry = new PluginCommandRegistry(NullLogger<PluginCommandRegistry>.Instance);
-        _pluginManager = new Mock<IPluginManager>();
-        _hookInjector = new PluginHookInjector(_pluginManager.Object, NullLogger<PluginHookInjector>.Instance);
-    }
-
-    public async ValueTask DisposeAsync() {
-        if (_disposed) return;
-        _disposed = true;
-        await _hookInjector.DisposeAsync();
     }
 
     [Fact]
-    public async Task PluginLifecycle_RegisterCommandsAndHooks_ShouldWorkTogether() {
-        _pluginManager.Setup(m => m.IsPluginLoaded("my-plugin")).Returns(true);
-
+    public async Task PluginLifecycle_RegisterCommand_ShouldResolveByNameAndAlias() {
         var cmd = new PluginCommandDefinition {
             CommandName = "my-cmd",
             PluginName = "my-plugin",
@@ -33,23 +25,12 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable {
 
         await _commandRegistry.RegisterCommandAsync(cmd).ConfigureAwait(true);
 
-        var hooks = new List<PluginHookDefinition>
-        {
-            new() { HookName = "pre-compact", TargetEvent = "PreCompact", HookType = ShellToolNameEnumConstants.Bash, Command = "echo pre" },
-            new() { HookName = "post-compact", TargetEvent = "PostCompact", HookType = "function" }
-        };
-
-        await _hookInjector.InjectHooksAsync("my-plugin", hooks).ConfigureAwait(true);
-
         _commandRegistry.GetCommand("my-cmd").Should().NotBeNull();
         _commandRegistry.GetCommand("mc").Should().NotBeNull();
-        _hookInjector.GetInjectedHooks("my-plugin").Should().HaveCount(2);
     }
 
     [Fact]
-    public async Task PluginLifecycle_UnregisterCommandsAndHooks_ShouldCleanup() {
-        _pluginManager.Setup(m => m.IsPluginLoaded("cleanup-plugin")).Returns(true);
-
+    public async Task PluginLifecycle_UnregisterCommand_ShouldCleanup() {
         var cmd = new PluginCommandDefinition {
             CommandName = "cleanup-cmd",
             PluginName = "cleanup-plugin",
@@ -58,24 +39,14 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable {
         };
 
         await _commandRegistry.RegisterCommandAsync(cmd).ConfigureAwait(true);
-        await _hookInjector.InjectHooksAsync("cleanup-plugin",
-        [
-            new() { HookName = "hook1", TargetEvent = "PreCompact", HookType = ShellToolNameEnumConstants.Bash }
-        ]).ConfigureAwait(true);
-
         await _commandRegistry.UnregisterCommandAsync("cleanup-cmd").ConfigureAwait(true);
-        await _hookInjector.RemoveHooksAsync("cleanup-plugin").ConfigureAwait(true);
 
         _commandRegistry.GetCommand("cleanup-cmd").Should().BeNull();
-        _hookInjector.GetInjectedHooks("cleanup-plugin").Should().BeEmpty();
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PluginLifecycle_MultiplePlugins_ShouldIsolateCommands() {
-        _pluginManager.Setup(m => m.IsPluginLoaded("plugin-a")).Returns(true);
-        _pluginManager.Setup(m => m.IsPluginLoaded("plugin-b")).Returns(true);
-
         await _commandRegistry.RegisterCommandAsync(new PluginCommandDefinition {
             CommandName = "cmd-a",
             PluginName = "plugin-a",
@@ -90,25 +61,12 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable {
             HandlerType = "HandlerB"
         }).ConfigureAwait(true);
 
-        await _hookInjector.InjectHooksAsync("plugin-a",
-        [
-            new() { HookName = "hook-a", TargetEvent = "PreCompact", HookType = ShellToolNameEnumConstants.Bash }
-        ]).ConfigureAwait(true);
-
-        await _hookInjector.InjectHooksAsync("plugin-b",
-        [
-            new() { HookName = "hook-b", TargetEvent = "PostCompact", HookType = "function" }
-        ]).ConfigureAwait(true);
-
         _commandRegistry.GetCommand("cmd-a")!.PluginName.Should().Be("plugin-a");
         _commandRegistry.GetCommand("cmd-b")!.PluginName.Should().Be("plugin-b");
 
-        _hookInjector.GetInjectedHooks("plugin-a").Should().HaveCount(1);
-        _hookInjector.GetInjectedHooks("plugin-b").Should().HaveCount(1);
-
-        await _hookInjector.RemoveHooksAsync("plugin-a").ConfigureAwait(true);
-        _hookInjector.GetInjectedHooks("plugin-a").Should().BeEmpty();
-        _hookInjector.GetInjectedHooks("plugin-b").Should().HaveCount(1);
+        await _commandRegistry.UnregisterCommandAsync("cmd-a").ConfigureAwait(true);
+        _commandRegistry.GetCommand("cmd-a").Should().BeNull();
+        _commandRegistry.GetCommand("cmd-b").Should().NotBeNull();
     }
 
     [Fact]

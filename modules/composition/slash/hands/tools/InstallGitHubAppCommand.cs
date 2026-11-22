@@ -48,7 +48,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
         }
 
         // Step 3: 选择仓库
-        var repoName = await ChooseRepoAsync(checkResult.CurrentRepo, ct).ConfigureAwait(false);
+        var repoName = await ChooseRepoAsync(checkResult.CurrentRepo, TestEnvironmentDetector.IsNonInteractive, ct).ConfigureAwait(false);
         if (string.IsNullOrEmpty(repoName)) {
             TerminalHelper.WriteLine("安装已取消");
             return ChatCommandResult.Continue();
@@ -69,10 +69,10 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
         }
 
         // Step 5: 选择工作流类型
-        var workflows = await SelectWorkflowsAsync(ct).ConfigureAwait(false);
+        var workflows = await SelectWorkflowsAsync(TestEnvironmentDetector.IsNonInteractive, ct).ConfigureAwait(false);
 
         // Step 6: 选择 API Key 方式
-        var (secretName, secretValue, authType) = await ChooseApiKeyMethodAsync(ct).ConfigureAwait(false);
+        var (secretName, secretValue, authType) = await ChooseApiKeyMethodAsync(TestEnvironmentDetector.IsNonInteractive, ct).ConfigureAwait(false);
         if (string.IsNullOrEmpty(secretValue)) {
             TerminalHelper.WriteLine("安装已取消");
             return ChatCommandResult.Continue();
@@ -183,7 +183,17 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
     /// <summary>
     /// 选择仓库
     /// </summary>
-    private static async Task<string?> ChooseRepoAsync(string currentRepo, CancellationToken ct) {
+    /// <summary>
+    /// 选仓库（#29a — nonInteractive 走纯文本回退，不再静默 Cancelled）。
+    /// <para>交互态保留 Selector；非交互态：有 currentRepo 直接用，无则 null（ExecuteAsync 报"安装已取消"）。</para>
+    /// </summary>
+    internal static async Task<string?> ChooseRepoAsync(string currentRepo, bool nonInteractive, CancellationToken ct) {
+        // #29a — TUI 下 Selector 的 stdout 被 ConsoleSuppressionGate 收走不可见，ShowAsync 立刻 Cancelled。
+        // 非交互直接用当前仓库（已过 GitHubRepoNameValidator）；无则让上层按"取消"处理。
+        if (nonInteractive) {
+            return string.IsNullOrEmpty(currentRepo) ? null : currentRepo;
+        }
+
         if (!string.IsNullOrEmpty(currentRepo)) {
             var items = new[]
             {
@@ -230,7 +240,14 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
     /// <summary>
     /// 选择工作流类型
     /// </summary>
-    private static async Task<List<string>> SelectWorkflowsAsync(CancellationToken ct) {
+    /// <summary>
+    /// 选工作流（#29a — 非交互取基准默认两个都装，对齐基准 INITIAL_STATE.selectedWorkflows）。
+    /// </summary>
+    internal static async Task<List<string>> SelectWorkflowsAsync(bool nonInteractive, CancellationToken ct) {
+        if (nonInteractive) {
+            return ["claude", "claude-review"];
+        }
+
         var items = new[]
         {
             ($"claude - PR/Issue 评论触发的 {BrandConstants.ProductName} 助手", "claude"),
@@ -255,15 +272,26 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
     /// <summary>
     /// 选择 API Key 方式
     /// </summary>
-    private static async Task<(string SecretName, string SecretValue, string AuthType)> ChooseApiKeyMethodAsync(CancellationToken ct) {
+    /// <summary>
+    /// 选 API Key 方式（#29a — 非交互下用本地 Key；无本地 Key 返回 default 让上层取消，绝不读掩码输入挂死）。
+    /// </summary>
+    internal static async Task<(string SecretName, string SecretValue, string AuthType)> ChooseApiKeyMethodAsync(bool nonInteractive, CancellationToken ct) {
+        // 检查是否已有本地 API Key
+        var existingKey = Environment.GetEnvironmentVariable(ProviderEnvVar.AnthropicApiKey.ToValue());
+
+        // #29a — TUI 下无法安全读掩码输入，有本地 Key 直接用，没有就让上层取消（不静默 default 后继续）
+        if (nonInteractive) {
+            return string.IsNullOrEmpty(existingKey)
+                ? default
+                : (ProviderEnvVarEnumConstants.AnthropicApiKey, existingKey, "api_key");
+        }
+
         var items = new List<(string Display, string SecretName, string AuthType)>
         {
             ("输入新的 API Key", ProviderEnvVarEnumConstants.AnthropicApiKey, "api_key"),
             ("使用 OAuth Token", "JCC_OAUTH_TOKEN", "oauth_token"),
         };
 
-        // 检查是否已有本地 API Key
-        var existingKey = Environment.GetEnvironmentVariable(ProviderEnvVar.AnthropicApiKey.ToValue());
         if (!string.IsNullOrEmpty(existingKey)) {
             // 使用 Add + 反转构建顺序，避免 Insert(0, item) 的 O(n) 移动
             items.Add(("使用本地已有的 API Key", ProviderEnvVarEnumConstants.AnthropicApiKey, "api_key"));

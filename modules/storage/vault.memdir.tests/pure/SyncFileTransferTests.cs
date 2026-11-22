@@ -170,6 +170,39 @@ public sealed class SyncFileTransferTests {
     }
 
     [Fact]
+    public async Task PushToRemoteAsync_ContentContainsSecret_SkipsUploadAndIndexWrite() {
+        var dir = "/watch/";
+        _fs.CreateDirectory(dir);
+        var file = dir + "secret.md";
+        // AWS access key 形态（gitleaks aws-access-token 规则），仅用于测试，非真实凭据。
+        await _fs.WriteAllTextAsync(file, "aws_key=AKIAABCDEFGHIJKLMNOP").ConfigureAwait(true);
+        _fosMock.Setup(x => x.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(FileWriteResult.SuccessResult("/remote/index.json", "[]", "write"));
+
+        await using var transfer = CreateTransfer();
+        await transfer.PushToRemoteAsync(file, CancellationToken.None).ConfigureAwait(true);
+
+        _remoteEntries.Should().BeEmpty("含密钥文件不得进入远端索引");
+        _fosMock.Verify(x => x.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _eventLog.GetRecent(10).Should().NotContain(e => e.FilePath == file && e.Type == SyncEventType.Synced);
+    }
+
+    [Fact]
+    public async Task PushToRemoteAsync_NormalContent_StillUploads() {
+        var dir = "/watch/";
+        _fs.CreateDirectory(dir);
+        var file = dir + "normal.md";
+        await _fs.WriteAllTextAsync(file, "普通团队记忆内容").ConfigureAwait(true);
+        _fosMock.Setup(x => x.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(FileWriteResult.SuccessResult("/remote/index.json", "[]", "write"));
+
+        await using var transfer = CreateTransfer();
+        await transfer.PushToRemoteAsync(file, CancellationToken.None).ConfigureAwait(true);
+
+        _remoteEntries.Should().ContainKey(file, "无密钥命中时上传链不受门禁影响");
+    }
+
+    [Fact]
     public async Task PushToRemoteAsync_EventTimestampUsesClock() {
         var dir = "/watch/";
         _fs.CreateDirectory(dir);

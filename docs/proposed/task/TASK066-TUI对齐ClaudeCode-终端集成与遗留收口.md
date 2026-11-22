@@ -213,8 +213,8 @@
 | B2 键位配置系统 10 文件（20 context/105 action/116 默认绑定/保留键校验/用户 json AOT 加载） | ReplShell _keybindings | ✅ | ✅ 单元 87 测试 |
 | B4 ReplShell 全局键层表驱动（esc/ctrl 组合/序列键 MatchAction/MatchSequence/IsSequenceStart） | HandleCtrlKey→DispatchCtrlAction | ✅ | ✅ 接线 13 测试 |
 | B4 宿主装配（~/.jcc/keybindings.json 用户覆盖 + stderr 错误诊断不阻断） | Program.cs | ✅ | ✅ Host.Tests 全绿 |
-| B5 RawStdin 切默认 | Program.cs | ⏸ | 待 B6 双终端矩阵后 |
-| B6 双终端实测矩阵（WT/conhost + kitty 协议启用） | — | ⏸ | 待用户真机验收 |
+| B5 RawStdin 切默认 | Program.cs | ✅ | `f8b07f5b9` 起 Windows 默认 RawStdinPump；TASK121 复核确认，与 B6 解耦 |
+| B6 双终端实测矩阵（WT/conhost + kitty 协议启用） | — | ⏸ | 仍待用户真机逐项键位表；TASK121 登记为人工残余，不以管道探针冒充 |
 
 - 测试：NativeTui.Tests 1802→**2157 全绿**（+355；含 rebase main 合入的 187 个 S12 新测试）
 - rebase 冲突处理：①ReplShell 构造器参数（main S12 saveExportAsync/searchSource × 我方 terminalStatus/keybindings 并存）②KeyPressParser BuildSimple（main 侧 kitty 简版 'u' 分支被完整版 ParseKittyCsiU 取代成死代码，删除）

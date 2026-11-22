@@ -366,7 +366,8 @@ public sealed class ReplShell
     /// 种子 effort 提示经 Enqueue 一次性入队保留首屏语义）。</summary>
     private readonly ReplNotifications _notifications = new();
 
-    /// <summary>键盘输入泵（DSG042 — 通道抽象：ReadKeyPump 现役 / RawStdinPump 原始流灰度）。</summary>
+    /// <summary>键盘输入泵（DSG042/TASK077 — 通道抽象：宿主注入 RawStdinPump，
+    /// 未注入回退 Win32InputPump；旧 ReadKeyPump 已归档，见 TASK121）。</summary>
     private readonly IInputPump _inputPump;
 
     /// <summary>剪贴板写入委托（TASK059 — Ctrl+C 复制最后 assistant 消息；宿主注入引擎
@@ -1399,8 +1400,8 @@ public sealed class ReplShell
     private void AddMessage(IScrollItem item) =>
         _view.Messages.Insert(_view.Messages.Count - 1, item);
 
-    /// <summary>排空键盘事件（非阻塞）— 输入泵通道（DSG042：ReadKeyPump 现役 / RawStdinPump
-    /// 原始流灰度）排空已解析键统一分派；泵内归一/paste 重组语义见各实现。</summary>
+    /// <summary>排空键盘事件（非阻塞）— 输入泵通道（RawStdinPump / Win32InputPump）
+    /// 排空已解析键统一分派；泵内归一/paste 重组语义见各实现。</summary>
     /// <summary>输入区视觉行垂直移动薄封装（L4 接线 — cols 取当前终端宽，成功 true = 键已消化）。</summary>
     private bool TryMoveInputVisual(int dy) => _input.TryMoveVisualVertically(dy, _sizeSource.Current.Cols);
 

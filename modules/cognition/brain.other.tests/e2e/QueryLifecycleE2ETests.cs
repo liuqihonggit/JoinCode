@@ -104,8 +104,10 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable {
             new() { Amount = 800 }
         };
 
-        var result1 = _diminishingReturns.CheckDiminishingReturns(highConsumptions);
+        var count = 0;
+        var result1 = _diminishingReturns.CheckDiminishingReturns(highConsumptions, count);
         result1.IsDiminishing.Should().BeFalse();
+        count = result1.ConsecutiveLowValueIterations;
 
         var veryLowConsumptions = new List<TokenConsumption>
         {
@@ -114,13 +116,15 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable {
             new() { Amount = 1 }
         };
 
-        var result2 = _diminishingReturns.CheckDiminishingReturns(veryLowConsumptions);
+        var result2 = _diminishingReturns.CheckDiminishingReturns(veryLowConsumptions, count);
         result2.IsDiminishing.Should().BeFalse();
+        count = result2.ConsecutiveLowValueIterations;
 
-        var result3 = _diminishingReturns.CheckDiminishingReturns(veryLowConsumptions);
+        var result3 = _diminishingReturns.CheckDiminishingReturns(veryLowConsumptions, count);
         result3.IsDiminishing.Should().BeFalse();
+        count = result3.ConsecutiveLowValueIterations;
 
-        var result4 = _diminishingReturns.CheckDiminishingReturns(veryLowConsumptions);
+        var result4 = _diminishingReturns.CheckDiminishingReturns(veryLowConsumptions, count);
         result4.IsDiminishing.Should().BeTrue();
     }
 

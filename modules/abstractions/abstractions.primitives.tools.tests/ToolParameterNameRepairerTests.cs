@@ -81,6 +81,34 @@ public sealed class ToolParameterNameRepairerTests {
     }
 
     [Fact]
+    public void RepairParameterNames_SubjectAliasMapsToTaskCreateTitle() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
+                ["title"] = new() { Type = "string" }
+            }
+        };
+        var arguments = new Dictionary<string, JsonElement> {
+            ["subject"] = JsonSerializer.SerializeToElement("修复登录流程")
+        };
+
+        var (repaired, modified, _) = ToolParameterNameRepairer.RepairParameterNames(arguments, schema);
+
+        Assert.True(modified);
+        Assert.Equal("修复登录流程", repaired["title"].GetString());
+        Assert.False(repaired.ContainsKey("subject"));
+    }
+
+    [Fact]
+    public void RepairNames_SubjectAliasDoesNotHijackToolsDeclaringSubject() {
+        // gh_pr_merge 等工具自身声明 subject；直接匹配优先，别名不得改写为 title。
+        var repaired = ToolParameterNameRepairer.RepairNames(
+            new Dictionary<string, string> { ["subject"] = "合并标题" }, ["subject", "body"]);
+
+        Assert.Equal("合并标题", repaired["subject"]);
+        Assert.False(repaired.ContainsKey("title"));
+    }
+
+    [Fact]
     public void DeclaredParameterNames_ReadsNamesFromToolDetailSection() {
         var names = CliNodeRunner.DeclaredParameterNames(HelpText, "read");
 

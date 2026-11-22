@@ -50,6 +50,9 @@ public static class ToolParameterNameRepairer {
         ["msg"] = "message",
         ["explanation_text"] = "explanation",
         ["desc"] = "description",
+        // TaskCreate: 基准/本仓旧提示词用 subject 表示标题，本仓 schema 规范名是 title。
+        // 对本就声明 subject 的工具不生效——TryMatchParameter 的直接匹配优先于别名。
+        ["subject"] = "title",
     }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

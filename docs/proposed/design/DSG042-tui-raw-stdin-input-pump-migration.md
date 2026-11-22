@@ -90,7 +90,7 @@ RawStdinPump（新：后台读线程 + 字节流 UTF-8 解码 + KeyPressParser �
 |-------|------|------|
 | P1 抽象收编 | ✅ 完成 — IInputPump + ReadKeyPump 搬入 + ReplShell 注入，1667 全绿零语义变化 | ce83f01e9 |
 | P2 RawStdinPump | ✅ 完成 — 全链（读线程/UTF-8 增量解码/解析/有界通道 256/非阻塞续投）+ 13 单测 + --raw-input 开关 + Host Dispose 收尾 | ce83f01e9 + 本批 |
-| P3 切默认退役 | ⬜ 未做 — 双终端实测矩阵（Windows Terminal/conhost）跑齐后切默认归档 ReadKey 状态机 | — |
+| P3 切默认退役 | 🟡 **部分完成 / 架构演进纠正（TASK121）**：Windows 默认 `RawStdinPump` 早在 `f8b07f5b9` 已切换；`ReadKeyPump` 零引用已归档；`ConsoleKeyAdapter` 仍有 3 个活消费点不可归档；双终端人工矩阵仍待用户实机验收 | `f8b07f5b9` + TASK121 |
 
 P2 实施中修的三个真 bug（用户点报自死锁后熔断定位）：
 1. 同线程自死锁 — FeedForTest 同步投递 + WriteAsync 满等待 + Drain 同线程互等（改纯非阻塞 TryWrite + 回退）

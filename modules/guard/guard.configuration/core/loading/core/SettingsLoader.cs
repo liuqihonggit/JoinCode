@@ -60,18 +60,6 @@ public static class SettingsLoader {
           "autoFetchModels": true,
           "current": {
             "profile": "test-provider",
-            "actor": {
-              "buildQueue": {
-                "mode": "serial",
-                "workerCount": 2
-              },
-              "backpressure": {
-                "codingAgentTask": { "capacity": 2000, "sendTimeoutSeconds": 30 },
-                "llmGateway": { "capacity": 200, "sendTimeoutSeconds": 60 },
-                "router": { "capacity": 1000, "sendTimeoutSeconds": 10 },
-                "build": { "capacity": 100, "sendTimeoutSeconds": 60 }
-              }
-            },
             "subAgentLiveness": {
               "agentTimeoutSeconds": 300,
               "idleThresholdSeconds": 30,
@@ -208,7 +196,6 @@ public static class SettingsLoader {
         var current = fullSettings.Current;
         return fileName switch {
             "subagent.json" => new CurrentSettings {
-                Actor = current?.Actor,
                 SubAgentLiveness = current?.SubAgentLiveness,
                 SubAgentConcurrency = current?.SubAgentConcurrency,
             },

@@ -175,12 +175,6 @@ public sealed record WorkflowConfig {
     public SubAgentLivenessOptions SubAgentLiveness { get; init; } = new();
 
     /// <summary>
-    /// Actor 模型统一配置 — 编译队列模式 + 背压预设(ADR 0074)
-    /// 从 settings.json 的 current.actor 节点加载,缺失时用默认值
-    /// </summary>
-    public ActorSettings Actor { get; init; } = new();
-
-    /// <summary>
     /// 沙箱配置 — 对齐基准 SandboxSettingsSchema（settings.json 的 current.sandbox 节点）
     /// 驱动 Bash/PowerShell 的每命令沙箱门控与权限免确认（见 SandboxConfig 注释）
     /// </summary>

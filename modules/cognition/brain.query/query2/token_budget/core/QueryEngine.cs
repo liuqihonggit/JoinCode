@@ -305,7 +305,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         ReasoningTokens = totalReasoning,
                     }
                     : null;
-                context.OutputChunks.Enqueue(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, totalTurns, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId, context.StructuredOutputFromTool));
+                // duration_api_ms 取 API 调用累计耗时（TASK103 #46）；墙上时间在日志里单独可见。
+                context.OutputChunks.Enqueue(BuildCompletionChunk(content, context.ApiDurationMs, context.TotalToolCalls, totalTurns, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId, context.StructuredOutputFromTool));
                 return;
             }
 
@@ -492,7 +493,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     /// 构建查询完成的 chunk — 纯函数（TASK031 阶段2.1 提取；TASK063 P7 补 usage 透传）
     /// </summary>
     /// <param name="content">完成内容</param>
-    /// <param name="elapsedMs">耗时毫秒</param>
+    /// <param name="elapsedMs">LLM API 调用累计耗时毫秒（duration_api_ms）</param>
     /// <param name="totalToolCalls">总工具调用次数</param>
     /// <param name="totalTurns">LLM 调用轮次数（对齐 ClaudeCode SDK num_turns 语义）</param>
     /// <param name="costUsd">USD 成本</param>
@@ -623,6 +624,10 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var lastFinishReason = (string?)null;
         string? streamModelId = null;
 
+        // TASK103 #46 — duration_api_ms 必须是 LLM API 调用累计耗时，不是整轮查询墙上时间。
+        // try/finally 保证提前 return（工具调用分支）与取消路径都计入本轮 API 耗时。
+        var apiStopwatch = Stopwatch.StartNew();
+        try {
         await foreach (var streamChunk in chatCompletionService.GetStreamEventContentsAsync(
             context.ChatHistory, executionSettings, _kernel, cancellationToken)) {
             cancellationToken.ThrowIfCancellationRequested();
@@ -700,6 +705,10 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     _logger?.LogWarning(ex, "[QueryEngine] Usage metadata 反序列化失败，跳过");
                 }
             }
+        }
+        } finally {
+            apiStopwatch.Stop();
+            context.ApiDurationMs += apiStopwatch.ElapsedMilliseconds;
         }
 
         // 协议层未识别工具调用 → 文本 fallback 解析（DSML/antml 等）

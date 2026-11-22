@@ -189,22 +189,14 @@ public partial class ShellToolHandlers : ShellToolBase {
     /// <summary>
     /// 获取后台任务输出
     /// </summary>
-    [McpTool(ShellToolNameEnumConstants.ShellBackgroundOutput, "Get output of a background shell task", "execution", ConcurrencySafe = true)]
+    [McpTool(ShellToolNameEnumConstants.ShellBackgroundOutput, "Get output of a background shell task. Blocks until the task finishes unless block=false; on timeout returns partial output plus retrieval_status without cancelling the task", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> ShellBackgroundOutputAsync(
         [McpToolParameter("Task ID")] string task_id,
+        [McpToolParameter("Wait for the task to finish before returning (optional, default true)", Required = false, DefaultValue = "true")] bool? block = null,
+        [McpToolParameter("Max wait in milliseconds when block=true (optional, default 30000, max 600000)", Required = false, DefaultValue = "30000")] int? timeout_ms = null,
         CancellationToken cancellationToken = default) {
         try {
-            if (string.IsNullOrWhiteSpace(task_id)) {
-                var diag = BuildEmptyTaskIdDiagnostic();
-                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
-            }
-
-            var output = await _registry.GetTaskOutputAsync(task_id, cancellationToken).ConfigureAwait(false);
-
-            if (string.IsNullOrEmpty(output))
-                return ToolResultBuilder.Success().WithText("(No output yet)").Build();
-
-            return ToolResultBuilder.Success().WithText(output).Build();
+            return await ReadBackgroundOutputAsync(_registry, task_id, block, timeout_ms, cancellationToken).ConfigureAwait(false);
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("shell_background_output", ex, _logger, "task_id", task_id ?? "(null)");
         }

@@ -14,16 +14,17 @@ TASK103 §2.3 的 #35–#41、#43、#44、#45a、#46、#47、#48、#49、#49a、
 - #45a `MAX_STRUCTURED_OUTPUT_RETRIES` 从注释承诺落为真实解析；
 - #46 `duration_api_ms` 改为 LLM API 累计耗时；
 - #50 团队记忆上传前密钥扫描门禁；
+- #45 `shell_background_output` 补 `block`/`timeout_ms` 与 `retrieval_status` 三态（超时不杀任务）；
 - #52 Windows 默认 `RawStdinPump` 事实纠正 + 零引用 `ReadKeyPump` 归档。
 
-本分支相对 `origin/w2` 领先 8 个提交，工作区干净。
+本分支已随 PR #718 合入 `main`（`eeb5a2f19`），工作区干净，`w2` 与 `main` 同步。
 
 ## 二、剩余事项总表
 
 | 编号 | 事项 | 规模 | 阻塞原因 | 建议顺序 |
 |------|------|------|----------|----------|
 | #52 | WT/conhost 双终端键位矩阵 | S/M | 需用户在真实终端逐项操作，自动化探针不能替代 | 1 |
-| #45 | `TaskOutput` block/timeout 等待语义 | M | 需先定挂哪个工具、默认是否阻塞、超时返回什么 | 2 |
+| ~~#45~~ | ~~`TaskOutput` block/timeout 等待语义~~ ✅ 已闭合（[TASK123](TASK123-TaskOutput等待语义-shell后台输出阻塞与超时.md)） | — | — | — |
 | #50 | 团队记忆写入前 `validateInput` 密钥拦截 | M | 需改工具写入层，当前只堵了出站 | 3 |
 | #46 | `permission_denials` 结构化收集 | M | 需改跨 slnx 引擎事件契约与各宿主适配 | 4 |
 | #42 | 查询期自动记忆召回（sideQuery） | L | 新行为：每回合 LLM + 附件通道 + 会话曝光状态 | 5 |
@@ -47,7 +48,11 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 
 **参考**：[TASK121](TASK121-DSG042-P3输入泵默认与退役复核.md)、`DSG042-tui-raw-stdin-input-pump-migration.md`。
 
-### #45 TaskOutput block/timeout 等待语义
+### #45 TaskOutput block/timeout 等待语义 — ✅ 已闭合 2026-11-23（[TASK123](TASK123-TaskOutput等待语义-shell后台输出阻塞与超时.md)）
+
+**已做**：`shell_background_output` 增 `block`（默认 true）/`timeout_ms`（默认 30000，上限 600000），
+返回 `retrieval_status=success|not_ready|timeout`；超时只结束等待窗口、不取消任务；任务不存在改诊断错误。
+`task_output`（todo 库）保持不动 —— 数据源不同域，不得混入后台进程语义。
 
 **现状**：基准 `TaskOutput` 读后台 shell 任务，`block` 默认 true、`timeout` 30s；
 本仓 `task_output` 读 todo 任务库，真正的后台 shell 输出是 `shell_background_output`；

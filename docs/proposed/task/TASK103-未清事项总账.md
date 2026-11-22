@@ -91,7 +91,7 @@
 | ~~48~~ | ~~TASK071-A2~~ | ~~remote 会话订阅端（CCR viewer）~~ — ✅ **判不适用/关闭 2026-11-22**：复核见 [TASK116](TASK116-remote会话订阅端-产品边界复核.md)。基准 `RemoteSessionManager.ts:49-61` 的 `viewerOnly` 明确"Used by `claude assistant`"（只读：不发 interrupt/不改标题/关重连超时），配套 SessionsWebSocket + 权限桥；本仓 worker 桥虽有 `orgUUID` 头（`BridgeApiClient.cs:255-256/347-348`）与 token 刷新，但 `viewerOnly`/`RemoteSessionManager`/`SessionsWebSocket` 全仓零产生点——worker 桥是"我的会话被远端控制"，viewer 是"我只看别人的会话"，属不同产品角色。零代码。 | TASK071 |
 | ~~49~~ | ~~TASK071-A3~~ | ~~直连服务器客户端（server 模式）~~ — ✅ **判不适用/关闭 2026-11-22**：复核见 [TASK117](TASK117-直连服务器客户端-产品边界复核.md)。基准 `createDirectConnectSession.ts:22-40` + `directConnectManager.ts:12-60` 是"服务端托管 agent"：POST /sessions 拿 wsUrl + Bearer WS 承载 SDKMessage/权限；本仓 bridge v2 是本机 Engine + SSE/POST `/worker/*`（`V2ReplBridgeTransport.cs:5-9`），`directConnect` 全仓零命中、`wsUrl` 仅命中自有 bridge URL 转换，协议与产品形态正交。零代码。 | TASK071 |
 | ~~49a~~ | ~~TASK071-A4~~ | ~~通用设置迁移框架（版本号 + 脚本目录）~~ — ✅ **框架已实现/关闭 2026-11-22（账实不符）**：复核见 [TASK118](TASK118-通用设置迁移框架复核.md)。`a01b9e4a6`（2026-11-18，TASK089-092）已落地 `ConfigMigrationRunner`（`ConfigMigrationRunner.cs:16-100`）：按 Version 升序、每步落 `config-migrations.json`、失败停驻不推进、要求幂等、显式登记 AOT 友好；`ConfigurationService.cs:75-86` 在读取前真实调用（非死代码）；`ConfigMigrationRunnerTests` 筛选 8/8 绿。与基准 11 个 JS 脚本只是载体差异（编译期登记 vs 脚本目录），再建脚本目录会造成"哪个版本是真的"双源，不做。 | TASK071 A类第4项 |
-| 50 | TASK071-A6 | 团队记忆密钥扫描（gitleaks 规则） | TASK071 |
+| ~~50~~ | ~~TASK071-A6~~ | ~~团队记忆密钥扫描（gitleaks 规则）~~ — ✅ **上传门禁补全/关闭 2026-11-22**：取证见 [TASK119](TASK119-团队记忆密钥扫描-取证与上传门禁.md)。规则库早已存在（`SecurityPatterns.cs:104-300` 内联 30+ gitleaks 规则，同基准无二进制/TOML），Git 提交与子代理 checkpoint 已消费；**真缺口是团队记忆上传链零扫描**。修：`SyncFileTransfer.PushToRemoteAsync` 读内容后先 `ScanForSecretMatches`，命中只记 ruleId、跳过本文件（不写远端索引/不发 Synced 事件），其余文件不受影响；写入前 validateInput 拦截仍属后续。验收：`SyncFileTransfer` 13/13 + Vault.Memdir 486/486，`Build-AllDomains -Changed` 2 项目 + CLI 全量重编 0 错误，真机 selftest EXIT=0，产物含 UTF-16 门禁文案。 | TASK071 |
 | 51 | TASK071-A7 | LocalAgentTask/主会话后台化任务类型 | TASK071 |
 | 52 | DSG042-P3 | RawStdinPump 切默认退役（双终端矩阵跑齐后） | TASK075 |
 
@@ -256,4 +256,4 @@
 - **#38 TASK071-B1 关闭（2026-11-22）**：无人值守自主裁决维持现状。基准 PascalCase 属实，但 TASK071 的三键查找链裁决已落地为 ToolAliasTable，两种命名功能等价；改名收益仅外观对齐、代价是全工具面破坏，不值。零代码。
 - **#39 TASK071-B4 关闭（2026-11-22）**：无人值守自主裁决移除死链。InjectHooksAsync 生产零调用、hook 定义无产生点，本仓插件 DI 模型无 manifest hook 概念；归档注入器与专属测试，E2E 测试收窄为纯命令生命周期。零功能损失（生产从未用过 hook 注入）。
 - **#40 TASK071-B5 取证（2026-11-22）**：裁决"专项设计，本轮不做"——真差异但属新行为（回合结束后台 LLM），非断链修复；本仓 pipeline/时间门/配置桥已就绪，启动条件三问见 TASK107。保留未划（真实待办，非不适用）。
-- 下一动作（2026-11-22 #49a 闭合后）：§2.3 按顺序推进 —— #35–#41/#43/#44/#45a/#46/#47/#48/#49/#49a 已闭合、#40/#42/#45 挂起待专项，下一项为 **#50 TASK071-A6 团队记忆密钥扫描（gitleaks 规则）**。
+- 下一动作（2026-11-22 #50 闭合后）：§2.3 按顺序推进 —— #35–#41/#43/#44/#45a/#46/#47/#48/#49/#49a/#50 已闭合、#40/#42/#45 挂起待专项，下一项为 **#51 TASK071-A7 LocalAgentTask/主会话后台化任务类型**。

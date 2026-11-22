@@ -160,8 +160,6 @@ consumers:
         priority: 300
       - id: sandbox-auto-allow-mw
         priority: 350
-      - id: auto-class-permission-mw
-        priority: 400
       - id: config-permission-mw
         priority: 500
       - id: web-fetch-permission-mw
@@ -176,6 +174,8 @@ consumers:
         priority: 1000
       - id: plan-mode-permission-mw
         priority: 1100
+      - id: auto-class-permission-mw
+        priority: 1150
       - id: default-permission-mw
         priority: 1200
 

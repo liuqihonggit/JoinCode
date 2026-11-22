@@ -11,6 +11,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
     private readonly ITelemetryService? _telemetryService;
     private readonly IToolPermissionManager _permissionManager;
     private readonly IPermissionConfirmationHandler? _confirmationHandler;
+    private readonly IPendingConfirmationQueue? _pendingConfirmations;
     private readonly ILogger<PermissionAwareToolExecutor> _logger;
     private readonly MiddlewarePipeline<ToolExecutionContext> _pipeline;
 
@@ -27,6 +28,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
     /// <param name="permissionManager">工具权限管理器，提供当前权限模式</param>
     /// <param name="telemetryService">可选遥测服务，用于记录工具执行跨度</param>
     /// <param name="confirmationHandler">可选权限确认处理器，用于处理待确认权限</param>
+    /// <param name="pendingConfirmations">可选待确认队列，登记在途确认事项供前台批量展示</param>
     /// <param name="logger">日志记录器</param>
     public PermissionAwareToolExecutor(
         IToolRegistry toolRegistry,
@@ -34,12 +36,14 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         IToolPermissionManager permissionManager,
         ITelemetryService? telemetryService = null,
         IPermissionConfirmationHandler? confirmationHandler = null,
+        IPendingConfirmationQueue? pendingConfirmations = null,
         ILogger<PermissionAwareToolExecutor>? logger = null) {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _permissionManager = permissionManager ?? throw new ArgumentNullException(nameof(permissionManager));
         _telemetryService = telemetryService;
         _confirmationHandler = confirmationHandler;
+        _pendingConfirmations = pendingConfirmations;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -164,6 +168,25 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         ToolExecutionEntity executionEntity,
         ToolExecutionContext context,
         CancellationToken cancellationToken) {
+        var prompt = context.PermissionConfirmationPrompt ?? "需要确认";
+
+        // 无人值守（含 autonomous 别名）没有宿主：只登记、立即 Defer，绝不等待前台。
+        // 不变量：后台任务不允许因权限确认而阻塞，也不允许弹模态框。
+        if (currentMode == PermissionMode.Unattended) {
+            var deferredTicket = _pendingConfirmations?.Enqueue(SubAgentContext.Current?.AgentId, toolName, prompt, arguments);
+            ResolvePendingTicket(deferredTicket, PendingConfirmationDecision.Defer);
+
+            _logger.LogWarning("无人值守模式登记待确认并拒绝本轮执行: {ToolName}", toolName);
+            var deferredError = ToolErrorJsonBuilder.ToToolResult(
+                ToolErrorType.PermissionRequired,
+                $"工具 '{toolName}' 需要确认，但当前是无人值守/后台执行：已登记待确认事项，本轮不执行。请在前台回合确认后在交互模式下重试。",
+                toolName,
+                ToolErrorCode.PermissionRequiredNoHandler);
+            CompleteExecutionEntity(context);
+            RaiseToolExecutionCompleted(toolName, deferredError, arguments);
+            return deferredError;
+        }
+
         if (_confirmationHandler is null) {
             _logger.LogWarning("无确认处理器,工具权限待确认作为拒绝返回: {ToolName}", toolName);
             var noHandlerError = context.Result ?? ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionRequired, $"工具 '{toolName}' 需要确认但无确认处理器", toolName, ToolErrorCode.PermissionRequiredNoHandler);
@@ -172,11 +195,22 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             return noHandlerError;
         }
 
-        var prompt = context.PermissionConfirmationPrompt ?? "需要确认";
+        var pendingTicket = _pendingConfirmations?.Enqueue(SubAgentContext.Current?.AgentId, toolName, prompt, arguments);
         // TASK069-P5 — 带上触发原因规则内容（当前仅 WebFetch 的 domain:hostname 有结构化来源），
         // 供对话框渲染「触发原因 + /permissions 引导」；无来源时为 null，渲染层整区折叠
-        var confirmResult = await _confirmationHandler.ConfirmAsync(toolName, prompt, context.PermissionRuleContent, cancellationToken).ConfigureAwait(false);
+        PermissionConfirmResult confirmResult;
+        try {
+            confirmResult = await _confirmationHandler.ConfirmAsync(toolName, prompt, context.PermissionRuleContent, cancellationToken).ConfigureAwait(false);
+        } catch {
+            ResolvePendingTicket(pendingTicket, PendingConfirmationDecision.Defer);
+            throw;
+        }
+
         var action = confirmResult.Action;
+        ResolvePendingTicket(pendingTicket, action switch {
+            PermissionConfirmAction.Allow or PermissionConfirmAction.AlwaysAllow => PendingConfirmationDecision.Approve,
+            _ => PendingConfirmationDecision.Deny
+        });
 
         if (action != PermissionConfirmAction.Allow && action != PermissionConfirmAction.AlwaysAllow) {
             _logger.LogWarning("用户拒绝工具执行: {ToolName}", toolName);
@@ -229,6 +263,14 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         CompleteExecutionEntity(retryContext);
         RaiseToolExecutionCompleted(toolName, retryNoResultError, arguments);
         return retryNoResultError;
+    }
+
+    /// <summary>结算待确认票据 — 无队列/无票据时静默跳过；票据只结算一次。</summary>
+    private void ResolvePendingTicket(PendingConfirmationItem? ticket, PendingConfirmationDecision decision) {
+        if (ticket is null || _pendingConfirmations is null)
+            return;
+
+        _pendingConfirmations.TryResolve(ticket.Id, decision);
     }
 
     /// <summary>

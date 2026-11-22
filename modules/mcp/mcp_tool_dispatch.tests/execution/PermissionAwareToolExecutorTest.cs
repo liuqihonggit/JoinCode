@@ -197,8 +197,47 @@ public class PermissionAwareToolExecutorTest {
     }
 
     [Fact]
-    public async Task HandlePendingConfirmation_UserDenies_ReturnsDeniedError() {
+    public async Task HandlePendingConfirmation_Unattended_DoesNotAskOrBlock_AndRegistersDeferredTicket() {
         var handler = CreateStubHandler();
+        var confirmHandler = new Mock<IPermissionConfirmationHandler>();
+        await using var pending = new PendingConfirmationQueue();
+
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler), CreatePipeline(new AlwaysPendingMiddleware()),
+            CreatePermissionManager(PermissionMode.Unattended), confirmationHandler: confirmHandler.Object,
+            pendingConfirmations: pending, logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        var result = await executor.ExecuteAsync("test_tool", []);
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("无人值守");
+        confirmHandler.Verify(
+            c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never, "后台没有宿主，不允许弹确认框");
+        pending.HasPending.Should().BeFalse("票据登记后立即 Defer，不能留在队列里等待");
+    }
+
+    [Fact]
+    public async Task HandlePendingConfirmation_Foreground_RegistersTicketAndResolvesAfterAnswer() {
+        var handler = CreateStubHandler();
+        var confirmHandler = new Mock<IPermissionConfirmationHandler>();
+        confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Allow));
+        await using var pending = new PendingConfirmationQueue();
+
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler), CreatePipeline(new PendingThenSuccessMiddleware()),
+            CreatePermissionManager(PermissionMode.Auto), confirmationHandler: confirmHandler.Object,
+            pendingConfirmations: pending, logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        var result = await executor.ExecuteAsync("test_tool", []);
+
+        result.IsError.Should().BeFalse();
+        pending.HasPending.Should().BeFalse("用户回答后票据必须结算，不能残留");
+    }
+
+    [Fact]
+    public async Task HandlePendingConfirmation_UserDenies_ReturnsDeniedError() {        var handler = CreateStubHandler();
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();
         confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(PermissionConfirmResult.Of(PermissionConfirmAction.Deny));

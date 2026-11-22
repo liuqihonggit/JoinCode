@@ -5,16 +5,12 @@ namespace Core.Query.BudgetAnalysis;
 /// </summary>
 public interface IDiminishingReturnsDetector {
     /// <summary>
-    /// 检测最近的 Token 消耗序列是否存在递减回报
+    /// 检测最近的 Token 消耗序列是否存在递减回报（无状态：连续计数由调用方按查询上下文持有）
     /// </summary>
     /// <param name="recentConsumptions">最近的 Token 消耗记录</param>
-    /// <returns>检测结果</returns>
-    DiminishingReturnsResult CheckDiminishingReturns(IReadOnlyList<TokenConsumption> recentConsumptions);
-
-    /// <summary>
-    /// 重置检测器状态 — 清零连续低效计数
-    /// </summary>
-    void Reset();
+    /// <param name="consecutiveLowValueCount">本次调用前已累计的连续低效次数</param>
+    /// <returns>检测结果（ConsecutiveLowValueIterations 为本次调用后的累计值）</returns>
+    DiminishingReturnsResult CheckDiminishingReturns(IReadOnlyList<TokenConsumption> recentConsumptions, int consecutiveLowValueCount);
 }
 
 /// <summary>
@@ -43,7 +39,9 @@ public sealed class DiminishingReturnsResult {
 }
 
 /// <summary>
-/// 递减回报检测器实现 — 基于 Token 增长率连续低效计数判定
+/// 递减回报检测器实现 — 基于 Token 增长率连续低效计数判定。
+/// 无状态：IQueryEngine/中间件均为 Singleton，fork 子代理可并发查询；若把连续计数放在检测器字段上，
+/// 一条查询的 Reset 会清掉另一条的计数，造成跨查询污染。计数改由每次调用显式传入/返回。
 /// </summary>
 [Register(typeof(IDiminishingReturnsDetector), ServiceLifetime.Singleton)]
 public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminishingReturnsDetector {
@@ -51,7 +49,6 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
     private const int ConsecutiveThreshold = 3;
     private const int MinimumSampleSize = 2;
 
-    private int _consecutiveLowValueCount;
     private readonly ITelemetryService? _telemetryService;
 
     /// <summary>
@@ -66,15 +63,16 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
     /// 检测最近的 Token 消耗序列是否存在递减回报
     /// </summary>
     /// <param name="recentConsumptions">最近的 Token 消耗记录</param>
+    /// <param name="consecutiveLowValueCount">本次调用前已累计的连续低效次数</param>
     /// <returns>检测结果</returns>
-    public DiminishingReturnsResult CheckDiminishingReturns(IReadOnlyList<TokenConsumption> recentConsumptions) {
+    public DiminishingReturnsResult CheckDiminishingReturns(IReadOnlyList<TokenConsumption> recentConsumptions, int consecutiveLowValueCount) {
         ArgumentNullException.ThrowIfNull(recentConsumptions);
 
         if (recentConsumptions.Count < MinimumSampleSize) {
             return new DiminishingReturnsResult {
                 IsDiminishing = false,
                 EffectivenessRatio = 1.0,
-                ConsecutiveLowValueIterations = 0
+                ConsecutiveLowValueIterations = consecutiveLowValueCount
             };
         }
 
@@ -95,21 +93,12 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
             return new DiminishingReturnsResult {
                 IsDiminishing = false,
                 EffectivenessRatio = 1.0,
-                ConsecutiveLowValueIterations = 0
+                ConsecutiveLowValueIterations = consecutiveLowValueCount
             };
         }
 
         var averageRatio = ratios.Average();
-
-        int consecutiveCount;
-        while (true) {
-            var oldCount = Volatile.Read(ref _consecutiveLowValueCount);
-            var newCount = averageRatio < LowValueThreshold ? oldCount + 1 : 0;
-            if (Interlocked.CompareExchange(ref _consecutiveLowValueCount, newCount, oldCount) == oldCount) {
-                consecutiveCount = newCount;
-                break;
-            }
-        }
+        var consecutiveCount = averageRatio < LowValueThreshold ? consecutiveLowValueCount + 1 : 0;
 
         var isDiminishing = consecutiveCount >= ConsecutiveThreshold;
         var recommendation = isDiminishing switch {
@@ -127,13 +116,6 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
             Recommendation = recommendation,
             ConsecutiveLowValueIterations = consecutiveCount
         };
-    }
-
-    /// <summary>
-    /// 重置检测器状态 — 清零连续低效计数
-    /// </summary>
-    public void Reset() {
-        Interlocked.Exchange(ref _consecutiveLowValueCount, 0);
     }
 
     /// <inheritdoc />

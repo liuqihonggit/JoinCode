@@ -29,9 +29,8 @@ public sealed partial class DiminishingReturnsMiddleware : ServiceEntity, IQuery
     /// <returns>表示异步操作的任务</returns>
     public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct) {
         if (_detector is not null) {
-            // TASK071 query2-⑤ — 每查询 Reset（Detector 为 DI Singleton，旧无重置 → 连续低增长计数跨查询/
-            // 跨会话泄漏，把首查询的疲惫误判到后续查询上）
-            _detector.Reset();
+            // TASK103 #41 — 计数归查询上下文所有（Detector/中间件均为 Singleton，fork 子代理并发查询时
+            // 共享字段会被另一条查询的 Reset/自增污染）；上下文每查询新建，天然隔离，无需 Reset。
             context.AfterToolCallHooks.Add(CheckDiminishingReturnsAsync);
         }
 
@@ -41,7 +40,8 @@ public sealed partial class DiminishingReturnsMiddleware : ServiceEntity, IQuery
     private Task CheckDiminishingReturnsAsync(QueryMiddlewareContext context, CancellationToken ct) {
         var detector = _detector ?? throw new InvalidOperationException("DiminishingReturnsDetector not available.");
         if (context.RecentConsumptions.Count >= 3) {
-            var result = detector.CheckDiminishingReturns(context.RecentConsumptions);
+            var result = detector.CheckDiminishingReturns(context.RecentConsumptions, context.DiminishingLowValueIterations);
+            context.DiminishingLowValueIterations = result.ConsecutiveLowValueIterations;
             if (result.IsDiminishing) {
                 context.Logger?.LogWarning("[QueryEngine] 检测到递减回报: {Recommendation}", result.Recommendation);
                 context.OutputChunks.Enqueue(new QueryStreamChunk { Type = AgentStreamChunkType.Content, Content = $"⚠️ {result.Recommendation}" });

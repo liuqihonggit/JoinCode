@@ -62,6 +62,11 @@ public sealed class QueryMiddlewareContext {
     public List<TokenConsumption> RecentConsumptions { get; } = [];
 
     /// <summary>
+    /// 递减回报连续低效计数 — 每查询上下文独立持有，避免 Singleton 检测器在 fork 并发查询间串状态。
+    /// </summary>
+    public int DiminishingLowValueIterations { get; set; }
+
+    /// <summary>
     /// 当前迭代的输入 Token 数（由核心引擎设置）
     /// </summary>
     public int InputTokens { get; set; }

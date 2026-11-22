@@ -43,7 +43,6 @@ public sealed partial class SettingsMapper : ServiceEntity {
         config = ApplyToolScoreSettings(config, settings);
         config = ApplySubAgentConcurrencySettings(config, settings);
         config = ApplySubAgentLivenessSettings(config, settings);
-        config = ApplyActorSettings(config, settings);
 
         return config;
     }
@@ -409,42 +408,6 @@ public sealed partial class SettingsMapper : ServiceEntity {
                 PreemptMinWindowRatio = sub.PreemptMinWindowRatio,
                 ActivationRecoverySeconds = sub.ActivationRecoverySeconds
             }
-        };
-    }
-
-    /// <summary>
-    /// 映射 Actor 模型配置 — 编译队列模式 + 背压预设(ADR 0074)
-    /// 缺失时用默认值(串行模式 + 四档预设),不抛异常。
-    /// </summary>
-    private static WorkflowConfig ApplyActorSettings(WorkflowConfig config, SettingsJson? settings) {
-        var actor = settings?.Current?.Actor;
-        if (actor is null) return config;
-
-        var buildQueue = config.Actor.BuildQueue with {
-            Mode = actor.BuildQueue.Mode,
-            WorkerCount = actor.BuildQueue.WorkerCount,
-            CrossProcessLockPath = actor.BuildQueue.CrossProcessLockPath
-        };
-
-        var bp = config.Actor.Backpressure;
-        var newBp = bp with {
-            CodingAgentTask = CopyPreset(bp.CodingAgentTask, actor.Backpressure.CodingAgentTask),
-            LlmGateway = CopyPreset(bp.LlmGateway, actor.Backpressure.LlmGateway),
-            Router = CopyPreset(bp.Router, actor.Backpressure.Router),
-            Build = CopyPreset(bp.Build, actor.Backpressure.Build)
-        };
-
-        var newActor = config.Actor with { BuildQueue = buildQueue, Backpressure = newBp };
-        newActor.Validate();
-        return config with { Actor = newActor };
-    }
-
-    private static BackpressurePreset CopyPreset(BackpressurePreset target, BackpressurePreset source) {
-        return target with {
-            Capacity = source.Capacity,
-            HighWatermark = source.HighWatermark,
-            CriticalWatermark = source.CriticalWatermark,
-            SendTimeoutSeconds = source.SendTimeoutSeconds
         };
     }
 

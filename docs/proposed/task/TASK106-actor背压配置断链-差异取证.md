@@ -1,6 +1,6 @@
 # TASK106 — actor 背压配置断链（TASK103 §2.3 #37 取证）
 
-> 状态：**取证完成 — 待用户裁决** · 日期 2026-11-22 · 总账编号：TASK103 §2.3 **#37 / TASK068-C3**
+> 状态：**已裁决 A — 整个 actor 节点删除，已实施 2026-11-22** · 日期 2026-11-22 · 总账编号：TASK103 §2.3 **#37 / TASK068-C3**
 > 基准树：`D:\project\claude-code-rust\claude-code-rev-main\src`
 > 本仓库：`D:\project\w2`
 
@@ -68,3 +68,20 @@
 - **选项 C（保留现状，登记已知断链）**：不动代码，总账保留为「已知但未做」，等以后真有用户调背压需求再做。零改动，但留着一个"写了不生效"的配置坑。
 
 > 未裁决前不改生产代码。
+
+
+---
+
+## 5. 裁决与实施记录（2026-11-22）
+
+**用户裁决**：选项 A「删映射回归设计」，并追加确认「整个 actor 节点全删」（因取证发现 buildQueue 也是零消费断链，留一半等于留第二个撒谎配置）。
+
+**实施**：
+- 归档（不删除）：`ActorSettings.cs`、`ActorSettingsTest.cs` → `.xxx/actor_config_removed_20261122233037/`
+- 生产代码：`WorkflowConfig.Actor` / `SettingsJson.Actor` / `SettingsMapper.ApplyActorSettings`+`CopyPreset` / `SettingsLoader` 骨架 actor 段与 `ExtractCurrentPartial.Actor` / 模板 `actor:null` 全部移除
+- 测试：`SettingsLoaderTests` 的 actor 断言与整个 actor 测试方法移除
+- **生产行为不变**：`ActorBackpressure` 静态四档（ADR 0074 设计）原样保留，所有 Actor 子类的背压来源不变
+
+**验收**：Guard.Config 1353 / AsyncLock 546 全绿；solution + native_tui + native_gui 全量编译单线程 0 错误；真机 `--selftest-tui` EXIT=0；`JoinCode.Guard.Configuration.dll` 无 `ActorSettings`/`BackpressureSettings`/`ApplyActorSettings` 符号。
+
+**环境注**：并发全量编译曾触发工具进程 STATUS_ACCESS_VIOLATION（CsWinRT 生成步）与未 restore 项目 NETSDK1004，均环境问题；`-m:1` 单线程 + restore 后全绿，与本次删除无关。

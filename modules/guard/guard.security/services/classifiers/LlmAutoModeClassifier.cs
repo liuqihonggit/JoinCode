@@ -27,6 +27,9 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         "file_path", "path", "url", "query", "pattern", "description", "name", "target", "action"
     ];
 
+    /// <summary>单个摘要字段的最大长度 — 防止超长路径/描述把判定通道提示词撑爆。</summary>
+    private const int MaxOperationFieldLength = 256;
+
     /// <summary>
     /// 判定用系统提示词 — 固定边界：AI 不能推翻硬规则，不能执行工具，只能给判定。
     /// </summary>
@@ -196,7 +199,8 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
                 value.GetString() is not { Length: > 0 } text) {
                 continue;
             }
-            parts.Add($"{key}: {text}");
+            var bounded = text.Length > MaxOperationFieldLength ? text[..MaxOperationFieldLength] : text;
+            parts.Add($"{key}: {bounded}");
         }
 
         return parts.Count > 0 ? string.Join("\n", parts) : request.ToolName;

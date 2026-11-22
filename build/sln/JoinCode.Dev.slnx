@@ -50,6 +50,7 @@
   </Folder>
   <Folder Name="/infrastructure/">
     <Project Path="../../modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure_cache/Infrastructure.Cache.csproj" />
     <Project Path="../../modules/async_primitives/transport_impl/Transport.Impl.csproj" />
     <Project Path="../../modules/async_primitives/transport_impl_tests/Transport.Impl.Tests.csproj" />
   </Folder>

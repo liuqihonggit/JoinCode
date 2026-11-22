@@ -57,6 +57,7 @@
   </Folder>
   <Folder Name="/infrastructure/">
     <Project Path="../../modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure_cache/Infrastructure.Cache.csproj" />
     <Project Path="../../modules/abstractions/infrastructure_hot_spot/Infrastructure.HotSpot.csproj" />
     <Project Path="../../modules/abstractions/infrastructure_localization/Infrastructure.Localization.csproj" />
     <Project Path="../../modules/abstractions/infrastructure_telemetry/Infrastructure.Telemetry.csproj" />

@@ -43,6 +43,7 @@
 | [Abstractions.Exceptions](exceptions/Abstractions.Exceptions.csproj) |  |
 | [Abstractions.Guard](guard/Abstractions.Guard.csproj) |  |
 | [Abstractions.Hands](hands/Abstractions.Hands.csproj) |  |
+| [Infrastructure.Cache](infrastructure_cache/Infrastructure.Cache.csproj) |  |
 | [Infrastructure.Configuration](infrastructure_configuration/Infrastructure.Configuration.csproj) |  |
 | [Infrastructure.HotSpot](infrastructure_hot_spot/Infrastructure.HotSpot.csproj) |  |
 | [Infrastructure.Http](infrastructure_http/Infrastructure.Http.csproj) |  |

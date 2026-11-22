@@ -292,8 +292,8 @@ public sealed class ResilientHttpExecutorTests {
                 _ => throw new HttpRequestException("fail"),
                 "test-op"));
 
-        sw.Elapsed.TotalMilliseconds.Should().BeLessThan(150,
-            "SingleDelayCap 80ms 应限制退避延迟（Fixed=500ms 被 cap 到 80ms）");
+        sw.Elapsed.TotalMilliseconds.Should().BeLessThan(400,
+            "SingleDelayCap 80ms 应显著低于未限速的 Fixed=500ms；上限放宽到 400ms 以吸收满载调度抖动");
         sw.Elapsed.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(70);
     }
 

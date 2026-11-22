@@ -231,6 +231,106 @@ public sealed class SandboxToggleCommandTest {
     }
 
     [Fact]
+    public async Task Execute_EmptyArgs_ShowsSettingsMenu() {
+        var (cmd, _, _, context, _) = Arrange();
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("沙箱设置（settings.json current.sandbox）");
+        output.Should().Contain("enabled=");
+        output.Should().Contain("autoAllowBashIfSandboxed=");
+        output.Should().Contain("/sandbox-toggle help");
+    }
+
+    [Fact]
+    public async Task Execute_Help_ShowsAllSubcommands() {
+        var (cmd, _, _, context, _) = Arrange(arguments: "help");
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("status");
+        output.Should().Contain("on|enable");
+        output.Should().Contain("off|disable");
+        output.Should().Contain("exclude");
+        output.Should().Contain("switch <type>");
+    }
+
+    [Fact]
+    public async Task Execute_OnHelp_ShowsHelpAndDoesNotEnter() {
+        var (cmd, manager, _, context, _) = Arrange(arguments: "on --help");
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("用法: /sandbox-toggle <子命令>");
+        manager.Verify(m => m.EnterSandboxAsync(It.IsAny<SandboxOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Execute_UnknownSubcommand_ShowsErrorAndHelp() {
+        var (cmd, manager, _, context, _) = Arrange(arguments: "bogus");
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("未知沙箱子命令: bogus");
+        output.Should().Contain("用法: /sandbox-toggle <子命令>");
+        manager.Verify(m => m.EnterSandboxAsync(It.IsAny<SandboxOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Execute_On_PolicyLocked_DoesNotEnterOrWrite() {
+        var cfg = new WorkflowConfig {
+            SandboxPolicy = new SandboxPolicyConfig {
+                Locked = true,
+                LockedKeys = [SandboxPolicyResolver.KeyEnabled, SandboxPolicyResolver.KeyAutoAllow],
+            },
+        };
+        var configMock = new Mock<IConfigurationService>();
+        var (cmd, manager, _, context, _) = Arrange(arguments: "on", workflowConfig: cfg, configOverride: configMock);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("企业策略锁定");
+        output.Should().Contain(SandboxPolicyResolver.KeyEnabled);
+        manager.Verify(m => m.EnterSandboxAsync(It.IsAny<SandboxOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+        configMock.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Execute_Off_PolicyLocked_DoesNotExitOrWrite() {
+        var cfg = new WorkflowConfig {
+            SandboxPolicy = new SandboxPolicyConfig { Locked = true, LockedKeys = [SandboxPolicyResolver.KeyAllowUnsandboxed] },
+        };
+        var configMock = new Mock<IConfigurationService>();
+        var (cmd, manager, _, context, _) = Arrange(arguments: "off", workflowConfig: cfg, configOverride: configMock);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("企业策略锁定");
+        manager.Verify(m => m.ExitSandboxAsync(It.IsAny<CancellationToken>()), Times.Never);
+        configMock.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Execute_SwitchWithType_PolicyLocked_DoesNotSwitch() {
+        var cfg = new WorkflowConfig {
+            SandboxPolicy = new SandboxPolicyConfig { Locked = true, LockedKeys = [SandboxPolicyResolver.KeyEnabled] },
+        };
+        var (cmd, manager, _, context, _) = Arrange(arguments: "switch docker", workflowConfig: cfg);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("企业策略锁定");
+        manager.Verify(m => m.SwitchProviderAsync(It.IsAny<SandboxType>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task PersistSandboxEnabled_WritesRegisteredSettingsKey() {
         var config = new Mock<IConfigurationService>();
         config.Setup(c => c.SetAsync(ConfigKeys.SandboxEnabled, "true", It.IsAny<CancellationToken>()))

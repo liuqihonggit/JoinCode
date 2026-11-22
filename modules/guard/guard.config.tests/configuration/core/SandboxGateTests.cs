@@ -134,9 +134,16 @@ public class SandboxGateTests {
     [InlineData("linux", new[] { "linux" }, true)]
     [InlineData("linux", new string[0], true)]
     [InlineData("windows", new[] { "linux" }, false)]
-    [InlineData("windows", new[] { "linux", "windows" }, true)]
+    [InlineData("windows", new[] { "linux", "windows" }, false)]
     [InlineData("macos", new[] { "LINUX" }, false)]
+    [InlineData("macos", new[] { "macos" }, false)]
     public void Given_平台清单_When_ResolvePlatformSupport_Then_按清单判定(string platform, string[] enabledPlatforms, bool expected) {
         SandboxGate.IsPlatformSupported(platform, enabledPlatforms).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Given_Windows即使白名单包含_When_ResolvePlatformSupport_Then_仍不支持() {
+        SandboxGate.IsPlatformSupported(SandboxGate.PlatformWindows, ["windows"]).Should()
+            .BeFalse("enabledPlatforms 只是企业白名单，Windows 没有原生沙箱实现");
     }
 }

@@ -35,43 +35,49 @@ public class ShellSandboxPolicyTest {
 
     [Fact]
     public void Given_启用且条件满足_When_Resolve_Then_不走绕过() {
-        ShellSandboxPolicy.ResolveDisableSandbox("ls -la", false, Config(enabled: true), new FakeSandboxManager())
+        ShellSandboxPolicy.ResolveDisableSandbox("ls -la", false, Config(enabled: true), new FakeSandboxManager(), platform: "linux")
             .Should().BeFalse();
     }
 
     [Fact]
     public void Given_启用且逃生阀允许_When_Resolve_Then_绕过() {
-        ShellSandboxPolicy.ResolveDisableSandbox("ls", true, Config(enabled: true, allowUnsandboxed: true), new FakeSandboxManager())
+        ShellSandboxPolicy.ResolveDisableSandbox("ls", true, Config(enabled: true, allowUnsandboxed: true), new FakeSandboxManager(), platform: "linux")
             .Should().BeTrue();
     }
 
     [Fact]
     public void Given_启用且策略禁止逃生阀_When_Resolve_Then_忽略参数() {
-        ShellSandboxPolicy.ResolveDisableSandbox("ls", true, Config(enabled: true, allowUnsandboxed: false), new FakeSandboxManager())
+        ShellSandboxPolicy.ResolveDisableSandbox("ls", true, Config(enabled: true, allowUnsandboxed: false), new FakeSandboxManager(), platform: "linux")
             .Should().BeFalse("allowUnsandboxedCommands=false 时 dangerously_disable_sandbox 必须被忽略");
     }
 
     [Fact]
     public void Given_排除清单命中_When_Resolve_Then_绕过() {
-        ShellSandboxPolicy.ResolveDisableSandbox("docker ps", false, Config(enabled: true, excluded: ["docker:*"]), new FakeSandboxManager())
+        ShellSandboxPolicy.ResolveDisableSandbox("docker ps", false, Config(enabled: true, excluded: ["docker:*"]), new FakeSandboxManager(), platform: "linux")
             .Should().BeTrue();
     }
 
     [Fact]
     public void Given_无可用提供器_When_Resolve_Then_绕过() {
-        ShellSandboxPolicy.ResolveDisableSandbox("ls", false, Config(enabled: true), new FakeSandboxManager { AvailableTypes = [] })
+        ShellSandboxPolicy.ResolveDisableSandbox("ls", false, Config(enabled: true), new FakeSandboxManager { AvailableTypes = [] }, platform: "linux")
             .Should().BeTrue("没有任何提供器时不能假装在沙箱里执行");
     }
 
     [Fact]
     public void Given_平台不在白名单_When_Resolve_Then_绕过() {
-        ShellSandboxPolicy.ResolveDisableSandbox("ls", false, Config(enabled: true, platforms: ["plan9"]), new FakeSandboxManager())
+        ShellSandboxPolicy.ResolveDisableSandbox("ls", false, Config(enabled: true, platforms: ["plan9"]), new FakeSandboxManager(), platform: "linux")
             .Should().BeTrue("enabledPlatforms 不含当前平台时不进沙箱");
     }
 
     [Fact]
+    public void Given_Windows平台_When_Resolve_Then_绕过() {
+        ShellSandboxPolicy.ResolveDisableSandbox("ls", false, Config(enabled: true), new FakeSandboxManager(), platform: "windows")
+            .Should().BeTrue("Windows 没有原生沙箱实现，即使 sandbox.enabled=true 也不能假装已沙箱");
+    }
+
+    [Fact]
     public void Given_启用且未进入会话沙箱_When_Resolve_Then_命令被逐命令包装() {
-        var decision = ShellSandboxPolicy.Resolve("ls -la", false, Config(enabled: true), new FakeSandboxManager(), "/tmp/work");
+        var decision = ShellSandboxPolicy.Resolve("ls -la", false, Config(enabled: true), new FakeSandboxManager(), "/tmp/work", platform: "linux");
 
         decision.DisableSandbox.Should().BeFalse();
         decision.Command.Should().StartWith("bwrap ");
@@ -82,7 +88,7 @@ public class ShellSandboxPolicyTest {
     public async Task Given_已进入会话沙箱_When_Resolve_Then_不重复包装() {
         await using var manager = new FakeSandboxManager { InSandbox = true };
 
-        var decision = ShellSandboxPolicy.Resolve("ls", false, Config(enabled: true), manager, null);
+        var decision = ShellSandboxPolicy.Resolve("ls", false, Config(enabled: true), manager, null, platform: "linux");
 
         decision.DisableSandbox.Should().BeFalse();
         decision.Command.Should().Be("ls");
@@ -93,7 +99,7 @@ public class ShellSandboxPolicyTest {
     public async Task Given_提供器不支持逐命令包装_When_Resolve_Then_显式降级并告警() {
         await using var manager = new FakeSandboxManager { SupportsWrap = false };
 
-        var decision = ShellSandboxPolicy.Resolve("ls", false, Config(enabled: true), manager, null);
+        var decision = ShellSandboxPolicy.Resolve("ls", false, Config(enabled: true), manager, null, platform: "linux");
 
         decision.DisableSandbox.Should().BeTrue("拿不到包装命令时不能假装已沙箱");
         decision.WrapWarning.Should().Contain("不沙箱执行");
@@ -113,7 +119,7 @@ public class ShellSandboxPolicyTest {
             },
         };
 
-        _ = ShellSandboxPolicy.Resolve("ls", false, config, manager, "/tmp/work");
+        _ = ShellSandboxPolicy.Resolve("ls", false, config, manager, "/tmp/work", platform: "linux");
 
         var captured = manager.LastRequest;
         if (captured is null) {

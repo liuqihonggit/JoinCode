@@ -59,8 +59,8 @@ public class SandboxAutoAllowMiddlewareTest {
         m => m.IsInSandbox && !m.CanWrapCommand && m.ActiveProvider == PathOnlyProvider);
 
     private static async Task<(SandboxAutoAllowMiddleware Middleware, PermissionCheckContext Context, bool NextCalled)> InvokeAsync(
-        SandboxConfig config, PermissionCheckContext context, ISandboxManager? manager) {
-        var middleware = new SandboxAutoAllowMiddleware(new WorkflowConfig { Sandbox = config }, manager);
+        SandboxConfig config, PermissionCheckContext context, ISandboxManager? manager, string platform = "linux") {
+        var middleware = new SandboxAutoAllowMiddleware(new WorkflowConfig { Sandbox = config }, manager, platform);
         var nextCalled = false;
         await middleware.InvokeAsync(context, (_, _) => {
             nextCalled = true;
@@ -169,6 +169,15 @@ public class SandboxAutoAllowMiddlewareTest {
         var (_, ctx, nextCalled) = await InvokeAsync(EnabledConfig(), context, manager: null);
 
         nextCalled.Should().BeTrue();
+        ctx.Result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Given_Windows平台_When_Invoke_Then_不免确认() {
+        var context = CreateContext();
+        var (_, ctx, nextCalled) = await InvokeAsync(EnabledConfig(), context, RealIsolationManager, platform: "windows");
+
+        nextCalled.Should().BeTrue("Windows 没有原生沙箱实现，即使白名单允许也不能给免确认");
         ctx.Result.Should().BeNull();
     }
 

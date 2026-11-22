@@ -103,6 +103,24 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
+    public async Task LoadConfig_ManagedSettings_AppliesPolicyLockAndManagedLists() {
+        var managedPath = Path.Combine(_tempAppDataDir, "managed-settings.json");
+        _ = _fs.WriteAllText(managedPath, """
+        {"current":{"sandbox":{"enabled":true,"autoAllowBashIfSandboxed":false,"network":{"allowManagedDomainsOnly":true,"allowedDomains":["policy.example"]},"filesystem":{"allowManagedReadPathsOnly":true,"allowRead":["/policy/read"]}}}}
+        """);
+        Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, "sk-test-managed-policy");
+
+        var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
+
+        config.SandboxPolicy.Locked.Should().BeTrue("policy 显式定义 enabled/autoAllowBashIfSandboxed，必须锁本地 /sandbox 修改");
+        config.SandboxPolicy.LockedKeys.Should().Contain(SandboxPolicyResolver.KeyEnabled)
+            .And.Contain(SandboxPolicyResolver.KeyAutoAllow);
+        config.Sandbox.Enabled.Should().BeTrue("policy 的 enabled=true 参与 5 源合并");
+        config.Sandbox.Network.AllowedDomains.Should().Equal(["policy.example"], "allowManagedDomainsOnly 只认 policy 源");
+        config.Sandbox.Filesystem.AllowRead.Should().Equal(["/policy/read"], "allowManagedReadPathsOnly 只认 policy 源");
+    }
+
+    [Fact]
     public async Task LoadConfig_DebugLogAbsentOrFalse_DiagUnchanged() {
         Diag.ResetRuntimeDebugLogForTest();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, "sk-test-debuglog-key");

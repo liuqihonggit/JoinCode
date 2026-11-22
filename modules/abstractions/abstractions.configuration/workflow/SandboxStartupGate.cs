@@ -24,13 +24,15 @@ public static class SandboxStartupGate {
     /// 评估启动期沙箱可用性。
     /// </summary>
     /// <param name="config">沙箱配置。</param>
-    /// <param name="platformSupported">当前平台是否在 <c>enabledPlatforms</c> 内。</param>
+    /// <param name="platformSupported">当前平台是否在 <c>enabledPlatforms</c> 内且具备原生实现。</param>
     /// <param name="realIsolationAvailable">是否存在真隔离提供器（文件系统 + 网络）。</param>
+    /// <param name="platform">平台标识（null = 当前平台；测试可指定以覆盖跨平台真值）。</param>
     /// <returns>启动结论与提示。</returns>
     public static SandboxStartupDecision Evaluate(
         SandboxConfig config,
         bool platformSupported,
-        bool realIsolationAvailable) {
+        bool realIsolationAvailable,
+        string? platform = null) {
         ArgumentNullException.ThrowIfNull(config);
 
         if (!config.Enabled) {
@@ -41,8 +43,12 @@ public static class SandboxStartupGate {
             return new SandboxStartupDecision(SandboxStartupOutcome.Ok, string.Empty);
         }
 
+        var currentPlatform = platform ?? SandboxGate.CurrentPlatform;
+        var platformSupport = SandboxPlatformSupport.Evaluate(currentPlatform);
         var reason = !platformSupported
-            ? $"当前平台 {SandboxGate.CurrentPlatform} 不在 sandbox.enabledPlatforms 内"
+            ? platformSupport.Supported
+                ? $"当前平台 {currentPlatform} 不在 sandbox.enabledPlatforms 内"
+                : $"当前平台 {currentPlatform} 不可用：{platformSupport.Reason}"
             : "未找到具备文件系统 + 网络隔离能力的沙箱提供器（bubblewrap / docker）";
 
         var message =

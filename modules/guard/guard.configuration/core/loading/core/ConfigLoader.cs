@@ -45,16 +45,19 @@ public class ConfigLoader {
                 projectDir: projectDir,
                 cancellationToken: cancellationToken,
                 logger: _logger);
+            // policy 源单独再读一次：合并后的 SettingsJson 已丢失来源，sandbox 策略锁/托管清单需要独立快照
+            var policySettingsTask = SettingsLoader.LoadPolicySettingsAsync(fs, cancellationToken, _logger);
             await using var rulesLoader = new ProjectRulesLoader(fs);
             var projectRulesTask = rulesLoader.LoadRulesAsync(projectDir, cancellationToken);
             var externalRulesLoader = new ExternalRulesLoader(fs);
             var externalRulesTask = externalRulesLoader.LoadProjectRulesAsync(projectDir, cancellationToken);
             var authTask = LoadAuthFileAsync(fs, cancellationToken);
 
-            await Task.WhenAll(settingsTask, projectRulesTask, externalRulesTask, authTask).ConfigureAwait(false);
+            await Task.WhenAll(settingsTask, policySettingsTask, projectRulesTask, externalRulesTask, authTask).ConfigureAwait(false);
             sw?.Stop();
 
             var settings = await settingsTask.ConfigureAwait(false);
+            var policySettings = await policySettingsTask.ConfigureAwait(false);
             var preloadedAuthData = await authTask.ConfigureAwait(false);
 
             // Step 1.5: 将 SettingsJson.Vendor 模型数据灌入 ModelConfigLoader（唯一数据入口）
@@ -83,6 +86,7 @@ public class ConfigLoader {
             var sw2 = PerfTimer.Start("  Step3-5 映射+EnvOverride+ApiKey");
             _settingsMapper.SkipProviderValidation = SkipProviderValidation;
             var config = _settingsMapper.ToWorkflowConfig(settings);
+            config = SandboxPolicyResolver.Apply(config, policySettings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
             config = await _settingsMapper.ApplyEnvOverridesAsync(config, settings).ConfigureAwait(false);

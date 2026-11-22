@@ -27,22 +27,25 @@ internal static class ShellSandboxPolicy {
     /// <param name="config">工作流配置（可能为 null — 未装配配置时按缺省）。</param>
     /// <param name="sandboxManager">沙箱管理器（可能为 null — 无沙箱子系统）。</param>
     /// <param name="workingDirectory">命令工作目录（null = 进程当前目录）。</param>
+    /// <param name="platform">平台标识（null = 当前平台；测试可指定以覆盖跨平台真值）。</param>
     /// <returns>决议。</returns>
     public static ShellSandboxDecision Resolve(
         string command,
         bool? dangerouslyDisableSandbox,
         WorkflowConfig? config,
         ISandboxManager? sandboxManager,
-        string? workingDirectory = null) {
+        string? workingDirectory = null,
+        string? platform = null) {
         var dangerously = dangerouslyDisableSandbox == true;
         var sandbox = config?.Sandbox;
+        var currentPlatform = platform ?? SandboxGate.CurrentPlatform;
 
         if (sandbox is null || !sandbox.Enabled) {
             return new ShellSandboxDecision(dangerously, command, null);
         }
 
         var availability = new SandboxRuntimeAvailability(
-            PlatformSupported: SandboxGate.IsPlatformSupported(SandboxGate.CurrentPlatform, sandbox.EnabledPlatforms),
+            PlatformSupported: SandboxGate.IsPlatformSupported(currentPlatform, sandbox.EnabledPlatforms),
             ProviderAvailable: sandboxManager.HasRealIsolationProvider());
 
         var decision = SandboxGate.Evaluate(command, sandbox, availability, dangerously);
@@ -80,13 +83,15 @@ internal static class ShellSandboxPolicy {
     /// <param name="dangerouslyDisableSandbox">调用方是否显式请求跳出沙箱。</param>
     /// <param name="config">工作流配置（可能为 null — 未装配配置时按缺省）。</param>
     /// <param name="sandboxManager">沙箱管理器（可能为 null — 无沙箱子系统）。</param>
+    /// <param name="platform">平台标识（null = 当前平台；测试可指定以覆盖跨平台真值）。</param>
     /// <returns>true = 绕过沙箱；false = 走沙箱路径（是否真隔离仍由会话沙箱状态决定）。</returns>
     public static bool ResolveDisableSandbox(
         string command,
         bool? dangerouslyDisableSandbox,
         WorkflowConfig? config,
-        ISandboxManager? sandboxManager)
-        => Resolve(command, dangerouslyDisableSandbox, config, sandboxManager).DisableSandbox;
+        ISandboxManager? sandboxManager,
+        string? platform = null)
+        => Resolve(command, dangerouslyDisableSandbox, config, sandboxManager, platform: platform).DisableSandbox;
 
     /// <summary>把 settings 的 filesystem/network 清单翻译为 provider 包装请求。</summary>
     private static SandboxWrapRequest BuildWrapRequest(string command, SandboxConfig sandbox, string? workingDirectory) {

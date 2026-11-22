@@ -79,12 +79,6 @@ public static class PluginErrors {
         $"  排错: 检查进程是否崩溃或被手动终止。" + Environment.NewLine +
         $"  检查: 查看 PluginManager.GetDiagnostics() 中是否有崩溃前的诊断记录。";
 
-    /// <summary>插件未加载,无法注入 Hook — 引导先加载</summary>
-    public static string NotLoadedForHook(string pluginName) =>
-        $"[INF029] 插件 '{pluginName}' 未加载,无法注入 Hook。" + Environment.NewLine +
-        $"  排错: 先调用 LoadPluginAsync 加载插件,再注入 Hook。" + Environment.NewLine +
-        $"  检查: IsPluginLoaded(\"{pluginName}\") 确认当前状态。";
-
     /// <summary>插件目录不存在 — 引导检查路径</summary>
     public static string DirectoryNotFound(string pluginDirectory) =>
         $"[INF030] 插件目录不存在: {pluginDirectory}" + Environment.NewLine +

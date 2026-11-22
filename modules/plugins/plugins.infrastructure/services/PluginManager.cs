@@ -18,7 +18,6 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private readonly PluginApprovalRegistry? _approvalRegistry;
     private volatile bool _isDisposed;
     private IPluginHotReloader? _hotReloader;
-    private IPluginHookInjector? _hookInjector;
     private IPluginCommandRegistry? _pluginCommandRegistry;
     private IPluginAgentLoader? _pluginAgentLoader;
 
@@ -102,7 +101,6 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     }
 
     private IPluginHotReloader? HotReloader => _hotReloader ??= _serviceProvider?.GetService<IPluginHotReloader>();
-    private IPluginHookInjector? HookInjector => _hookInjector ??= _serviceProvider?.GetService<IPluginHookInjector>();
     private IPluginCommandRegistry? CommandRegistry => _pluginCommandRegistry ??= _serviceProvider?.GetService<IPluginCommandRegistry>();
     private IPluginAgentLoader? PluginAgentLoader => _pluginAgentLoader ??= _serviceProvider?.GetService<IPluginAgentLoader>();
 
@@ -821,10 +819,6 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     private async Task CleanupPluginServicesAsync(string pluginName, CancellationToken ct) {
         PluginUnloading?.Invoke(this, pluginName);
-
-        if (HookInjector != null) {
-            await HookInjector.RemoveHooksAsync(pluginName, ct).ConfigureAwait(false);
-        }
 
         if (CommandRegistry != null) {
             var commands = CommandRegistry.GetRegisteredCommands().Where(c => c.PluginName == pluginName).ToList();

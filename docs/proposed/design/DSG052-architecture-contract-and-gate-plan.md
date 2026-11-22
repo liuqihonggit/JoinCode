@@ -432,7 +432,7 @@ architecture:
 - 债务口径与清偿（2026-11-22）：按 20 个 target（16 域 `module.slnx` + `native_tui` + `native_gui` 两测试项目 + `host.tests`）临时升 `warning` 后 `-t:Rebuild` 精确盘点，全仓存量 **79 处 / 32 项目**（增量构建不重跑分析器，会把存量严重低估）。按域分五批清偿：mcp/guard/apps（`a7bbfc59b`）、composition/services/llm/native_gui（`3341efa00`）、storage（`74da2d5af`）、perception（`fb219f4f0`）、abstractions+cognition+tools（`8f12a7d6b`，新增 28 个具名 record）；随后清掉非交付工具 `jcc_audit_ast_cli` 残留 11 处（新增 10 个 record，工具测试 61/61 绿）。最终 `JoinCode.slnx` 218 项目在 `JCC10011=warning` 下 `-t:Rebuild -m:1` 得 **0 命中 / 0 错误**；`native_tui`、`native_gui` core/host、`host.tests` 亦 0 命中；`.editorconfig` 由 `suggestion` 升为 `warning` 防新增（P5 再统一升 `error`）。
 
 **后续改动（按顺序，逐项 ADR）**：
-1. 补齐域内 slnx 缺口：abstractions 6 个（Brain/Composition/Guard/Memory/Perception/Primitives.Tools.Tests）、generators 1 个（AotHandler.Generator）、perception 4 个（Eyes/Eyes.Tests/Vision/Vision.Tests）；tools 的 13 个 `cli_nodes/groups/*` + sample + onnx 测试先决定"登记或排除"，排除项写入 `JccSlnxExcluded` 并注明打包流程。
+1. ✅ 补齐域内 slnx 缺口（`827e8fca0`，26→0；abstractions/generators/perception 全部登记，tools 的 13 个 `cli_nodes/groups/*` 与 sample/onnx 测试直接纳入，无排除项）。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
 3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖已摘除，环 15→8）
 4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。

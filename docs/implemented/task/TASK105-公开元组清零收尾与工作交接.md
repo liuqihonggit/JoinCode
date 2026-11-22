@@ -60,6 +60,7 @@ JCC10011（公开 API 禁止元组，规则实现 `modules/generators/aot_safety
 | native_gui host tests | `dotnet build native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj` | ✅ 0 警告 0 错误 |
 | JCC10011 重采 | 临时 `warning` + 四个 target `-t:Rebuild -p:TreatWarningsAsErrors=false` | ✅ 交付代码 0 命中（仅非交付工具 11 处） |
 | 单元测试（相关 10 个项目） | `dotnet test <csproj> --filter "Category!=Integration&Category!=Benchmark"` | ✅ 3969 通过 / 0 失败 |
+| 单元测试（最新 HEAD 全量 60 个项目） | 同上，逐项目顺序执行 | ✅ 24678 通过 / 0 失败（排除 Integration/Benchmark/AOT/mock） |
 
 测试项目明细：
 
@@ -76,7 +77,7 @@ JCC10011（公开 API 禁止元组，规则实现 `modules/generators/aot_safety
 | Brain.Prompts.Tests | 229 |
 | Hands.ToolHandlers.Tests | 610 |
 
-> 未跑全仓所有单元测试；按项目纪律由接任者在 CI 或本地全量执行。此次接口契约变更（`IFileSystem.EditFileAsync` / `IKvStore.ScanAsync` / `LineRangeReader.Slice` 等）已通过“全仓编译 + 消费方测试”覆盖。
+> 全量 60 个项目已在最新 HEAD 顺序执行（日志 `.xxx/logs/full-tests-current/`）：24678 通过 / 0 失败。其中 `NativeTui.Tests` 曾因取消用例依赖宿主 PATH 内的 `ping` 秒退而假失败（1/3178），改为 System32 绝对路径后 3178/3178 通过；`Fsm.Generator.Tests` 批量时的 MSB3027 产物复制竞态隔离复跑 13/13 通过。
 
 ## 4. 需求落地验收表
 

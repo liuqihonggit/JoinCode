@@ -53,6 +53,20 @@ public sealed partial class PendingConfirmationQueue : ServiceEntity, JoinCode.A
     /// <inheritdoc/>
     public bool TryResolve(string id, JoinCode.Abstractions.Interfaces.PendingConfirmationDecision decision) {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
+
+        // Defer = 后台已让出等待，但票据仍保留给前台展示；Approve/Deny 才真正结算并移除。
+        if (decision == JoinCode.Abstractions.Interfaces.PendingConfirmationDecision.Defer) {
+            if (!_pending.TryGetValue(id, out var deferred)) {
+                return false;
+            }
+
+            var completed = deferred.Completion.TrySetResult(decision);
+            if (completed) {
+                Diag.WriteLine($"[PENDING-CONFIRM-QUEUE] defer id={id} (kept for foreground)");
+            }
+            return completed;
+        }
+
         if (!_pending.TryRemove(id, out var entry)) {
             return false;
         }

@@ -28,6 +28,20 @@ public sealed class PendingConfirmationQueueTests {
     }
 
     [Fact]
+    public async Task TryResolve_DeferCompletesWaitButKeepsTicketVisible() {
+        await using var queue = new PendingConfirmationQueue();
+        var item = queue.Enqueue(null, "Bash", "后台让出", new Dictionary<string, System.Text.Json.JsonElement>());
+
+        queue.TryResolve(item.Id, PendingConfirmationDecision.Defer).Should().BeTrue();
+
+        (await item.Decision).Should().Be(PendingConfirmationDecision.Defer);
+        queue.Snapshot().Should().ContainSingle(candidate => candidate.Id == item.Id,
+            "Defer 只让出等待，前台仍要能看到待确认项");
+        queue.TryResolve(item.Id, PendingConfirmationDecision.Approve).Should().BeTrue("前台确认后应结算并移除");
+        queue.HasPending.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task TryResolve_UnknownOrDuplicate_ReturnsFalse() {
         await using var queue = new PendingConfirmationQueue();
         var item = queue.Enqueue(null, "Bash", "确认", new Dictionary<string, System.Text.Json.JsonElement>());

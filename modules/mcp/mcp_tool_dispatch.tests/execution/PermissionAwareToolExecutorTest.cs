@@ -214,7 +214,9 @@ public class PermissionAwareToolExecutorTest {
         confirmHandler.Verify(
             c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Never, "后台没有宿主，不允许弹确认框");
-        pending.HasPending.Should().BeFalse("票据登记后立即 Defer，不能留在队列里等待");
+        pending.Snapshot().Should().ContainSingle(
+            item => item.ToolName == "test_tool" && item.Decision.IsCompletedSuccessfully,
+            "后台只登记并让出等待，票据保留给前台展示");
     }
 
     [Fact]

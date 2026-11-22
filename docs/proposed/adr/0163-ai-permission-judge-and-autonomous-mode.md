@@ -93,7 +93,7 @@
 - Shadow 对比：Phase 1 未做 shadow（`LlmJudgeEnabled` 默认 true，直接 pre），后续用固定样本补一致率报告；
 - Phase 1：已通过 1272 项 Guard.Security 单测 + 定向构建；ask 率下降与 false-allow 需真机采样，尚未验收；
 - Phase 2：`autonomous` 别名单测通过，独立模式矩阵/TUI 真机未做；DSH/TUI 后台 Defer 与取消令牌已补单测；
-- Phase 3：`PendingConfirmationQueue` 已实现并接入执行器（前台登记/结算、无人值守登记即 Defer），票据队列单测 5 项 + 执行器 2 项通过；后台任务零阻塞，但前台批量展示 UI 未做；
+- Phase 3：`PendingConfirmationQueue` 已实现并接入执行器（前台登记/结算、无人值守登记即 Defer），票据队列单测 6 项 + 执行器 2 项通过；后台任务零阻塞，但前台批量展示 UI 未做；
 - 全仓编译 `Build-AllDomains.ps1` 本轮已跑一次通过（后续按用户要求改为按需编译）。
 
 ---

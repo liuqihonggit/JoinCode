@@ -1,8 +1,8 @@
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
-/// 后台待确认队列 — 后台任务没有宿主可弹窗时，把需要用户确认的事项登记下来，
-/// 由前台在下一个安全点批量展示；后台侧只等待异步决策，不阻塞线程、不弹模态框。
+/// 待确认票据队列 — 后台任务没有宿主可弹窗时，把需要用户确认的事项登记下来并立即让出等待（Defer），
+/// 由前台在下一个安全点批量展示；后台不阻塞线程、不弹模态框，票据保留到前台给出 Approve/Deny。
 /// </summary>
 public interface IPendingConfirmationQueue {
     /// <summary>登记一条待确认事项并返回可等待的票据。</summary>
@@ -20,7 +20,11 @@ public interface IPendingConfirmationQueue {
     /// <summary>只读快照（按登记时间升序），供前台批量展示；不移除票据。</summary>
     IReadOnlyList<PendingConfirmationItem> Snapshot();
 
-    /// <summary>结算一条待确认事项；票据不存在或已结算返回 false。</summary>
+    /// <summary>
+    /// 结算一条待确认事项；票据不存在返回 false。
+    /// <para><see cref="PendingConfirmationDecision.Defer"/> 只完成等待并保留票据供前台展示；
+    /// <see cref="PendingConfirmationDecision.Approve"/>/<see cref="PendingConfirmationDecision.Deny"/> 结算并移除。</para>
+    /// </summary>
     /// <param name="id">票据 ID。</param>
     /// <param name="decision">前台决策。</param>
     /// <returns>是否结算成功。</returns>

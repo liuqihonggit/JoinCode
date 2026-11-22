@@ -349,7 +349,7 @@ latencyMs, cacheHit, fallbackReason, userOverride
 | `ai-judge-permission-mw`（pipeline 450） | `resources/profiles/base.yaml` | ➖ 复用 `auto-class-permission-mw`，节点移到 1150（硬规则之后、兜底之前） | ➖ 不适用 |
 | `PermissionContext`（scope + allowAsk + judge policy） | 所有权限中间件 / `PermissionAwareToolExecutor` | ✅ Phase 1 用 `SubAgentContext` 承载 mode/allowed/denied | ❌ 手动 exe 未做；✅ 作用域/白名单单测通过 |
 | `autonomous` 模式 | `PermissionMode` + `AutoClassifierMiddleware` | ✅ `[EnumValue("autonomous")]` 别名映射 `Unattended` | ❌ 手动 exe 未做；✅ 别名单测 2 项通过 |
-| `PendingConfirmationQueue` | `PermissionAwareToolExecutor`（前台登记/结算；无人值守登记后立即 Defer） | ✅ 队列 + 执行器接线；✅ 单测 5 项 + 执行器 2 项通过 | ❌ 前台批量展示 UI 未做 |
+| `PendingConfirmationQueue` | `PermissionAwareToolExecutor`（前台登记/结算；无人值守登记后立即 Defer） | ✅ 队列 + 执行器接线；✅ 单测 6 项 + 执行器 2 项通过 | ❌ 前台批量展示 UI 未做 |
 | 通知队列分桶 | `TuiAskBridge` / `TerminalInteractiveService` / `AvaloniaInteractiveService` / DSH | ✅ `AgentNotificationQueue` 按 target 分桶 | ❌ 手动 exe 未做；✅ A/B 目标并发单测 8 项通过 |
 | DSH Web GUI 后台 Defer | `DshUserQuestionBroker.RequestAsync` ← `IJccChatSession.NotificationQueue` | ✅ `AttachNotificationQueue` + 100ms 帧拍；命中通知 → cancel 帧 + `DeferredResult` | ❌ 手动 exe 未做；✅ `DshUserQuestionsTests` 11 项通过（含新增 Defer） |
 | TUI 取消令牌 | `TuiAskBridge.Ask` → `ReplShell.AskUserQuestions(ct)` → `CheckAskQuestionInterrupt` | ✅ 取消只置 volatile 标记，主循环帧拍关闭对话框返回 `Cancelled` | ❌ 手动 exe 未做；✅ `AskQuestionTests` 16 项通过（含新增取消） |

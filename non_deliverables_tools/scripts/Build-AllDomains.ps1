@@ -35,6 +35,29 @@ $ErrorActionPreference = "Continue"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Push-Location $repoRoot
 
+function Resolve-ToolPath {
+    param([string]$Name, [string[]]$Candidates)
+    $cmd = Get-Command $Name -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $cmd) { return $cmd.Source }
+    foreach ($candidate in $Candidates) {
+        if (Test-Path -LiteralPath $candidate) { return $candidate }
+    }
+    return $null
+}
+
+$script:dotnetExe = Resolve-ToolPath -Name 'dotnet' -Candidates @('C:\Program Files\dotnet\dotnet.exe')
+$script:gitExe = Resolve-ToolPath -Name 'git' -Candidates @('C:\Program Files\Git\cmd\git.exe')
+if ($null -eq $script:dotnetExe) {
+    Write-Host "[GEN065] 找不到 dotnet 可执行文件：PATH 与常见安装路径均不可用。请安装 .NET SDK 或把 dotnet 加入 PATH。" -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+if ($Changed -and $null -eq $script:gitExe) {
+    Write-Host "[GEN065] -Changed 模式需要 git：PATH 与常见安装路径均不可用。请安装 Git 或把 git 加入 PATH。" -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+
 $analyzerArgs = @()
 if ($NoAnalyzers) {
     $analyzerArgs = @(
@@ -49,16 +72,16 @@ function Get-ChangedProjectPaths {
     param([string]$Root)
 
     $files = @()
-    $files += @(git diff --name-only --diff-filter=ACMR HEAD)
-    $files += @(git diff --name-only --diff-filter=ACMR --cached)
+    $files += @(& $script:gitExe diff --name-only --diff-filter=ACMR HEAD)
+    $files += @(& $script:gitExe diff --name-only --diff-filter=ACMR --cached)
     if ($LastCommit) {
-        $files += @(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD)
+        $files += @(& $script:gitExe diff --name-only --diff-filter=ACMR HEAD~1 HEAD)
     }
     if (-not [string]::IsNullOrWhiteSpace($Since)) {
-        $files += @(git diff --name-only --diff-filter=ACMR $Since HEAD)
+        $files += @(& $script:gitExe diff --name-only --diff-filter=ACMR $Since HEAD)
     }
     if ($IncludeUntracked) {
-        $files += @(git ls-files --others --exclude-standard)
+        $files += @(& $script:gitExe ls-files --others --exclude-standard)
     }
 
     $projects = @()
@@ -87,7 +110,7 @@ function Invoke-BuildTarget {
     Write-Host ">>> dotnet build $Target ..." -ForegroundColor Cyan
     $buildArgs = @("build", $Target, "-c", $Configuration, "--nologo", "-v", "q") + $ExtraArgs + $AnalyzerArgs
     $log = Join-Path $env:TEMP ("jcc_build_" + [guid]::NewGuid().ToString("N") + ".log")
-    dotnet @buildArgs 2>&1 | Tee-Object -FilePath $log | Out-Null
+    & $script:dotnetExe @buildArgs 2>&1 | Tee-Object -FilePath $log | Out-Null
     $code = $LASTEXITCODE
     if ($code -ne 0) {
         $errors = @(Select-String -Path $log -Pattern "error" | Select-Object -First 30)

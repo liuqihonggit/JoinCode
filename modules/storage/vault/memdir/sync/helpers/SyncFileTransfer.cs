@@ -37,6 +37,16 @@ internal sealed class SyncFileTransfer : IAsyncDisposable {
 
         try {
             var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+
+            // 团队记忆同步是明确的出站边界：上传前用与 Git 提交/checkpoint 同一份 gitleaks 规则扫描。
+            // 命中即跳过本文件（不影响同批其他文件）；日志只写 ruleId，绝不写匹配到的密钥文本。
+            var secretMatches = JoinCode.Abstractions.Security.Scanning.SecurityPatterns.ScanForSecretMatches(content);
+            if (secretMatches.Count > 0) {
+                _logger?.LogWarning("[TeamMemorySync] 跳过含密钥的团队记忆文件: {Path} rules={Rules}",
+                    filePath, string.Join(",", secretMatches.Select(m => m.RuleId)));
+                return;
+            }
+
             var hash = await SyncFileHash.ComputeAsync(_fs, filePath).ConfigureAwait(false);
             var lastModified = _fs.GetLastWriteTimeUtc(filePath);
 

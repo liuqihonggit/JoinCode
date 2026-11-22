@@ -49,20 +49,6 @@ public sealed class HardcodedEnumValueStringRule : AnalyzerRuleBase<HardcodedEnu
 
         var treeReferencedEnums = new ConcurrentDictionary<SyntaxTree, HashSet<string>>();
 
-        context.RegisterSyntaxTreeAction(treeCtx => {
-            if (treeCtx.CancellationToken.IsCancellationRequested) return;
-            var root = treeCtx.Tree.GetRoot();
-            var referencedEnums = new HashSet<string>(StringComparer.Ordinal);
-
-            foreach (var identifier in root.DescendantNodes().OfType<IdentifierNameSyntax>()) {
-                var name = identifier.Identifier.ValueText;
-                if (allEnumNames.ContainsKey(name))
-                    referencedEnums.Add(name);
-            }
-
-            treeReferencedEnums[treeCtx.Tree] = referencedEnums;
-        });
-
         context.RegisterSyntaxNodeAction(nodeCtx => {
             if (nodeCtx.CancellationToken.IsCancellationRequested) return;
 
@@ -78,13 +64,28 @@ public sealed class HardcodedEnumValueStringRule : AnalyzerRuleBase<HardcodedEnu
             if (IsLikelyFalsePositive(literal, stringValue)) return;
             if (!IsAssignmentContext(literal)) return;
 
-            if (treeReferencedEnums.TryGetValue(nodeCtx.Node.SyntaxTree, out var referencedEnums) &&
-                !referencedEnums.Contains(enumName))
+            var referencedEnums = treeReferencedEnums.GetOrAdd(
+                nodeCtx.Node.SyntaxTree,
+                tree => CollectReferencedEnums(tree, allEnumNames));
+            if (!referencedEnums.Contains(enumName))
                 return;
 
             var location = literal.GetLocation();
             nodeCtx.ReportDiagnostic(Diagnostic.Create(Descriptor, location, stringValue, enumName));
         }, SyntaxKind.StringLiteralExpression);
+    }
+
+    /// <summary>
+    /// 计算语法树中出现的枚举名集合 — 惰性缓存，不依赖语法树回调与节点回调的执行顺序。
+    /// </summary>
+    private static HashSet<string> CollectReferencedEnums(SyntaxTree tree, ConcurrentDictionary<string, byte> allEnumNames) {
+        var referencedEnums = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var identifier in tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>()) {
+            var name = identifier.Identifier.ValueText;
+            if (allEnumNames.ContainsKey(name))
+                referencedEnums.Add(name);
+        }
+        return referencedEnums;
     }
 
     private static bool IsInEnumDefinition(SyntaxNode node) {

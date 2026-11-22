@@ -178,6 +178,34 @@ git commit -m "refactor: 公开元组签名改具名 record（abstractions 收�
 | 严重级别 | `.editorconfig`: `JCC10011.severity` `suggestion` → `warning`（P5 统一升 `error`） |
 | 工程事实 | solution 级 `-t:Rebuild -m`（并行）会因先清掉依赖项目 ref 程序集而报大量 CS0006；全量采集必须 `-m:1` |
 
+## 9. PR #716 首轮 CI 修复（2026-11-22）
+
+**失败检查**：`unit-tests / Module order (CLI + GUI)`（run 44929302857，merge commit 719fd90）。
+
+| 错误 | 位置 |
+|---|---|
+| JCC10007 `"user"` ↔ `CommandOrigin` | `CliEventConsumer.cs(73,45)` |
+| JCC10007 `"default"` ↔ `ConfigPriority` | `CliEventConsumer.cs(76,44)` |
+
+**根因（两层）**：
+
+1. **语义误报**：`_apiKeySource` / `_outputStyle` 是 Claude Code SDK 输出协议字段（`apiKeySource` / `outputStyle`），与 `CommandOrigin` / `ConfigPriority` 仅同值不同义；规则 HelpLink 已声明“外部协议字符串”为例外，但实现未豁免。
+2. **规则时序缺陷**：`HardcodedEnumValueStringRule` 先 `RegisterSyntaxTreeAction` 填充树引用集，再在 `RegisterSyntaxNodeAction` 中 `TryGetValue`；树条目缺失时旧代码继续报告。CI 只报字段初始化（73/76）而不报对象初始化（`Role = "user"`，属赋值表达式非 `EqualsValueClause`），与该分支行为一致。
+
+**修复**：
+
+- 新增 `SdkProtocolDefaults` 常量类（`user` / `default` / `permissionMode` 协议默认值唯一数据源），替换 `CliEventConsumer` 5 处与 `SdkMessage` 3 处字面量。
+- 规则改为节点回调内 `GetOrAdd` 惰性计算树引用集，删除对 TreeAction 时序的依赖；未引用枚举的树一律跳过。
+- 新增 `HardcodedEnumValueStringRuleTests` 3 个回归测试（无引用不报 / 有引用报 / `??` 默认值不报）。
+
+**验证**：
+
+| 检查 | 结果 |
+|---|---|
+| 全仓 `JoinCode.slnx` 编译 | ✅ 0 警告 0 错误 |
+| `dotnet build modules/apps/cli/JoinCode.csproj`（CI 等价） | ✅ 0 警告 0 错误 |
+| `AotSafety.Tests` 全量 | ✅ 301 通过 / 0 失败 |
+
 ## 附录 A — 本批新增具名 record（28 个）
 
 | # | 类型 | 所在文件 |

@@ -55,10 +55,10 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _mcpServers = mcpServers ?? [];
         _skills = skills ?? [];
         _agents = agents ?? [];
-        _apiKeySource = apiKeySource ?? "user";
+        _apiKeySource = apiKeySource ?? Cli.Output.SdkProtocolDefaults.ApiKeySourceUser;
         _betas = betas ?? [];
         _slashCommands = slashCommands ?? [];
-        _outputStyle = outputStyle ?? "default";
+        _outputStyle = outputStyle ?? Cli.Output.SdkProtocolDefaults.OutputStyleDefault;
         _plugins = plugins ?? [];
         _fastModeState = fastModeState;
         _includePartialMessages = includePartialMessages;
@@ -70,10 +70,10 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private readonly System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer> _mcpServers = [];
     private readonly System.Collections.Generic.IReadOnlyList<string> _skills = [];
     private readonly System.Collections.Generic.IReadOnlyList<string> _agents = [];
-    private readonly string _apiKeySource = "user";
+    private readonly string _apiKeySource = Cli.Output.SdkProtocolDefaults.ApiKeySourceUser;
     private readonly System.Collections.Generic.IReadOnlyList<string> _betas = [];
     private readonly System.Collections.Generic.IReadOnlyList<string> _slashCommands = [];
-    private readonly string _outputStyle = "default";
+    private readonly string _outputStyle = Cli.Output.SdkProtocolDefaults.OutputStyleDefault;
     private readonly System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin> _plugins = [];
     private readonly string? _fastModeState;
     private readonly bool _includePartialMessages;
@@ -433,7 +433,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             Model = _model ?? System.Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "unknown",
             Tools = _tools.Count > 0 ? new System.Collections.Generic.List<string>(_tools) : [],
             McpServers = _mcpServers.Count > 0 ? new System.Collections.Generic.List<Cli.Output.SdkMcpServer>(_mcpServers) : [],
-            PermissionMode = System.Environment.GetEnvironmentVariable("JCC_PERMISSION_MODE") ?? "default",
+            PermissionMode = System.Environment.GetEnvironmentVariable("JCC_PERMISSION_MODE") ?? Cli.Output.SdkProtocolDefaults.PermissionModeDefault,
             Skills = _skills.Count > 0 ? new System.Collections.Generic.List<string>(_skills) : [],
             Agents = _agents.Count > 0 ? new System.Collections.Generic.List<string>(_agents) : [],
             ApiKeySource = _apiKeySource,

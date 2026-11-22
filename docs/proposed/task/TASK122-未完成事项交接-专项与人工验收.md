@@ -25,7 +25,7 @@ TASK103 §2.3 的 #35–#41、#43、#44、#45a、#46、#47、#48、#49、#49a、
 |------|------|------|----------|----------|
 | #52 | WT/conhost 双终端键位矩阵 | S/M | 需用户在真实终端逐项操作，自动化探针不能替代 | 1 |
 | ~~#45~~ | ~~`TaskOutput` block/timeout 等待语义~~ ✅ 已闭合（[TASK123](TASK123-TaskOutput等待语义-shell后台输出阻塞与超时.md)） | — | — | — |
-| #50 | 团队记忆写入前 `validateInput` 密钥拦截 | M | 需改工具写入层，当前只堵了出站 | 3 |
+| ~~#50~~ | ~~团队记忆写入前 `validateInput` 密钥拦截~~ ✅ 已闭合（[TASK124](TASK124-团队记忆写入前密钥门禁-从断言到真拦截.md)） | — | — | — |
 | #46 | `permission_denials` 结构化收集 | M | 需改跨 slnx 引擎事件契约与各宿主适配 | 4 |
 | #42 | 查询期自动记忆召回（sideQuery） | L | 新行为：每回合 LLM + 附件通道 + 会话曝光状态 | 5 |
 | #40 | dream 回合结束自动触发 | L | 新行为：后台 LLM 整合，改变延迟与 token 成本 | 6 |
@@ -69,7 +69,11 @@ Shift+Tab、Home/End/PgUp/PgDn/F1-F12、bracketed paste、鼠标点击/滚轮、
 `modules/cognition/hands_shell/system_actuator/abstractions/SystemActuatorRegistry.cs:206-215`、
 工具 schema/CLI 节点帮助与 TDD。
 
-### #50 团队记忆写入前 `validateInput` 密钥拦截
+### #50 团队记忆写入前 `validateInput` 密钥拦截 — ✅ 已闭合 2026-11-23（[TASK124](TASK124-团队记忆写入前密钥门禁-从断言到真拦截.md)）
+
+**已做**：写入链本来就有 `CheckTeamMemSecrets`，坏在 `TeamMemSecretGuard` 构造参数恒为 `null`（无人注入），
+`IsTeamMemPath` 永远 false → 门禁常年敞开。改为按 `TeamMemoryLayout` 解析 `<memdir>/team-memories` 根，
+并顺带统一 `TeamMemoryPaths` 的默认布局（原先两套默认目录漂移）。真机三态已验证，错误信息只回 ruleId。
 
 **现状**：上传前门禁已补（`SyncFileTransfer.PushToRemoteAsync` 命中密钥则跳过本文件、不写索引、不发 Synced），
 但工具写入前仍可把密钥写进团队记忆，属于“先落盘、出站再拦”的次优路径。

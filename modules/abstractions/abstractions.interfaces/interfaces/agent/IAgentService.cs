@@ -308,6 +308,17 @@ public sealed record AgentSpawnOptions {
     public IEnumerable<string>? AllowedTools { get; init; }
 
     /// <summary>
+    /// 禁止的工具列表 — 与 AgentDefinition.DisallowedTools 合并（调用方优先）
+    /// 后台任务由 <c>BackgroundExecutionPolicy.DeniedTools</c> 注入交互类工具
+    /// </summary>
+    public IEnumerable<string>? DeniedTools { get; init; }
+
+    /// <summary>
+    /// 权限模式覆盖 — 后台任务固定为 "unattended"，优先于 AgentDefinition.PermissionMode
+    /// </summary>
+    public string? PermissionMode { get; init; }
+
+    /// <summary>
     /// 推理努力级别 — 对齐 TS PromptCommand.effort
     /// 技能 fork 模式下，设置子智能体的推理努力级别
     /// </summary>

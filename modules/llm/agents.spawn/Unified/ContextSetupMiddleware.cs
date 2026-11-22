@@ -47,6 +47,11 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
             initialMessageList = await BuildSkillPreloadMessageListAsync(skills, ct).ConfigureAwait(false);
         }
 
+        var isBackground = context.SpawnOptions.RunInBackground;
+        var mergedAllowedTools = MergeAllowedTools(context.SpawnOptions.AllowedTools, context.Definition?.Tools);
+        var mergedDeniedTools = MergeDeniedTools(context.SpawnOptions.DeniedTools, context.Definition?.DisallowedTools);
+        var backgroundAllowedTools = BackgroundExecutionPolicy.PreserveToolsExceptDenied(mergedAllowedTools);
+
         var subOptions = new SubAgentOptions {
             Role = context.SpawnOptions.Role,
             Variant = context.SpawnOptions.Variant,
@@ -55,10 +60,18 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
             Temperature = context.Definition?.Temperature ?? 0.7f,
             DisplayName = context.SpawnOptions.Name ?? context.SpawnOptions.Description ?? BotNameGenerator.Generate(),
             SystemPrompt = context.SystemPrompt,
-            AllowedTools = MergeAllowedTools(context.SpawnOptions.AllowedTools, context.Definition?.Tools) ?? [],
-            DeniedTools = context.Definition?.DisallowedTools ?? [],
+            // 后台 spawn 保留调用方已有工具集，只剔除交互工具；未指定工具集时使用后台默认白名单。
+            // 不能无条件收敛默认白名单：会丢掉调用方显式授权的 Git 等工具。
+            AllowedTools = isBackground
+                ? backgroundAllowedTools.Count > 0 ? backgroundAllowedTools : [.. BackgroundExecutionPolicy.AllowedTools]
+                : mergedAllowedTools ?? [],
+            DeniedTools = isBackground
+                ? BackgroundExecutionPolicy.MergeDeniedTools(mergedDeniedTools)
+                : mergedDeniedTools,
             PreloadSkills = context.Definition?.Skills ?? [],
-            PermissionMode = context.Definition?.PermissionMode,
+            PermissionMode = isBackground
+                ? BackgroundExecutionPolicy.ModeValue
+                : context.SpawnOptions.PermissionMode ?? context.Definition?.PermissionMode,
             InitialPrompt = context.Definition?.InitialPrompt,
             CriticalSystemReminder = context.Definition?.CriticalSystemReminder,
             InitialMessageList = initialMessageList,
@@ -201,5 +214,15 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         if (callerTools is not null && callerTools.Any())
             return callerTools.ToList();
         return definitionTools;
+    }
+
+    /// <summary>合并调用方拒绝工具与 AgentDefinition 拒绝工具 — 调用方（后台策略）优先但两者都保留。</summary>
+    private static List<string> MergeDeniedTools(IEnumerable<string>? callerTools, List<string>? definitionTools) {
+        var merged = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (definitionTools is not null)
+            merged.UnionWith(definitionTools);
+        if (callerTools is not null)
+            merged.UnionWith(callerTools);
+        return [.. merged];
     }
 }

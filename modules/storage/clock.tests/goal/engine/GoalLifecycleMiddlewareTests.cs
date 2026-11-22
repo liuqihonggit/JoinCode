@@ -109,17 +109,32 @@ public sealed class GoalLifecycleMiddlewareTests {
     }
 
     [Fact]
-    public async Task GoalPermissionModeMiddleware_Start_SavesAndSetsAutoMode() {
+    public async Task GoalPermissionModeMiddleware_Start_SavesAndSetsUnattendedMode() {
         await using var middleware = new GoalPermissionModeMiddleware();
         var permissionManager = new Mock<IToolPermissionManager>();
         permissionManager.Setup(x => x.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(PermissionMode.Ask);
-        permissionManager.Setup(x => x.SetPermissionModeAsync(PermissionMode.Auto, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        permissionManager.Setup(x => x.SetPermissionModeAsync(PermissionMode.Unattended, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var ctx = CreateContext(GoalOperation.Start, permissionManager: permissionManager.Object);
 
         await middleware.InvokeAsync(ctx, Next, CancellationToken.None).ConfigureAwait(true);
 
         Assert.Equal(PermissionMode.Ask, ctx.SavedPermissionMode);
-        permissionManager.Verify(x => x.SetPermissionModeAsync(PermissionMode.Auto, It.IsAny<CancellationToken>()), Times.Once);
+        permissionManager.Verify(x => x.SetPermissionModeAsync(PermissionMode.Unattended, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(PermissionMode.Bypass)]
+    [InlineData(PermissionMode.Unattended)]
+    public async Task GoalPermissionModeMiddleware_Start_WhenAlreadyNonInteractive_DoesNotSwitch(PermissionMode currentMode) {
+        await using var middleware = new GoalPermissionModeMiddleware();
+        var permissionManager = new Mock<IToolPermissionManager>();
+        permissionManager.Setup(x => x.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(currentMode);
+        var ctx = CreateContext(GoalOperation.Start, permissionManager: permissionManager.Object);
+
+        await middleware.InvokeAsync(ctx, Next, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Null(ctx.SavedPermissionMode);
+        permissionManager.Verify(x => x.SetPermissionModeAsync(It.IsAny<PermissionMode>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

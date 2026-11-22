@@ -72,7 +72,8 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         executionEntity.StartedAt = DateTime.UtcNow;
         span?.SetTag("entity.object_id", executionEntity.UniqueId);
 
-        var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
+        var currentMode = ResolvePermissionMode(await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false));
+        var agentContext = SubAgentContext.Current;
 
         var context = new ToolExecutionContext {
             ToolName = toolName,
@@ -80,6 +81,8 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             Handler = handler,
             OnProgress = onProgress,
             AgentMode = currentMode,
+            AllowedTools = ToToolSet(agentContext?.AllowedTools),
+            DeniedTools = ToToolSet(agentContext?.DeniedTools),
             Span = span,
             ExecutionEntity = executionEntity,
         };
@@ -123,6 +126,28 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             RaiseToolExecutionCompleted(toolName, exceptionError, arguments, ex.Message);
             return exceptionError;
         }
+    }
+
+    /// <summary>
+    /// 解析当前 Agent 的有效权限模式 — 子代理作用域优先于全局权限管理器，
+    /// 否则后台子代理会继承主代理的 Auto 并重新弹出 ask（TASK105 D2）。
+    /// </summary>
+    private static PermissionMode ResolvePermissionMode(PermissionMode globalMode) {
+        var scoped = SubAgentContext.Current?.PermissionMode;
+        if (scoped is null)
+            return globalMode;
+
+        return PermissionModeExtensions.FromValue(scoped) ?? globalMode;
+    }
+
+    /// <summary>把可空字符串集合投影为 O(1) 查找集合；空集合返回 null（表示无该层限制）。</summary>
+    private static IReadOnlySet<string>? ToToolSet(IEnumerable<string>? tools) {
+        if (tools is null)
+            return null;
+
+        var set = tools.Where(static t => !string.IsNullOrWhiteSpace(t))
+            .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+        return set.Count > 0 ? set : null;
     }
 
     /// <summary>
@@ -183,6 +208,8 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             Handler = handler,
             OnProgress = onProgress,
             AgentMode = currentMode,
+            AllowedTools = context.AllowedTools,
+            DeniedTools = context.DeniedTools,
             Span = span,
             ExecutionEntity = executionEntity,
         };

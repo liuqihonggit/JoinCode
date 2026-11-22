@@ -3,18 +3,14 @@ namespace Core.Permission;
 
 /// <summary>
 /// 默认结果中间件 — 管道末端的兜底决策
-/// Default 模式返回待确认，Auto 模式返回批准
+/// Auto / Unattended 返回批准，其余模式返回待确认
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DefaultResultMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
-
-    /// <inheritdoc />
-
-    /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         context.Result = context.CurrentMode switch {
-            PermissionMode.Auto => ToolPermissionCheckResult.Approved(),
+            PermissionMode.Auto or PermissionMode.Unattended => ToolPermissionCheckResult.Approved(),
             _ => ToolPermissionCheckResult.PendingConfirmation($"工具 '{context.ToolName}' 请求执行操作，是否批准？")
         };
 

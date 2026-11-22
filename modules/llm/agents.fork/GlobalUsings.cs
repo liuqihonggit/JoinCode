@@ -12,6 +12,7 @@ global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Models.Shell;
 global using JoinCode.Abstractions.Pipeline;
+global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Utils;
 global using CoordinatorAgentMessage = JoinCode.Abstractions.Models.Agent.CoordinatorMessage;

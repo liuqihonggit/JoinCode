@@ -54,6 +54,22 @@ public sealed class PermissionCheckerTest {
     }
 
     [Fact]
+    public async Task CheckPermissionAsync_空管道_Unattended_返回Approved() {
+        var envVar = JccEnvVar.PermissionMode.ToValue();
+        var original = Environment.GetEnvironmentVariable(envVar);
+        Environment.SetEnvironmentVariable(envVar, "unattended");
+        try {
+            await using var checker = CreateChecker();
+
+            var result = await checker.CheckPermissionAsync("Bash");
+
+            result.IsApproved.Should().BeTrue("Unattended 没有宿主可确认，空管道不能兜底成 ask");
+        } finally {
+            Environment.SetEnvironmentVariable(envVar, original);
+        }
+    }
+
+    [Fact]
     public async Task CheckPermissionAsync_管道批准_返回Approved() {
         var pipeline = new MiddlewarePipeline<PermissionCheckContext>(
             [new StubResultMiddleware(ToolPermissionCheckResult.Approved())]);

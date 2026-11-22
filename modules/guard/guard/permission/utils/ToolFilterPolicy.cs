@@ -33,7 +33,7 @@ public sealed partial class ToolFilterPolicy : IToolFilterPolicy {
 
         var agentDenied = context.AgentDisallowedTools;
         if (agentDenied is not null && agentDenied.Contains(toolName)) {
-            return ToolFilterResult.Denied($"工具 '{toolName}' 被代理定义禁用", 3);
+            return ToolFilterResult.Denied($"工具 '{toolName}' 被代理定义或权限模式禁用", 3);
         }
 
         return ToolFilterResult.Allowed;

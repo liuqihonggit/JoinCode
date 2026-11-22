@@ -26,7 +26,10 @@ public enum PermissionMode {
     [EnumValue("bypass")] Bypass,
 
     /// <summary>
-    /// 无人值守模式：AI 持续推进长任务，红灯自动执行+审计日志，黑灯仍拒绝 — ADR 0012
+    /// 无人值守/自动化模式：硬规则内全部自动执行 + AI 灰区判定；后台/Goal 使用此模式。
+    /// <para>别名 <c>autonomous</c> 作为用户显式选择“完全访问 + AI 监控”的入口值。</para>
     /// </summary>
-    [EnumValue("unattended")] Unattended
+    [EnumValue("unattended")]
+    [EnumValue("autonomous")]
+    Unattended
 }

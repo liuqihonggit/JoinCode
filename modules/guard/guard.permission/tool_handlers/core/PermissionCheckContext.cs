@@ -36,6 +36,16 @@ public sealed class PermissionCheckContext {
     public required HashSet<string> AutoRejectedTools { get; init; }
 
     /// <summary>
+    /// 当前子代理允许的工具白名单 — 来自 SubAgentContext；null 表示无白名单限制
+    /// </summary>
+    public IReadOnlySet<string>? AllowedTools { get; init; }
+
+    /// <summary>
+    /// 当前子代理拒绝的工具集合 — 来自 SubAgentContext；null 表示无代理级拒绝
+    /// </summary>
+    public IReadOnlySet<string>? DeniedTools { get; init; }
+
+    /// <summary>
     /// 会话级已批准的危险等级集合 — 用户确认某等级后，同会话内同等级操作自动通过
     /// 非持久化，每次打开新 exe 重新提示。由 PermissionChecker 维护，中间件检查
     /// </summary>

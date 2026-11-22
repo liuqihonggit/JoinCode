@@ -69,6 +69,27 @@ public class DangerousCommandProtectionMiddlewareTests {
     #region 非 Bypass 模式 Dangerous 拒绝验证
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public async Task Unattended_FileDelete_AutoApprovesInsteadOfPendingConfirmation() {
+        await using var middleware = new DangerousCommandProtectionMiddleware(deleteDetectors: [new FakeFileDeleteDetector()]);
+        var context = new PermissionCheckContext {
+            ToolName = FileToolNameEnumConstants.FileDelete,
+            Arguments = [],
+            CurrentMode = PermissionMode.Unattended,
+            Config = PermissionConfig.CreateDefault(),
+            AutoApprovedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            AutoRejectedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+        };
+        var nextCalled = false;
+
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeFalse();
+        context.Result.Should().NotBeNull();
+        context.Result!.IsApproved.Should().BeTrue("Unattended 没有宿主可确认，删除操作必须自动执行并审计，不能被兜底成 ask");
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(PermissionMode.Plan)]
     [InlineData(PermissionMode.Auto)]
@@ -81,6 +102,21 @@ public class DangerousCommandProtectionMiddlewareTests {
 
         context.Result.Should().NotBeNull();
         context.Result!.IsApproved.Should().BeFalse();
+    }
+
+    private sealed class FakeFileDeleteDetector : IDeleteOperationDetector {
+        public bool TryDetect(string toolName, Dictionary<string, JsonElement>? arguments, [NotNullWhen(true)] out DeleteOperationInfo? info) {
+            if (toolName == FileToolNameEnumConstants.FileDelete) {
+                info = new DeleteOperationInfo {
+                    SourceDescription = "file_delete 工具",
+                    TargetPath = Path.Combine(Path.GetTempPath(), "tmp.txt")
+                };
+                return true;
+            }
+
+            info = null;
+            return false;
+        }
     }
 
     #endregion

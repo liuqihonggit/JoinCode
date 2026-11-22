@@ -6,6 +6,11 @@ namespace Core.Configuration;
 /// </summary>
 public class PermissionConfig {
     /// <summary>
+    /// 是否启用 AI 灰区判定（规则分类后再调轻量 LLM；失败/超时自动回退规则结果）
+    /// </summary>
+    public bool LlmJudgeEnabled { get; set; } = true;
+
+    /// <summary>
     /// 自动批准的工具列表
     /// </summary>
     public ImmutableHamT<string, ToolPermissionRule> AutoApprovedTools { get; set; } = ImmutableHamT<string, ToolPermissionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);

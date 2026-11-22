@@ -6,11 +6,12 @@ public static class AgentNotificationQueueExtensions {
     /// 排空待处理通知并格式化为可注入模型的文本（shell 任务原样 XML，子代理通知加完成前缀）。
     /// </summary>
     /// <param name="queue">通知队列</param>
+    /// <param name="currentAgentId">当前消费方 AgentId；null 表示顶层消费者（排空所有目标桶）；非 null 时只消费广播桶 + 自己的桶</param>
     /// <returns>格式化后的通知文本（无通知时为空列表）</returns>
-    public static IReadOnlyList<string> DrainFormatted(this IAgentNotificationQueue queue) {
+    public static IReadOnlyList<string> DrainFormatted(this IAgentNotificationQueue queue, string? currentAgentId = null) {
         ArgumentNullException.ThrowIfNull(queue);
 
-        var pending = queue.DequeueAll();
+        var pending = queue.DequeueAll(currentAgentId);
         var texts = new List<string>(pending.Count);
         foreach (var notification in pending) {
             var isShellNotification = notification.Xml.Contains("<task-notification>", StringComparison.OrdinalIgnoreCase);

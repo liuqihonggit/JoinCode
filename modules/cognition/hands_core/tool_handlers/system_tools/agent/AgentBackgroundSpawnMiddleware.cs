@@ -45,8 +45,12 @@ public sealed partial class AgentBackgroundSpawnMiddleware : ServiceEntity, IAge
             return;
         }
 
-        // 后台模式: 限制工具集为异步白名单 — 对齐 TS 原版 ASYNC_AGENT_ALLOWED_TOOLS
-        spawnOptions = spawnOptions with { AllowedTools = AsyncAgentAllowedTools.Tools };
+        // 后台模式: 统一走后台执行策略 — 白名单收敛 + 拒绝交互工具 + 固定 Unattended
+        spawnOptions = spawnOptions with {
+            AllowedTools = BackgroundExecutionPolicy.AllowedTools,
+            DeniedTools = BackgroundExecutionPolicy.DeniedTools,
+            PermissionMode = BackgroundExecutionPolicy.ModeValue
+        };
 
         // 后台模式: 使用原有 SpawnAgentAsync（fire-and-forget）
         var agent = await _agentService.SpawnAgentAsync(spawnOptions, ct).ConfigureAwait(false);

@@ -2,16 +2,12 @@
 namespace Core.Permission;
 
 /// <summary>
-/// 路径权限中间件 — Default/Auto 模式下进行完整路径级权限检查
+/// 路径权限中间件 — Auto/Unattended 模式下进行完整路径级权限检查
 /// 对齐 TS checkReadPermissionForTool / checkWritePermissionForTool
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissionMiddleware {
     private readonly IPathPermissionChecker? _pathPermissionChecker;
-
-    /// <inheritdoc />
-
-    /// <inheritdoc />
 
     /// <summary>
     /// 创建 PathPermissionMiddleware
@@ -25,8 +21,8 @@ public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissio
         if (context.Arguments is null)
             return next(context, ct);
 
-        // 仅 Default 和 Auto 模式需要路径权限检查
-        if (context.CurrentMode != PermissionMode.Auto)
+        // Auto / Unattended 模式需要路径权限检查 — 无人值守不能成为路径边界绕过
+        if (context.CurrentMode is not (PermissionMode.Auto or PermissionMode.Unattended))
             return next(context, ct);
 
         if (PermissionCheckContext.ExtractPathFromArguments(context.Arguments) is not { } path || string.IsNullOrEmpty(path))
@@ -34,7 +30,10 @@ public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissio
 
         var pathResult = CheckPathPermission(context);
         if (pathResult is not null && !pathResult.IsApproved) {
-            context.Result = pathResult;
+            // 无人值守/后台没有宿主可确认：路径 ask 必须 fail-closed 拒绝，不能降级成弹窗
+            context.Result = context.CurrentMode == PermissionMode.Unattended && pathResult.ConfirmationRequired
+                ? ToolPermissionCheckResult.Rejected($"{pathResult.Reason ?? "路径需要确认"}（Unattended 模式不允许后台确认，层: PathPermissionMiddleware）")
+                : pathResult;
             return Task.CompletedTask;
         }
 

@@ -95,7 +95,7 @@ public sealed class SessionController {
             // 主代理路径绕过 QueryLoopMiddleware — 后台通知在每轮迭代步首注入查询历史，并阻止收尾丢掉回调
             if (_serviceProvider?.GetService<IAgentNotificationQueue>() is { } notificationQueue) {
                 _mainAgent.IterationStartInjector = (history, _) => {
-                    foreach (var text in notificationQueue.DrainFormatted()) {
+                    foreach (var text in notificationQueue.DrainFormatted(_mainAgent.UniqueId)) {
                         history.AddUserMessage(text);
                         Diag.WriteLine($"[BACKGROUND-NOTIFY] 轮内注入进入主代理历史 长度={text.Length}");
                     }

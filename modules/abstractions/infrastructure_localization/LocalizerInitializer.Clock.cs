@@ -114,12 +114,12 @@ public static partial class LocalizerInitializer {
         zhEntries[StringKey.CronSchedulerDisposeError] = "CronSchedulerService.DisposeAsync 超时或失败";
 
         // === Permission Mode ===
-        defaultEntries[StringKey.PermissionModeSwitched] = "Permission mode switched: {0} -> Auto";
+        defaultEntries[StringKey.PermissionModeSwitched] = "Permission mode switched: {0} -> {1}";
         defaultEntries[StringKey.PermissionModeSwitchFailed] = "Failed to switch permission mode, continuing with current mode";
         defaultEntries[StringKey.PermissionModeRestored] = "Permission mode restored: -> {0}";
         defaultEntries[StringKey.PermissionModeRestoreFailed] = "Failed to restore permission mode";
 
-        zhEntries[StringKey.PermissionModeSwitched] = "权限模式已切换: {0} → Auto";
+        zhEntries[StringKey.PermissionModeSwitched] = "权限模式已切换: {0} → {1}";
         zhEntries[StringKey.PermissionModeSwitchFailed] = "切换权限模式失败，继续使用当前模式";
         zhEntries[StringKey.PermissionModeRestored] = "权限模式已恢复: → {0}";
         zhEntries[StringKey.PermissionModeRestoreFailed] = "恢复权限模式失败";

@@ -179,19 +179,51 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         await _loadTask.Task.ConfigureAwait(false);
         await ReloadRulesIfSettingsChangedAsync().ConfigureAwait(false);
 
+        var agentContext = SubAgentContext.Current;
         var context = new PermissionCheckContext {
             ToolName = toolName,
             Arguments = arguments ?? [],
-            CurrentMode = _currentMode,
+            CurrentMode = ResolveScopedMode(),
             Config = _config,
             AutoApprovedTools = _autoApprovedTools,
             AutoRejectedTools = _autoRejectedTools,
+            AllowedTools = ToToolSet(agentContext?.AllowedTools),
+            DeniedTools = ToToolSet(agentContext?.DeniedTools),
             ApprovedLevels = _approvedLevels
         };
 
         await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
+        // Unattended 没有宿主可确认：管道若未给出判定（中间件遗漏/短路）也不能兜底成 ask，
+        // 否则后台任务会挂死在确认弹窗。默认批准；硬规则拒绝必须在到达这里之前设置 Result。
+        if (context.Result is null && context.CurrentMode == PermissionMode.Unattended) {
+            _logger?.LogWarning("[PermissionChecker] 管道未给出判定，Unattended 兜底批准: {ToolName}", toolName);
+            return ToolPermissionCheckResult.Approved();
+        }
+
         return context.Result ?? ToolPermissionCheckResult.PendingConfirmation($"工具 '{toolName}' 请求执行操作，是否批准？");
+    }
+
+    /// <summary>
+    /// 解析当前 Agent 的有效权限模式 — 子代理作用域优先于全局权限管理器，
+    /// 否则后台子代理会继承主代理的 Auto 并重新弹出 ask（TASK105 D2）。
+    /// </summary>
+    private PermissionMode ResolveScopedMode() {
+        var scoped = SubAgentContext.Current?.PermissionMode;
+        if (scoped is null)
+            return _currentMode;
+
+        return PermissionModeExtensions.FromValue(scoped) ?? _currentMode;
+    }
+
+    /// <summary>把可空字符串集合投影为 O(1) 查找集合；空集合返回 null（表示无该层限制）。</summary>
+    private static IReadOnlySet<string>? ToToolSet(IEnumerable<string>? tools) {
+        if (tools is null)
+            return null;
+
+        var set = tools.Where(static t => !string.IsNullOrWhiteSpace(t))
+            .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+        return set.Count > 0 ? set : null;
     }
 
     /// <summary>

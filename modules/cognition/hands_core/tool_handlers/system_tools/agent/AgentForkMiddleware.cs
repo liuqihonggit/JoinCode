@@ -130,9 +130,12 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
             TaskDescription = context.Prompt,
             ShareCache = true,
             ShareContext = true,
+            // 后台 fork 继承父代理工具池，但禁止交互工具 ask/confirm（父表可能含）
             UseExactTools = true,
             RunInBackground = true,
-            PermissionMode = PermissionMode.Plan,
+            PermissionMode = BackgroundExecutionPolicy.Mode,
+            AllowedTools = [],
+            DeniedTools = [.. BackgroundExecutionPolicy.DeniedTools],
             MaxIterations = 200,
             CacheSafeParams = parentCacheSafeParams,
             // 捕获当前回合的子代理事件通道 — 供后台完成时发射 AgentFinished 终态
@@ -156,7 +159,7 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
         response.AppendLine();
         response.AppendLine("Status: async_launched");
         response.AppendLine("Fork sub-agent is running in the background. You will be notified when it completes.");
-        response.AppendLine("Fork inherits the parent's full context and tool pool, sharing Prompt Cache.");
+        response.AppendLine("Fork inherits the parent's full context and tool pool (interactive ask/confirm removed), sharing Prompt Cache.");
 
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "fork", true);
         context.ForkResult = ToolResultBuilder.Success()

@@ -2,32 +2,34 @@
 namespace Core.Permission;
 
 /// <summary>
-/// 分类器中间件 — Auto/Default 模式下使用工具过滤器和分类器判断权限
-/// Default 模式描述为"根据配置自动判断是否需要确认"，因此也使用分类器自动批准只读/安全写入工具
+/// 分类器中间件 — Auto/Unattended 模式下使用工具过滤器和分类器判断权限
+/// Unattended（含 autonomous 别名）只需硬规则拒绝，其余自动批准；Auto 保留灰区 ask
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AutoClassifierMiddleware : ServiceEntity, IPermissionMiddleware {
     private readonly IToolPermissionFilter? _toolPermissionFilter;
     private readonly IAutoModeClassifier? _autoModeClassifier;
-
-    /// <inheritdoc />
-
-    /// <inheritdoc />
+    private readonly ILlmAutoModeClassifier? _llmAutoModeClassifier;
 
     /// <summary>
     /// 创建 AutoClassifierMiddleware
     /// </summary>
+    /// <param name="toolPermissionFilter">工具拒绝规则过滤器</param>
+    /// <param name="autoModeClassifier">纯规则分类器（Stage 1 回退）</param>
+    /// <param name="llmAutoModeClassifier">规则 + AI 灰区分类器（优先使用；可选，未注册时为 null）</param>
     public AutoClassifierMiddleware(
         IToolPermissionFilter? toolPermissionFilter = null,
-        IAutoModeClassifier? autoModeClassifier = null) {
+        IAutoModeClassifier? autoModeClassifier = null,
+        ILlmAutoModeClassifier? llmAutoModeClassifier = null) {
         _toolPermissionFilter = toolPermissionFilter;
         _autoModeClassifier = autoModeClassifier;
+        _llmAutoModeClassifier = llmAutoModeClassifier;
     }
 
     /// <inheritdoc />
     public async Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
-        // Auto 和 Default 模式均使用分类器 — Default 模式下只读/安全写入工具自动批准，其余仍需确认
-        if (context.CurrentMode != PermissionMode.Auto) {
+        // Auto / Unattended 模式使用分类器；Ask/Plan/Bypass 保持各自语义
+        if (context.CurrentMode is not (PermissionMode.Auto or PermissionMode.Unattended)) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -43,30 +45,60 @@ public sealed partial class AutoClassifierMiddleware : ServiceEntity, IPermissio
             return;
         }
 
+        // WebFetch 必须先走 WebFetchPermissionMiddleware 的域名级 deny/ask/allow 决策；
+        // 分类器提前 AutoApprove 会绕过域名 deny 规则（Auto 与 Unattended 都适用）。
+        if (PermissionCheckContext.IsWebFetchTool(context.ToolName)) {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
+
         // 工具拒绝规则过滤
         if (_toolPermissionFilter is not null && _toolPermissionFilter.IsToolDenied(context.ToolName)) {
             context.Result = ToolPermissionCheckResult.Rejected($"工具 '{context.ToolName}' 被拒绝规则过滤");
             return;
         }
 
-        // 分类器判断 — ReadOnly/SafeWrite 工具自动批准，Sensitive/Unknown 仍需确认
-        if (_autoModeClassifier is not null) {
-            var request = new ClassificationRequest {
-                ToolName = context.ToolName,
-                Parameters = context.Arguments ?? new(),
-                OperationType = OperationType.Auto
-            };
-            var classification = await _autoModeClassifier.ClassifyAsync(request, ct).ConfigureAwait(false);
-            context.Result = classification.Action switch {
-                SecurityAction.AutoApprove => ToolPermissionCheckResult.Approved(),
-                SecurityAction.RequireConfirmation => ToolPermissionCheckResult.PendingConfirmation($"工具 '{context.ToolName}' 需要确认: {classification.Reason}"),
-                SecurityAction.RequireApproval => ToolPermissionCheckResult.PendingConfirmation($"工具 '{context.ToolName}' 需要审批: {classification.Reason}"),
-                SecurityAction.Block => ToolPermissionCheckResult.Rejected($"工具 '{context.ToolName}' 被阻止: {classification.Reason}"),
-                _ => ToolPermissionCheckResult.Approved()
-            };
+        var llmClassifier = _llmAutoModeClassifier;
+        var ruleClassifier = _autoModeClassifier;
+        if (llmClassifier is null && ruleClassifier is null) {
+            await next(context, ct).ConfigureAwait(false);
             return;
         }
 
-        await next(context, ct).ConfigureAwait(false);
+        var request = new ClassificationRequest {
+            ToolName = context.ToolName,
+            Parameters = context.Arguments ?? new(),
+            OperationType = OperationType.Auto
+        };
+        ClassificationResult classification;
+        if (llmClassifier is not null && context.Config.LlmJudgeEnabled) {
+            classification = await llmClassifier.ClassifyAsync(request, ct).ConfigureAwait(false);
+        } else if (ruleClassifier is not null) {
+            classification = await ruleClassifier.ClassifyAsync(request, ct).ConfigureAwait(false);
+        } else {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
+
+        context.Result = context.CurrentMode == PermissionMode.Unattended
+            ? MapUnattended(classification, context.ToolName)
+            : MapForeground(classification, context.ToolName);
     }
+
+    /// <summary>前台 Auto 映射 — 需要确认/审批时保留 ask 语义。</summary>
+    private static ToolPermissionCheckResult MapForeground(ClassificationResult classification, string toolName)
+        => classification.Action switch {
+            SecurityAction.AutoApprove => ToolPermissionCheckResult.Approved(),
+            SecurityAction.RequireConfirmation => ToolPermissionCheckResult.PendingConfirmation($"工具 '{toolName}' 需要确认: {classification.Reason}"),
+            SecurityAction.RequireApproval => ToolPermissionCheckResult.PendingConfirmation($"工具 '{toolName}' 需要审批: {classification.Reason}"),
+            SecurityAction.Block => ToolPermissionCheckResult.Rejected($"工具 '{toolName}' 被阻止: {classification.Reason}"),
+            _ => ToolPermissionCheckResult.Approved()
+        };
+
+    /// <summary>Unattended 映射 — 没有宿主可确认，仅 Block 拒绝，其余自动执行（命令级硬红灯已在前层拦截 + 审计）。</summary>
+    private static ToolPermissionCheckResult MapUnattended(ClassificationResult classification, string toolName)
+        => classification.Action switch {
+            SecurityAction.Block => ToolPermissionCheckResult.Rejected($"工具 '{toolName}' 被阻止: {classification.Reason}"),
+            _ => ToolPermissionCheckResult.Approved()
+        };
 }

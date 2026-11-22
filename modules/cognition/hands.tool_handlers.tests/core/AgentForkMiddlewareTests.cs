@@ -43,6 +43,10 @@ public class AgentForkMiddlewareTests {
         capturedOptions.Should().NotBeNull();
         capturedOptions!.EventChannel.Should().BeSameAs(channel);
         capturedOptions.RunInBackground.Should().BeTrue();
+        capturedOptions.UseExactTools.Should().BeTrue("后台 fork 保留父代理工具池，只剔除交互工具");
+        capturedOptions.AllowedTools.Should().BeEmpty("不额外收紧父代理工具池");
+        capturedOptions.DeniedTools.Should().Contain(UserInteractionToolNameEnumConstants.AskUserQuestion);
+        capturedOptions.PermissionMode.Should().Be(PermissionMode.Unattended);
 
         // 短路语义保持：Result 已设置且不调用 next（此处 next 若被调用会抛出）
         context.Result.Should().NotBeNull();

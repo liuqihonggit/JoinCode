@@ -489,6 +489,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             ? _roleRegistry.GetProfile(metadata.Role, metadata.Variant)
             : null;
 
+        var isBackground = options.RunInBackground;
+        var resumedAllowedTools = BackgroundExecutionPolicy.PreserveToolsExceptDenied(profile?.AllowedTools);
         var subOptions = new SubAgentOptions {
             Role = metadata.Role,
             Variant = metadata.Variant,
@@ -497,11 +499,16 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             Temperature = profile?.Temperature ?? 0.7f,
             DisplayName = metadata.Description ?? "Resumed Agent",
             SystemPrompt = null,
-            AllowedTools = profile?.AllowedTools?.ToList() ?? [],
-            DeniedTools = profile?.DisallowedTools?.ToList() ?? [],
+            // 后台恢复保留历史 profile 工具池，只剔除交互工具；profile 未记录工具集时回退后台默认白名单
+            AllowedTools = isBackground
+                ? resumedAllowedTools.Count > 0 ? resumedAllowedTools : [.. BackgroundExecutionPolicy.AllowedTools]
+                : profile?.AllowedTools?.ToList() ?? [],
+            DeniedTools = isBackground
+                ? BackgroundExecutionPolicy.MergeDeniedTools(profile?.DisallowedTools)
+                : profile?.DisallowedTools?.ToList() ?? [],
             InitialMessageList = chatHistory,
             PreloadSkills = profile?.Skills?.ToList() ?? [],
-            PermissionMode = profile?.PermissionMode,
+            PermissionMode = isBackground ? BackgroundExecutionPolicy.ModeValue : profile?.PermissionMode,
         };
 
         var description = $"Resume: {metadata.Description}";

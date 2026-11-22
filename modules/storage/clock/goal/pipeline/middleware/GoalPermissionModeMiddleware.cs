@@ -2,7 +2,7 @@ namespace Core.Goal;
 
 
 /// <summary>
-/// 权限模式中间件 — Start 时切换 Auto，Clear/MarkCompleted/MarkUnmet 时恢复
+/// 权限模式中间件 — Start 时切换 Unattended（后台 Goal 不弹 ask），Clear/MarkCompleted/MarkUnmet 时恢复
 /// </summary>
 [Register(typeof(IGoalLifecycleMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class GoalPermissionModeMiddleware : ServiceEntity, IGoalLifecycleMiddleware {
@@ -29,9 +29,17 @@ public sealed partial class GoalPermissionModeMiddleware : ServiceEntity, IGoalL
         switch (ctx.Operation) {
             case GoalOperation.Start:
             try {
-                ctx.SavedPermissionMode = await ctx.PermissionManager.GetCurrentModeAsync(ct).ConfigureAwait(false);
-                await ctx.PermissionManager.SetPermissionModeAsync(PermissionMode.Auto, ct).ConfigureAwait(false);
-                _logger?.LogInformation(L.T(StringKey.PermissionModeSwitched), ctx.SavedPermissionMode);
+                var currentMode = await ctx.PermissionManager.GetCurrentModeAsync(ct).ConfigureAwait(false);
+                if (currentMode is PermissionMode.Bypass or PermissionMode.Unattended) {
+                    // Bypass 不能被降级为 Unattended（会丢掉全放行语义）；已经是 Unattended 则无需切换
+                    ctx.SavedPermissionMode = null;
+                    _logger?.LogInformation("[GoalPermissionMode] 当前权限模式为 {Mode}，跳过切换到 Unattended", currentMode);
+                    break;
+                }
+
+                ctx.SavedPermissionMode = currentMode;
+                await ctx.PermissionManager.SetPermissionModeAsync(PermissionMode.Unattended, ct).ConfigureAwait(false);
+                _logger?.LogInformation(L.T(StringKey.PermissionModeSwitched), ctx.SavedPermissionMode, PermissionMode.Unattended);
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, L.T(StringKey.PermissionModeSwitchFailed));
                 ctx.SavedPermissionMode = null;

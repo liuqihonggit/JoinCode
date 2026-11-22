@@ -2,21 +2,20 @@
 namespace Core.Permission;
 
 /// <summary>
-/// 危险操作中间件 — Default 模式下检查危险操作
+/// 危险操作中间件 — Auto/Unattended 模式下检查危险操作
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DangerousOperationMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
-
-    /// <inheritdoc />
-
-    /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
-        if (context.CurrentMode != PermissionMode.Auto)
+        if (context.CurrentMode is not (PermissionMode.Auto or PermissionMode.Unattended))
             return next(context, ct);
 
         if (IsDangerousOperation(context)) {
-            context.Result = ToolPermissionCheckResult.PendingConfirmation($"工具 '{context.ToolName}' 可能执行危险操作，请确认是否继续？");
+            // Unattended 没有宿主可确认：危险操作按无人值守契约自动执行（命令级硬红灯仍由 DangerousCommand 层拦截 + 审计）
+            context.Result = context.CurrentMode == PermissionMode.Unattended
+                ? ToolPermissionCheckResult.Approved()
+                : ToolPermissionCheckResult.PendingConfirmation($"工具 '{context.ToolName}' 可能执行危险操作，请确认是否继续？");
             return Task.CompletedTask;
         }
 

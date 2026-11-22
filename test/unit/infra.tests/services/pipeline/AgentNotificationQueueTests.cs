@@ -48,6 +48,30 @@ public sealed class AgentNotificationQueueTests {
     }
 
     [Fact]
+    public async Task DequeueAll_ForOneAgent_DoesNotDropOtherAgentsNotifications() {
+        await using var queue = new AgentNotificationQueue();
+        queue.Enqueue("agent-1", "notification-for-1");
+        queue.Enqueue("agent-2", "notification-for-2");
+
+        queue.DequeueAll("agent-1").Should().ContainSingle(n => n.Xml == "notification-for-1");
+
+        var forAgent2 = queue.DequeueAll("agent-2");
+        forAgent2.Should().ContainSingle(n => n.Xml == "notification-for-2");
+    }
+
+    [Fact]
+    public async Task DequeueAll_ForMainAgentId_DoesNotDrainOtherAgentsNotifications() {
+        await using var queue = new AgentNotificationQueue();
+        queue.Enqueue("main", "notification-for-main");
+        queue.Enqueue("agent-1", "notification-for-1");
+
+        var forMain = queue.DequeueAll("main");
+        forMain.Should().ContainSingle(n => n.Xml == "notification-for-main");
+
+        queue.DequeueAll("agent-1").Should().ContainSingle(n => n.Xml == "notification-for-1");
+    }
+
+    [Fact]
     public async Task Enqueue_NullTargetAgentId_AcceptedByAll() {
         await using var queue = new AgentNotificationQueue();
         queue.Enqueue(null, "main-notification");

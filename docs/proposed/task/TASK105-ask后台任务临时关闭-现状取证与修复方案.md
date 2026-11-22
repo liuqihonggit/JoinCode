@@ -35,7 +35,7 @@
 | D4 Web GUI 通知到达不 Defer | `IJccChatSession.NotificationQueue` → `DshHostServices.AttachEngine` → `DshUserQuestionBroker.AttachNotificationQueue`；`RequestAsync` 100ms 帧拍命中通知即 cancel + Deferred | `DshUserQuestionsTests` 11 项通过 |
 | D5 TUI 忽略取消令牌 | `TuiAskBridge.Ask(..., ct)` 透传；`ReplShell.AskUserQuestions` 注册 `RequestAskQuestionCancel`；`CheckAskQuestionInterrupt` 帧拍优先消费取消标记 | `AskQuestionTests` 16 项通过 |
 
-**未完成**：`PendingConfirmationQueue`、异步 Supervisor、手动 exe 验收（ADR 0080）。
+**未完成**：`PendingConfirmationQueue`、异步 Supervisor、DSH/TUI 提问 Defer 的真机交互验收。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
 
 ---
 

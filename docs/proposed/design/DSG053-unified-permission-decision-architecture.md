@@ -355,7 +355,7 @@ latencyMs, cacheHit, fallbackReason, userOverride
 | 审计 `PermissionJudgeAudit` | 现有 audit 通道 | ❌ 仅命令审计，Judge 审计未落盘 | ❌ 未验收 |
 | 真实工具名测试 | `AsyncAgentAllowedToolsTests` 等 | ✅ 已改用真实工具名 + 后台拒绝集测试 | ✅ 单元测试通过 |
 
-> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。本轮为代码改造 + 单测/定向构建验证，手动 exe 验收明确标记为未完成。
+> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。本轮已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）：引擎进程内组装、session_info 握手、权限模式回执通过；但 DSH/TUI 提问 Defer 的真机交互仍标未完成。
 
 ---
 

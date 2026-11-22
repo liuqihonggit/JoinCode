@@ -104,12 +104,12 @@ public static class DiCycleDetector {
         return result;
     }
 
-    private static (string From, string To, string? File, int? Line)[] BuildCycleEdges(
+    private static DiCycleEdge[] BuildCycleEdges(
         string[] cycle,
         IReadOnlyList<ConstructorDependency> constructorDeps) {
-        var edges = new (string From, string To, string? File, int? Line)[cycle.Length - 1];
+        var edges = new DiCycleEdge[cycle.Length - 1];
         for (var i = 0; i < cycle.Length - 1; i++) {
-            edges[i] = (cycle[i], cycle[i + 1], null, null);
+            edges[i] = new DiCycleEdge(cycle[i], cycle[i + 1], null, null);
         }
 
         for (var i = 0; i < edges.Length; i++) {
@@ -117,7 +117,7 @@ public static class DiCycleDetector {
             var to = edges[i].To;
             foreach (var dep in constructorDeps) {
                 if (dep.ClassName == from && dep.DependencyType == to && dep.FilePath is not null) {
-                    edges[i] = (from, to, dep.FilePath, dep.LineNumber);
+                    edges[i] = new DiCycleEdge(from, to, dep.FilePath, dep.LineNumber);
                     break;
                 }
             }

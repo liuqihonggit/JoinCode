@@ -4,13 +4,15 @@
 
 ## 项目
 
+<!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| composition | |
-| composition.tests | |
-| slash | |
-| pipelines | |
-| pipelines.tests | |
+| [Composition.Tests](composition.tests/Composition.Tests.csproj) | 测试 |
+| [Composition](composition/Composition.csproj) |  |
+| [Pipelines.Tests](pipelines.tests/Pipelines.Tests.csproj) | 测试 |
+| [Pipelines](pipelines/Pipelines.csproj) |  |
+| [Slash](slash/Slash.csproj) |  |
+<!-- END MODULE PROJECTS -->
 
 ## 用法
 

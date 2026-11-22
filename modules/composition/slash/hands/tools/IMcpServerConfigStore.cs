@@ -33,5 +33,12 @@ public interface IMcpServerConfigStore : IStore {
     /// <summary>
     /// 获取所有作用域的服务器
     /// </summary>
-    Task<Dictionary<string, (string Scope, McpServerConfigEntry Entry)>> GetAllServersAsync(CancellationToken ct = default);
+    Task<Dictionary<string, McpServerScopedEntry>> GetAllServersAsync(CancellationToken ct = default);
 }
+
+/// <summary>
+/// 带作用域的 MCP 服务器配置条目 — 同一个服务器名可能同时存在于用户级与项目级配置。
+/// </summary>
+/// <param name="Scope">作用域（用户级 / 项目级）。</param>
+/// <param name="Entry">MCP 服务器配置条目。</param>
+public sealed record McpServerScopedEntry(string Scope, McpServerConfigEntry Entry);

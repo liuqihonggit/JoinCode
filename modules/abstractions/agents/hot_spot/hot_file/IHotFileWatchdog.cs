@@ -17,7 +17,7 @@ public interface IHotFileWatchdog {
     /// <summary>
     /// 批量检查文件变更
     /// </summary>
-    /// <param name="changes">文件变更列表（路径, 修改者ID）</param>
+    /// <param name="changes">文件变更列表(路径 + 修改者ID)</param>
     /// <returns>告警列表（空=全部正常）</returns>
-    IReadOnlyList<HotFileAlert> CheckChanges(IReadOnlyList<(string FilePath, string ChangerId)> changes);
+    IReadOnlyList<HotFileAlert> CheckChanges(IReadOnlyList<HotFileChange> changes);
 }

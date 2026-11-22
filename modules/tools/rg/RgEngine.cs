@@ -108,7 +108,7 @@ internal static class RgEngine {
     /// <summary>
     /// 编译正则。smart-case: 模式含大写则区分大小写，否则忽略。
     /// </summary>
-    private static (Regex? Regex, string? Error) CompileRegex(RgQuery q) {
+    private static RegexCompileResult CompileRegex(RgQuery q) {
         return SearchRegexCompiler.Compile(
             q.Pattern, q.CaseInsensitive, q.Multiline, q.FixedStrings, q.WordRegexp, q.SmartCase);
     }
@@ -339,7 +339,7 @@ internal static class RgEngine {
 
     private static List<int> CollectMultilineMatches(
         ReadOnlySpan<char> contentSpan, Regex regex,
-        List<(int Start, int Length)> lineRanges, RgQuery q) {
+        List<LineCharRange> lineRanges, RgQuery q) {
         var seen = new HashSet<int>();
         foreach (var m in regex.EnumerateMatches(contentSpan)) {
             var lineIdx = LineSpanIndexer.FindLineIndex(lineRanges, m.Index);
@@ -372,7 +372,7 @@ internal static class RgEngine {
 
     private static List<int> CollectLineMatches(
         ReadOnlySpan<char> contentSpan, Regex regex,
-        List<(int Start, int Length)> lineRanges, RgQuery q, CancellationToken ct) {
+        List<LineCharRange> lineRanges, RgQuery q, CancellationToken ct) {
         if (contentSpan.Length >= LineParallelThresholdBytes && lineRanges.Count >= LineParallelThresholdLines)
             return CollectLineMatchesParallel(contentSpan, regex, lineRanges, q, ct);
 
@@ -397,7 +397,7 @@ internal static class RgEngine {
 
     private static List<int> CollectLineMatchesParallel(
         ReadOnlySpan<char> contentSpan, Regex regex,
-        List<(int Start, int Length)> lineRanges, RgQuery q, CancellationToken ct) {
+        List<LineCharRange> lineRanges, RgQuery q, CancellationToken ct) {
         var content = contentSpan.ToString();
         var fastFixed = RgCore.CanUseFastFixedString(q.FixedStrings, q.CaseInsensitive, q.WordRegexp, q.SmartCase);
         var pattern = q.Pattern;

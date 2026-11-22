@@ -40,8 +40,8 @@ public static class ImprovementStore {
     /// <param name="fs">文件系统抽象（测试可注入 InMemory 实现，0 磁盘 IO）。</param>
     /// <param name="path">JSONL 文件路径。</param>
     /// <returns>(合法条目集合, 被拒原始行集合)。</returns>
-    public static (IReadOnlyList<ImprovementEntry> Entries, IReadOnlyList<string> Rejected) Load(IFileSystem fs, string path) {
-        if (!fs.FileExists(path)) return ([], []);
+    public static ImprovementLoadResult Load(IFileSystem fs, string path) {
+        if (!fs.FileExists(path)) return new ImprovementLoadResult([], []);
         var entries = new List<ImprovementEntry>();
         var rejected = new List<string>();
         foreach (var line in fs.ReadAllLines(path)) {
@@ -53,6 +53,15 @@ public static class ImprovementStore {
                 Console.Error.WriteLine($"[EXPERIENCE] 跳过被拒经验条目：{error} | 原始行: {line[..Math.Min(80, line.Length)]}");
             }
         }
-        return (entries, rejected);
+        return new ImprovementLoadResult(entries, rejected);
     }
 }
+
+/// <summary>
+/// 经验库加载结果 — 合法条目集合与被拒原始行集合（被拒条目单独返回以便隔离）。
+/// </summary>
+/// <param name="Entries">解析成功的经验条目。</param>
+/// <param name="Rejected">校验失败、被隔离的原始行。</param>
+public sealed record ImprovementLoadResult(
+    IReadOnlyList<JoinCode.Composition.Improvement.ImprovementEntry> Entries,
+    IReadOnlyList<string> Rejected);

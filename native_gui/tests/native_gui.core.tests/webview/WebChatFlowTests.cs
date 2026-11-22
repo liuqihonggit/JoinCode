@@ -269,7 +269,7 @@ public sealed class WebChatFlowTests {
         public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public void RefreshVendorModelMap() { }
         public void SwitchSession(string sessionId) { }
-        public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task LoadHistoryAsync(IReadOnlyList<JoinCode.Gui.Hosting.EngineHistoryMessage> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public EffortLevel EffortLevel => EffortLevel.Auto;
         public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;

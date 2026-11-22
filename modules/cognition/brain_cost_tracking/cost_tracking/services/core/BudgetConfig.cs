@@ -241,7 +241,8 @@ public sealed class BudgetConfigBuilder {
     /// <summary>
     /// 尝试构建预算配置，返回验证错误信息
     /// </summary>
-    public (BudgetConfig? Config, string? Error) TryBuild() {
+    /// <returns>构建结果(成功时 Config 非空, 失败时 Error 非空)</returns>
+    public BudgetBuildResult TryBuild() {
         var config = new BudgetConfig {
             DailyLimit = _dailyLimit,
             MonthlyLimit = _monthlyLimit,
@@ -250,6 +251,15 @@ public sealed class BudgetConfigBuilder {
             Enabled = _enabled
         };
 
-        return config.TryValidate(out var error) ? (config, null) : (null, error);
+        return config.TryValidate(out var error)
+            ? new BudgetBuildResult(config, null)
+            : new BudgetBuildResult(null, error);
     }
 }
+
+/// <summary>
+/// 预算配置构建结果 — 成功时带 Config, 失败时带 Error
+/// </summary>
+/// <param name="Config">构建成功的预算配置, 失败为 null</param>
+/// <param name="Error">校验错误信息, 成功为 null</param>
+public sealed record BudgetBuildResult(BudgetConfig? Config, string? Error);

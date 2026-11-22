@@ -286,7 +286,7 @@ public sealed class SessionController {
             // TASK073 Phase 4 — 文件持久化事件：回合结束后通知 SDK 消费方 transcript 已落盘
             // 对齐基准侧 print.ts:2256-2272 — 回合结束后触发 system/files_persisted 事件
             _consumer.OnFilesPersisted(
-                files: [($"{_sessionId}/transcript.jsonl", "")],
+                files: [new JoinCode.Abstractions.Interfaces.PersistedFileInfo($"{_sessionId}/transcript.jsonl", "")],
                 failed: null
             );
 

@@ -13,4 +13,8 @@
     <InternalsVisibleTo Include="JoinCode.BclBridge.Tests" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

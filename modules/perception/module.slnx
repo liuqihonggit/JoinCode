@@ -2,4 +2,8 @@
   <Project Path="code_index/CodeIndex.csproj" />
   <Project Path="code_index.tests/CodeIndex.Tests.csproj" />
   <Project Path="code_index.e2e.tests/CodeIndex.E2E.Tests.csproj" />
+  <Project Path="eyes/Eyes.csproj" />
+  <Project Path="eyes.tests/Eyes.Tests.csproj" />
+  <Project Path="vision/Vision.csproj" />
+  <Project Path="vision.tests/Vision.Tests.csproj" />
 </Solution>

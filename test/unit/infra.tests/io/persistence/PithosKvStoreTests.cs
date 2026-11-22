@@ -37,7 +37,7 @@ public sealed class PithosKvStoreTests {
         for (var i = 0; i < 50; i++) {
             await store.PutAsync(K($"key:{i:D3}"), K($"val:{i}"));
         }
-        var entries = new List<(byte[] Key, byte[] Value)>();
+        var entries = new List<KvStoreEntry>();
         await foreach (var entry in store.ScanAsync()) {
             entries.Add(entry);
         }
@@ -52,7 +52,7 @@ public sealed class PithosKvStoreTests {
         for (var i = 0; i < 100; i++) {
             await store.PutAsync(K($"k{i:D3}"), K($"v{i}"));
         }
-        var entries = new List<(byte[] Key, byte[] Value)>();
+        var entries = new List<KvStoreEntry>();
         await foreach (var entry in store.ScanAsync(from: K("k020"), to: K("k029"))) {
             entries.Add(entry);
         }

@@ -18,8 +18,6 @@
     <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/async_primitives/async_lock/AsyncLock.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.AsyncLock" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/plugins/plugins.contracts/Plugins.Contracts.csproj" />
-    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Plugins.Contracts" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)modules/generators/fsm.generator/Fsm.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
@@ -29,5 +27,10 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(MicrosoftExtensionsDependencyInjectionVersion)" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!-- 被 plugins 域的 Plugins.Infrastructure 引用（TelemetryPlugin 落地于插件域），按 API 准入门暴露 -->
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
 
 </Project>

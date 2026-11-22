@@ -101,7 +101,7 @@ public sealed class SessionToolMap : IToolLifecycleKiller {
     }
 
     /// <summary>检查超时工具 — 返回需要警报和需要杀死的工具列表（定时器调用）</summary>
-    public (List<ToolLifecycleInfo> ToWarn, List<ToolLifecycleInfo> ToKill) CheckTimeouts(DateTime now) {
+    public SessionToolTimeouts CheckTimeouts(DateTime now) {
         var toWarn = new List<ToolLifecycleInfo>();
         var toKill = new List<ToolLifecycleInfo>();
 
@@ -113,7 +113,7 @@ public sealed class SessionToolMap : IToolLifecycleKiller {
                 toWarn.Add(info);
         }
 
-        return (toWarn, toKill);
+        return new SessionToolTimeouts(toWarn, toKill);
     }
 
     private CancellationTokenSource? _monitoringCts;
@@ -187,3 +187,10 @@ public sealed class SessionToolMap : IToolLifecycleKiller {
         }
     }
 }
+
+/// <summary>
+/// 超时检查结果 — 需要告警的工具与需要杀死的工具
+/// </summary>
+/// <param name="ToWarn">超过告警阈值、尚未达到杀死阈值的工具</param>
+/// <param name="ToKill">超过杀死阈值、需要终止的工具</param>
+public sealed record SessionToolTimeouts(List<ToolLifecycleInfo> ToWarn, List<ToolLifecycleInfo> ToKill);

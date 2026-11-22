@@ -10,7 +10,7 @@ internal sealed class LspMessageRouter {
     private readonly Dictionary<string, LspMethodHandler> _handlers = new(StringComparer.Ordinal);
 
     /// <summary>收到通知时触发，参数为 (方法名, 参数)</summary>
-    public event EventHandler<(string Method, JsonNode? Params)>? NotificationReceived;
+    public event EventHandler<LspNotification>? NotificationReceived;
 
     /// <summary>注册通知处理程序</summary>
     public void OnNotification(string method, Func<JsonNode?, CancellationToken, ValueTask> handler) {
@@ -66,7 +66,7 @@ internal sealed class LspMessageRouter {
 
                 await DispatchResponseAsync(message).ConfigureAwait(false);
             } else if (message.Method is not null) {
-                NotificationReceived?.Invoke(this, (message.Method, message.Params));
+                NotificationReceived?.Invoke(this, new LspNotification(message.Method, message.Params));
 
                 if (_handlers.TryGetValue(message.Method, out var entry) && entry.Notification is not null) {
                     await entry.Notification(message.Params, cancellationToken).ConfigureAwait(false);
@@ -154,3 +154,10 @@ internal sealed record LspMethodHandler(
     Func<JsonNode?, CancellationToken, ValueTask>? Notification = null,
     Func<string, JsonNode?, CancellationToken, ValueTask<JsonNode?>>? Request = null
 );
+
+/// <summary>
+/// 收到的 LSP 通知 — 方法名与参数。
+/// </summary>
+/// <param name="Method">JSON-RPC 方法名。</param>
+/// <param name="Params">通知参数；可能为 null。</param>
+public sealed record LspNotification(string Method, JsonNode? Params);

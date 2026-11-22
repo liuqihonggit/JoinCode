@@ -63,5 +63,13 @@ public interface INotebookService {
     /// <summary>
     /// 列出所有单元格
     /// </summary>
-    List<(int Index, NotebookCellType Type, string Preview)> ListCells(NotebookDocument notebook);
+    List<NotebookCellSummary> ListCells(NotebookDocument notebook);
 }
+
+/// <summary>
+/// 笔记本单元格摘要 — 供列表展示的下标、类型与内容预览。
+/// </summary>
+/// <param name="Index">单元格下标。</param>
+/// <param name="Type">单元格类型（code/markdown/...）。</param>
+/// <param name="Preview">内容预览（单行、超长截断）。</param>
+public sealed record NotebookCellSummary(int Index, NotebookCellType Type, string Preview);

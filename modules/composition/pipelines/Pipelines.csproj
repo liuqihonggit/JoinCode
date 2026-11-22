@@ -32,4 +32,8 @@
     <InternalsVisibleTo Include="JoinCode.Gui.Tests" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

@@ -227,7 +227,7 @@ public partial class ChatContextManagerThreePartTests {
 
         _stateService
             .Setup(s => s.LoadStateAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(("restored static", savedHistory));
+            .ReturnsAsync(new JoinCode.Abstractions.Interfaces.LoadedChatState("restored static", savedHistory));
 
         await using var sut = CreateSut();
         await sut.LoadContextAsync().ConfigureAwait(true);
@@ -251,7 +251,7 @@ public partial class ChatContextManagerThreePartTests {
 
         _stateService
             .Setup(s => s.LoadStateAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string.Empty, savedHistory));
+            .ReturnsAsync(new JoinCode.Abstractions.Interfaces.LoadedChatState(string.Empty, savedHistory));
 
         await using var sut = CreateSut();
         await sut.LoadContextAsync().ConfigureAwait(true);

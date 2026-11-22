@@ -31,4 +31,8 @@
     <ProjectReference Include="$(RepoRoot)modules/generators/tool_prompt.generator/ToolPrompt.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

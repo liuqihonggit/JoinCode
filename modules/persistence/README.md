@@ -4,9 +4,11 @@
 
 ## 项目
 
+<!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| pithosdb | |
+| [PithosDB.Core](pithosdb/PithosDB.Core.csproj) |  |
+<!-- END MODULE PROJECTS -->
 
 ## 用法
 

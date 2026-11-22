@@ -20,4 +20,10 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/memory/Abstractions.Memory.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Memory" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
+
+  <!-- 显式声明下载器依赖（禁止依赖 Infrastructure 的传递引用） -->
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/storage/downloader/Downloader.csproj" />
+  </ItemGroup>
+
 </Project>

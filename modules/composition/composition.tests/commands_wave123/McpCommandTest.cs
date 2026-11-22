@@ -11,7 +11,7 @@ namespace Composition.Tests.Commands;
 public sealed class McpCommandTest {
     private static (McpCommand Command, Mock<IMcpServerConfigStore> Store, ChatCommandContext Context) Arrange(
         string arguments = "",
-        Dictionary<string, (string Scope, McpServerConfigEntry Entry)>? servers = null,
+        Dictionary<string, McpServerScopedEntry>? servers = null,
         Mock<IMcpToolRegistry>? registry = null) {
         var store = new Mock<IMcpServerConfigStore>();
         store.Setup(s => s.GetAllServersAsync(It.IsAny<CancellationToken>()))
@@ -59,11 +59,11 @@ public sealed class McpCommandTest {
 
     [Fact]
     public async Task Execute_ListWithServers_RendersTransportDetails() {
-        var servers = new Dictionary<string, (string Scope, McpServerConfigEntry Entry)> {
-            ["srv-stdio"] = ("user", new McpServerConfigEntry {
+        var servers = new Dictionary<string, McpServerScopedEntry> {
+            ["srv-stdio"] = new("user", new McpServerConfigEntry {
                 Type = "stdio", Command = "npx", Args = ["-y", "foo-server"],
             }),
-            ["srv-http"] = ("project", new McpServerConfigEntry {
+            ["srv-http"] = new("project", new McpServerConfigEntry {
                 Type = "http", Url = "https://mcp.example.dev/mcp",
             }),
         };

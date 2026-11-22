@@ -50,9 +50,9 @@ public sealed class SymbolIndexTests : IDisposable {
     [Fact]
     public async Task RemoveFileAsync_RemovesSymbolsForFile() {
         var filePath = "a.cs";
-        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>
+        var batch = new List<CodeIndexBatchFile>
         {
-            (filePath, "code", "h", MakeExtraction(
+            new(filePath, "code", "h", MakeExtraction(
                 symbols: [MakeSymbol("Foo", "Ns.Foo", SymbolKind.Method, filePath)],
                 calls: [],
                 deps: []))
@@ -87,9 +87,9 @@ public sealed class SymbolIndexTests : IDisposable {
 
     [Fact]
     public async Task ClearAsync_RemovesAllData() {
-        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>
+        var batch = new List<CodeIndexBatchFile>
         {
-            ("a.cs", "code", "h", MakeExtraction(
+            new("a.cs", "code", "h", MakeExtraction(
                 symbols: [MakeSymbol("Foo", "Ns.Foo", SymbolKind.Method, "a.cs")],
                 calls: [MakeCall("Foo", "Bar", "a.cs")],
                 deps: [MakeDep("Foo", "Bar", DependencyKind.Uses, "a.cs")]))
@@ -136,9 +136,9 @@ public sealed class SymbolIndexTests : IDisposable {
 
     [Fact]
     public async Task GetStatsAsync_ReturnsCorrectCounts() {
-        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>
+        var batch = new List<CodeIndexBatchFile>
         {
-            ("a.cs", "code", "h", MakeExtraction(
+            new("a.cs", "code", "h", MakeExtraction(
                 symbols: [MakeSymbol("Foo", "Ns.Foo", SymbolKind.Method, "a.cs")],
                 calls: [MakeCall("Foo", "Bar", "a.cs")],
                 deps: [MakeDep("Foo", "Bar", DependencyKind.Uses, "a.cs")]))
@@ -158,13 +158,13 @@ public sealed class SymbolIndexTests : IDisposable {
 
     [Fact]
     public async Task IndexFilesBatchAsync_MultipleFiles_StoresAllSymbols() {
-        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>
+        var batch = new List<CodeIndexBatchFile>
         {
-            ("a.cs", "code-a", "h-a", MakeExtraction(
+            new("a.cs", "code-a", "h-a", MakeExtraction(
                 symbols: [MakeSymbol("Foo", "Ns.Foo", SymbolKind.Method, "a.cs")],
                 calls: [MakeCall("Foo", "Bar", "a.cs")],
                 deps: [])),
-            ("b.cs", "code-b", "h-b", MakeExtraction(
+            new("b.cs", "code-b", "h-b", MakeExtraction(
                 symbols: [MakeSymbol("Bar", "Ns.Bar", SymbolKind.Method, "b.cs")],
                 calls: [],
                 deps: []))
@@ -183,13 +183,13 @@ public sealed class SymbolIndexTests : IDisposable {
     [Fact]
     public async Task IndexFilesBatchAsync_CorrectsInheritsToImplements_WhenTargetIsInterface() {
         // 接口 IFoo + 类 FooImpl Inherits IFoo → 批量结束后应修正为 Implements
-        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>
+        var batch = new List<CodeIndexBatchFile>
         {
-            ("iface.cs", "code", "h1", MakeExtraction(
+            new("iface.cs", "code", "h1", MakeExtraction(
                 symbols: [MakeSymbol("IFoo", "Ns.IFoo", SymbolKind.Interface, "iface.cs")],
                 calls: [],
                 deps: [])),
-            ("impl.cs", "code", "h2", MakeExtraction(
+            new("impl.cs", "code", "h2", MakeExtraction(
                 symbols: [MakeSymbol("FooImpl", "Ns.FooImpl", SymbolKind.Class, "impl.cs")],
                 calls: [],
                 deps: [MakeDep("Ns.FooImpl", "Ns.IFoo", DependencyKind.Inherits, "impl.cs")]))
@@ -204,9 +204,9 @@ public sealed class SymbolIndexTests : IDisposable {
 
     [Fact]
     public async Task IndexFilesBatchAsync_ReindexFile_OverwritesOldSymbols() {
-        var first = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>
+        var first = new List<CodeIndexBatchFile>
         {
-            ("a.cs", "v1", "h1", MakeExtraction(
+            new("a.cs", "v1", "h1", MakeExtraction(
                 symbols: [MakeSymbol("Old", "Ns.Old", SymbolKind.Method, "a.cs")],
                 calls: [],
                 deps: []))
@@ -214,9 +214,9 @@ public sealed class SymbolIndexTests : IDisposable {
         await _index.IndexFilesBatchAsync(first, CancellationToken.None).ConfigureAwait(true);
         Assert.True(_store.GetSnapshot().SymbolsByFqn.ContainsKey("Ns.Old"));
 
-        var second = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>
+        var second = new List<CodeIndexBatchFile>
         {
-            ("a.cs", "v2", "h2", MakeExtraction(
+            new("a.cs", "v2", "h2", MakeExtraction(
                 symbols: [MakeSymbol("New", "Ns.New", SymbolKind.Method, "a.cs")],
                 calls: [],
                 deps: []))

@@ -249,7 +249,7 @@ public interface IEventConsumer {
     /// </summary>
     /// <param name="files">成功持久化的文件列表</param>
     /// <param name="failed">持久化失败的文件列表</param>
-    void OnFilesPersisted(System.Collections.Generic.List<(string Filename, string FileId)>? files = null, System.Collections.Generic.List<(string Filename, string Error)>? failed = null) { }
+    void OnFilesPersisted(System.Collections.Generic.List<PersistedFileInfo>? files = null, System.Collections.Generic.List<FailedPersistedFileInfo>? failed = null) { }
 
     /// <summary>
     /// 引导完成（TASK073 Phase 4 — 对齐基准侧 system/elicitation_complete 事件；

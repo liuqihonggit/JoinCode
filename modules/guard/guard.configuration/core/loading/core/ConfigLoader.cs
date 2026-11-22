@@ -316,7 +316,7 @@ public class ConfigLoader {
                 authData[provider] = storedValue;
                 var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
                 var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             var authData = new Dictionary<string, string> { [provider] = storedValue };
@@ -353,7 +353,7 @@ public class ConfigLoader {
             removed = authData.Remove(provider);
             var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
             var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
-            return Task.FromResult<(byte[]? NewContent, bool Result)>((newBytes, true));
+            return Task.FromResult(new EditFileTransformResult<bool>(newBytes, true));
         }, cancellationToken).ConfigureAwait(false);
         return removed;
     }
@@ -534,7 +534,7 @@ public class ConfigLoader {
                 // 整份强类型往返会把 autoFetchModels 之类的原有字段改成默认值，还会塞进一堆空字典
                 outputJson = MergeCurrentScalar(content, outputJson, key) ?? outputJson;
                 var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             var existingSettings = new SettingsJson();
@@ -591,8 +591,8 @@ public class ConfigLoader {
                 if (updated is null)
                     throw UnresolvableNestedPath(path);
 
-                return Task.FromResult<(byte[]? NewContent, bool Result)>(
-                    (FileEncodingDetector.EncodeString(updated, encoding), true));
+                return Task.FromResult(
+                    new EditFileTransformResult<bool>(FileEncodingDetector.EncodeString(updated, encoding), true));
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             var created = ApplyNestedSetting("{}", path, value) ?? throw UnresolvableNestedPath(path);
@@ -671,7 +671,7 @@ public class ConfigLoader {
 
                 var outputJson = RelaxedJsonSerializer.SerializeIndented(data, ConfigIndentedJsonContext.Default);
                 var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             Dictionary<string, JsonElement> data = new(StringComparer.Ordinal);

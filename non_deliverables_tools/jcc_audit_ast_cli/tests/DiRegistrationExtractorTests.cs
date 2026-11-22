@@ -14,7 +14,7 @@ public sealed class DiRegistrationExtractorTests {
     /// 辅助方法：创建带指定源码和 DI 引用的 Compilation，运行 Extract 并返回结果
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 参数默认值 null! 表示可选引用")]
-    private static (List<ServiceRegistration>, List<ConstructorDependency>) ExtractFrom(
+    private static DiRegistrationExtraction ExtractFrom(
         string source,
         PortableExecutableReference[] extraRefs = null!) {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);

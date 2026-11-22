@@ -33,10 +33,17 @@ public static class MethodNameCache {
     /// <summary>
     /// 获取缓存统计信息
     /// </summary>
-    public static (int Count, int ApproximateSize) GetStats() {
+    public static MethodNameCacheStats GetStats() {
         var count = Volatile.Read(ref _cache).Count;
         // 估算每个字符串平均占用 32 字节
         var approximateSize = count * 32;
-        return (count, approximateSize);
+        return new MethodNameCacheStats(count, approximateSize);
     }
 }
+
+/// <summary>
+/// 方法名缓存统计 — 条目数与近似内存占用
+/// </summary>
+/// <param name="Count">缓存条目数</param>
+/// <param name="ApproximateSize">近似内存占用(字节, 按每条约 32 字节估算)</param>
+public sealed record MethodNameCacheStats(int Count, int ApproximateSize);

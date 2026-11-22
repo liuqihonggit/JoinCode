@@ -22,6 +22,9 @@
     <ProjectReference Include="$(RepoRoot)modules/services/browser/Browser.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/composition/pipelines/Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/persistence/pithosdb/PithosDB.Core.csproj" />
+    <!-- McpInitModule 编译期引用 Core.Telemetry.TelemetryPlugin / 插件契约 -->
+    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins.contracts/Plugins.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
   </ItemGroup>
 
   <!-- 源码生成器 — 扫描 engine 程序集 [Register] 类型生成 AddJoinCodeEngineAutoRegisteredServices/Options（ADR 0143 Step 3c） -->
@@ -61,4 +64,8 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

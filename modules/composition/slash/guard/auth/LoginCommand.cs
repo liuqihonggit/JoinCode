@@ -191,7 +191,7 @@ public sealed class LoginCommand : ChatCommandBase {
                 authData[provider] = credentials;
                 var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
                 var newBytes = FileEncodingDetector.EncodeString(json, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, CancellationToken.None).ConfigureAwait(false);
         } catch (FileNotFoundException) {
             var authData = new Dictionary<string, string> { [provider] = credentials };

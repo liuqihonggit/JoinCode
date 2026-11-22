@@ -12,8 +12,8 @@ public class SubAgentMentionParserTests {
         var parsed = SubAgentMentionParser.Parse("@explore 帮我查一下README");
 
         parsed.Should().NotBeNull();
-        parsed!.Value.AgentName.Should().Be("explore");
-        parsed.Value.Message.Should().Be("帮我查一下README");
+        parsed!.AgentName.Should().Be("explore");
+        parsed.Message.Should().Be("帮我查一下README");
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

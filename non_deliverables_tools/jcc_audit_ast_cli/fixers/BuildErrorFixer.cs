@@ -18,13 +18,13 @@ public static class BuildErrorFixer {
     /// <summary>
     /// 运行 dotnet build 获取错误，在错误位置加 await
     /// </summary>
-    public static async Task<(int FixedFiles, int FixedIssues)> FixFromBuildErrorsAsync(
+    public static async Task<BuildErrorFixResult> FixFromBuildErrorsAsync(
         string solutionPath, bool dryRun, CancellationToken ct = default) {
 
         var errors = await CollectBuildErrorsAsync(solutionPath, ct);
         if (errors.Count == 0) {
             Console.WriteLine($"没有 {string.Join("/", HandledErrorCodes)} 错误。");
-            return (0, 0);
+            return new BuildErrorFixResult(0, 0);
         }
 
         Console.WriteLine($"发现 {errors.Count} 个 {string.Join("/", HandledErrorCodes)} 错误。");
@@ -59,7 +59,7 @@ public static class BuildErrorFixer {
             fixedIssues += rewriter.FixedCount;
         }
 
-        return (fixedFiles, fixedIssues);
+        return new BuildErrorFixResult(fixedFiles, fixedIssues);
     }
 
     /// <summary>

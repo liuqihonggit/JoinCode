@@ -4,12 +4,13 @@
 
 ## 项目
 
+<!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| cli | |
-| gui | |
-| sdk | |
-| tui | |
+| [JoinCode](cli/JoinCode.csproj) |  |
+| [JoinCode.Engine](engine/JoinCode.Engine.csproj) | 应用入口 |
+| [Sdk](sdk/Sdk.csproj) |  |
+<!-- END MODULE PROJECTS -->
 
 ## 用法
 

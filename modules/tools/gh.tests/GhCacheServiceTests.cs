@@ -463,9 +463,9 @@ public sealed class GhCacheServiceTest {
     }
 
     /// <summary>收集 IAsyncEnumerable 到 List</summary>
-    private static async Task<List<(byte[] Key, byte[] Value)>> CollectAsync(
-        IAsyncEnumerable<(byte[] Key, byte[] Value)> source) {
-        var list = new List<(byte[] Key, byte[] Value)>();
+    private static async Task<List<KvStoreEntry>> CollectAsync(
+        IAsyncEnumerable<KvStoreEntry> source) {
+        var list = new List<KvStoreEntry>();
         await foreach (var item in source.ConfigureAwait(false))
             list.Add(item);
         return list;

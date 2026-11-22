@@ -51,7 +51,7 @@ public sealed class LeasedKvStoreAdapterTests {
             }
 
             await using var second = new LeasedKvStoreAdapter(new PithosKvStoreLeaseFactory(dir));
-            var pairs = new List<(byte[] Key, byte[] Value)>();
+            var pairs = new List<KvStoreEntry>();
             await foreach (var kv in second.ScanAsync(K("a"), K("b"))) {
                 pairs.Add(kv);
             }

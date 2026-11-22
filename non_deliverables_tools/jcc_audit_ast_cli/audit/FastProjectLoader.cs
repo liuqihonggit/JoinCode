@@ -15,7 +15,7 @@ public static class FastProjectLoader {
     /// 并行加载所有 csproj 并创建 CSharpCompilation
     /// 返回 (项目名, Compilation) 列表
     /// </summary>
-    public static async Task<List<(string Name, string FilePath, CSharpCompilation Compilation)>> LoadCompilationsAsync(
+    public static async Task<List<LoadedProjectCompilation>> LoadCompilationsAsync(
         IReadOnlyList<string> projectPaths, CancellationToken ct = default) {
         var loadSw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -44,7 +44,7 @@ public static class FastProjectLoader {
 
         // 阶段2：为每个项目创建 CSharpCompilation
         var compileSw = System.Diagnostics.Stopwatch.StartNew();
-        var compilations = new ConcurrentBag<(string Name, string FilePath, CSharpCompilation Compilation)>();
+        var compilations = new ConcurrentBag<LoadedProjectCompilation>();
         var compiledCount = 0;
 
         msbuildProjects
@@ -56,7 +56,7 @@ public static class FastProjectLoader {
                     var compilation = CreateCompilation(item.Project, item.Path);
                     if (compilation is not null) {
                         var name = item.Project.GetPropertyValue("AssemblyName") ?? Path.GetFileNameWithoutExtension(item.Path);
-                        compilations.Add((name, item.Path, compilation));
+                        compilations.Add(new LoadedProjectCompilation(name, item.Path, compilation));
                     }
                     var count = Interlocked.Increment(ref compiledCount);
                     if (count % 10 == 0)
@@ -78,7 +78,7 @@ public static class FastProjectLoader {
     /// </summary>
     public static async Task LoadCompilationsToChannelAsync(
         IReadOnlyList<string> projectPaths,
-        System.Threading.Channels.ChannelWriter<(string Name, string FilePath, CSharpCompilation Compilation)> writer,
+        System.Threading.Channels.ChannelWriter<LoadedProjectCompilation> writer,
         CancellationToken ct = default) {
         var loadSw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -117,7 +117,7 @@ public static class FastProjectLoader {
                     var compilation = CreateCompilation(item.Project, item.Path);
                     if (compilation is not null) {
                         var name = item.Project.GetPropertyValue("AssemblyName") ?? Path.GetFileNameWithoutExtension(item.Path);
-                        await writer.WriteAsync((name, item.Path, compilation), token).ConfigureAwait(false);
+                        await writer.WriteAsync(new LoadedProjectCompilation(name, item.Path, compilation), token).ConfigureAwait(false);
                     }
                     var count = Interlocked.Increment(ref compiledCount);
                     if (count % 10 == 0)

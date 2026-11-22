@@ -19,7 +19,7 @@ public static class AnalyzerDrivenFixer {
     /// <param name="dryRun">仅预览，不实际写入。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>（修复文件数, 修复问题数, 跳过数）。</returns>
-    public static async Task<(int fixedFiles, int fixedIssues, int skipped)> FixAsync(
+    public static async Task<AnalyzerFixResult> FixAsync(
         string solutionPath, bool dryRun, CancellationToken ct) {
 
         Console.WriteLine($"  规则: JCC3016（dotnet build 输出驱动）");
@@ -35,7 +35,7 @@ public static class AnalyzerDrivenFixer {
 
         if (violations.Count == 0) {
             Console.WriteLine("  未发现违规，无需修复。");
-            return (0, 0, 0);
+            return new AnalyzerFixResult(0, 0, 0);
         }
 
         // 按文件分组
@@ -64,7 +64,7 @@ public static class AnalyzerDrivenFixer {
             skipped += skipCount;
         }
 
-        return (fixedFiles, fixedIssues, skipped);
+        return new AnalyzerFixResult(fixedFiles, fixedIssues, skipped);
     }
 
     /// <summary>

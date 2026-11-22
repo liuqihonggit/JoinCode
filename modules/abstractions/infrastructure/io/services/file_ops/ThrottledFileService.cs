@@ -171,7 +171,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
                         var index = originalContent.IndexOf(oldString, comparison);
                         if (index == -1) {
                             RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
-                            return (null, FileEditResult.FailureResult(normalizedPath, oldString, newString, "未找到匹配的字符串"));
+                            return new EditFileTransformResult<FileEditResult>(null, FileEditResult.FailureResult(normalizedPath, oldString, newString, "未找到匹配的字符串"));
                         }
                         var sb = new StringBuilder(originalContent.Length - oldString.Length + newString.Length);
                         sb.Append(originalContent, 0, index);
@@ -183,7 +183,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
 
                     var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
                     RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Ok);
-                    return (newBytes, FileEditResult.SuccessResult(
+                    return new EditFileTransformResult<FileEditResult>(newBytes, FileEditResult.SuccessResult(
                         normalizedPath,
                         oldString,
                         newString,
@@ -231,7 +231,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
 
                     if (startLine > endLine) {
                         RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Failed);
-                        return (null, FileLineEditResult.FailureResult(normalizedPath, request.StartLine, request.EndLine, "无效的行范围"));
+                        return new EditFileTransformResult<FileLineEditResult>(null, FileLineEditResult.FailureResult(normalizedPath, request.StartLine, request.EndLine, "无效的行范围"));
                     }
 
                     var originalLines = allLines.Skip(startLine).Take(endLine - startLine + 1);
@@ -244,7 +244,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
                     var updatedContent = string.Join(Environment.NewLine, allLines);
                     var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
                     RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Ok);
-                    return (newBytes, FileLineEditResult.SuccessResult(
+                    return new EditFileTransformResult<FileLineEditResult>(newBytes, FileLineEditResult.SuccessResult(
                         normalizedPath,
                         startLine,
                         endLine,

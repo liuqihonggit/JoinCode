@@ -30,11 +30,12 @@ public sealed class ModelPricingTable {
     }
 
     /// <summary>获取所有定价条目。</summary>
-    public IReadOnlyList<(string Keyword, decimal PromptCost, decimal CompletionCost)> GetAllEntries() {
-        var entries = new List<(string Keyword, decimal PromptCost, decimal CompletionCost)>();
+    /// <returns>定价条目列表(关键词 + Prompt 成本 + Completion 成本)</returns>
+    public IReadOnlyList<ModelPricingEntry> GetAllEntries() {
+        var entries = new List<ModelPricingEntry>();
         foreach (var model in _modelConfigLoader.Config.Providers.SelectMany(p => p.Value.Models)) {
             if (model.Pricing is not null) {
-                entries.Add((model.Id, model.Pricing.PromptCostPer1K, model.Pricing.CompletionCostPer1K));
+                entries.Add(new ModelPricingEntry(model.Id, model.Pricing.PromptCostPer1K, model.Pricing.CompletionCostPer1K));
             }
         }
         return entries;
@@ -52,3 +53,11 @@ public sealed class ModelPricingTable {
         return null;
     }
 }
+
+/// <summary>
+/// 模型定价条目 — 关键词(模型 ID)与每 1K Token 成本
+/// </summary>
+/// <param name="Keyword">匹配关键词(模型 ID)</param>
+/// <param name="PromptCost">每 1K Prompt Token 成本(USD)</param>
+/// <param name="CompletionCost">每 1K Completion Token 成本(USD)</param>
+public sealed record ModelPricingEntry(string Keyword, decimal PromptCost, decimal CompletionCost);

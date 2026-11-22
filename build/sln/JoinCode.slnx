@@ -58,6 +58,8 @@
     <Project Path="../../modules/tools/rg/rg.csproj" />
     <Project Path="../../modules/tools/rg.tests/Rg.Tests.csproj" />
     <Project Path="../../modules/tools/gh/gh.csproj" />
+    <Project Path="../../modules/tools/github_client/GitHubClient.csproj" />
+    <Project Path="../../modules/tools/github_client_tests/GitHubClient.Tests.csproj" />
     <Project Path="../../modules/tools/gh.tests/Gh.Tests.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">

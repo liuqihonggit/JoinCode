@@ -31,4 +31,8 @@
     <InternalsVisibleTo Include="JoinCode.Plugins.Infrastructure" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

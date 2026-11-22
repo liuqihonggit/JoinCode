@@ -51,4 +51,10 @@
   <Project Path="infrastructure_process/Infrastructure.Process.csproj" />
   <Project Path="infrastructure_configuration/Infrastructure.Configuration.csproj" />
   <Project Path="infrastructure_http/Infrastructure.Http.csproj" />
+  <Project Path="guard/Abstractions.Guard.csproj" />
+  <Project Path="memory/Abstractions.Memory.csproj" />
+  <Project Path="composition/Abstractions.Composition.csproj" />
+  <Project Path="perception/Abstractions.Perception.csproj" />
+  <Project Path="brain/Abstractions.Brain.csproj" />
+  <Project Path="abstractions.primitives.tools.tests/Abstractions.Primitives.Tools.Tests.csproj" />
 </Solution>

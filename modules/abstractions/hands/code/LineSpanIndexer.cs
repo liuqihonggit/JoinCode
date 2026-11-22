@@ -12,8 +12,8 @@ public static class LineSpanIndexer {
     /// <param name="content">内容 Span</param>
     /// <param name="ct">取消令牌（可选）</param>
     /// <returns>行范围列表，每项为 (起始偏移, 行长度)</returns>
-    public static List<(int Start, int Length)> BuildLineRanges(ReadOnlySpan<char> content, CancellationToken ct = default) {
-        var lineRanges = new List<(int Start, int Length)>();
+    public static List<LineCharRange> BuildLineRanges(ReadOnlySpan<char> content, CancellationToken ct = default) {
+        var lineRanges = new List<LineCharRange>();
         if (content.Length == 0)
             return lineRanges;
         var pos = 0;
@@ -22,14 +22,14 @@ public static class LineSpanIndexer {
 
             var nlIdx = content.Slice(pos).IndexOf('\n');
             if (nlIdx < 0) {
-                lineRanges.Add((pos, content.Length - pos));
+                lineRanges.Add(new LineCharRange(pos, content.Length - pos));
                 break;
             }
             var lineStart = pos;
             var lineLen = nlIdx;
             if (lineLen > 0 && content[lineStart + lineLen - 1] == '\r')
                 lineLen--;
-            lineRanges.Add((lineStart, lineLen));
+            lineRanges.Add(new LineCharRange(lineStart, lineLen));
             pos += nlIdx + 1;
         }
         return lineRanges;
@@ -41,7 +41,7 @@ public static class LineSpanIndexer {
     /// <param name="lineRanges">行范围列表</param>
     /// <param name="charIndex">字符偏移</param>
     /// <returns>行号（0-based），找不到返回 -1</returns>
-    public static int FindLineIndex(List<(int Start, int Length)> lineRanges, int charIndex) {
+    public static int FindLineIndex(List<LineCharRange> lineRanges, int charIndex) {
         var lo = 0;
         var hi = lineRanges.Count - 1;
         while (lo <= hi) {
@@ -57,3 +57,10 @@ public static class LineSpanIndexer {
         return lo < lineRanges.Count ? lo : -1;
     }
 }
+
+/// <summary>
+/// 行字符范围 — 行起始偏移与行长度（不含行尾换行符）
+/// </summary>
+/// <param name="Start">行起始字符偏移</param>
+/// <param name="Length">行长度(字符数, 已排除 \r 与 \n)</param>
+public sealed record LineCharRange(int Start, int Length);

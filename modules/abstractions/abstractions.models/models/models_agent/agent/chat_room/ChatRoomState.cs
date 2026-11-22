@@ -50,11 +50,11 @@ public sealed record ChatRoomState {
     /// </summary>
     /// <param name="message">消息</param>
     /// <returns>(新状态, true=新消息已插入 / false=重复消息未插入)</returns>
-    public (ChatRoomState State, bool Added) TryAddMessage(TeamMessage message) {
-        if (Messages.ContainsKey(message.MessageId)) return (this, false);
+    public ChatRoomAddResult TryAddMessage(TeamMessage message) {
+        if (Messages.ContainsKey(message.MessageId)) return new ChatRoomAddResult(this, false);
         var newMessages = Messages.Add(message.MessageId, message);
         var newByTime = InsertByTime(MessagesByTime, message);
-        return (this with { Messages = newMessages, MessagesByTime = newByTime }, true);
+        return new ChatRoomAddResult(this with { Messages = newMessages, MessagesByTime = newByTime }, true);
     }
 
     /// <summary>
@@ -86,14 +86,14 @@ public sealed record ChatRoomState {
     /// <para>用户主动调用，或系统提示后用户确认清理。</para>
     /// </summary>
     /// <returns>(新状态, 清理的消息数)</returns>
-    public (ChatRoomState State, int RemovedCount) CleanupOldMessages() {
-        if (Messages.Count <= MaxMessageCount) return (this, 0);
+    public ChatRoomCleanupResult CleanupOldMessages() {
+        if (Messages.Count <= MaxMessageCount) return new ChatRoomCleanupResult(this, 0);
 
         var toRemove = Messages.Count - MaxMessageCount;
         var oldestIds = MessagesByTime.Take(toRemove).Select(static m => m.MessageId).ToList();
         var newMessages = Messages.RemoveRange(oldestIds);
         var newByTime = MessagesByTime.RemoveRange(0, toRemove);
-        return (this with { Messages = newMessages, MessagesByTime = newByTime }, toRemove);
+        return new ChatRoomCleanupResult(this with { Messages = newMessages, MessagesByTime = newByTime }, toRemove);
     }
 
     /// <summary>
@@ -152,5 +152,27 @@ public interface IChatRoomStore {
     System.Threading.Tasks.Task DeleteAsync(string teamId, CancellationToken ct = default);
 
     /// <summary>获取需要清理的聊天室列表（消息数超过 MaxMessageCount）</summary>
-    System.Threading.Tasks.Task<IReadOnlyList<(string TeamId, int MessageCount, int MaxCount)>> GetRoomsNeedingCleanupAsync(CancellationToken ct = default);
+    System.Threading.Tasks.Task<IReadOnlyList<ChatRoomCleanupCandidate>> GetRoomsNeedingCleanupAsync(CancellationToken ct = default);
 }
+
+/// <summary>
+/// 消息添加结果 — 新状态与是否真正插入（重复 MessageId 不插入）。
+/// </summary>
+/// <param name="State">添加后的聊天室状态；重复消息时返回原状态。</param>
+/// <param name="Added">true 表示新消息已插入；false 表示重复消息未插入。</param>
+public sealed record ChatRoomAddResult(ChatRoomState State, bool Added);
+
+/// <summary>
+/// 旧消息清理结果 — 新状态与本轮清理的消息数。
+/// </summary>
+/// <param name="State">清理后的聊天室状态。</param>
+/// <param name="RemovedCount">本轮被清理的最旧消息数。</param>
+public sealed record ChatRoomCleanupResult(ChatRoomState State, int RemovedCount);
+
+/// <summary>
+/// 待清理聊天室候选 — 消息数超过 MaxMessageCount 的房间及其容量水位。
+/// </summary>
+/// <param name="TeamId">团队/聊天室标识。</param>
+/// <param name="MessageCount">当前消息数。</param>
+/// <param name="MaxCount">该房间的消息保留上限。</param>
+public sealed record ChatRoomCleanupCandidate(string TeamId, int MessageCount, int MaxCount);

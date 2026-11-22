@@ -10,7 +10,7 @@ public static class SyncAsyncFixer {
     /// 同步化解决方案中所有非 UI 项目的 async/await
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    public static async Task<(int FixedFiles, int FixedMethods, int FixedAwaits, int SkippedFiles)> SyncAllAsync(
+    public static async Task<SyncFixResult> SyncAllAsync(
         string solutionPath, bool dryRun, string[]? excludeDirs = null, string[]? includeDirs = null, CancellationToken ct = default) {
 
         var solutionFullPath = Path.GetFullPath(solutionPath);
@@ -61,7 +61,7 @@ public static class SyncAsyncFixer {
                 fixedAwaits += rewriter.FixedAwaits;
             }
         }
-        return (fixedFiles, fixedMethods, fixedAwaits, skippedFiles);
+        return new SyncFixResult(fixedFiles, fixedMethods, fixedAwaits, skippedFiles);
     }
 
     private static bool ShouldSkipPath(string filePath, string[] excludes, string[] includes) {

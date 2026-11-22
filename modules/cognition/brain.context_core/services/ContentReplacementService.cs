@@ -92,7 +92,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     /// <param name="neverPersistTools">永不持久化的工具名集合（可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>处理后的消息列表与本次新产生的替换记录</returns>
-    public async Task<(IReadOnlyList<ApiMessage> Messages, IReadOnlyList<ContentReplacementRecord> NewlyReplaced)> ApplyToolResultBudgetAsync(
+    public async Task<JoinCode.Abstractions.Brain.Context.ContentReplacementOutcome> ApplyToolResultBudgetAsync(
         IReadOnlyList<ApiMessage> messages,
         ContentReplacementState state,
         string sessionId,
@@ -172,7 +172,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
                 state.Replacements.ContainsKey(id));
 
             if (!needsReapply)
-                return (messages, newlyReplaced);
+                return new JoinCode.Abstractions.Brain.Context.ContentReplacementOutcome(messages, newlyReplaced);
         }
 
         // 5. 替换消息内容
@@ -188,7 +188,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
             }
         }
 
-        return (result, newlyReplaced);
+        return new JoinCode.Abstractions.Brain.Context.ContentReplacementOutcome(result, newlyReplaced);
     }
 
     /// <summary>

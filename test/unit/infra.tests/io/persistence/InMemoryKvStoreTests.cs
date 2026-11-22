@@ -35,7 +35,7 @@ public sealed class InMemoryKvStoreTests {
         for (var i = 0; i < 20; i++) {
             await store.PutAsync(K($"k{i:D3}"), K($"v{i}"));
         }
-        var entries = new List<(byte[] Key, byte[] Value)>();
+        var entries = new List<KvStoreEntry>();
         await foreach (var e in store.ScanAsync()) {
             entries.Add(e);
         }
@@ -50,7 +50,7 @@ public sealed class InMemoryKvStoreTests {
         for (var i = 0; i < 100; i++) {
             await store.PutAsync(K($"k{i:D3}"), K($"v{i}"));
         }
-        var entries = new List<(byte[] Key, byte[] Value)>();
+        var entries = new List<KvStoreEntry>();
         await foreach (var e in store.ScanAsync(from: K("k020"), to: K("k029"))) {
             entries.Add(e);
         }

@@ -50,10 +50,10 @@ public sealed class V1BridgeInitContext : ITokenValidationContext, INullCheckCon
 
     Func<string?> ITokenValidationContext.GetAccessToken => Parameters.GetAccessToken;
 
-    IEnumerable<(string Name, object? Value)> INullCheckContext.RequiredParameters =>
+    IEnumerable<JoinCode.Abstractions.Pipeline.RequiredParameter> INullCheckContext.RequiredParameters =>
     [
-        (nameof(Parameters), Parameters),
-        (nameof(HttpClient), HttpClient),
+        new(nameof(Parameters), Parameters),
+        new(nameof(HttpClient), HttpClient),
     ];
 
     /// <summary>

@@ -48,7 +48,7 @@
     <Project Path="../../modules/abstractions/memory/Abstractions.Memory.csproj" />
     <Project Path="../../modules/storage/downloader/Downloader.csproj" />
     <Project Path="../../modules/collections/structura/Structura.csproj" />
-    <Project Path="../../modules/collections/structura.tests/Structura.Tests.csproj" />
+    <Project Path="../../modules/collections/structura_tests/Structura.Tests.csproj" />
     <Project Path="../../modules/abstractions/transport_contracts/Transport.Contracts.csproj" />
     <Project Path="../../modules/plugins/plugins.contracts/Plugins.Contracts.csproj" />
     <Project Path="../../modules/plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />

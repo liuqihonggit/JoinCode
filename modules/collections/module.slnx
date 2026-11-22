@@ -1,4 +1,4 @@
 <Solution>
   <Project Path="structura/Structura.csproj" />
-  <Project Path="structura.tests/Structura.Tests.csproj" />
+  <Project Path="structura_tests/Structura.Tests.csproj" />
 </Solution>

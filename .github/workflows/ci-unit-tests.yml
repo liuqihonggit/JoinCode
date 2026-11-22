@@ -22,7 +22,7 @@ jobs:
           - domain: generators
             csprojs: modules/generators/aot_safety.tests/AotSafety.Tests.csproj modules/generators/fsm.generator.tests/Fsm.Generator.Tests.csproj
           - domain: collections
-            csprojs: modules/collections/structura.tests/Structura.Tests.csproj
+            csprojs: modules/collections/structura_tests/Structura.Tests.csproj
           - domain: async_primitives
             csprojs: modules/async_primitives/transport.impl.tests/Transport.Impl.Tests.csproj
           - domain: abstractions

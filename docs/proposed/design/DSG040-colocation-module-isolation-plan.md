@@ -146,7 +146,7 @@ D:/project/w1/
 
     collections/
       structura/
-      structura.tests/
+      structura_tests/
       docs/
       CHANGELOG.md
       README.md

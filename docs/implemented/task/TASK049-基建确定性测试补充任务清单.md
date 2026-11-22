@@ -5,7 +5,7 @@
 > 本文文件名 `TASK049`、标题写 `TASK030`，两者不一致（历史遗留，不改动以保留引用）；
 > 状态「待执行」是 2026-09-29 创建时的快照，**实际早已完成、忘回填**
 > （详见 [TASK102](../proposed/task/TASK102-历史任务状态复核-文档滞后与真实欠账.md) §1.3）：
-> `modules/collections/structura.tests/DagTests.cs:190` 起 `TopologicalSort_Empty/SingleNode/IsolatedNodes/Chain/Diamond`
+> `modules/collections/structura_tests/DagTests.cs:190` 起 `TopologicalSort_Empty/SingleNode/IsolatedNodes/Chain/Diamond`
 > 等测试齐全，配套 `DagAlgorithmsTests.cs` / `ConcurrentDagTests.cs`；
 > commit `07db686cd`（1379 测试 + 12 bug）、`012dadad2`（SwissTable/DAG/HamT 拆分）、`fc8bc65fd`（阶段3）三批落地。
 > **判据以代码 + commit 为准，不要只读开头状态。**
@@ -24,7 +24,7 @@
 
 | 模块 | 路径 | P0 纯逻辑零测试 | 需拆 internal 长方法 | 测试项目 |
 |------|------|----------------|---------------------|---------|
-| structura | `lib/structura/` | `Dag<T>`/`ConcurrentDag<T>` 全无 | SwissTable SIMD 18份重复、`RemoveNodeFromState`、`GetAffectedSubgraph` | `lib/structura.tests/` |
+| structura | `lib/structura/` | `Dag<T>`/`ConcurrentDag<T>` 全无 | SwissTable SIMD 18份重复、`RemoveNodeFromState`、`GetAffectedSubgraph` | `lib/structura_tests/` |
 | async_lock | `lib/async_lock/` | `LockRegistry`图算法、`BinaryProtocol` | ActorBase 纯计算片段、`DecideRole` | `lib/async_lock.tests/` |
 | guard | `lib/guard/` | `BashAstSecurityWalker`(8文件~1000行)、`CommandDangerClassifier`内部 | 守卫纯逻辑、`IsGitReadOnlySubcommand` | `lib/guard.{config,hooks,security}.tests/` |
 | transport.impl | `lib/transport.impl/` | `SseStreamParser`/`HttpRequestSerializer` | `DrainAsync`/`HandleConnectionError`/`ExecuteWithOAuthRetryAsync` | InternalsVisibleTo 落空 |
@@ -48,7 +48,7 @@
 **原则**:优先补"已是 public/internal 但零测试"的纯逻辑方法,零重构风险,收益最大。
 
 #### 1.1 structura — `Dag<T>` + `ConcurrentDag<T>` 对拍 ImmutableDag
-- [x] 新建 `lib/structura.tests/DagTests.cs`
+- [x] 新建 `lib/structura_tests/DagTests.cs`
   - [x] `TopologicalSort`:链/钻石/菱形/空图/单节点/孤立多节点 → 断言层级
   - [x] `HasCycle`:无环/自环/2节点环/3+节点环/多独立环
   - [x] `FindAllCycles`:多环→断言环路径集合;嵌套环
@@ -56,7 +56,7 @@
   - [x] `GetAffectedSubgraph`:钻石依赖图
   - [x] `GetAncestors`/`GetDescendants`
   - [x] 对拍:同输入下 `Dag` 与 `ImmutableDag` 结果一致
-- [x] 新建 `lib/structura.tests/ConcurrentDagTests.cs`
+- [x] 新建 `lib/structura_tests/ConcurrentDagTests.cs`
   - [x] 锁超时返回空数组路径
   - [x] 同步+异步 API 一致性
   - [x] `WithLock`/`Dispose`

@@ -166,7 +166,7 @@ D:/project/w2/
 01_shared/shared_scheduling/src/Scheduling.csproj                       → lib/scheduling/
 01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj          → lib/scheduling.tests/
 01_shared/shared_structura/Structura.csproj                             → lib/structura/
-01_shared/shared_structura/tests/Unit/Structura.Tests.csproj            → lib/structura.tests/
+01_shared/shared_structura/tests/Unit/Structura.Tests.csproj            → lib/structura_tests/
 01_shared/shared_transport_contracts/Transport.Contracts.csproj         → lib/transport.contracts/
 01_shared/shared_transport_impl/Transport.Impl.csproj                   → lib/transport.impl/
 01_shared/shared_vault/src/Vault.csproj                                 → lib/vault/

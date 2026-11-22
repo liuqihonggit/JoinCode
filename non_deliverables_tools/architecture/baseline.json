@@ -471,7 +471,7 @@
     "modules/cognition/hands.shell.tests",
     "modules/cognition/hands.skills.tests",
     "modules/cognition/hands.tool_handlers.tests",
-    "modules/collections/structura.tests",
+    "modules/collections/structura_tests",
     "modules/composition/composition.tests",
     "modules/composition/pipelines.tests",
     "modules/generators/aot_handler.generator",

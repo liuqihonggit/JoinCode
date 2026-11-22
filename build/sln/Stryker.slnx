@@ -15,7 +15,7 @@
     <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
     <Project Path="../../modules/storage/downloader/Downloader.csproj" />
     <Project Path="../../modules/collections/structura/Structura.csproj" />
-    <Project Path="../../modules/collections/structura.tests/Structura.Tests.csproj" />
+    <Project Path="../../modules/collections/structura_tests/Structura.Tests.csproj" />
     <Project Path="../../modules/abstractions/transport_contracts/Transport.Contracts.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">

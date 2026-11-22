@@ -1,0 +1,10 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- P1 契约骨架：allowlist 待 P3 按域对评审；对外项目在 csproj 覆盖 JccApiVisibility=public -->
+    <JccDomain>plugins</JccDomain>
+    <JccAllowedDomains></JccAllowedDomains>
+    <JccApiVisibility>internal</JccApiVisibility>
+  </PropertyGroup>
+</Project>

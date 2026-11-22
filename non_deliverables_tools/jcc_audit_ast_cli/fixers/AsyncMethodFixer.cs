@@ -8,7 +8,7 @@ public static class AsyncMethodFixer {
     /// <summary>
     /// 扫描目录下所有 .cs 文件，修复含 await 的非 async 方法
     /// </summary>
-    public static async Task<(int FixedFiles, int FixedMethods, int SkippedFiles)> FixDirectoryAsync(
+    public static async Task<AsyncMethodFixResult> FixDirectoryAsync(
         string rootPath, bool dryRun, bool skipTests, CancellationToken ct = default) {
 
         var rootDir = Path.GetFullPath(rootPath);
@@ -54,7 +54,7 @@ public static class AsyncMethodFixer {
             fixedMethods += rewriter.FixedMethods;
         }
 
-        return (fixedFiles, fixedMethods, skippedFiles);
+        return new AsyncMethodFixResult(fixedFiles, fixedMethods, skippedFiles);
     }
 
     private static bool ShouldSkip(string path, bool skipTests) {

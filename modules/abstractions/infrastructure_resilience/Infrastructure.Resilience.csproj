@@ -26,4 +26,8 @@
     <InternalsVisibleTo Include="JoinCode.Infra.Utils.Tests" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

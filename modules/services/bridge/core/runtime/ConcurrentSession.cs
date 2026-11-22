@@ -193,12 +193,12 @@ public sealed class ConcurrentSessionService {
             await _fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) => {
                 var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 var existing = RelaxedJsonSerializer.Deserialize(content, BridgeJsonContext.Default.ConcurrentSessionRecord);
-                if (existing is null) return (null, false);
+                if (existing is null) return new EditFileTransformResult<bool>(null, false);
                 applyPatch(existing);
                 existing.UpdatedAt = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
                 var updatedJson = JsonSerializer.Serialize(existing, BridgeJsonContext.Default.ConcurrentSessionRecord);
                 var newBytes = FileEncodingDetector.EncodeString(updatedJson, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, ct).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ConcurrentSession] 更新 PID 文件失败");

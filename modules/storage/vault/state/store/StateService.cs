@@ -99,12 +99,12 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     }
 
     /// <inheritdoc />
-    public (string SystemPrompt, MessageList MessageList) LoadState() {
+    public LoadedChatState LoadState() {
         try {
             var cache = GetCurrentCache();
             var sessionState = cache?.Get<SessionState>(StateKey) ?? (Volatile.Read(ref _fallbackStorage).TryGetValue(StateKey, out var fb) ? fb : null);
             if (sessionState is null)
-                return (string.Empty, new MessageList());
+                return new LoadedChatState(string.Empty, new MessageList());
 
             var chatHistory = new MessageList();
             var seenContent = new HashSet<string>(StringComparer.Ordinal);
@@ -143,15 +143,15 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
             }
 
             _logger?.LogInformation(L.T(StringKey.VaultLogStateLoadSuccess));
-            return (sessionState.SystemPrompt, chatHistory);
+            return new LoadedChatState(sessionState.SystemPrompt, chatHistory);
         } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VaultLogStateLoadFailed));
-            return (string.Empty, new MessageList());
+            return new LoadedChatState(string.Empty, new MessageList());
         }
     }
 
     /// <inheritdoc />
-    public Task<(string SystemPrompt, MessageList MessageList)> LoadStateAsync(CancellationToken cancellationToken = default) {
+    public Task<LoadedChatState> LoadStateAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult(LoadState());
     }
 

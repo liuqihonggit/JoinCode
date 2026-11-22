@@ -52,12 +52,12 @@ public sealed class PithosKvStore : IKvStore {
     }
 
     /// <inheritdoc />
-    public async IAsyncEnumerable<(byte[] Key, byte[] Value)> ScanAsync(
+    public async IAsyncEnumerable<KvStoreEntry> ScanAsync(
         byte[]? from = null,
         byte[]? to = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default) {
         await foreach (var (key, value) in _db.ScanAsync(from: from, to: to).WithCancellation(ct).ConfigureAwait(false)) {
-            yield return (key, value);
+            yield return new KvStoreEntry(key, value);
         }
     }
 

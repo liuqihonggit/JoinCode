@@ -144,12 +144,12 @@ public sealed class SkipList<TKey, TValue> where TKey : IComparable<TKey> {
     /// <param name="startKey">起始键（包含）。</param>
     /// <param name="endKey">结束键（不包含）。</param>
     /// <returns>有序键值对序列。</returns>
-    public IEnumerable<(TKey Key, TValue Value)> Range(TKey startKey, TKey endKey) {
+    public IEnumerable<KeyValuePair<TKey, TValue>> Range(TKey startKey, TKey endKey) {
         var node = SearchPredecessor(startKey);
         var current = node.Next[0];
         while (current is { } c) {
             if (c.Key.CompareTo(endKey) >= 0) yield break;
-            yield return (c.Key, c.Value);
+            yield return new KeyValuePair<TKey, TValue>(c.Key, c.Value);
             current = c.Next[0];
         }
     }
@@ -159,11 +159,11 @@ public sealed class SkipList<TKey, TValue> where TKey : IComparable<TKey> {
     /// </summary>
     /// <param name="startKey">起始键（包含）。</param>
     /// <returns>有序键值对序列。</returns>
-    public IEnumerable<(TKey Key, TValue Value)> RangeFrom(TKey startKey) {
+    public IEnumerable<KeyValuePair<TKey, TValue>> RangeFrom(TKey startKey) {
         var node = SearchPredecessor(startKey);
         var current = node.Next[0];
         while (current is { } c) {
-            yield return (c.Key, c.Value);
+            yield return new KeyValuePair<TKey, TValue>(c.Key, c.Value);
             current = c.Next[0];
         }
     }
@@ -173,21 +173,21 @@ public sealed class SkipList<TKey, TValue> where TKey : IComparable<TKey> {
     /// </summary>
     /// <param name="prefix">前缀键。</param>
     /// <returns>有序键值对序列。</returns>
-    public IEnumerable<(TKey Key, TValue Value)> PrefixRange(TKey prefix) {
+    public IEnumerable<KeyValuePair<TKey, TValue>> PrefixRange(TKey prefix) {
         var node = SearchPredecessor(prefix);
         var current = node.Next[0];
         while (current is { } c) {
             if (!(c.Key.ToString() ?? string.Empty).StartsWith(prefix.ToString() ?? string.Empty)) yield break;
-            yield return (c.Key, c.Value);
+            yield return new KeyValuePair<TKey, TValue>(c.Key, c.Value);
             current = c.Next[0];
         }
     }
 
     /// <summary>有序遍历所有键值对。</summary>
-    public IEnumerable<(TKey Key, TValue Value)> Enumerate() {
+    public IEnumerable<KeyValuePair<TKey, TValue>> Enumerate() {
         var current = _head.Next[0];
         while (current is { } c) {
-            yield return (c.Key, c.Value);
+            yield return new KeyValuePair<TKey, TValue>(c.Key, c.Value);
             current = c.Next[0];
         }
     }

@@ -53,7 +53,7 @@ public interface ILspDiagnosticRegistry : IRegistry {
     /// 检查并取出待处理诊断 — 返回服务器名与文件诊断列表的元组
     /// </summary>
     /// <returns>待处理诊断列表</returns>
-    List<(string ServerName, List<LspDiagnosticFile> Files)> CheckPending();
+    List<LspPendingFiles> CheckPending();
 
     /// <summary>清空所有待处理诊断</summary>
     void ClearAll();
@@ -70,6 +70,13 @@ public interface ILspDiagnosticRegistry : IRegistry {
     /// <summary>待处理诊断数量</summary>
     int PendingCount { get; }
 }
+
+/// <summary>
+/// 一次取出的待处理诊断 — 合并后的服务器名与按文件聚合的诊断。
+/// </summary>
+/// <param name="ServerName">来源服务器名（多服务器时以逗号合并）。</param>
+/// <param name="Files">去重并受容量限制后的文件诊断列表。</param>
+public sealed record LspPendingFiles(string ServerName, List<LspDiagnosticFile> Files);
 
 /// <summary>
 /// LSP 诊断注册表实现 — 维护待处理诊断、已投递去重与 LRU 容量限制
@@ -130,7 +137,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     /// 检查并取出待处理诊断 — 去重、容量限制、追踪已投递
     /// </summary>
     /// <returns>服务器名与文件诊断列表的元组列表</returns>
-    public List<(string ServerName, List<LspDiagnosticFile> Files)> CheckPending() {
+    public List<LspPendingFiles> CheckPending() {
         List<LspDiagnosticFile> allFiles;
         HashSet<string> serverNames;
         ImmutableHamT<string, ImmutableHamTSet<string>> deliveredSnapshot;
@@ -165,7 +172,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
 
         return
         [
-            (string.Join(", ", serverNames), dedupedFiles)
+            new LspPendingFiles(string.Join(", ", serverNames), dedupedFiles)
         ];
     }
 
@@ -211,9 +218,9 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     /// 检查并取出待处理诊断摘要 — 转换为 LspDiagnosticSummary 形式
     /// </summary>
     /// <returns>服务器名与诊断摘要列表的元组列表</returns>
-    public List<(string ServerName, List<JoinCode.Abstractions.Interfaces.Lsp.LspDiagnosticSummary> Files)> CheckPendingDiagnostics() {
+    public List<JoinCode.Abstractions.Interfaces.Lsp.LspPendingDiagnostics> CheckPendingDiagnostics() {
         var pending = CheckPending();
-        var result = new List<(string ServerName, List<JoinCode.Abstractions.Interfaces.Lsp.LspDiagnosticSummary> Files)>();
+        var result = new List<JoinCode.Abstractions.Interfaces.Lsp.LspPendingDiagnostics>();
 
         foreach (var (serverName, files) in pending) {
             var summaries = files.Select(f => new JoinCode.Abstractions.Interfaces.Lsp.LspDiagnosticSummary {
@@ -228,7 +235,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
                 }).ToList()
             }).ToList();
 
-            result.Add((serverName, summaries));
+            result.Add(new JoinCode.Abstractions.Interfaces.Lsp.LspPendingDiagnostics(serverName, summaries));
         }
 
         return result;

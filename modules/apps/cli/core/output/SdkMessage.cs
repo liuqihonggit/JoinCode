@@ -130,14 +130,14 @@ public sealed record SdkSystemInitMessage : SdkMessageBase {
     public System.Collections.Generic.List<SdkMcpServer> McpServers { get; init; } = [];
     /// <summary>权限模式 — 对齐基准侧 permissionMode（camelCase）</summary>
     [System.Text.Json.Serialization.JsonPropertyName("permissionMode")]
-    public string PermissionMode { get; init; } = "default";
+    public string PermissionMode { get; init; } = SdkProtocolDefaults.PermissionModeDefault;
     /// <summary>技能列表</summary>
     public System.Collections.Generic.List<string> Skills { get; init; } = [];
     /// <summary>可用子代理列表 — 对齐基准侧 agents 字段</summary>
     public System.Collections.Generic.List<string> Agents { get; init; } = [];
     /// <summary>API Key 来源（user/project/org/temporary/oauth）— 对齐基准侧 apiKeySource 字段</summary>
     [System.Text.Json.Serialization.JsonPropertyName("apiKeySource")]
-    public string ApiKeySource { get; init; } = "user";
+    public string ApiKeySource { get; init; } = SdkProtocolDefaults.ApiKeySourceUser;
     /// <summary>Beta 特性列表 — 对齐基准侧 betas 字段</summary>
     public System.Collections.Generic.List<string> Betas { get; init; } = [];
     /// <summary>斜杠命令列表 — 对齐基准侧 slash_commands 字段</summary>
@@ -145,7 +145,7 @@ public sealed record SdkSystemInitMessage : SdkMessageBase {
     public System.Collections.Generic.List<string> SlashCommands { get; init; } = [];
     /// <summary>输出风格 — 对齐基准侧 output_style 字段</summary>
     [System.Text.Json.Serialization.JsonPropertyName("output_style")]
-    public string OutputStyle { get; init; } = "default";
+    public string OutputStyle { get; init; } = SdkProtocolDefaults.OutputStyleDefault;
     /// <summary>插件列表 — 对齐基准侧 plugins 字段</summary>
     public System.Collections.Generic.List<SdkPlugin> Plugins { get; init; } = [];
     /// <summary>快速模式状态（off/cooldown/on）— 对齐基准侧 fast_mode_state 字段</summary>

@@ -22,4 +22,8 @@
     <PackageReference Include="System.IO.Hashing" Version="$(SystemIOHashingVersion)" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <JccApiVisibility>public</JccApiVisibility>
+  </PropertyGroup>
+
 </Project>

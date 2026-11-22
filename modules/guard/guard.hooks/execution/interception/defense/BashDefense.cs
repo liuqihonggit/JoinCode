@@ -80,13 +80,20 @@ public sealed class BashDefense {
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>上下文和拒绝结果（null 表示全部通过）</returns>
-    public async ValueTask<(BashDefenseContext Context, ToolResult? Rejection)> ExecuteAsync(CancellationToken ct) {
+    public async ValueTask<BashDefenseOutcome> ExecuteAsync(CancellationToken ct) {
         foreach (var step in _steps) {
             ct.ThrowIfCancellationRequested();
             var rejection = await step(_context, ct).ConfigureAwait(false);
             if (rejection is not null)
-                return (_context, rejection);
+                return new BashDefenseOutcome(_context, rejection);
         }
-        return (_context, null);
+        return new BashDefenseOutcome(_context, null);
     }
 }
+
+/// <summary>
+/// Bash 防御链执行结果 — 上下文与拒绝结果（<c>Rejection</c> 为 null 表示全部通过）。
+/// </summary>
+/// <param name="Context">防御上下文。</param>
+/// <param name="Rejection">拒绝结果；null 表示放行。</param>
+public sealed record BashDefenseOutcome(BashDefenseContext Context, ToolResult? Rejection);

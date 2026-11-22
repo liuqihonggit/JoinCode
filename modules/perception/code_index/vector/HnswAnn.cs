@@ -66,7 +66,7 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
     }
 
     /// <summary>批量添加向量。已存在的 id 覆盖。</summary>
-    public void AddRange(IReadOnlyList<(string Id, float[] Vector)> items) {
+    public void AddRange(IReadOnlyList<JoinCode.Abstractions.CodeIndex.AnnVectorInput> items) {
         ArgumentNullException.ThrowIfNull(items);
         using var scope = _gate.Acquire();
         for (var i = 0; i < items.Count; i++)
@@ -107,7 +107,7 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
     /// <summary>
     /// 搜索 top-K 最相似向量（余弦相似度）。
     /// </summary>
-    public IReadOnlyList<(string Id, float Score)> Search(float[] query, int topK, CancellationToken ct) {
+    public IReadOnlyList<JoinCode.Abstractions.CodeIndex.AnnSearchHit> Search(float[] query, int topK, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(query);
         if (topK <= 0) return [];
 
@@ -123,7 +123,7 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
         var ef = Math.Max(_efSearch, topK);
         var results = SearchLayer(query, ep, ef, 0, ct);
         return results
-            .Select(x => (x.Id, Score: 1f - x.Dist))
+            .Select(x => new JoinCode.Abstractions.CodeIndex.AnnSearchHit(x.Id, 1f - x.Dist))
             .OrderByDescending(x => x.Score)
             .Take(topK)
             .ToList();

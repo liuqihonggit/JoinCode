@@ -57,8 +57,8 @@ public abstract class ReasoningAgent : AgentBase {
     /// <summary>
     /// 调用LLM获取结构化响应
     /// </summary>
-    protected async Task<(string? Content, TokenUsage? Usage, int EstimatedPromptTokens)> CallLlmAsync(string userPrompt, float temperature = 0.3f, int maxTokens = 2000, CancellationToken ct = default) {
-        if (_chatClient is null) return (null, null, 0);
+    protected async Task<ReasoningCallResult> CallLlmAsync(string userPrompt, float temperature = 0.3f, int maxTokens = 2000, CancellationToken ct = default) {
+        if (_chatClient is null) return new ReasoningCallResult(null, null, 0);
 
         var estimatedPromptTokens = PromptBudgetEstimator.Estimate(SystemPrompt, userPrompt);
 
@@ -74,10 +74,10 @@ public abstract class ReasoningAgent : AgentBase {
         try {
             var results = await chatService.GetApiMessageContentsAsync(chatHistory, options, _chatClient, ct).ConfigureAwait(false);
             var result = results.FirstOrDefault();
-            return (result?.Content, result?.TokenUsage, estimatedPromptTokens);
+            return new ReasoningCallResult(result?.Content, result?.TokenUsage, estimatedPromptTokens);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "[{AgentName}] LLM调用失败", Name);
-            return (null, null, estimatedPromptTokens);
+            return new ReasoningCallResult(null, null, estimatedPromptTokens);
         }
     }
 
@@ -163,3 +163,11 @@ public abstract class ReasoningAgent : AgentBase {
         _ => TrustLevel.Moderate,
     };
 }
+
+/// <summary>
+/// 单次 LLM 调用结果 — 正文、token 用量与估算的提示词 token 数。
+/// </summary>
+/// <param name="Content">模型返回正文；失败或空响应为 null。</param>
+/// <param name="Usage">token 用量；失败为 null。</param>
+/// <param name="EstimatedPromptTokens">发出的提示词估算 token 数。</param>
+public sealed record ReasoningCallResult(string? Content, TokenUsage? Usage, int EstimatedPromptTokens);

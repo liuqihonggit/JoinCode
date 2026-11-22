@@ -39,7 +39,7 @@ public static partial class McpNameNormalizer {
     /// </summary>
     /// <param name="toolString">MCP 工具字符串（格式 mcp__{server}__{tool}）</param>
     /// <returns>服务器名称和工具名称元组；格式不匹配时为 null</returns>
-    public static (string ServerName, string? ToolName)? McpInfoFromString(string toolString) {
+    public static McpToolInfo? McpInfoFromString(string toolString) {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolString);
 
         var parts = toolString.Split("__");
@@ -50,7 +50,7 @@ public static partial class McpNameNormalizer {
         var serverName = parts[1];
         var toolName = parts.Length > 2 ? string.Join("__", parts[2..]) : null;
 
-        return (serverName, toolName);
+        return new McpToolInfo(serverName, toolName);
     }
 
     /// <summary>
@@ -66,3 +66,10 @@ public static partial class McpNameNormalizer {
             : fullName;
     }
 }
+
+/// <summary>
+/// 从 MCP 工具全名解析出的服务器名称与工具名称。
+/// </summary>
+/// <param name="ServerName">服务器名称。</param>
+/// <param name="ToolName">工具名称；仅服务器前缀时为 null。</param>
+public sealed record McpToolInfo(string ServerName, string? ToolName);

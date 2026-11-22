@@ -178,7 +178,7 @@ internal interface IGhCacheService {
 
     // === 告警缓存 ===
     /// <summary>扫描 CI 告警 — 范围扫描 gh:ci_alert: 前缀</summary>
-    IAsyncEnumerable<(byte[] Key, byte[] Value)> ScanAlertsAsync(CancellationToken ct);
+    IAsyncEnumerable<KvStoreEntry> ScanAlertsAsync(CancellationToken ct);
     /// <summary>写入 CI 告警 — key=gh:ci_alert:{runId}:{jobId}:{timestamp},无 TTL(永久)</summary>
     Task WriteAlertAsync(string key, byte[] value, CancellationToken ct);
     /// <summary>删除告警</summary>
@@ -186,7 +186,7 @@ internal interface IGhCacheService {
 
     // === 缓存清理 ===
     /// <summary>扫描所有 gh 缓存 — 范围扫描 gh: 前缀</summary>
-    IAsyncEnumerable<(byte[] Key, byte[] Value)> ScanAllGhAsync(CancellationToken ct);
+    IAsyncEnumerable<KvStoreEntry> ScanAllGhAsync(CancellationToken ct);
     /// <summary>删除指定 key</summary>
     Task DeleteAsync(byte[] key, CancellationToken ct);
 }
@@ -441,7 +441,7 @@ internal sealed class GhCacheService : IGhCacheService {
 
     // === 告警缓存 ===
     /// <inheritdoc/>
-    public async IAsyncEnumerable<(byte[] Key, byte[] Value)> ScanAlertsAsync([EnumeratorCancellation] CancellationToken ct) {
+    public async IAsyncEnumerable<KvStoreEntry> ScanAlertsAsync([EnumeratorCancellation] CancellationToken ct) {
         if (_kvStore is null) yield break;
         var fromKey = Encoding.UTF8.GetBytes("gh:ci_alert:");
         var toKey = Encoding.UTF8.GetBytes("gh:ci_alert:~");
@@ -473,7 +473,7 @@ internal sealed class GhCacheService : IGhCacheService {
 
     // === 缓存清理 ===
     /// <inheritdoc/>
-    public async IAsyncEnumerable<(byte[] Key, byte[] Value)> ScanAllGhAsync([EnumeratorCancellation] CancellationToken ct) {
+    public async IAsyncEnumerable<KvStoreEntry> ScanAllGhAsync([EnumeratorCancellation] CancellationToken ct) {
         if (_kvStore is null) yield break;
         var fromKey = Encoding.UTF8.GetBytes("gh:");
         var toKey = Encoding.UTF8.GetBytes("gh;");

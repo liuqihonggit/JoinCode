@@ -337,7 +337,7 @@ internal sealed class JccChatSession : IJccChatSession {
     /// 先 ClearMessagesAsync 清空当前桶，再逐条灌入历史消息到 IChatContextManager。
     /// 对齐 CLI /resume 的 LoadContextAsync 语义。
     /// </summary>
-    public async Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) {
+    public async Task LoadHistoryAsync(IReadOnlyList<EngineHistoryMessage> messages, CancellationToken cancellationToken = default) {
         var ctxMgr = _services.GetService<IChatContextManager>();
         if (ctxMgr is null)
             return;
@@ -432,7 +432,7 @@ internal sealed class JccChatSession : IJccChatSession {
             await fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) => {
                 var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 var node = System.Text.Json.Nodes.JsonNode.Parse(content);
-                if (node is null) return (null, false);
+                if (node is null) return new EditFileTransformResult<bool>(null, false);
                 var vendorNode = node["vendor"];
                 if (vendorNode is null) {
                     vendorNode = new System.Text.Json.Nodes.JsonObject();
@@ -446,7 +446,7 @@ internal sealed class JccChatSession : IJccChatSession {
                 profileNode["model"] = modelId;
                 var newJson = node.ToJsonString();
                 var newBytes = FileEncodingDetector.EncodeString(newJson, encoding);
-                return (newBytes, true);
+                return new EditFileTransformResult<bool>(newBytes, true);
             }, ct);
         } catch (Exception ex) {
             System.Console.Error.WriteLine($"更新 vendor profile model 失败: {profileName} - {ex.Message}");

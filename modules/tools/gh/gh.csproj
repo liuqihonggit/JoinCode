@@ -20,6 +20,8 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/storage/downloader/Downloader.csproj" />
+    <!-- GitHub REST API 客户端实现在 tools/github_client 库（原 abstractions/infrastructure） -->
+    <ProjectReference Include="$(RepoRoot)modules/tools/github_client/GitHubClient.csproj" />
   </ItemGroup>
 
   <ItemGroup>

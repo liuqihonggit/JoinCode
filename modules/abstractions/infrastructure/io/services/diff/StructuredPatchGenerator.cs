@@ -77,7 +77,8 @@ public static class StructuredPatchGenerator {
     /// <summary>
     /// 统计 Patch 中的添加/删除行数 — 对齐 TS countLinesChanged
     /// </summary>
-    public static (int Added, int Removed) CountLinesChanged(StructuredPatchHunk[] hunks) {
+    /// <returns>添加行数与删除行数</returns>
+    public static LineChangeCount CountLinesChanged(StructuredPatchHunk[] hunks) {
         var added = 0;
         var removed = 0;
         foreach (var hunk in hunks) {
@@ -86,7 +87,7 @@ public static class StructuredPatchGenerator {
                 else if (line.Type == PatchLineType.Removed) removed++;
             }
         }
-        return (added, removed);
+        return new LineChangeCount(added, removed);
     }
 
     /// <summary>
@@ -421,3 +422,10 @@ public static class StructuredPatchGenerator {
         return s.Replace(AmpersandToken, "&").Replace(DollarToken, "$");
     }
 }
+
+/// <summary>
+/// Patch 行变更统计 — 添加行数与删除行数
+/// </summary>
+/// <param name="Added">新增行数</param>
+/// <param name="Removed">删除行数</param>
+public sealed record LineChangeCount(int Added, int Removed);

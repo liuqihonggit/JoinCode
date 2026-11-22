@@ -77,8 +77,8 @@ public sealed class LogoutCommand : ChatCommandBase {
     /// </summary>
     /// <param name="bytes">auth.json 原始字节内容</param>
     /// <param name="provider">要移除的供应商名称</param>
-    /// <returns>(重写后的字节, 是否成功移除)；未包含该 provider 时 Success=false</returns>
-    private static (byte[]? NewBytes, bool Success) RemoveProviderFromAuthData(byte[] bytes, string provider) {
+    /// <returns>重写后的字节与是否成功移除；未包含该 provider 时 Success=false</returns>
+    private static EditFileTransformResult<bool> RemoveProviderFromAuthData(byte[] bytes, string provider) {
         var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
         Dictionary<string, string> authData;
         try {
@@ -86,10 +86,10 @@ public sealed class LogoutCommand : ChatCommandBase {
         } catch {
             authData = new Dictionary<string, string>();
         }
-        if (!authData.Remove(provider)) return (null, false);
+        if (!authData.Remove(provider)) return new EditFileTransformResult<bool>(null, false);
         var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
         var newBytes = FileEncodingDetector.EncodeString(json, encoding);
-        return (newBytes, true);
+        return new EditFileTransformResult<bool>(newBytes, true);
     }
 
     /// <summary>

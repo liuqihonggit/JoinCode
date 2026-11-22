@@ -24,7 +24,7 @@ public sealed class BruteForceAnn : IAnnSearch {
     }
 
     /// <summary>批量添加向量。已存在的 id 覆盖。</summary>
-    public void AddRange(IReadOnlyList<(string Id, float[] Vector)> items) {
+    public void AddRange(IReadOnlyList<JoinCode.Abstractions.CodeIndex.AnnVectorInput> items) {
         ArgumentNullException.ThrowIfNull(items);
         while (true) {
             var snapshot = _vectors;
@@ -49,18 +49,18 @@ public sealed class BruteForceAnn : IAnnSearch {
     /// 搜索 top-K 最相似向量（余弦相似度）。
     /// <para>遍历全部向量，SIMD 计算相似度，降序排序取前 K 个。</para>
     /// </summary>
-    public IReadOnlyList<(string Id, float Score)> Search(float[] query, int topK, CancellationToken ct) {
+    public IReadOnlyList<JoinCode.Abstractions.CodeIndex.AnnSearchHit> Search(float[] query, int topK, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(query);
         if (topK <= 0) return [];
 
         var snapshot = _vectors;
         if (snapshot.Count == 0) return [];
 
-        var results = new List<(string Id, float Score)>(snapshot.Count);
+        var results = new List<JoinCode.Abstractions.CodeIndex.AnnSearchHit>(snapshot.Count);
         foreach (var kvp in snapshot) {
             ct.ThrowIfCancellationRequested();
             var score = VectorMath.CosineSimilarity(query, kvp.Value);
-            results.Add((kvp.Key, score));
+            results.Add(new JoinCode.Abstractions.CodeIndex.AnnSearchHit(kvp.Key, score));
         }
 
         results.Sort(static (a, b) => b.Score.CompareTo(a.Score));

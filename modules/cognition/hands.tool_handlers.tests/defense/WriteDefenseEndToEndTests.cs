@@ -15,7 +15,7 @@ public class WriteDefenseEndToEndTests {
             new FormatValidatorNode(fs));
     }
 
-    private static async ValueTask<(WriteDefenseContext Ctx, ToolResult? Rejection)> RunWriteDefenseAsync(
+    private static async ValueTask<WriteDefenseOutcome> RunWriteDefenseAsync(
         WriteDefenseService defense, string filePath, string content, CancellationToken ct = default) {
         return await WriteDefense
             .Begin(filePath, content, FileOperationType.Write, "writing")

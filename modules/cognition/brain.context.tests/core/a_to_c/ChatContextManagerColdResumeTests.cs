@@ -50,7 +50,7 @@ public sealed class ChatContextManagerColdResumeTests {
         savedHistory.AddUserMessage("recent follow-up");
 
         _stateService.Setup(s => s.LoadStateAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(("static prefix", savedHistory));
+            .ReturnsAsync(new JoinCode.Abstractions.Interfaces.LoadedChatState("static prefix", savedHistory));
     }
 
     [Fact]

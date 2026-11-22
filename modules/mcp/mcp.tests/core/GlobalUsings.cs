@@ -2,7 +2,6 @@ global using Core.Utils;
 global using FluentAssertions;
 global using Infrastructure.Http;
 global using Infrastructure.IO;
-global using Infrastructure.Network.Downloader;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Configuration.Llm;

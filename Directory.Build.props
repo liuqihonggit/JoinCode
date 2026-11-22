@@ -141,6 +141,13 @@
     <CompilerVisibleProperty Include="ProjectType" />
     <!-- JCC9312 治理输入: 非测试程序集登记 ModuleInitializer 的中央开关 -->
     <CompilerVisibleProperty Include="JccAllowModuleInitializer" />
+    <!-- 架构契约输入: 域身份、允许依赖域、API 可见性、命名空间根、IVT/slnx 例外 -->
+    <CompilerVisibleProperty Include="JccDomain" />
+    <CompilerVisibleProperty Include="JccAllowedDomains" />
+    <CompilerVisibleProperty Include="JccApiVisibility" />
+    <CompilerVisibleProperty Include="JccNamespaceRoots" />
+    <CompilerVisibleProperty Include="JccAllowInternalsVisibleTo" />
+    <CompilerVisibleProperty Include="JccSlnxExcluded" />
     <Using Include="System.Collections.Concurrent" />
     <Using Include="System.Diagnostics" />
     <Using Include="System.Text.Json" />

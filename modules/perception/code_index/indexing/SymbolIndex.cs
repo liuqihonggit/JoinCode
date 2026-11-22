@@ -63,7 +63,7 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable {
     /// 批量索引写入 — 单次 CAS 原子处理多个文件,仅一次 Inherits→Implements 修正
     /// </summary>
     public Task IndexFilesBatchAsync(
-        IReadOnlyList<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)> files,
+        IReadOnlyList<CodeIndexBatchFile> files,
         CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(files);
         if (files.Count == 0) return Task.CompletedTask;
@@ -123,3 +123,16 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
     }
 }
+
+/// <summary>
+/// 批量索引文件的输入项 — 路径、源码、内容哈希与抽取结果。
+/// </summary>
+/// <param name="FilePath">文件路径。</param>
+/// <param name="SourceCode">文件源码。</param>
+/// <param name="Hash">内容哈希，用于变更检测。</param>
+/// <param name="Extraction">符号/调用/依赖抽取结果。</param>
+public sealed record CodeIndexBatchFile(
+    string FilePath,
+    string SourceCode,
+    string Hash,
+    JoinCode.Abstractions.CodeIndex.ExtractionResult Extraction);

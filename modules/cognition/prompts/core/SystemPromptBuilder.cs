@@ -64,7 +64,7 @@ public sealed partial class SystemPromptBuilder : ServiceEntity {
     /// 静态前缀在会话期间保持不变，用于前缀缓存命中
     /// 动态后缀每轮可能变化，不影响静态前缀的缓存
     /// </summary>
-    public (string StaticPrefix, string DynamicSuffix) BuildPartitioned() {
+    public SystemPromptPartition BuildPartitioned() {
         var staticParts = new List<string>();
         var dynamicParts = new List<string>();
 
@@ -79,7 +79,7 @@ public sealed partial class SystemPromptBuilder : ServiceEntity {
             }
         }
 
-        return (
+        return new SystemPromptPartition(
             string.Join("\n\n", staticParts),
             string.Join("\n\n", dynamicParts)
         );
@@ -88,7 +88,7 @@ public sealed partial class SystemPromptBuilder : ServiceEntity {
     /// <summary>
     /// 异步分区构建系统提示词 — 避免同步阻塞异步 I/O（如文件读取、网络调用）
     /// </summary>
-    public async Task<(string StaticPrefix, string DynamicSuffix)> BuildPartitionedAsync() {
+    public async Task<SystemPromptPartition> BuildPartitionedAsync() {
         var staticParts = new List<string>();
         var dynamicParts = new List<string>();
 
@@ -103,7 +103,7 @@ public sealed partial class SystemPromptBuilder : ServiceEntity {
             }
         }
 
-        return (
+        return new SystemPromptPartition(
             string.Join("\n\n", staticParts),
             string.Join("\n\n", dynamicParts)
         );
@@ -186,3 +186,10 @@ public sealed partial class SystemPromptBuilder : ServiceEntity {
         return _cache.ToFrozenDictionary();
     }
 }
+
+/// <summary>
+/// 系统提示词分区结果 — 可缓存的静态前缀 + 每轮变化的动态后缀
+/// </summary>
+/// <param name="StaticPrefix">静态前缀(会话期间不变, 用于前缀缓存命中)</param>
+/// <param name="DynamicSuffix">动态后缀(每轮可能变化)</param>
+public sealed record SystemPromptPartition(string StaticPrefix, string DynamicSuffix);

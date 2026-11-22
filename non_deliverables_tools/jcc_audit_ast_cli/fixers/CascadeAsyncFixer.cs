@@ -32,7 +32,7 @@ public static class CascadeAsyncFixer {
     /// 递归修复级联错误。返回 (迭代次数, 总修复数)。
     /// 状态机流转用命令式 switch 语句组织，确保 ref 参数正确传递。
     /// </summary>
-    public static async Task<(int iterations, int totalFixed)> FixCascadeAsync(
+    public static async Task<CascadeFixResult> FixCascadeAsync(
         string slnPath, int maxIterations, bool dryRun, CancellationToken ct) {
 
         var state = CascadeFixState.Initial;
@@ -95,7 +95,7 @@ public static class CascadeAsyncFixer {
                 Console.WriteLine($"    {Path.GetFileName(e.File)}({e.Line},{e.Col}): {e.Code} {e.Message}");
         }
 
-        return (iterations, totalFixed);
+        return new CascadeFixResult(iterations, totalFixed);
     }
 
     private static async Task<string> RunBuildAsync(string slnPath, CancellationToken ct) {

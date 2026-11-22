@@ -119,11 +119,11 @@ public sealed class SettingsSourceMigration : IConfigMigration {
             try {
                 root = JsonNode.Parse(content) as JsonObject ?? new JsonObject();
             } catch (JsonException) {
-                return (null, false);
+                return new EditFileTransformResult<bool>(null, false);
             }
 
             if (root["current"] is not JsonObject current)
-                return (null, false);
+                return new EditFileTransformResult<bool>(null, false);
 
             var removed = false;
             foreach (var key in keys) {
@@ -131,10 +131,10 @@ public sealed class SettingsSourceMigration : IConfigMigration {
             }
 
             if (!removed)
-                return (null, false);
+                return new EditFileTransformResult<bool>(null, false);
 
             var output = root.ToJsonString(WriteOptions);
-            return (FileEncodingDetector.EncodeString(output, encoding), true);
+            return new EditFileTransformResult<bool>(FileEncodingDetector.EncodeString(output, encoding), true);
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -161,7 +161,7 @@ public sealed class SettingsSourceMigration : IConfigMigration {
         if (fs.FileExists(path)) {
             await fs.EditFileAsync<bool>(path, async (bytes, ct) => {
                 var (_, encoding) = FileEncodingDetector.DecodeBytes(bytes);
-                return (FileEncodingDetector.EncodeString(root.ToJsonString(WriteOptions), encoding), true);
+                return new EditFileTransformResult<bool>(FileEncodingDetector.EncodeString(root.ToJsonString(WriteOptions), encoding), true);
             }, cancellationToken).ConfigureAwait(false);
             return;
         }

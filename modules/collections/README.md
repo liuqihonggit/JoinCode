@@ -8,10 +8,12 @@
 
 ## 项目
 
+<!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| structura | 持久化数据结构（HAMT、ImmutableList 等） |
-| structura.tests | 单元测试 |
+| [Structura.Tests](structura.tests/Structura.Tests.csproj) | 测试 |
+| [Structura](structura/Structura.csproj) |  |
+<!-- END MODULE PROJECTS -->
 
 ## 依赖
 

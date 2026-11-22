@@ -131,11 +131,11 @@ public sealed class GraphPersistenceTests : IDisposable {
         await fs.WriteAllText("impl.cs", "public class FooImpl : IFoo { public void Bar() { } }");
 
         // 批量索引(单次 CorrectInheritsToImplements)
-        var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>();
+        var batch = new List<CodeIndexBatchFile>();
         foreach (var path in new[] { "iface.cs", "impl.cs" }) {
             var content = await fs.ReadAllTextAsync(path, CancellationToken.None).ConfigureAwait(true);
             var extraction = new CSharpSymbolExtractor().ExtractAll(content, path);
-            batch.Add((path, content, "h", extraction));
+            batch.Add(new(path, content, "h", extraction));
         }
         await index.IndexFilesBatchAsync(batch, CancellationToken.None).ConfigureAwait(true);
 

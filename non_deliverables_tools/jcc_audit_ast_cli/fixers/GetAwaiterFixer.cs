@@ -15,7 +15,7 @@ public static class GetAwaiterFixer {
     /// 修复指定目录下所有 .cs 文件中，可修复的 .GetAwaiter().GetResult()。
     /// 可修复判定: GetAwaiterPatternDetector.IsFixableViolation()（与检测器共享）。
     /// </summary>
-    public static async Task<(int fixedFiles, int fixedIssues, int skipped)> FixAllAsync(
+    public static async Task<AwaiterFixResult> FixAllAsync(
         string rootPath, bool dryRun, CancellationToken ct) {
 
         Console.WriteLine("  遍历所有 .cs 文件，AST 解析方法节点...");
@@ -51,7 +51,7 @@ public static class GetAwaiterFixer {
             }
         }
 
-        return (fixedFiles, fixedIssues, skipped);
+        return new AwaiterFixResult(fixedFiles, fixedIssues, skipped);
     }
 
     /// <summary>

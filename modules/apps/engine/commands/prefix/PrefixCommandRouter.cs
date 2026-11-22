@@ -19,7 +19,7 @@ public static class PrefixCommandRouter {
     /// <summary>
     /// 解析前缀命令，返回 (前缀, 命令内容)；非前缀命令返回 null。
     /// </summary>
-    public static (string Prefix, string Command)? Parse(string input) {
+    public static ParsedPrefixCommand? Parse(string input) {
         if (string.IsNullOrEmpty(input) || input[0] != '!')
             return null;
 
@@ -27,13 +27,13 @@ public static class PrefixCommandRouter {
             var cmd = input[2..].TrimStart();
             if (cmd.Length == 0)
                 return null;
-            return ("!!", cmd);
+            return new ParsedPrefixCommand("!!", cmd);
         }
 
         var singleCmd = input[1..].TrimStart();
         if (singleCmd.Length == 0)
             return null;
-        return ("!", singleCmd);
+        return new ParsedPrefixCommand("!", singleCmd);
     }
 
     /// <summary>
@@ -50,7 +50,7 @@ public static class PrefixCommandRouter {
         if (parsed is null)
             return PrefixCommandResult.NotHandled;
 
-        var (prefix, command) = parsed.Value;
+        var (prefix, command) = parsed;
         IPrefixCommandHandler? handler = prefix switch {
             "!!" => _silentHandler,
             "!" => _shellHandler,
@@ -63,3 +63,10 @@ public static class PrefixCommandRouter {
         return await handler.ExecuteAsync(command, context, cancellationToken).ConfigureAwait(false);
     }
 }
+
+/// <summary>
+/// 前缀命令解析结果 — 前缀（<c>!</c> / <c>!!</c>）与命令内容。
+/// </summary>
+/// <param name="Prefix">前缀标识。</param>
+/// <param name="Command">去除前缀后的命令内容。</param>
+public sealed record ParsedPrefixCommand(string Prefix, string Command);

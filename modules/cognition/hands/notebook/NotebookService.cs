@@ -302,13 +302,13 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService {
     }
 
     /// <inheritdoc />
-    public List<(int Index, NotebookCellType Type, string Preview)> ListCells(NotebookDocument notebook) {
+    public List<JoinCode.Abstractions.Interfaces.NotebookCellSummary> ListCells(NotebookDocument notebook) {
         return notebook.Cells.Select((cell, index) => {
             var preview = cell.SourceText.Length > 50
                 ? cell.SourceText.SafeTruncate(50)
                 : cell.SourceText;
 
-            return (index, cell.Type, preview.Replace("\n", " "));
+            return new JoinCode.Abstractions.Interfaces.NotebookCellSummary(index, cell.Type, preview.Replace("\n", " "));
         }).ToList();
     }
 

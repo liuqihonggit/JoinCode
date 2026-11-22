@@ -154,7 +154,7 @@ public sealed class BridgePointerService {
     /// <param name="baseDir">基础目录</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>最新的指针与所在目录，无则返回 null</returns>
-    public async Task<(BridgePointerWithAge Pointer, string Dir)?> ReadAcrossWorktreesAsync(
+    public async Task<BridgePointerLocation?> ReadAcrossWorktreesAsync(
         string baseDir, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(baseDir);
 
@@ -175,18 +175,18 @@ public sealed class BridgePointerService {
         worktreeDirs.Add(baseDir);
 
         // 并行读取所有指针
-        var tasks = worktreeDirs.Select<string, Task<(BridgePointerWithAge Pointer, string Dir)?>>(async dir => {
+        var tasks = worktreeDirs.Select<string, Task<BridgePointerLocation?>>(async dir => {
             var result = await ReadAsync(dir, ct).ConfigureAwait(false);
-            return result is not null ? (Pointer: result, Dir: dir) : null;
+            return result is not null ? new BridgePointerLocation(result, dir) : null;
         }).ToArray();
 
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
         // 选择最新的（ageMs 最小的）
-        (BridgePointerWithAge Pointer, string Dir)? best = null;
+        BridgePointerLocation? best = null;
         foreach (var item in results) {
             if (item is null) continue;
-            if (best is null || item.Value.Pointer.AgeMs < best.Value.Pointer.AgeMs) {
+            if (best is null || item.Pointer.AgeMs < best.Pointer.AgeMs) {
                 best = item;
             }
         }
@@ -211,3 +211,10 @@ public sealed class BridgePointerService {
         return Task.CompletedTask;
     }
 }
+
+/// <summary>
+/// 跨 worktree 查找到的桥接指针及其所在目录。
+/// </summary>
+/// <param name="Pointer">指针内容与新鲜度。</param>
+/// <param name="Dir">指针所在的 worktree 目录。</param>
+public sealed record BridgePointerLocation(BridgePointerWithAge Pointer, string Dir);

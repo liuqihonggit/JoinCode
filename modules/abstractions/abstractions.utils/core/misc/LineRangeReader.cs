@@ -12,11 +12,11 @@ public static class LineRangeReader {
     /// <param name="lines">全部行集合。</param>
     /// <param name="skipLines">跳过前 N 行（0-based）。</param>
     /// <param name="maxLines">最多读取行数。</param>
-    /// <returns>(截断后的行, 是否还有更多行, 下次续读的 skip 值)</returns>
-    public static (IReadOnlyList<T> Range, bool HasMore, int NextSkip) Slice<T>(
+    /// <returns>截断后的行、是否还有更多行、下次续读的 skip 值</returns>
+    public static LineRangeSlice<T> Slice<T>(
         IReadOnlyList<T> lines, int skipLines, int maxLines) {
         if (skipLines >= lines.Count)
-            return (Array.Empty<T>(), false, skipLines);
+            return new LineRangeSlice<T>(Array.Empty<T>(), false, skipLines);
 
         var take = Math.Min(lines.Count - skipLines, maxLines);
         var range = new List<T>(take);
@@ -25,7 +25,7 @@ public static class LineRangeReader {
         }
 
         var hasMore = skipLines + take < lines.Count;
-        return (range, hasMore, skipLines + take);
+        return new LineRangeSlice<T>(range, hasMore, skipLines + take);
     }
 
     /// <summary>
@@ -71,3 +71,12 @@ public static class LineRangeReader {
 /// <param name="HasMore">是否还有更多行未读取。</param>
 /// <param name="NextSkip">下次续读的 skip_lines 值（= 当前 skip + 已读取行数）。</param>
 public sealed record LineRangeResult(string Text, bool HasMore, int NextSkip);
+
+/// <summary>
+/// 纯截断结果 — 截断后的行 + 是否还有更多行 + 下次续读的 skip 值。
+/// </summary>
+/// <typeparam name="T">行元素类型。</typeparam>
+/// <param name="Range">截断后的行集合。</param>
+/// <param name="HasMore">是否还有更多行未读取。</param>
+/// <param name="NextSkip">下次续读的 skip_lines 值（= 当前 skip + 已读取行数）。</param>
+public sealed record LineRangeSlice<T>(IReadOnlyList<T> Range, bool HasMore, int NextSkip);

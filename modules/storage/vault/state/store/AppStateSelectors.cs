@@ -182,9 +182,9 @@ public sealed partial class AppStateSelectors : ServiceEntity {
     /// <summary>
     /// 选择令牌使用情况
     /// </summary>
-    public IStoreSelector<AppState, (long? MaxBudget, long Used)> SelectTokenUsage() {
+    public IStoreSelector<AppState, TokenUsageSnapshot> SelectTokenUsage() {
         RecordSelectorMetrics("config", "tokenUsage");
-        return _store.Select(state => (state.Config.MaxTokenBudget, state.Config.UsedTokens));
+        return _store.Select(state => new TokenUsageSnapshot(state.Config.MaxTokenBudget, state.Config.UsedTokens));
     }
 
     #endregion
@@ -404,3 +404,10 @@ public sealed class WorkloadOverviewComparer : IEqualityComparer<WorkloadOvervie
         return HashCode.Combine(obj.RunningAgents, obj.RunningTasks, obj.PendingTasks);
     }
 }
+
+/// <summary>
+/// 令牌用量快照 — 预算上限与已用量。
+/// </summary>
+/// <param name="MaxBudget">最大 token 预算；未配置为 null。</param>
+/// <param name="Used">已使用的 token 数。</param>
+public sealed record TokenUsageSnapshot(long? MaxBudget, long Used);

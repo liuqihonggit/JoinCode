@@ -43,6 +43,13 @@ public sealed class ChatStreamEvent {
     /// 消费方按码判定失败原因（权限拒绝等），不得再用结果文本猜语义（TASK125）。
     /// 用字符串而非枚举：本层为更低层的 primitives，不能反向依赖 models 层枚举。
     /// </summary>
+    /// <remarks>
+    /// 生产方：<c>QueryStreamChunkAdapter</c> 取 <c>ToolResult.ErrorCode</c> 填这里，再经
+    /// <c>AgentStreamChunkAdapter</c> / <c>SessionController</c> 透传到
+    /// <c>IEventConsumer.OnToolEnd(..., errorCode)</c>。链上任一环丢掉这个值，消费方就只剩文本可猜，
+    /// 所以每一跳都有测试锁（如 <c>SessionControllerTests.StreamResponseAsync_ToolEnd_ForwardsStructuredErrorCode</c>）。
+    /// 加参数这类签名变更会打断全部手写实现（含测试 fake → CS0535），改前先数实现方。
+    /// </remarks>
     public string? ToolErrorCode { get; init; }
     /// <summary>获取令牌使用情况。</summary>
     public TokenUsage? Usage { get; init; }

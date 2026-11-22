@@ -57,6 +57,9 @@ public sealed class ReplShell
     /// <summary>问答对话框协调器（ask_user_question/confirm_action 挂起时键盘模态改道）。</summary>
     private readonly AskQuestionCoordinator _askQuestions = new();
 
+    /// <summary>引擎取消令牌请求关闭问答（volatile — 引擎线程写，主循环帧拍读）。</summary>
+    private volatile bool _askQuestionCancelRequested;
+
     /// <summary>模型选择器协调器（M7-6 — 挂起时键盘模态改道，优先级低于权限对话框）。</summary>
     private readonly ModelPickerCoordinator _modelPicker = new();
 
@@ -835,16 +838,28 @@ public sealed class ReplShell
     /// <summary>
     /// 问答同步桥（宿主 TuiAskBridge 接线点）：挂起问答对话框 + 同步阻塞等用户按键，
     /// 引擎线程（回合后台线程）等待 — 主循环线程驱动按键/后台回调唤醒（对齐 ConfirmCommand 先例）。
+    /// 取消令牌触发时只置取消请求标记，由主循环帧拍统一关闭对话框（避免引擎线程跨线程改 UI 状态）。
     /// </summary>
-    public TuiAskResult AskUserQuestions(IReadOnlyList<TuiAskQuestion> questions)
+    /// <param name="questions">问题列表</param>
+    /// <param name="cancellationToken">引擎回合取消令牌</param>
+    /// <returns>用户答案 / 取消 / Deferred</returns>
+    public TuiAskResult AskUserQuestions(IReadOnlyList<TuiAskQuestion> questions, CancellationToken cancellationToken = default)
     {
+        if (cancellationToken.IsCancellationRequested)
+            return TuiAskResult.CancelledResult;
+
         BeginAskQuestions(questions);
+        using var registration = cancellationToken.Register(RequestAskQuestionCancel);
         return _askQuestions.Wait().GetAwaiter().GetResult();  // style-allow: sync-block — REPL 输入同步契约: UI 线程同步等待对话框结果
     }
+
+    /// <summary>请求关闭挂起问答（引擎取消令牌回调 — 线程安全标记，主循环帧拍消费）。</summary>
+    public void RequestAskQuestionCancel() => _askQuestionCancelRequested = true;
 
     /// <summary>挂起问答对话框（插入滚动区，模态路由生效；不阻塞 — 测试注入形态）。</summary>
     public void BeginAskQuestions(IReadOnlyList<TuiAskQuestion> questions)
     {
+        _askQuestionCancelRequested = false;
         _askQuestions.Begin(questions);
         AddMessage(new AskQuestionDialogItem(_askQuestions));
     }
@@ -856,10 +871,20 @@ public sealed class ReplShell
         RemoveDialogItem<AskQuestionDialogItem>();
     }
 
-    /// <summary>后台回调到达时关闭挂起问答（主循环帧拍探测 — 通知注入由查询循环步首完成；internal — 帧拍测试面）。</summary>
+    /// <summary>后台回调到达/引擎取消请求时关闭挂起问答（主循环帧拍探测）。</summary>
     internal void CheckAskQuestionInterrupt()
     {
-        if (!_askQuestions.IsPending || AskQuestionInterruptProbe?.Invoke() != true)
+        if (!_askQuestions.IsPending)
+            return;
+
+        if (_askQuestionCancelRequested)
+        {
+            _askQuestionCancelRequested = false;
+            CompleteAskQuestions(coordinator => coordinator.Cancel());
+            return;
+        }
+
+        if (AskQuestionInterruptProbe?.Invoke() != true)
             return;
 
         CompleteAskQuestions(coordinator => coordinator.Defer());

@@ -68,7 +68,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         // 1. 检查非 Shell 工具的删除操作（如 file_delete）
         var deleteInfo = DetectDeleteOperation(context);
         if (deleteInfo is not null) {
-            HandleDeleteOperation(context, deleteInfo);
+            await HandleDeleteOperationAsync(context, deleteInfo).ConfigureAwait(false);
             return;
         }
 
@@ -195,8 +195,9 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
 
     /// <summary>
     /// 处理删除操作 — 复用 FileDeletionRiskHandler 的消息构建逻辑
+    /// <para>Unattended 没有宿主可确认：红灯删除自动执行并写审计，避免管道返回 null 被兜底成 ask。</para>
     /// </summary>
-    private void HandleDeleteOperation(PermissionCheckContext context, DeleteOperationInfo deleteInfo) {
+    private async ValueTask HandleDeleteOperationAsync(PermissionCheckContext context, DeleteOperationInfo deleteInfo) {
         var handler = _riskHandlers.GetValueOrDefault(CommandRisk.FileDeletion);
         var riskContext = new CommandRiskContext {
             ToolName = context.ToolName,
@@ -229,6 +230,13 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             case PermissionMode.Plan:
             context.Result = ToolPermissionCheckResult.Rejected(
                 $"Plan 模式下禁止文件删除操作（{deleteInfo.SourceDescription}）。请使用 Shell 工具将文件移动到 .xxx/ 目录");
+            break;
+
+            case PermissionMode.Unattended:
+            _logger?.LogInformation("无人值守模式自动执行文件删除: {Tool} ({Details})",
+                context.ToolName, deleteInfo.SourceDescription);
+            context.Result = ToolPermissionCheckResult.Approved();
+            await RecordAuditAsync(context, CommandDangerLevel.Execution, riskContext, "AutoExecuted").ConfigureAwait(false);
             break;
 
             default:

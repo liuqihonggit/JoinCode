@@ -67,6 +67,44 @@ public sealed class DshUserQuestionsTests {
         return (broker, frames);
     }
 
+    /// <summary>只关心“是否有待处理通知”的测试队列 — 与引擎队列同接口，避免引入实现层依赖</summary>
+    private sealed class TestNotificationQueue : IAgentNotificationQueue {
+        private readonly ConcurrentQueue<QueuedNotification> _items = new();
+
+        public bool HasPendingNotifications => !_items.IsEmpty;
+
+        public void Enqueue(string? parentAgentId, string notificationXml) =>
+            _items.Enqueue(new QueuedNotification { Xml = notificationXml, TargetAgentId = parentAgentId });
+
+        public IReadOnlyList<QueuedNotification> DequeueAll(string? currentAgentId = null) {
+            var drained = new List<QueuedNotification>();
+            while (_items.TryDequeue(out var item)) {
+                drained.Add(item);
+            }
+            return drained;
+        }
+    }
+
+    [Fact]
+    public async Task Request_BackgroundNotificationArrives_ReturnsDeferredAndCancelsCard() {
+        var (broker, frames) = CreateBroker();
+        var queue = new TestNotificationQueue();
+        broker.AttachNotificationQueue(queue);
+
+        var pending = broker.RequestAsync([Question("继续吗？", "确认", "继续", "停止")], CancellationToken.None);
+        var frame = await frames.AtAsync(0);
+        queue.Enqueue(null, "<task-notification><task-id>g-1</task-id><status>completed</status></task-notification>");
+
+        var result = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        result.Deferred.Should().BeTrue("后台通知到达必须让出提问，不能让主线程一直等卡片");
+        result.Success.Should().BeFalse();
+
+        var cancel = await frames.AtAsync(1);
+        cancel.GetProperty("type").GetString().Should().Be("cancel");
+        cancel.GetProperty("eventId").GetString().Should().Be(EventIdOf(frame));
+        frames.Snapshot().Should().HaveCount(2, "Deferred 后不得再发第二次 cancel");
+    }
+
     [Fact]
     public async Task Request_SendsWaterfallFrame_AndMapsAnswerBatch() {
         var (broker, frames) = CreateBroker();

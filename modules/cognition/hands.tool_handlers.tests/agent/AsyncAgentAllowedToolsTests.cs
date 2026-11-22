@@ -17,9 +17,16 @@ public sealed class AsyncAgentAllowedToolsTests {
     }
 
     [Fact]
-    public void AsyncAgentAllowedTools_DoesNotContain_AskUser() {
-        AsyncAgentAllowedTools.Tools.Should().NotContain("ask_user");
-        AsyncAgentAllowedTools.Tools.Should().NotContain("AskUser");
+    public void AsyncAgentAllowedTools_DoesNotContain_AskUserQuestion() {
+        AsyncAgentAllowedTools.Tools.Should().NotContain(UserInteractionToolNameEnumConstants.AskUserQuestion);
+        AsyncAgentAllowedTools.Tools.Should().NotContain(UserInteractionToolNameEnumConstants.ConfirmAction);
+    }
+
+    [Fact]
+    public void BackgroundExecutionPolicy_DeniesInteractionTools() {
+        BackgroundExecutionPolicy.DeniedTools.Should().Contain(UserInteractionToolNameEnumConstants.AskUserQuestion);
+        BackgroundExecutionPolicy.DeniedTools.Should().Contain(UserInteractionToolNameEnumConstants.ConfirmAction);
+        BackgroundExecutionPolicy.Mode.Should().Be(PermissionMode.Unattended);
     }
 
     [Fact]

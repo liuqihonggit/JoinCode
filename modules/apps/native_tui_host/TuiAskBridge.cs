@@ -26,9 +26,12 @@ public class TuiAskBridge {
 
     /// <summary>
     /// 挂起问答对话框并同步等待用户作答；未绑定 shell 或空问题集返回 Failure（含恢复诱导）。
+    /// 取消令牌透传给 shell：只置取消请求，主循环帧拍关闭对话框，避免引擎线程跨线程改 UI。
     /// virtual 供测试替身（FakeBridge 先例）。
     /// </summary>
-    public virtual TuiAskResult Ask(IReadOnlyList<TuiAskQuestion> questions) {
+    /// <param name="questions">问题列表</param>
+    /// <param name="cancellationToken">引擎回合取消令牌</param>
+    public virtual TuiAskResult Ask(IReadOnlyList<TuiAskQuestion> questions, CancellationToken cancellationToken = default) {
         if (questions.Count == 0)
             return TuiAskResult.Failure("没有可提问的问题；请重新组织问题后再调用。");
 
@@ -36,6 +39,6 @@ public class TuiAskBridge {
         if (shell is null)
             return TuiAskResult.Failure("TUI 问答界面尚未绑定（引擎启动中或正在退出）；请回到对话继续，稍后重新提问。");
 
-        return shell.AskUserQuestions(questions);
+        return shell.AskUserQuestions(questions, cancellationToken);
     }
 }

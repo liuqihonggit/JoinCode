@@ -65,6 +65,6 @@ public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBack
 
     /// <inheritdoc/>
     public IReadOnlyList<string> DrainPendingNotificationTexts() {
-        return _notificationQueue?.DrainFormatted() ?? [];
+        return _notificationQueue?.DrainFormatted(SubAgentContext.Current?.AgentId) ?? [];
     }
 }

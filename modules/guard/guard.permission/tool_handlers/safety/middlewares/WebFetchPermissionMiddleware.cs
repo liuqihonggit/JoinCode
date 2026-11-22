@@ -2,19 +2,15 @@
 namespace Core.Permission;
 
 /// <summary>
-/// WebFetch 域名权限中间件 — Default 模式下检查 WebFetch 域名级权限
+/// WebFetch 域名权限中间件 — Auto/Unattended 模式下检查 WebFetch 域名级权限
 /// 优先级: 预批准域名→deny规则→ask规则→allow规则(含RuleContent)→默认ask
 /// 对齐 TS 版 WebFetchTool.checkPermissions
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
-
-    /// <inheritdoc />
-
-    /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
-        if (context.CurrentMode != PermissionMode.Auto || !PermissionCheckContext.IsWebFetchTool(context.ToolName))
+        if (context.CurrentMode is not (PermissionMode.Auto or PermissionMode.Unattended) || !PermissionCheckContext.IsWebFetchTool(context.ToolName))
             return next(context, ct);
 
         var webFetchResult = CheckWebFetchPermission(context);
@@ -46,23 +42,28 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
             return ToolPermissionCheckResult.Approved();
 
         var ruleContent = ExtractWebFetchRuleContent(url);
+        var unattended = context.CurrentMode == PermissionMode.Unattended;
 
-        // 2. deny 规则匹配
+        // 2. deny 规则匹配 — 任何模式都必须拒绝
         if (MatchesWebFetchRule(config.AutoRejectedTools.Values, ruleContent))
             return ToolPermissionCheckResult.Rejected($"WebFetch denied access to {ruleContent}.");
 
-        // 3. ask 规则匹配
+        // 3. ask 规则匹配 — Unattended 无宿主可确认，按只读网络访问自动批准（硬 deny 仍在上面）
         if (MatchesWebFetchRule(config.AskRules, ruleContent))
-            return ToolPermissionCheckResult.PendingConfirmation(
-                $"{BrandConstants.ProductName} requested permissions to use {toolName}, but you haven't granted it yet.");
+            return unattended
+                ? ToolPermissionCheckResult.Approved()
+                : ToolPermissionCheckResult.PendingConfirmation(
+                    $"{BrandConstants.ProductName} requested permissions to use {toolName}, but you haven't granted it yet.");
 
         // 4. allow 规则匹配（含 RuleContent 的细粒度规则）
         if (MatchesWebFetchRuleWithContent(config.AutoApprovedTools.Values, ruleContent))
             return ToolPermissionCheckResult.Approved();
 
-        // 5. 默认 → ask
-        return ToolPermissionCheckResult.PendingConfirmation(
-            $"JoinCode requested permissions to use {toolName}, but you haven't granted it yet.");
+        // 5. 默认 — Unattended 自动批准只读 WebFetch；前台保持 ask
+        return unattended
+            ? ToolPermissionCheckResult.Approved()
+            : ToolPermissionCheckResult.PendingConfirmation(
+                $"JoinCode requested permissions to use {toolName}, but you haven't granted it yet.");
     }
 
     /// <summary>

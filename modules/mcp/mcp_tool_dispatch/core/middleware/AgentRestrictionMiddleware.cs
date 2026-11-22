@@ -43,18 +43,21 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
             return;
         }
 
-        if (_agentToolRestrictions is null) {
+        if (_agentToolRestrictions is null && context.AllowedTools.Count == 0 && context.DeniedTools.Count == 0) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
 
         if (_toolFilterPolicy is not null) {
-            var deniedTools = _agentToolRestrictions.GetDeniedTools(context.AgentMode);
+            var deniedByMode = _agentToolRestrictions?.GetDeniedTools(context.AgentMode) ?? FrozenSet<string>.Empty;
+            var deniedTools = context.DeniedTools is { Count: > 0 }
+                ? deniedByMode.Union(context.DeniedTools).ToFrozenSet(StringComparer.OrdinalIgnoreCase)
+                : deniedByMode;
             var filterContext = new ToolFilterContext(
                 context.ToolName,
                 context.AgentMode,
                 FrozenSet<string>.Empty,
-                null,
+                context.AllowedTools,
                 deniedTools);
             var filterResult = _toolFilterPolicy.Check(filterContext);
             if (!filterResult.IsAllowed) {
@@ -64,7 +67,7 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
             }
 
             _logger.LogDebug(L.T(StringKey.AgentToolLimitPassedLog, context.ToolName, context.AgentMode));
-        } else if (!_agentToolRestrictions.IsToolAllowedForMode(context.ToolName, context.AgentMode)) {
+        } else if (!IsAllowedByModeOrContext(context)) {
             _logger.LogWarning(L.T(StringKey.AgentToolLimitDeniedLog, context.ToolName, context.AgentMode));
             context.Deny(L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode), ToolErrorType.AgentRestricted, ToolErrorCode.PermissionDeniedByAgentRestriction);
             return;
@@ -73,5 +76,14 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
         }
 
         await next(context, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>无 ToolFilterPolicy 时的回退检查 — 模式限制 + 子代理白名单/拒绝集合。</summary>
+    private bool IsAllowedByModeOrContext(ToolExecutionContext context) {
+        if (_agentToolRestrictions is not null && !_agentToolRestrictions.IsToolAllowedForMode(context.ToolName, context.AgentMode))
+            return false;
+        if (context.AllowedTools is { Count: > 0 } && !context.AllowedTools.Contains(context.ToolName))
+            return false;
+        return context.DeniedTools is not { Count: > 0 } || !context.DeniedTools.Contains(context.ToolName);
     }
 }

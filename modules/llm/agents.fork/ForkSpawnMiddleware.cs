@@ -88,11 +88,22 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         var agentOptions = new SubAgentOptions {
             AdditionalInstructions = context.Options.SystemPrompt ?? cacheSafeParams?.RenderedSystemPrompt,
             MaxIterations = context.Options.MaxIterations,
-            AllowedTools = context.Options.UseExactTools && cacheSafeParams?.ToolNames is not null
-                ? cacheSafeParams.ToolNames.ToList()
-                : context.Options.AllowedTools,
-            DeniedTools = context.Options.DeniedTools,
-            PermissionMode = context.Options.PermissionMode.ToString().ToLowerInvariant(),
+            // 后台 fork 禁止继承父代理交互工具（父表可能含 ask/confirm），但保留其余工具池；
+            // 只有 async agent 才收敛到 BackgroundExecutionPolicy 默认白名单。
+            AllowedTools = context.Options.RunInBackground
+                ? BackgroundExecutionPolicy.PreserveToolsExceptDenied(
+                    context.Options.UseExactTools && cacheSafeParams?.ToolNames is not null
+                        ? cacheSafeParams.ToolNames
+                        : context.Options.AllowedTools)
+                : context.Options.UseExactTools && cacheSafeParams?.ToolNames is not null
+                    ? cacheSafeParams.ToolNames.ToList()
+                    : context.Options.AllowedTools,
+            DeniedTools = context.Options.RunInBackground
+                ? BackgroundExecutionPolicy.MergeDeniedTools(context.Options.DeniedTools)
+                : context.Options.DeniedTools,
+            PermissionMode = context.Options.RunInBackground
+                ? BackgroundExecutionPolicy.ModeValue
+                : context.Options.PermissionMode.ToValue(),
             CacheSafeParams = cacheSafeParams,
             InitialMessageList = initialMessageList,
             ProgressTracker = forkTracker,

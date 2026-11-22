@@ -15,6 +15,7 @@ global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
+global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Utils;

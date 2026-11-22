@@ -930,7 +930,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
             _savedPermissionMode = currentMode;
             await _permissionManager.SetPermissionModeAsync(PermissionMode.Unattended, cancellationToken).ConfigureAwait(false);
-            _logger?.LogInformation(L.T(StringKey.PermissionModeSwitched), _savedPermissionMode);
+            _logger?.LogInformation(L.T(StringKey.PermissionModeSwitched), _savedPermissionMode, PermissionMode.Unattended);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.PermissionModeSwitchFailed));
             _savedPermissionMode = null;

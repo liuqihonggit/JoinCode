@@ -77,7 +77,7 @@ JCC10011（公开 API 禁止元组，规则实现 `modules/generators/aot_safety
 | Brain.Prompts.Tests | 229 |
 | Hands.ToolHandlers.Tests | 610 |
 
-> 全量 60 个项目已在最新 HEAD 顺序执行（日志 `.xxx/logs/full-tests-current/`）：24678 通过 / 0 失败。其中 `NativeTui.Tests` 曾因取消用例依赖宿主 PATH 内的 `ping` 秒退而假失败（1/3178），改为 System32 绝对路径后 3178/3178 通过；`Fsm.Generator.Tests` 批量时的 MSB3027 产物复制竞态隔离复跑 13/13 通过。
+> 全量 60 个项目已在最新 HEAD 顺序执行（日志 `.xxx/logs/full-tests-final/`，`通过 60 / 失败 0`）：24678 通过 / 0 失败。修复前日志在 `.xxx/logs/full-tests-current/`：其中 `NativeTui.Tests` 曾因取消用例依赖宿主 PATH 内的 `ping` 秒退而假失败（1/3178），改为 System32 绝对路径后 3178/3178 通过；`Fsm.Generator.Tests` 批量时的 MSB3027 产物复制竞态隔离复跑 13/13 通过。
 
 ## 4. 需求落地验收表
 

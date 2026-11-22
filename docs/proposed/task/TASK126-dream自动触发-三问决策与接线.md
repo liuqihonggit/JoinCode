@@ -133,7 +133,7 @@ Chat → QueryLoopMiddleware → IQueryEngine(QueryEngine)
 | 项目 | 结果 | 覆盖 |
 |---|---|---|
 | `Dream.Tests` | **212/212** | `AutoDreamTriggerTests` 12 项（六门逐条 + 并发互斥 + 失败/取消回滚 + 不抛异常）；`ConsolidationLockBehaviorTests` 新增 7 项（占锁互斥、活 pid 让出、死 pid 回收、超时回收、旧格式可抢、`ParseBody` 双格式、落锁后自己也不再抢） |
-| `Pipelines.Tests` | **74/74** | `AutoDreamStopHookTests` 4 项（orders.yaml 登记 → `OrderIndex` 不抛；无 trigger 时 Continue；**不 await dream**；缺依赖降级为永不触发）+ 装配级串通 1 项（注册 → DI → 管理器构造期收集 → 钩子 → 触发器 → `IDreamFeature`） |
+| `Pipelines.Tests` | **76/76** | `AutoDreamStopHookTests` 6 项（orders.yaml 登记 → `OrderIndex` 不抛；无 trigger 时 Continue；**不 await dream**；缺依赖降级为永不触发；**延迟解析重试到就绪后缓存**；**同容器从降级恢复到触发**）+ 装配级串通 1 项（注册 → DI → 管理器构造期收集 → 钩子 → 触发器 → `IDreamFeature`） |
 | `Brain.Other.Tests` | **13/13**（`QueryStopHookManagerTests`） | 构造期收集 DI hook、注入顺序无关而执行顺序按 `Priority` |
 
 ### 5.3 真机探针：本机缺一个前提，如实记录
@@ -149,6 +149,8 @@ JCC_DEBUGLOG=1 jcc -p "ok"     # 期望无 [DREAM-AUTO] 之外的副作用；会
 # 注入 MinHours=0 / MinSessions=1 后再跑一次 → fire ... / done ...
 # 第三次 → skip: time-gate（证明时间门真闭，不是每回合都放行）
 ```
+
+> 补充：虽然回合到不了 `OnCompleteHooks`，`-p hi` 的**启动阶段**诊断仍然有价值 —— §5.6 的竞态缺陷就是这么抓到的。也就是说「探针没跑完成」不等于「探针没用」，要按已打出的行做判断，而不是整体判无效。
 
 ### 5.4 编译与产物核验
 
@@ -166,7 +168,35 @@ JCC_DEBUGLOG=1 jcc -p "ok"     # 期望无 [DREAM-AUTO] 之外的副作用；会
 
 跑的时候修掉一个**门禁自身缺陷**（不是本轮功能的一部分，但不修就带病）：`implementations()` 排除测试路径只写了 `/tests/`，而本仓测试项目目录名是 `xxx.tests/`（如 `guard.hooks.tests`），于是测试替身 `StubInterceptor`（`private sealed class ... : ICommandInterceptor`）一直被当成生产实现。此前没暴露，是因为 `command_interceptors` 声明了目录范围把它挡掉了；`query_stop_hooks` 未声明目录范围，一放开就露出来。修法两处：①排除条件补 `.tests/`；②未声明目录范围的列表做全仓对账（原逻辑 `if dirs else {}` 让这类列表的 `scoped` 恒空，「登记了不存在的实现」必然误报，等于永远填不进去）。修完仍是 17 项双向对账，`Verify-ExplicitOrder.py` 一行未改也依然通过。
 
-> 性能教训（与功能无关但会反复踩）：这两个门禁合计 18 秒，曾被 `python xxx.py 2>&1 | tail -10` 拖成后台 16 分 26 秒后被杀、0 字节输出。原因是 `tail` 要等 stdin EOF，而 `Verify-ExplicitOrder.py` 内部 `subprocess` 起的 `jcc.exe` 会留下继承 stdout 的孙进程，EOF 迟迟不到。**跑门禁不要接 `tail`**，重定向到文件再读；两个门禁互不依赖，可以并行（墙钟取 Max 而非 Sum）。此教训已上升为强制条款：`AGENTS.md` §平台专属操作禁令「短任务脚本必须 30 秒内结束（超时即缺陷）」。
+> 性能教训（与功能无关但会反复踩）：这两个门禁合计 18 秒，曾被 `python xxx.py 2>&1 | tail -10` 拖成后台 16 分 26 秒后被杀、0 字节输出。原因是 `tail` 要等 stdin EOF，而 `Verify-ExplicitOrder.py` 内部 `subprocess` 起的 `jcc.exe` 会留下继承 stdout 的孙进程，EOF 迟迟不到。**跑门禁不要接 `tail`**，重定向到文件再读。此教训已上升为强制条款：`AGENTS.md` §平台专属操作禁令「短任务脚本必须 30 秒内结束（超时即缺陷）」。
+
+### 5.6 施工后真机复测抓到的接线缺陷：构造期解析竞态
+
+`jcc --debuglog -p hi` 探针除了证明 `memory-recall-mw` 真被消费，还打出一行**与本文件 §3 设计矛盾的事实**：
+
+```
+[CAPS-PLUGIN] dream=load code-index=load
+[DREAM-AUTO] hook disabled: dream subsystem not registered
+```
+
+同一份日志里 dream 能力是开的、插件要加载，钩子却判定「没注册」。原因在加载时序：
+
+- `McpInitModule` 明确把八插件加载**后台化**（注释原文：「启动不阻塞等待加载墙钟」）；
+- `StopHookMiddleware` 在**首次查询构建管道时**就被构造 → 触发本 hook 的工厂；
+- 工厂在**构造期**抓 `IDreamFeature` → 插件还没注册完 → 拿到 null → 注册成「永不触发」的实例，**进程内再也不会重试**。
+
+后果：单回合 `-p` 会话（CLI 最常见的用法）里 #40 等于没接。这是 TASK100 §25「声明 ≠ 消费」的同一类错误，只是这次错在「实例化时机」而不是「消费点选错」。
+
+修法（`AutoDreamStopHook` + 注册处）：
+
+1. 钩子改收 `Func<AutoDreamTrigger?>`，**每次 `OnStopAsync` 都可重试**；
+2. 解析成功即缓存 —— `AutoDreamTrigger` 持有 `_lastScanAtMs`，每回合新建等于废掉扫描节流；
+3. 「未就绪」只在首次打一行 `[DREAM-AUTO] hook waiting`，避免每回合刷屏；
+4. 解析全程包 try ——「没注册」是 `GetService` 返回 null，「注册了但激活失败」是**抛异常**，两者都要降级。
+
+验收：`Pipelines.Tests` **76/76**，其中新增两条正是这个缺陷的判据 ——
+`DeferredResolution_RetriesUntilDreamReady_ThenCaches`（函数级：前两回合 null、第三回合触发、之后不再解析）、
+`Container_RecoversAfterDreamSubsystemBecomesAvailable`（容器级：同一个 `ServiceProvider` 里先从「激活抛错」降级，再在插件就绪后恢复触发）。真机复测 `-p hi` 后 `[DREAM-AUTO] hook disabled` 不再出现在构造期。
 
 
 ---

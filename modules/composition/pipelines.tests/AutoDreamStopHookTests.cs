@@ -28,6 +28,50 @@ public sealed class AutoDreamStopHookTests {
         result.ShouldStop.Should().BeFalse("没启用 dream 时不阻止回合，也不短路其它 hook");
     }
 
+    /// <summary>
+    /// Dream 插件由 <c>McpInitModule</c> 后台加载，首回合解析不到是常态（真机 `jcc -p hi` 实测）。
+    /// 钩子必须「每回合重试、成功即缓存」：不重试则短会话永久降级；不缓存则每回合新建
+    /// <c>AutoDreamTrigger</c>，扫描节流状态（<c>_lastScanAtMs</c>）等于被废掉。
+    /// </summary>
+    [Fact]
+    public async Task DeferredResolution_RetriesUntilDreamReady_ThenCaches() {
+        var fired = new TaskCompletionSource();
+        var dream = new Mock<JoinCode.Dream.IDreamFeature>();
+        dream.Setup(d => d.ExecuteAsync(It.IsAny<JoinCode.Dream.DreamRequest>(), It.IsAny<CancellationToken>()))
+            .Returns((JoinCode.Dream.DreamRequest request, CancellationToken token) => {
+                fired.TrySetResult();
+                return Task.FromResult(JoinCode.Dream.DreamResult.Success("ok", "task-1", 1, 5));
+            });
+        var scanner = new Mock<JoinCode.Dream.Services.ISessionScanner>();
+        scanner.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["s1"]);
+
+        var config = new JoinCode.Dream.AutoDreamConfig { MinHours = 0, MinSessions = 1, ProjectDir = "/proj-deferred" };
+        var trigger = new JoinCode.Dream.AutoDreamTrigger(
+            dream.Object,
+            scanner.Object,
+            config,
+            new JoinCode.Dream.Services.ConsolidationLock(config, new Testing.Common.Services.InMemoryFileSystem()));
+
+        var resolveCount = 0;
+        var hook = new AutoDreamStopHook(() => {
+            resolveCount++;
+            return resolveCount <= 2 ? null : trigger;
+        });
+
+        await hook.OnStopAsync(Context(), CancellationToken.None).ConfigureAwait(true);
+        await hook.OnStopAsync(Context(), CancellationToken.None).ConfigureAwait(true);
+        resolveCount.Should().Be(2, "前两回合 dream 还没注册完成，必须重试而不是永久放弃");
+        fired.Task.IsCompleted.Should().BeFalse("前两回合不该发起整合");
+
+        await hook.OnStopAsync(Context(), CancellationToken.None).ConfigureAwait(true);
+        await fired.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
+
+        await hook.OnStopAsync(Context(), CancellationToken.None).ConfigureAwait(true);
+        resolveCount.Should().Be(3, "解析成功后必须缓存 —— AutoDreamTrigger 持有扫描节流状态");
+        dream.Verify(d => d.ExecuteAsync(It.IsAny<JoinCode.Dream.DreamRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     [Fact]
     public async Task DoesNotAwaitDream_ReturnsContinueWhileDreamStillRunning() {
         var entered = new TaskCompletionSource();
@@ -50,7 +94,7 @@ public sealed class AutoDreamStopHookTests {
             config,
             new JoinCode.Dream.Services.ConsolidationLock(config, fs),
             NullLogger<JoinCode.Dream.AutoDreamTrigger>.Instance);
-        var hook = new AutoDreamStopHook(trigger, NullLogger<AutoDreamStopHook>.Instance);
+        var hook = new AutoDreamStopHook(() => trigger, NullLogger<AutoDreamStopHook>.Instance);
 
         var result = await hook.OnStopAsync(Context(), CancellationToken.None).ConfigureAwait(true);
         await entered.Task.ConfigureAwait(true);
@@ -90,6 +134,48 @@ public sealed class AutoDreamStopHookTests {
         hooks.Should().ContainSingle("只有一个 query stop hook 实现");
         var result = await hooks[0].OnStopAsync(Context(), CancellationToken.None).ConfigureAwait(true);
         result.ShouldStop.Should().BeFalse("缺 dream 依赖时是「永不触发」，不是「启动崩」");
+    }
+
+    /// <summary>
+    /// 容器级复现：首回合插件尚未加载（激活抛错），后续回合就绪 —— 必须能在**同一个容器**里
+    /// 从「降级」恢复到「触发」。这条覆盖的是构造期抓依赖那种写法做不到的事。
+    /// </summary>
+    [Fact]
+    public async Task Container_RecoversAfterDreamSubsystemBecomesAvailable() {
+        var ready = false;
+        var fired = new TaskCompletionSource();
+        var dream = new Mock<JoinCode.Dream.IDreamFeature>();
+        dream.Setup(d => d.ExecuteAsync(It.IsAny<JoinCode.Dream.DreamRequest>(), It.IsAny<CancellationToken>()))
+            .Returns((JoinCode.Dream.DreamRequest request, CancellationToken token) => {
+                fired.TrySetResult();
+                return Task.FromResult(JoinCode.Dream.DreamResult.Success("ok", "task-1", 1, 5));
+            });
+        var scanner = new Mock<JoinCode.Dream.Services.ISessionScanner>();
+        scanner.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["s1"]);
+
+        var config = new JoinCode.Dream.AutoDreamConfig { MinHours = 0, MinSessions = 1, ProjectDir = "/proj-recover" };
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(config);
+        services.AddSingleton(new JoinCode.Dream.Services.ConsolidationLock(
+            config, new Testing.Common.Services.InMemoryFileSystem()));
+        services.AddSingleton(scanner.Object);
+        services.AddSingleton<JoinCode.Dream.IDreamFeature>(_ => ready
+            ? dream.Object
+            : throw new InvalidOperationException("DreamPlugin 尚未加载完成"));
+        services.RegisterBaseMiddlewareServices();
+
+        await using var sp = services.BuildServiceProvider();
+        var hook = sp.GetServices<Core.Query.StopHooks.IQueryStopHook>().Single();
+
+        (await hook.OnStopAsync(Context(), CancellationToken.None).ConfigureAwait(true)).ShouldStop.Should().BeFalse();
+        fired.Task.IsCompleted.Should().BeFalse("插件未就绪时不应发起整合");
+
+        ready = true;
+        await hook.OnStopAsync(Context(), CancellationToken.None).ConfigureAwait(true);
+        await fired.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
+        dream.Verify(d => d.ExecuteAsync(It.IsAny<JoinCode.Dream.DreamRequest>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>

@@ -23,35 +23,47 @@ public static class DataDrivenPipelineComposition {
         // TASK126（#40）：回合结束 → dream 自动整合。落在 query_stop_hooks 而不是 query-pipeline
         // 节点 —— 生产查询链取的是 DI 集合（IEnumerable<IQueryMiddleware>），profile 组装的
         // MiddlewarePipeline<QueryMiddlewareContext> 没有消费方，加节点等于永不执行。
-        // 依赖缺失（未加载 Dream 插件 / 无 dream 子系统）时注册成「永不触发」而不是抛异常。
-        services.AddSingleton<Core.Query.StopHooks.IQueryStopHook>(sp => {
-            var logger = sp.GetService<ILogger<AutoDreamStopHook>>();
-            try {
-                var config = sp.GetService<JoinCode.Dream.AutoDreamConfig>();
-                var feature = sp.GetService<JoinCode.Dream.IDreamFeature>();
-                var scanner = sp.GetService<JoinCode.Dream.Services.ISessionScanner>();
-                if (config is null || feature is null || scanner is null) {
-                    Diag.WriteLine("[DREAM-AUTO] hook disabled: dream subsystem not registered");
-                    return new AutoDreamStopHook(null, logger);
-                }
-
-                var trigger = new JoinCode.Dream.AutoDreamTrigger(
-                    feature,
-                    scanner,
-                    config,
-                    @lock: sp.GetService<JoinCode.Dream.Services.ConsolidationLock>(),
-                    logger: sp.GetService<ILogger<JoinCode.Dream.AutoDreamTrigger>>());
-                return new AutoDreamStopHook(trigger, logger);
-            } catch (Exception ex) {
-                // 别忘了 GetService 只兜「没注册」，构造过程本身仍会抛（例如 IChatClient 缺失时
-                // ChatCompletionClient 激活失败）。这里是查询链的构造路径，绝不能让一个后台
-                // 功能把回合拖垮 —— 降级成永不触发，并把原因写进诊断。
-                Diag.WriteLine($"[DREAM-AUTO] hook disabled: {ex.GetType().Name}: {ex.Message}");
-                return new AutoDreamStopHook(null, logger);
-            }
-        });
+        //
+        // 依赖必须**延迟解析**：McpInitModule 把插件加载后台化（「启动不阻塞等待加载墙钟」），
+        // 而本 hook 在首次查询构建管道时就被构造。构造期抓 IDreamFeature 的写法实测稳定失败
+        // —— 真机 `jcc -p hi` 打出 [DREAM-AUTO] hook disabled: dream subsystem not registered，
+        // 尽管同一份日志里 [CAPS-PLUGIN] dream=load。短会话（单回合 -p）会永久降级。
+        // 改为每次 OnStop 尝试解析，成功即缓存（AutoDreamTrigger 持有扫描节流状态，不能每回合新建）。
+        services.AddSingleton<Core.Query.StopHooks.IQueryStopHook>(sp =>
+            new AutoDreamStopHook(
+                () => ResolveAutoDreamTrigger(sp),
+                sp.GetService<ILogger<AutoDreamStopHook>>()));
 
         return services;
+    }
+
+    /// <summary>
+    /// 解析自动整合触发器 —— Dream 插件尚未加载完成时返回 <c>null</c>（hook 降级为「永不触发」，下个回合重试）。
+    /// </summary>
+    /// <remarks>
+    /// 不能只依赖 <c>GetService</c> 的「没注册」判定：构造过程本身也会抛（例如 <c>IChatClient</c> 缺失时
+    /// <c>ChatCompletionClient</c> 激活失败）。这里同样兜住，理由与 hook 一致 —— 后台功能不许拖垮回合。
+    /// </remarks>
+    private static JoinCode.Dream.AutoDreamTrigger? ResolveAutoDreamTrigger(IServiceProvider sp) {
+        // 解析本身也要进 try：「没注册」由 GetService 返回 null，但「注册了却激活失败」是抛出来的。
+        try {
+            var config = sp.GetService<JoinCode.Dream.AutoDreamConfig>();
+            var feature = sp.GetService<JoinCode.Dream.IDreamFeature>();
+            var scanner = sp.GetService<JoinCode.Dream.Services.ISessionScanner>();
+            if (config is null || feature is null || scanner is null) {
+                return null;
+            }
+
+            return new JoinCode.Dream.AutoDreamTrigger(
+                feature,
+                scanner,
+                config,
+                @lock: sp.GetService<JoinCode.Dream.Services.ConsolidationLock>(),
+                logger: sp.GetService<ILogger<JoinCode.Dream.AutoDreamTrigger>>());
+        } catch (Exception ex) {
+            Diag.WriteLine($"[DREAM-AUTO] hook disabled: {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>

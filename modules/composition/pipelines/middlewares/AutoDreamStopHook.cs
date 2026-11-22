@@ -26,20 +26,30 @@ namespace JoinCode.Pipelines.Middlewares;
 /// <c>QueryStopHookManager</c> 构造失败把整个查询链拖下水。
 /// </para>
 /// <para>
+/// <b>为什么收 <c>Func&lt;AutoDreamTrigger?&gt;</c> 而不是实例</b>：插件由 <c>McpInitModule</c>
+/// 后台加载，本 hook 却在首次查询构建管道时就被构造 —— 构造期抓依赖实测稳定拿到 null
+/// （真机 <c>jcc -p hi</c>：<c>[DREAM-AUTO] hook disabled</c> 与 <c>[CAPS-PLUGIN] dream=load</c> 并存）。
+/// 因此解析推迟到每次 <see cref="OnStopAsync"/>，**成功即缓存** ——
+/// <see cref="JoinCode.Dream.AutoDreamTrigger"/> 持有扫描节流状态，每回合新建等于废掉节流。
+/// </para>
+/// <para>
 /// 类型一律写全限定名：<c>Core.Query.StopHooks</c> 的 <c>StopHookContext</c>/<c>StopHookResult</c>
 /// 与 <c>Core.Hooks.Lifecycle</c> 的同名类型冲突，加 global using 会波及本程序集其它文件
 /// （JCC1005 又禁止文件内 using）。
 /// </para>
 /// </summary>
 internal sealed class AutoDreamStopHook : Core.Query.StopHooks.IQueryStopHook {
-    private readonly JoinCode.Dream.AutoDreamTrigger? _trigger;
+    private readonly Func<JoinCode.Dream.AutoDreamTrigger?>? _resolveTrigger;
     private readonly ILogger<AutoDreamStopHook>? _logger;
 
+    private JoinCode.Dream.AutoDreamTrigger? _trigger;
+    private int _resolvedOnce;
+
     /// <summary>构造回合结束钩子。</summary>
-    /// <param name="trigger">自动触发器（门控 + 执行）；null 表示本宿主未启用 dream。</param>
+    /// <param name="resolveTrigger">触发器解析委托；每次停止时调用，返回 null 表示 dream 尚未就绪。</param>
     /// <param name="logger">日志。</param>
-    public AutoDreamStopHook(JoinCode.Dream.AutoDreamTrigger? trigger, ILogger<AutoDreamStopHook>? logger = null) {
-        _trigger = trigger;
+    public AutoDreamStopHook(Func<JoinCode.Dream.AutoDreamTrigger?>? resolveTrigger, ILogger<AutoDreamStopHook>? logger = null) {
+        _resolveTrigger = resolveTrigger;
         _logger = logger;
     }
 
@@ -53,19 +63,40 @@ internal sealed class AutoDreamStopHook : Core.Query.StopHooks.IQueryStopHook {
     public Task<Core.Query.StopHooks.StopHookResult> OnStopAsync(
         Core.Query.StopHooks.StopHookContext context,
         CancellationToken ct = default) {
-        if (_trigger is null) {
+        var trigger = ResolveTrigger();
+        if (trigger is null) {
             return Task.FromResult(Core.Query.StopHooks.StopHookResult.Continue());
         }
 
         try {
             // 用 CancellationToken.None 而不是 ct：ct 属于本回合，回合返回后就会被取消，
             // 传下去会让整合刚开始就被打断（然后回滚锁、永远整合不成）。
-            _ = _trigger.FireAsync(context.SessionId, CancellationToken.None);
+            _ = trigger.FireAsync(context.SessionId, CancellationToken.None);
         } catch (Exception ex) {
             // FireAsync 内部已全捕获；这里只兜「投递本身」抛出的极端情况（如线程池拒绝）。
             _logger?.LogWarning(ex, "[AutoDreamStopHook] 自动整合投递失败（忽略，不影响回合）");
         }
 
         return Task.FromResult(Core.Query.StopHooks.StopHookResult.Continue());
+    }
+
+    /// <summary>解析并缓存触发器；dream 尚未就绪时只在首次打点，避免每回合刷同一行。</summary>
+    private JoinCode.Dream.AutoDreamTrigger? ResolveTrigger() {
+        var cached = Volatile.Read(ref _trigger);
+        if (cached is not null || _resolveTrigger is null) {
+            return cached;
+        }
+
+        var resolved = _resolveTrigger();
+        if (resolved is null) {
+            if (Interlocked.Exchange(ref _resolvedOnce, 1) == 0) {
+                Diag.WriteLine("[DREAM-AUTO] hook waiting: dream subsystem not registered yet（每回合重试）");
+            }
+
+            return null;
+        }
+
+        Interlocked.Exchange(ref _trigger, resolved);
+        return resolved;
     }
 }

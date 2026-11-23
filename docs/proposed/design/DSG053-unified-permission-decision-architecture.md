@@ -216,7 +216,7 @@ public sealed record PermissionContext {
 - **已实现**：只有会话与代理身份、有效权限模式、绝对声明目录均明确的 Bash 调用可复用候选；其他调用照常走实时判定。键包含代理作用域、模式、操作类型、shadow、声明目录与完整有界参数的 SHA-256 指纹，以及本次静态分类的级别、动作和置信度。显式工作目录优先；声明目录不等于执行器最终映射的沙箱路径。
 - **容量与权限边界**：最多 512 条，30 分钟绝对过期，缓存活动触发清理。硬规则先于缓存；shadow 与正式判定隔离；正式判定不能靠缓存降低确认要求。无效、低置信度或过长候选不缓存。过长但有效的候选仍可用于当次判定。
 - **策略版本与上下文指纹**：`JudgePolicyVersion` 当前为手写常量 `judge-2026-11-24.1`；每次审计写 `PolicyVersion` 与 `ContextHash`。`ContextHash` 由策略版本、工具名、操作类型、模式、shadow、操作摘要及代理 session/agent/created 组成 SHA-256，只用于审计关联，不作为缓存键，不包含完整参数集合。
-- **每任务预算**：`PermissionConfig.LlmJudgeMaxCallsPerTask` 默认 10，合法范围 1–100；`JudgeBudget` 以原子计数器保证并发下不超上限。预算耗尽时不再调用模型，直接回落静态规则，审计回落原因 `budget-exhausted`，并写 `BudgetRemaining / BudgetExhausted`。缓存命中不消耗预算。
+- **每任务预算**：`PermissionConfig.LlmJudgeMaxCallsPerTask` 默认 10，合法范围 1–100；`JudgeBudget` 以原子计数器保证并发下不超上限。预算缓存有界 1024 条、30 分钟绝对过期；跨过期窗口或条目淘汰会重新计数，因此不是长任务终身配额。预算耗尽时不再调用模型，直接回落静态规则，审计回落原因 `budget-exhausted`，并写 `BudgetRemaining / BudgetExhausted`。缓存命中不消耗预算。
 - **超时**：`PermissionConfig.LlmJudgeTimeoutMs` 默认 2500，合法范围 100–3000，非法回落 2500；分类器用 linked CTS 包装模型调用，超时记为 `no-response`，调用方主动取消仍向外传播。`PermissionJudgeClient` 的 3 秒内部上限保留为兜底，因此实际等待不超过 3 秒，默认 2.5 秒。
 - **仍待实现**：严格按用户 turn 重置预算（当前无 turn id）；按策略版本自动失效旧缓存（当前策略版本只进审计）；把 `contextHash` 升级为跨进程缓存键。
 

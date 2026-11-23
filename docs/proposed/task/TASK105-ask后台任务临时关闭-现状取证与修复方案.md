@@ -70,7 +70,7 @@
 - [x] 审计新增 `PolicyVersion/ContextHash/BudgetRemaining/BudgetExhausted`；`ContextHash` 只含策略版本、工具、操作类型、模式、shadow、操作摘要与代理身份，不写原始参数集合。诊断行 `[AI-JUDGE-AUDIT]` 增加剩余预算。
 - [x] 测试新增预算耗尽、任务作用域重置、缓存命中不耗预算、超时回落、中间件配置透传 5 项；`LlmAutoModeClassifierTests` 50 项通过；`Guard.Security.Tests` 全量 1,322 项、`Guard.Config.Tests` 全量 1,349 项通过。日志见 `.xxx/logs/task105_judge_budget_timeout.log`、`.xxx/logs/task105_guard_security_full.log`、`.xxx/logs/task105_guard_config_test.log`。
 - [x] 文档回填 DSG053 §4.3/§4.4/§4.5/§7/§8 与 ADR 0163。
-- 限制：预算边界是代理任务，不是严格用户 turn（当前无 turn id）；`contextHash` 只作审计关联，不是缓存键；`policyVersion` 为手写常量，提示词/门槛/动作约束变更时需同步升级。
+- 限制：预算边界是代理任务，不是严格用户 turn（当前无 turn id）；预算缓存 1024 条/30 分钟绝对过期，跨窗口或淘汰会重新计数；`contextHash` 只作审计关联，不是缓存键；`policyVersion` 为手写常量，提示词/门槛/动作约束变更时需同步升级。
 
 ### 2026-11-23 合并后手动 exe 验收（部分完成）
 

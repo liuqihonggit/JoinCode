@@ -36,15 +36,13 @@ public sealed class RoundGatePolicyTests {
     [InlineData("5", RoundGateChoice.Done)]
     [InlineData("continue", RoundGateChoice.Continue)]
     [InlineData("next_todo", RoundGateChoice.NextTodo)]
-    [InlineData("todo", RoundGateChoice.NextTodo)]
-    [InlineData("plan", RoundGateChoice.Replan)]
-    [InlineData("verify", RoundGateChoice.SelfAccept)]
-    [InlineData("acceptance", RoundGateChoice.UserAccept)]
+    [InlineData("self_accept", RoundGateChoice.SelfAccept)]
+    [InlineData("user_accept", RoundGateChoice.UserAccept)]
+    [InlineData("replan", RoundGateChoice.Replan)]
     [InlineData("done", RoundGateChoice.Done)]
-    [InlineData("finish", RoundGateChoice.Done)]
-    [InlineData(" END ", RoundGateChoice.Done)]
+    [InlineData(" DONE ", RoundGateChoice.Done)]
     [InlineData("blocked", RoundGateChoice.BlockedReport)]
-    public void TryParseChoice_AcceptsNumbersCanonicalValuesAndAliases(string raw, RoundGateChoice expected) {
+    public void TryParseChoice_AcceptsNumbersAndCanonicalEnumValues(string raw, RoundGateChoice expected) {
         RoundGatePolicy.TryParseChoice(raw, out var choice).Should().BeTrue();
         choice.Should().Be(expected);
     }
@@ -54,8 +52,11 @@ public sealed class RoundGatePolicyTests {
     [InlineData(" ")]
     [InlineData("11")]
     [InlineData("unknown")]
-    public void TryParseChoice_RejectsInvalid(string raw) {
-        RoundGatePolicy.TryParseChoice(raw, out _).Should().BeFalse();
+    [InlineData("plan")]
+    [InlineData("acceptance")]
+    [InlineData("verify")]
+    public void TryParseChoice_RejectsInvalidAndLegacyAliases(string raw) {
+        RoundGatePolicy.TryParseChoice(raw, out _).Should().BeFalse("只认编号与 [EnumValue] 规范值，旧编号语义不做别名");
     }
 
     [Theory]

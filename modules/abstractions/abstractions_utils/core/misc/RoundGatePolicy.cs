@@ -252,7 +252,8 @@ public static class RoundGatePolicy {
     }
 
     /// <summary>
-    /// 解析选项文本 — 支持编号（"0"~"10"）、枚举值（continue/self_accept/done…）与常见别名。
+    /// 解析选项文本 — 只接受编号（"0"~"10"）或枚举值（continue / next_todo / self_accept / user_accept /
+    /// done / await_background / replan / rework / degrade / escalate / blocked）；不为旧编号语义保留别名。
     /// </summary>
     /// <param name="raw">原始值。</param>
     /// <param name="choice">解析结果。</param>
@@ -266,29 +267,10 @@ public static class RoundGatePolicy {
         if (value.All(char.IsAsciiDigit) && int.TryParse(value, out var number))
             return TryFromNumber(number, out choice);
 
-        if (RoundGateChoiceExtensions.FromValue(value) is { } canonical) {
-            choice = canonical;
-            return true;
-        }
-
-        RoundGateChoice? alias = value switch {
-            "todo" or "next" => RoundGateChoice.NextTodo,
-            "plan" or "planning" => RoundGateChoice.Replan,
-            "verify" or "verification" or "self_check" or "accept" => RoundGateChoice.SelfAccept,
-            "acceptance" or "user_verify" or "user_acceptance" => RoundGateChoice.UserAccept,
-            "end" or "stop" or "finish" or "complete" => RoundGateChoice.Done,
-            "wait" or "await" or "background" => RoundGateChoice.AwaitBackground,
-            "rollback" or "fix" or "correct" => RoundGateChoice.Rework,
-            "fallback" or "partial" => RoundGateChoice.Degrade,
-            "help" or "ask" or "upgrade" => RoundGateChoice.Escalate,
-            "block" or "blocked_report" or "阻塞" => RoundGateChoice.BlockedReport,
-            _ => null
-        };
-
-        if (alias is not { } resolved)
+        if (RoundGateChoiceExtensions.FromValue(value) is not { } canonical)
             return false;
 
-        choice = resolved;
+        choice = canonical;
         return true;
     }
 

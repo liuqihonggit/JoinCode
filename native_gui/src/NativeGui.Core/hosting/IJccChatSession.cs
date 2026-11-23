@@ -29,6 +29,12 @@ public interface IJccChatSession : IAsyncDisposable {
     /// </summary>
     IAgentNotificationQueue? NotificationQueue => null;
 
+    /// <summary>后台待确认票据队列 — 宿主待确认收件箱读取与结算的数据源；占位会话默认 null。</summary>
+    IPendingConfirmationQueue? PendingConfirmationQueue => null;
+
+    /// <summary>待确认票据前台结算器 — 批准/拒绝并回传通知给发起代理；占位会话默认 null。</summary>
+    IPendingConfirmationResolver? PendingConfirmationResolver => null;
+
     /// <summary>初始化引擎会话（加载配置 + 组装 DI + 解析 IChatService）</summary>
     Task InitializeAsync(CancellationToken cancellationToken = default);
 

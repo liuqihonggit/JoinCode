@@ -29,4 +29,7 @@ public enum PermissionsAction {
 
     /// <summary>显示工作区详情 (workspace 子命令内 show)</summary>
     [EnumValue("show")] Show,
+
+    /// <summary>查看/结算后台待确认事项 (pending [approve|deny|approve-all|deny-all] [id])</summary>
+    [EnumValue("pending")] Pending,
 }

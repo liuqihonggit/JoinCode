@@ -3,7 +3,7 @@ namespace Host.Tests.ChatCommands;
 /// <summary>
 /// PermissionsAction 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
 /// 覆盖:ToValue / FromValue / IsDefined / PermissionsActionEnumConstants 常量值
-/// 6 个枚举值(add/clear/workspace/dirs/directories/show)
+/// 7 个枚举值(add/clear/workspace/dirs/directories/show/pending)
 /// </summary>
 public sealed class PermissionsActionExtensionsTests {
     // ===== ToValue 测试 =====
@@ -15,6 +15,7 @@ public sealed class PermissionsActionExtensionsTests {
     [InlineData(PermissionsAction.Dirs, "dirs")]
     [InlineData(PermissionsAction.Directories, "directories")]
     [InlineData(PermissionsAction.Show, "show")]
+    [InlineData(PermissionsAction.Pending, "pending")]
     public void ToValue_Should_Return_CorrectString(PermissionsAction value, string expected) {
         value.ToValue().Should().Be(expected);
     }
@@ -28,6 +29,7 @@ public sealed class PermissionsActionExtensionsTests {
     [InlineData("dirs", PermissionsAction.Dirs)]
     [InlineData("directories", PermissionsAction.Directories)]
     [InlineData("show", PermissionsAction.Show)]
+    [InlineData("pending", PermissionsAction.Pending)]
     public void FromValue_ValidString_Should_Return_CorrectEnum(string input, PermissionsAction expected) {
         PermissionsActionExtensions.FromValue(input).Should().Be(expected);
     }
@@ -39,6 +41,7 @@ public sealed class PermissionsActionExtensionsTests {
     [InlineData("Dirs")]
     [InlineData("DIRECTORIES")]
     [InlineData("Show")]
+    [InlineData("Pending")]
     public void FromValue_CaseInsensitive_Should_Return_CorrectEnum(string input) {
         PermissionsActionExtensions.FromValue(input).Should().NotBeNull();
     }
@@ -68,6 +71,7 @@ public sealed class PermissionsActionExtensionsTests {
     [InlineData(PermissionsAction.Dirs)]
     [InlineData(PermissionsAction.Directories)]
     [InlineData(PermissionsAction.Show)]
+    [InlineData(PermissionsAction.Pending)]
     public void RoundTrip_ToValue_ThenFromValue_Should_Return_Same(PermissionsAction value) {
         var s = value.ToValue();
         PermissionsActionExtensions.FromValue(s).Should().Be(value);
@@ -82,6 +86,7 @@ public sealed class PermissionsActionExtensionsTests {
     [InlineData(PermissionsAction.Dirs, true)]
     [InlineData(PermissionsAction.Directories, true)]
     [InlineData(PermissionsAction.Show, true)]
+    [InlineData(PermissionsAction.Pending, true)]
     public void IsDefined_KnownValue_Should_Return_True(PermissionsAction value, bool expected) {
         PermissionsActionExtensions.IsDefined(value).Should().Be(expected);
     }
@@ -96,14 +101,15 @@ public sealed class PermissionsActionExtensionsTests {
         PermissionsActionEnumConstants.Dirs.Should().Be("dirs");
         PermissionsActionEnumConstants.Directories.Should().Be("directories");
         PermissionsActionEnumConstants.Show.Should().Be("show");
+        PermissionsActionEnumConstants.Pending.Should().Be("pending");
     }
 
     // ===== 枚举值数量验证 =====
 
     [Fact]
-    public void AllValues_Should_Be_6() {
+    public void AllValues_Should_Be_7() {
         var values = Enum.GetValues<PermissionsAction>();
-        values.Should().HaveCount(6);
+        values.Should().HaveCount(7);
     }
 
     // ===== 与 CrudAction 边界值不冲突 =====

@@ -47,6 +47,9 @@ internal sealed class DshRpcDispatcher {
             ["agentPresets/read"] = Sync(AgentPresetsRead),
             ["agentPresets/select"] = Sync(AgentPresetsSelect),
             ["permissionPresets/catalog"] = PermissionPresetsCatalog,
+            ["pendingConfirmations/list"] = Sync(PendingConfirmationsList),
+            ["pendingConfirmations/resolve"] = Sync(PendingConfirmationsResolve),
+            ["pendingConfirmations/resolveAll"] = Sync(PendingConfirmationsResolveAll),
             ["$events/result"] = EventsResult,
             ["userQuestions/answer"] = Sync(UserQuestionsAnswer),
             ["settings/describe"] = SettingsDescribe,
@@ -1428,6 +1431,29 @@ internal sealed class DshRpcDispatcher {
         return OkBool(false);
     }
 
+    /// <summary>待确认收件箱列表 — 引擎未就绪时返回 available=false 与引导文案。</summary>
+    private DshRpcResult PendingConfirmationsList(JsonElement args) => Ok(_services.PendingConfirmations.List());
+
+    /// <summary>结算单条待确认票据；ID/决策缺失时给出字段引导。</summary>
+    private DshRpcResult PendingConfirmationsResolve(JsonElement args) {
+        var request = args.Deserialize(DshJsonContext.Default.DshPendingConfirmationResolveArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.Id) || string.IsNullOrWhiteSpace(request.Decision)) {
+            return Fail("pendingConfirmations/rejected",
+                $"pendingConfirmations/resolve 需要 {{id, decision}}（decision=approve|deny）；收到 args={Describe(args)}");
+        }
+        return Ok(_services.PendingConfirmations.Resolve(request.Id, request.Decision));
+    }
+
+    /// <summary>批量结算全部待确认票据；决策缺失时给出字段引导。</summary>
+    private DshRpcResult PendingConfirmationsResolveAll(JsonElement args) {
+        var request = args.Deserialize(DshJsonContext.Default.DshPendingConfirmationResolveAllArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.Decision)) {
+            return Fail("pendingConfirmations/rejected",
+                $"pendingConfirmations/resolveAll 需要 decision（approve|deny）；收到 args={Describe(args)}");
+        }
+        return Ok(_services.PendingConfirmations.ResolveAll(request.Decision));
+    }
+
     /// <summary>
     /// 权限预设目录 — 引擎 <see cref="PermissionMode"/> 枚举为唯一数据源（TASK058 DTO 统一原则）：
     /// 枚举 [EnumValue] 值即前端词汇（plan/auto/ask/bypass/unattended），默认取引擎当前模式，未就绪回退 auto。
@@ -1446,6 +1472,9 @@ internal sealed class DshRpcDispatcher {
             DefaultPreset = options.Any(option => option.Value == currentName) ? currentName : PermissionMode.Auto.ToValue(),
         });
     }
+
+    private static DshRpcResult Ok(DshPendingConfirmationList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPendingConfirmationList));
+    private static DshRpcResult Ok(DshPendingConfirmationResolveResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPendingConfirmationResolveResult));
 
     private static DshRpcResult Ok(DshQueueAcceptedResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshQueueAcceptedResult));
     private static DshRpcResult Ok(DshSessionList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionList));

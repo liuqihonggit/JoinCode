@@ -300,6 +300,12 @@ internal sealed class JccChatSession : IJccChatSession {
     /// <inheritdoc />
     public IAgentNotificationQueue? NotificationQueue => _services.GetService<IAgentNotificationQueue>();
 
+    /// <inheritdoc />
+    public IPendingConfirmationQueue? PendingConfirmationQueue => _services.GetService<IPendingConfirmationQueue>();
+
+    /// <inheritdoc />
+    public IPendingConfirmationResolver? PendingConfirmationResolver => _services.GetService<IPendingConfirmationResolver>();
+
     /// <summary>当前供应商名称（deepseek/openai/azure/anthropic/agnes/sensenova）</summary>
     public string CurrentVendor => _config.Provider.Vendor;
 

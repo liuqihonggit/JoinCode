@@ -70,4 +70,47 @@ public sealed class PendingConfirmationQueueTests {
 
         queue.Snapshot().Select(item => item.Id).Should().Equal(first.Id, second.Id);
     }
+
+    [Fact]
+    public async Task Enqueue_RedactsSensitiveArgumentsAndTruncatesText() {
+        await using var queue = new PendingConfirmationQueue();
+        var longText = new string('x', 700);
+        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pending-confirmation", "a.txt");
+        var item = queue.Enqueue(null, "Bash", "确认", new Dictionary<string, System.Text.Json.JsonElement> {
+            ["api_key"] = System.Text.Json.JsonSerializer.SerializeToElement("sk-live-123456"),
+            ["command"] = System.Text.Json.JsonSerializer.SerializeToElement("curl -H 'Authorization: Bearer abc' --token=topsecret https://example.test"),
+            ["long_text"] = System.Text.Json.JsonSerializer.SerializeToElement(longText),
+            ["path"] = System.Text.Json.JsonSerializer.SerializeToElement(path),
+        });
+
+        item.Arguments.Should().ContainKey("api_key");
+        item.Arguments["api_key"].GetString().Should().Be("[REDACTED]");
+        var command = item.Arguments["command"].GetString();
+        command.Should().NotContain("abc").And.NotContain("topsecret");
+        command.Should().Contain("[REDACTED]");
+        item.Arguments["long_text"].GetString().Should().Contain("[truncated");
+        item.Arguments["path"].GetString().Should().Be(path);
+    }
+
+    [Fact]
+    public async Task Snapshot_DropsExpiredTicketsAndCompletesWaiters() {
+        await using var queue = new PendingConfirmationQueue(TimeSpan.FromMilliseconds(40), 10);
+        var item = queue.Enqueue(null, "Bash", "确认", new Dictionary<string, System.Text.Json.JsonElement>());
+
+        await Task.Delay(80);
+        queue.Snapshot().Should().BeEmpty("过期票据不应继续展示给前台");
+        (await item.Decision).Should().Be(PendingConfirmationDecision.Defer, "清理时必须先完成等待，避免后台悬挂");
+        queue.TryResolve(item.Id, PendingConfirmationDecision.Approve).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Enqueue_EvictsOldestWhenCapacityReached() {
+        await using var queue = new PendingConfirmationQueue(TimeSpan.FromMinutes(5), 2);
+        var first = queue.Enqueue(null, "Bash", "一", new Dictionary<string, System.Text.Json.JsonElement>());
+        var second = queue.Enqueue(null, "FileWrite", "二", new Dictionary<string, System.Text.Json.JsonElement>());
+        var third = queue.Enqueue(null, "WebFetch", "三", new Dictionary<string, System.Text.Json.JsonElement>());
+
+        queue.Snapshot().Select(item => item.Id).Should().Equal(second.Id, third.Id);
+        (await first.Decision).Should().Be(PendingConfirmationDecision.Defer, "被容量淘汰的票据也要完成等待");
+    }
 }

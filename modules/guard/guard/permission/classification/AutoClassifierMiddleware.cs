@@ -68,11 +68,13 @@ public sealed partial class AutoClassifierMiddleware : ServiceEntity, IPermissio
         var request = new ClassificationRequest {
             ToolName = context.ToolName,
             Parameters = context.Arguments ?? new(),
-            OperationType = OperationType.Auto
+            OperationType = OperationType.Auto,
+            CacheMode = context.CurrentMode,
         };
         ClassificationResult classification;
         if (llmClassifier is not null && context.Config.LlmJudgeEnabled) {
-            classification = await llmClassifier.ClassifyAsync(request, ct).ConfigureAwait(false);
+            // shadow 仍调用 AI 并落审计，但分类器内部返回规则结果，线上权限行为不变
+            classification = await llmClassifier.ClassifyAsync(request, context.Config.LlmJudgeShadow, ct).ConfigureAwait(false);
         } else if (ruleClassifier is not null) {
             classification = await ruleClassifier.ClassifyAsync(request, ct).ConfigureAwait(false);
         } else {

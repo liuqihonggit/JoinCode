@@ -12,13 +12,41 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     private readonly IPermissionJudgeClient? _judgeClient;
     private readonly ILogger<LlmAutoModeClassifier>? _logger;
     private readonly ITelemetryService? _telemetryService;
+    private readonly IFileSystem? _fileSystem;
+    private readonly string _auditPath;
     private readonly double _llmThreshold;
 
-    /// <summary>判定缓存 — 同一工具+命令 30 分钟内复用结果，避免重复 LLM 调用拖慢每次工具调用。</summary>
-    private readonly ConcurrentDictionary<string, CachedClassification> _cache = new(StringComparer.Ordinal);
+    private const int CacheEntryLimit = 512;
+    private const int MaxCacheParameters = 32;
+    private const int MaxCacheParameterBytes = 16 * 1024;
+    private const int MaxCacheIdentityLength = 256;
+    private const int MaxCacheDirectoryLength = 2048;
+    private const int MaxCacheReasonLength = 256;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
-    private sealed record CachedClassification(ClassificationResult Result, DateTime ExpiresAtUtc);
+    /// <summary>私有、有界的候选缓存；不持有命令或参数原文。</summary>
+    private readonly MemoryCache _cache;
+
+    /// <summary>当前缓存条目数，用于验证容量与过期移除。</summary>
+    internal int CachedCandidateCount => _cache.Count;
+
+    /// <summary>将可控时间源接入 MemoryCache 自身的过期检查，不另维护一份时钟或过期状态。</summary>
+    private sealed class CacheClock(TimeProvider timeProvider) : Microsoft.Extensions.Internal.ISystemClock {
+        /// <inheritdoc />
+        public DateTimeOffset UtcNow => timeProvider.GetUtcNow();
+    }
+
+    /// <summary>按实际模式、代理作用域、声明目录及本次规则结果隔离候选，不把规则指纹当作全局策略版本。</summary>
+    private sealed record JudgeCacheKey(
+        string SessionId, string AgentId, DateTime AgentCreatedAt,
+        PermissionMode Mode, OperationType OperationType, bool Shadow, string ArgumentsHash,
+        SecurityClassification RuleClassification, SecurityAction RuleAction, double RuleConfidence);
+
+    /// <summary>模型候选与回落原因分开保存；低置信度候选只用于审计，不可生效或入缓存。</summary>
+    private readonly record struct JudgeOutcome(ClassificationResult? Candidate, PermissionJudgeFallbackReason? FallbackReason = null) {
+        /// <summary>仅无回落原因时才可使用模型判定。</summary>
+        internal ClassificationResult? Accepted => FallbackReason is null ? Candidate : null;
+    }
 
     private static readonly FrozenSet<char> CommandSeparators = FrozenSet.Create('&', '|', ';');
 
@@ -46,25 +74,71 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     /// <param name="judgeClient">轻量判定客户端（Stage 2，null 则不启用 LLM 分类；禁止传 IQueryEngine）</param>
     /// <param name="logger">日志器</param>
     /// <param name="telemetryService">遥测服务</param>
-    /// <param name="llmThreshold">LLM 分类触发阈值（置信度低于此值时启用 LLM，默认 0.8）</param>
+    /// <param name="llmThreshold">规则置信度低于此值可触发 LLM；模型判定低于此值则回落规则（默认 0.8）。</param>
+    /// <param name="fileSystem">审计文件系统（null 时只写 Diag，不落盘）。</param>
     public LlmAutoModeClassifier(
         IAutoModeClassifier ruleClassifier,
         IPermissionJudgeClient? judgeClient = null,
         ILogger<LlmAutoModeClassifier>? logger = null,
         ITelemetryService? telemetryService = null,
-        double llmThreshold = 0.8) {
+        double llmThreshold = 0.8,
+        IFileSystem? fileSystem = null) {
         _ruleClassifier = ruleClassifier;
         _judgeClient = judgeClient;
         _logger = logger;
         _telemetryService = telemetryService;
         _llmThreshold = llmThreshold;
+        _fileSystem = fileSystem;
+        _auditPath = ResolveAuditPath();
+        _cache = CreateCache();
     }
 
+    /// <summary>测试入口 — 显式指定审计位置和缓存时钟，避免读写真实用户目录或依赖墙钟。</summary>
+    /// <param name="ruleClassifier">规则分类器。</param>
+    /// <param name="judgeClient">判定客户端。</param>
+    /// <param name="fileSystem">测试审计文件系统；null 时只写诊断。</param>
+    /// <param name="auditPath">审计文件绝对路径；不落盘时可为空字符串。</param>
+    /// <param name="cacheTimeProvider">可控缓存时钟；未提供时使用系统时间。</param>
+    internal LlmAutoModeClassifier(
+        IAutoModeClassifier ruleClassifier,
+        IPermissionJudgeClient? judgeClient,
+        IFileSystem? fileSystem,
+        string auditPath,
+        TimeProvider? cacheTimeProvider = null) {
+        _ruleClassifier = ruleClassifier;
+        _judgeClient = judgeClient;
+        _fileSystem = fileSystem;
+        _auditPath = auditPath;
+        _logger = null;
+        _telemetryService = null;
+        _llmThreshold = 0.8;
+        _cache = CreateCache(cacheTimeProvider);
+    }
+
+    /// <summary>生产与测试共享容量、扫描间隔及淘汰逻辑；测试只替换时间源。</summary>
+    private static MemoryCache CreateCache(TimeProvider? timeProvider = null) => new(new MemoryCacheOptions {
+        SizeLimit = CacheEntryLimit,
+        ExpirationScanFrequency = TimeSpan.FromMinutes(2),
+        Clock = timeProvider is null ? null : new CacheClock(timeProvider),
+    });
+
     /// <inheritdoc />
-    public async Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default) {
+    public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default) =>
+        ClassifyCoreAsync(request, shadow: false, ct);
+
+    /// <inheritdoc />
+    public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, bool shadow, CancellationToken ct = default) =>
+        ClassifyCoreAsync(request, shadow, ct);
+
+    /// <summary>
+    /// 两阶段分类核心。shadow=true 时仍调用 AI 并落审计，但返回规则结果，确保线上行为与未启用 AI 一致。
+    /// </summary>
+    private async Task<ClassificationResult> ClassifyCoreAsync(ClassificationRequest request, bool shadow, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(request);
+        ct.ThrowIfCancellationRequested();
 
         var stage1 = await _ruleClassifier.ClassifyAsync(request, ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
 
         // 硬规则终局：规则已 Block/Dangerous 时 AI 不得改判，必须直接返回（防 AI 绕过安全红线）
         if (stage1.Action == SecurityAction.Block || stage1.Classification == SecurityClassification.Dangerous) {
@@ -75,7 +149,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
             return stage1;
         }
 
-        if (_judgeClient is null) {
+        if (_judgeClient is not { } judgeClient) {
             return stage1;
         }
 
@@ -84,16 +158,130 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
             return stage1;
         }
 
-        var cacheKey = $"{request.ToolName}\0{operation}";
-        if (_cache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAtUtc > DateTime.UtcNow) {
-            return cached.Result;
+        var cacheKey = TryCreateCacheKey(request, stage1, shadow);
+        var cached = ReadCachedCandidate(cacheKey, stage1.Action, shadow);
+        var outcome = cached is not null
+            ? new JudgeOutcome(cached)
+            : await ClassifyWithLlmAsync(judgeClient, request.ToolName, operation, stage1, ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        var accepted = outcome.Accepted;
+        if (cached is null && cacheKey is not null && accepted is not null &&
+            CanReuseCandidate(accepted, stage1.Action, shadow) &&
+            (accepted.Reason?.Length ?? 0) <= MaxCacheReasonLength) {
+            _cache.Set(cacheKey, accepted, new MemoryCacheEntryOptions {
+                AbsoluteExpirationRelativeToNow = CacheTtl,
+                Size = 1,
+            });
         }
 
-        var stage2 = await ClassifyWithLlmAsync(request, stage1, ct).ConfigureAwait(false);
-        if (stage2 is not null) {
-            _cache[cacheKey] = new CachedClassification(stage2, DateTime.UtcNow + CacheTtl);
+        var decision = shadow ? stage1 : accepted ?? stage1;
+        await AuditAsync(request, operation, stage1, outcome, decision, shadow, cacheHit: cached is not null, ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        return decision;
+    }
+
+    /// <summary>只为目录和代理作用域明确的 Bash 调用生成键；目录是命令声明目录，不是最终沙箱路径。</summary>
+    private static JudgeCacheKey? TryCreateCacheKey(ClassificationRequest request, ClassificationResult rule, bool shadow) {
+        var mode = request.CacheMode;
+        if (!string.Equals(request.ToolName, ShellToolNameEnumConstants.Bash, StringComparison.Ordinal) ||
+            mode is not (PermissionMode.Auto or PermissionMode.Unattended) ||
+            SubAgentContext.Current is not { } agent ||
+            agent.SessionId is not { Length: > 0 and <= MaxCacheIdentityLength } sessionId ||
+            agent.AgentId is not { Length: > 0 and <= MaxCacheIdentityLength } agentId ||
+            string.IsNullOrWhiteSpace(sessionId) || string.IsNullOrWhiteSpace(agentId)) {
+            return null;
         }
-        return stage2 ?? stage1;
+
+        var directory = GetCacheDirectory(request.Parameters, agent);
+        if (directory is null || FingerprintArguments(directory, request.Parameters) is not { } fingerprint) {
+            return null;
+        }
+
+        return new JudgeCacheKey(sessionId, agentId, agent.CreatedAt,
+            mode.GetValueOrDefault(), request.OperationType, shadow, fingerprint, rule.Classification, rule.Action, rule.Confidence);
+    }
+
+    /// <summary>沿用 Bash 的显式目录优先级；拒绝相对路径、不确定的参数类型以及隐式文件系统目录。</summary>
+    private static string? GetCacheDirectory(Dictionary<string, JsonElement> parameters, SubAgentContext agent) {
+        var directory = agent.CwdOverride;
+        if (parameters.TryGetValue("working_directory", out var explicitDirectory) && explicitDirectory.ValueKind != JsonValueKind.Null) {
+            if (explicitDirectory.ValueKind != JsonValueKind.String) {
+                return null;
+            }
+            var declared = explicitDirectory.GetString();
+            if (!string.IsNullOrEmpty(declared)) {
+                directory = declared;
+            }
+        }
+
+        return directory is { Length: > 0 and <= MaxCacheDirectoryLength } && Path.IsPathFullyQualified(directory)
+            ? directory
+            : null;
+    }
+
+    /// <summary>哈希声明目录、完整顶层键及原始 JSON 值；不归一化命令或嵌套 JSON，不保留原文。</summary>
+    private static string? FingerprintArguments(string directory, Dictionary<string, JsonElement> parameters) {
+        if (parameters.Count > MaxCacheParameters) {
+            return null;
+        }
+
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        AppendHashFrame(hash, System.Runtime.InteropServices.MemoryMarshal.AsBytes(directory.AsSpan()));
+        const int frameOverhead = 2 * sizeof(int); // 参数名和 JSON 值各有一个长度前缀。
+        var remaining = MaxCacheParameterBytes;
+        foreach (var (name, value) in parameters.OrderBy(pair => pair.Key, StringComparer.Ordinal)) {
+            if (remaining < frameOverhead || name.Length > (remaining - frameOverhead) / sizeof(char) ||
+                value.ValueKind == JsonValueKind.Undefined) {
+                return null;
+            }
+
+            var nameBytes = System.Runtime.InteropServices.MemoryMarshal.AsBytes(name.AsSpan());
+            var jsonBytes = System.Runtime.InteropServices.JsonMarshal.GetRawUtf8Value(value);
+            if (jsonBytes.Length > remaining - frameOverhead - nameBytes.Length) {
+                return null;
+            }
+
+            AppendHashFrame(hash, nameBytes);
+            AppendHashFrame(hash, jsonBytes);
+            remaining -= frameOverhead + nameBytes.Length + jsonBytes.Length;
+        }
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
+    /// <summary>追加长度与字节，避免不同参数边界形成相同的拼接输入。</summary>
+    private static void AppendHashFrame(IncrementalHash hash, ReadOnlySpan<byte> data) {
+        Span<byte> length = stackalloc byte[sizeof(int)];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(length, data.Length);
+        hash.AppendData(length);
+        hash.AppendData(data);
+    }
+
+    /// <summary>缓存只复用同等或更严格的线上动作；放宽确认要求必须依赖本次模型调用。</summary>
+    private ClassificationResult? ReadCachedCandidate(JudgeCacheKey? key, SecurityAction ruleAction, bool shadow) {
+        if (key is null || !_cache.TryGetValue(key, out ClassificationResult? candidate) || candidate is null) {
+            return null;
+        }
+
+        return CanReuseCandidate(candidate, ruleAction, shadow) ? candidate : null;
+    }
+
+    /// <summary>影子候选不改变权限结果；正式候选只复用同等或更严格的动作。</summary>
+    private static bool CanReuseCandidate(ClassificationResult candidate, SecurityAction ruleAction, bool shadow) =>
+        shadow || IsAtLeastAsStrict(candidate.Action, ruleAction);
+
+    /// <summary>显式比较权限动作，不依赖枚举数值排序。</summary>
+    private static bool IsAtLeastAsStrict(SecurityAction candidate, SecurityAction ruleAction) => ruleAction switch {
+        SecurityAction.AutoApprove => true,
+        SecurityAction.RequireConfirmation => candidate is SecurityAction.RequireConfirmation or SecurityAction.RequireApproval or SecurityAction.Block,
+        SecurityAction.RequireApproval => candidate is SecurityAction.RequireApproval or SecurityAction.Block,
+        SecurityAction.Block => candidate == SecurityAction.Block,
+        _ => false,
+    };
+
+    /// <summary>释放私有判定缓存；异步释放由基类委托到此处。</summary>
+    public override void Dispose() {
+        _cache.DisposeSafe(_logger);
+        base.Dispose();
     }
 
     /// <summary>
@@ -133,46 +321,44 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     /// <summary>
     /// LLM 深度分类 — 发送侧查询让 LLM 判断命令安全性
     /// </summary>
-    private async Task<ClassificationResult?> ClassifyWithLlmAsync(
-        ClassificationRequest request,
+    private async Task<JudgeOutcome> ClassifyWithLlmAsync(
+        IPermissionJudgeClient judgeClient,
+        string toolName,
+        string operation,
         ClassificationResult stage1,
         CancellationToken ct) {
-        if (_judgeClient is not { } judgeClient) {
-            return null;
-        }
-
-        var operation = GetOperationText(request);
-        if (string.IsNullOrEmpty(operation)) {
-            return null;
-        }
-
-        var userPrompt = BuildClassificationPrompt(request.ToolName, operation);
-
+        var userPrompt = BuildClassificationPrompt(toolName, operation);
+        string? response;
         try {
-            var response = await judgeClient.JudgeAsync(JudgeSystemPrompt, userPrompt, ct).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(response)) {
-                return null;
-            }
-
-            var result = ParseLlmResponse(response, stage1);
-
-            _logger?.LogDebug("[LlmAutoModeClassifier] LLM 分类: {Classification} -> {Action} ({Reason})",
-                result.Classification, result.Action, result.Reason);
-
-            _telemetryService?.RecordCount("security.llm_classification.count", new() {
-                ["classification"] = result.Classification.ToString(),
-                ["action"] = result.Action.ToString(),
-                ["stage1_classification"] = stage1.Classification.ToString()
-            }, description: "LLM security classification count");
-
-            return result;
+            response = await judgeClient.JudgeAsync(JudgeSystemPrompt, userPrompt, ct).ConfigureAwait(false);
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
         } catch (Exception ex) {
-            _logger?.LogWarning(ex, "[LlmAutoModeClassifier] LLM 分类失败，回退到 Stage 1 结果");
+            _logger?.LogWarning("[LlmAutoModeClassifier] LLM 分类失败 ({ExceptionType})，回退到 Stage 1 结果", ex.GetType().Name);
             _telemetryService?.RecordCount("security.llm_classification.error", description: "LLM classification error count");
-            return null;
+            return new(null, PermissionJudgeFallbackReason.JudgeError);
         }
+
+        ct.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(response)) {
+            return new(null, PermissionJudgeFallbackReason.NoResponse);
+        }
+
+        var candidate = ParseLlmResponse(response);
+        if (candidate is null) {
+            return new(null, PermissionJudgeFallbackReason.InvalidResponse);
+        }
+        if (candidate.Confidence < _llmThreshold) {
+            return new(candidate, PermissionJudgeFallbackReason.LowConfidence);
+        }
+
+        _logger?.LogDebug("[LlmAutoModeClassifier] LLM 分类: {Classification} -> {Action}", candidate.Classification, candidate.Action);
+        _telemetryService?.RecordCount("security.llm_classification.count", new() {
+            ["classification"] = candidate.Classification.ToString(),
+            ["action"] = candidate.Action.ToString(),
+            ["stage1_classification"] = stage1.Classification.ToString()
+        }, description: "LLM security classification count");
+        return new(candidate);
     }
 
     private static string GetCommandString(ClassificationRequest request) {
@@ -228,79 +414,119 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     private static string EscapeUntrustedBoundary(string text) =>
         text.Replace("</untrusted_data>", "<\\/untrusted_data>", StringComparison.OrdinalIgnoreCase);
 
-    private static ClassificationResult ParseLlmResponse(string response, ClassificationResult fallback) {
-        var json = ExtractJson(response);
-        if (string.IsNullOrEmpty(json)) {
-            return fallback;
+    /// <summary>提取模型 JSON 并验证所有判定字段。权限结果不做类型强制转换或逐字段补值。</summary>
+    private static ClassificationResult? ParseLlmResponse(string response) {
+        var json = LlmJsonHelper.ExtractInlineJson(response);
+        if (json is null) {
+            return null;
+        }
+
+        LlmClassificationResponseDto? dto;
+        try {
+            dto = JsonSerializer.Deserialize(json, LlmSecurityJsonContext.Default.LlmClassificationResponseDto);
+        } catch (JsonException) {
+            return null; // 无效响应由调用方按 invalid-response 审计，不记录原文。
+        }
+
+        if (dto is null ||
+            SecurityClassificationExtensions.FromValue(dto.Classification) is not { } classification ||
+            SecurityActionExtensions.FromValue(dto.Action) is not { } action ||
+            dto.Confidence is not { } confidence || !double.IsFinite(confidence) || confidence is < 0 or > 1 ||
+            string.IsNullOrWhiteSpace(dto.Reason)) {
+            return null;
+        }
+
+        // AI 输出约束：高风险不得自动批准，Dangerous 必须阻断（防止模型自相矛盾时放宽）。
+        action = classification switch {
+            SecurityClassification.Dangerous => SecurityAction.Block,
+            SecurityClassification.HighRisk when action == SecurityAction.AutoApprove => SecurityAction.RequireApproval,
+            _ => action
+        };
+
+        return new ClassificationResult {
+            Classification = classification,
+            Confidence = confidence,
+            Reason = dto.Reason,
+            Action = action
+        };
+    }
+
+    /// <summary>
+    /// 审计一次 AI 判定（JSONL 追加）。审计内容只含脱敏后的操作摘要与判定结果，
+    /// 不含完整参数/文件正文；落盘失败只记日志，不影响权限决策。
+    /// </summary>
+    private async Task AuditAsync(
+        ClassificationRequest request,
+        string operation,
+        ClassificationResult stage1,
+        JudgeOutcome outcome,
+        ClassificationResult applied,
+        bool shadow,
+        bool cacheHit,
+        CancellationToken ct) {
+        ct.ThrowIfCancellationRequested();
+        var stage2 = outcome.Candidate;
+        var record = new PermissionJudgeAuditRecord {
+            TimestampUtc = DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            ToolName = request.ToolName,
+            Operation = Truncate(SecurityPatterns.RedactSecrets(operation), 512),
+            Shadow = shadow,
+            RuleClassification = stage1.Classification.ToString(),
+            RuleAction = stage1.Action.ToString(),
+            RuleConfidence = stage1.Confidence,
+            LlmClassification = stage2?.Classification.ToString(),
+            LlmAction = stage2?.Action.ToString(),
+            LlmConfidence = stage2?.Confidence,
+            LlmReason = stage2 is null ? null : Truncate(SecurityPatterns.RedactSecrets(stage2.Reason ?? ""), 256),
+            AppliedClassification = applied.Classification.ToString(),
+            AppliedAction = applied.Action.ToString(),
+            CacheHit = cacheHit,
+            FallbackReason = outcome.FallbackReason?.ToValue(),
+        };
+
+        Diag.WriteLine($"[AI-JUDGE-AUDIT] tool={request.ToolName} shadow={shadow} cacheHit={cacheHit} rule={record.RuleAction} llm={record.LlmAction ?? "unavailable"} applied={record.AppliedAction} fallback={record.FallbackReason ?? "none"}");
+        if (_fileSystem is null) {
+            return;
         }
 
         try {
-            var dto = JsonSerializer.Deserialize(json, LlmSecurityJsonContext.Default.LlmClassificationResponseDto);
-            if (dto is null) {
-                return fallback;
+            var directory = Path.GetDirectoryName(_auditPath);
+            if (!string.IsNullOrEmpty(directory)) {
+                _fileSystem.CreateDirectory(directory);
             }
-
-            var classification = dto.Classification is not null
-                ? ParseClassification(dto.Classification)
-                : fallback.Classification;
-
-            var confidence = dto.Confidence ?? fallback.Confidence;
-
-            var reason = dto.Reason ?? "LLM 分类";
-
-            var action = dto.Action is not null
-                ? ParseAction(dto.Action)
-                : GetDefaultAction(classification);
-
-            // AI 输出约束：高风险不得自动批准，Dangerous 必须阻断（防止模型自相矛盾时放宽）
-            action = classification switch {
-                SecurityClassification.Dangerous => SecurityAction.Block,
-                SecurityClassification.HighRisk when action == SecurityAction.AutoApprove => SecurityAction.RequireApproval,
-                _ => action
-            };
-
-            return new ClassificationResult {
-                Classification = classification,
-                Confidence = confidence,
-                Reason = reason,
-                Action = action
-            };
-        } catch {
-            return fallback;
+            var line = JsonSerializer.Serialize(record, LlmSecurityJsonContext.Default.PermissionJudgeAuditRecord) + "\n";
+            await _fileSystem.AppendAllTextAsync(_auditPath, line, ct).ConfigureAwait(false);
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            throw;
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "[LlmAutoModeClassifier] AI 判定审计落盘失败，不影响本次权限决策");
         }
     }
 
-    private static string? ExtractJson(string response)
-        => LlmJsonHelper.ExtractInlineJson(response);
+    /// <summary>审计文件路径 — 测试/运维可用 JCC_PERMISSION_AUDIT_PATH 覆盖，默认 ~/.jcc/audit/permission_judge.jsonl。</summary>
+    private static string ResolveAuditPath() {
+        var overridePath = Environment.GetEnvironmentVariable("JCC_PERMISSION_AUDIT_PATH");
+        return !string.IsNullOrWhiteSpace(overridePath)
+            ? overridePath
+            : Path.Combine(AppDataPaths.Default.JccDirectory, "audit", "permission_judge.jsonl");
+    }
 
-    private static SecurityClassification ParseClassification(string value)
-        => value.ToLowerInvariant() switch {
-            "safe" => SecurityClassification.Safe,
-            "lowrisk" => SecurityClassification.LowRisk,
-            "mediumrisk" => SecurityClassification.MediumRisk,
-            "highrisk" => SecurityClassification.HighRisk,
-            "dangerous" => SecurityClassification.Dangerous,
-            _ => SecurityClassification.MediumRisk
-        };
+    /// <summary>审计字段截断 — 单个字段不写超长正文。</summary>
+    private static string Truncate(string text, int max) =>
+        text.Length <= max ? text : text[..max] + "…[truncated]";
 
-    private static SecurityAction ParseAction(string value)
-        => value.ToLowerInvariant() switch {
-            "autoapprove" => SecurityAction.AutoApprove,
-            "requireconfirmation" => SecurityAction.RequireConfirmation,
-            "requireapproval" => SecurityAction.RequireApproval,
-            "block" => SecurityAction.Block,
-            _ => SecurityAction.RequireConfirmation
-        };
+}
 
-    private static SecurityAction GetDefaultAction(SecurityClassification classification)
-        => classification switch {
-            SecurityClassification.Safe => SecurityAction.AutoApprove,
-            SecurityClassification.LowRisk => SecurityAction.AutoApprove,
-            SecurityClassification.MediumRisk => SecurityAction.RequireConfirmation,
-            SecurityClassification.HighRisk => SecurityAction.RequireApproval,
-            SecurityClassification.Dangerous => SecurityAction.Block,
-            _ => SecurityAction.RequireConfirmation
-        };
+/// <summary>AI 判定回落的固定审计原因，不包含原始响应或异常消息。</summary>
+internal enum PermissionJudgeFallbackReason {
+    /// <summary>轻量客户端没有返回判定（包括客户端吞掉的超时和调用失败）。</summary>
+    [EnumValue("no-response")] NoResponse,
+    /// <summary>轻量客户端调用抛出非调用方取消异常。</summary>
+    [EnumValue("judge-error")] JudgeError,
+    /// <summary>JSON 或判定字段无效。</summary>
+    [EnumValue("invalid-response")] InvalidResponse,
+    /// <summary>候选置信度未达到门槛。</summary>
+    [EnumValue("low-confidence")] LowConfidence,
 }
 
 /// <summary>
@@ -309,12 +535,22 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
 public interface ILlmAutoModeClassifier {
     /// <summary>分类命令安全性（两阶段：规则 + LLM）</summary>
     Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// shadow 模式分类 — 仍执行 AI 判定并落审计，但返回规则分类结果，不改变实际权限决策。
+    /// 默认实现忽略 shadow 并转调普通分类，兼容既有测试替身。
+    /// </summary>
+    /// <param name="request">分类请求。</param>
+    /// <param name="shadow">是否只审计不生效。</param>
+    /// <param name="ct">取消令牌。</param>
+    Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, bool shadow, CancellationToken ct = default) =>
+        ClassifyAsync(request, ct);
 }
 
 /// <summary>
 /// LLM 分类响应 DTO — 对应 LLM 返回的 JSON 结构
 /// <para>{"classification":"...","confidence":0.0,"reason":"...","action":"..."}</para>
-/// 所有字段 nullable 以区分"字段缺失"与"字段存在"，保留原逐字段 fallback 语义
+/// 所有字段保留 nullable，以便识别缺失值并将整个判定回落到规则结果。
 /// </summary>
 public sealed class LlmClassificationResponseDto {
     /// <summary>安全分类级别字符串(safe/lowRisk/mediumRisk/highRisk/dangerous)</summary>
@@ -335,8 +571,50 @@ public sealed class LlmClassificationResponseDto {
 }
 
 /// <summary>
+/// AI 权限判定审计记录（JSONL）— 供 shadow 对比、false-allow 抽样与事后追责。
+/// 不含完整工具参数，操作摘要已脱敏截断。
+/// </summary>
+public sealed class PermissionJudgeAuditRecord {
+    /// <summary>UTC 时间（ISO 8601）。</summary>
+    public string TimestampUtc { get; set; } = "";
+    /// <summary>工具名。</summary>
+    public string ToolName { get; set; } = "";
+    /// <summary>脱敏后的操作摘要。</summary>
+    public string Operation { get; set; } = "";
+    /// <summary>是否 shadow（只审计、不生效）。</summary>
+    public bool Shadow { get; set; }
+    /// <summary>规则分类级别。</summary>
+    public string RuleClassification { get; set; } = "";
+    /// <summary>规则建议动作。</summary>
+    public string RuleAction { get; set; } = "";
+    /// <summary>规则置信度。</summary>
+    public double RuleConfidence { get; set; }
+    /// <summary>AI 分类级别（AI 未返回时省略）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LlmClassification { get; set; }
+    /// <summary>AI 建议动作（AI 未返回时省略）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LlmAction { get; set; }
+    /// <summary>AI 置信度（AI 未返回时省略）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? LlmConfidence { get; set; }
+    /// <summary>AI 理由（脱敏截断；无有效候选时省略）。</summary>
+    public string? LlmReason { get; set; }
+    /// <summary>本次是否复用成功判定缓存。</summary>
+    public bool CacheHit { get; set; }
+    /// <summary>静态回落原因；可用判定（含 shadow）不写此字段。</summary>
+    public string? FallbackReason { get; set; }
+    /// <summary>最终生效分类级别。</summary>
+    public string AppliedClassification { get; set; } = "";
+    /// <summary>最终生效动作。</summary>
+    public string AppliedAction { get; set; } = "";
+}
+
+/// <summary>
 /// LLM 安全分类 JSON 序列化上下文 — AOT 安全
 /// </summary>
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, AllowDuplicateProperties = false,
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(LlmClassificationResponseDto))]
+[JsonSerializable(typeof(PermissionJudgeAuditRecord))]
 internal sealed partial class LlmSecurityJsonContext : JsonSerializerContext;

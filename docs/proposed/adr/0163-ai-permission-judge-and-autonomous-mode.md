@@ -1,7 +1,7 @@
 # 0163 — AI 灰区权限判定与 Autonomous 模式
 
-- 状态：**Phase 1、Phase 3、Phase 4 基础版已实施（2026-11-23 收尾）；Phase 2 独立模式枚举与 Phase 4 文件 diff/行为监控待做**
-- 实施说明：`autonomous` 以 `[EnumValue]` 别名映射到 `Unattended`，未新增第 6 个枚举；AI Judge 复用 `auto-class-permission-mw`，节点移到 1150（所有硬规则之后、兜底之前）；`PendingConfirmationQueue` 已落地并接入执行器，完成 TTL/上限/脱敏；`IPendingConfirmationResolver` + DSH 收件箱 + TUI `/permissions pending` 闭环；执行后 Supervisor 基础版、AI 判定 JSONL 审计与 `LlmJudgeShadow` 已落地。
+- 状态：**Phase 1、Phase 3、Phase 4 基础版已实施（2026-11-23）；2026-11-24 补齐 AI Judge 每任务预算、策略版本/上下文指纹与 2.5s 默认超时；Phase 2 独立模式枚举与 Phase 4 文件 diff/行为监控待做**
+- 实施说明：`autonomous` 以 `[EnumValue]` 别名映射到 `Unattended`，未新增第 6 个枚举；AI Judge 复用 `auto-class-permission-mw`，节点移到 1150（所有硬规则之后、兜底之前）；`PendingConfirmationQueue` 已落地并接入执行器，完成 TTL/上限/脱敏；`IPendingConfirmationResolver` + DSH 收件箱 + TUI `/permissions pending` 闭环；执行后 Supervisor 基础版、AI 判定 JSONL 审计与 `LlmJudgeShadow` 已落地；AI Judge 默认 2.5s 超时、每任务 10 次预算，审计携带 `policyVersion/contextHash/budgetRemaining/budgetExhausted`。
 - 日期：2026-11-22
 - 关联：[DSG053](../design/DSG053-unified-permission-decision-architecture.md)、[ADR 0162](0162-task-scoped-permission-overlay.md)、[TASK105](../task/TASK105-ask后台任务临时关闭-现状取证与修复方案.md)
 - 影响域：`guard.security`、`guard.permission`、`mcp_tool_dispatch`、`storage.clock.goal`、`native_tui`、`native_gui`、`apps.cli`
@@ -75,7 +75,7 @@
 
 | 模块 | 变更 |
 |---|---|
-| `guard.security` | `LlmAutoModeClassifier` 已改用 `IPermissionJudgeClient`；规则 Block/Dangerous 不被 AI 改判；3s 超时 + 30min 缓存；非 Shell 工具只传路径/URL/查询摘要；新增 `LlmJudgeShadow` 与 JSONL 审计 |
+| `guard.security` | `LlmAutoModeClassifier` 已改用 `IPermissionJudgeClient`；规则 Block/Dangerous 不被 AI 改判；默认 2.5s 超时（客户端 3s 兜底）+ 30min 缓存 + 每任务 10 次预算；非 Shell 工具只传路径/URL/查询摘要；新增 `LlmJudgeShadow` 与 JSONL 审计（含 `policyVersion/contextHash/budget`） |
 | `guard.permission` | `AutoClassifierMiddleware` 已注入 LLM 阶段；`Auto/Unattended` 生效；AI 高风险不得自动批准 |
 | `resources/profiles/base.yaml` | `auto-class-permission-mw` 从 400 移到 1150（硬规则之后、兜底之前）；未新增独立 Judge 节点 |
 | `abstractions.primitives.security` | `autonomous` 作为 `Unattended` 的 `[EnumValue]` 别名 |
@@ -91,10 +91,10 @@
 以 [DSG053 §8](../design/DSG053-unified-permission-decision-architecture.md) 为准：
 
 - Shadow 对比：`PermissionConfig.LlmJudgeShadow` 已实现（默认 false，shadow 仍调 AI 并写审计但返回规则结果）；一致率报告需真机采样；
-- Phase 1：Guard.Security 全量单测此前通过；本轮分类器 14 项 + 中间件影子透传 1 项通过；ask 率下降与 false-allow 需真机采样，尚未验收；
+- Phase 1：Guard.Security 全量单测通过；本轮分类器 50 项 + 中间件 9 项通过；ask 率下降与 false-allow 需真机采样，尚未验收；
 - Phase 2：`autonomous` 别名单测通过，独立模式矩阵/TUI 真机未做；DSH/TUI 后台 Defer 与取消令牌已补单测；
-- Phase 3：`PendingConfirmationQueue` 已实现并接入执行器；队列 9 项、DSH 收件箱 7 项、TUI pending 24 项单测通过；后台任务零阻塞，真人 UI 验收待做；
-- Phase 4：执行后 Supervisor 凭据扫描 1 项定向测试通过；AI 审计/shadow 分类器 14 项 + 中间件 6 项通过；文件 diff/行为监控未做；
+- Phase 3：`PendingConfirmationQueue` 已实现并接入执行器；队列 9 项、DSH 收件箱 7 项、TUI pending 24 项单测通过；后台任务零阻塞；真实 WebView2 与真实 TTY 目视验收已完成；
+- Phase 4：执行后 Supervisor 凭据扫描 1 项定向测试通过；AI 审计/shadow、预算、超时、策略指纹相关用例已补，`Guard.Security.Tests` 全量 1,322 项、`Guard.Config.Tests` 全量 1,349 项通过；真实模型延迟分布与高并发预算采样未做；文件 diff/行为监控未做；
 - 全仓编译 `Build-AllDomains.ps1` 本轮已跑一次通过（后续按用户要求改为按需编译）。
 
 ---
@@ -125,3 +125,4 @@
 5. 队列 TTL 30 分钟/上限 200 为当前默认，是否按项目/模式调整；过期当前语义为“完成 Defer 后移除”，是否需要保留审计快照。
 6. 批准后产品语义当前为“复核通过 + 通知发起代理，不自动恢复原后台调用”，是否需要代理自动前台重试。
 7. `LlmJudgeShadow` 当前是全局 `PermissionConfig` 开关，是否需要按模式/项目粒度。
+8. 每任务 10 次预算当前按代理任务 `SessionId | AgentId | CreatedAt` 计数；长主会话是否需要严格按用户 turn 重置。

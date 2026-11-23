@@ -142,6 +142,21 @@ public sealed class AutoClassifierModeMappingTests {
         llm.LastCacheMode.Should().Be(mode);
     }
 
+    /// <summary>中间件把判定预算与超时配置透传给分类器。</summary>
+    [Fact]
+    public async Task Invoke_PassesJudgeBudgetAndTimeoutConfigToLlmClassifier() {
+        var llm = new CountingLlmClassifier(SecurityClassification.MediumRisk, SecurityAction.RequireConfirmation);
+        await using var middleware = new Core.Permission.AutoClassifierMiddleware(llmAutoModeClassifier: llm);
+        var context = CreateContext(PermissionMode.Auto);
+        context.Config.LlmJudgeMaxCallsPerTask = 3;
+        context.Config.LlmJudgeTimeoutMs = 2500;
+
+        await middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        llm.LastMaxCallsPerTask.Should().Be(3);
+        llm.LastTimeoutMs.Should().Be(2500);
+    }
+
     private sealed class FixedRuleClassifier(SecurityClassification classification, SecurityAction action) : IAutoModeClassifier {
         public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default)
             => Task.FromResult(new ClassificationResult {
@@ -156,6 +171,8 @@ public sealed class AutoClassifierModeMappingTests {
         public int CallCount { get; private set; }
         public bool LastShadow { get; private set; }
         public PermissionMode? LastCacheMode { get; private set; }
+        public int? LastMaxCallsPerTask { get; private set; }
+        public int? LastTimeoutMs { get; private set; }
 
         public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default)
             => ClassifyAsync(request, shadow: false, ct);
@@ -164,6 +181,8 @@ public sealed class AutoClassifierModeMappingTests {
             CallCount++;
             LastShadow = shadow;
             LastCacheMode = request.CacheMode;
+            LastMaxCallsPerTask = request.JudgeMaxCallsPerTask;
+            LastTimeoutMs = request.JudgeTimeoutMs;
             return Task.FromResult(new ClassificationResult {
                 Classification = classification,
                 Confidence = 0.9,

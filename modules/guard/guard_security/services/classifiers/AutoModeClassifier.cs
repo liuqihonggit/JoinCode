@@ -22,6 +22,10 @@ public sealed partial class ClassificationRequest {
     public required OperationType OperationType { get; init; }
     /// <summary>权限中间件解析出的有效模式；没有可靠来源时不复用 Judge 缓存。</summary>
     internal PermissionMode? CacheMode { get; init; }
+    /// <summary>单个代理任务允许的最大 AI 判定调用数；null 使用分类器默认值。</summary>
+    internal int? JudgeMaxCallsPerTask { get; init; }
+    /// <summary>单次 AI 判定超时毫秒数；null 使用分类器默认值。</summary>
+    internal int? JudgeTimeoutMs { get; init; }
 }
 
 /// <summary>

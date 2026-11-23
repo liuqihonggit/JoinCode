@@ -173,13 +173,13 @@ public sealed class LlmAutoModeClassifierTests {
         var judge = CreateMockJudge("""{"classification":"mediumRisk","confidence":0.9,"reason":"valid","action":"requireConfirmation"}""");
         await using var classifier = new LlmAutoModeClassifier(new StubClassifier(CreateGrayRuleResult()), judge,
             fileSystem: null, auditPath: "", cacheTimeProvider: new FakeTimeProvider());
-        using var scope = CreateCacheScope().EnterScope();
-
         foreach (var index in Enumerable.Range(0, capacity)) {
+            using var itemScope = CreateCacheScope($"candidate-{index}").EnterScope();
             await classifier.ClassifyAsync(CreateCacheRequest(description: $"candidate-{index}"));
         }
         classifier.CachedCandidateCount.Should().Be(capacity);
 
+        using var overflowScope = CreateCacheScope("candidate-overflow").EnterScope();
         (await classifier.ClassifyAsync(CreateCacheRequest(description: "overflow"))).Reason.Should().Be("valid");
         classifier.CachedCandidateCount.Should().BeLessThanOrEqualTo(capacity);
         Mock.Get(judge).Verify(x => x.JudgeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(capacity + 1));
@@ -541,6 +541,100 @@ public sealed class LlmAutoModeClassifierTests {
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => classifier.ClassifyAsync(CreateRequest("probe"), cts.Token));
     }
 
+    /// <summary>预算耗尽后不再调用模型，直接回落规则并写预算审计。</summary>
+    [Fact]
+    public async Task Classify_BudgetExhausted_FallsBackToRuleAndAudits() {
+        var rule = CreateGrayRuleResult();
+        var judge = CreateMockJudge("""{"classification":"lowRisk","confidence":0.95,"reason":"valid","action":"autoApprove"}""");
+        await using var fs = new InMemoryFileSystem();
+        await using var classifier = new LlmAutoModeClassifier(new StubClassifier(rule), judge, fs, "/audit/permission_judge.jsonl");
+        using var scope = CreateCacheScope("budget-agent").EnterScope();
+
+        (await classifier.ClassifyAsync(CreateBudgetRequest("probe-1", maxCalls: 2))).Action.Should().Be(SecurityAction.AutoApprove);
+        (await classifier.ClassifyAsync(CreateBudgetRequest("probe-2", maxCalls: 2))).Action.Should().Be(SecurityAction.AutoApprove);
+        var exhausted = await classifier.ClassifyAsync(CreateBudgetRequest("probe-3", maxCalls: 2));
+
+        exhausted.Should().BeSameAs(rule, "预算耗尽必须回落规则结果，不得默认放行");
+        Mock.Get(judge).Verify(x => x.JudgeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        var lines = (await fs.ReadAllTextAsync("/audit/permission_judge.jsonl")).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        lines.Should().HaveCount(3);
+        var first = ReadAuditRecord(lines[0]);
+        first.PolicyVersion.Should().Be("judge-2026-11-24.1");
+        first.ContextHash.Should().HaveLength(64);
+        first.BudgetRemaining.Should().Be(1);
+        first.BudgetExhausted.Should().BeFalse();
+        ReadAuditRecord(lines[1]).BudgetRemaining.Should().Be(0);
+        var limited = ReadAuditRecord(lines[2]);
+        limited.FallbackReason.Should().Be("budget-exhausted");
+        limited.BudgetExhausted.Should().BeTrue();
+        limited.BudgetRemaining.Should().Be(0);
+        limited.LlmAction.Should().BeNull();
+    }
+
+    /// <summary>预算只作用于当前代理任务；新任务作用域重新获得完整额度。</summary>
+    [Fact]
+    public async Task Classify_BudgetIsScopedToTaskContext() {
+        var rule = CreateGrayRuleResult();
+        var judge = CreateMockJudge("""{"classification":"lowRisk","confidence":0.95,"reason":"valid","action":"autoApprove"}""");
+        await using var classifier = new LlmAutoModeClassifier(new StubClassifier(rule), judge);
+
+        using (var firstTask = CreateCacheScope("budget-task-a").EnterScope()) {
+            (await classifier.ClassifyAsync(CreateBudgetRequest("probe-a1", maxCalls: 1))).Action.Should().Be(SecurityAction.AutoApprove);
+            (await classifier.ClassifyAsync(CreateBudgetRequest("probe-a2", maxCalls: 1))).Should().BeSameAs(rule);
+        }
+        using (var secondTask = CreateCacheScope("budget-task-b").EnterScope()) {
+            (await classifier.ClassifyAsync(CreateBudgetRequest("probe-b1", maxCalls: 1))).Action.Should().Be(SecurityAction.AutoApprove);
+        }
+
+        Mock.Get(judge).Verify(x => x.JudgeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    /// <summary>缓存命中不消耗调用预算；只有真实模型调用才计数。</summary>
+    [Fact]
+    public async Task Classify_CacheHit_DoesNotConsumeBudget() {
+        var rule = CreateGrayRuleResult();
+        var judge = CreateMockJudge("""{"classification":"mediumRisk","confidence":0.9,"reason":"valid","action":"requireConfirmation"}""");
+        await using var fs = new InMemoryFileSystem();
+        await using var classifier = new LlmAutoModeClassifier(new StubClassifier(rule), judge, fs, "/audit/permission_judge.jsonl");
+        using var scope = CreateCacheScope("cache-budget-agent").EnterScope();
+        var cachedRequest = CreateCacheRequest(description: "cache-budget", maxCalls: 1);
+
+        (await classifier.ClassifyAsync(cachedRequest)).Reason.Should().Be("valid");
+        (await classifier.ClassifyAsync(cachedRequest)).Reason.Should().Be("valid");
+        (await classifier.ClassifyAsync(CreateCacheRequest(description: "cache-budget-miss", maxCalls: 1))).Should().BeSameAs(rule);
+
+        Mock.Get(judge).Verify(x => x.JudgeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        var lines = (await fs.ReadAllTextAsync("/audit/permission_judge.jsonl")).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        lines.Should().HaveCount(3);
+        var cached = ReadAuditRecord(lines[1]);
+        cached.CacheHit.Should().BeTrue();
+        cached.BudgetRemaining.Should().Be(0, "缓存命中不消耗预算");
+        var limited = ReadAuditRecord(lines[2]);
+        limited.BudgetExhausted.Should().BeTrue();
+        limited.FallbackReason.Should().Be("budget-exhausted");
+    }
+
+    /// <summary>判定超时必须回落 no-response，不能无限阻塞权限检查。</summary>
+    [Fact]
+    public async Task Classify_JudgeTimeout_FallsBackNoResponse() {
+        var rule = CreateGrayRuleResult();
+        var judge = new Mock<IPermissionJudgeClient>();
+        judge.Setup(x => x.JudgeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(async (string _, string _, CancellationToken token) => {
+                await Task.Delay(TimeSpan.FromMilliseconds(500), token);
+                return """{"classification":"lowRisk","confidence":0.95,"reason":"slow","action":"autoApprove"}""";
+            });
+        await using var fs = new InMemoryFileSystem();
+        await using var classifier = new LlmAutoModeClassifier(new StubClassifier(rule), judge.Object, fs, "/audit/permission_judge.jsonl");
+
+        var result = await classifier.ClassifyAsync(CreateBudgetRequest("slow-probe", timeoutMs: 100));
+
+        result.Should().BeSameAs(rule);
+        var record = ReadAuditRecord((await fs.ReadAllTextAsync("/audit/permission_judge.jsonl")).Trim());
+        record.FallbackReason.Should().Be("no-response");
+        record.BudgetExhausted.Should().BeFalse();
+    }
+
     /// <summary>建立带会话、代理及绝对工作目录的缓存测试作用域。</summary>
     private static SubAgentContext CreateCacheScope(string agentId = "cache-agent") => new() {
         AgentId = agentId,
@@ -550,14 +644,29 @@ public sealed class LlmAutoModeClassifierTests {
         CwdOverride = Path.Combine(Path.GetTempPath(), "judge-cache-worktree"),
     };
 
+    /// <summary>建立带调用预算与超时的判定请求。</summary>
+    private static ClassificationRequest CreateBudgetRequest(string command, int maxCalls = 10, int? timeoutMs = null) => new() {
+        ToolName = ShellToolNameEnumConstants.Bash,
+        OperationType = OperationType.Execute,
+        JudgeMaxCallsPerTask = maxCalls,
+        JudgeTimeoutMs = timeoutMs,
+        Parameters = new Dictionary<string, JsonElement> {
+            ["command"] = JsonSerializer.SerializeToElement(command, HooksJsonContext.Default.String),
+        },
+    };
+
     /// <summary>建立命令相同、可独立改变模式及非摘要参数的缓存请求。</summary>
     private static ClassificationRequest CreateCacheRequest(
         PermissionMode? mode = PermissionMode.Auto,
         string description = "probe",
-        string toolName = ShellToolNameEnumConstants.Bash) => new() {
+        string toolName = ShellToolNameEnumConstants.Bash,
+        int? maxCalls = null,
+        int? timeoutMs = null) => new() {
         ToolName = toolName,
         OperationType = OperationType.Execute,
         CacheMode = mode,
+        JudgeMaxCallsPerTask = maxCalls,
+        JudgeTimeoutMs = timeoutMs,
         Parameters = new Dictionary<string, JsonElement> {
             ["command"] = JsonSerializer.SerializeToElement("probe", HooksJsonContext.Default.String),
             ["description"] = JsonSerializer.SerializeToElement(description, HooksJsonContext.Default.String),

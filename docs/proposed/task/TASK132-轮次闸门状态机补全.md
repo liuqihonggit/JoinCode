@@ -61,7 +61,23 @@
 | 状态机推荐/熔断并入工具结果 | `QueryEngine.AppendRoundGateAdvisory` | ✅ | ✅ 集成测试断言工具被调用 2 次、注入阻断消息 |
 | `JCC_ROUND_GATE_STRICT` | `RoundGatePolicy.ReadStrictMode` → 会话 | ✅ | ✅ 单测（严格模式完成需 4 移交） |
 | 收尾裁决（验证链 + 熔断 + 出口） | QueryEngine 完成分支 | ✅ | ✅ 集成测试（未自验选 5 被拦截、自验后选 5 收尾） |
-| 真机 exe 验收（ADR 0080） | `artifacts/bin/JoinCode/Debug/net10.0/jcc.exe` | ✅ 代码可编译 | ❌ 待补（见下方 ○ 项） |
+| 真机 exe 验收（ADR 0080） | `artifacts/bin/JoinCode/Debug/net10.0/jcc.exe` + OpenAI.MockServer 脚本 | ✅ | ✅ 四条真机链路见下方"真机验收记录" |
+
+### 真机验收记录（ADR 0080，2026-11-24）
+
+编排：OpenAI.MockServer（`--port 1813x --config .xxx/gate132_x_mockserver.json`）+ 真实 jcc，
+环境 `JCC_ROUND_GATE=on`、`JCC_ALLOW_DIRECT_FALLBACK=1`、`JCC_PERMISSION_MODE=bypass`、`JCC_DEBUGLOG=1`，
+日志落在 `.xxx/logs/gate132_{a,b,c,d}.log`，四条场景均 `EXIT=0`。
+
+| 场景 | 脚本 | 真机证据 |
+|------|------|----------|
+| A 完整验证链 | 纯文本想停 → `round_gate(3)` 无 verdict → 纯文本想停 → `round_gate(3, pass)` → `round_gate(5)` → 纯文本 | `拦截收尾（第 1/6 次）：你还没有调用 round_gate` → 工具报错`round_gate 参数错误: verdict=未提供 不是合法的自验结论` → `拦截收尾（第 2/6 次）：3 自验 是中间态，不允许收尾` → `GATE132_FINAL_OK` 正常收尾 |
+| B 跳过自验直接完成 | 纯文本想停 → `round_gate(5)` → 纯文本想停 | `拦截收尾（第 2/2 次）：5 完成被拒：本会话还没有通过的自验（3 + verdict=pass）` → 触顶 `⚠ 轮次闸门连续 2 次未通过…强制结束` |
+| C 严格模式推荐纠偏 | `round_gate(3, pass)` → `round_gate(5)` → `round_gate(4)` → `round_gate(5)` | 两次工具结果均带 `【闸门 · 状态机】推荐下一轮：4 用户验收 —— 严格模式：完成前必须移交用户验收`，按推荐走完后 `GATE132C_FINAL_OK` 收尾 |
+| D 严格模式拦截完成 | 纯文本想停 → `round_gate(3, pass)` → `round_gate(5)` → 纯文本 | `拦截收尾（第 2/3 次）：严格模式：完成前必须先选 4 用户验收`（第 3 次同因）→ 触顶强制结束 |
+
+> 注：任务处理器日志中的 `[RoundGate] choice=… recommended=…` 未上屏（该 logger 在 `-p` 模式下无 sink），
+> 选择与推荐事实由工具结果注入文本 + 拦截日志共同证明。
 
 ### 已跑验证
 
@@ -73,12 +89,13 @@ dotnet test  modules/cognition/brain_other_tests/... --filter "FullyQualifiedNam
 dotnet test  modules/mcp/mcp_tests/... --filter "FullyQualifiedName~RoundGate"    # 23 通过
 ```
 
-### ○ 待用户验收项
+### ○ 待用户验收项（真机链路已验证，剩余是交互体感）
 
-- ○ 真实 TUI 会话下 `JCC_ROUND_GATE=on` 跑一轮：先 `round_gate(1)`，再 `round_gate(3, verdict="pass")`，再 `round_gate(5)`，确认只在最后一次允许收尾。
-- ○ 选 `round_gate(5)` 但会话内没有 `3 pass` 时，确认被拦截并注入"5 完成被拒"提示。
-- ○ 选 `round_gate(3)` 不带 `verdict` 时，确认工具报错并给出 `verdict="pass"` 的正确写法。
-- ○ `JCC_ROUND_GATE_STRICT=1` 下确认 `5`/`9` 需要先 `4`。
+- ✅ 已真机验证：`round_gate(1)`→`3 verdict=pass`→`5` 只在最后一次放行（场景 A）。
+- ✅ 已真机验证：会话内没有 `3 pass` 时选 `5` 被拦截并提示"5 完成被拒"（场景 B）。
+- ✅ 已真机验证：`3` 不带 `verdict` 工具报错并给出 `verdict="pass"` 正确写法（场景 A）。
+- ✅ 已真机验证：`JCC_ROUND_GATE_STRICT=1` 下 `5` 需先 `4`（场景 C/D）。
+- ○ 待用户：真实 TUI 交互会话里看"推荐 + 备选"在工具结果里的可读性，以及 0/6/9/10 各出口的用户体感是否需要调文案。
 
 ## 风险与边界
 

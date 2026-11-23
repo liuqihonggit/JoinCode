@@ -10,7 +10,7 @@
 
 原文「`SettingsSourceMigration` 只落地一件，通用框架未建（TASK089）」**已过时**：通用框架在提交 `a01b9e4a6`（2026-11-18，TASK089-092）已落地并接进生产读取路径，总账未回填。
 
-- `ConfigMigrationRunner`（`modules/guard/guard.configuration/core/loading/migrations/ConfigMigrationRunner.cs:16-100`）：按 `IConfigMigration.Version` 升序执行、每步成功即落 `~/.jcc/config-migrations.json`（`:61/91-99`）、失败停在该版本不推进（`:78-87`）、并发最坏重复执行一次所以要求每条迁移幂等（`:13-14`）。显式登记而非反射（`:17-25`，AOT 友好且顺序可审）。
+- `ConfigMigrationRunner`（`modules/guard/guard_configuration/core/loading/migrations/ConfigMigrationRunner.cs:16-100`）：按 `IConfigMigration.Version` 升序执行、每步成功即落 `~/.jcc/config-migrations.json`（`:61/91-99`）、失败停在该版本不推进（`:78-87`）、并发最坏重复执行一次所以要求每条迁移幂等（`:13-14`）。显式登记而非反射（`:17-25`，AOT 友好且顺序可审）。
 - `IConfigMigration`（同目录 `:4-16`）定义唯一递增版本 + `ApplyAsync`；已有一步 `SettingsSourceMigration`（v1，搬 settings.json 的 global 键）。
 - 生产消费：`ConfigurationService.RunMigrationOnceAsync`（`modules/guard/guard/configuration/services/ConfigurationService.cs:75-86`）在每次读配置前经 `EnsureMigratedAsync` 调 `ConfigMigrationRunner.RunAsync`，并用 `MarkInternalWrite` 避免 watcher 回灌——不是"只有类没人用"。
 - 测试：`guard.config.tests/configuration/core/ConfigMigrationRunnerTests.cs`，本轮筛选 `ConfigMigration` **8/8 绿**（版本推进、失败停驻、幂等/历史上限等）。

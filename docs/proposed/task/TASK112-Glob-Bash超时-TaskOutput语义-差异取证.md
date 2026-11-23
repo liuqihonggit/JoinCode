@@ -27,7 +27,7 @@
 - 基准 Bash：`tools/BashTool/BashTool.tsx:227-259`（timeout schema）、`:860`（`timeout || getDefaultTimeoutMs()`）、`:881-898`（传 exec）；`utils/timeouts.ts:2-3/12-39`（120s 默认、600s 上限 + 两个 env）。
 - 本仓 Bash：`modules/cognition/hands_shell/shell/handlers/tool_handlers/ShellToolHandlers.cs:45-55`（timeout 默认 180000ms）、`:67/92`（写 context.Timeout）；`middleware/AbsoluteTimeoutMiddleware.cs:33-50/72-89`（硬上限与打断结果）；`src/app_data/ShellExecutionConfig.cs:36`（AbsoluteTimeoutSeconds=180）+ `JccEnvVar.cs:244`（`JCC_ABSOLUTE_TIMEOUT_SECONDS`）。
 - 基准 TaskOutput：`tools/TaskOutputTool/TaskOutputTool.tsx:30-34`（block/timeout/max）、`:118-143`（轮询）、`:219-281`（not_ready/timeout/success 三种结果）。
-- 本仓 TaskOutput：`modules/mcp/mcp.tool_handlers/task/core/TaskOutputToolHandlers.cs:31-74`（todo 任务一次性快照）；`modules/cognition/hands_shell/shell/handlers/tool_handlers/ShellToolHandlers.cs:192-211`（后台 shell 输出一次性快照）；`modules/cognition/hands_shell/system_actuator/abstractions/SystemActuatorRegistry.cs:206-215`（现成等待原语）。
+- 本仓 TaskOutput：`modules/mcp/mcp_tool_handlers/task/core/TaskOutputToolHandlers.cs:31-74`（todo 任务一次性快照）；`modules/cognition/hands_shell/shell/handlers/tool_handlers/ShellToolHandlers.cs:192-211`（后台 shell 输出一次性快照）；`modules/cognition/hands_shell/system_actuator/abstractions/SystemActuatorRegistry.cs:206-215`（现成等待原语）。
 
 ### 问3 具体方法与工具
 两侧工具定义/schema/服务实现逐行对照；对 Glob 直接核对"上限常量 + 截断分支"，对 Bash 全仓 grep 两个基准 env 的消费者（本仓零命中），对 TaskOutput 按数据源追踪到 `ITaskService`（todo）与 `ISystemActuatorRegistry`（后台进程）两条链。

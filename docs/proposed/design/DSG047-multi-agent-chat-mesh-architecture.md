@@ -126,11 +126,11 @@
 | `/agent/messages/{id}` SSE | AgentHubServer 路由 | 消息推送（需加游标） |
 | `/v1/chat/completions` | AgentHubServer 路由 | LLM 代理网关（继承操作的基础） |
 | Provider 字典 + settings.json 热重载 | `modules/services/hub/app/Program.cs` | 模型适配层 |
-| HubTransportConfig | `modules/llm/agents.fork/HubTransportConfig.cs` | Worker 连接 Router 的配置 |
+| HubTransportConfig | `modules/llm/agents_fork/HubTransportConfig.cs` | Worker 连接 Router 的配置 |
 | TranscriptService (JSONL) | `modules/storage/vault/state/transcript/core/TranscriptService.cs` | 持久化层（需扩展到 Hub 侧） |
-| TeammateMailboxService | `modules/llm/agents.team/TeammateMailboxService.cs` | 文件邮箱（参考实现） |
+| TeammateMailboxService | `modules/llm/agents_team/TeammateMailboxService.cs` | 文件邮箱（参考实现） |
 | MeshTransport/BusTransport | `modules/async_primitives/async_lock/transport/` | 本地传输拓扑 |
-| MCP 协议 (2025-11-25) | `modules/mcp/mcp.protocol/` | 能力声明层（工具发现） |
+| MCP 协议 (2025-11-25) | `modules/mcp/mcp_protocol/` | 能力声明层（工具发现） |
 
 ## 四、接口设计
 

@@ -7,9 +7,9 @@
 <!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| [Composition.Tests](composition.tests/Composition.Tests.csproj) | 测试 |
+| [Composition.Tests](composition_tests/Composition.Tests.csproj) | 测试 |
 | [Composition](composition/Composition.csproj) |  |
-| [Pipelines.Tests](pipelines.tests/Pipelines.Tests.csproj) | 测试 |
+| [Pipelines.Tests](pipelines_tests/Pipelines.Tests.csproj) | 测试 |
 | [Pipelines](pipelines/Pipelines.csproj) |  |
 | [Slash](slash/Slash.csproj) |  |
 <!-- END MODULE PROJECTS -->

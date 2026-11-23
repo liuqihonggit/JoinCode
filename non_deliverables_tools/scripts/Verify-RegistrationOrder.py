@@ -22,9 +22,9 @@ ORDERS_YAML = REPO / "resources" / "orders.yaml"
 
 # 列表名 → (接口全名, 实现类必须出现的源码目录)
 LISTS: dict[str, tuple[str, tuple[str, ...]]] = {
-    "command_guards": ("ICommandGuard", ("modules/guard/guard.hooks/execution/interception/guards",)),
+    "command_guards": ("ICommandGuard", ("modules/guard/guard_hooks/execution/interception/guards",)),
     "command_interceptors": ("ICommandInterceptor", ()),
-    "tool_fix_hooks": ("IToolFixHook", ("modules/guard/guard.hooks/execution/fix_hooks",)),
+    "tool_fix_hooks": ("IToolFixHook", ("modules/guard/guard_hooks/execution/fix_hooks",)),
     "agent_tool_middlewares": ("IAgentToolMiddleware", ("modules/cognition/hands_core/tool_handlers/system_tools/agent",)),
     "query_stop_hooks": ("IQueryStopHook", ()),
 }
@@ -108,7 +108,8 @@ def implementations(interface: str) -> dict[str, pathlib.Path]:
         # 测试项目目录名是 `xxx.tests/`（如 guard.hooks.tests），只挡 `/tests/` 会漏，
         # 测试替身（private sealed class StubInterceptor : ICommandInterceptor）就会被当成
         # 生产实现，逼着它进顺序表 —— 单测替身没有顺序语义，进表反而是污染。
-        if "/obj/" in posix or "/bin/" in posix or "/tests/" in posix or ".tests/" in posix:
+        lower = posix.lower()
+        if any(f"/{p}/" in lower for p in (".git", ".xxx", ".nuget", "artifacts", "bin", "obj", "node_modules", "test", "tests")) or ".tests/" in lower or "_tests/" in lower or "_test/" in lower:
             continue
         try:
             text = path.read_text(encoding="utf-8")

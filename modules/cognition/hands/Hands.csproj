@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
         <ProjectType>library</ProjectType>
@@ -23,7 +23,7 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins_infrastructure/Plugins.Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/guard/guard/Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/storage/scheduling/Scheduling.csproj" /></ItemGroup>
 
@@ -61,9 +61,9 @@
 
   
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/generators/prompt_template.generator/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)modules/generators/aot_handler.generator/AotHandler.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/prompt_template_generator/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch_generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/aot_handler_generator/AotHandler.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/composition/Abstractions.Composition.csproj" />

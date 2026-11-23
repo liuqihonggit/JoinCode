@@ -2,23 +2,23 @@
 # 格式: 仓库相对路径|允许出现的最大次数（|0 = 仅分析器拦截的间接消费豁免）
 # 更新: python non_deliverables_tools/scripts/Verify-NoLockPrimitives.py --write-baseline
 
+modules/abstractions/async_lock/mailbox/PriorityMailbox.cs|1
 modules/abstractions/async_lock_tests/actor/ActorBaseBugReproTest.cs|1
 modules/abstractions/async_lock_tests/actor/BackpressurePipelineTest.cs|1
 modules/abstractions/async_lock_tests/lock/CasRetryTests.cs|2
-modules/abstractions/async_lock/mailbox/PriorityMailbox.cs|1
-modules/composition/composition.tests/commands_wave123/CommandTestHarness.cs|1
-modules/guard/guard.config.tests/configuration/core/FastModeServiceTests.cs|1
-modules/llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorConcurrencyTests.cs|2
-modules/llm/llm.tests/Adapters/Fallback/StreamIdleWatchdogTests.cs|2
-modules/perception/code_index.tests/a_to_c/ConcurrencySafetyTests.cs|2
-modules/services/bridge.tests/bridge/core/bridge/BufferedChannelTests.cs|2
-modules/storage/clock.tests/goal/engine/GoalEnginePipelineTests.cs|4
-modules/storage/clock.tests/goal/engine/GoalEngineTests.cs|5
+modules/composition/composition_tests/commands_wave123/CommandTestHarness.cs|1
+modules/guard/guard_config_tests/configuration/core/FastModeServiceTests.cs|1
+modules/llm/agents_tests/agents/coordinator/agent_tests/AgentCoordinatorConcurrencyTests.cs|2
+modules/llm/llm_tests/adapters/fallback/StreamIdleWatchdogTests.cs|2
+modules/perception/code_index_tests/a_to_c/ConcurrencySafetyTests.cs|2
+modules/services/bridge_tests/bridge/core/bridge/BufferedChannelTests.cs|2
 modules/storage/clock/goal/core/goal_engine/GoalStateUpdater.cs|0
-modules/storage/scheduling.tests/scheduling/tasks/MonitorMcpTaskExecutorTests.cs|1
-modules/storage/vault.memdir.tests/AdvisorServicePersistenceTests.cs|3
-modules/storage/vault.memdir.tests/EditorModeServicePersistenceTests.cs|3
-modules/storage/vault.other.tests/state/StorePersistenceTests.cs|3
+modules/storage/clock_tests/goal/engine/GoalEnginePipelineTests.cs|4
+modules/storage/clock_tests/goal/engine/GoalEngineTests.cs|5
+modules/storage/scheduling_tests/scheduling/tasks/MonitorMcpTaskExecutorTests.cs|1
+modules/storage/vault_memdir_tests/AdvisorServicePersistenceTests.cs|3
+modules/storage/vault_memdir_tests/EditorModeServicePersistenceTests.cs|3
+modules/storage/vault_other_tests/state/StorePersistenceTests.cs|3
 test/mock/anthropic.mock_server/Program.cs|1
 test/mock/deep_seek.mock_server/Program.cs|1
 test/mock/mcp.mock_server/engine/Program.cs|1

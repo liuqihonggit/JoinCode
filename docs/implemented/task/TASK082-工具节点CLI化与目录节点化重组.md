@@ -44,7 +44,7 @@
 | 7c | **进程隔离执行器**：`jcc tool call <组> <工具> [参数]` 由 jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码；不初始化引擎 DI | `CliToolCommand.cs`（`RunCallAsync` / `ResolveGroupExe`） | ✅ | ✅ 真实 exe 七连验 + 反查/别名/超时补充验证 | ✅ |
 | 7d | **斜杠命令独立 exe**：`jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>`；`-h` 来自 `[ChatCommand]`/`[ChatCommandArg]` | `scripts/generate_slash_cli_node.py`、`groups/slash/` | ✅ | ✅ 真实 exe（含 Git Bash 命令名归一化） | ✅ |
 | 8 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildBaseTools`（3 个 QueryService）、`resources/tools/base.yaml` | ✅ | ✅ 9 个单测（锁定「非基础工具不进 tools」）+ 契约层 7/7 | ✅ |
-| 9 | ~~全部消费方切换后归档生成器项目~~ → **改为长期保留**；目录节点化（`tool find/tree/help/base`）已在步骤 4/7d 落地 | `modules/generators/mcp_tool_dispatch.generator/`（保留）、`CliToolCommand.cs` | — | — | ✅ 目标改写（第十七轮证据） |
+| 9 | ~~全部消费方切换后归档生成器项目~~ → **改为长期保留**；目录节点化（`tool find/tree/help/base`）已在步骤 4/7d 落地 | `modules/generators/mcp_tool_dispatch_generator/`（保留）、`CliToolCommand.cs` | — | — | ✅ 目标改写（第十七轮证据） |
 
 > **2026-11-16 阻断说明（步骤 9 前提不成立）**：`McpToolDispatch` 生成器产出的进程内 handler 注册表**正是转发兜底的依赖**。实测无 Hub 时 `jcc mcp_call` 直接报「Hub 服务不可达」，`JCC_ALLOW_DIRECT_FALLBACK=1` 下 `jcc mcp_list` 返回 `total_count: 0`。因此该生成器在「转发路径退役」之前不能归档；步骤 9 拆成两步：先逐组做实到不再需要转发，再归档生成器。
 | 10 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | `Build-AllDomains.ps1`、ADR 0157 | ✅ CI 绿（PR #682） | ✅ CI 绿（PR #682） | ✅ ADR 转 accepted |
@@ -1149,7 +1149,7 @@ dotnet build … --no-restore         0.021 ms/次
 |---|---|
 | `mcp_call bash command="echo hi_from_mcp_call"` | 执行，输出 `hi_from_mcp_call`，exit 0 / 517ms |
 | `mcp_call bash command="git log --oneline -3 \| head -3"` | 执行，输出真实三条提交 |
-| `mcp_call bash command="ls -R modules/guard/guard.security/shell \| head -5"` | 执行，输出真实文件清单 |
+| `mcp_call bash command="ls -R modules/guard/guard_security/shell \| head -5"` | 执行，输出真实文件清单 |
 | `mcp_call bash command="echo test > nul"` | 被 BashDefense 链拦下：保留设备名 `nul` |
 
 两条链路到这一刻才算闭合：**判定层**（serve 的 18 条：有风险就带原因拒绝、没风险就放行到待确认）

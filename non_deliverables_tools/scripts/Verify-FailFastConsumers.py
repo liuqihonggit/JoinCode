@@ -34,12 +34,12 @@ REGISTERED_CALL_SITES: dict[str, bool] = {
     # S10 / F6：整类斜杠命令消失。
     "modules/apps/engine/commands/slash/SlashCommandRunner.cs": True,
     # S10 / F6：提示词整组段落消失（系统提示词悄悄变短）。
-    "modules/cognition/brain.context_services/preprocess/SystemPromptMiddleware.cs": True,
+    "modules/cognition/brain_context_services/preprocess/SystemPromptMiddleware.cs": True,
 }
 
 INTERFACE_FILE = "modules/abstractions/composition/node/interfaces/INodeRegistry.cs"
 IMPLEMENTATION_FILE = "modules/composition/composition/node_registry/core/NodeRegistry.cs"
-REGRESSION_TEST = "modules/composition/composition.tests/node_registry/NodeRegistryFailFastTest.cs"
+REGRESSION_TEST = "modules/composition/composition_tests/node_registry/NodeRegistryFailFastTest.cs"
 
 # 只匹配「实例方法调用」（前面有点号）；接口声明 / 类实现的方法定义不带点号，天然排除。
 CALL_RE = re.compile(r"\.\s*GetServicesForConsumerAsync\s*<")
@@ -62,6 +62,8 @@ def is_production(path: pathlib.Path) -> bool:
     """排除测试替身与归档目录 —— 它们的签名只需能编译，不参与生产约定。"""
     parts = {part.lower() for part in path.parts}
     if any(p in parts for p in {"tests", "test", ".xxx", "bin", "obj"}):
+        return False
+    if any(p.endswith("_tests") or p.endswith("_test") for p in parts):
         return False
     if ".tests" in str(path).lower() or "test/" in str(path).lower().replace("\\", "/"):
         return False

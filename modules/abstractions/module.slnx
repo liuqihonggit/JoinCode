@@ -1,49 +1,50 @@
 <Solution>
   <Project Path="primitives/Abstractions.Primitives.csproj" />
-  <Project Path="abstractions.primitives.shared/Abstractions.Primitives.Shared.csproj" />
-  <Project Path="abstractions.primitives.clock/Abstractions.Primitives.Clock.csproj" />
-  <Project Path="abstractions.primitives.collections/Abstractions.Primitives.Collections.csproj" />
-  <Project Path="abstractions.primitives.config/Abstractions.Primitives.Config.csproj" />
-  <Project Path="abstractions.primitives.security/Abstractions.Primitives.Security.csproj" />
-  <Project Path="abstractions.primitives.execution/Abstractions.Primitives.Execution.csproj" />
-  <Project Path="abstractions.primitives.exceptions/Abstractions.Primitives.Exceptions.csproj" />
-  <Project Path="abstractions.primitives.http/Abstractions.Primitives.Http.csproj" />
-  <Project Path="abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
-  <Project Path="abstractions.primitives.localization/Abstractions.Primitives.Localization.csproj" />
-  <Project Path="abstractions.primitives.shell/Abstractions.Primitives.Shell.csproj" />
-  <Project Path="abstractions.primitives.configuration/Abstractions.Primitives.Configuration.csproj" />
-  <Project Path="abstractions.primitives.utils/Abstractions.Primitives.Utils.csproj" />
-  <Project Path="abstractions.primitives.models/Abstractions.Primitives.Models.csproj" />
-  <Project Path="abstractions.primitives.interfaces/Abstractions.Primitives.Interfaces.csproj" />
-  <Project Path="abstractions.primitives.pipeline/Abstractions.Primitives.Pipeline.csproj" />
-  <Project Path="abstractions.primitives.attributes/Abstractions.Primitives.Attributes.csproj" />
-  <Project Path="abstractions.primitives.commands/Abstractions.Primitives.Commands.csproj" />
+  <Project Path="abstractions_primitives_shared/Abstractions.Primitives.Shared.csproj" />
+  <Project Path="abstractions_primitives_clock/Abstractions.Primitives.Clock.csproj" />
+  <Project Path="abstractions_primitives_collections/Abstractions.Primitives.Collections.csproj" />
+  <Project Path="abstractions_primitives_config/Abstractions.Primitives.Config.csproj" />
+  <Project Path="abstractions_primitives_security/Abstractions.Primitives.Security.csproj" />
+  <Project Path="abstractions_primitives_execution/Abstractions.Primitives.Execution.csproj" />
+  <Project Path="abstractions_primitives_exceptions/Abstractions.Primitives.Exceptions.csproj" />
+  <Project Path="abstractions_primitives_http/Abstractions.Primitives.Http.csproj" />
+  <Project Path="abstractions_primitives_tools/Abstractions.Primitives.Tools.csproj" />
+  <Project Path="abstractions_primitives_localization/Abstractions.Primitives.Localization.csproj" />
+  <Project Path="abstractions_primitives_shell/Abstractions.Primitives.Shell.csproj" />
+  <Project Path="abstractions_primitives_configuration/Abstractions.Primitives.Configuration.csproj" />
+  <Project Path="abstractions_primitives_utils/Abstractions.Primitives.Utils.csproj" />
+  <Project Path="abstractions_primitives_models/Abstractions.Primitives.Models.csproj" />
+  <Project Path="abstractions_primitives_interfaces/Abstractions.Primitives.Interfaces.csproj" />
+  <Project Path="abstractions_primitives_pipeline/Abstractions.Primitives.Pipeline.csproj" />
+  <Project Path="abstractions_primitives_attributes/Abstractions.Primitives.Attributes.csproj" />
+  <Project Path="abstractions_primitives_commands/Abstractions.Primitives.Commands.csproj" />
   <Project Path="exceptions/Abstractions.Exceptions.csproj" />
   <Folder Name="/abstractions.utils/">
-    <Project Path="abstractions.utils/Abstractions.Utils.csproj" />
+    <Project Path="abstractions_utils/Abstractions.Utils.csproj" />
   </Folder>
   <Folder Name="/abstractions.configuration/">
-    <Project Path="abstractions.configuration/Abstractions.Configuration.csproj" />
+    <Project Path="abstractions_configuration/Abstractions.Configuration.csproj" />
   </Folder>
   <Folder Name="/abstractions.models/">
-    <Project Path="abstractions.models/Abstractions.Models.csproj" />
+    <Project Path="abstractions_models/Abstractions.Models.csproj" />
   </Folder>
   <Folder Name="/abstractions.entity/">
-    <Project Path="abstractions.entity/Abstractions.Entity.csproj" />
+    <Project Path="abstractions_entity/Abstractions.Entity.csproj" />
   </Folder>
   <Folder Name="/abstractions.interfaces/">
-    <Project Path="abstractions.interfaces/Abstractions.Interfaces.csproj" />
+    <Project Path="abstractions_interfaces/Abstractions.Interfaces.csproj" />
   </Folder>
   <Folder Name="/primitives/" />
   <Project Path="../collections/structura/Structura.csproj" />
-  <Project Path="../generators/aot_safety.generator/AotSafety.Generator.csproj" />
+  <Project Path="../generators/aot_safety_generator/AotSafety.Generator.csproj" />
   <Project Path="../generators/code_fixes/CodeFixes.csproj" />
-  <Project Path="../generators/enum_metadata.generator/EnumMetadata.Generator.csproj" />
+  <Project Path="../generators/enum_metadata_generator/EnumMetadata.Generator.csproj" />
   <Project Path="abstractions/Abstractions.csproj" />
   <Project Path="hands/Abstractions.Hands.csproj" />
   <Project Path="agents/Abstractions.Agents.csproj" />
   <Project Path="ai/Abstractions.AI.csproj" />
   <Project Path="infrastructure/Infrastructure.csproj" />
+  <Project Path="infrastructure_cache/Infrastructure.Cache.csproj" />
   <Project Path="infrastructure_hot_spot/Infrastructure.HotSpot.csproj" />
   <Project Path="infrastructure_localization/Infrastructure.Localization.csproj" />
   <Project Path="infrastructure_telemetry/Infrastructure.Telemetry.csproj" />
@@ -56,7 +57,7 @@
   <Project Path="composition/Abstractions.Composition.csproj" />
   <Project Path="perception/Abstractions.Perception.csproj" />
   <Project Path="brain/Abstractions.Brain.csproj" />
-  <Project Path="abstractions.primitives.tools.tests/Abstractions.Primitives.Tools.Tests.csproj" />
+  <Project Path="abstractions_primitives_tools_tests/Abstractions.Primitives.Tools.Tests.csproj" />
   <Project Path="bcl_bridge/BclBridge.csproj" />
   <Project Path="bcl_bridge_tests/JoinCode.BclBridge.Tests.csproj" />
   <Project Path="async_lock/AsyncLock.csproj" />

@@ -127,70 +127,70 @@ jobs:
           DOTNET_EnableDiagnostics: 0
         run: |
           $projectMap = @{
-            'Guard-Config'         = @{ Dir = 'modules\guard\guard.config.tests';   Src = 'Guard.csproj';           Mutate = @('configuration/**','dependency_injection/**','policy/**','o_auth/**') }
+            'Guard-Config'         = @{ Dir = 'modules\guard\guard_config_tests';   Src = 'Guard.csproj';           Mutate = @('configuration/**','dependency_injection/**','policy/**','o_auth/**') }
             # 30 分钟设计: bash 类测试重(>1s/变异), Guard-Security-Services 拆 A/B/C/D 控制单 job 时长
             # #105 实测: B 拆分后 ~1100 变异 19min 过线; C(readonly_detector 全量 2676 行) 1586 变异纯慢超时 → 再按 Git/NonGit 语义二拆
             # C=Git 侧(GitFlagBuilders+入口+目录+元字符+展开+类型, 1463 行≈869 变异), D=NonGit 侧(NonGitFlagBuilders+校验器, 1213 行≈720 变异)
-            'Guard-Security-ServicesA'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/bash_ast_walker/**','security/services/bash_validation/**') }
-            'Guard-Security-ServicesB'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/classifiers/**','security/services/network_and_misc/**','security/services/path_validation/**') }
-            'Guard-Security-ServicesC'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/GitFlagBuilders.cs','security/services/readonly_detector/ReadOnlyCommandDetector.cs','security/services/readonly_detector/CommandCatalog.cs','security/services/readonly_detector/ShellMetacharacterDetector.cs','security/services/readonly_detector/ExpansionDetector.cs','security/services/readonly_detector/ReadOnlyCommandTypes.cs') }
-            'Guard-Security-ServicesD'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/NonGitFlagBuilders.cs','security/services/readonly_detector/FlagValidator.cs','security/services/readonly_detector/RegexValidator.cs','security/services/readonly_detector/IReadOnlyServices.cs') }
-            'Guard-Security-PowerShell' = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/power_shell/**') }
-            'Guard-Security-Other'      = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/danger_classification/**','security/sandbox/**','security/shell/**','security/scanners/**','security/interceptors/**','security/constants/**') }
-            'Guard-Hooks'          = @{ Dir = 'modules\guard\guard.hooks.tests';    Src = 'Guard.csproj';           Mutate = @('hooks/**','permission/**') }
-            'Vault-Memdir'         = @{ Dir = 'modules\storage\vault.memdir.tests'; Src = 'Vault.csproj';           Mutate = @('memdir/**') }
-            'Vault-Other'          = @{ Dir = 'modules\storage\vault.other.tests';  Src = 'Vault.csproj';           Mutate = @('state/**','todo/**','user_interaction/**','step_evidence/**','notification/**','dependency_injection/**') }
-            'Brain-CtxAdmin'       = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';       Mutate = @('context/services/admin/**') }
-            'Brain-CtxChat'        = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';       Mutate = @('context/services/chat/**','context/services/chat_init/**') }
-            'Brain-CtxOther'       = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';       Mutate = @('context/services/preprocess/**','context/services/context/**','context/services/processor/**','context/services/prompt/**','context/services/idle/**','context/services/loop/**') }
-            'Brain-CtxNonServicesA' = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';      Mutate = @('context/compact/**','context/compression/**') }
-            'Brain-CtxNonServicesB' = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';      Mutate = @('context/collapse/**','context/core/**','context/resolution/**') }
-            'Brain-PromptsSections'= @{ Dir = 'modules\cognition\brain.prompts.tests'; Src = 'Prompts.csproj';     Mutate = @('sections/**') }
-            'Brain-PromptsOther'   = @{ Dir = 'modules\cognition\brain.prompts.tests'; Src = 'Prompts.csproj';    Mutate = @('services/**','testing/**','templates/**','utils/**','core/**') }
-            'Brain-OtherA'         = @{ Dir = 'modules\cognition\brain.other.tests';  Src = 'Brain.csproj';       Mutate = @('context/**') }
-            'Brain-OtherB'         = @{ Dir = 'modules\cognition\brain.other.tests';  Src = 'Brain.csproj';       Mutate = @('query/**','planning/**','cost_tracking/**','context_fold/**','summary/**','cache/**','dependency_injection/**') }
-            'Hands-SysTools'       = @{ Dir = 'modules\cognition\hands.tool_handlers.tests'; Src = 'Hands.csproj'; Mutate = @('tool_handlers/system_tools/**') }
-            'Hands-CoreHandlers'   = @{ Dir = 'modules\cognition\hands.tool_handlers.tests'; Src = 'Hands.csproj'; Mutate = @('tool_handlers/core/**') }
-            'Hands-DevTools'       = @{ Dir = 'modules\cognition\hands.tool_handlers.tests'; Src = 'Hands.csproj'; Mutate = @('tool_handlers/dev_tools/**') }
-            'Hands-SkillServices'  = @{ Dir = 'modules\cognition\hands.skills.tests'; Src = 'Hands.csproj';       Mutate = @('skills/services/**','skills/mcp/**','skills/plugin/**') }
-            'Hands-SkillBuiltIn'   = @{ Dir = 'modules\cognition\hands.skills.tests'; Src = 'Hands.csproj';       Mutate = @('skills/built_in/**','skills/skills2/**') }
-            'Hands-SkillOther'     = @{ Dir = 'modules\cognition\hands.skills.tests'; Src = 'Hands.csproj';       Mutate = @('skills/discovery/**','skills/search/**','skills/utils/**') }
-            'Hands-Api'            = @{ Dir = 'modules\cognition\hands.api.tests';    Src = 'Hands.csproj';         Mutate = @('api/**','web/**','network/**','integration/**') }
-            'Hands-Shell'          = @{ Dir = 'modules\cognition\hands.shell.tests';  Src = 'Hands.csproj';         Mutate = @('shell/**','system/**','voice/**','notebook/**','serialization/**','build/**','cache/**','dependency_injection/**') }
-            'Scheduling'           = @{ Dir = 'modules\storage\scheduling.tests';     Src = 'Scheduling.csproj';      Mutate = @() }
-            'McpToolDispatch'      = @{ Dir = 'modules\mcp\mcp_tool_dispatch.tests'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
-            'Llm'                  = @{ Dir = 'modules\llm\llm.tests';                Src = 'Llm.csproj';             Mutate = @() }
-            'Agents'               = @{ Dir = 'modules\llm\agents.tests';             Src = 'Agents.csproj';          Mutate = @() }
-            'Reasoning'            = @{ Dir = 'modules\llm\reasoning.tests';          Src = 'Reasoning.csproj';       Mutate = @() }
+            'Guard-Security-ServicesA'   = @{ Dir = 'modules\guard\guard_security_tests'; Src = 'Guard.csproj'; Mutate = @('security/services/bash_ast_walker/**','security/services/bash_validation/**') }
+            'Guard-Security-ServicesB'   = @{ Dir = 'modules\guard\guard_security_tests'; Src = 'Guard.csproj'; Mutate = @('security/services/classifiers/**','security/services/network_and_misc/**','security/services/path_validation/**') }
+            'Guard-Security-ServicesC'   = @{ Dir = 'modules\guard\guard_security_tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/GitFlagBuilders.cs','security/services/readonly_detector/ReadOnlyCommandDetector.cs','security/services/readonly_detector/CommandCatalog.cs','security/services/readonly_detector/ShellMetacharacterDetector.cs','security/services/readonly_detector/ExpansionDetector.cs','security/services/readonly_detector/ReadOnlyCommandTypes.cs') }
+            'Guard-Security-ServicesD'   = @{ Dir = 'modules\guard\guard_security_tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/NonGitFlagBuilders.cs','security/services/readonly_detector/FlagValidator.cs','security/services/readonly_detector/RegexValidator.cs','security/services/readonly_detector/IReadOnlyServices.cs') }
+            'Guard-Security-PowerShell' = @{ Dir = 'modules\guard\guard_security_tests'; Src = 'Guard.csproj'; Mutate = @('security/power_shell/**') }
+            'Guard-Security-Other'      = @{ Dir = 'modules\guard\guard_security_tests'; Src = 'Guard.csproj'; Mutate = @('security/danger_classification/**','security/sandbox/**','security/shell/**','security/scanners/**','security/interceptors/**','security/constants/**') }
+            'Guard-Hooks'          = @{ Dir = 'modules\guard\guard_hooks_tests';    Src = 'Guard.csproj';           Mutate = @('hooks/**','permission/**') }
+            'Vault-Memdir'         = @{ Dir = 'modules\storage\vault_memdir_tests'; Src = 'Vault.csproj';           Mutate = @('memdir/**') }
+            'Vault-Other'          = @{ Dir = 'modules\storage\vault_other_tests';  Src = 'Vault.csproj';           Mutate = @('state/**','todo/**','user_interaction/**','step_evidence/**','notification/**','dependency_injection/**') }
+            'Brain-CtxAdmin'       = @{ Dir = 'modules\cognition\brain_context_tests'; Src = 'Brain.csproj';       Mutate = @('context/services/admin/**') }
+            'Brain-CtxChat'        = @{ Dir = 'modules\cognition\brain_context_tests'; Src = 'Brain.csproj';       Mutate = @('context/services/chat/**','context/services/chat_init/**') }
+            'Brain-CtxOther'       = @{ Dir = 'modules\cognition\brain_context_tests'; Src = 'Brain.csproj';       Mutate = @('context/services/preprocess/**','context/services/context/**','context/services/processor/**','context/services/prompt/**','context/services/idle/**','context/services/loop/**') }
+            'Brain-CtxNonServicesA' = @{ Dir = 'modules\cognition\brain_context_tests'; Src = 'Brain.csproj';      Mutate = @('context/compact/**','context/compression/**') }
+            'Brain-CtxNonServicesB' = @{ Dir = 'modules\cognition\brain_context_tests'; Src = 'Brain.csproj';      Mutate = @('context/collapse/**','context/core/**','context/resolution/**') }
+            'Brain-PromptsSections'= @{ Dir = 'modules\cognition\brain_prompts_tests'; Src = 'Prompts.csproj';     Mutate = @('sections/**') }
+            'Brain-PromptsOther'   = @{ Dir = 'modules\cognition\brain_prompts_tests'; Src = 'Prompts.csproj';    Mutate = @('services/**','testing/**','templates/**','utils/**','core/**') }
+            'Brain-OtherA'         = @{ Dir = 'modules\cognition\brain_other_tests';  Src = 'Brain.csproj';       Mutate = @('context/**') }
+            'Brain-OtherB'         = @{ Dir = 'modules\cognition\brain_other_tests';  Src = 'Brain.csproj';       Mutate = @('query/**','planning/**','cost_tracking/**','context_fold/**','summary/**','cache/**','dependency_injection/**') }
+            'Hands-SysTools'       = @{ Dir = 'modules\cognition\hands_tool_handlers_tests'; Src = 'Hands.csproj'; Mutate = @('tool_handlers/system_tools/**') }
+            'Hands-CoreHandlers'   = @{ Dir = 'modules\cognition\hands_tool_handlers_tests'; Src = 'Hands.csproj'; Mutate = @('tool_handlers/core/**') }
+            'Hands-DevTools'       = @{ Dir = 'modules\cognition\hands_tool_handlers_tests'; Src = 'Hands.csproj'; Mutate = @('tool_handlers/dev_tools/**') }
+            'Hands-SkillServices'  = @{ Dir = 'modules\cognition\hands_skills_tests'; Src = 'Hands.csproj';       Mutate = @('skills/services/**','skills/mcp/**','skills/plugin/**') }
+            'Hands-SkillBuiltIn'   = @{ Dir = 'modules\cognition\hands_skills_tests'; Src = 'Hands.csproj';       Mutate = @('skills/built_in/**','skills/skills2/**') }
+            'Hands-SkillOther'     = @{ Dir = 'modules\cognition\hands_skills_tests'; Src = 'Hands.csproj';       Mutate = @('skills/discovery/**','skills/search/**','skills/utils/**') }
+            'Hands-Api'            = @{ Dir = 'modules\cognition\hands_api_tests';    Src = 'Hands.csproj';         Mutate = @('api/**','web/**','network/**','integration/**') }
+            'Hands-Shell'          = @{ Dir = 'modules\cognition\hands_shell_tests';  Src = 'Hands.csproj';         Mutate = @('shell/**','system/**','voice/**','notebook/**','serialization/**','build/**','cache/**','dependency_injection/**') }
+            'Scheduling'           = @{ Dir = 'modules\storage\scheduling_tests';     Src = 'Scheduling.csproj';      Mutate = @() }
+            'McpToolDispatch'      = @{ Dir = 'modules\mcp\mcp_tool_dispatch_tests'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
+            'Llm'                  = @{ Dir = 'modules\llm\llm_tests';                Src = 'Llm.csproj';             Mutate = @() }
+            'Agents'               = @{ Dir = 'modules\llm\agents_tests';             Src = 'Agents.csproj';          Mutate = @() }
+            'Reasoning'            = @{ Dir = 'modules\llm\reasoning_tests';          Src = 'Reasoning.csproj';       Mutate = @() }
             # #108 排查拆分: Parsing 纯慢(21min 窗口仅完成 96/1343, CSharpDependencyExtractor 的 String mutant 每个触发全量 800 测试 ~110s)
             # Rest 挂死(VsTest cancel 失败 14 次 retry, 挂死现场批次含 embedding/analytics mutant, 重试后同批次 success = 时序敏感)
             # 一拆四策略: 大户隔离(Dep 单文件/Embedding 挂死嫌疑) + 语义分组, 超时的子 job 即为下一轮精准处理目标
             # #109 拆分验证(8 过 2 超时): Dep 纯慢实锤(String mutant 4.6/min) → IgnoreMutations 排除 string(语言/类型名常量无业务语义)
             # Vector 挂死源实锤(12 次 VsTest crash 重试, 差 ~2min 跑完) → job timeout 45min 吸收重试波动
-            'CodeIndex-Parsing-Bash'  = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/BashAstParser.cs','parsing/TreeSitterParser.cs','parsing/TreeSitterParserPool.cs') }
-            'CodeIndex-Parsing-Sharp' = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpCallExtractor.cs','parsing/CSharpSymbolExtractor.cs') }
-            'CodeIndex-Parsing-Dep'   = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpDependencyExtractor.cs'); IgnoreMutations = @('string') }
-            'CodeIndex-Parsing-Docs'  = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CsprojParser.cs','parsing/LineBasedChunkExtractor.cs','parsing/MarkdownChunkExtractor.cs','parsing/SolutionParser.cs','query/**','plugins/**') }
-            'CodeIndex-Indexing'   = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('indexing/**','incremental/**','graph/**') }
-            'CodeIndex-Analytics'  = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('analytics/**') }
-            'CodeIndex-Embedding'  = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('embedding/**') }
-            'CodeIndex-Vector'     = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('vector/**') }
-            'CodeIndex-Core'       = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('core/**') }
-            'Browser'              = @{ Dir = 'modules\services\browser.tests';       Src = 'Browser.csproj';         Mutate = @() }
+            'CodeIndex-Parsing-Bash'  = @{ Dir = 'modules\perception\code_index_tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/BashAstParser.cs','parsing/TreeSitterParser.cs','parsing/TreeSitterParserPool.cs') }
+            'CodeIndex-Parsing-Sharp' = @{ Dir = 'modules\perception\code_index_tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpCallExtractor.cs','parsing/CSharpSymbolExtractor.cs') }
+            'CodeIndex-Parsing-Dep'   = @{ Dir = 'modules\perception\code_index_tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpDependencyExtractor.cs'); IgnoreMutations = @('string') }
+            'CodeIndex-Parsing-Docs'  = @{ Dir = 'modules\perception\code_index_tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CsprojParser.cs','parsing/LineBasedChunkExtractor.cs','parsing/MarkdownChunkExtractor.cs','parsing/SolutionParser.cs','query/**','plugins/**') }
+            'CodeIndex-Indexing'   = @{ Dir = 'modules\perception\code_index_tests';  Src = 'CodeIndex.csproj';       Mutate = @('indexing/**','incremental/**','graph/**') }
+            'CodeIndex-Analytics'  = @{ Dir = 'modules\perception\code_index_tests';  Src = 'CodeIndex.csproj';       Mutate = @('analytics/**') }
+            'CodeIndex-Embedding'  = @{ Dir = 'modules\perception\code_index_tests';  Src = 'CodeIndex.csproj';       Mutate = @('embedding/**') }
+            'CodeIndex-Vector'     = @{ Dir = 'modules\perception\code_index_tests';  Src = 'CodeIndex.csproj';       Mutate = @('vector/**') }
+            'CodeIndex-Core'       = @{ Dir = 'modules\perception\code_index_tests';  Src = 'CodeIndex.csproj';       Mutate = @('core/**') }
+            'Browser'              = @{ Dir = 'modules\services\browser_tests';       Src = 'Browser.csproj';         Mutate = @() }
             # 30 分钟设计: Mcp 变异量最大(7000+), 拆协议层/其余 控制单 job 时长
-            'Mcp-Protocol'         = @{ Dir = 'modules\mcp\mcp.tests';                Src = 'Mcp.csproj';             Mutate = @('mcp_protocol/**','transports/**','communication/**','protocol.contracts/**','remote/**') }
-            'Mcp-Rest'             = @{ Dir = 'modules\mcp\mcp.tests';                Src = 'Mcp.csproj';             Mutate = @('!mcp_protocol/**','!transports/**','!communication/**','!protocol.contracts/**','!remote/**') }
-            'Eyes'                 = @{ Dir = 'modules\perception\eyes.tests';        Src = 'Eyes.csproj';            Mutate = @() }
-            'Dream'                = @{ Dir = 'modules\services\dream.tests';         Src = 'Dream.csproj';            Mutate = @() }
-            'Bridge-SessionA'     = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('session/main/**'); Concurrency = 2 }
-            'Bridge-SessionB'     = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('session/**','!session/main/**'); Concurrency = 2 }
-            'Bridge-Transport'    = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('transport/**'); Concurrency = 2 }
-            'Bridge-CoreRuntime'  = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('core/runtime/**'); Concurrency = 2 }
-            'Bridge-CoreOther'    = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('core/**','!core/runtime/**'); Concurrency = 2 }
-            'Bridge-Messaging'    = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('messaging/**'); Concurrency = 2 }
-            'Bridge-ClientServer' = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('client/**','server/**','config/**','security/**'); Concurrency = 2 }
-            'Composition'          = @{ Dir = 'modules\composition\composition.tests'; Src = 'Composition.csproj';  Mutate = @() }
-            'Clock'                = @{ Dir = 'modules\storage\clock.tests';          Src = 'Clock.csproj';           Mutate = @() }
+            'Mcp-Protocol'         = @{ Dir = 'modules\mcp\mcp_tests';                Src = 'Mcp.csproj';             Mutate = @('mcp_protocol/**','transports/**','communication/**','protocol.contracts/**','remote/**') }
+            'Mcp-Rest'             = @{ Dir = 'modules\mcp\mcp_tests';                Src = 'Mcp.csproj';             Mutate = @('!mcp_protocol/**','!transports/**','!communication/**','!protocol.contracts/**','!remote/**') }
+            'Eyes'                 = @{ Dir = 'modules\perception\eyes_tests';        Src = 'Eyes.csproj';            Mutate = @() }
+            'Dream'                = @{ Dir = 'modules\services\dream_tests';         Src = 'Dream.csproj';            Mutate = @() }
+            'Bridge-SessionA'     = @{ Dir = 'modules\services\bridge_tests'; Src = 'Bridge.csproj'; Mutate = @('session/main/**'); Concurrency = 2 }
+            'Bridge-SessionB'     = @{ Dir = 'modules\services\bridge_tests'; Src = 'Bridge.csproj'; Mutate = @('session/**','!session/main/**'); Concurrency = 2 }
+            'Bridge-Transport'    = @{ Dir = 'modules\services\bridge_tests'; Src = 'Bridge.csproj'; Mutate = @('transport/**'); Concurrency = 2 }
+            'Bridge-CoreRuntime'  = @{ Dir = 'modules\services\bridge_tests'; Src = 'Bridge.csproj'; Mutate = @('core/runtime/**'); Concurrency = 2 }
+            'Bridge-CoreOther'    = @{ Dir = 'modules\services\bridge_tests'; Src = 'Bridge.csproj'; Mutate = @('core/**','!core/runtime/**'); Concurrency = 2 }
+            'Bridge-Messaging'    = @{ Dir = 'modules\services\bridge_tests'; Src = 'Bridge.csproj'; Mutate = @('messaging/**'); Concurrency = 2 }
+            'Bridge-ClientServer' = @{ Dir = 'modules\services\bridge_tests'; Src = 'Bridge.csproj'; Mutate = @('client/**','server/**','config/**','security/**'); Concurrency = 2 }
+            'Composition'          = @{ Dir = 'modules\composition\composition_tests'; Src = 'Composition.csproj';  Mutate = @() }
+            'Clock'                = @{ Dir = 'modules\storage\clock_tests';          Src = 'Clock.csproj';           Mutate = @() }
             'Infra-IO-FileOps'       = @{ Dir = 'test\unit\infra.tests\io';           Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('io/services/file_ops/**') }
             'Infra-IO-FsAndConfig'   = @{ Dir = 'test\unit\infra.tests\io';           Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('io/file_system/**','io/configuration/**','io/services/throttle/**') }
             'Infra-IO-ProcessAndOther' = @{ Dir = 'test\unit\infra.tests\io';         Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('io/process/**','io/console/**','io/services/terminal/**','io/services/diff/**','http/**','process/**','ssh/**','windows/**','shell/**') }

@@ -1,0 +1,11 @@
+global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Configuration.AppData;
+global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Interfaces.Cache;
+global using Microsoft.Extensions.Logging;
+global using System.Diagnostics;
+global using System.Diagnostics.CodeAnalysis;
+global using System.Security.Cryptography;
+global using System.Text;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;

@@ -164,7 +164,7 @@ foreach (var category in PromptSectionCategoryEnumConstants.All) {
 | `PromptSectionCategoryNode` | 新增 `modules/composition/composition/node_registry/consumers/PromptSectionCategoryNode.cs` | 提示词分类节点 |
 | `DataDrivenPipelineComposition` | `modules/composition/pipelines/registration/DataDrivenPipelineComposition.cs` | 追加 command-dispatch / prompt-assembly 节点工厂注册 |
 | `SlashCommandRunner` | `modules/apps/engine/commands/slash/SlashCommandRunner.cs` | 双路查询：NodeRegistry → 回退 ChatCommandRegistry |
-| `SystemPromptMiddleware` | `modules/cognition/brain.context_services/preprocess/SystemPromptMiddleware.cs` | 双路查询：NodeRegistry → 回退 DefaultSystemPromptProvider |
+| `SystemPromptMiddleware` | `modules/cognition/brain_context_services/preprocess/SystemPromptMiddleware.cs` | 双路查询：NodeRegistry → 回退 DefaultSystemPromptProvider |
 | `ChatCommandRegistry` | `modules/composition/slash/infrastructure/command_system/ChatCommandRegistry.cs` | 追加 `GetByCategory` 方法 |
 | `ISystemPromptProvider` | `modules/cognition/prompts/contracts/ISystemPromptProvider.cs` | 追加 `GetSectionsByCategory` 方法 |
 | `DefaultSystemPromptProvider` | `modules/cognition/prompts/core/DefaultSystemPromptProvider.cs` | 实现 `GetSectionsByCategory` |

@@ -2,7 +2,7 @@ namespace Infra.IO.Tests.Persistence;
 
 /// <summary>
 /// KV 存储租约工厂测试 — 验证 AcquireAsync/Dispose/降级路径（ADR 0139）。
-/// <para>两锁联合：SemaphoreSlim(1,1) 进程内防重入 + CrossProcessLock 跨进程。</para>
+/// <para>两锁联合：NamedMutexMailboxLock 进程内占位 + CrossProcessLock 跨进程。</para>
 /// </summary>
 public sealed class KvStoreLeaseFactoryTests {
     private static byte[] K(string s) => Encoding.UTF8.GetBytes(s);

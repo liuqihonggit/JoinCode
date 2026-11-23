@@ -20,7 +20,7 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins_infrastructure/Plugins.Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/guard/guard/Guard.csproj" />
   </ItemGroup>
 
@@ -45,7 +45,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/generators/prompt_template.generator/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/prompt_template_generator/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- 显式声明下载器依赖（禁止依赖 Infrastructure 的传递引用） -->

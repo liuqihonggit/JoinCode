@@ -7,9 +7,9 @@
 <!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| [Plugins.Contracts](plugins.contracts/Plugins.Contracts.csproj) |  |
-| [Plugins.Infrastructure](plugins.infrastructure/Plugins.Infrastructure.csproj) |  |
-| [Plugins.Tests](plugins.tests/Plugins.Tests.csproj) | 测试 |
+| [Plugins.Contracts](plugins_contracts/Plugins.Contracts.csproj) |  |
+| [Plugins.Infrastructure](plugins_infrastructure/Plugins.Infrastructure.csproj) |  |
+| [Plugins.Tests](plugins_tests/Plugins.Tests.csproj) | 测试 |
 <!-- END MODULE PROJECTS -->
 
 ## 用法

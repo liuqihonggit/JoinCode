@@ -7,6 +7,7 @@
 <!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
+| [KvStore](kv_store/KvStore.csproj) | PithosDB KV 存储适配层 — IKvStore 实现、租约与 DI 注册 |
 | [PithosDB.Core](pithosdb/PithosDB.Core.csproj) |  |
 <!-- END MODULE PROJECTS -->
 

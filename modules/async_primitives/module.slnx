@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="transport.impl/Transport.Impl.csproj" />
-  <Project Path="transport.impl.tests/Transport.Impl.Tests.csproj" />
-  <Project Path="transport.impl.tests/Transport.Impl.Tests.csproj" />
+  <Project Path="transport_impl/Transport.Impl.csproj" />
+  <Project Path="transport_impl_tests/Transport.Impl.Tests.csproj" />
+  <Project Path="transport_impl_tests/Transport.Impl.Tests.csproj" />
 </Solution>

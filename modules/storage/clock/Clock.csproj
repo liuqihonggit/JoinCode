@@ -42,7 +42,7 @@
 
   
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/generators/prompt_template.generator/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/prompt_template_generator/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <PropertyGroup>
     <JccApiVisibility>public</JccApiVisibility>

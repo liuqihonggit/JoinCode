@@ -895,7 +895,7 @@
       "parameterList": "(string processId, NamedPipeServerStream stream, ILogger? logger)"
     },
     {
-      "file": "modules/async_primitives/transport.impl/bridge/v1/V1ReplBridgeTransport.cs",
+      "file": "modules/async_primitives/transport_impl/bridge/v1/V1ReplBridgeTransport.cs",
       "line": 63,
       "className": "V1ReplBridgeTransport",
       "accessibility": "private",
@@ -911,7 +911,7 @@
       "parameterList": "(V1TransportOptions options, ILogger? logger, IClockService clock, HttpClient httpClient, WebSocketTransport wsTransport, CancellationTokenSource disposeCts)"
     },
     {
-      "file": "modules/async_primitives/transport.impl/pipe/PipeHttpClient.cs",
+      "file": "modules/async_primitives/transport_impl/pipe/PipeHttpClient.cs",
       "line": 16,
       "className": "PipeHttpClient",
       "accessibility": "public",
@@ -926,7 +926,7 @@
       "parameterList": "(string pipeName, ILogger? logger = null)"
     },
     {
-      "file": "modules/async_primitives/transport.impl/stdio/StdioAgentTransport.cs",
+      "file": "modules/async_primitives/transport_impl/stdio/StdioAgentTransport.cs",
       "line": 37,
       "className": "StdioAgentTransport",
       "accessibility": "public",
@@ -1018,7 +1018,7 @@
       "parameterList": "(\r\n        AwaySummaryOptions? options = null,\r\n        ILogger<AwaySummaryService>? logger = null,\r\n        IClockService? clock = null)"
     },
     {
-      "file": "modules/cognition/hands.api.tests/integration/GitHubServiceTests.cs",
+      "file": "modules/cognition/hands_api_tests/integration/GitHubServiceTests.cs",
       "line": 9,
       "className": "GitHubServiceTests",
       "accessibility": "public",
@@ -1033,7 +1033,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/cognition/hands.api.tests/integration/UpgradeServiceTests.cs",
+      "file": "modules/cognition/hands_api_tests/integration/UpgradeServiceTests.cs",
       "line": 8,
       "className": "UpgradeServiceTests",
       "accessibility": "public",
@@ -1048,7 +1048,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/cognition/hands.api.tests/network/RemoteTriggerServiceTests.cs",
+      "file": "modules/cognition/hands_api_tests/network/RemoteTriggerServiceTests.cs",
       "line": 10,
       "className": "RemoteTriggerServiceTests",
       "accessibility": "public",
@@ -1063,7 +1063,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/cognition/hands.tool_handlers.tests/vcr/VcrServiceTests.cs",
+      "file": "modules/cognition/hands_tool_handlers_tests/vcr/VcrServiceTests.cs",
       "line": 13,
       "className": "VcrServiceTests",
       "accessibility": "public",
@@ -1163,7 +1163,7 @@
       "parameterList": "(\r\n        IFileOperationService fileOperationService,\r\n        IFileSystem fs,\r\n        FileToolHandlersContext? context = null,\r\n        ILogger<FileToolHandlers>? logger = null)"
     },
     {
-      "file": "modules/guard/guard.config.tests/configuration/core/ConfigLoaderTests.cs",
+      "file": "modules/guard/guard_config_tests/configuration/core/ConfigLoaderTests.cs",
       "line": 25,
       "className": "ConfigLoaderTests",
       "accessibility": "public",
@@ -1178,7 +1178,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/guard/guard.config.tests/plugins/plugin_a_to_m/PluginHotReloaderTests.cs",
+      "file": "modules/guard/guard_config_tests/plugins/plugin_a_to_m/PluginHotReloaderTests.cs",
       "line": 11,
       "className": "PluginHotReloaderTests",
       "accessibility": "public",
@@ -1193,7 +1193,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/guard/guard.hooks.tests/permission/hooks/tool_permission/CoordinatorHandlerTests.cs",
+      "file": "modules/guard/guard_hooks_tests/permission/hooks/tool_permission/CoordinatorHandlerTests.cs",
       "line": 15,
       "className": "CoordinatorHandlerTests",
       "accessibility": "public",
@@ -1239,7 +1239,7 @@
       "parameterList": "(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null)"
     },
     {
-      "file": "modules/llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorConcurrencyTests.cs",
+      "file": "modules/llm/agents_tests/Agents/Coordinator/agent_tests/AgentCoordinatorConcurrencyTests.cs",
       "line": 16,
       "className": "AgentCoordinatorConcurrencyTests",
       "accessibility": "public",
@@ -1255,7 +1255,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorExtendedTests.cs",
+      "file": "modules/llm/agents_tests/Agents/Coordinator/agent_tests/AgentCoordinatorExtendedTests.cs",
       "line": 12,
       "className": "AgentCoordinatorExtendedTests",
       "accessibility": "public",
@@ -1271,7 +1271,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/llm/agents.tests/Agents/Coordinator/agent_tests/AgentCoordinatorSecretaryTests.cs",
+      "file": "modules/llm/agents_tests/Agents/Coordinator/agent_tests/AgentCoordinatorSecretaryTests.cs",
       "line": 12,
       "className": "AgentCoordinatorSecretaryTests",
       "accessibility": "public",
@@ -1442,7 +1442,7 @@
       "parameterList": "(\r\n        IFileOperationService fileOperationService,\r\n        IGitCommandRunner gitRunner,\r\n        IFileSystem fs,\r\n        IEnumerable<IWorktreeCreateMiddleware>? createMiddlewares = null,\r\n        ILoggerFactory? loggerFactory = null,\r\n        ILogger<AgentWorktreeService>? logger = null,\r\n        WorktreeOptions? defaultOptions = null,\r\n        ITelemetryService? telemetryService = null,\r\n        IClockService? clock = null)"
     },
     {
-      "file": "modules/llm/core/Adapters/LLM/Fallback/StreamIdleWatchdog.cs",
+      "file": "modules/llm/core/adapters/llm/fallback/StreamIdleWatchdog.cs",
       "line": 47,
       "className": "StreamIdleWatchdog",
       "accessibility": "public",
@@ -1457,7 +1457,7 @@
       "parameterList": "(int idleTimeoutMs, CancellationToken originalToken, bool enabled = true)"
     },
     {
-      "file": "modules/llm/core/Adapters/LLM/Fallback/StreamingFallbackDecorator.cs",
+      "file": "modules/llm/core/adapters/llm/fallback/StreamingFallbackDecorator.cs",
       "line": 36,
       "className": "StreamingFallbackDecorator",
       "accessibility": "public",
@@ -1472,7 +1472,7 @@
       "parameterList": "(\r\n        IQueryService inner,\r\n        StreamingFallbackConfig? config = null,\r\n        ILogger? logger = null)"
     },
     {
-      "file": "modules/mcp/mcp.tests/core/a_to_t/GitHubRunWaitTests.cs",
+      "file": "modules/mcp/mcp_tests/core/a_to_t/GitHubRunWaitTests.cs",
       "line": 7,
       "className": "GitHubRunWaitTests",
       "accessibility": "public",
@@ -1487,7 +1487,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp.tests/core/a_to_t/GitHubToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tests/core/a_to_t/GitHubToolHandlersTests.cs",
       "line": 9,
       "className": "GitHubToolHandlersTests",
       "accessibility": "public",
@@ -1502,7 +1502,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp.tests/transports/WebSocketTransportTest.cs",
+      "file": "modules/mcp/mcp_tests/transports/WebSocketTransportTest.cs",
       "line": 30,
       "className": "WebSocketTestServer",
       "accessibility": "public",
@@ -1660,7 +1660,7 @@
       "parameterList": "(\r\n        McpServerConnectionConfig config,\r\n        IMcpAuthProvider? authProvider = null,\r\n        ILogger<WebSocketTransport>? logger = null)"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/AgentToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/AgentToolHandlersTests.cs",
       "line": 8,
       "className": "AgentToolHandlersTests",
       "accessibility": "public",
@@ -1676,7 +1676,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/BriefToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/BriefToolHandlersTests.cs",
       "line": 8,
       "className": "BriefToolHandlersTests",
       "accessibility": "public",
@@ -1691,7 +1691,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/CodeIndexToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/CodeIndexToolHandlersTests.cs",
       "line": 7,
       "className": "CodeIndexToolHandlersTests",
       "accessibility": "public",
@@ -1706,7 +1706,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/CtxInspectToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/CtxInspectToolHandlersTests.cs",
       "line": 7,
       "className": "CtxInspectToolHandlersTests",
       "accessibility": "public",
@@ -1721,7 +1721,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/MonitorToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/MonitorToolHandlersTests.cs",
       "line": 7,
       "className": "MonitorToolHandlersTests",
       "accessibility": "public",
@@ -1737,7 +1737,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/SendUserFileToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/SendUserFileToolHandlersTests.cs",
       "line": 7,
       "className": "SendUserFileToolHandlersTests",
       "accessibility": "public",
@@ -1752,7 +1752,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/SnipToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/SnipToolHandlersTests.cs",
       "line": 7,
       "className": "SnipToolHandlersTests",
       "accessibility": "public",
@@ -1767,7 +1767,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/TaskOutputToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/TaskOutputToolHandlersTests.cs",
       "line": 9,
       "className": "TaskOutputToolHandlersTests",
       "accessibility": "public",
@@ -1782,7 +1782,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/ToolSearchToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/ToolSearchToolHandlersTests.cs",
       "line": 7,
       "className": "ToolSearchToolHandlersTests",
       "accessibility": "public",
@@ -1797,7 +1797,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/mcp/mcp_tool_dispatch.tests/mcp_tool_handlers/VerifyPlanExecutionToolHandlersTests.cs",
+      "file": "modules/mcp/mcp_tool_dispatch_tests/mcp_tool_handlers/VerifyPlanExecutionToolHandlersTests.cs",
       "line": 7,
       "className": "VerifyPlanExecutionToolHandlersTests",
       "accessibility": "public",
@@ -1952,7 +1952,7 @@
       "parameterList": "(LspInstanceConfig config, IFileSystem fs, IProcessService processService, ILogger logger)"
     },
     {
-      "file": "modules/perception/vision.tests/tool_handlers/QuadtreeDesktopOverlayToolHandlersTests.cs",
+      "file": "modules/perception/vision_tests/tool_handlers/QuadtreeDesktopOverlayToolHandlersTests.cs",
       "line": 11,
       "className": "QuadtreeDesktopOverlayToolHandlersTests",
       "accessibility": "public",
@@ -1967,7 +1967,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/perception/vision.tests/tool_handlers/QuadtreeToolHandlersTests.cs",
+      "file": "modules/perception/vision_tests/tool_handlers/QuadtreeToolHandlersTests.cs",
       "line": 13,
       "className": "QuadtreeToolHandlersTests",
       "accessibility": "public",
@@ -1982,7 +1982,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/persistence/pithosdb/Compaction/LeveledCompactor.cs",
+      "file": "modules/persistence/pithosdb/compaction/LeveledCompactor.cs",
       "line": 44,
       "className": "LeveledCompactor",
       "accessibility": "public",
@@ -2250,7 +2250,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/storage/scheduling.tests/scheduling/core/FileBasedTaskServiceTests.cs",
+      "file": "modules/storage/scheduling_tests/scheduling/core/FileBasedTaskServiceTests.cs",
       "line": 16,
       "className": "FileBasedTaskServiceTests",
       "accessibility": "public",
@@ -2266,7 +2266,7 @@
       "parameterList": "(ITestOutputHelper output)"
     },
     {
-      "file": "modules/storage/scheduling.tests/scheduling/tasks/InProcessTeammateTaskExecutorTests.cs",
+      "file": "modules/storage/scheduling_tests/scheduling/tasks/InProcessTeammateTaskExecutorTests.cs",
       "line": 11,
       "className": "InProcessTeammateTaskExecutorTests",
       "accessibility": "public",
@@ -2281,7 +2281,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/storage/scheduling.tests/scheduling/tasks/RemoteAgentTaskExecutorTests.cs",
+      "file": "modules/storage/scheduling_tests/scheduling/tasks/RemoteAgentTaskExecutorTests.cs",
       "line": 11,
       "className": "RemoteAgentTaskExecutorTests",
       "accessibility": "public",
@@ -2410,7 +2410,7 @@
       "parameterList": "(string monitorId, McpMonitorConfig config)"
     },
     {
-      "file": "modules/storage/vault.other.tests/state/TranscriptFileWriterPasteStoreTests.cs",
+      "file": "modules/storage/vault_other_tests/state/TranscriptFileWriterPasteStoreTests.cs",
       "line": 14,
       "className": "TranscriptFileWriterPasteStoreTests",
       "accessibility": "public",
@@ -2425,7 +2425,7 @@
       "parameterList": "()"
     },
     {
-      "file": "modules/storage/vault.other.tests/state/TranscriptFileWriterPhysicalTests.cs",
+      "file": "modules/storage/vault_other_tests/state/TranscriptFileWriterPhysicalTests.cs",
       "line": 25,
       "className": "TranscriptFileWriterPhysicalTests",
       "accessibility": "public",

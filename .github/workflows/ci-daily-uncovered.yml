@@ -90,7 +90,7 @@ jobs:
       - name: ONNX Embedding Tests
         shell: pwsh
         run: |
-          dotnet test modules/tools/onnx_embedding.tests/OnnxEmbedding.Tests.csproj `
+          dotnet test modules/tools/onnx_embedding_tests/OnnxEmbedding.Tests.csproj `
             -c Debug --nologo `
             -p:UsePackedComponents=true `
             -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none `

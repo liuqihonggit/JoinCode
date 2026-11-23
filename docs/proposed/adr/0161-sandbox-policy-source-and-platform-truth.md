@@ -46,5 +46,5 @@ TASK104 完成 Phase 1 与逐命令包装后，仍有两个结构性缺口：
 
 - 任务文档：`docs/proposed/task/TASK104-sandbox配置契约与门控对齐基准-差异取证.md` §9 R6/R7、§10 交接
 - 基准：`utils/sandbox/sandbox-adapter.ts:152-164`（managed 开关）、`:181-196`（域名）、`:343-347`（读路径）、`:647-664`（策略锁）
-- 落点：`modules/guard/guard.configuration/core/mapping/SandboxPolicyResolver.cs`、`modules/abstractions/abstractions.configuration/workflow/SandboxPlatformSupport.cs`
+- 落点：`modules/guard/guard_configuration/core/mapping/SandboxPolicyResolver.cs`、`modules/abstractions/abstractions_configuration/workflow/SandboxPlatformSupport.cs`
 - 消费：`ConfigLoader`、`SandboxGate`、`SandboxStartupGate`、`SandboxToggleCommand`

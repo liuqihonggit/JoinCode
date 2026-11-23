@@ -35,4 +35,4 @@ C# 侧 NDJSON 输出曾采用扁平事件流（13 种独立事件类型：text/t
 | NDJSON 事件流输出器 | `modules/apps/cli/adapters/CliEventConsumer.cs` |
 | --format ndjson 参数 | `modules/apps/engine/app/builder/CommandLineOptions.cs` |
 | 非交互模式启动器 | `modules/apps/cli/entry/runners/NonInteractiveModeRunner.cs` |
-| NDJSON 行解析器 | `modules/async_primitives/transport.impl/bridge/shared/messaging/NdjsonParser.cs` |
+| NDJSON 行解析器 | `modules/async_primitives/transport_impl/bridge/shared/messaging/NdjsonParser.cs` |

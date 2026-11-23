@@ -150,7 +150,7 @@ C# 侧的偏离在于：`SupportedSettings` 照抄了基准的 `source` 归属�
 
 ### 1. 契约层 `SettingSourceMap` — 键 → 存储源唯一表
 
-新增 `modules/abstractions/abstractions.primitives.configuration/src/settings/SettingSourceMap.cs`：
+新增 `modules/abstractions/abstractions_primitives_configuration/src/settings/SettingSourceMap.cs`：
 
 ```csharp
 public static SettingSource SourceOf(string key)   // 表外键一律 UserSettings
@@ -177,7 +177,7 @@ RemoveAsync(key, ct) => RemoveAsync(key, SettingSourceMap.SourceOf(key), ct);
 
 ### 3. 一次性幂等迁移 — `SettingsSourceMigration`
 
-`modules/guard/guard.configuration/core/loading/core/SettingsSourceMigration.cs`：
+`modules/guard/guard_configuration/core/loading/core/SettingsSourceMigration.cs`：
 
 - 遍历 `SettingSourceMap.All` 中 `GlobalConfig` 的键，把 `settings.json` `current` 下**有值**的那些搬进 `global.json`，再从 `settings.json` 删掉；
 - **先写 global 后删 settings**：中途崩溃只会留下「两边都有」，下一轮走「保留 global、删 settings」分支收敛；

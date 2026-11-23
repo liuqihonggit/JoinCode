@@ -11,7 +11,7 @@
 <!-- BEGIN MODULE PROJECTS -->
 | 项目 | 说明 |
 |------|------|
-| [Structura.Tests](structura.tests/Structura.Tests.csproj) | 测试 |
+| [Structura.Tests](structura_tests/Structura.Tests.csproj) | 测试 |
 | [Structura](structura/Structura.csproj) |  |
 <!-- END MODULE PROJECTS -->
 

@@ -22,7 +22,7 @@ ReAct 循环在"模型无工具调用"时直接判定回合结束（QueryEngine 
 1. **新增 `round_gate` 工具**（AI 自选，不阻塞用户）：收尾前必须调用并选择
    `1 直接继续 / 2 TODO 继续 / 3 规划任务 / 4 验收 / 5 结束`。
    工具结果只是把对应工作流提示词注入上下文（选项 4 强制真实 exe 验收、禁止单元测试挡箭牌、○ 标记用户亲自验收项）。
-2. **规则单源**：新增 `RoundGatePolicy`（`modules/abstractions/abstractions.utils/core/misc/`），
+2. **规则单源**：新增 `RoundGatePolicy`（`modules/abstractions/abstractions_utils/core/misc/`），
    两套循环只调用它做"是否允许收尾"裁决，禁止各自实现。
 3. **只在收尾点强制**：模型想结束回合但本轮未选择 `5 结束` → 注入阻断消息并继续循环；
    连续拦截达到上限（默认 6，可配 `0=不限制`）后放行并上屏警告，避免模型死不调用闸门时无限烧 token。

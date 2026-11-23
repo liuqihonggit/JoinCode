@@ -1,8 +1,0 @@
-global using System.Diagnostics.CodeAnalysis;
-global using Infrastructure.IO.Services.FileOps;
-global using Infrastructure.Persistence;
-global using JoinCode.Abstractions.Http;
-global using JoinCode.Abstractions.Models.Todo;
-global using JoinCode.Abstractions.Tools;
-global using JoinCode.Abstractions.Utils;
-global using McpToolDispatch;

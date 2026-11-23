@@ -36,9 +36,9 @@ ADR 0137 已完成 16 功能域的物理迁移：每个域自带 `module.slnx`�
 
 ### 现有分析器为什么抓不到
 
-1. **项目上下文信息不足**：`ProjectContext.From` 只读取 `build_property.ProjectType` 与 `JccAllowModuleInitializer` 两个属性（`modules/generators/aot_safety.generator/infrastructure/IAnalyzerRule.cs:48-64`）。分析器不知道当前项目属于哪个域、允许依赖谁、哪些类型可以公开。
+1. **项目上下文信息不足**：`ProjectContext.From` 只读取 `build_property.ProjectType` 与 `JccAllowModuleInitializer` 两个属性（`modules/generators/aot_safety_generator/infrastructure/IAnalyzerRule.cs:48-64`）。分析器不知道当前项目属于哪个域、允许依赖谁、哪些类型可以公开。
 2. **单 compilation 视野**：Roslyn 分析器只看当前编译单元，看不到 `ProjectReference` 图，因此"域间成环""引用了未授权域"这类跨项目规则无法在分析器内完成。
-3. **结构规则只有 2 条**：`JCC10001`（单文件夹文件 >40）和 `JCC10002`（文件/文件夹混放），见 `modules/generators/aot_safety.generator/rules/code_organization/ProjectStructureRule.cs:8-27`。目录命名、层次、私有化都没有规则。
+3. **结构规则只有 2 条**：`JCC10001`（单文件夹文件 >40）和 `JCC10002`（文件/文件夹混放），见 `modules/generators/aot_safety_generator/rules/code_organization/ProjectStructureRule.cs:8-27`。目录命名、层次、私有化都没有规则。
 
 ### 现有资产（本决策要复用的部分）
 
@@ -69,7 +69,7 @@ ADR 0137 已完成 16 功能域的物理迁移：每个域自带 `module.slnx`�
 
 | 执行面 | 载体 | 负责的规则 | 理由 |
 |--------|------|------------|------|
-| 编译期（IDE + `dotnet build`） | 扩展 `modules/generators/aot_safety.generator`，新增 `rules/architecture/`，编号 `JCC12xxx` | 项目内可判定的规则：契约合法性、公开类型边界、IVT 白名单、命名空间根 | 开发者保存文件即得到反馈；复用现有 `[AnalyzerRule]` 基建，不新建分析器项目 |
+| 编译期（IDE + `dotnet build`） | 扩展 `modules/generators/aot_safety_generator`，新增 `rules/architecture/`，编号 `JCC12xxx` | 项目内可判定的规则：契约合法性、公开类型边界、IVT 白名单、命名空间根 | 开发者保存文件即得到反馈；复用现有 `[AnalyzerRule]` 基建，不新建分析器项目 |
 | 仓库期（CI / pre-push） | 新增 `non_deliverables_tools/architecture/ArchitectureGate.ps1` | 需要全仓图视野的规则：跨域依赖白名单、域级环、`module.slnx` 完整性、生产引用测试、Hub 预算、文档齐备、目录命名 | Roslyn 单 compilation 看不到 `ProjectReference` 图；XML 解析秒级完成，适合每次 PR |
 
 **明确不采用的路径**：不把项目图硬塞进分析器（需要 MSBuild 生成中间文件 + AdditionalFiles，链路脆弱且调试困难）；不用 `#pragma` 或 `[SuppressMessage]` 做豁免。
@@ -149,7 +149,7 @@ ADR 0137 已完成 16 功能域的物理迁移：每个域自带 `module.slnx`�
 - [ ] `ArchitectureGate.ps1 -Mode enforce` 对当前仓库返回已知的 baseline 数量，不误报
 - [ ] 注入一条未授权跨域引用 → 门禁红灯；撤销 → 绿灯
 - [ ] 注入一个域级环 fixture → 门禁红灯并打印完整环路径
-- [ ] 新分析器规则在 `modules/generators/aot_safety.tests/architecture/` 中有正例/反例各至少 1 条
+- [ ] 新分析器规则在 `modules/generators/aot_safety_tests/architecture/` 中有正例/反例各至少 1 条
 - [ ] CI `ci-architecture.yml` 在 PR 上阻断违规
 
 > 状态流转：讨论通过后转 `implemented/`；被取代时转 `archived/` 并标注 superseded。

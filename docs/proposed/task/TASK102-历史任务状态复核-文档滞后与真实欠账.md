@@ -19,7 +19,7 @@
 |---|---|---|---|
 | TASK077 ReadConsoleInput pump | 6 项未勾 | `Win32ConsoleInputPump : IInputPump` + `Drain()` + 鼠标武装 `EnableMouseInput` + `Win32ConsoleInputPumpTests.cs` 全在 | ❌ 文档滞后，**实际完成** |
 | TASK081 CS 闭环动态测试 | 21 项未勾 | `e76f4949a` = "TASK081 全部完成 40/40"；`test/mock/mock_server.core/` 全套 MockServer 源码 + 校验脚本归档 | ❌ 文档滞后，**实际完成** |
-| TASK049 基建确定性测试 | 状态「待执行」 | `modules/collections/structura.tests/DagTests.cs` 里 `TopologicalSort`/`HasCycle`/`FindAllCycles`/`WouldCreateCycle` 测试齐全；commit `07db686cd`/`012dadad2`/`fc8bc65fd` 三批 | ❌ 文档滞后，**实际完成** |
+| TASK049 基建确定性测试 | 状态「待执行」 | `modules/collections/structura_tests/DagTests.cs` 里 `TopologicalSort`/`HasCycle`/`FindAllCycles`/`WouldCreateCycle` 测试齐全；commit `07db686cd`/`012dadad2`/`fc8bc65fd` 三批 | ❌ 文档滞后，**实际完成** |
 | TASK023 总测试任务清单 | 7 项未勾 | 二次深查纠正：脚本早已存在且 CI 全量跑（原判「脚本不存在」是只看了巡检脚本的误判）；16/20 降级命令无参数属合理；真欠账仅 `--debuglog` 步骤追踪（已改用 JCC_DEBUGLOG=1）+ 副作用验证列 | ✅ **全部结案**（2026-11-21 二次修订，见 §1.4） |
 | TASK072 巡检行为验证升级 | 7 项未勾 | 复核时确为真欠账：`02cc5a9d2` 只做 `ToolPatrolEngine`、git_*/mcp_connect 全跳过 | ✅ **2026-11-21 已施工完成**：构造注入（零全局环境变量/零锁）+ 七项全勾，全量并行回归 31/31 绿（详见 TASK072 施工记录） |
 
@@ -47,7 +47,7 @@
 
 ### 1.3 TASK049（文档滞后，实际完成）
 
-- `modules/collections/structura.tests/DagTests.cs:190` 起：`TopologicalSort_Empty/SingleNode/IsolatedNodes/Chain/Diamond`
+- `modules/collections/structura_tests/DagTests.cs:190` 起：`TopologicalSort_Empty/SingleNode/IsolatedNodes/Chain/Diamond`
 - `DagAlgorithmsTests.cs`、`ConcurrentDagTests.cs`、`ImmutableDagTests.cs` 等配套
 - commit 三批：`07db686cd`（基建确定性测试补充 1379 测试 + 12 bug）、`012dadad2`（SwissTable/DAG/HamT 拆分）、`fc8bc65fd`（阶段3，9 模块 227 测试 + 1 bug）
 - 文档状态「待执行」是 2026-09-29 创建时的快照，施工后从未更新

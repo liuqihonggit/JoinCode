@@ -22,14 +22,14 @@
 | [jcc_tool_web](cli_nodes/groups/web/jcc_tool_web.csproj) |  |
 | [jcc_tool_sample](cli_nodes/sample/jcc_tool_sample.csproj) | 示例 |
 | [CtorScanner](ctor_scanner/CtorScanner.csproj) |  |
-| [Gh.Tests](gh.tests/Gh.Tests.csproj) | 测试 |
+| [Gh.Tests](gh_tests/Gh.Tests.csproj) | 测试 |
 | [gh](gh/gh.csproj) |  |
 | [GitHubClient.Tests](github_client_tests/GitHubClient.Tests.csproj) | 测试 |
 | [GitHubClient](github_client/GitHubClient.csproj) |  |
+| [OnnxEmbedding.Tests](onnx_embedding_tests/OnnxEmbedding.Tests.csproj) | 测试 |
 | [OnnxEmbeddingVerify](onnx_embedding_verify/OnnxEmbeddingVerify.csproj) |  |
-| [OnnxEmbedding.Tests](onnx_embedding.tests/OnnxEmbedding.Tests.csproj) | 测试 |
 | [OnnxEmbeddingExe](onnx_embedding/OnnxEmbeddingExe.csproj) |  |
-| [Rg.Tests](rg.tests/Rg.Tests.csproj) | 测试 |
+| [Rg.Tests](rg_tests/Rg.Tests.csproj) | 测试 |
 | [rg](rg/rg.csproj) |  |
 | [SimdVectorVerify](simd_vector_verify/SimdVectorVerify.csproj) |  |
 <!-- END MODULE PROJECTS -->

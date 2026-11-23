@@ -11,7 +11,7 @@
 原文「upstreamproxy（CONNECT→WS 隧道中继，Windows 产品可能 N/A）」属实，且"可能"可以坐实为**不适用**：
 
 - 基准 `src/upstreamproxy/upstreamproxy.ts:1-17` 明确限定"**container-side wiring** in a CCR session container"：读 `/run/ccr/session_token`（`:26`）、`prctl(PR_SET_DUMPABLE, 0)`（`:6`）、下载 CA 拼进 `/etc/ssl/certs/ca-certificates.crt`（`:9`）、导出 `HTTPS_PROXY`/`SSL_CERT_FILE` 等环境变量（`:185-199`）；配套 `relay.ts`(455 行) 实现 localhost CONNECT → WebSocket 中继。两个文件共 740 行。
-- 本仓无任何 `/run/ccr`、`session_token`、`PR_SET_DUMPABLE`、`ca-certificates` 契约（grep 零命中）。本仓的 CCR 是**桥接客户端**（`modules/async_primitives/transport.impl/bridge/v2/V2ReplBridgeTransport.cs:5-9` 的 SSE 读 + `CCRClient` 写 `/worker/*`），与"容器内出站 MITM 代理"是正交的两件事。
+- 本仓无任何 `/run/ccr`、`session_token`、`PR_SET_DUMPABLE`、`ca-certificates` 契约（grep 零命中）。本仓的 CCR 是**桥接客户端**（`modules/async_primitives/transport_impl/bridge/v2/V2ReplBridgeTransport.cs:5-9` 的 SSE 读 + `CCRClient` 写 `/worker/*`），与"容器内出站 MITM 代理"是正交的两件事。
 - 这是**平台/部署形态专属子系统**（Linux 容器 + CCR 容器侧 token），不是本仓 Windows 桌面/CLI 产品的缺失能力。按 #35/#36 同类判不适用，零代码。
 
 ---
@@ -23,7 +23,7 @@
 
 ### 问2 原始素材（一手）
 - 基准：`src/upstreamproxy/upstreamproxy.ts:1-17/26/185-199`（容器前提、token 路径、环境变量导出）、`src/upstreamproxy/relay.ts:3-10/25-30/319/379-386`（CONNECT 解析、WS 隧道、绕过代理的 host 清单）。
-- 本仓：`modules/async_primitives/transport.impl/bridge/v2/V2ReplBridgeTransport.cs:5-9/158-167`（CCR worker 读写通道）、`modules/abstractions/abstractions.primitives.configuration/src/app_data/JccEnvVar.cs:105`（`JCC_BRIDGE_USE_CCR_V2`）——只有桥接客户端开关，无容器代理开关。
+- 本仓：`modules/async_primitives/transport_impl/bridge/v2/V2ReplBridgeTransport.cs:5-9/158-167`（CCR worker 读写通道）、`modules/abstractions/abstractions_primitives_configuration/src/app_data/JccEnvVar.cs:105`（`JCC_BRIDGE_USE_CCR_V2`）——只有桥接客户端开关，无容器代理开关。
 
 ### 问3 具体方法与工具
 先读基准模块头注释确定部署前提，再全仓 grep 关键路径/系统调用/环境变量名验证本仓无产生点；对照本仓 CCR 实现确认名称相同但域不同。

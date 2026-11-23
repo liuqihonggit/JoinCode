@@ -284,7 +284,7 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 
 | 文件 | 变更 |
 |------|------|
-| `modules/abstractions/abstractions.primitives.tools/src/cli_nodes/CliToolDescriptor.cs` | 新增 `Inherits` + internal `DeclaredKeys` |
+| `modules/abstractions/abstractions_primitives_tools/src/cli_nodes/CliToolDescriptor.cs` | 新增 `Inherits` + internal `DeclaredKeys` |
 | `.../src/cli_nodes/CliToolParameter.cs` / `CliToolEntry.cs` | 新增 internal `DeclaredKeys`（字段级继承的判定依据） |
 | `.../src/cli_nodes/private/NodeYamlParser.cs` | 解析 `inherits`、三处填充 `DeclaredKeys`；带 `inherits` 时放宽 name/summary 必填；tools 判定改看 YAML 键 |
 | `.../src/cli_nodes/CliNodeInheritanceResolver.cs` | **新增**：继承合并纯函数（Resolve/ResolveAll，参数/工具逐字段继承，缺父占位） |
@@ -312,7 +312,7 @@ DSH 继承**结构/契约**（父类默认值 + patch 覆盖）；Harness² 继�
 | 4 | `jcc tool tree`（真实 13 组） | `13 组 / 635 个工具，独立 exe 388（61%）...247 由 jcc 内执行`，与基线一致 | ✅ 无 inherits 的现网节点零回归 |
 | 5 | `python migrate_mcp_tools_to_cli_nodes.py --scan modules --out <tmp> --category file` | 检测到手写 `inherits` 时拒绝覆写并打印处理路径；node.yaml 内容完好 | ✅ §9.3 遗留风险已加护栏（非 exe 验收，脚本自身实跑） |
 
-`<fixtures>` = `modules/abstractions/abstractions.primitives.tools.tests/fixtures/inheritance`（**纳入源码版本管理，可重跑**）。`child_search/node.yaml` 只写 `id/name/inherits` 与 `parameters.head_limit.default: "50"` 五项，其余全部从父浮出——这是字段级继承生效的直接证据；旧实现在此夹具下会输出 `string` 类型 + 空描述。
+`<fixtures>` = `modules/abstractions/abstractions_primitives_tools_tests/fixtures/inheritance`（**纳入源码版本管理，可重跑**）。`child_search/node.yaml` 只写 `id/name/inherits` 与 `parameters.head_limit.default: "50"` 五项，其余全部从父浮出——这是字段级继承生效的直接证据；旧实现在此夹具下会输出 `string` 类型 + 空描述。
 
 > 打点纪律说明：本次改动走 `tool tree`/`tool help` 的**用户可见输出**作为执行链命中证据（子 YAML 未写的字段凭空出现，因果链唯一），无需在零依赖抽象层注入诊断标签；§1 的 `JCC_DEBUGLOG` 打点纪律保留给 G1/G5 这类"无可见输出"的运行期机制。
 

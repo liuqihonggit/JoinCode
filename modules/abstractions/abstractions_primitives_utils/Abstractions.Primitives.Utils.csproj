@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>library</ProjectType>
+    <Description>JoinCode 抽象工具/常量/枚举 — AgentToolName/ToolCategory/ExitCode/ChatCommandName 等</Description>
+    <ExcludeStructura>true</ExcludeStructura>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <IsAotCompatible>true</IsAotCompatible>
+    <AllowPack>true</AllowPack>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata_generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 注册顺序表的唯一数据源：OrderIndex 从这里加载，列表内顺序即执行顺序 -->
+    <EmbeddedResource Include="$(RepoRoot)resources/orders.yaml" LogicalName="JoinCode.Abstractions.Utils.orders.yaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_primitives_shared/Abstractions.Primitives.Shared.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Shared" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_primitives_configuration/Abstractions.Primitives.Configuration.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Configuration" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_primitives_tools/Abstractions.Primitives.Tools.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Tools" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+</Project>

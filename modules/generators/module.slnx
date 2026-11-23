@@ -1,20 +1,20 @@
 <Solution>
-  <Project Path="aot_safety.generator/AotSafety.Generator.csproj" />
-  <Project Path="aot_handler.generator/AotHandler.Generator.csproj" />
-  <Project Path="aot_safety.shared/AotSafety.Shared.csproj" />
-  <Project Path="aot_safety.tests/AotSafety.Tests.csproj" />
-  <Project Path="app_module.generator/AppModule.Generator.csproj" />
-  <Project Path="cli_option.generator/CliOption.Generator.csproj" />
+  <Project Path="aot_safety_generator/AotSafety.Generator.csproj" />
+  <Project Path="aot_handler_generator/AotHandler.Generator.csproj" />
+  <Project Path="aot_safety_shared/AotSafety.Shared.csproj" />
+  <Project Path="aot_safety_tests/AotSafety.Tests.csproj" />
+  <Project Path="app_module_generator/AppModule.Generator.csproj" />
+  <Project Path="cli_option_generator/CliOption.Generator.csproj" />
   <Project Path="code_fixes/CodeFixes.csproj" />
-  <Project Path="danger_command.generator/DangerCommand.Generator.csproj" />
-  <Project Path="enum_metadata.generator/EnumMetadata.Generator.csproj" />
-  <Project Path="fsm.generator/Fsm.Generator.csproj" />
-  <Project Path="fsm.generator.tests/Fsm.Generator.Tests.csproj" />
-  <Project Path="mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" />
-  <Project Path="param_metadata.generator/ParamMetadata.Generator.csproj" />
-  <Project Path="prompt_section.generator/PromptSection.Generator.csproj" />
-  <Project Path="prompt_template.generator/PromptTemplate.Generator.csproj" />
-  <Project Path="scenario.generator/Scenario.Generator.csproj" />
+  <Project Path="danger_command_generator/DangerCommand.Generator.csproj" />
+  <Project Path="enum_metadata_generator/EnumMetadata.Generator.csproj" />
+  <Project Path="fsm_generator/Fsm.Generator.csproj" />
+  <Project Path="fsm_generator_tests/Fsm.Generator.Tests.csproj" />
+  <Project Path="mcp_tool_dispatch_generator/McpToolDispatch.Generator.csproj" />
+  <Project Path="param_metadata_generator/ParamMetadata.Generator.csproj" />
+  <Project Path="prompt_section_generator/PromptSection.Generator.csproj" />
+  <Project Path="prompt_template_generator/PromptTemplate.Generator.csproj" />
+  <Project Path="scenario_generator/Scenario.Generator.csproj" />
   <!-- REMOVED: shared/shared.csproj (no .csproj found) -->
-  <Project Path="tool_prompt.generator/ToolPrompt.Generator.csproj" />
+  <Project Path="tool_prompt_generator/ToolPrompt.Generator.csproj" />
 </Solution>

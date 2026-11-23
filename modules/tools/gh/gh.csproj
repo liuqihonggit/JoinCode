@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/persistence/kv_store/KvStore.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/storage/downloader/Downloader.csproj" />
     <!-- GitHub REST API 客户端实现在 tools/github_client 库（原 abstractions/infrastructure） -->
     <ProjectReference Include="$(RepoRoot)modules/tools/github_client/GitHubClient.csproj" />
@@ -29,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata_generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,7 +38,7 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Memory" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_configuration/Abstractions.Configuration.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 </Project>

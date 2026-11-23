@@ -57,6 +57,7 @@ public static class TestPipelineRegistration {
                 .Use(sp.GetRequiredService<KeywordInjectionMiddleware>())
                 .Use(sp.GetRequiredService<SynonymInjectionMiddleware>())
                 .Use(sp.GetRequiredService<SystemPromptMiddleware>())
+                .Use(sp.GetRequiredService<SessionStartContextMiddleware>())
                 .Use(sp.GetRequiredService<ReminderInjectionMiddleware>())
                 .Use(sp.GetRequiredService<ToolListingInjectionMiddleware>())
                 .Use(sp.GetRequiredService<LspDiagnosticMiddleware>())

@@ -127,7 +127,8 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
                 result.StandardError,
                 result.ExitCode,
                 command,
-                isAsync: false);
+                isAsync: false,
+                sourceEvent: input.Event);
         } catch (OperationCanceledException) {
             throw;
         }

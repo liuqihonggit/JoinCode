@@ -92,6 +92,27 @@ public sealed class PhysicalProcessServiceTest {
     // ===== PhysicalInteractiveProcess 子进程编码（改动 P3）=====
 
     /// <summary>
+    /// TASK130-A6 附带修复的真机回归：一次性进程带 StandardInput 时必须能真正写入并回显。
+    /// 修复前 ProcessStartInfoBuilder 不置 RedirectStandardInput，读写 stdin 直接抛
+    /// 「StandardIn has not been redirected」→ 全部 bash 型 hook 失败。
+    /// </summary>
+    [Fact]
+    public async Task 一次性进程_写入StandardInput_子进程能收到并回显() {
+        var builder = new ProcessStartInfoBuilder(new ProcessEncodingProvider());
+        var service = new PhysicalProcessService(builder);
+        var fileName = OperatingSystem.IsWindows() ? "bash" : "/bin/sh";
+
+        var result = await service.ExecuteAsync(new ProcessOptions {
+            FileName = fileName,
+            ArgumentList = ["-c", "cat"],
+            StandardInput = "stdin-probe-42",
+        }).ConfigureAwait(true);
+
+        result.Success.Should().BeTrue(result.StandardError);
+        result.StandardOutput.Should().Contain("stdin-probe-42");
+    }
+
+    /// <summary>
     /// 交互式进程的 StandardInput 编码应使用 Console.InputEncoding（对齐系统代码页）。
     /// </summary>
     [Fact]

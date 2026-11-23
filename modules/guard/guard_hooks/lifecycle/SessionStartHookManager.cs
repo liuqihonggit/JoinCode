@@ -27,6 +27,10 @@ public sealed partial class SessionStartHookManager : ServiceEntity, ISessionSta
         };
 
         var additionalConfig = new Dictionary<string, JsonElement>();
+        // TASK130-A6 — 上下文类输出收集到类型化字段（此前塞进 AdditionalConfig 的字符串键，
+        // 全仓无读取方且改键名不会编译失败）。
+        var additionalContexts = new List<string>();
+        string? initialUserMessage = null;
 
         await foreach (var result in _orchestrator.ExecuteHooksAsync(
             HookEvent.SessionStart,
@@ -58,18 +62,20 @@ public sealed partial class SessionStartHookManager : ServiceEntity, ISessionSta
                 }
             }
 
-            if (result.AdditionalContext != null) {
-                additionalConfig["additionalContext"] = JsonElementHelper.FromString(result.AdditionalContext);
+            if (result.AdditionalContext is { Length: > 0 } additionalContext) {
+                additionalContexts.Add(additionalContext);
             }
 
-            if (result.InitialUserMessage != null) {
-                additionalConfig["initialUserMessage"] = JsonElementHelper.FromString(result.InitialUserMessage);
+            if (result.InitialUserMessage is { Length: > 0 } initialUserMessageText) {
+                initialUserMessage = initialUserMessageText;
             }
         }
 
         RecordHookMetrics(context.Source, false);
 
         return new SessionStartHookResult {
+            AdditionalContext = additionalContexts.Count > 0 ? string.Join("\n\n", additionalContexts) : null,
+            InitialUserMessage = initialUserMessage,
             AdditionalConfig = additionalConfig
         };
     }

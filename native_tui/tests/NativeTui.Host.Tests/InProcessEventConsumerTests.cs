@@ -399,4 +399,17 @@ public sealed class InProcessEventConsumerTests
         var retry = Assert.IsType<BridgeEvent.Retry>(Assert.Single(events));
         Assert.Equal(("连接超时", 1, 3, 1000), (retry.Reason, retry.Attempt, retry.MaxRetries, retry.DelayMs));
     }
+
+    /// <summary>TASK130-A5 系统旁白 — OnSystemNotice 直传 SystemNotice 内存事件（空串不发，防噪音行）。</summary>
+    [Fact]
+    public void OnSystemNotice_EnqueuesSystemNoticeEvent_SkipsEmpty()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnSystemNotice(string.Empty);
+        consumer.OnSystemNotice("hook: 已检查提交信息");
+
+        var notice = Assert.IsType<BridgeEvent.SystemNotice>(Assert.Single(consumer.DrainEvents()));
+        Assert.Equal("hook: 已检查提交信息", notice.Message);
+    }
 }

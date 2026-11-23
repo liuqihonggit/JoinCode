@@ -65,6 +65,26 @@ public sealed class SessionControllerTests {
         Assert.Equal("PD002", end.errorCode);
     }
 
+    /// <summary>TASK130-A5 — SystemNotice 旁白必须到达消费者，且不得并入助手正文（否则污染上下文历史）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_SystemNotice_DispatchedWithoutEnteringResponse() {
+        var events = new List<ChatStreamEvent>
+        {
+            ChatStreamEvent.SystemNotice("hook: 已检查提交信息"),
+            ChatStreamEvent.Text("answer"),
+            ChatStreamEvent.Done()
+        };
+        var chatService = CreateMockChatService(events);
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal("hook: 已检查提交信息", Assert.Single(consumer.SystemNotices));
+        Assert.Equal("answer", result.Response);
+        Assert.DoesNotContain("hook:", Assert.Single(consumer.TextEvents));
+    }
+
     [Fact]
     public async Task StreamResponseAsync_Thinking_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
@@ -899,6 +919,9 @@ public sealed class SessionControllerTests {
         public List<(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto)> CompactCompleted { get; } = [];
         public List<(string reason, int attempt, int maxRetries, int delayMs)> Retries { get; } = [];
 
+        /// <summary>TASK130-A5 — 系统旁白（hook systemMessage）回调记录。</summary>
+        public List<string> SystemNotices { get; } = [];
+
         public void OnText(string content) => TextEvents.Add(content);
         public void OnThinking(string thinking) => ThinkingEvents.Add(thinking);
         /// <summary>TASK069 #18 — 脱敏思考通知计数（与正常 ThinkingEvents 分开，断言互不污染）。</summary>
@@ -913,5 +936,8 @@ public sealed class SessionControllerTests {
         public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) => ContextUsages.Add((promptTokens, contextWindowTokens, percentLeft));
         public void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) => CompactCompleted.Add((messagesSummarized, originalTokens, compressedTokens, isAuto));
         public void OnRetry(string reason, int attempt, int maxRetries, int delayMs) => Retries.Add((reason, attempt, maxRetries, delayMs));
+
+        /// <summary>TASK130-A5 — 显式实现（DIM 默认实现经类类型调用不可见，断言会永远空）。</summary>
+        public void OnSystemNotice(string message) => SystemNotices.Add(message);
     }
 }

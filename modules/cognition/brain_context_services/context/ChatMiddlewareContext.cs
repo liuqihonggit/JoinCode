@@ -111,6 +111,11 @@ public sealed class ChatMiddlewareContext {
     /// processUserInput.ts additionalContext；ChatTelemetryPreHook 设置，PreChatMiddleware 消费上屏）。</summary>
     public string? UserPromptSubmitInjection { get; set; }
 
+    /// <summary>UserPromptSubmit hook 的 systemMessage 旁白（TASK130-A5 — 与
+    /// <see cref="UserPromptSubmitInjection"/> 的区别：注入进模型上下文，旁白只上屏；
+    /// ChatTelemetryPreHook 设置，PreChatMiddleware 投影为 <c>SystemNotice</c> 事件）。</summary>
+    public IReadOnlyList<string> UserPromptSubmitSystemNotices { get; set; } = [];
+
     /// <summary>
     /// 预处理结果 — 关键词分析、同义词注入、提示注入信息
     /// </summary>

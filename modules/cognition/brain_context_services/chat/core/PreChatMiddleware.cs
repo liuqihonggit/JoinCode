@@ -71,6 +71,14 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware {
             yield return ChatStreamEvent.Text(context.UserPromptSubmitInjection + "\n");
         }
 
+        // TASK130-A5 — hook 的 systemMessage 走旁白通道：只上屏、不进助手正文、不进上下文历史
+        //（对齐基准 hook_system_message attachment；此前该字段解析后无人消费）
+        if (context.UserPromptSubmitSystemNotices is { Count: > 0 } notices) {
+            foreach (var notice in notices) {
+                yield return ChatStreamEvent.SystemNotice(notice);
+            }
+        }
+
         await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }

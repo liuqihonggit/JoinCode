@@ -30,35 +30,22 @@ internal sealed partial class ChatTelemetryPreHook : ServiceEntity, IPipelinePre
 
         // 2. UserPromptSubmit Hook — 对齐 TS processUserInput.ts:182
         // TASK071 hooks-③ — sessionId 用 context.SessionId（旧硬编码 "unknown" 致会话级钩子永不匹配）；
-        // hook 结果的 additionalContext 拼接注入对话（对齐 TS additionalContext 注入语义）
+        // TASK130-A5 — 执行逻辑抽到 UserPromptSubmitHookRunner，与主代理路径共用同一实现
         if (_hookOrchestrator is not null) {
-            var payload = new Dictionary<string, JsonElement> {
-                ["prompt"] = JsonElementHelper.FromString(context.Message),
-                ["session_id"] = JsonElementHelper.FromString(context.SessionId),
-            };
+            var outcome = await UserPromptSubmitHookRunner.RunAsync(
+                _hookOrchestrator, context.Message, context.SessionId, ct).ConfigureAwait(false);
 
-            var additionalContexts = new List<string>();
-            await foreach (var result in _hookOrchestrator.ExecuteHooksAsync(
-                HookEvent.UserPromptSubmit,
-                payload,
-                sessionId: context.SessionId,
-                cancellationToken: ct).ConfigureAwait(false)) {
-                if (result.Outcome == HookOutcome.Blocking) {
-                    _logger?.LogWarning("[ChatPipeline] UserPromptSubmit Hook 阻止了请求: {Message}", result.Message);
-                    return false;
-                }
-
-                if (result.PreventContinuation) {
-                    return false;
-                }
-
-                if (!string.IsNullOrEmpty(result.AdditionalContext)) {
-                    additionalContexts.Add(result.AdditionalContext);
-                }
+            if (outcome.Blocked) {
+                _logger?.LogWarning("[ChatPipeline] UserPromptSubmit Hook 阻止了请求（session={SessionId}）", context.SessionId);
+                return false;
             }
 
-            if (additionalContexts.Count > 0) {
-                context.UserPromptSubmitInjection = string.Join(Environment.NewLine, additionalContexts);
+            if (outcome.AdditionalContext is { } injection) {
+                context.UserPromptSubmitInjection = injection;
+            }
+
+            if (outcome.SystemNotices.Count > 0) {
+                context.UserPromptSubmitSystemNotices = outcome.SystemNotices;
             }
         }
 

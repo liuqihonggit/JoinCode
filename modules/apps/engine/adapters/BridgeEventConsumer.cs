@@ -137,6 +137,14 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         WriteEvent(new Cli.Bridge.BridgeEvent.Retry(reason, attempt, maxRetries, delayMs));
     }
 
+    /// <summary>系统旁白 → system_notice（TASK130-A5 — hook systemMessage 上屏；不并入 assistant_message，
+    /// 否则会进上下文历史。显式实现：DIM 默认实现经类类型调用不可见 — DSG041 批3 先例）。</summary>
+    public void OnSystemNotice(string message) {
+        if (!string.IsNullOrEmpty(message)) {
+            WriteEvent(new Cli.Bridge.BridgeEvent.SystemNotice(message));
+        }
+    }
+
     /// <summary>回合用量汇总 → token_usage 事件（OnDone 收尾发射；usage null 不发 — 无数据不噪音；
     /// context 余量走 context_usage 独立事件（OnContextUsage — 上游 M8-7 权威数据源））。</summary>
     private void WriteTokenUsageIfAvailable(TokenUsage? usage) {

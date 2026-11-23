@@ -199,6 +199,14 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _events.Enqueue(new BridgeEvent.Retry(reason, attempt, maxRetries, delayMs));
     }
 
+    /// <summary>系统旁白 → SystemNotice（TASK130-A5 — hook systemMessage 上屏；ReplBridgeDriver 落 dim 行，
+    /// 不进对话正文。显式实现：DIM 默认实现经类类型调用不可见 — 先例同上）。</summary>
+    public void OnSystemNotice(string message) {
+        if (!string.IsNullOrEmpty(message)) {
+            _events.Enqueue(new BridgeEvent.SystemNotice(message));
+        }
+    }
+
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() {
         List<BridgeEvent>? drained = null;

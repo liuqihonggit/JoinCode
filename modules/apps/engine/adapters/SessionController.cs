@@ -202,6 +202,11 @@ public sealed class SessionController {
                     : null;
                 var startCount = startSnapshot?.Count ?? 0;
                 var preprocess = await PreProcessMainAgentAsync(input, timeoutToken).ConfigureAwait(false);
+                if (preprocess.Blocked) {
+                    // TASK130-A5 — UserPromptSubmit hook 阻断：与回落管道 return false 同语义（不进模型）
+                    return SessionTurnResult.Error("请求被 UserPromptSubmit hook 阻止", string.Empty);
+                }
+
                 if (preprocess.PromptInjection is { Length: > 0 } injection) {
                     _consumer.OnText(injection + "\n\n");
                 }
@@ -422,7 +427,10 @@ public sealed class SessionController {
                     _consumer.OnToolUseSummary(summary, toolUseIds.Count > 0 ? toolUseIds : null);
                     _turnToolCalls.Clear();
                 }
-            });
+            },
+            // TASK130-A5 — SystemNotice 旁白：只上屏，不进 fullResponse（否则污染上下文历史）。
+            // 此前未传该回调 → Switch 静默丢弃，hook systemMessage 即便产出也到不了用户。
+            onSystemNotice: notice => _consumer.OnSystemNotice(notice));
         return modelId;
     }
 
@@ -546,7 +554,8 @@ public sealed class SessionController {
     private sealed record MainAgentPreprocess(
         PreprocessResult? PreprocessResult,
         string? PromptInjection,
-        string? ModalityInjection);
+        string? ModalityInjection,
+        bool Blocked = false);
 
     /// <summary>
     /// 主代理路径预处理 — 对齐 PreChatMiddleware + ModalityValidationMiddleware：
@@ -570,11 +579,27 @@ public sealed class SessionController {
             await contextManager.RecordPromptStateAsync(cancellationToken: ct).ConfigureAwait(false);
         }
 
+        // TASK130-A5 — 主代理路径此前完全不执行 UserPromptSubmit hook（那条 hook 只在无主代理的
+        // 回落管道 ChatTelemetryPreHook 里跑），故 additionalContext / systemMessage 在生产主链上从未生效。
+        // 这里复用同一执行器：阻断即中止回合，additionalContext 追加到注入文本，systemMessage 走旁白通道。
+        var hookOutcome = await JoinCode.App.Middlewares.UserPromptSubmitHookRunner.RunAsync(
+            _serviceProvider.GetService<IHookOrchestrator>(), input, _sessionId, ct).ConfigureAwait(false);
+        if (hookOutcome.Blocked) {
+            return new MainAgentPreprocess(preprocessResult, null, null, Blocked: true);
+        }
+
+        foreach (var notice in hookOutcome.SystemNotices) {
+            _consumer.OnSystemNotice(notice);
+        }
+
         var modalityInjection = DetectModalityMismatch(input);
+        var promptInjection = hookOutcome.AdditionalContext is { Length: > 0 } hookContext
+            ? string.Join("\n\n", new[] { preprocessResult?.PromptInjectionInfo, hookContext }.Where(s => !string.IsNullOrEmpty(s)))
+            : preprocessResult?.PromptInjectionInfo;
 
         return new MainAgentPreprocess(
             preprocessResult,
-            preprocessResult?.PromptInjectionInfo,
+            promptInjection,
             modalityInjection);
     }
 

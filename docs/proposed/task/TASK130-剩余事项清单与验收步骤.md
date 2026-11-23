@@ -10,7 +10,7 @@
 
 | 类 | 含义 | 项 |
 |---|---|---|
-| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色、A2 D7 `suppressOutput`（**已核实＝不适用**）、A3 斜杠命令取参审计、A4 flag settings 策略锁、A5 hook `systemMessage` 无消费点（**本轮新发现**） |
+| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `AdditionalConfig` 零消费（**本轮新发现**） |
 | B | 只能人工 / 需外部条件 | B1 #52 双终端矩阵、B2 #51 Ctrl+B、B3 macOS Seatbelt |
 | C | 需凭据或 MockServer 才能跑完 | C1 #40 回合级真机探针、C2 #53 低限额进程级 |
 | D | 台账自身错误，需纠正 | D1「#15 待施工」已过期、D2 #53 表格行未划线、D3 D7 与总账 §3 矛盾 |
@@ -19,38 +19,25 @@
 
 ## A. 本机可施工
 
-### A1. M1 — 用户消息 `❯` 在消息光标选中时改 suggestion 色（待施工）
+### A1. M1 — 用户消息 `❯` 选中态改 suggestion 色 —— **已实现，本轮补测试并纠正台账**
 
-**证据（一手源码，优先级最高）**
-- 基准 `UserPromptMessage.tsx:71` + `HighlightedThinkingText.tsx:23-24`：`isSelected ? suggestion : subtle`；
-  `Messages.tsx:628` 每行一个 Provider —— 即「选中态」是逐消息的，不是全局。
-- `ScrollBox.HighlightItem` / `MessageCursor`（Shift+↑）是基准 MessageActions 导航的对应实现，
-  **不是** w2 自创；TASK103:151 已据此把原「维持现状」纠正为待施工。
+**一手证据（本轮核对）**
+- 实现早已在：`MessageItems.cs` 的 `UserMessageItem.RenderSelectedAccent`（把 `❯` 前沿由 subtle 提到
+  `theme.Suggestion`，正文前景不动），由 `ScrollBox.cs:164-167` 对 `HighlightItem` 在 `Render` 之后调用；
+  `ScrollBox` 再叠一层 `ApplyHighlightBackground`（背景换 `MessageActionsBackground`）。
+- 基准 `HighlightedThinkingText.tsx:23-24` 的 `isSelected ? suggestion : subtle` 已等价落地。
+- **台账原写「待施工」是错的**（与 D1「#15 待施工」同类错误：实现走的是「渲染后覆写」而非「入参传 isSelected」，
+  按函数签名搜不到就误判为缺失）。
 
-**当前实现（缺口）**
-- `native_tui/src/NativeTui.Core/repl/MessageRenderer.cs:20` `RenderUser(...)` 里 `❯` 恒用
-  `theme.Subtle`（第 31 行 `pointer` 样式），函数签名没有 `isSelected` 入参 →
-  光标选中用户消息时前缀不变色，与基准不一致。
-- 对照：picker/dialog 的选中态已经用 `theme.Suggestion`（`MessageRenderer.cs:470,514`），
-  所以样式表里颜色是现成的，缺的只是「把选中态传进 RenderUser」。
+**本轮补的东西**：`native_tui/tests/NativeTui.Tests/repl/MessageSelectionAccentTests.cs`
+- 选中用户消息 → `❯` 前景 = `Suggestion`，正文前景不变；
+- 未选中用户消息 → `❯` 保持 `Subtle`；
+- 选中助手消息 → `●` 前景仍 `Text`（防「顺手改错另一个前缀」）。
 
-**施工面（预计 3 处）**
-1. `RenderUser` 增加 `bool isSelected`（或传 `TextStyle` 决策函数），`pointer` 按选中态取色；
-2. 调用点 `native_tui/src/NativeTui.Core/repl/MessageItems.cs:30`（`UserMessageItem` 渲染）拿到当前光标态；
-   光标态来源是 `ReplShell` 的 MessageCursor（`ReplShell.cs:2465` 一带）——**先确认它是渲染期可读的**，
-   不可读就先把它提到可读状态，不要为了改色去加全局可变状态；
-3. 追加测试：`ReplComponentTests`（现有 ultrathink 用例同文件）断言「选中 → suggestion；
-   未选中 → subtle」，并断言**助手消息 `●` 不受影响**（避免顺手改错另一个前缀）。
+**验收**：`dotnet test native_tui/tests/NativeTui.Tests -c Debug --no-build --filter "FullyQualifiedName~MessageSelectionAccentTests"` → 3/3 绿。
 
-**验收**
-```bash
-dotnet build native_tui/tests/NativeTui.Tests/NativeTui.Tests.csproj -c Debug -m:1 --nologo
-dotnet test  native_tui/tests/NativeTui.Tests/NativeTui.Tests.csproj -c Debug --no-build --filter "FullyQualifiedName~MessageRenderer|FullyQualifiedName~ReplComponent"
-```
-判定：新增用例红→绿；`NativeTui.Host.Tests` 全量绿；`jcc --selftest-tui` 仍 `HOST SELFTEST OK`。
-
-**风险**：`MessageCursor` 是键盘导航态，若它只在按键处理期存在，渲染期拿不到 —— 那就是
-「先补状态暴露」而不是「改颜色」，需另开一步，别硬塞。
+**教训**：判「某特性是否已实现」别只 grep 函数签名，要先找**渲染/消费侧的覆写钩子**
+（`RenderSelectedAccent`、`ApplyHighlightBackground` 这类「后处理」机制）。
 
 ---
 
@@ -71,36 +58,87 @@ dotnet test  native_tui/tests/NativeTui.Tests/NativeTui.Tests.csproj -c Debug --
 
 ---
 
-### A5. hook `systemMessage` 无生产消费点（本轮 A2 核实过程中发现，待施工）
+### A5. hook `systemMessage` 无生产消费点 —— **已施工（2026-11-23），含一处必须一起修的真断链**
 
-**双侧证据**
+**原始证据**
 
 | 侧 | 事实 |
 |---|---|
 | 基准 | `utils/hooks.ts:2770-2780`：`if (result.systemMessage) yield createAttachmentMessage({type:'hook_system_message', content, hookName, toolUseID, hookEvent})` —— 与 `suppressOutput` **无关**，必定展示 |
-| 本仓 | `HookResult.SystemMessage`（`HookResult.cs:62`）已定义、`HookExecutorBase.cs:208-211` 已解析、单测 `HookOutputParsingTests.cs:49` 已断言；**生产侧零读取**（`grep "\.SystemMessage" modules --exclude-dir=obj` 只命中一个 collapse 枚举分支和那条单测） |
+| 本仓（改前） | `HookResult.SystemMessage`（`HookResult.cs:62`）已定义、`HookExecutorBase.cs:208-211` 已解析、单测 `HookOutputParsingTests.cs:49` 已断言；**生产侧零读取** |
 
-**对照**：同批字段里 `AdditionalContext` 有消费点（`ChatTelemetryPreHook.cs:55`、`SessionStartHookManager.cs:61`）、
-`InitialUserMessage` 有消费点（`SessionStartHookManager.cs:65`），**只有 SystemMessage 掉链**——
-说明不是「整块协议没做」，而是这一条漏了，属典型「解析 ≠ 消费」。
+**施工中发现的两个断链（比字段本身重要）**
+1. **`SessionController.ProcessEvent` 用 `evt.Switch(...)` 但没传 `onSystemNotice`** →
+   `ChatStreamEvent.SystemNotice` 在 CLI/TUI 主入口被**静默丢弃**（`Switch` 的 SystemNotice 分支对 null 回调是 no-op），
+   连既有 `LoopInterventionMiddleware` 发的旁白也到不了用户。
+2. **主代理路径完全不执行 UserPromptSubmit hook**：那条 hook 只在
+   `ChatTelemetryPreHook`（chat 管道前置钩子）里跑，而 chat 管道只在 `_mainAgent is null` 的回落路径执行
+   （`SessionController.StreamResponseAsync` 的分支 + 复制的 `PreProcessMainAgentAsync`）。生产主链（有主代理）
+   上 `additionalContext` / `systemMessage` **从未生效** —— 同 #53 的「声明≠消费」变体。
 
-**施工前必须定的一个决策（落点二选一，需拍板）**
-- ① 走 transcript attachment（对齐基准语义，用户能在对话里看到 hook 的话）→ 需要在聊天事件/消息模型里
-  加一种 attachment 类型，改动面比 ② 大，但语义一致；
-- ② 走 `IPresentationAdapter.DisplaySystemMessage`（终端告警行，`ConsolePresentationAdapter.cs:32`）
-  → 改动极小，但 GUI/transcript 里看不到，等于只在 CLI 侧生效。
+**落点（已实现，14 个文件）**
 
-**验收（两种落点共用前半段）**：先写红测试（构造 `{"systemMessage":"x"}` 的 hook 输出 →
-断言该系统消息出现在选定出口），再实现；`Guard.Hooks` 与相关 host 测试全绿；
-真机可用 `--selftest-*` 或临时 hook 命令（`echo '{"systemMessage":"probe"}'`）验证。
+| 层 | 改动 |
+|---|---|
+| 单实现 | 新增 `modules/apps/engine/app/middlewares/UserPromptSubmitHookRunner.cs`：一处执行 hook，产出 `(Blocked, AdditionalContext, SystemNotices)`；回落管道与主代理路径**共用**（避免两条链各写一份再漂移） |
+| 生产方 | ① `ChatTelemetryPreHook` 改为调 Runner 并把旁白写进 `ChatMiddlewareContext.UserPromptSubmitSystemNotices`；② `SessionController.PreProcessMainAgentAsync` 调同一 Runner（阻断→`SessionTurnResult.Error`、注入→追加到 `PromptInjection`、旁白→`_consumer.OnSystemNotice`） |
+| 投影 | `PreChatMiddleware` 把旁白投影成 `ChatStreamEvent.SystemNotice`（**只上屏、不进助手正文、不进上下文历史**） |
+| 出口契约 | `IEventConsumer.OnSystemNotice`（DIM 空实现，既有实现方零改动） |
+| 主入口 | `SessionController.ProcessEvent` 传 `onSystemNotice` → `_consumer.OnSystemNotice`（不写 `fullResponse`） |
+| TUI | `BridgeEvent.SystemNotice`（两端镜像 + `system_notice` 判别值）、`InProcessEventConsumer`/`BridgeEventConsumer` 显式实现、`ReplBridgeDriver` 落 `SystemNoticeItem`（dim 整行、**不触发 EndTurn**） |
+| CLI | `CliEventConsumer.OnSystemNotice` 交互模式 dim 行打印；NDJSON 模式暂不投影（SDK 协议无 attachment 消息类型，不臆造字段） |
+
+**验收（真跑）**
+
+| 项 | 结果 |
+|---|---|
+| `UserPromptSubmitHookRunnerTests` | 6/6（阻断/PreventContinuation/两出口分离/空字段/无编排器 fail-soft） |
+| `SessionControllerTests`（新增 `SystemNotice_DispatchedWithoutEnteringResponse`） | 40/40；**负向验证**：临时把 `onSystemNotice` 改成空 lambda → 该条转红（`Assert.Single() Failure: The collection was empty`），恢复后转绿 |
+| `BridgeSystemNoticeTests` | 3/3（落 item / 不结束回合 / 不进 assistant_message） |
+| `MessageSelectionAccentTests` | 3/3（A1） |
+| `InProcessEventConsumerTests` | 23/23（含新增空串不发） |
+| 编译 | `Host.Tests`、`NativeTui.Tests`、`NativeTui.Host.Tests`、`JoinCode.csproj`（jcc）均 0 错误 |
+| 真机冒烟 | `JCC_DEBUGLOG=1 jcc -p hi` → 16 条 `[ORDER] middleware`，照常打到模型 401（无 key），无新崩溃 |
+
+**仍缺（如实登记，未做）**
+- 其余 hook 事件（PreToolUse/PostToolUse/Stop/SessionStart…）的 `systemMessage` 仍未投影 —— 本轮只接
+  `UserPromptSubmit`（唯一每回合都跑、用户最常写 notice 的事件）。要做需在 `HookOrchestrator` 统一出口加 sink，另立项。
+- NDJSON/agentMode 无投影（协议缺 attachment 类型）。
+- **新发现 A6**：`SessionStartHookResult.AdditionalConfig` **零读取** —— `SessionStartHookManager` 把
+  `additionalContext` / `initialUserMessage` 聚合进这个字典，但全仓没有任何消费方读取它
+  （`grep "AdditionalConfig"` 只有定义与写入两处）。TASK130 早前把「写入」误记成「有消费点」。
+
+---
+
+### A6. `SessionStartHookResult.AdditionalConfig` 零消费（本轮新发现，待施工）
+
+**证据**
+- `SessionStartHookManager.cs:62,66` 把 `additionalContext` / `initialUserMessage` 写进 `additionalConfig`，
+  返回 `SessionStartHookResult { AdditionalConfig = additionalConfig }`；
+- `grep "AdditionalConfig"` 全仓只有两处：`ISessionStartHookManager.cs:30`（定义）与上面这句（写入）。
+  **没有任何读取方** —— `SessionStartHookMiddleware` 只读 `ShouldProceed` / `Message`；
+- 对照：`UserPromptSubmit` 的 `additionalContext` 有真消费链（`ChatTelemetryPreHook` → `PreChatMiddleware` →
+  `OnText`），所以「同一个字段在 SessionStart 上不生效」不是协议没做，是这条链路没接。
+
+**施工面（待定，先拍板再动）**
+- 二选一：① 让 `SessionStartHookMiddleware` 读取 `additionalContext` 并注入首轮 prompt（对齐基准 sessionStart hook 的
+  additionalContext 语义）；② `initialUserMessage` 需要「会话起始插一条 user 消息」的通道，可能落在
+  `IChatContextManager`。
+- 风险：SessionStart 在会话建立早期执行，注入时机与历史初始化顺序耦合 —— 必须先确认 `ChatInitContext` 时序，
+  否则会变成「注入了但被覆盖」。
+
+**判定标准**：先写红测试（构造 hook 返回 `additionalContext` → 断言它出现在首轮模型输入/历史里），
+再决定通道；只写文档不接线的做法不接受（本轮 A5 的教训）。
 
 ---
 
 ### A3. 斜杠命令取参审计（46 个 `GetNormalizedArgs` 调用点）
 
-**背景**：`slash_call` 把参数 JSON 整体放进 `Arguments`，`GetNormalizedArgs` 拿到的是**整串**。
-单值命令应改用 `GetSplitArgs()[0]`（`/model` 已按此修好）。其余调用点未逐条判断，
-存在「按空格切分后仍把 JSON 当值用」的隐患。
+**背景**：`slash_call` 把参数 JSON 整体放进 `Arguments`。`GetNormalizedArgs`（`IChatCommand.cs:108-120`）
+**已经**处理了单层 JSON：以 `{` 开头时用 `GetSplitArgs` 抽值再**用空格拼回**；非 JSON 才 Trim。
+所以「JSON 整串被当参数值」这个原始隐患已不存在 —— 剩下的真风险只有一种：
+**多字段 JSON（如 `{"model":"x","persist":true}`）被拼成 "x true"**，单值命令若把整串当值就会失败
+（`/model` 已改 `GetSplitArgs()[0]`）。审计时按此口径判断，不要把已修好的情形重复计入。
 
 **取证命令（可复制）**
 ```bash

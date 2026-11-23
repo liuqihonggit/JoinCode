@@ -9,7 +9,6 @@ global using Core.Services;
 global using Core.Telemetry;
 global using Core.Utils;
 global using FluentAssertions;
-global using Infrastructure.Cache;
 global using Infrastructure.Configuration;
 global using Infrastructure.HotSpot;
 global using Infrastructure.Housekeeping;

@@ -1,4 +1,4 @@
-namespace Core.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 过期值缓存 — 周期性刷新的值缓存，到期后下次访问触发刷新

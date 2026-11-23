@@ -1,4 +1,4 @@
-namespace Core.Utils;
+namespace JoinCode.Abstractions.Collections;
 
 /// <summary>
 /// LRU 缓存 — 基于双向链表 + 字典实现,支持按条目数和按字节容量双重淘汰策略

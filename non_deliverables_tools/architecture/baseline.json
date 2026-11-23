@@ -3,10 +3,10 @@
   "generated": "2026-11-23T03:57:54+08:00",
   "repoRoot": ".",
   "projectCount": 263,
-  "edgeCount": 1205,
-  "codeEdgeCount": 1048,
+  "edgeCount": 1206,
+  "codeEdgeCount": 1049,
   "prodEdgeCount": 722,
-  "prodCrossEdgeCount": 476,
+  "prodCrossEdgeCount": 477,
   "contracts": {
     "expected": 18,
     "valid": 18,
@@ -164,7 +164,7 @@
   },
   "ruleCounts": {
     "JCC12001": 0,
-    "JCC12002": 476,
+    "JCC12002": 477,
     "JCC12003": 0,
     "JCC12004": 0,
     "JCC12005": 0,
@@ -179,7 +179,7 @@
       "apps": 41,
       "async_primitives": 3,
       "cognition": 91,
-      "composition": 38,
+      "composition": 39,
       "guard": 49,
       "llm": 122,
       "mcp": 29,
@@ -517,7 +517,8 @@
     "modules/llm/reasoning/Reasoning.csproj",
     "modules/llm/agents_discovery/Agents.Discovery.csproj",
     "modules/cognition/brain_context_services/Brain.ContextServices.csproj",
-    "modules/abstractions/infrastructure_configuration/Infrastructure.Configuration.csproj"
+    "modules/abstractions/infrastructure_configuration/Infrastructure.Configuration.csproj",
+    "modules/abstractions/infrastructure_cache/Infrastructure.Cache.csproj"
   ],
   "allow": []
 }

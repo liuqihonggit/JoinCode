@@ -489,6 +489,12 @@ FodyWeavers.xsd
 # Deleted/moved file backups
 .xxx/
 
+# 临时 CI 排查产物（gh api 输出等，排查完不入库 — PR #725 曾误提交 .cr.json）
+/.cr*.json
+/.ci*.json
+/.cimain.json
+/.ci_logs/
+
 # Terminal.Gui local source (ProjectReference for perf optimization)
 # Exclude .git, build output, and nuget cache from the cloned repo
 libs/Terminal.Gui/.git/

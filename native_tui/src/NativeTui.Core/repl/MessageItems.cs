@@ -622,6 +622,27 @@ public sealed class ErrorMessageItem(string text) : IScrollItem, ICursorNavigabl
             : text;
 }
 
+/// <summary>系统旁白行项（TASK130-A5 — hook <c>systemMessage</c> 等「只上屏」提示）：
+/// dim 整行、无 margin、不参与消息光标导航（旁白非对话内容），也不并入助手正文。</summary>
+public sealed class SystemNoticeItem(string text) : IScrollItem, ITextMatchable
+{
+    /// <summary>旁白全文。</summary>
+    public string Text { get; } = text;
+
+    /// <summary>单行高度。</summary>
+    public int MeasureHeight(int width) => 1;
+
+    /// <summary>dim 样式渲染整行。</summary>
+    public void Render(Screen screen, Rect frame, Theme theme)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, Text, dim, frame.Right);
+    }
+
+    /// <summary>旁白匹配（transcript 搜索用）。</summary>
+    public bool ContainsText(string query) => Text.Contains(query, StringComparison.OrdinalIgnoreCase);
+}
+
 /// <summary>启动诊断行项 — 纯文本 dim 渲染（引擎启动中/[diag] 等）。
 /// 纳入 TUI 渲染内容使应用内选区覆盖（无需 Shift 选择）。</summary>
 public sealed class StartupLineItem(string text) : IScrollItem

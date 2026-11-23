@@ -257,6 +257,10 @@ public sealed class ReplBridgeDriver
                 // M8-8 常驻面板 upsert — (kind,taskId) 更新/插入条目，终态驻留不随回合清理
                 _view.BackgroundTasks.Upsert(kind, taskId, description, state);
                 break;
+            case BridgeEvent.SystemNotice(var notice):
+                // TASK130-A5 — 系统旁白（hook systemMessage）：独立 dim 行，不结束回合、不进对话正文
+                AddMessage(new SystemNoticeItem(notice));
+                break;
             case BridgeEvent.Error(var message):
                 // TASK069 B-1 — Error 自身承担回合终态（对齐基准 REPL.tsx:2951-2961 finally 兜底
                 // "Always reset loading state"）：回合异常只发 Error 无后续终态事件，不收尾则

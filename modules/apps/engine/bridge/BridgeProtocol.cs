@@ -67,6 +67,7 @@ public abstract record BridgeRequest
 [JsonDerivedType(typeof(BridgeEvent.TurnInterrupted), "turn_interrupted")]
 [JsonDerivedType(typeof(BridgeEvent.CompactCompleted), "compact_completed")]
 [JsonDerivedType(typeof(BridgeEvent.Retry), "retry")]
+[JsonDerivedType(typeof(BridgeEvent.SystemNotice), "system_notice")]
 [JsonDerivedType(typeof(BridgeEvent.Error), "error")]
 public abstract record BridgeEvent
 {
@@ -234,6 +235,12 @@ public abstract record BridgeEvent
     /// TUI spinner 行提示（非 ErrorMessageItem — 重试非终态，回合照常继续）。
     /// </summary>
     public sealed record Retry(string Reason, int Attempt, int MaxRetries, int DelayMs) : BridgeEvent;
+
+    /// <summary>
+    /// 系统旁白（TASK130-A5 — hook <c>systemMessage</c> 上屏）：只显示，不并入 assistant_message
+    /// （并入会进上下文历史）。TUI 侧渲染为独立 dim 行，与 native_tui 侧记录逐字段镜像。
+    /// </summary>
+    public sealed record SystemNotice(string Message) : BridgeEvent;
 }
 
 /// <summary>

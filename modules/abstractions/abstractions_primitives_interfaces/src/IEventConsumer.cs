@@ -250,6 +250,14 @@ public interface IEventConsumer {
     void OnLocalCommandOutput(string content) { }
 
     /// <summary>
+    /// 系统旁白（TASK130-A5 — 对齐基准 hook_system_message attachment 的展示语义：
+    /// 只上屏、不进助手正文、不进上下文历史）。首个生产方是 hook 的 <c>systemMessage</c> 字段。
+    /// 默认空实现 — 既有实现方零改动。
+    /// </summary>
+    /// <param name="message">旁白文本</param>
+    void OnSystemNotice(string message) { }
+
+    /// <summary>
     /// 文件持久化（TASK073 Phase 4 — 对齐基准侧 system/files_persisted 事件；
     /// NDJSON 模式输出 SdkFilesPersistedMessage。默认空实现 — 既有实现方零改动）
     /// </summary>

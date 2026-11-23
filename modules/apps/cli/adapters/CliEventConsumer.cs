@@ -390,6 +390,17 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>系统旁白（TASK130-A5 — hook systemMessage）— 交互模式 dim 行打印；NDJSON 模式暂不投影
+    /// （基准侧该内容走 attachment，本仓 SDK 协议无对应消息类型，不臆造字段）。</summary>
+    public void OnSystemNotice(string message) {
+        if (_agentMode || string.IsNullOrEmpty(message)) {
+            return;
+        }
+
+        using var _ = TerminalHelper.SetColor(ConsoleColor.DarkGray);
+        TerminalHelper.WriteLine(message);
+    }
+
     /// <summary>文件持久化 — NDJSON 模式输出 SdkFilesPersistedMessage</summary>
     public void OnFilesPersisted(System.Collections.Generic.List<JoinCode.Abstractions.Interfaces.PersistedFileInfo>? files = null, System.Collections.Generic.List<JoinCode.Abstractions.Interfaces.FailedPersistedFileInfo>? failed = null) {
         if (_agentMode) {

@@ -33,7 +33,11 @@ jobs:
           fi
           # 契约面 = 接口/模型层/构建属性。这类改动会让「所有实现方」的签名约束变化，
           # 而按域测试 job 各编各的，一次漂移会同时红 9 个 job（PR #723）。命中则加跑全量编译。
-          CONTRACT=$(echo "$FILES" | grep -E '[./](interfaces|models)/|(^|/)Directory\.Build\.(props|targets)$' || true)
+          # 注意：目录名不是裸 `interfaces/`/`models/`，本仓实际是
+          # `abstractions_primitives_interfaces`/`abstractions_primitives_models`/`abstractions_models`…
+          # 所以按「路径段名里含 interfaces|models」匹配；只写 `[./](interfaces|models)/` 会漏掉
+          # 最关键的 primitives 两个项目（PR #729 实测：改了 IEventConsumer 却没触发本 job）。
+          CONTRACT=$(echo "$FILES" | grep -E '(^|/)[^/]*(interfaces|models)[^/]*/|(^|/)Directory\.Build\.(props|targets)$' || true)
           if [ -n "$CONTRACT" ]; then
             echo "contract=true" >> "$GITHUB_OUTPUT"
             echo "🔌 契约面改动，追加全量编译（含 test/ 实现方）："

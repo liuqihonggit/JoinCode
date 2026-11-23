@@ -30,6 +30,7 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(SubagentFinished), "subagent_finished")]
 [JsonDerivedType(typeof(ContextUsage), "context_usage")]
 [JsonDerivedType(typeof(BackgroundTask), "background_task")]
+[JsonDerivedType(typeof(SystemNotice), "system_notice")]
 [JsonDerivedType(typeof(Error), "error")]
 public abstract record BridgeEvent
 {
@@ -178,4 +179,7 @@ public abstract record BridgeEvent
 
     /// <summary>错误（含诱导说明）。</summary>
     public sealed record Error(string Message) : BridgeEvent;
+
+    /// <summary>系统旁白（TASK130-A5 — hook <c>systemMessage</c>）：独立 dim 行，不结束回合、不进对话正文。</summary>
+    public sealed record SystemNotice(string Message) : BridgeEvent;
 }

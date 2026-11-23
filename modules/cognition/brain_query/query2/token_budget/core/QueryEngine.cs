@@ -197,8 +197,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var totalReasoning = 0;
         var stopHookReplies = 0;
         var totalTurns = 0;
-        // TASK102 轮次闸门：本轮是否已选择"5 结束"、已拦截收尾次数、是否启用
-        var roundGateEndSelected = false;
+        // TASK102/TASK132 轮次闸门：状态机单源（计数器 + 推荐 + 熔断 + 完成终验）与已拦截收尾次数
+        var roundGateSession = new RoundGateSession(RoundGatePolicy.ReadStrictMode());
         var roundGateRejections = 0;
         var requireRoundGate = context.Options is { RequireRoundGate: true }
             && context.Options.IsToolAllowed(RoundGatePolicy.ToolName);
@@ -272,11 +272,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
             // 处理查询完成（无工具调用）
             if (iterationResult.ToolCalls.Count == 0) {
-                // TASK102 轮次闸门：未选择 5 结束 → 回灌阻断消息并继续一轮（独立于 Stop hook 计数）
-                switch (EvaluateRoundGateStop(requireRoundGate, roundGateEndSelected, ref roundGateRejections, out var gateMaxRejections)) {
+                // TASK102/TASK132 轮次闸门：未通过状态机终验 → 回灌阻断消息并继续一轮（独立于 Stop hook 计数）
+                switch (EvaluateRoundGateStop(requireRoundGate, roundGateSession, ref roundGateRejections, out var gateMaxRejections, out var gateVerdict)) {
                     case RoundGateStopDecision.Blocked:
                         context.ChatHistory.AddUserMessage(
-                            RoundGatePrompts.BuildStopBlockedMessage(roundGateRejections, gateMaxRejections));
+                            RoundGatePrompts.BuildStopBlockedMessage(
+                                roundGateRejections, gateMaxRejections,
+                                gateVerdict.Reason ?? "未通过闸门终验", roundGateSession.Recommend()));
                         context.IsQueryComplete = false;
                         continue;
 
@@ -353,12 +355,6 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     context.ToolName = toolCall.ToolName;
                     context.HasToolCall = true;
 
-                    // TASK102 轮次闸门：记录"5 结束"的选择；其余选项由工具结果注入工作流提示词
-                    if (RoundGatePolicy.TryReadChoice(toolCall.ToolName, toolCall.Arguments, toolCall.RawArguments, out var gateChoice)
-                        && gateChoice == RoundGateChoice.End) {
-                        roundGateEndSelected = true;
-                    }
-
                     context.PublishOutput(new QueryStreamChunk {
                         Type = AgentStreamChunkType.ToolCallStart,
                         ToolName = toolCall.ToolName,
@@ -385,6 +381,15 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         // 取消时未完成的工具调用补写 (aborted) — assistant 工具调用消息后必须有对应结果，历史才对下一次请求合法
                         WriteAbortedToolResults(context, iterationResult.ToolCalls, scheduled.OriginalIndex, iterationResult.Content);
                         throw new OperationCanceledException(cancellationToken);
+                    }
+
+                    // TASK102/TASK132 轮次闸门：记录选择 → 更新状态机（计数/熔断/申诉）→ 把推荐与熔断提示并入工具结果
+                    if (RoundGatePolicy.TryReadInvocation(toolCall.ToolName, toolCall.Arguments, toolCall.RawArguments, out var gateInvocation)) {
+                        var gateStep = roundGateSession.Record(gateInvocation);
+                        toolResult = AppendRoundGateAdvisory(toolResult, gateStep);
+                        _logger?.LogInformation("[RoundGate] choice={Choice} recommended={Recommended} appeal={IsAppeal} fuse={Fuse}",
+                            gateStep.Choice.ToValue(), gateStep.Recommendation.Choice.ToValue(),
+                            gateStep.IsAppeal, gateStep.Fuse?.ForcedChoice.ToValue() ?? "-");
                     }
 
                     context.PublishOutput(new QueryStreamChunk {
@@ -453,26 +458,44 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     private enum RoundGateStopDecision { Allowed, Blocked, Exhausted }
 
     /// <summary>
-    /// TASK102 轮次闸门 — 评估本次收尾是否放行：未过闸门时累计拦截次数并返回 Blocked；
+    /// TASK102/TASK132 轮次闸门 — 用状态机裁决本次收尾：未过终验时累计拦截次数并返回 Blocked；
     /// 达到拦截上限返回 Exhausted（放行并提示），避免模型死不调用闸门时无限燃烧 token。
     /// </summary>
     /// <param name="required">本查询是否启用闸门。</param>
-    /// <param name="endSelected">本轮是否已选择"5 结束"。</param>
+    /// <param name="session">本轮闸门状态机。</param>
     /// <param name="rejections">已拦截次数（拦截时自增）。</param>
     /// <param name="maxRejections">拦截上限（≤0 表示不限制）。</param>
+    /// <param name="verdict">状态机裁决明细（拦截原因）。</param>
     /// <returns>收尾裁决。</returns>
-    private RoundGateStopDecision EvaluateRoundGateStop(bool required, bool endSelected, ref int rejections, out int maxRejections) {
+    private RoundGateStopDecision EvaluateRoundGateStop(
+        bool required, RoundGateSession session, ref int rejections, out int maxRejections, out RoundGateStopVerdict verdict) {
         maxRejections = RoundGatePolicy.ReadMaxStopRejections();
-        if (!required || endSelected)
+        verdict = session.EvaluateStop(required);
+        if (verdict.Allowed)
             return RoundGateStopDecision.Allowed;
 
         if (!RoundGatePolicy.CanRejectStop(rejections, maxRejections))
             return RoundGateStopDecision.Exhausted;
 
         rejections++;
-        _logger?.LogWarning("[QueryEngine] 轮次闸门拦截收尾（第 {Count}/{Max} 次）：未调用 {Tool} 选择结束",
-            rejections, maxRejections, RoundGatePolicy.ToolName);
+        _logger?.LogWarning("[QueryEngine] 轮次闸门拦截收尾（第 {Count}/{Max} 次）：{Reason}",
+            rejections, maxRejections, verdict.Reason ?? "-");
         return RoundGateStopDecision.Blocked;
+    }
+
+    /// <summary>
+    /// 把闸门状态机提示追加到工具结果 — 让 AI 在本轮就看到"推荐 / 备选 / 申诉 / 熔断"。
+    /// </summary>
+    /// <param name="result">原始工具结果。</param>
+    /// <param name="step">本轮闸门状态快照。</param>
+    /// <returns>追加提示后的工具结果。</returns>
+    private static ToolResult AppendRoundGateAdvisory(ToolResult result, RoundGateStep step) {
+        var content = result.Content.ToList();
+        content.Add(new ToolContent {
+            Type = ToolContentType.Text,
+            Text = RoundGatePrompts.BuildStateAdvisory(step),
+        });
+        return result with { Content = content };
     }
 
     /// <summary>

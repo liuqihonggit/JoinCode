@@ -4,7 +4,7 @@ namespace McpToolDispatch;
 /// 轮次闸门工具处理器 — 强制 AI 在收尾前选择下一步并注入对应工作流提示词。
 /// <para>
 /// 本工具不等待用户输入，只返回选项对应的注入文本；是否允许结束回合由运行时
-/// （QueryEngine / QueryLoopMiddleware）按 <see cref="RoundGatePolicy"/> 统一裁决。
+/// （QueryEngine 持有的 <see cref="RoundGateSession"/>）按状态机统一裁决。
 /// </para>
 /// <para>
 /// 选择"2 TODO 继续"时，若 <see cref="ITodoService"/> 可用，会把真实就绪 TODO 追加到注入文本，
@@ -27,22 +27,30 @@ public class RoundGateToolHandlers {
     }
 
     /// <summary>
-    /// 通过闸门并声明下一步 — 收尾前必须调用，choice=5 是唯一允许停止的选项。
+    /// 通过闸门并声明下一步 — 收尾前必须调用；只有出口选项可能停止本轮，且 5 完成需先有 3 自验通过。
     /// </summary>
-    /// <param name="choice">下一步选项：1 直接继续 / 2 TODO 继续 / 3 规划任务 / 4 验收 / 5 结束。</param>
-    /// <param name="note">一句话说明下一步将做什么（可选）。</param>
+    /// <param name="choice">下一步选项：0 阻塞上报 / 1 直接继续 / 2 TODO 继续 / 3 自验 / 4 用户验收 / 5 完成 / 6 等候后台 / 7 重新规划 / 8 回退修正 / 9 降级交付 / 10 求助升级。</param>
+    /// <param name="note">一句话说明下一步将做什么；偏离推荐时写申诉理由（可选）。</param>
+    /// <param name="evidence">本轮可验证证据摘要（命令输出/文件/测试结果）；为空会累计空转（可选）。</param>
+    /// <param name="subject">缺陷/子项标识，用于同一缺陷返工计数（可选）。</param>
+    /// <param name="verdict">choice=3 的自验结论：pass 通过 / fail 不通过（选择 3 时必填）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>对应选项的工作流提示词；非法选项返回带允许值与正确写法的报错。</returns>
+    /// <returns>对应选项的工作流提示词；非法选项/非法结论返回带允许值与正确写法的报错。</returns>
     [McpTool(SystemToolNameEnumConstants.RoundGate,
         "Mandatory round gate. Before ending your turn you MUST call this and pick the next step: " +
-        "1=continue directly, 2=continue with next TODO, 3=plan remaining tasks, 4=acceptance with real exe run, 5=end. " +
-        "Only choice 5 allows the turn to stop; stopping without it is blocked by the runtime. " +
-        "Each choice injects the corresponding workflow prompt into your context. " +
-        "You can call it in parallel with your last action in the same round to avoid an extra round trip.",
+        "1=continue directly, 2=next TODO, 3=self-acceptance (verdict=pass|fail), 4=hand off to user acceptance, " +
+        "5=done (requires a passed self-acceptance), 6=await background handle, 7=replan, 8=rework a defect, " +
+        "9=degraded delivery (needs user acceptance handoff), 10=escalate/ask for help, 0=blocked on user input. " +
+        "Only 4/5/6/9/10/0 can stop the turn; stopping otherwise is blocked by the runtime state machine. " +
+        "Each choice injects the corresponding workflow prompt plus the recommended next option. " +
+        "Pass evidence to prove real progress (empty evidence accumulates idle rounds and forces a replan).",
         MessageRoleEnumConstants.System)]
     public async Task<ToolResult> RoundGateAsync(
-        [McpToolParameter("Next step: 1=continue, 2=next TODO, 3=plan tasks, 4=acceptance, 5=end (only 5 stops)")] int choice,
-        [McpToolParameter("One-line note about the next action (optional)", Required = false)] string? note = null,
+        [McpToolParameter("Next step: 0=blocked, 1=continue, 2=next TODO, 3=self-accept, 4=user accept, 5=done, 6=await background, 7=replan, 8=rework, 9=degrade, 10=escalate")] int choice,
+        [McpToolParameter("One-line note about the next action or the reason for deviating from the recommendation (optional)", Required = false)] string? note = null,
+        [McpToolParameter("Verifiable evidence summary for this round (optional; empty counts as idle)", Required = false)] string? evidence = null,
+        [McpToolParameter("Defect/subject id used for rework counting (optional)", Required = false)] string? subject = null,
+        [McpToolParameter("Self-acceptance verdict for choice=3: pass|fail (required when choice=3)", Required = false)] string? verdict = null,
         CancellationToken cancellationToken = default) {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -52,15 +60,43 @@ public class RoundGateToolHandlers {
                 .Build();
         }
 
+        if (!RoundGatePolicy.TryParseVerdict(verdict, out var parsedVerdict)) {
+            return ToolResultBuilder.Error()
+                .WithText(RoundGatePrompts.BuildInvalidVerdictMessage(verdict))
+                .Build();
+        }
+
+        if (parsed == RoundGateChoice.SelfAccept && parsedVerdict == RoundGateVerdict.None) {
+            return ToolResultBuilder.Error()
+                .WithText(RoundGatePrompts.BuildInvalidVerdictMessage(null))
+                .Build();
+        }
+
         var text = RoundGatePrompts.ForChoice(parsed);
         if (parsed == RoundGateChoice.NextTodo)
             text = await AppendReadyTodosAsync(text, cancellationToken).ConfigureAwait(false);
 
-        if (!string.IsNullOrWhiteSpace(note))
-            text = $"{text}\n\n（你的下一步说明：{note}）";
+        text = $"{text}\n\n{RoundGatePrompts.EvidenceGuardrail}";
+        text = AppendInvocationEcho(text, note, evidence, subject, parsedVerdict);
 
-        _logger?.LogInformation("[RoundGate] choice={Choice} note={Note}", choice, note ?? "-");
+        _logger?.LogInformation("[RoundGate] choice={Choice} verdict={Verdict} subject={Subject} evidence={HasEvidence}",
+            choice, parsedVerdict.ToValue(), subject ?? "-", string.IsNullOrWhiteSpace(evidence) ? "no" : "yes");
         return ToolResultBuilder.Success().WithText(text).Build();
+    }
+
+    private static string AppendInvocationEcho(
+        string text, string? note, string? evidence, string? subject, RoundGateVerdict verdict) {
+        var lines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(note))
+            lines.Add($"（你的下一步说明：{note}）");
+        if (!string.IsNullOrWhiteSpace(evidence))
+            lines.Add($"（本轮证据：{evidence}）");
+        if (!string.IsNullOrWhiteSpace(subject))
+            lines.Add($"（缺陷标识：{subject}）");
+        if (verdict != RoundGateVerdict.None)
+            lines.Add($"（自验结论：{verdict.ToValue()}）");
+
+        return lines.Count == 0 ? text : $"{text}\n\n{string.Join("\n", lines)}";
     }
 
     private async Task<string> AppendReadyTodosAsync(string text, CancellationToken cancellationToken) {
@@ -70,7 +106,7 @@ public class RoundGateToolHandlers {
         try {
             var ready = await _todoService.GetReadyTodosAsync(cancellationToken).ConfigureAwait(false);
             if (ready.Count == 0)
-                return $"{text}\n\n当前没有就绪 TODO：请改用 3 规划任务，或 1 直接继续。";
+                return $"{text}\n\n当前没有就绪 TODO：请改选 7 重新规划，或 1 直接继续。";
 
             var lines = ready
                 .Take(5)

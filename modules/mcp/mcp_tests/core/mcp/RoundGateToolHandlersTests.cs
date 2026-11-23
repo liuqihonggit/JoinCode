@@ -1,17 +1,22 @@
 namespace Mcp.Tests;
 
 /// <summary>
-/// TASK102 round_gate 工具测试 — 选项注入文本、非法选项诱导式报错、note 回显。
+/// TASK102/TASK132 round_gate 工具测试 — 选项注入文本、自验结论校验、非法选项诱导式报错、参数回显与 TODO 注入。
 /// </summary>
 public sealed class RoundGateToolHandlersTests {
     private readonly RoundGateToolHandlers _handler = new();
 
     [Theory]
+    [InlineData(0, "阻塞上报")]
     [InlineData(1, "直接继续")]
     [InlineData(2, "TODO 继续")]
-    [InlineData(3, "规划任务")]
-    [InlineData(4, "验收")]
-    [InlineData(5, "结束")]
+    [InlineData(4, "用户验收")]
+    [InlineData(5, "完成")]
+    [InlineData(6, "等候后台")]
+    [InlineData(7, "重新规划")]
+    [InlineData(8, "回退")]
+    [InlineData(9, "降级交付")]
+    [InlineData(10, "求助")]
     public async Task RoundGateAsync_ValidChoice_ReturnsMatchingInjection(int choice, string expectedMarker) {
         var result = await _handler.RoundGateAsync(choice).ConfigureAwait(true);
 
@@ -20,26 +25,39 @@ public sealed class RoundGateToolHandlersTests {
     }
 
     [Fact]
-    public async Task RoundGateAsync_EndChoice_InjectionMentionsStopPermission() {
-        var result = await _handler.RoundGateAsync(5).ConfigureAwait(true);
+    public async Task RoundGateAsync_SelfAccept_RequiresVerdictAndInjectsVerificationPrompt() {
+        var withVerdict = await _handler.RoundGateAsync(3, verdict: "pass").ConfigureAwait(true);
+        withVerdict.IsError.Should().BeFalse();
+        withVerdict.GetFirstText().Should().Contain("自验");
 
-        result.GetFirstText().Should().Contain("允许停止");
+        var withoutVerdict = await _handler.RoundGateAsync(3).ConfigureAwait(true);
+        withoutVerdict.IsError.Should().BeTrue("choice=3 必须声明 verdict");
+        withoutVerdict.GetFirstText().Should().Contain("verdict");
     }
 
     [Fact]
-    public async Task RoundGateAsync_Acceptance_InjectionRequiresRealExeAndCircleMark() {
+    public async Task RoundGateAsync_Done_InjectionRequiresTerminalVerification() {
+        var result = await _handler.RoundGateAsync(5).ConfigureAwait(true);
+
+        var text = result.GetFirstText();
+        text.Should().Contain("终验");
+        text.Should().Contain("3 自验");
+        text.Should().Contain("○");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_UserAccept_InjectionRequiresCircleMarkedHandoff() {
         var result = await _handler.RoundGateAsync(4).ConfigureAwait(true);
 
         var text = result.GetFirstText();
-        text.Should().Contain("exe");
         text.Should().Contain("○");
         text.Should().Contain("待用户验收");
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(6)]
+    [InlineData(11)]
     [InlineData(-3)]
+    [InlineData(42)]
     public async Task RoundGateAsync_InvalidChoice_ReturnsGuidingError(int choice) {
         var result = await _handler.RoundGateAsync(choice).ConfigureAwait(true);
 
@@ -51,10 +69,27 @@ public sealed class RoundGateToolHandlersTests {
     }
 
     [Fact]
-    public async Task RoundGateAsync_WithNote_EchoesNote() {
-        var result = await _handler.RoundGateAsync(2, "继续 TASK102 测试").ConfigureAwait(true);
+    public async Task RoundGateAsync_InvalidVerdict_ReturnsGuidingError() {
+        var result = await _handler.RoundGateAsync(3, verdict: "maybe").ConfigureAwait(true);
 
-        result.GetFirstText().Should().Contain("继续 TASK102 测试");
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("不是合法的自验结论");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_WithNoteAndEvidence_EchoesBoth() {
+        var result = await _handler.RoundGateAsync(1, note: "继续 TASK132 测试", evidence: "dotnet test 全绿").ConfigureAwait(true);
+
+        var text = result.GetFirstText();
+        text.Should().Contain("继续 TASK132 测试");
+        text.Should().Contain("dotnet test 全绿");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_AlwaysInjectsEvidenceGuardrail() {
+        var result = await _handler.RoundGateAsync(1).ConfigureAwait(true);
+
+        result.GetFirstText().Should().Contain("每轮必答三问");
     }
 
     [Fact]
@@ -62,7 +97,7 @@ public sealed class RoundGateToolHandlersTests {
         var todoService = new Mock<ITodoService>();
         todoService.Setup(t => t.GetReadyTodosAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new TodoItem("t1", "实现 TASK102 收尾", "pending", "high"),
+                new TodoItem("t1", "实现 TASK132 状态机", "pending", "high"),
                 new TodoItem("t2", "补真机验收", "pending", "medium")
             ]);
         var handler = new RoundGateToolHandlers(todoService.Object);
@@ -72,12 +107,12 @@ public sealed class RoundGateToolHandlersTests {
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
         text.Should().Contain("当前就绪 TODO");
-        text.Should().Contain("实现 TASK102 收尾");
+        text.Should().Contain("实现 TASK132 状态机");
         text.Should().Contain("补真机验收");
     }
 
     [Fact]
-    public async Task RoundGateAsync_NextTodoWithoutReadyItems_FallsBackToPlanHint() {
+    public async Task RoundGateAsync_NextTodoWithoutReadyItems_FallsBackToReplanHint() {
         var todoService = new Mock<ITodoService>();
         todoService.Setup(t => t.GetReadyTodosAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -86,7 +121,7 @@ public sealed class RoundGateToolHandlersTests {
         var result = await handler.RoundGateAsync(2).ConfigureAwait(true);
 
         result.GetFirstText().Should().Contain("当前没有就绪 TODO");
-        result.GetFirstText().Should().Contain("3 规划任务");
+        result.GetFirstText().Should().Contain("7 重新规划");
     }
 
     [Fact]
@@ -103,7 +138,7 @@ public sealed class RoundGateToolHandlersTests {
     }
 
     [Fact]
-    public async Task RoundGateAsync_EndChoice_DoesNotQueryTodoService() {
+    public async Task RoundGateAsync_DoneChoice_DoesNotQueryTodoService() {
         var todoService = new Mock<ITodoService>();
         var handler = new RoundGateToolHandlers(todoService.Object);
 

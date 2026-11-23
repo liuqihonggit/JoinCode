@@ -1,40 +1,49 @@
 namespace Core.Tests.Query.Gate;
 
 /// <summary>
-/// TASK102 轮次闸门策略测试 — 选项解析、开关三态、拦截上限与注入提示词内容的唯一数据源。
+/// TASK132 轮次闸门状态机 — 策略单源测试：选项集、类别、出口判定、verdict 解析、调用解析、开关与上限。
 /// </summary>
 public sealed class RoundGatePolicyTests {
     [Theory]
+    [InlineData(0, RoundGateChoice.BlockedReport)]
     [InlineData(1, RoundGateChoice.Continue)]
     [InlineData(2, RoundGateChoice.NextTodo)]
-    [InlineData(3, RoundGateChoice.Plan)]
-    [InlineData(4, RoundGateChoice.Acceptance)]
-    [InlineData(5, RoundGateChoice.End)]
-    public void TryFromNumber_AcceptsValidChoices(int number, RoundGateChoice expected) {
+    [InlineData(3, RoundGateChoice.SelfAccept)]
+    [InlineData(4, RoundGateChoice.UserAccept)]
+    [InlineData(5, RoundGateChoice.Done)]
+    [InlineData(6, RoundGateChoice.AwaitBackground)]
+    [InlineData(7, RoundGateChoice.Replan)]
+    [InlineData(8, RoundGateChoice.Rework)]
+    [InlineData(9, RoundGateChoice.Degrade)]
+    [InlineData(10, RoundGateChoice.Escalate)]
+    public void TryFromNumber_AcceptsFullOptionSet(int number, RoundGateChoice expected) {
         RoundGatePolicy.TryFromNumber(number, out var choice).Should().BeTrue();
         choice.Should().Be(expected);
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(6)]
     [InlineData(-1)]
+    [InlineData(11)]
+    [InlineData(42)]
     public void TryFromNumber_RejectsOutOfRange(int number) {
         RoundGatePolicy.TryFromNumber(number, out _).Should().BeFalse();
     }
 
     [Theory]
+    [InlineData("0", RoundGateChoice.BlockedReport)]
+    [InlineData("10", RoundGateChoice.Escalate)]
     [InlineData("1", RoundGateChoice.Continue)]
-    [InlineData("5", RoundGateChoice.End)]
+    [InlineData("5", RoundGateChoice.Done)]
     [InlineData("continue", RoundGateChoice.Continue)]
     [InlineData("next_todo", RoundGateChoice.NextTodo)]
     [InlineData("todo", RoundGateChoice.NextTodo)]
-    [InlineData("plan", RoundGateChoice.Plan)]
-    [InlineData("acceptance", RoundGateChoice.Acceptance)]
-    [InlineData("verify", RoundGateChoice.Acceptance)]
-    [InlineData("end", RoundGateChoice.End)]
-    [InlineData("finish", RoundGateChoice.End)]
-    [InlineData(" END ", RoundGateChoice.End)]
+    [InlineData("plan", RoundGateChoice.Replan)]
+    [InlineData("verify", RoundGateChoice.SelfAccept)]
+    [InlineData("acceptance", RoundGateChoice.UserAccept)]
+    [InlineData("done", RoundGateChoice.Done)]
+    [InlineData("finish", RoundGateChoice.Done)]
+    [InlineData(" END ", RoundGateChoice.Done)]
+    [InlineData("blocked", RoundGateChoice.BlockedReport)]
     public void TryParseChoice_AcceptsNumbersCanonicalValuesAndAliases(string raw, RoundGateChoice expected) {
         RoundGatePolicy.TryParseChoice(raw, out var choice).Should().BeTrue();
         choice.Should().Be(expected);
@@ -43,27 +52,79 @@ public sealed class RoundGatePolicyTests {
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    [InlineData("6")]
+    [InlineData("11")]
     [InlineData("unknown")]
     public void TryParseChoice_RejectsInvalid(string raw) {
         RoundGatePolicy.TryParseChoice(raw, out _).Should().BeFalse();
     }
 
-    [Fact]
-    public void TryReadChoice_UsesParsedArgumentsAndIsCaseInsensitiveOnToolName() {
-        using var document = JsonDocument.Parse("""{"choice":5}""");
-        var arguments = new Dictionary<string, JsonElement> {
-            ["choice"] = document.RootElement.GetProperty("choice").Clone()
-        };
+    [Theory]
+    [InlineData(RoundGateChoice.Continue, RoundGateCategory.Execute)]
+    [InlineData(RoundGateChoice.NextTodo, RoundGateCategory.Execute)]
+    [InlineData(RoundGateChoice.SelfAccept, RoundGateCategory.Verify)]
+    [InlineData(RoundGateChoice.UserAccept, RoundGateCategory.Verify)]
+    [InlineData(RoundGateChoice.Replan, RoundGateCategory.Meta)]
+    [InlineData(RoundGateChoice.Rework, RoundGateCategory.Meta)]
+    [InlineData(RoundGateChoice.Degrade, RoundGateCategory.Converge)]
+    [InlineData(RoundGateChoice.Escalate, RoundGateCategory.Converge)]
+    [InlineData(RoundGateChoice.AwaitBackground, RoundGateCategory.Suspend)]
+    [InlineData(RoundGateChoice.Done, RoundGateCategory.Exit)]
+    [InlineData(RoundGateChoice.BlockedReport, RoundGateCategory.Exit)]
+    public void CategoryOf_MapsFourExitFamilies(RoundGateChoice choice, RoundGateCategory expected) {
+        RoundGatePolicy.CategoryOf(choice).Should().Be(expected);
+    }
 
-        RoundGatePolicy.TryReadChoice("ROUND_GATE", arguments, rawArguments: null, out var choice).Should().BeTrue();
-        choice.Should().Be(RoundGateChoice.End);
+    [Theory]
+    [InlineData(RoundGateChoice.Continue, false)]
+    [InlineData(RoundGateChoice.NextTodo, false)]
+    [InlineData(RoundGateChoice.SelfAccept, false)]
+    [InlineData(RoundGateChoice.Rework, false)]
+    [InlineData(RoundGateChoice.Replan, false)]
+    [InlineData(RoundGateChoice.UserAccept, true)]
+    [InlineData(RoundGateChoice.Done, true)]
+    [InlineData(RoundGateChoice.AwaitBackground, true)]
+    [InlineData(RoundGateChoice.Degrade, true)]
+    [InlineData(RoundGateChoice.Escalate, true)]
+    [InlineData(RoundGateChoice.BlockedReport, true)]
+    public void IsExitChoice_OnlyExitFamilyCanStop(RoundGateChoice choice, bool expected) {
+        RoundGatePolicy.IsExitChoice(choice).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("pass", RoundGateVerdict.Pass)]
+    [InlineData("fail", RoundGateVerdict.Fail)]
+    [InlineData("通过", RoundGateVerdict.Pass)]
+    [InlineData("不通过", RoundGateVerdict.Fail)]
+    [InlineData("", RoundGateVerdict.None)]
+    public void TryParseVerdict_ParsesPassFailAndEmpty(string raw, RoundGateVerdict expected) {
+        RoundGatePolicy.TryParseVerdict(raw, out var verdict).Should().BeTrue();
+        verdict.Should().Be(expected);
+    }
+
+    [Fact]
+    public void TryParseVerdict_RejectsUnknownText() {
+        RoundGatePolicy.TryParseVerdict("maybe", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryReadInvocation_ReadsChoiceEvidenceSubjectAndVerdict() {
+        using var document = JsonDocument.Parse(
+            """{"choice":3,"evidence":"dotnet test 全绿","subject":"RoundGate","verdict":"pass","note":"自验"}""");
+        var arguments = new Dictionary<string, JsonElement>();
+        foreach (var property in document.RootElement.EnumerateObject())
+            arguments[property.Name] = property.Value.Clone();
+
+        RoundGatePolicy.TryReadInvocation("ROUND_GATE", arguments, rawArguments: null, out var invocation).Should().BeTrue();
+        invocation.Choice.Should().Be(RoundGateChoice.SelfAccept);
+        invocation.Evidence.Should().Be("dotnet test 全绿");
+        invocation.Subject.Should().Be("RoundGate");
+        invocation.Verdict.Should().Be(RoundGateVerdict.Pass);
     }
 
     [Fact]
     public void TryReadChoice_FallsBackToRawArgumentsWhenParsedDictionaryMissing() {
-        RoundGatePolicy.TryReadChoice("round_gate", null, """{"choice":"acceptance"}""", out var choice).Should().BeTrue();
-        choice.Should().Be(RoundGateChoice.Acceptance);
+        RoundGatePolicy.TryReadChoice("round_gate", null, """{"choice":"user_accept"}""", out var choice).Should().BeTrue();
+        choice.Should().Be(RoundGateChoice.UserAccept);
     }
 
     [Fact]
@@ -74,45 +135,69 @@ public sealed class RoundGatePolicyTests {
 
     [Fact]
     public void TryReadChoiceFromJson_ParsesChatLoopFormat() {
-        RoundGatePolicy.TryReadChoiceFromJson("round_gate", """{"choice":3}""", out var choice).Should().BeTrue();
-        choice.Should().Be(RoundGateChoice.Plan);
+        RoundGatePolicy.TryReadChoiceFromJson("round_gate", """{"choice":7}""", out var choice).Should().BeTrue();
+        choice.Should().Be(RoundGateChoice.Replan);
 
         RoundGatePolicy.TryReadChoiceFromJson("round_gate", "not-json", out _).Should().BeFalse();
-        RoundGatePolicy.TryReadChoiceFromJson("round_gate", """{"choice":9}""", out _).Should().BeFalse();
+        RoundGatePolicy.TryReadChoiceFromJson("round_gate", """{"choice":11}""", out _).Should().BeFalse();
     }
 
     [Fact]
-    public void AcceptancePrompt_EnforcesRealExeAndUserVerificationMarking() {
-        var text = RoundGatePrompts.ForChoice(RoundGateChoice.Acceptance);
+    public void SelfAcceptPrompt_RequiresPerRequirementVerification() {
+        var text = RoundGatePrompts.ForChoice(RoundGateChoice.SelfAccept);
 
-        text.Should().Contain("exe", "验收必须启动真实 exe");
-        text.Should().Contain("ADR 0080");
-        text.Should().Contain("禁止用", "不得以单元测试作为验收依据");
-        text.Should().Contain("○", "需要用户亲自验收的项必须用圆圈标记");
+        text.Should().Contain("逐条");
+        text.Should().Contain("verdict=pass");
+        text.Should().Contain("verdict=fail");
+        text.Should().Contain("禁止用宽松自验");
+    }
+
+    [Fact]
+    public void UserAcceptPrompt_RequiresCircleMarkedHandoff() {
+        var text = RoundGatePrompts.ForChoice(RoundGateChoice.UserAccept);
+
+        text.Should().Contain("○");
         text.Should().Contain("待用户验收");
     }
 
     [Fact]
-    public void EndPrompt_RequiresCompletionAndAcceptance() {
-        var text = RoundGatePrompts.ForChoice(RoundGateChoice.End);
+    public void DonePrompt_RequiresThreeLayerTerminalVerification() {
+        var text = RoundGatePrompts.ForChoice(RoundGateChoice.Done);
 
-        text.Should().Contain("任务全部完成");
+        text.Should().Contain("终验");
+        text.Should().Contain("3 自验");
         text.Should().Contain("○");
+        text.Should().Contain("完成");
     }
 
     [Fact]
-    public void StopBlockedMessage_ExplainsToolNameOptionsAndLimit() {
-        var text = RoundGatePrompts.BuildStopBlockedMessage(rejection: 2, maxRejections: 6);
+    public void EscapeHatchPrompts_DeclareTheirGuards() {
+        RoundGatePrompts.ForChoice(RoundGateChoice.Replan).Should().Contain("超过 2 次");
+        RoundGatePrompts.ForChoice(RoundGateChoice.Rework).Should().Contain("超过 2 次");
+        RoundGatePrompts.ForChoice(RoundGateChoice.Degrade).Should().Contain("可用子集");
+        RoundGatePrompts.ForChoice(RoundGateChoice.Escalate).Should().Contain("摆烂");
+    }
 
-        text.Should().Contain("round_gate");
+    [Fact]
+    public void StopBlockedMessage_ExplainsReasonRecommendationAndLimit() {
+        var recommendation = new RoundGateRecommendation {
+            Choice = RoundGateChoice.SelfAccept,
+            Reason = "本轮已有产出",
+            Alternatives = [RoundGateChoice.Continue, RoundGateChoice.Rework],
+        };
+        var text = RoundGatePrompts.BuildStopBlockedMessage(2, 6, "还没有通过的自验", recommendation);
+
         text.Should().Contain("第 2 次");
         text.Should().Contain("最多 6 次");
-        text.Should().Contain("5 结束");
+        text.Should().Contain("还没有通过的自验");
+        text.Should().Contain("3 自验");
+        text.Should().Contain("本轮已有产出");
     }
 
     [Fact]
     public void StopBlockedMessage_UnlimitedLimitText() {
-        var text = RoundGatePrompts.BuildStopBlockedMessage(rejection: 10, maxRejections: 0);
+        var text = RoundGatePrompts.BuildStopBlockedMessage(
+            10, 0, "未过闸门", new RoundGateRecommendation { Choice = RoundGateChoice.Continue });
 
         text.Should().Contain("不限制拦截次数");
     }
@@ -177,6 +262,27 @@ public sealed class RoundGatePolicyTests {
 
         using (EnvVarScope.Set(envName, "abc")) {
             RoundGatePolicy.ReadMaxStopRejections().Should().Be(RoundGatePolicy.DefaultMaxStopRejections);
+        }
+    }
+
+    [Fact]
+    public void ReadStrictMode_ParsesTruthyValuesOnly() {
+        var envName = JccEnvVar.RoundGateStrict.ToValue();
+
+        using (EnvVarScope.Set(envName, null)) {
+            RoundGatePolicy.ReadStrictMode().Should().BeFalse();
+        }
+
+        using (EnvVarScope.Set(envName, "1")) {
+            RoundGatePolicy.ReadStrictMode().Should().BeTrue();
+        }
+
+        using (EnvVarScope.Set(envName, "on")) {
+            RoundGatePolicy.ReadStrictMode().Should().BeTrue();
+        }
+
+        using (EnvVarScope.Set(envName, "0")) {
+            RoundGatePolicy.ReadStrictMode().Should().BeFalse();
         }
     }
 }

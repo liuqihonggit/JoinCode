@@ -488,13 +488,13 @@ architecture:
 - `LruCache` 归入 `Abstractions.Primitives.Collections`，`ExpiringValue` 归入 `Abstractions.Primitives.Utils`。迁移只改变文件和命名空间，保留原实现及 `FileStateCache`、`CpuParallelism` 的归属，`Infrastructure` 不再引用 Cache 服务包。
 - `Composition` 按源码 / packed 模式显式引用 Cache，继续用 `[Register]` 源码生成，不增加手工注册；新增 `ServiceRegistrationTest.Cache.cs`，覆盖 5 个 Cache 契约与 `IFileStateCache` 各注册一次且为单例。`Infra.Utils.Tests` 显式引用实际测试的 `PasteStore` 所在项目或包；IO / Services 测试仅移除未使用的 `Infrastructure.Cache` 导入。
 - 静态验收：MSBuild 配置求值确认两种引用模式互斥、KV 包名正确、迁入源码与回归测试纳入正确的 `Compile` 项；`ArchitectureGate -Mode Validate`、四项目录迁移门禁、CLI 节点继承与工具分组的静态检查、`git diff --check` 均通过。生产边总数仍为 722；仅将一条同域生产边替换为既有 `composition → abstractions` 域对下的跨域项目边（`JCC12002` 476 → 477），无新增域对、API 准入违规或生产域环。
-- 已运行：`Composition`（含 Infrastructure、Brain.Query、Vault）Debug 定点编译 0 警告 0 错误；`ServiceRegistrationTest` 35 例（含 Cache 6 例）、`QueryEngineOutputStreamTests` 3 例、`TranscriptServiceTests` 30 例、缓存工具 20 例均通过；`ArchitectureGate -Mode Validate` PASS（263/1206/1049/722/477），五项目录/门禁脚本与 `git diff --check` 通过。全量构建、packed NuGet 打包消费和 PR CI 仍待流水线验证。
+- 已运行：`Composition`（含 Infrastructure、Brain.Query、Vault）Debug 定点编译 0 警告 0 错误；`ServiceRegistrationTest` 35 例（含 Cache 6 例）、`QueryEngineOutputStreamTests` 3 例、`TranscriptServiceTests` 30 例、缓存工具 20 例均通过；`ArchitectureGate -Mode Validate` PASS（263/1206/1049/722/477），五项目录/门禁脚本与 `git diff --check` 通过。PR #728 / #730 CI 全绿（38 pass + 1 条件 skip）；build job 已完成 packed NuGet 打包并由 test job 消费。
 - 已修复：`ExpiringValue` 原实现把 `Stopwatch` 时间戳差直接与 `TimeSpan.Ticks` 比较，两者频率可能不同。现改用 `TimeProvider.GetElapsedTime` 并使用 `_hasValue` 显式表示初始化状态；新增秒级时钟复现测试，`ExpiringValueTests` 4/4、`CpuParallelismTest` 回归均通过。
 
 **后续改动（按顺序，逐项 ADR）**：
 1. ✅ 补齐域内 slnx 缺口（`827e8fca0`，26→0；abstractions/generators/perception 全部登记，tools 的 13 个 `cli_nodes/groups/*` 与 sample/onnx 测试直接纳入，无排除项）。
 2. ✅ 生成 `README.md` 项目表（`Update-ModuleReadme.ps1`，16 域已按域内 csproj 重建；`JCC12011` 校验行数）。
-3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖与 `Infrastructure -> PithosDB` 边均已摘除；PithosDB KV 适配层已下沉 `persistence/kv_store`；Cache 服务由 Composition 显式引用，`Infrastructure -> Infrastructure.Cache` 已摘除，运行回归已验（定点编译/测试）；全量 CI 待验。`Infrastructure` 仍保留 io/pipeline 等共享能力，后续按能力包继续拆。）
+3. 拆 `Infrastructure`：PithosDB/Plugins.Contracts/Downloader 适配层分别下沉到 persistence/plugins/storage 域；`Infrastructure` 只保留 DI/Options/Hosting/Logging。（进行中：GitHub 客户端已出迁 tools 域，Downloader 依赖与 `Infrastructure -> PithosDB` 边均已摘除；PithosDB KV 适配层已下沉 `persistence/kv_store`；Cache 服务由 Composition 显式引用，`Infrastructure -> Infrastructure.Cache` 已摘除，运行回归已验（定点编译/测试）；PR #728 / #730 CI 全绿。`Infrastructure` 仍保留 io/pipeline 等共享能力，后续按能力包继续拆。）
 4. 消 `abstractions ↔ async_primitives/plugins/storage` 环；消 `storage ↔ composition`、`apps ↔ native_tui` 环。（已完成：`storage ↔ composition`、`abstractions ↔ async_primitives`、`apps ↔ native_tui` 三条均清零，生产域环 8→0）
 5. ✅ 176 个目录名的批量改名（脚本先单域验证再推广；最终 173 个现存违规清零，`JCC12009=0`）。
 
@@ -573,8 +573,8 @@ Directory.Build.props                         # 修改：CompilerVisibleProperty
 | `Infrastructure` 拆分第一刀（GitHub 客户端出迁 tools） | `tools/gh`、全仓生产图 | ✅ `GitHubClient.csproj` + `github_client_tests` 随迁 | ✅ 全仓四 target True；`jcc-gh.exe alias list` 真实构造客户端；门禁环 15→8 |
 | `Infrastructure` 拆分第二刀（PithosDB KV 出迁 persistence） | `KvStore`、`composition`/`code_index`/`gh`/`apps/cli` | ✅ `KvStore.csproj` + 6 文件整体迁入；`NamedMutexMailboxLock.Release()` 公开 | ✅ `KvStore`/`Infra.IO.Tests`/`gh` 定点编译 0 警告 0 错误；`JCC12002 469→475`、环 0、`Validate` PASS |
 | `Infrastructure` 拆分第三刀（cache 能力包出迁 abstractions） | `Infrastructure.Cache`、`Infrastructure`、`Composition`、`infra.tests` | ✅ `Infrastructure.Cache.csproj` + 7 文件整体迁入；命名空间不变 | ✅ 新项目/Infrastructure/Composition 定点编译 0 警告 0 错误；`Composition` 重建后 5 个 DI 注册保留；本地跨域 475 不变；rebase 后吸收上游 MemoryRecall→Vault 1 条，基线 476、`Validate` PASS |
-| KV 包名与目录迁移门禁收尾 | `CodeIndex` packed 分支、PR CI 静态门禁 | ✅ `PackageId` 与引用对齐；目录路径和锁基线同步 | ⚠️ 四项门禁通过，配置求值包名一致；未验证真实 NuGet 打包与还原 |
-| `Infrastructure → Infrastructure.Cache` 摘边 | `Composition` 生成式 DI、文件读状态和 CPU 并行度、测试项目 | ✅ 两个缓存工具下沉原语项目；Composition 显式引用；新增 6 例 DI 注册回归 | ✅ 定点编译 0 警告 0 错误；DI 6 例与缓存工具 20 例通过；packed NuGet/全量 CI 待验 |
+| KV 包名与目录迁移门禁收尾 | `CodeIndex` packed 分支、PR CI 静态门禁 | ✅ `PackageId` 与引用对齐；目录路径和锁基线同步 | ✅ 四项门禁通过，配置求值包名一致；PR #728 build job 完成真实 NuGet 打包，unit test job 已消费 packed 组件 |
+| `Infrastructure → Infrastructure.Cache` 摘边 | `Composition` 生成式 DI、文件读状态和 CPU 并行度、测试项目 | ✅ 两个缓存工具下沉原语项目；Composition 显式引用；新增 6 例 DI 注册回归 | ✅ 定点编译 0 警告 0 错误；DI 6 例与缓存工具 20 例通过；PR #728 CI 全绿 |
 | `JCC12004` 测试项目口径（`ProjectType=test` 优先） | 门禁分类器 | ✅ `Get-DeclaredProjectType` 缓存 | ✅ `JCC12004 1→0`、`JCC12002 486→485`，Validate PASS |
 | `JCC10011` 公开 API 禁元组 | `dotnet build`、IDE | ✅ `PublicTupleApiRule` + 8 fixture | ✅ 全仓 `-t:Rebuild` 采集 79 处，交付代码清零；非交付工具残留 11 处亦清零；`warning` 级 0 命中，工具测试 61/61 |
 

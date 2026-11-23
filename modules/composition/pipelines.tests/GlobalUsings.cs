@@ -1,5 +1,15 @@
+global using Core.Configuration;
 global using Core.Context;
 global using Core.Context.Modality;
+global using Core.Query.StopHooks;
+global using Infrastructure.Pipeline.Middlewares;
+global using JoinCode.Abstractions.Composition;
+global using JoinCode.Abstractions.Composition.Profile;
+global using JoinCode.Abstractions.LLM;
+global using JoinCode.Abstractions.LLM.Execution;
+global using JoinCode.Abstractions.Models.Agent;
+global using JoinCode.Abstractions.Models.ErrorRecovery;
+global using System.Collections.Frozen;
 global using Core.Skills;
 global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Interfaces;

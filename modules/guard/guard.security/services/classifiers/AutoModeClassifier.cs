@@ -20,6 +20,8 @@ public sealed partial class ClassificationRequest {
     public required Dictionary<string, JsonElement> Parameters { get; init; }
     /// <summary>操作类型</summary>
     public required OperationType OperationType { get; init; }
+    /// <summary>权限中间件解析出的有效模式；没有可靠来源时不复用 Judge 缓存。</summary>
+    internal PermissionMode? CacheMode { get; init; }
 }
 
 /// <summary>

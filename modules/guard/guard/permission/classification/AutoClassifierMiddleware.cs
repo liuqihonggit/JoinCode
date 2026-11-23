@@ -68,7 +68,8 @@ public sealed partial class AutoClassifierMiddleware : ServiceEntity, IPermissio
         var request = new ClassificationRequest {
             ToolName = context.ToolName,
             Parameters = context.Arguments ?? new(),
-            OperationType = OperationType.Auto
+            OperationType = OperationType.Auto,
+            CacheMode = context.CurrentMode,
         };
         ClassificationResult classification;
         if (llmClassifier is not null && context.Config.LlmJudgeEnabled) {

@@ -44,6 +44,26 @@
 
 **未完成**：DSH WebView/TUI 真机 UI 验收（需图形/TTY 宿主）；Supervisor 的文件 diff/命令输出行为监控；用户 override → 规则沉淀；指标看板。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
 
+### 2026-11-23 Git 接续：AI Judge 判定契约收口（已实现，待验证）
+
+基线：`8e6a0c1c0`。接续时已有 `PermissionsActionExtensionsTests.cs` 未提交改动（补齐第七个 `pending` 枚举的生成器契约测试），原始补丁和文件已备份至根目录 `.xxx/backups/`，不丢弃或覆盖。
+
+- [x] Debug 编译 `Guard.Config.Tests`（0 警告、0 错误），非 Integration/Benchmark 单测 1,349 项通过；日志位于 `.xxx/logs/task105_guard_config_{build,test}.log`。这是此前枚举测试的验证，不覆盖本节后续实现。
+- [x] 先写 Judge 行为用例，再落实 DSG053 §4.2/§4.5：必填字段缺失、枚举未知、类型错误、重复字段或置信度无效时回落到原规则对象；低于现有门槛的判定只用于审计。仅成功判定入缓存，命中后审计当次 shadow 与应用结果。硬规则、权限模式映射与收件箱动作未改。
+- [x] 静态核对 DTO、源码生成器和审计消费，并运行 `git diff --check`。按用户要求实现优先，接续实现后未启动构建或测试，未提交未验证代码。
+- [x] 补跑 `Guard.Security.Tests` 的 `LlmAutoModeClassifierTests`、`AutoClassifierModeMappingTests` 两组定向用例，54 项通过；`Guard.Security.Tests` 全量非集成/非基准 1,317 项、`Guard.Config.Tests` 全量 1,349 项均通过。DSH WebView 与 TUI 真实 TTY 验收仍待执行，不以进程冒烟替代。
+
+本轮不实现用途未定的监控规则、override 规则沉淀、指标看板，也不变更模式默认值。完整策略版本、每回合预算和客户端超时配置仍待按 DSG053 收口；`AppliedAction` 记录的是分类器采用的动作，后续权限中间件仍按当前模式映射。
+
+### AI Judge 缓存优化（已实现，待验证）
+
+- [x] 补测试：同作用域命中，跨会话、代理、模式、目录或参数不复用；显式目录优先、上下文不明时仍实时判定、硬拒绝优先于缓存、shadow 与正式判定隔离、正式缓存不得放宽确认。
+- [x] 将无界字典替换为私有 `MemoryCache`：512 条上限、30 分钟绝对过期；按可信代理作用域、有效模式、声明目录与完整参数指纹等分键，不在键里保留参数原文。超过指纹或原因长度限额只跳过缓存，不改变当次判定。接续前工作树补丁已备份至 `.xxx/backups/task105_before_cache.4My4QM`。
+- [x] 静态复核并回填 DSG053，`git diff --check` 通过。未运行全仓构建和宿主验收，未提交。
+- [x] 补可控时钟用例并定向实测：第 29 分钟命中不续期；第 30 分钟移除旧候选并重新判定，无响应时回落规则；填满生产配置的 512 条后再写入，仍不超限。测试使用生产缓存构造，只替换时钟。定向 54 项通过，日志见 `.xxx/logs/task105_judge_focused.log`。
+
+工具笔记：当前 Git Bash 没有 `/usr/bin/rg`，按 `PATH` 解析 `rg`，或对已跟踪源码使用 `git grep`，不依赖写死的工具路径。
+
 ---
 
 ## 1. 需求语义（先把“后台任务”说清）

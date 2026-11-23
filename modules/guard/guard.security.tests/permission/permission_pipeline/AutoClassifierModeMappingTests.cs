@@ -128,6 +128,20 @@ public sealed class AutoClassifierModeMappingTests {
         result.IsApproved.Should().BeTrue();
     }
 
+    /// <summary>缓存用管道解析后的有效模式，而不是从工具参数或代理默认值推断。</summary>
+    [Theory]
+    [InlineData(PermissionMode.Auto)]
+    [InlineData(PermissionMode.Unattended)]
+    public async Task Invoke_PassesEffectiveCacheModeToLlmClassifier(PermissionMode mode) {
+        var llm = new CountingLlmClassifier(SecurityClassification.MediumRisk, SecurityAction.RequireConfirmation);
+        await using var middleware = new Core.Permission.AutoClassifierMiddleware(llmAutoModeClassifier: llm);
+        var context = CreateContext(mode);
+
+        await middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        llm.LastCacheMode.Should().Be(mode);
+    }
+
     private sealed class FixedRuleClassifier(SecurityClassification classification, SecurityAction action) : IAutoModeClassifier {
         public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default)
             => Task.FromResult(new ClassificationResult {
@@ -141,6 +155,7 @@ public sealed class AutoClassifierModeMappingTests {
     private sealed class CountingLlmClassifier(SecurityClassification classification, SecurityAction action) : ILlmAutoModeClassifier {
         public int CallCount { get; private set; }
         public bool LastShadow { get; private set; }
+        public PermissionMode? LastCacheMode { get; private set; }
 
         public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default)
             => ClassifyAsync(request, shadow: false, ct);
@@ -148,6 +163,7 @@ public sealed class AutoClassifierModeMappingTests {
         public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, bool shadow, CancellationToken ct = default) {
             CallCount++;
             LastShadow = shadow;
+            LastCacheMode = request.CacheMode;
             return Task.FromResult(new ClassificationResult {
                 Classification = classification,
                 Confidence = 0.9,

@@ -213,9 +213,9 @@ public sealed record PermissionContext {
 
 ### 4.4 缓存与预算
 
-- Cache key：`tool + normalized args + cwd + mode + policyVersion + contextHash`；TTL 默认 30 分钟。
-- 相同命令重复出现（同一任务内）直接命中缓存，不重复调 LLM。
-- 预算耗尽/超时（默认 2.5s）→ 静态回落；记 `judge_fallback` 审计。
+- **已实现**：只有会话与代理身份、有效权限模式、绝对声明目录均明确的 Bash 调用可复用候选；其他调用照常走实时判定。键包含代理作用域、模式、操作类型、shadow、声明目录与完整有界参数的 SHA-256 指纹，以及本次静态分类的级别、动作和置信度。显式工作目录优先；声明目录不等于执行器最终映射的沙箱路径。
+- **容量与权限边界**：最多 512 条，30 分钟绝对过期，缓存活动触发清理。硬规则先于缓存；shadow 与正式判定隔离；正式判定不能靠缓存降低确认要求。无效、低置信度或过长候选不缓存。过长但有效的候选仍可用于当次判定。
+- **仍待实现**：完整 `policyVersion/contextHash`、每回合调用预算及预算耗尽审计。当前模型客户端超时仍为 3 秒，并在分类器侧与空响应统一记为 `no-response`；2.5 秒为目标值。
 
 ### 4.5 审计
 
@@ -294,7 +294,7 @@ latencyMs, cacheHit, fallbackReason, userOverride
 ### Phase 4 — Supervisor、审计与学习（基础版已落地）
 
 - 执行后 Supervisor（同步）：扫描工具输出前 64K，命中高置信度凭据规则 → 登记 `Defer` 待复核票据 + 审计，不阻塞、不改变结果；
-- AI 判定审计：每次实际调用 AI 写 JSONL（`rule/llm/applied/shadow/confidence/reason`），操作摘要脱敏截断；落盘失败不影响决策；
+- AI 判定审计：实际调用和缓存命中均记录 JSONL（`rule/llm/applied/shadow/confidence/reason`，以及 `CacheHit` 和可选 `FallbackReason`）。无效响应及低于现有门槛的候选回落原规则结果，不入缓存；客户端超时和无响应目前同记 `no-response`。审计不记录无效响应原文，操作摘要脱敏截断；落盘失败不影响决策；
 - `LlmJudgeShadow` 支持上线前 shadow 对比；
 - **未做**：文件 diff/命令输出行为异常/执行中暂停升级；用户 override → 规则沉淀；指标看板。
 
@@ -365,11 +365,12 @@ latencyMs, cacheHit, fallbackReason, userOverride
 | DSH 待确认收件箱 | `DshPendingConfirmationBroker` + `/api/pendingConfirmations/ui.js` | ✅ list/resolve/resolveAll + 2s 轮询右下角面板 | ❌ 真人 WebView 未验收；✅ 7 项单测通过 |
 | TUI `/permissions pending` | `PermissionsCommand` + `PermissionsAction.Pending` | ✅ list/approve/deny/approve-all/deny-all + 别名 | ❌ 真实 TTY 未验收；✅ 24 项单测通过 |
 | 执行后 `ToolExecutionSupervisor` | `PermissionAwareToolExecutor.RaiseToolExecutionCompleted` | ✅ 工具输出凭据扫描 → Defer 票据，不阻塞不改结果 | ❌ 真人 UI 未验收；✅ 1 项定向测试通过 |
-| AI 判定审计 / shadow | `LlmAutoModeClassifier` + `AutoClassifierMiddleware` | ✅ JSONL 审计 + `LlmJudgeShadow` 透传；脱敏/截断 | ❌ 手动 exe 未验收；✅ 分类器 14 项 + 中间件 6 项通过 |
+| AI 判定审计 / shadow | `LlmAutoModeClassifier` + `AutoClassifierMiddleware` | ✅ JSONL 审计、`LlmJudgeShadow` 透传、脱敏/截断；无效或低置信度响应回落原规则 | ❌ 手动 exe 未验收；✅ 定向 54 项 + Guard.Security 全量 1317 项通过 |
+| 有界判定缓存 | `LlmAutoModeClassifier` + `ClassificationRequest.CacheMode` | ✅ 可信 Bash 作用域分键、512 条上限、30 分钟绝对过期；正式缓存不得放宽确认 | ❌ 真实进程/宿主验收未做；✅ 隔离、权限与容量/过期用例通过（含可控时钟） |
 | 通知队列分桶 | `TuiAskBridge` / `TerminalInteractiveService` / `AvaloniaInteractiveService` / DSH | ✅ `AgentNotificationQueue` 按 target 分桶 | ❌ 手动 exe 未做；✅ A/B 目标并发单测 8 项通过 |
 | DSH Web GUI 后台 Defer | `DshUserQuestionBroker.RequestAsync` ← `IJccChatSession.NotificationQueue` | ✅ `AttachNotificationQueue` + 100ms 帧拍；命中通知 → cancel 帧 + `DeferredResult` | ❌ 手动 exe 未做；✅ `DshUserQuestionsTests` 11 项通过（含新增 Defer） |
 | TUI 取消令牌 | `TuiAskBridge.Ask` → `ReplShell.AskUserQuestions(ct)` → `CheckAskQuestionInterrupt` | ✅ 取消只置 volatile 标记，主循环帧拍关闭对话框返回 `Cancelled` | ❌ 手动 exe 未做；✅ `AskQuestionTests` 16 项通过（含新增取消） |
-| 审计 `PermissionJudgeAudit` | `LlmSecurityJsonContext` + `AppDataPaths.JccDirectory/audit/permission_judge.jsonl` | ✅ 每次 AI 判定写 JSONL；`JCC_PERMISSION_AUDIT_PATH` 可覆盖；无文件系统只写 Diag | ❌ 手动 exe 未验收；✅ 审计/shadow 单测通过 |
+| 审计 `PermissionJudgeAudit` | `LlmSecurityJsonContext` + `AppDataPaths.JccDirectory/audit/permission_judge.jsonl` | ✅ 模型调用和缓存命中均写 JSONL，区分回落原因与最终结果；`JCC_PERMISSION_AUDIT_PATH` 可覆盖；无文件系统只写 Diag | ❌ 手动 exe 未验收；✅ 缓存命中、失败回落审计用例已随全量 1317 项通过 |
 | 真实工具名测试 | `AsyncAgentAllowedToolsTests` 等 | ✅ 已改用真实工具名 + 后台拒绝集测试 | ✅ 单元测试通过 |
 
 > `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。本轮已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）：引擎进程内组装、session_info 握手、权限模式回执通过；DSH WebView 收件箱与真实 TTY `/permissions pending` 的真机交互仍需在有图形/TTY 的宿主上验收。

@@ -30,4 +30,4 @@
 
 - 全量构建、packed NuGet 消费和 PR CI 交由流水线验证。
 - Query 进程级 exe 未跑；注册顺序脚本仅验证当前工作树，未对新旧脚本做逐字节 diff。
-- `ExpiringValue` 的 `Stopwatch` 时间戳与 `TimeSpan.Ticks` 频率隐患为原有独立待办，本轮未改。
+- `ExpiringValue` 的时间单位缺陷已修复：改用 `TimeProvider.GetElapsedTime` + `_hasValue` 消除时间戳单位混用与零哨兵问题；秒级时钟红测试和 `ExpiringValueTests` 4/4 通过，`CpuParallelismTest` 回归通过。

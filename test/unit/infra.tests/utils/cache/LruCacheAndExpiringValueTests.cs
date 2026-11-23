@@ -116,4 +116,36 @@ public class ExpiringValueTests {
         expiring.GetOrRefresh();
         callCount.Should().Be(2);
     }
+
+    [Fact]
+    public void GetOrRefresh_WhenTimestampUnitsDifferFromTicks_ShouldRefreshAfterInterval() {
+        var clock = new SlowTimeProvider();
+        var callCount = 0;
+        var expiring = new ExpiringValue<int>(() => ++callCount, TimeSpan.FromSeconds(1), clock);
+
+        expiring.GetOrRefresh().Should().Be(1);
+        clock.Advance(TimeSpan.FromMilliseconds(900));
+        expiring.GetOrRefresh().Should().Be(1);
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        expiring.GetOrRefresh().Should().Be(2);
+        callCount.Should().Be(2);
+    }
+
+    /// <summary>
+    /// 秒级时间戳的时钟 — 时间戳单位与 TimeSpan.Ticks 不同，专门暴露单位混用缺陷。
+    /// </summary>
+    private sealed class SlowTimeProvider : TimeProvider {
+        private long _timestamp;
+        private long _subsecondTicks;
+
+        public override long GetTimestamp() => _timestamp;
+
+        public override long TimestampFrequency => 1;
+
+        public void Advance(TimeSpan duration) {
+            _subsecondTicks += duration.Ticks;
+            _timestamp += _subsecondTicks / TimeSpan.TicksPerSecond;
+            _subsecondTicks %= TimeSpan.TicksPerSecond;
+        }
+    }
 }

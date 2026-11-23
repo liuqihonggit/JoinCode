@@ -114,3 +114,16 @@ error CS0535: '...RecordingSubagentConsumer' does not implement interface member
 
 **判据（下次直接套）**：改了 `I*` 接口成员或共享 DTO 的签名 → 验证单位不是「改动的项目」，
 而是「所有实现方的项目」。数一遍实现方（`grep "public void OnXxx("`）比相信一次编译快得多。
+
+**闸门前移（PR #725，同日合并）**：本地脚本修完还不够 —— 它依赖人主动去跑。CI 侧补了一道
+`build / Contract Compile (all implementers)`：`detect` 命中 `[./](interfaces|models)/` 或
+`Directory.Build.(props|targets)` 时，用 `JoinCode.slnx`（含 `test/unit`、`test/mock`、
+`test/integration` 全部实现方）+ `native_tui.slnx` 编一遍。
+
+- 普通 PR：job 显示 **skipped**，零成本（已真机验证）；
+- 契约 PR：4m26s 跑完两道编译（真机验证 success）；
+- 于是同类漂移变成「1 个红」而不是「9 个红 + 9 份截断日志」。
+
+一次 YAML 翻车记录：step `name:` 里写了 `JoinCode.slnx: modules + ...`（冒号+空格），
+整个工作流被判无效 —— 症状是 run 里 **0 个 job、名称显示成文件路径**。凡是 `name:`/`description:`
+里的冒号，要么去掉要么整串加引号。

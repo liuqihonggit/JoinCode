@@ -36,7 +36,7 @@ public static class Program {
         }
     }
 
-    /// <summary>斜杠命令批量探针（TASK065 — 52 条安全命令集走 TUI 真实链路逐条实测）：
+    /// <summary>斜杠命令批量探针（TASK065 — 53 条安全命令集走 TUI 真实链路逐条实测）：
     /// EngineTurnClient.Submit → DispatchSlashCommandAsync → SlashCommandRunner 真实执行，
     /// 逐命令分类 OK（有输出）/EMPTY（空回合）/ERROR（异常）/TIMEOUT，输出汇总表供人工核对。
     /// 排除副作用命令（reset-config/logout/clear/状态改写类）与调 LLM 命令（--selftest-turn 已覆盖）。
@@ -93,6 +93,7 @@ public static class Program {
             ("/hooks", "Hook配置列表"),
             ("/plugin", "插件列表"),
             ("/permissions", "权限规则列表与后台待确认收件箱"),
+            ("/permissions pending", "后台待确认收件箱列表"),
             ("/workflows", "工作流列表"),
             ("/debuglog", "调试日志状态"),
             ("/statusline", "状态栏当前配置"),

@@ -42,7 +42,7 @@
 | D10 执行后凭据外泄 | `ToolExecutionSupervisor` 扫描工具输出前 64K，命中凭据规则登记复核票据，不返回密钥原文 | 执行器定向测试 1 项通过 |
 | D11 AI 判定不可审计/不可回滚 | `PermissionJudgeAuditRecord` JSONL + `LlmJudgeShadow`（默认 false） | 分类器 14 项 + 中间件 6 项通过 |
 
-**未完成**：DSH WebView/TUI 真机 UI 验收（需图形/TTY 宿主）；Supervisor 的文件 diff/命令输出行为监控；用户 override → 规则沉淀；指标看板。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
+**未完成**：原生 DSH WebView2 与真实 TTY 下的目视点击交互（需图形/TTY 宿主）；Supervisor 的文件 diff/命令输出行为监控；用户 override → 规则沉淀；指标看板。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执；`jcc --selftest-tui-commands` 53 条命令全部有输出（含 `/permissions pending` 空列表）；`NativeGui.Host --dsh-smoke` 真实宿主 HTTP 覆盖收件箱注入/列表/批准/清空。
 
 ### 2026-11-23 Git 接续：AI Judge 判定契约收口（已实现，待验证）
 
@@ -55,12 +55,22 @@
 
 本轮不实现用途未定的监控规则、override 规则沉淀、指标看板，也不变更模式默认值。完整策略版本、每回合预算和客户端超时配置仍待按 DSG053 收口；`AppliedAction` 记录的是分类器采用的动作，后续权限中间件仍按当前模式映射。
 
-### AI Judge 缓存优化（已实现，待验证）
+### AI Judge 缓存优化（已实现，单测已验证）
 
 - [x] 补测试：同作用域命中，跨会话、代理、模式、目录或参数不复用；显式目录优先、上下文不明时仍实时判定、硬拒绝优先于缓存、shadow 与正式判定隔离、正式缓存不得放宽确认。
 - [x] 将无界字典替换为私有 `MemoryCache`：512 条上限、30 分钟绝对过期；按可信代理作用域、有效模式、声明目录与完整参数指纹等分键，不在键里保留参数原文。超过指纹或原因长度限额只跳过缓存，不改变当次判定。接续前工作树补丁已备份至 `.xxx/backups/task105_before_cache.4My4QM`。
 - [x] 静态复核并回填 DSG053，`git diff --check` 通过。未运行全仓构建和宿主验收，未提交。
 - [x] 补可控时钟用例并定向实测：第 29 分钟命中不续期；第 30 分钟移除旧候选并重新判定，无响应时回落规则；填满生产配置的 512 条后再写入，仍不超限。测试使用生产缓存构造，只替换时钟。定向 54 项通过，日志见 `.xxx/logs/task105_judge_focused.log`。
+
+### 2026-11-23 合并后手动 exe 验收（部分完成）
+
+- [x] `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过，输出 `HOST SELFTEST OK — 引擎进程内组装 + session_info 握手 + 权限模式真实回执`；日志 `.xxx/logs/task105_manual_selftest_tui_after_merge.log`。
+- [x] `jcc --selftest-tui-commands` 真实引擎命令链路：53 条命令，`OK=51`、退出类 `EXIT-OK=2`、`EMPTY/ERROR/TIMEOUT=0`；新增 `/permissions pending` 探针输出 `当前没有后台待确认事项。`，证明待确认分支在 TUI 真实宿主中可达。日志 `.xxx/logs/task105_manual_commands_after_merge_53.log`。
+- [x] `NativeGui.Host --dsh-smoke` 真实 HTTP/WS 宿主：`pendingConfirmations/list` 返回 1 条票据，`pendingConfirmations/resolve` 批准后剩余 0，二次列表清空；`/api/pendingConfirmations/ui.js` 返回 8,435 字节且包含 `jcc-pending` 面板与“复核通过”按钮；首页注入标记存在，既有 session/goals/并发主路径仍通过，整体 `PASS`。日志 `.xxx/logs/task105_manual_dsh_smoke_after_merge.log`。
+- [x] `NativeTui.Host` 与 `NativeGui.Host` Debug 编译 0 警告 0 错误。
+- [ ] 原生 DSH WebView2 中的实际面板目视点击、真实 TTY 中的 `/permissions pending` 目视交互仍未执行；本轮以真实宿主 HTTP/命令链路替代，不把无窗口冒烟等同于真人 UI 验收。
+
+冒烟扩展说明：`DshSmokeRunner` 注入的是单线程假队列/结算器，只验证宿主协议、序列化和前端资产链路；不替代 `PendingConfirmationQueue` 与真实引擎票据的联调。TUI 探针新增的 `/permissions pending` 只读空列表，不制造真实票据，避免污染用户队列。
 
 工具笔记：当前 Git Bash 没有 `/usr/bin/rg`，按 `PATH` 解析 `rg`，或对已跟踪源码使用 `git grep`，不依赖写死的工具路径。
 

@@ -489,7 +489,7 @@ architecture:
 - `Composition` 按源码 / packed 模式显式引用 Cache，继续用 `[Register]` 源码生成，不增加手工注册；新增 `ServiceRegistrationTest.Cache.cs`，覆盖 5 个 Cache 契约与 `IFileStateCache` 各注册一次且为单例。`Infra.Utils.Tests` 显式引用实际测试的 `PasteStore` 所在项目或包；IO / Services 测试仅移除未使用的 `Infrastructure.Cache` 导入。
 - 静态验收：MSBuild 配置求值确认两种引用模式互斥、KV 包名正确、迁入源码与回归测试纳入正确的 `Compile` 项；`ArchitectureGate -Mode Validate`、四项目录迁移门禁、CLI 节点继承与工具分组的静态检查、`git diff --check` 均通过。生产边总数仍为 722；仅将一条同域生产边替换为既有 `composition → abstractions` 域对下的跨域项目边（`JCC12002` 476 → 477），无新增域对、API 准入违规或生产域环。
 - 已运行：`Composition`（含 Infrastructure、Brain.Query、Vault）Debug 定点编译 0 警告 0 错误；`ServiceRegistrationTest` 35 例（含 Cache 6 例）、`QueryEngineOutputStreamTests` 3 例、`TranscriptServiceTests` 30 例、缓存工具 20 例均通过；`ArchitectureGate -Mode Validate` PASS（263/1206/1049/722/477），五项目录/门禁脚本与 `git diff --check` 通过。全量构建、packed NuGet 打包消费和 PR CI 仍待流水线验证。
-- 独立待办：`ExpiringValue` 原实现把 `Stopwatch` 时间戳差直接与 `TimeSpan.Ticks` 比较，两者的计时频率可能不同。此次保持原行为；后续单独补自然到期的确定性复现，再修正时间单位。
+- 已修复：`ExpiringValue` 原实现把 `Stopwatch` 时间戳差直接与 `TimeSpan.Ticks` 比较，两者频率可能不同。现改用 `TimeProvider.GetElapsedTime` 并使用 `_hasValue` 显式表示初始化状态；新增秒级时钟复现测试，`ExpiringValueTests` 4/4、`CpuParallelismTest` 回归均通过。
 
 **后续改动（按顺序，逐项 ADR）**：
 1. ✅ 补齐域内 slnx 缺口（`827e8fca0`，26→0；abstractions/generators/perception 全部登记，tools 的 13 个 `cli_nodes/groups/*` 与 sample/onnx 测试直接纳入，无排除项）。

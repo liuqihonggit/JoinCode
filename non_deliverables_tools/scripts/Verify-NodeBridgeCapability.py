@@ -27,7 +27,7 @@ BRIDGE = "modules/composition/composition/node_registry/core/PluginNodeBridge.cs
 REGISTRY = "modules/composition/composition/node_registry/core/NodeRegistry.cs"
 WIRE = "modules/composition/composition/dependency_injection/infrastructure/ServiceRegistration.Skills.cs"
 BRAIN = "modules/composition/composition/dependency_injection/infrastructure/ServiceRegistration.Brain.cs"
-TEST = "modules/composition/composition.tests/node_registry/NodeBridgeAndCapabilityTest.cs"
+TEST = "modules/composition/composition_tests/node_registry/NodeBridgeAndCapabilityTest.cs"
 
 
 def read(relative: str) -> str | None:

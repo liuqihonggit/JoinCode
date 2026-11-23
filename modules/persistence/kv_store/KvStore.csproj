@@ -3,6 +3,7 @@
   <PropertyGroup>
     <ProjectType>library</ProjectType>
     <AssemblyName>JoinCode.Persistence.KvStore</AssemblyName>
+    <PackageId>JoinCode.Persistence.KvStore</PackageId>
     <Description>PithosDB KV 存储适配层 — IKvStore 实现、租约与 DI 注册</Description>
     <ExcludeStructura>true</ExcludeStructura>
     <AllowPack>true</AllowPack>

@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       non-docs: ${{ steps.detect.outputs.non-docs }}
+      contract: ${{ steps.detect.outputs.contract }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -30,11 +31,23 @@ jobs:
             echo "non-docs=false" >> "$GITHUB_OUTPUT"
             echo "📄 纯文档改动，跳过全量 CI"
           fi
+          # 契约面 = 接口/模型层/构建属性。这类改动会让「所有实现方」的签名约束变化，
+          # 而按域测试 job 各编各的，一次漂移会同时红 9 个 job（PR #723）。命中则加跑全量编译。
+          CONTRACT=$(echo "$FILES" | grep -E '[./](interfaces|models)/|(^|/)Directory\.Build\.(props|targets)$' || true)
+          if [ -n "$CONTRACT" ]; then
+            echo "contract=true" >> "$GITHUB_OUTPUT"
+            echo "🔌 契约面改动，追加全量编译（含 test/ 实现方）："
+            echo "$CONTRACT" | head -20
+          else
+            echo "contract=false" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     needs: detect
     if: needs.detect.outputs.non-docs == 'true'
     uses: ./.github/workflows/ci-build.yml
+    with:
+      contract-changed: ${{ needs.detect.outputs.contract }}
 
   architecture:
     needs: detect

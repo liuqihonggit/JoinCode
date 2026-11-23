@@ -44,7 +44,7 @@ public sealed partial class DiminishingReturnsMiddleware : ServiceEntity, IQuery
             context.DiminishingLowValueIterations = result.ConsecutiveLowValueIterations;
             if (result.IsDiminishing) {
                 context.Logger?.LogWarning("[QueryEngine] 检测到递减回报: {Recommendation}", result.Recommendation);
-                context.OutputChunks.Enqueue(new QueryStreamChunk { Type = AgentStreamChunkType.Content, Content = $"⚠️ {result.Recommendation}" });
+                context.PublishOutput(new QueryStreamChunk { Type = AgentStreamChunkType.Content, Content = $"⚠️ {result.Recommendation}" });
                 context.ShouldBreak = true;
             }
         }

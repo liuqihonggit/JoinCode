@@ -13,9 +13,9 @@
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import re
-import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 ORDERS_YAML = REPO / "resources" / "orders.yaml"
@@ -89,35 +89,59 @@ def parse_orders() -> dict[str, list[str]]:
     return lists
 
 
-def source_files(directories: tuple[str, ...]) -> list[pathlib.Path]:
-    files: list[pathlib.Path] = []
-    for directory in directories:
-        root = REPO / directory
-        if not root.exists():
-            continue
-        files.extend(p for p in root.rglob("*.cs") if "/obj/" not in p.as_posix())
-    return files
+SKIP_DIRECTORIES = frozenset({".git", ".xxx", ".nuget", "artifacts", "bin", "obj", "node_modules", "test", "tests"})
 
 
-def implementations(interface: str) -> dict[str, pathlib.Path]:
-    """全仓找出实现该接口的类 → 类名到文件路径。"""
-    found: dict[str, pathlib.Path] = {}
-    pattern = re.compile(rf"class\s+(\w+)[^{{]*\b{interface}\b")
-    for path in REPO.rglob("*.cs"):
-        posix = path.as_posix()
-        # 测试项目目录名是 `xxx.tests/`（如 guard.hooks.tests），只挡 `/tests/` 会漏，
-        # 测试替身（private sealed class StubInterceptor : ICommandInterceptor）就会被当成
-        # 生产实现，逼着它进顺序表 —— 单测替身没有顺序语义，进表反而是污染。
-        lower = posix.lower()
-        if any(f"/{p}/" in lower for p in (".git", ".xxx", ".nuget", "artifacts", "bin", "obj", "node_modules", "test", "tests")) or ".tests/" in lower or "_tests/" in lower or "_test/" in lower:
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        for match in pattern.finditer(text):
-            found.setdefault(match.group(1), path)
-    return found
+def is_production_directory(name: str) -> bool:
+    """在遍历前剪枝构建产物及测试目录，避免把测试替身登记为生产实现。"""
+    lower = name.lower()
+    return lower not in SKIP_DIRECTORIES and not lower.endswith((".tests", "_tests", "_test"))
+
+
+def scan_sources(declared: dict[str, list[str]]) -> tuple[dict[str, dict[str, pathlib.Path]], list[str]]:
+    """每个 C# 文件只读取一次，同时收集实现和位次违规。"""
+    found: dict[str, dict[str, pathlib.Path]] = {}
+    patterns: dict[str, re.Pattern[str]] = {}
+    for list_name, (interface, _) in LISTS.items():
+        if list_name in declared and interface not in patterns:
+            patterns[interface] = re.compile(rf"class\s+(\w+)[^{{]*\b{re.escape(interface)}\b")
+            found[interface] = {}
+
+    scopes = {REPO / directory: [] for _, dirs in LISTS.values() for directory in dirs}
+    for directory, children, files in os.walk(REPO):
+        children[:] = [name for name in children if is_production_directory(name)]
+        root = pathlib.Path(directory)
+        scope = next((parent for parent in (root, *root.parents) if parent in scopes), None)
+        for name in files:
+            if not name.endswith(".cs"):
+                continue
+            path = root / name
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                if scope is not None:
+                    scopes[scope].append(f"无法读取位次检查源码: {path.relative_to(REPO).as_posix()}")
+                continue
+            for interface, pattern in patterns.items():
+                for match in pattern.finditer(text):
+                    found[interface].setdefault(match.group(1), path)
+            if scope is not None:
+                scopes[scope].extend(order_diagnostics(path, text, declared))
+
+    return found, [problem for problems in scopes.values() for problem in problems]
+
+
+def order_diagnostics(path: pathlib.Path, text: str, declared: dict[str, list[str]]) -> list[str]:
+    """从已读取的源码校验位次与引用列表。"""
+    relative = path.relative_to(REPO).as_posix()
+    problems = []
+    if LITERAL_NUMBER.search(text):
+        problems.append(f"{relative} 仍写死了位次数字")
+    for match in DERIVED.finditer(text):
+        used = match.group("list")
+        if used not in declared:
+            problems.append(f"{relative} 引用了不存在的列表 '{used}'")
+    return problems
 
 
 def main() -> int:
@@ -126,6 +150,7 @@ def main() -> int:
         return 1
 
     declared = parse_orders()
+    implementations, order_problems = scan_sources(declared)
     problems: list[str] = []
 
     for list_name, (interface, dirs) in LISTS.items():
@@ -133,7 +158,7 @@ def main() -> int:
             problems.append(f"orders.yaml 缺少列表 '{list_name}'")
             continue
         registered = declared[list_name]
-        impls = implementations(interface)
+        impls = implementations[interface]
         # 只认源码目录内的实现（测试替身不在生产顺序表里）
         # 未声明目录范围的列表（如 query_stop_hooks）用全仓实现做对账 —— 否则 scoped 恒为空，
         # 「登记了不存在的实现」必然误报，等于这类列表永远填不进去（TASK126 实测踩到）。
@@ -154,15 +179,7 @@ def main() -> int:
                 f"列表 '{list_name}' 顺序与迁移前基线不一致:\n"
                 f"      期望 {baseline}\n      实际 {registered}")
 
-    # 位次必须派生，不得写死数字
-    for path in source_files(tuple(d for _, dirs in LISTS.values() for d in dirs)):
-        text = path.read_text(encoding="utf-8")
-        if LITERAL_NUMBER.search(text):
-            problems.append(f"{path.relative_to(REPO).as_posix()} 仍写死了位次数字")
-        for match in DERIVED.finditer(text):
-            used = match.group("list")
-            if used not in declared:
-                problems.append(f"{path.relative_to(REPO).as_posix()} 引用了不存在的列表 '{used}'")
+    problems.extend(order_problems)
 
     total = sum(len(v) for v in declared.values())
     print(f"注册顺序表 {len(declared)} 个列表 / {total} 项")

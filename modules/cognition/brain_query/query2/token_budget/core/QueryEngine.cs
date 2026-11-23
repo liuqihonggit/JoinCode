@@ -148,19 +148,39 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             await budgetManager.AllocateBudgetAsync(options.TokenBudget.Value, cancellationToken).ConfigureAwait(false);
         }
 
-        var pipeline = _pipeline.Value;
-        var pipelineTask = pipeline.ExecuteAsync(context, cancellationToken);
-
-        while (!pipelineTask.IsCompleted) {
-            while (context.OutputChunks.TryDequeue(out var chunk))
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var producer = ProduceOutputAsync(context, lifetime.Token);
+        var drained = false;
+        try {
+            // 等生产者关闭通道再结束，确保取消时历史补写已完成。
+            await foreach (var chunk in context.OutputReader.ReadAllAsync().ConfigureAwait(false))
                 yield return chunk;
-            await Task.Yield();
+            drained = true;
+        } finally {
+            await FinishOutputAsync(producer, lifetime, drained, cancellationToken).ConfigureAwait(false);
         }
+    }
 
-        await pipelineTask.ConfigureAwait(false);
+    /// <summary>管道离开时关闭输出以唤醒读者；原异常由生产者任务保留。</summary>
+    private async Task ProduceOutputAsync(QueryMiddlewareContext context, CancellationToken ct) {
+        try {
+            await _pipeline.Value.ExecuteAsync(context, ct).ConfigureAwait(false);
+        } finally {
+            context.CompleteOutput();
+        }
+    }
 
-        while (context.OutputChunks.TryDequeue(out var chunk))
-            yield return chunk;
+    /// <summary>提前退出时停止并等待生产者；正常消费时传播原生异常或取消。</summary>
+    private static async Task FinishOutputAsync(Task producer, CancellationTokenSource lifetime, bool drained, CancellationToken callerToken) {
+        var stoppedByReader = !drained && !producer.IsCompleted && !callerToken.IsCancellationRequested;
+        if (stoppedByReader)
+            await lifetime.CancelAsync().ConfigureAwait(false);
+
+        try {
+            await producer.ConfigureAwait(false);
+        } catch (OperationCanceledException) when (stoppedByReader && !callerToken.IsCancellationRequested) {
+            // 主动停止枚举不是调用方取消；等待生产者收尾后正常释放。
+        }
     }
 
     /// <summary>
@@ -223,7 +243,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             }
 
             if (!success || iterationResult == null) {
-                context.OutputChunks.Enqueue(BuildRetryExhaustedErrorChunk(_config.Retry.MaxRetries));
+                context.PublishOutput(BuildRetryExhaustedErrorChunk(_config.Retry.MaxRetries));
                 return;
             }
 
@@ -261,7 +281,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         continue;
 
                     case RoundGateStopDecision.Exhausted:
-                        context.OutputChunks.Enqueue(new QueryStreamChunk {
+                        context.PublishOutput(new QueryStreamChunk {
                             Type = AgentStreamChunkType.Content,
                             Content = $"⚠ 轮次闸门连续 {roundGateRejections} 次未通过（上限 {gateMaxRejections}），本轮已强制结束。"
                         });
@@ -311,7 +331,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     }
                     : null;
                 // duration_api_ms 取 API 调用累计耗时（TASK103 #46）；墙上时间在日志里单独可见。
-                context.OutputChunks.Enqueue(BuildCompletionChunk(content, context.ApiDurationMs, context.TotalToolCalls, totalTurns, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId, context.StructuredOutputFromTool));
+                context.PublishOutput(BuildCompletionChunk(content, context.ApiDurationMs, context.TotalToolCalls, totalTurns, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId, context.StructuredOutputFromTool));
                 return;
             }
 
@@ -339,7 +359,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         roundGateEndSelected = true;
                     }
 
-                    context.OutputChunks.Enqueue(new QueryStreamChunk {
+                    context.PublishOutput(new QueryStreamChunk {
                         Type = AgentStreamChunkType.ToolCallStart,
                         ToolName = toolCall.ToolName,
                         ToolCallId = toolCall.ToolCallId,
@@ -367,7 +387,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         throw new OperationCanceledException(cancellationToken);
                     }
 
-                    context.OutputChunks.Enqueue(new QueryStreamChunk {
+                    context.PublishOutput(new QueryStreamChunk {
                         Type = AgentStreamChunkType.ToolCallEnd,
                         ToolName = toolCall.ToolName,
                         ToolCallId = toolCall.ToolCallId,
@@ -392,7 +412,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         if (context.StructuredOutputCallCount >= context.MaxStructuredOutputRetries) {
                             _logger?.LogWarning("[QueryEngine] StructuredOutput 合成工具调用次数超限: {Count}/{Max}",
                                 context.StructuredOutputCallCount, context.MaxStructuredOutputRetries);
-                            context.OutputChunks.Enqueue(BuildStructuredOutputRetryExhaustedErrorChunk(context.MaxStructuredOutputRetries));
+                            context.PublishOutput(BuildStructuredOutputRetryExhaustedErrorChunk(context.MaxStructuredOutputRetries));
                             return;
                         }
                     }
@@ -426,7 +446,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         }
 
         _logger?.LogWarning("[QueryEngine] 达到最大工具调用次数限制: {Max}", _config.MaxToolCallIterations);
-        context.OutputChunks.Enqueue(BuildMaxIterationErrorChunk(_config.MaxToolCallIterations));
+        context.PublishOutput(BuildMaxIterationErrorChunk(_config.MaxToolCallIterations));
     }
 
     /// <summary>轮次闸门收尾裁决结果</summary>
@@ -683,13 +703,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     || streamChunk.Metadata?.ContainsKey("reasoning_content") == true;
                 context.HasEmittedStreamContent = true;
                 if (isThinking) {
-                    context.OutputChunks.Enqueue(new QueryStreamChunk {
+                    context.PublishOutput(new QueryStreamChunk {
                         Type = AgentStreamChunkType.Thinking,
                         Content = content
                     });
                 } else {
                     responseBuilder.Append(content);
-                    context.OutputChunks.Enqueue(new QueryStreamChunk {
+                    context.PublishOutput(new QueryStreamChunk {
                         Type = AgentStreamChunkType.Content,
                         Content = content
                     });
@@ -804,7 +824,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         context.ConsecutiveMalformedOutput++;
         Diag.WriteLine($"[XML-FALLBACK] 可疑标签未能解析: {context.ConsecutiveMalformedOutput}/{OutputInterventionPrompts.MaxConsecutiveMalformed}");
         if (context.ConsecutiveMalformedOutput > OutputInterventionPrompts.MaxConsecutiveMalformed) {
-            context.OutputChunks.Enqueue(new QueryStreamChunk {
+            context.PublishOutput(new QueryStreamChunk {
                 Type = AgentStreamChunkType.Content,
                 Content = $"⚠ 模型连续{OutputInterventionPrompts.MaxConsecutiveMalformed}次输出异常格式，本轮对话已结束。"
             });

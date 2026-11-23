@@ -42,7 +42,7 @@
 | D10 执行后凭据外泄 | `ToolExecutionSupervisor` 扫描工具输出前 64K，命中凭据规则登记复核票据，不返回密钥原文 | 执行器定向测试 1 项通过 |
 | D11 AI 判定不可审计/不可回滚 | `PermissionJudgeAuditRecord` JSONL + `LlmJudgeShadow`（默认 false） | 分类器 14 项 + 中间件 6 项通过 |
 
-**未完成**：原生 DSH WebView2 与真实 TTY 下的目视点击交互（需图形/TTY 宿主）；Supervisor 的文件 diff/命令输出行为监控；用户 override → 规则沉淀；指标看板。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执；`jcc --selftest-tui-commands` 53 条命令全部有输出（含 `/permissions pending` 空列表）；`NativeGui.Host --dsh-smoke` 真实宿主 HTTP 覆盖收件箱注入/列表/批准/清空。
+**未完成**：Supervisor 的文件 diff/命令输出行为监控；用户 override → 规则沉淀；指标看板。真人 UI 已验收：真实 WebView2 中演示票据“待确认 1”→点击“复核通过”→“待确认 0”；真实 TTY 中 `/permissions pending` 输出空列表。另有 `jcc --selftest-tui`、`jcc --selftest-tui-commands` 53 条、`NativeGui.Host --dsh-smoke` 真实宿主链路通过。
 
 ### 2026-11-23 Git 接续：AI Judge 判定契约收口（已实现，待验证）
 
@@ -67,8 +67,9 @@
 - [x] `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过，输出 `HOST SELFTEST OK — 引擎进程内组装 + session_info 握手 + 权限模式真实回执`；日志 `.xxx/logs/task105_manual_selftest_tui_after_merge.log`。
 - [x] `jcc --selftest-tui-commands` 真实引擎命令链路：53 条命令，`OK=51`、退出类 `EXIT-OK=2`、`EMPTY/ERROR/TIMEOUT=0`；新增 `/permissions pending` 探针输出 `当前没有后台待确认事项。`，证明待确认分支在 TUI 真实宿主中可达。日志 `.xxx/logs/task105_manual_commands_after_merge_53.log`。
 - [x] `NativeGui.Host --dsh-smoke` 真实 HTTP/WS 宿主：`pendingConfirmations/list` 返回 1 条票据，`pendingConfirmations/resolve` 批准后剩余 0，二次列表清空；`/api/pendingConfirmations/ui.js` 返回 8,435 字节且包含 `jcc-pending` 面板与“复核通过”按钮；首页注入标记存在，既有 session/goals/并发主路径仍通过，整体 `PASS`。日志 `.xxx/logs/task105_manual_dsh_smoke_after_merge.log`。
-- [x] `NativeTui.Host` 与 `NativeGui.Host` Debug 编译 0 警告 0 错误。
-- [ ] 原生 DSH WebView2 中的实际面板目视点击、真实 TTY 中的 `/permissions pending` 目视交互仍未执行；本轮以真实宿主 HTTP/命令链路替代，不把无窗口冒烟等同于真人 UI 验收。
+- [x] 真实 WebView2 目视验收：用临时环境变量在真实引擎队列登记一张演示票据，启动 `NativeGui.Host` 后角标显示“待确认 1”；打开面板可见 Bash/命令原文/代理与时间；点击“复核通过”后角标变为“待确认 0”，面板显示“当前没有需要确认的事项。”。截图 `.xxx/logs/task105_dsh_ui_demo_3.png`（批准前）、`.xxx/logs/task105_dsh_ui_approved.png`（批准后）。验收票据由真实队列/结算器处理，但票据登记是验收代码直接注入，不经过模型工具调用；临时代码已撤除并重新编译。
+- [x] 真实 TTY 目视验收：Windows Terminal 中启动 `jcc`（`JCC_ENDPOINT` 强制直连 + 演示 Key 打开登录门禁），输入 `/permissions pending`，输出“当前没有后台待确认事项。”。截图 `.xxx/logs/task105_tui_permissions_pending.png`。验收后 `auth.json` 已从备份恢复，演示 Key 未保留。
+- [x] `NativeTui.Host` 与 `NativeGui.Host` Debug 编译 0 警告 0 错误；移除临时演示代码后再次编译 `NativeGui.Host` 0 警告 0 错误。
 
 冒烟扩展说明：`DshSmokeRunner` 注入的是单线程假队列/结算器，只验证宿主协议、序列化和前端资产链路；不替代 `PendingConfirmationQueue` 与真实引擎票据的联调。TUI 探针新增的 `/permissions pending` 只读空列表，不制造真实票据，避免污染用户队列。
 

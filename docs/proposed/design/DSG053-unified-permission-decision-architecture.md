@@ -360,10 +360,10 @@ latencyMs, cacheHit, fallbackReason, userOverride
 | `ai-judge-permission-mw`（pipeline 450） | `resources/profiles/base.yaml` | ➖ 复用 `auto-class-permission-mw`，节点移到 1150（硬规则之后、兜底之前） | ➖ 不适用 |
 | `PermissionContext`（scope + allowAsk + judge policy） | 所有权限中间件 / `PermissionAwareToolExecutor` | ✅ Phase 1 用 `SubAgentContext` 承载 mode/allowed/denied | ❌ 手动 exe 未做；✅ 作用域/白名单单测通过 |
 | `autonomous` 模式 | `PermissionMode` + `AutoClassifierMiddleware` | ✅ `[EnumValue("autonomous")]` 别名映射 `Unattended` | ❌ 手动 exe 未做；✅ 别名单测 2 项通过 |
-| `PendingConfirmationQueue` | `PermissionAwareToolExecutor`（前台登记/结算；无人值守登记后立即 Defer） | ✅ 队列 + 执行器接线；TTL 30min/上限 200/惰性清理/参数脱敏 | ✅ TUI 真实 exe 命令链路覆盖空收件箱；✅ DSH 真实宿主 HTTP 覆盖票据列表/结算；❌ 原生 WebView/TTY 目视交互未验收 |
-| `IPendingConfirmationResolver` | DSH RPC / TUI 命令 / 发起代理通知 | ✅ 批准/拒绝复核 + 通知；不自动恢复原调用 | ✅ DSH `--dsh-smoke` 真实 HTTP 列表→批准→清空；✅ TUI 命令探针；❌ 真人 UI 点击未验收 |
-| DSH 待确认收件箱 | `DshPendingConfirmationBroker` + `/api/pendingConfirmations/ui.js` | ✅ list/resolve/resolveAll + 2s 轮询右下角面板 | ✅ `NativeGui.Host --dsh-smoke` 真实宿主：UI 注入、票据列表、批准、清空、脚本资产均通过；❌ Native WebView2 目视点击未验收 |
-| TUI `/permissions pending` | `PermissionsCommand` + `PermissionsAction.Pending` | ✅ list/approve/deny/approve-all/deny-all + 别名 | ✅ `jcc --selftest-tui-commands` 53 条真实链路，`/permissions pending` 输出空列表结论；❌ 真实 TTY 目视交互未验收 |
+| `PendingConfirmationQueue` | `PermissionAwareToolExecutor`（前台登记/结算；无人值守登记后立即 Defer） | ✅ 队列 + 执行器接线；TTL 30min/上限 200/惰性清理/参数脱敏 | ✅ 真实 TTY 命令链路覆盖空收件箱；✅ 真实 WebView2 演示票据列表/批准；✅ DSH 真实宿主 HTTP 覆盖票据列表/结算 |
+| `IPendingConfirmationResolver` | DSH RPC / TUI 命令 / 发起代理通知 | ✅ 批准/拒绝复核 + 通知；不自动恢复原调用 | ✅ DSH WebView2 点击“复核通过”后票据清空；✅ DSH `--dsh-smoke` 真实 HTTP；✅ TUI 命令探针 |
+| DSH 待确认收件箱 | `DshPendingConfirmationBroker` + `/api/pendingConfirmations/ui.js` | ✅ list/resolve/resolveAll + 2s 轮询右下角面板 | ✅ 真实 WebView2 目视：角标“待确认 1”→面板票据→点击“复核通过”→“待确认 0”且显示无待确认事项；✅ `--dsh-smoke` 真实宿主 HTTP/前端资产通过 |
+| TUI `/permissions pending` | `PermissionsCommand` + `PermissionsAction.Pending` | ✅ list/approve/deny/approve-all/deny-all + 别名 | ✅ 真实 TTY 目视：输入 `/permissions pending` 后输出“当前没有后台待确认事项。”；✅ 53 条命令链路探针通过 |
 | 执行后 `ToolExecutionSupervisor` | `PermissionAwareToolExecutor.RaiseToolExecutionCompleted` | ✅ 工具输出凭据扫描 → Defer 票据，不阻塞不改结果 | ❌ 真人 UI 未验收；✅ 1 项定向测试通过 |
 | AI 判定审计 / shadow | `LlmAutoModeClassifier` + `AutoClassifierMiddleware` | ✅ JSONL 审计、`LlmJudgeShadow` 透传、脱敏/截断；无效或低置信度响应回落原规则 | ❌ 手动 exe 未验收；✅ 定向 54 项 + Guard.Security 全量 1317 项通过 |
 | 有界判定缓存 | `LlmAutoModeClassifier` + `ClassificationRequest.CacheMode` | ✅ 可信 Bash 作用域分键、512 条上限、30 分钟绝对过期；正式缓存不得放宽确认 | ❌ 真实进程/宿主验收未做；✅ 隔离、权限与容量/过期用例通过（含可控时钟） |
@@ -373,7 +373,7 @@ latencyMs, cacheHit, fallbackReason, userOverride
 | 审计 `PermissionJudgeAudit` | `LlmSecurityJsonContext` + `AppDataPaths.JccDirectory/audit/permission_judge.jsonl` | ✅ 模型调用和缓存命中均写 JSONL，区分回落原因与最终结果；`JCC_PERMISSION_AUDIT_PATH` 可覆盖；无文件系统只写 Diag | ❌ 手动 exe 未验收；✅ 缓存命中、失败回落审计用例已随全量 1317 项通过 |
 | 真实工具名测试 | `AsyncAgentAllowedToolsTests` 等 | ✅ 已改用真实工具名 + 后台拒绝集测试 | ✅ 单元测试通过 |
 
-> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。本轮已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）：引擎进程内组装、session_info 握手、权限模式回执通过；`jcc --selftest-tui-commands` 53 条命令全部有输出（含 `/permissions pending` 空列表）；`NativeGui.Host --dsh-smoke` 真实 HTTP 宿主通过待确认收件箱的 UI 资产注入、列表、批准、清空与既有会话/目标主路径。仍缺的是原生 WebView2 与真实 TTY 下的目视点击交互，不以无窗口冒烟替代这一项。
+> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。本轮已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）：引擎进程内组装、session_info 握手、权限模式回执通过；`jcc --selftest-tui-commands` 53 条命令全部有输出（含 `/permissions pending` 空列表）；`NativeGui.Host --dsh-smoke` 真实 HTTP 宿主通过待确认收件箱的 UI 资产注入、列表、批准、清空与既有会话/目标主路径。另完成两项真人目视：真实 WebView2 中角标“待确认 1”→打开面板→点击“复核通过”→角标“待确认 0”且面板显示无待确认事项（验收后截图 `.xxx/logs/task105_dsh_ui_demo_3.png` / `task105_dsh_ui_approved.png`）；真实 TTY 中执行 `/permissions pending` 输出“当前没有后台待确认事项。”（截图 `.xxx/logs/task105_tui_permissions_pending.png`）。WebView2 验收票据由临时环境变量在真实引擎队列中直接登记，未经过模型工具调用；验收后临时代码已撤除。
 
 ---
 

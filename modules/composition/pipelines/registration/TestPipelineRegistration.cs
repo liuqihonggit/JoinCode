@@ -105,7 +105,9 @@ public static class TestPipelineRegistration {
                 .Use(sp.GetRequiredService<StopHookMiddleware>())
                 .Use(sp.GetRequiredService<StateTransitionMiddleware>())
                 .Use(sp.GetRequiredService<ContentReplacementMiddleware>())
-                .WithHooks(sp)
+                .Use(sp.GetRequiredService<PreRequestBudgetGuardMiddleware>())
+                .Use(sp.GetRequiredService<MessageDumpMiddleware>())
+                .Use(QueryEngine.QueryCoreMiddleware.Instance)
                 .Build());
 
         // Permission 权限管道

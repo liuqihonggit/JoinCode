@@ -30,8 +30,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     private readonly Lazy<MiddlewarePipeline<QueryMiddlewareContext>> _pipeline;
 
     /// <summary>
-    /// DI 构造函数 — 中间件通过 IServiceProvider 延迟解析，避免构造时
-    /// 解析 IEnumerable&lt;IQueryMiddleware&gt; 导致循环依赖
+    /// DI 构造函数 — 查询管道通过 IServiceProvider 延迟解析，避免在构造期
+    /// 实例化管道中间件导致循环依赖
     /// （IdleReminderMiddleware → IToolIdleReminderService → ITodoService →
     ///   ITaskRuntime → IWorkflowTaskExecutor → IAgentLifecycleManager → IQueryEngine → ♾️）
     /// </summary>
@@ -61,16 +61,20 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     }
 
     /// <summary>
-    /// 构建中间件管道：DI 中间件 + 核心执行中间件
+    /// 优先使用宿主装配的查询管道；独立宿主才从本地 DI 集合构建。
     /// </summary>
     private MiddlewarePipeline<QueryMiddlewareContext> BuildPipeline() {
+        if (_serviceProvider?.GetService<MiddlewarePipeline<QueryMiddlewareContext>>() is { } composed) {
+            return composed;
+        }
+
         var allMiddlewares = new List<IMiddleware<QueryMiddlewareContext>>();
         if (_serviceProvider is not null) {
             var middlewares = _serviceProvider.GetService<IEnumerable<IQueryMiddleware>>();
             if (middlewares is not null)
                 allMiddlewares.AddRange(middlewares);
         }
-        allMiddlewares.Add(new QueryCoreMiddleware(this));
+        allMiddlewares.Add(QueryCoreMiddleware.Instance);
         return _loggerFactory is not null
             ? new PipelineBuilder<QueryMiddlewareContext>()
                 .WithLoggingScope(_loggerFactory)
@@ -132,6 +136,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             Kernel = _kernel,
             ToolRegistry = _toolRegistry,
             Logger = _logger,
+            ExecuteCoreAsync = ExecuteCoreLoopAsync,
         };
 
         chatHistory.AddUserMessage(userInput);
@@ -1100,15 +1105,12 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     /// <summary>
     /// 核心执行中间件 — 管道最内层，执行 LLM 调用 + 工具执行循环
     /// </summary>
-    private sealed class QueryCoreMiddleware : IMiddleware<QueryMiddlewareContext> {
-        private readonly QueryEngine _engine;
+    internal sealed class QueryCoreMiddleware : IMiddleware<QueryMiddlewareContext> {
+        /// <summary>无状态终点，查询与 profile 重建共用此实例。</summary>
+        internal static QueryCoreMiddleware Instance { get; } = new();
 
-
-        /// <summary>
-        /// 构造函数 — 绑定所属引擎
-        /// </summary>
-        /// <param name="engine">查询引擎</param>
-        public QueryCoreMiddleware(QueryEngine engine) => _engine = engine;
+        /// <summary>核心委托由每轮查询上下文提供，终点不持有引擎实例。</summary>
+        private QueryCoreMiddleware() { }
 
         /// <summary>
         /// 执行核心循环 — 不调用 next()，作为管道终端
@@ -1118,8 +1120,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         /// <param name="ct">取消令牌</param>
         /// <returns>表示异步操作的任务</returns>
         public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct) {
-            // 核心中间件不调用 next() — 它是管道的终端
-            return _engine.ExecuteCoreLoopAsync(context, ct);
+            var executeCore = context.ExecuteCoreAsync
+                ?? throw new InvalidOperationException("查询管道终点缺少核心执行委托；请从 QueryEngine.QueryAsync 启动查询。");
+            return executeCore(context, ct);
         }
     }
 }

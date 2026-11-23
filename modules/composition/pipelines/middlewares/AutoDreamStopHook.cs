@@ -8,11 +8,9 @@ namespace JoinCode.Pipelines.Middlewares;
 /// 因此 dream 跑多久都不影响回合返回时机。
 /// </para>
 /// <para>
-/// <b>为什么落在 <c>IQueryStopHook</c> 而不是 <c>query-pipeline</c> 的一个中间件节点</b>：生产链的
-/// query 中间件来自 DI 集合（<c>QueryEngine.BuildPipeline</c> 取 <c>IEnumerable&lt;IQueryMiddleware&gt;</c>），
-/// 不是 profile 组装的那条 <c>MiddlewarePipeline&lt;QueryMiddlewareContext&gt;</c>；后者在生产里没有
-/// 消费方。加节点会变成「dump 里有、门禁绿、运行期不执行」。而 <c>query_stop_hooks</c> 的消费者
-/// （<c>StopHookMiddleware</c>，本身是 DI 集合成员）确实在跑，只是列表一直是空的。详见 TASK126 §2。
+/// <b>为什么落在 <c>IQueryStopHook</c> 而不是 <c>query-pipeline</c> 的一个中间件节点</b>：
+/// dream 消费的是回合结束事件，不需要包裹整个查询。由 <c>StopHookMiddleware</c> 注册完成钩子，
+/// 核心查询循环在收尾时触发；profile 管道接线不改变这一层职责。历史取证见 TASK126 §2。
 /// </para>
 /// <para>
 /// <b>为什么返回 Continue 而不是 Stop</b>：管理器遇到 <c>ShouldStop=true</c> 会立即短路返回

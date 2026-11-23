@@ -28,6 +28,6 @@
 
 ## 未验项
 
-- 全量构建、packed NuGet 消费和 PR CI 交由流水线验证。
-- Query 进程级 exe 未跑；注册顺序脚本仅验证当前工作树，未对新旧脚本做逐字节 diff。
+- PR #728 / #730 CI 已全绿（38 pass + 1 条件 skip）；build job 已完成 packed NuGet 打包并由 test job 消费。
+- Query 进程级 exe 仍未跑（需要真实 API/进程环境，单元测试已覆盖空等、顺序、异常和取消）；注册顺序新旧脚本输出已逐字节一致（`.xxx/logs/registration-{old,new}.txt`）。
 - `ExpiringValue` 的时间单位缺陷已修复：改用 `TimeProvider.GetElapsedTime` + `_hasValue` 消除时间戳单位混用与零哨兵问题；秒级时钟红测试和 `ExpiringValueTests` 4/4 通过，`CpuParallelismTest` 回归通过。

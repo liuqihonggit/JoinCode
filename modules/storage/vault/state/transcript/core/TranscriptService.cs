@@ -63,59 +63,77 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<TranscriptSummary>> ListTranscriptsAsync(int limit = 20, CancellationToken cancellationToken = default) {
-        if (!_fs.DirectoryExists(_sessionsDirectory)) {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (limit <= 0 || !_fs.DirectoryExists(_sessionsDirectory)) {
             return Array.Empty<TranscriptSummary>();
         }
 
         try {
+            var selected = CollectTranscriptCandidates(cancellationToken)
+                .OrderByDescending(candidate => candidate.LastModifiedAt) // 同时间戳保留目录枚举顺序。
+                .Take(limit);
             var summaries = new List<TranscriptSummary>();
 
-            foreach (var dir in _fs.EnumerateDirectories(_sessionsDirectory, "*", SearchOption.TopDirectoryOnly)) {
+            foreach (var candidate in selected) {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                try {
-                    var sessionId = Path.GetFileName(dir);
-                    if (string.IsNullOrEmpty(sessionId)) continue;
-
-                    var (transcriptPath, isJsonl) = ResolveTranscriptFile(dir);
-                    if (transcriptPath is null) continue;
-
-                    var entryCount = 0;
-                    string? preview = null;
-
-                    try {
-                        await using var stream = _fs.CreateStream(transcriptPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                        using var reader = new StreamReader(stream);
-                        var text = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-                        (entryCount, preview) = isJsonl ? ExtractJsonlPreview(text) : ExtractPreview(text);
-                    } catch (Exception ex) {
-                        // preview extraction 非关键，保留日志可见性
-                        _logger?.LogDebug(ex, "TranscriptService: 会话摘要读取失败");
-                    }
-
-                    summaries.Add(new TranscriptSummary {
-                        SessionId = sessionId,
-                        CreatedAt = _fs.GetCreationTimeUtc(dir),
-                        LastModifiedAt = _fs.GetLastWriteTimeUtc(transcriptPath),
-                        MessageCount = entryCount,
-                        LastMessagePreview = preview
-                    });
-                } catch (Exception ex) {
-                    // 跳过不可读目录，保留日志可见性
-                    _logger?.LogWarning(ex, "TranscriptService: 跳过不可读会话目录");
-                }
+                summaries.Add(await ReadTranscriptSummaryAsync(candidate, cancellationToken).ConfigureAwait(false));
             }
 
-            var result = summaries
-                .OrderByDescending(s => s.LastModifiedAt)
-                .Take(limit)
-                .ToList();
-
-            return result;
+            cancellationToken.ThrowIfCancellationRequested();
+            return summaries;
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "Failed to list transcripts");
             return Array.Empty<TranscriptSummary>();
         }
+    }
+
+    /// <summary>用于排序和选取会话的元数据,不包含转录正文。</summary>
+    private readonly record struct TranscriptCandidate(string SessionId, string Path, bool IsJsonl, DateTime CreatedAt, DateTime LastModifiedAt);
+
+    /// <summary>按目录枚举顺序收集可读的候选元数据,不打开转录文件。</summary>
+    private List<TranscriptCandidate> CollectTranscriptCandidates(CancellationToken cancellationToken) {
+        var candidates = new List<TranscriptCandidate>();
+        foreach (var dir in _fs.EnumerateDirectories(_sessionsDirectory, "*", SearchOption.TopDirectoryOnly)) {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try {
+                var sessionId = Path.GetFileName(dir);
+                if (string.IsNullOrEmpty(sessionId)) continue;
+
+                var (transcriptPath, isJsonl) = ResolveTranscriptFile(dir);
+                if (transcriptPath is null) continue;
+
+                candidates.Add(new TranscriptCandidate(sessionId, transcriptPath, isJsonl,
+                    _fs.GetCreationTimeUtc(dir), _fs.GetLastWriteTimeUtc(transcriptPath)));
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
+                _logger?.LogWarning(ex, "TranscriptService: 跳过不可读会话目录");
+            }
+        }
+
+        return candidates;
+    }
+
+    /// <summary>为选中的会话读取正文摘要;正文无法读取时仍保留会话元数据。</summary>
+    private async Task<TranscriptSummary> ReadTranscriptSummaryAsync(TranscriptCandidate candidate, CancellationToken cancellationToken) {
+        var entryCount = 0;
+        string? preview = null;
+        try {
+            await using var stream = _fs.CreateStream(candidate.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(stream, leaveOpen: true);
+            (entryCount, preview) = candidate.IsJsonl
+                ? await ExtractJsonlPreviewAsync(reader, cancellationToken).ConfigureAwait(false)
+                : ExtractPreview(await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false));
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
+            _logger?.LogDebug(ex, "TranscriptService: 会话摘要读取失败");
+        }
+
+        return new TranscriptSummary {
+            SessionId = candidate.SessionId,
+            CreatedAt = candidate.CreatedAt,
+            LastModifiedAt = candidate.LastModifiedAt,
+            MessageCount = entryCount,
+            LastMessagePreview = preview
+        };
     }
 
     /// <summary>会话目录的转录文件解析 — .jsonl 优先,回退存量 .json(数组格式);都不存在返回 (null, false)。</summary>
@@ -127,30 +145,25 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     }
 
     /// <summary>
-    /// 从 JSONL 文本流式提取条目数与最后一条消息预览(截断至 80 字符) — 只解析尾行,不整块反序列化(ADR 0144)。
+    /// 从 JSONL 正文异步逐行统计非空行,仅解析尾行提取预览(截断至 80 字符,ADR 0144)。
     /// </summary>
-    /// <param name="text">JSONL 文件全文。</param>
+    /// <param name="reader">JSONL 文件读取器。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>(条目数, 预览文本);文本为空时返回 (0, null)。</returns>
-    private static (int EntryCount, string? Preview) ExtractJsonlPreview(string text) {
-        if (string.IsNullOrWhiteSpace(text)) return (0, null);
-
+    private static async Task<(int EntryCount, string? Preview)> ExtractJsonlPreviewAsync(StreamReader reader, CancellationToken cancellationToken) {
         var entryCount = 0;
         string? lastLine = null;
-        foreach (var line in text.Split('\n')) {
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line) {
             if (string.IsNullOrWhiteSpace(line)) continue;
             entryCount++;
             lastLine = line;
         }
 
-        if (entryCount is 0 || lastLine is null) return (entryCount, null);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (lastLine is null) return (entryCount, null);
         try {
             var entry = RelaxedJsonSerializer.Deserialize(lastLine, TranscriptJsonContext.Default.TranscriptEntry);
-            if (entry is null) return (entryCount, null);
-            var preview = entry.Content;
-            if (preview is not null && preview.Length > 80) {
-                preview = preview.SafeTruncate(80);
-            }
-            return (entryCount, preview);
+            return (entryCount, entry?.Content?.SafeTruncate(80));
         } catch (JsonException) {
             return (entryCount, null);
         }

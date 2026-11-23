@@ -49,6 +49,7 @@ global using JoinCode.Abstractions.Configuration.Settings;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Http;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Interfaces.Cache;
 global using JoinCode.Abstractions.Interfaces.Context;
 global using JoinCode.Abstractions.Interfaces.Lsp;
 global using JoinCode.Abstractions.Interfaces.Scheduling;

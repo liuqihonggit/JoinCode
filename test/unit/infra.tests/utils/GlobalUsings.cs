@@ -41,6 +41,7 @@ global using IO.ProcessService;
 global using IO.Services;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;
+global using JoinCode.Abstractions.Collections;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Execution;

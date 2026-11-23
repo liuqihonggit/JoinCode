@@ -163,7 +163,8 @@ public class DiminishingReturnsDetectorTests {
         }
 
         a.ShouldBreak.Should().BeTrue("第三次连续低值触发本查询止血");
-        a.OutputChunks.Should().Contain(c => c.Content != null && c.Content.Contains("⚠️"));
+        Assert.True(a.OutputReader.TryRead(out var warning));
+        warning?.Content.Should().Contain("⚠️");
         b.ShouldBreak.Should().BeFalse("另一条查询不受影响");
     }
 }

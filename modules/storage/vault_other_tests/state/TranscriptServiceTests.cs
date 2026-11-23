@@ -3,6 +3,7 @@
 namespace State.Tests;
 
 public sealed class TranscriptServiceTests : IDisposable {
+    private static readonly string s_summaryRoot = Path.Combine(Path.GetTempPath(), "transcript-summary-tests");
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly TranscriptService _service;
     private bool _disposed;
@@ -131,6 +132,107 @@ public sealed class TranscriptServiceTests : IDisposable {
 
         Assert.Equal("newer", summaries[0].SessionId);
         Assert.Equal("older", summaries[1].SessionId);
+    }
+
+    /// <summary>Only selected bodies are opened, with enumeration order breaking timestamp ties.</summary>
+    [Fact]
+    public async Task ListTranscriptsAsync_Should_Open_Only_Top_N_Bodies() {
+        var fs = CreateSummaryFileSystem("tie-z", "tie-a", "newest", "oldest");
+        var modifiedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var selectedJsonl = SetUpSummaryFile(fs, "tie-z", "transcript.jsonl", modifiedAt);
+        var selectedJson = SetUpSummaryFile(fs, "newest", "transcript.json", modifiedAt.AddDays(1));
+        SetUpSummaryFile(fs, "tie-z", "transcript.json", modifiedAt.AddDays(2));
+        SetUpSummaryFile(fs, "tie-a", "transcript.jsonl", modifiedAt);
+        SetUpSummaryFile(fs, "oldest", "transcript.json", modifiedAt.AddDays(-1));
+
+        var firstLine = RelaxedJsonSerializer.Serialize(NewEntry("user", "first"), TranscriptJsonlContext.Default);
+        var lastLine = RelaxedJsonSerializer.Serialize(NewEntry("assistant", new string('x', 81)), TranscriptJsonlContext.Default);
+        var jsonl = string.Join("\r\n", firstLine, "  ", "invalid intermediate row", lastLine, "  ");
+        var json = RelaxedJsonSerializer.Serialize<List<TranscriptEntry>>(
+            [NewEntry("user", "legacy first"), NewEntry("assistant", "legacy last")], TranscriptJsonContext.Default);
+        fs.Setup(f => f.CreateStream(selectedJsonl, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            .Returns(() => OpenSummaryBody(jsonl));
+        fs.Setup(f => f.CreateStream(selectedJson, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            .Returns(() => OpenSummaryBody(json));
+        await using var service = new TranscriptService(fs.Object, s_summaryRoot);
+
+        var summaries = await service.ListTranscriptsAsync(limit: 2).ConfigureAwait(true);
+
+        Assert.Equal(["newest", "tie-z"], summaries.Select(s => s.SessionId));
+        Assert.Equal([2, 3], summaries.Select(s => s.MessageCount));
+        Assert.Equal(["legacy last", new string('x', 80) + "..."], summaries.Select(s => s.LastMessagePreview));
+        Assert.Equal([modifiedAt.AddDays(1), modifiedAt], summaries.Select(s => s.LastModifiedAt));
+        fs.Verify(f => f.CreateStream(selectedJsonl, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), Times.Once);
+        fs.Verify(f => f.CreateStream(selectedJson, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), Times.Once);
+        fs.Verify(f => f.CreateStream(It.IsAny<string>(), It.IsAny<FileMode>(), It.IsAny<FileAccess>(), It.IsAny<FileShare>()), Times.Exactly(2));
+    }
+
+    /// <summary>Unreadable bodies and malformed tails retain their existing summary fallbacks.</summary>
+    [Fact]
+    public async Task ListTranscriptsAsync_Should_Keep_Summary_When_Body_Cannot_Be_Parsed() {
+        var fs = CreateSummaryFileSystem("bad-tail", "unreadable", "bad-array");
+        var modifiedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var badTail = SetUpSummaryFile(fs, "bad-tail", "transcript.jsonl", modifiedAt);
+        var unreadable = SetUpSummaryFile(fs, "unreadable", "transcript.jsonl", modifiedAt);
+        var badArray = SetUpSummaryFile(fs, "bad-array", "transcript.json", modifiedAt);
+        var validLine = RelaxedJsonSerializer.Serialize(NewEntry("user", "not the last row"), TranscriptJsonlContext.Default);
+        fs.Setup(f => f.CreateStream(badTail, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            .Returns(() => OpenSummaryBody(validLine + "\ninvalid final row"));
+        fs.Setup(f => f.CreateStream(unreadable, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            .Throws(new IOException("read failed"));
+        fs.Setup(f => f.CreateStream(badArray, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            .Returns(() => OpenSummaryBody("invalid array"));
+        await using var service = new TranscriptService(fs.Object, s_summaryRoot);
+
+        var summaries = await service.ListTranscriptsAsync().ConfigureAwait(true);
+
+        Assert.Equal(["bad-tail", "unreadable", "bad-array"], summaries.Select(s => s.SessionId));
+        Assert.Equal([2, 0, 0], summaries.Select(s => s.MessageCount));
+        Assert.All(summaries, summary => Assert.Null(summary.LastMessagePreview));
+    }
+
+    /// <summary>Cancellation exceptions are not treated as unreadable directories or body failures.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ListTranscriptsAsync_Should_Propagate_Cancellation(bool duringMetadata) {
+        using var cts = new CancellationTokenSource();
+        var fs = CreateSummaryFileSystem("canceled");
+        var transcript = SetUpSummaryFile(fs, "canceled", "transcript.jsonl", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var canceled = new OperationCanceledException(cts.Token);
+        if (duringMetadata) {
+            fs.Setup(f => f.GetLastWriteTimeUtc(transcript)).Throws(canceled);
+        } else {
+            fs.Setup(f => f.CreateStream(transcript, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)).Throws(canceled);
+        }
+        await using var service = new TranscriptService(fs.Object, s_summaryRoot);
+
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => service.ListTranscriptsAsync(cancellationToken: cts.Token)).ConfigureAwait(true);
+
+        Assert.Equal(cts.Token, exception.CancellationToken);
+    }
+
+    /// <summary>The selected JSONL body receives the list operation's cancellation token.</summary>
+    [Fact]
+    public async Task ListTranscriptsAsync_Should_Cancel_While_Reading_Jsonl() {
+        using var cts = new CancellationTokenSource();
+        var fs = CreateSummaryFileSystem("reading");
+        var transcript = SetUpSummaryFile(fs, "reading", "transcript.jsonl", DateTime.UnixEpoch);
+        var body = new Mock<Stream>();
+        body.SetupGet(s => s.CanRead).Returns(true);
+        body.Setup(s => s.ReadAsync(It.IsAny<Memory<byte>>(), cts.Token)).Returns(() => {
+            cts.Cancel();
+            return ValueTask.FromCanceled<int>(cts.Token);
+        });
+        fs.Setup(f => f.CreateStream(transcript, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)).Returns(body.Object);
+        await using var service = new TranscriptService(fs.Object, s_summaryRoot);
+
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => service.ListTranscriptsAsync(cancellationToken: cts.Token)).ConfigureAwait(true);
+
+        Assert.Equal(cts.Token, exception.CancellationToken);
+        body.Verify(s => s.ReadAsync(It.IsAny<Memory<byte>>(), cts.Token), Times.Once);
     }
 
     [Fact]
@@ -327,6 +429,28 @@ public sealed class TranscriptServiceTests : IDisposable {
         var loaded = await _service.LoadTranscriptAsync("legacy-migrate-2").ConfigureAwait(true);
         Assert.Single(loaded);
     }
+
+    /// <summary>Creates a filesystem whose summary directory enumeration is deterministic.</summary>
+    private static Mock<IFileSystem> CreateSummaryFileSystem(params string[] sessionIds) {
+        var fs = new Mock<IFileSystem>(MockBehavior.Strict);
+        fs.Setup(f => f.DirectoryExists(s_summaryRoot)).Returns(true);
+        fs.Setup(f => f.EnumerateDirectories(s_summaryRoot, "*", SearchOption.TopDirectoryOnly))
+            .Returns(sessionIds.Select(id => Path.Combine(s_summaryRoot, id)).ToArray());
+        fs.Setup(f => f.FileExists(It.IsAny<string>())).Returns(false);
+        fs.Setup(f => f.GetCreationTimeUtc(It.IsAny<string>())).Returns(DateTime.UnixEpoch);
+        return fs;
+    }
+
+    /// <summary>Registers the existence and last modification of a transcript without opening its body.</summary>
+    private static string SetUpSummaryFile(Mock<IFileSystem> fs, string sessionId, string fileName, DateTime modifiedAt) {
+        var path = Path.Combine(s_summaryRoot, sessionId, fileName);
+        fs.Setup(f => f.FileExists(path)).Returns(true);
+        fs.Setup(f => f.GetLastWriteTimeUtc(path)).Returns(modifiedAt);
+        return path;
+    }
+
+    /// <summary>Opens a read-only UTF-8 body with no disk access.</summary>
+    private static Stream OpenSummaryBody(string text) => new MemoryStream(System.Text.Encoding.UTF8.GetBytes(text), writable: false);
 
     private static TranscriptEntry NewEntry(string role, string content, string sessionId = "test") {
         return new TranscriptEntry {

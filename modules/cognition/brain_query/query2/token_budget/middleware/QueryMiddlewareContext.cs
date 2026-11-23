@@ -44,10 +44,21 @@ public sealed class QueryMiddlewareContext {
     /// <summary>本次查询的核心执行委托，仅在引擎创建查询上下文时绑定。</summary>
     internal MiddlewareDelegate<QueryMiddlewareContext>? ExecuteCoreAsync { get; init; }
 
-    /// <summary>
-    /// 输出块队列 — 核心引擎和中间件向此队列添加输出块；QueryAsync 并行轮询 yield 实现流式输出
-    /// </summary>
-    public System.Collections.Concurrent.ConcurrentQueue<QueryStreamChunk> OutputChunks { get; } = new();
+    private readonly Channel<QueryStreamChunk> _output = Channel.CreateUnbounded<QueryStreamChunk>(new UnboundedChannelOptions {
+        SingleReader = true,
+    });
+
+    /// <summary>向流式响应发布一个输出块，唤醒等待数据的读者。</summary>
+    public void PublishOutput(QueryStreamChunk chunk) {
+        if (!_output.Writer.TryWrite(chunk))
+            throw new InvalidOperationException("查询已结束，不能再写入输出块。");
+    }
+
+    /// <summary>查询流的唯一读取端。</summary>
+    internal ChannelReader<QueryStreamChunk> OutputReader => _output.Reader;
+
+    /// <summary>管道退出后通知读者排空已发布的输出；管道任务单独传播异常。</summary>
+    internal void CompleteOutput() => _output.Writer.Complete();
 
     /// <summary>
     /// 计时器（整条查询的墙上时间）

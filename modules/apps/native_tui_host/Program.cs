@@ -822,6 +822,9 @@ public static class Program {
         return fileName;
     }
 
+    /// <summary>采样真实 Windows 终端的输入事件，不启动引擎或发送模型请求。</summary>
+    public static Task<int> RunTerminalInputProbeAsync() => TerminalInputProbe.RunAsync();
+
     /// <summary>输入泵探针（DSG042 P2 — 真实 stdin 路径实测）：管道喂 VT 字节流
     ///（printf '|' 形态 — 终端即往 stdin 写这些字节，管道字节流与终端形态一致）→
     /// RawStdinPump 读线程全链（UTF-8 增量解码/前缀攒齐/paste 整块/修饰组合）→ 键位全表逐位断言。

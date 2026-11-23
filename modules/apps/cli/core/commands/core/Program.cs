@@ -17,6 +17,8 @@ class Program {
             return await NativeTui.Host.Program.RunSelftestCommandsAsync().ConfigureAwait(false);
         if (args is ["--selftest-input"])
             return await NativeTui.Host.Program.RunSelftestInputAsync().ConfigureAwait(false);
+        if (args is ["--probe-terminal-input"])
+            return await NativeTui.Host.Program.RunTerminalInputProbeAsync().ConfigureAwait(false);
         if (args is ["--selftest-crossproc"])
             return await CrossProcessSelftest.RunParentAsync().ConfigureAwait(false);
         if (args.Length == 6 && args[0] == "--selftest-crossproc" && args[1] == "worker")

@@ -20,9 +20,8 @@ public static class DataDrivenPipelineComposition {
         services.AddSingleton(sp => new MetricsMiddleware<SkillContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<CodeContext>(sp.GetService<ITelemetryService>()));
 
-        // TASK126（#40）：回合结束 → dream 自动整合。落在 query_stop_hooks 而不是 query-pipeline
-        // 节点 —— 生产查询链取的是 DI 集合（IEnumerable<IQueryMiddleware>），profile 组装的
-        // MiddlewarePipeline<QueryMiddlewareContext> 没有消费方，加节点等于永不执行。
+        // TASK126（#40）：dream 是回合结束事件，挂在 StopHookMiddleware 消费的 query_stop_hooks，
+        // 不单独增加一层包裹整个查询的中间件。
         //
         // 依赖必须**延迟解析**：McpInitModule 把插件加载后台化（「启动不阻塞等待加载墙钟」），
         // 而本 hook 在首次查询构建管道时就被构造。构造期抓 IDreamFeature 的写法实测稳定失败
@@ -163,8 +162,9 @@ public static class DataDrivenPipelineComposition {
         // ═══════════════════════════════════════════════════════════
         // query-pipeline — IMiddleware<QueryMiddlewareContext>
         // ═══════════════════════════════════════════════════════════
-        yield return F("query-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<QueryMiddlewareContext>(sp, "query-pipeline"));
-        yield return F("query-pipeline:query-rate-limit-mw", sp => CreateRateLimit<QueryMiddlewareContext>(sp, "query-pipeline", "query-rate-limit-mw", 60, 60));
+        foreach (var factory in BuildQueryParameterFactories()) {
+            yield return factory;
+        }
         yield return F("query-pipeline:usd-budget-mw", sp => sp.GetRequiredService<UsdBudgetMiddleware>());
         yield return F("query-pipeline:query-token-budget-mw", sp => sp.GetRequiredService<QueryTokenBudgetMiddleware>());
         yield return F("query-pipeline:cost-tracking-mw", sp => sp.GetRequiredService<CostTrackingMiddleware>());
@@ -174,6 +174,8 @@ public static class DataDrivenPipelineComposition {
         yield return F("query-pipeline:stop-hook-mw", sp => sp.GetRequiredService<StopHookMiddleware>());
         yield return F("query-pipeline:state-transition-mw", sp => sp.GetRequiredService<StateTransitionMiddleware>());
         yield return F("query-pipeline:content-replacement-mw", sp => sp.GetRequiredService<ContentReplacementMiddleware>());
+        yield return F("query-pipeline:pre-request-budget-guard-mw", sp => sp.GetRequiredService<PreRequestBudgetGuardMiddleware>());
+        yield return F("query-pipeline:message-dump-mw", sp => sp.GetRequiredService<MessageDumpMiddleware>());
 
         // ═══════════════════════════════════════════════════════════
         // permission-pipeline — IMiddleware<PermissionCheckContext> (短路)
@@ -515,11 +517,8 @@ public static class DataDrivenPipelineComposition {
                 BuildTaskPipeline<CompactContext>(sp, "compact-pipeline"),
                 "compact-pipeline"));
 
-        // Query 查询管道
-        services.AddSingleton<MiddlewarePipeline<QueryMiddlewareContext>>(sp =>
-            SubscribePipelineRebuild(sp,
-                BuildTaskPipeline<QueryMiddlewareContext>(sp, "query-pipeline"),
-                "query-pipeline"));
+        // Query 查询管道 — 追加引擎固定终点；保留限流等错误的传播语义。
+        services.AddSingleton<MiddlewarePipeline<QueryMiddlewareContext>>(BuildQueryPipeline);
 
         // Permission 权限管道 (短路)
         services.AddSingleton<MiddlewarePipeline<PermissionCheckContext>>(sp =>
@@ -599,6 +598,48 @@ public static class DataDrivenPipelineComposition {
                 "agent-tool-pipeline"));
 
         return services;
+    }
+
+    private const string QueryConsumerId = "query-pipeline";
+    private const string QueryRateLimitNodeId = "query-rate-limit-mw";
+
+    // 参数化查询节点以同一份表服务目录登记与运行期解析；重建直接使用事件给出的快照。
+    private static readonly FrozenDictionary<string, Func<IServiceProvider, ResolvedProfile, IMiddleware<QueryMiddlewareContext>>> QueryParameterFactories =
+        new Dictionary<string, Func<IServiceProvider, ResolvedProfile, IMiddleware<QueryMiddlewareContext>>>(StringComparer.Ordinal) {
+            ["crash-snapshot-mw"] = (sp, profile) => CreateCrashSnapshot<QueryMiddlewareContext>(sp, QueryConsumerId, profile),
+            [QueryRateLimitNodeId] = (sp, profile) => CreateRateLimit<QueryMiddlewareContext>(sp, QueryConsumerId, QueryRateLimitNodeId, 60, 60, profile),
+        }.ToFrozenDictionary(StringComparer.Ordinal);
+
+    /// <summary>登记可由节点目录解析的默认工厂；实际查询装配显式传入目标 profile。</summary>
+    private static IEnumerable<KeyValuePair<string, Func<IServiceProvider, object>>> BuildQueryParameterFactories() {
+        foreach (var (nodeId, create) in QueryParameterFactories) {
+            yield return F(NodeServiceResolver.CombineKey(QueryConsumerId, nodeId),
+                sp => create(sp, sp.GetRequiredService<IProfileManager>().Current));
+        }
+    }
+
+    /// <summary>组装查询链，并在 profile 切换时原子重建中间件委托，不替换引擎。</summary>
+    private static MiddlewarePipeline<QueryMiddlewareContext> BuildQueryPipeline(IServiceProvider sp) {
+        var manager = sp.GetRequiredService<IProfileManager>();
+        var resolver = sp.GetRequiredService<NodeServiceResolver>();
+        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+        var loggingScope = new LoggingScopeMiddleware<QueryMiddlewareContext>(
+            loggerFactory.CreateLogger<LoggingScopeMiddleware<QueryMiddlewareContext>>());
+
+        // 保持旧 QueryEngine 的异常传播语义。通用 WithHooks 安装的 Continue 兜底会吞掉
+        // 下游限流或核心异常（外层 CrashSnapshotMiddleware 会重新抛出该异常）。
+        var pipeline = new MiddlewarePipeline<QueryMiddlewareContext>(ResolveChain(manager.Current));
+        manager.ProfileSwitching += (_, target) => {
+            pipeline.Rebuild(ResolveChain(target));
+            return ValueTask.CompletedTask;
+        };
+        return pipeline;
+
+        IEnumerable<IMiddleware<QueryMiddlewareContext>> ResolveChain(ResolvedProfile profile) =>
+            ResolveMiddlewares<IMiddleware<QueryMiddlewareContext>>(sp, resolver, profile, QueryConsumerId, loggerFactory,
+                    node => QueryParameterFactories.TryGetValue(node.Id, out var create) ? create(sp, profile) : null)
+                .Prepend(loggingScope)
+                .Append(QueryEngine.QueryCoreMiddleware.Instance);
     }
 
     /// <summary>
@@ -686,7 +727,8 @@ public static class DataDrivenPipelineComposition {
     /// </summary>
     private static List<TMiddleware> ResolveMiddlewares<TMiddleware>(
         IServiceProvider sp, NodeServiceResolver resolver, ResolvedProfile profile, string consumerId,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        Func<ResolvedNodeEntry, TMiddleware?>? resolveConfiguredNode = null)
         where TMiddleware : class {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig))
             throw new InvalidOperationException($"Consumer '{consumerId}' not found in profile '{profile.Name}'");
@@ -694,7 +736,10 @@ public static class DataDrivenPipelineComposition {
         var logger = loggerFactory.CreateLogger("DataDrivenPipelineComposition");
         var result = new List<TMiddleware>();
         foreach (var nodeEntry in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
-            if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware)) {
+            var configuredMiddleware = resolveConfiguredNode?.Invoke(nodeEntry);
+            if (configuredMiddleware is not null) {
+                result.Add(configuredMiddleware);
+            } else if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware)) {
                 result.Add(middleware);
             } else {
                 // TASK100 S8（§24.2 / C2）：过去这里只记一条 Warning 就把中间件静默跳过 ——
@@ -741,8 +786,8 @@ public static class DataDrivenPipelineComposition {
 
     /// <summary>创建 CrashSnapshotMiddleware 实例，pipelineName 从 YAML config 读取</summary>
     private static CrashSnapshotMiddleware<TContext> CreateCrashSnapshot<TContext>(
-        IServiceProvider sp, string consumerId) {
-        var profile = sp.GetRequiredService<IProfileManager>().Current;
+        IServiceProvider sp, string consumerId, ResolvedProfile? profile = null) {
+        profile ??= sp.GetRequiredService<IProfileManager>().Current;
         var pipelineName = GetPipelineName(profile, consumerId);
         var store = sp.GetRequiredService<ICrashSnapshotStore>();
         return new CrashSnapshotMiddleware<TContext>(store, pipelineName);
@@ -786,8 +831,9 @@ public static class DataDrivenPipelineComposition {
 
     /// <summary>创建 FixedRateLimitMiddleware 实例，参数从 YAML config 读取</summary>
     private static FixedRateLimitMiddleware<TContext> CreateRateLimit<TContext>(
-        IServiceProvider sp, string consumerId, string nodeId, int defaultMaxRequests, int defaultWindowSeconds) {
-        var profile = sp.GetRequiredService<IProfileManager>().Current;
+        IServiceProvider sp, string consumerId, string nodeId, int defaultMaxRequests, int defaultWindowSeconds,
+        ResolvedProfile? profile = null) {
+        profile ??= sp.GetRequiredService<IProfileManager>().Current;
         var maxRequests = GetConfigInt(profile, consumerId, nodeId, "max-requests", defaultMaxRequests);
         var window = GetConfigSeconds(profile, consumerId, nodeId, "window-seconds", defaultWindowSeconds);
         return new FixedRateLimitMiddleware<TContext>(maxRequests, window);

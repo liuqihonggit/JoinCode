@@ -41,6 +41,9 @@ public sealed class QueryMiddlewareContext {
     /// </summary>
     public ILogger? Logger { get; init; }
 
+    /// <summary>本次查询的核心执行委托，仅在引擎创建查询上下文时绑定。</summary>
+    internal MiddlewareDelegate<QueryMiddlewareContext>? ExecuteCoreAsync { get; init; }
+
     /// <summary>
     /// 输出块队列 — 核心引擎和中间件向此队列添加输出块；QueryAsync 并行轮询 yield 实现流式输出
     /// </summary>

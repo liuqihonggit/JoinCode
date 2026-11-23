@@ -147,6 +147,10 @@ consumers:
         priority: 900
       - id: content-replacement-mw
         priority: 1000
+      - id: pre-request-budget-guard-mw
+        priority: 1100
+      - id: message-dump-mw
+        priority: 1200
 
   permission-pipeline:
     nodes:

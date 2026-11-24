@@ -11,7 +11,7 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---|---|---|---|
-| 查询异步出队 | 主聊天 / 主代理 `QueryAsync` | ✅ | ✅ `QueryEngineOutputStreamTests` 3/3：空输出不投递空轮询、首块、顺序、末尾、异常和提前停止；进程级 exe 未跑 |
+| 查询异步出队 | 主聊天 / 主代理 `QueryAsync` | ✅ | ✅ `QueryEngineOutputStreamTests` 3/3：空输出不投递空轮询、首块、顺序、末尾、异常和提前停止；进程级 exe 已跑（2026-11-24 MockServer harness 4/4，见未验项） |
 | 按元数据选 Top N | CLI 恢复 / TUI 历史加载 | ✅ | ✅ `TranscriptServiceTests` 30/30：排序、格式、取消和预览契约保持；仅选中会话各打开一次正文 |
 | 注册顺序单次扫描 | CI Registration order table | ✅ | ✅ `Verify-RegistrationOrder.py` 5 列表 / 17 项通过；`os.walk` 单次读取且诊断语义不变；新旧脚本未做逐字节 diff |
 
@@ -29,5 +29,9 @@
 ## 未验项
 
 - PR #728 / #730 CI 已全绿（38 pass + 1 条件 skip）；build job 已完成 packed NuGet 打包并由 test job 消费。
-- Query 进程级 exe 仍未跑（需要真实 API/进程环境，单元测试已覆盖空等、顺序、异常和取消）；注册顺序新旧脚本输出已逐字节一致（`.xxx/logs/registration-{old,new}.txt`）。
+- Query 进程级 exe 已于 2026-11-24 补跑（MockServer harness，`JCC_ALLOW_DIRECT_FALLBACK=1`）：
+  Streaming 超时验收（`NonInteractiveMode_ShouldCompleteWithoutTimeout`）、Vd02 异常路径、
+  Ve06 多轮、Wq01 限流（含 bridge_serve 双回合流式事件 + 回合异常 → error 事件）4/4 通过，
+  证据 `.xxx/logs/p1-1-e2e-evidence.txt`；单元测试覆盖的空等/顺序/异常/取消语义在真实 exe 上表现一致；
+  注册顺序新旧脚本输出已逐字节一致（`.xxx/logs/registration-{old,new}.txt`）。
 - `ExpiringValue` 的时间单位缺陷已修复：改用 `TimeProvider.GetElapsedTime` + `_hasValue` 消除时间戳单位混用与零哨兵问题；秒级时钟红测试和 `ExpiringValueTests` 4/4 通过，`CpuParallelismTest` 回归通过。

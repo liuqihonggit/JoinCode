@@ -123,12 +123,15 @@ public sealed class BridgeSessionTrackerTests {
     public void GetDurationMs_KnownSession_ReturnsElapsed() {
         var clock = new FakeClockService();
         var sut = CreateSut();
-        RegisterSession(sut, "session-1", "work-1");
+        // StartTime 必须与 GetDurationMs 的时钟同源：CreateState 默认取真实 DateTime.UtcNow，
+        // 与 FakeClockService 构造时刻存在毫秒级漂移 —— CI 实测 2997ms < 2999ms 的 flake 根因。
+        // 改用假时钟基准注册后，Advance 3s 的时长是可精确断言的 3000ms。
+        sut.Sessions.Register("session-1", CreateState("work-1") with { StartTime = clock.GetUtcNow() });
 
         clock.Advance(TimeSpan.FromSeconds(3));
 
         var duration = sut.Sessions.GetDurationMs("session-1", clock);
-        duration.Should().BeGreaterThanOrEqualTo(2999);
+        duration.Should().Be(3000);
     }
 
     [Fact]

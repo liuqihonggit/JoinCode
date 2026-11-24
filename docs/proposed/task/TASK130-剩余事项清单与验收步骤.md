@@ -12,7 +12,7 @@
 |---|---|---|
 | A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计（**已施工**）· A4 flag settings 策略锁（**已施工**）· A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**已施工 + 真机端到端**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**已施工**） |
 | B | 只能人工 / 需外部条件 | B1 #52 双终端矩阵、B2 #51 Ctrl+B、B3 macOS Seatbelt |
-| C | 需凭据或 MockServer 才能跑完 | C1 #40 回合级真机探针、C2 #53 低限额进程级 |
+| C | 需凭据或 MockServer 才能跑完 | C1 #40 回合级真机探针、C2 #53 低限额进程级（**已施工**，见 §C2） |
 | D | 台账自身错误，需纠正 | D1「#15 待施工」已过期、D2 #53 表格行未划线、D3 D7 与总账 §3 矛盾 |
 
 ---
@@ -466,13 +466,25 @@ Hub 投影目前由 `ApplySandboxConfigAsync` 单测覆盖，不能当作进程�
 配任一 vendor key → `JCC_DEBUGLOG=1 jcc -p hi` → grep `[DREAM-AUTO]`
 （应看到 `hook resolved` 而非 `disabled`，且同一回合只触发一次）。
 
-### C2. #53 低限额进程级验证
+### C2. #53 低限额进程级验证 — **已施工（2026-11-24，`Wq01` E2E 常驻回归）**
 
-**现状**：同进程用例已证明「第 2 次查询抛 `RateLimitExceededException`，模型调用数停在 1」；
-但「低限额时请求**不进入** MockServer」的进程级证据没做（本机无 key）。
-**补验步骤**（[ADR 0077](../../implemented/adr/engineering_ci_test/0077-mockserver-jcc-joint-testing.md)）：
-起本地 MockServer → 临时 profile 把 `query-rate-limit-mw.max-requests` 设 1 →
-连续两次 `-p hi` → 判定：第二次**没有**新的 MockServer 请求记录，且 CLI 报限流错误。
+**结果**：同进程用例（第 2 次查询抛 `RateLimitExceededException`、模型调用数停在 1）之外，
+进程级证据已补齐 —— 两次提交只允许第 1 次真实进入 MockServer。
+
+**实现**（比原计划的「连续两次 `-p hi`」更严格）：`-p` 每次都是新进程，限流计数器
+（QueryEngine 管道单例）随之重置，两次独立进程**永远打不满限额** —— 原步骤设计不成立。
+改用 bridge_serve 单进程双回合（与 CI E2E 同一 harness）：
+
+- `Wq01Tests`（`test/mock/mock_server.e2e.tests/e2e/a_to_c/`）+ `WqQueryRateLimitScripts`：
+  外部 profile `c2.yaml`（`inherits: base` + 覆写 `query-rate-limit-mw.max-requests=1`，
+  经 `JCC_PROFILE_DIR` 注入）→ `bridge_serve --profile c2` → 同一 jcc 进程提交两回合：
+  第 1 回合正常回复并消耗唯一限额；第 2 回合报「速率限制」且拿不到模型回复；
+  断言 MockServer `/__control__/requests` 增量 **== 1**（被拒查询 0 请求）。
+- **顺带修出真 bug**：`bridge_serve --profile X` 的 `--profile` 此前被忽略
+  （子命令路由优先于全局 ParseArgs，BridgeServeCommand 自建 options 只读 vendor/model），
+  引擎静默回退 base profile。已修：与 `--vendor`/`--model` 同构解析并带入 options.Profile。
+
+**证据**：`.xxx/logs/p1-1-e2e-evidence.txt`（Wq01 + Ve06 多轮 + Streaming 超时验收 + Vd02 异常处理 4/4 通过）。
 
 ---
 

@@ -19,7 +19,11 @@ internal static class BridgeServeCommand {
         }
         var vendor = FlatSubCommandRouter.GetOptionValue(args, JccCliArgEnumConstants.Vendor);
         var model = FlatSubCommandRouter.GetOptionValue(args, JccCliArgEnumConstants.Model);
-        return await ExecuteBridgeAsync(vendor, model, ct).ConfigureAwait(false);
+        // --profile 在子命令后仍须生效 — 子命令路由优先于全局 ParseArgs（Program.FindSubCommandIndex），
+        // 引擎装配的 profile 由 options.Profile 决定（CoreModule → AddDataDrivenPipelines），
+        // 与 --vendor/--model 同构：不解析则 `jcc bridge_serve --profile X` 静默回退 base（Wq01 红测试暴露）。
+        var profile = FlatSubCommandRouter.GetOptionValue(args, JccCliArgEnumConstants.Profile);
+        return await ExecuteBridgeAsync(vendor, model, profile, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -27,13 +31,15 @@ internal static class BridgeServeCommand {
     /// 全程持有 JCC_LOG_LEVEL=Error 抑制日志噪音。
     /// 启动即发 session_info 握手（版本/当前模型/权限模式/bypass 可用性/cwd — banner 真实数据源）。
     /// </summary>
-    private static async Task<int> ExecuteBridgeAsync(string? vendor, string? model, CancellationToken ct) {
+    private static async Task<int> ExecuteBridgeAsync(string? vendor, string? model, string? profile, CancellationToken ct) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true };
         if (!string.IsNullOrEmpty(vendor))
             options = options with { Vendor = vendor };
         if (!string.IsNullOrEmpty(model))
             options = options with { Model = model };
+        if (!string.IsNullOrEmpty(profile))
+            options = options with { Profile = profile };
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
 

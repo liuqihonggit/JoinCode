@@ -28,8 +28,8 @@
 | P0 | A6 SessionStart `AdditionalConfig` 零消费 | 代码确认零读取 | 是 | D1：`additionalContext` / `initialUserMessage` 的注入通道 | 红测试 + 消费链 + 回归 |
 | P0 | A4 flag settings 策略锁 | **已施工**（2026-11-24） | 是 | D2 已闭合 | 代码 + 单测 + 真机日志 |
 | P0 | A3 斜杠命令取参审计 | **已施工**（2026-11-24，随 `c28d6412d`/PR #734 合入） | 是 | 无 | 审计表（TASK130 A3）+ `TryTakeSubCommand` 词边界修复 + `SubCommandBoundaryTest` 13 条 |
-| P1 | C2 低限额进程级验证 | 同进程用例已绿，进程级未做 | 是（MockServer） | 无 | 两次 `jcc -p` + dump 证据 |
-| P1 | Query 进程级 exe 验收 | 单元测试 3/3，exe 未跑 | 是（MockServer） | 无 | 流式输出/异常/取消的进程证据 |
+| P1 | C2 低限额进程级验证 | **已施工**（2026-11-24，`Wq01` E2E 常驻回归 + `bridge_serve --profile` 真 bug 修复） | 是（MockServer） | 无 | 单进程双回合：第 2 回合被拦 + MockServer 增量 == 1 |
+| P1 | Query 进程级 exe 验收 | **已施工**（2026-11-24，Streaming/Vd02/Ve06/Wq01 4/4，与 C2 共用 harness） | 是（MockServer） | 无 | 流式输出/异常/取消的进程证据 |
 | P1 | B1 双终端矩阵 | 探针 4/4，矩阵 10×2 未测 | 否（人工） | 真实 Windows Terminal + conhost | 矩阵结论 + 产物哈希 |
 | P2 | B2 Ctrl+B 主会话后台化 | 取证完成，产品决策未做 | 否（需裁决） | D3：并发/transcript/UI 状态机 | 一页设计稿，不直接照搬 |
 | P2 | C1 回合级真机探针 | 接线已修，缺真实 key | 否 | vendor API key | `[DREAM-AUTO]` 证据 |
@@ -127,22 +127,32 @@ dotnet test modules\composition\composition_tests\Composition.Tests.csproj -c De
 
 ---
 
-### P1-1：C2 + Query 进程级（共用 MockServer）
+### P1-1：C2 + Query 进程级（共用 MockServer）— **已施工（2026-11-24）**
 
-**目标**：用本地 MockServer 和真实 `jcc.exe` 进程补两项证据：
+**结果**（实施与原步骤的差异已在 [TASK130 §C2](TASK130-剩余事项清单与验收步骤.md) 说明）：
 
-- C2：第 2 次 `-p` 不产生新的 MockServer 请求，并返回限流错误。
-- Query：进程级流式输出顺序/异常/提前停止与单元测试一致。
+- 原步骤「连续两次 `jcc -p hi`」不成立：`-p` 每次新进程，限流计数器随 QueryEngine
+  管道单例重置，独立进程永远打不满限额。改为 **bridge_serve 单进程双回合**（与 CI E2E 同 harness）。
+- 新增常驻回归：`WqQueryRateLimitScripts` + `Wq01Tests`（外部 profile `c2.yaml` 覆写
+  `query-rate-limit-mw.max-requests=1` 经 `JCC_PROFILE_DIR` 注入）—— 第 1 回合消耗唯一限额
+  进 MockServer，第 2 回合报「速率限制」，`/__control__/requests` 增量断言 **== 1**。
+- **顺带修出真 bug**：`bridge_serve --profile X` 的 `--profile` 被忽略（子命令路由优先于全局
+  ParseArgs），引擎静默回退 base。修复：BridgeServeCommand 与 `--vendor`/`--model` 同构解析带入 options.Profile。
+- Query 进程级：Streaming 超时验收 + Vd02 异常路径 + Ve06 多轮 + Wq01（含流式事件与回合异常
+  → error 事件）**4/4 通过**，证据 `.xxx/logs/p1-1-e2e-evidence.txt`；TASK130 §C2、TASK128 未验项均已回写。
+- PR #740 首轮 CI 唯一失败是 `Bridge.Tests.BridgeSessionTrackerTests.GetDurationMs_KnownSession_ReturnsElapsed`
+  时序 flake（2997ms < 2999ms）：`CreateState` 的 `StartTime` 取真实 `DateTime.UtcNow`，与
+  `FakeClockService` 构造时刻存在毫秒漂移。修法为测试侧确定性化（注册时 `StartTime = clock.GetUtcNow()`，
+  `Advance(3s)` 后精确断言 `== 3000`），生产 API 未改；`Bridge.Tests` 全量 633/633 通过，
+  证据 `.xxx/logs/pr740-flake-fix.txt`。
 
-**步骤**
+**验收**
 
-1. 构建 `OpenAI.MockServer` 与 `jcc`（Debug 或 Release 固定一种，记录哈希）。
-2. 启动 MockServer，临时 profile 设 `query-rate-limit-mw.max-requests=1`；连续两次 `jcc -p hi`。
-3. 读取 MockServer dump：第二次请求数不增加；CLI 报限流错误。
-4. 对 Query 用同一 harness 跑一条正常 prompt + 一条异常/取消场景，保存 stdout/exit/dump 到 `.xxx/logs/`。
-5. 证据回填 TASK130 C2 和 TASK128 的 Query 进程级行。
-
-**注意**：只用临时应用数据目录和本地 endpoint，禁止真实 vendor key；MockServer 后台启动，不阻塞前台。
+```powershell
+$env:JCC_ALLOW_DIRECT_FALLBACK="1"  # 与 ci-e2e.yml 一致（E2E 无 Hub 环境）
+dotnet test artifacts\bin\MockServer.E2E.Tests\Debug\net10.0\JoinCode.MockServer.E2E.Tests.dll --no-build `
+  --filter "FullyQualifiedName~Wq01Tests|FullyQualifiedName~Ve06Tests|FullyQualifiedName~NonInteractiveMode_ShouldCompleteWithoutTimeout|FullyQualifiedName~Vd02Tests"
+```
 
 ---
 
@@ -176,7 +186,7 @@ dotnet test modules\composition\composition_tests\Composition.Tests.csproj -c De
 
 ## 5. 本批第一个动作
 
-A6 已由 HEAD `74bb6047f` 完整落地；A4 已于 2026-11-24 施工并通过定向/全量回归（PR #738，merge `138a98912`）；A3 已随 `c28d6412d`（PR #734）合入。**P0 批次全部闭合**，下一项从 **P1-1 C2 + Query 进程级验收**（共用 MockServer）开始。
+A6 已由 HEAD `74bb6047f` 完整落地；A4 已于 2026-11-24 施工并通过定向/全量回归（PR #738，merge `138a98912`）；A3 已随 `c28d6412d`（PR #734）合入。**P0 批次全部闭合**；P1-1（C2 + Query 进程级）已于 2026-11-24 施工闭合。下一项从 **P1-2 B1 双终端矩阵**（需人工双终端）或 P2 项开始。
 
 ## 6. Backlog（TASK128 后续独立切片，不在本批）
 

@@ -99,11 +99,11 @@
 
 | 项 | 提交 | 测试证据 | 备注 |
 |----|------|----------|------|
-| A1 | 工作区 | `TranscriptServiceStreaming` 5 条新增（分文件/只清本查询/按查询收编）+ `TranscriptPersistMiddleware` queryId 传播 | 旁路文件 `streaming.<queryId>.jsonl` |
-| A2 | 工作区 | `TranscriptQueryOrder` 3 条（按 TurnSeq 排序/同号保序/旧记录在前）+ `StampsQueryIdAndTurnSeq` | 条目新增 `QueryId`/`TurnSeq`，旧记录兼容 |
-| A3 | 工作区 | `AdoptionPersistsToMainAndRemovesSidecar`、`Twice_AdoptsOnce` | 收编即落盘+删旁路 |
-| B1 | 工作区 | `WorkflowClearHistorySemanticsTests` 2 条 + `StartNewConversationAsync_WithTranscriptService` | 新增 `IChatService.StartNewConversationAsync` |
-| B2 | 工作区 | `SessionStartHookStateTests` 4 条 | `ISessionStartHookState` 判定代次，`ClearCommand` MarkRan |
-| B3 | 工作区 | `SessionStoreEpochRetentionTests` 3 条 | 上限 16 代，按最近访问淘汰非当前代 |
-| B4 | 工作区 | `FocusBackgroundQuery_EmitsAttributionHeader`、`FocusCompletedBackgroundQuery_EmitsClosingSeparator` | 与离屏快照同格式 |
-| C1 | 工作区 | `MultipleBackgroundQueries_FocusEachInTurn` + 前台身份回归 1 条 | 详见 C1 段 |
+| A1 | 94ad31c8 | `TranscriptServiceStreaming` 5 条新增（分文件/只清本查询/按查询收编）+ `TranscriptPersistMiddleware` queryId 传播 | 旁路文件 `streaming.<queryId>.jsonl` |
+| A2 | 94ad31c8 | `TranscriptQueryOrder` 3 条（按 TurnSeq 排序/同号保序/旧记录在前）+ `StampsQueryIdAndTurnSeq` | 条目新增 `QueryId`/`TurnSeq`，旧记录兼容 |
+| A3 | 94ad31c8 | `AdoptionPersistsToMainAndRemovesSidecar`、`Twice_AdoptsOnce` | 收编即落盘+删旁路 |
+| B1 | 94ad31c8 | `WorkflowClearHistorySemanticsTests` 2 条 + `StartNewConversationAsync_WithTranscriptService` | 新增 `IChatService.StartNewConversationAsync` |
+| B2 | 94ad31c8 | `SessionStartHookStateTests` 4 条 | `ISessionStartHookState` 判定代次，`ClearCommand` MarkRan |
+| B3 | 94ad31c8 | `SessionStoreEpochRetentionTests` 3 条 | 上限 16 代，按最近访问淘汰非当前代 |
+| B4 | 94ad31c8 | `FocusBackgroundQuery_EmitsAttributionHeader`、`FocusCompletedBackgroundQuery_EmitsClosingSeparator` | 与离屏快照同格式 |
+| C1 | 94ad31c8 | `MultipleBackgroundQueries_FocusEachInTurn` + 前台身份回归 1 条 | 详见 C1 段 |

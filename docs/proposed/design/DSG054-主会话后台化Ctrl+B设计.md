@@ -1,6 +1,9 @@
 # DSG054 — 主会话后台化（Ctrl+B）专项设计（待裁决，零实现）
 
 > 状态：**只做设计，用户裁决前不写任何实现代码** · 日期 2026-11-24
+> **⚠️ 可行性复核（2026-11-24，裁决为 D 之后）**：深查发现本仓引擎在四层显式实现"单会话单回合在途"，
+> D 方案第一阶段"后台化后用户发新查询"的前提**当前架构不成立**。详见 §7，本设计已被 §7 结论覆盖，
+> 原 §4/§5 保留作为"若做架构改造后的目标态"参考。
 > 来源：TASK130 B2 / TASK103 §2.3 #51 / TASK071-A7 · 取证底稿：[TASK120](../task/TASK120-LocalAgentTask后台化任务类型-差异取证.md)
 > 基准树：`D:\project\claude-code-rust\claude-code-rev-main\src` · 本仓：`D:\project\w2`
 
@@ -128,3 +131,27 @@ Running ──查询终态──> Completed/Failed (发一次通知, 面板可�
 - 不迁移全局任务框架；不给空壳 `AgentTask` 硬接；不重写后台 agent 链（已等价）；不做前台 agent 自动后台化（选项 C，除非单独裁决）。
 - 不做 symlink/offset 双轨、不做 `recentActivities` 逐字段搬运。
 - 用户裁决前：零实现代码、零编译、零真机测试。
+
+---
+
+## 7. 可行性复核 — 四层单回合硬约束（覆盖前文，2026-11-24）
+
+用户裁决选 D 后做了引擎侧深查，结论是 **D 第一阶段的核心交互在当前架构下不可实现**：要让"查询转后台后用户继续发新查询"成立，引擎必须支持同一会话两条在途查询，但本仓在四层显式禁止这一点：
+
+| 层 | 证据 | 后果 |
+|---|---|---|
+| 回合槽 | `EngineTurnClient.cs:20-25/63-64/247-252`：单个 `_turnCts`/`_turnTask`，忙时直接拒绝 `"回合进行中，本次提交已忽略…请先按 Esc 打断"`；`BridgeServeLoop.cs:52-56/102-107` 同款 | 新查询进不去 |
+| 事件通道 | `BridgeEvent.cs:35-42` 只有 `AckSeq`，无 queryId/sessionId；`InProcessEventConsumer.cs:29-39/59-67` 单缓冲且每回合 `Reset()` | 两条查询的 token/tool/assistant 事件在同一 FIFO 交错，且第二条启动会抹掉第一条缓冲 |
+| transcript | `TranscriptPersistMiddleware.cs:41-43/57-83` + `SessionController.cs:694-731`：按"回合开始消息数 → 结束快照差量"写 `{sessionId}/transcript.jsonl` 同一文件 | 两条各写含对方的差量 → 重复/乱序/上下文污染 |
+| 取消 | `IReplEngine.Interrupt()` 无参 → `EngineTurnClient.cs:228-230` 取消唯一回合 CTS | 无法定向取消后台那条 |
+
+另有实例级回合状态：`SessionController` 的 `_hasSubstantiveOutput`/`_lastStopReason`/`_totalTurns` 等十余字段、`ChatService` 单例 `_conversationTurn`/`_toolUseContext`（`ChatService.cs:11-12/29`）——并发下直接串台。
+
+**两个必须纠正的事实**
+
+1. `ReplShell.cs:1926-1928` 显示 **Ctrl+B 当前绑定是"光标左移"**（`case "b": _input.Left()`），不是本文 §1 说的"未接线落编辑路径"；`KeybindingAction.TaskBackground` 的分派缺失仍在，但键位语义冲突需一并处理（transcript 模态内 `ctrl+b` 另作整屏下翻）。
+2. 基准之所以能实现，是因为它有 queryId 可归因的事件/任务框架；本仓 TASK120 已明确裁决**不迁移 `AppState.tasks` 全局任务表**。要支持并发等于推翻该裁决。
+
+**改造面（若用户仍要做，7 项，属架构级）**：①回合槽改 `queryId → (Cts,Task)` 映射 + `Submit` 返回 queryId；②`BridgeEvent` 加 queryId、每 query 独立 consumer；③`ReplBridgeDriver`/`ReplShell` 单一 `IsBusy` 改多槽、Ctrl+B 从光标左移解绑；④`SessionController` 实例级回合状态移入 per-turn context；⑤`ChatService`/`AgentBase` 共享对话状态按 query 隔离；⑥transcript 改 `{sessionId}/queries/{queryId}.jsonl` 再归并；⑦协议 ADR 0150/TASK060 与两组忙时拒绝测试重写。
+
+**当前处置**：设计稿保留为目标态参考，**不改任何生产代码**；B2 重新回到用户裁决点——(甲) 接受 7 项架构改造，(乙) 降级为 C（只做前台 agent 后台化，不动主会话并发），(丙) 暂缓。

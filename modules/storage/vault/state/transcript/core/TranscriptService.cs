@@ -58,7 +58,78 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     public async Task<IReadOnlyList<TranscriptEntry>> LoadTranscriptAsync(string sessionId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         var filePath = GetTranscriptPath(sessionId);
-        return await _writer.LoadTranscriptAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var entries = await _writer.LoadTranscriptAsync(filePath, cancellationToken).ConfigureAwait(false);
+        return await AdoptStreamingPartialAsync(sessionId, entries, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task AppendStreamingSnapshotAsync(string sessionId, string content, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        if (string.IsNullOrEmpty(content)) return;
+
+        var filePath = GetStreamingPath(sessionId);
+        var snapshot = new TranscriptEntry {
+            Role = "assistant",
+            Content = content,
+            Timestamp = _clock.GetUtcNow(),
+            Type = StreamingEntryType,
+        }.WithSessionId(sessionId);
+        await _writer.AppendEntryAsync(filePath, snapshot, cancellationToken).ConfigureAwait(false);
+        _logger?.LogDebug("[STREAM-PERSIST] 会话 {SessionId} 旁路快照 {Length} 字符", sessionId, content.Length);
+    }
+
+    /// <inheritdoc />
+    public Task ClearStreamingAsync(string sessionId, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var filePath = GetStreamingPath(sessionId);
+        try {
+            if (_fs.FileExists(filePath)) {
+                _fs.DeleteFile(filePath);
+                _logger?.LogDebug("[STREAM-PERSIST] 会话 {SessionId} 旁路已清理（回合正常落盘）", sessionId);
+            }
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
+            // 清理失败不影响会话：残留旁路下次 LoadTranscriptAsync 会被收编，最多多一条残稿
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 会话 {SessionId} 旁路清理失败", sessionId);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>收编中断回合的旁路残稿（ADR 0166）— 旁路文件存在即表示上一回合没有正常收尾，
+    /// 取最后一行（累积全文，最全）追加为一条 assistant 记录；主文件末条 assistant 已包含同一段内容时跳过。</summary>
+    /// <param name="sessionId">会话标识。</param>
+    /// <param name="entries">主 transcript 已加载的记录。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>收编后的记录列表（无旁路或已收编时原样返回）。</returns>
+    private async Task<IReadOnlyList<TranscriptEntry>> AdoptStreamingPartialAsync(
+        string sessionId, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken) {
+        var streamingPath = GetStreamingPath(sessionId);
+        if (!_fs.FileExists(streamingPath)) return entries;
+
+        IReadOnlyList<TranscriptEntry> partials;
+        try {
+            partials = await _writer.LoadTranscriptAsync(streamingPath, cancellationToken).ConfigureAwait(false);
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 会话 {SessionId} 旁路读取失败，忽略残稿", sessionId);
+            return entries;
+        }
+
+        var partial = partials.LastOrDefault(e => !string.IsNullOrEmpty(e.Content));
+        if (partial is null) return entries;
+
+        var lastAssistant = entries.LastOrDefault(
+            e => string.Equals(e.Role, "assistant", StringComparison.OrdinalIgnoreCase));
+        if (lastAssistant is not null && lastAssistant.Content.Contains(partial.Content, StringComparison.Ordinal)) {
+            return entries;
+        }
+
+        var adopted = new List<TranscriptEntry>(entries.Count + 1);
+        adopted.AddRange(entries);
+        adopted.Add(partial with { SessionId = sessionId, Type = StreamingEntryType });
+        _logger?.LogWarning("[STREAM-PERSIST] 会话 {SessionId} 收编中断回合残稿 {Length} 字符", sessionId, partial.Content.Length);
+        return adopted;
     }
 
     /// <inheritdoc />
@@ -291,6 +362,20 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         }
 
         return records;
+    }
+
+    /// <summary>流式旁路条目类型（ADR 0166 — 读端按普通 assistant 消息消费，Type 只用于观测与识别）。</summary>
+    public const string StreamingEntryType = "streaming-partial";
+
+    /// <summary>流式旁路文件名（与会话目录内的 transcript.jsonl 并列）。</summary>
+    private const string StreamingFileName = "streaming.jsonl";
+
+    /// <summary>流式旁路文件路径（ADR 0166 — 路径知识只住在本服务，不暴露给调用方）。</summary>
+    /// <param name="sessionId">会话标识。</param>
+    /// <returns>旁路 JSONL 绝对路径。</returns>
+    private string GetStreamingPath(string sessionId) {
+        TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
+        return Path.Combine(_sessionsDirectory, sessionId, StreamingFileName);
     }
 
     private string GetTranscriptPath(string sessionId) {

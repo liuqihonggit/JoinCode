@@ -511,8 +511,25 @@ Ctrl+B 是纯视图切换，不 abort、不重跑、不重复计费。`ReplShell
 一份，切回后 `Pending` 已清空所以不重复、无后台时零追加。新增 `TranscriptQueryAttributionTests` 3 条，
 `NativeTui.Tests` **3202 / 0 失败**。
 
-阶段 1 剩余：独立 transcript 视图 + 真机 TUI 手工验收（#101，需人操作）；
-阶段 2：SDK/NDJSON 协议、`/clear` symlink 重链、逐 token 落盘。
+**阶段 2 第一批（逐 token 落盘，2026-11-25 完成）**：ADR
+[0166](../../proposed/adr/0166-streaming-transcript-persistence.md) accepted。原来 transcript 只在**回合结束后**
+按快照差量落盘，按 Esc 打断或进程崩溃 → 本回合已生成正文一个字都不在磁盘上。
+
+- 新增旁路文件 `{sessions}/{sessionId}/streaming.jsonl`（同目录、同 JSONL、同 `TranscriptEntry`，`Type="streaming-partial"`），
+  每行是**累积全文快照**（不是增量），读端取最后一行即最全内容。
+- `ITranscriptService` 只加两个方法：`AppendStreamingSnapshotAsync` / `ClearStreamingAsync`（路径知识仍只住 `TranscriptService`）。
+- `TranscriptPersistMiddleware` 透传途中按 **200ms 或 512 字符**（先到者）落一次快照 —— 崩溃最多丢一个节流窗口，
+  而不是整段回复；正常落盘后 `ClearStreamingAsync`，异常/取消路径**不清**（留给读端收编）。
+- 合并走读端唯一入口 `TranscriptService.LoadTranscriptAsync`：旁路存在 ⇒ 上一回合没正常收尾 ⇒ 取最后一行追加为
+  一条 assistant 记录（主文件末条 assistant 已含同一段则跳过）。`--resume` / TUI 历史预热 / fork / resume 四处自动获得恢复。
+
+验收：`Vault.Other.Tests` 393/0（新增 `TranscriptServiceStreamingTests` 5 条）、`Brain.Context.Tests` 970/0
+（新增 3 条：节流写、正常清理、中断保留）、`Host.Tests` 1379/0、`NativeTui.Host.Tests` 178/0、
+`NativeGui.Core.Tests` 423/0、`NativeGui.Host.Tests` 50/0；StyleGate 1817（新文件零违规）、NoLockPrimitives 64 处存量。
+全仓编译 `solution` 域因本机 `jcchub` 进程锁住 `artifacts/bin/Hub/*.dll`（MSB3021/3027，非编译错误）未过，
+native_tui / native_gui 三域全 True —— 待 CI 复核。
+
+阶段 2 剩余：SDK/NDJSON 事件、`/clear` symlink 重链（本仓映射为「/clear 后旧后台 task 的 transcript 归属」）。
 
 ### B3. macOS Seatbelt（需 macOS 真机 + 独立 ADR）
 

@@ -120,4 +120,85 @@ public sealed class TranscriptPersistMiddlewareTests {
 
         events.Should().NotBeNull("落盘异常不得吞掉下游事件流（OnError=Continue 契约）");
     }
+
+    /// <summary>流式正文累积超过节流阈值即写旁路快照（ADR 0166 — 打断/崩溃只丢节流窗口内的内容）。</summary>
+    [Fact]
+    public async Task InvokeAsync_WithContentDeltas_WritesStreamingSnapshots() {
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> { new(MessageRole.Assistant, "答复") }));
+
+        await RunWithAsync(mw, DeltasAsync(new string('x', 600)));
+
+        transcript.Verify(t => t.AppendStreamingSnapshotAsync(
+            "20260822-1200-proj-main",
+            It.Is<string>(content => content.Length >= 512),
+            It.IsAny<CancellationToken>()), Times.AtLeastOnce,
+            "累积正文达到 512 字符阈值必须落旁路，否则打断后整段丢失");
+    }
+
+    /// <summary>回合正常结束并落盘后清理旁路（否则下次加载会收编成重复残稿）。</summary>
+    [Fact]
+    public async Task InvokeAsync_AfterTurnPersisted_ClearsStreaming() {
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> { new(MessageRole.Assistant, "答复") }));
+
+        await RunWithAsync(mw, DeltasAsync(new string('y', 600)));
+
+        transcript.Verify(t => t.ClearStreamingAsync("20260822-1200-proj-main", It.IsAny<CancellationToken>()), Times.Once,
+            "正常落盘后旁路必须清理");
+    }
+
+    /// <summary>流中断（取消/异常）时**不清理**旁路 — 残稿要留在磁盘上等下次加载收编。</summary>
+    [Fact]
+    public async Task InvokeAsync_WhenStreamThrows_KeepsStreaming() {
+        var (mw, transcript, _) = Create();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => RunWithAsync(mw, ThrowingAsync(new string('z', 600)))).ConfigureAwait(true);
+
+        transcript.Verify(t => t.AppendStreamingSnapshotAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce,
+            "异常前已生成的内容仍要落旁路");
+        transcript.Verify(t => t.ClearStreamingAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never,
+            "中断路径不得清理旁路，否则残稿永久丢失");
+    }
+
+    /// <summary>以指定事件流驱动中间件（收集下游收到的事件）。</summary>
+    private static async Task<List<ChatStreamEvent>> RunWithAsync(
+        TranscriptPersistMiddleware mw, IAsyncEnumerable<ChatStreamEvent> stream, bool dryRun = false) {
+        var context = new ChatMiddlewareContext {
+            Message = "hi",
+            IsDryRun = dryRun,
+            ToolUseContext = new ToolUseContext(),
+        };
+        var events = new List<ChatStreamEvent>();
+        await foreach (var evt in mw.InvokeAsync(context, (_, _) => stream, CancellationToken.None).ConfigureAwait(true))
+            events.Add(evt);
+        return events;
+    }
+
+    /// <summary>把文本切成分片 Content 事件（模拟流式正文）。</summary>
+    private static async IAsyncEnumerable<ChatStreamEvent> DeltasAsync(string text) {
+        for (var i = 0; i < text.Length; i += 100) {
+            yield return new ChatStreamEvent {
+                Type = ChatStreamEventType.Content,
+                Content = text.Substring(i, Math.Min(100, text.Length - i)),
+            };
+        }
+
+        await Task.CompletedTask.ConfigureAwait(true);
+    }
+
+    /// <summary>先吐分片正文再抛异常（模拟流中断）。</summary>
+    private static async IAsyncEnumerable<ChatStreamEvent> ThrowingAsync(string text) {
+        await foreach (var evt in DeltasAsync(text).ConfigureAwait(true)) {
+            yield return evt;
+        }
+
+        throw new InvalidOperationException("stream aborted");
+    }
 }

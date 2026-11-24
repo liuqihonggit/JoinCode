@@ -100,7 +100,10 @@ public sealed class SessionController {
             // 主代理路径绕过 QueryLoopMiddleware — 后台通知在每轮迭代步首注入查询历史，并阻止收尾丢掉回调
             if (_serviceProvider?.GetService<IAgentNotificationQueue>() is { } notificationQueue) {
                 _mainAgent.IterationStartInjector = (history, _) => {
-                    foreach (var text in notificationQueue.DrainFormatted(_mainAgent.UniqueId)) {
+                    // ADR 0165 — 按顶层消费者排空（null = 所有目标桶），不再按 _mainAgent.UniqueId：
+                    // 主代理改为每查询新建后 UniqueId 每回合都变，用它做桶键会让「上一回合启动的
+                    // 后台 agent 完成通知」落进无人消费的桶；主代理本就是唯一的顶层消费者。
+                    foreach (var text in notificationQueue.DrainFormatted()) {
                         history.AddUserMessage(text);
                         Diag.WriteLine($"[BACKGROUND-NOTIFY] 轮内注入进入主代理历史 长度={text.Length}");
                     }

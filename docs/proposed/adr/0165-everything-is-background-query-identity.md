@@ -151,23 +151,58 @@ public string? QueryId { get; init; }
 - 协议字节断言从「与无 queryId 旧形态字节等价」改为「必带 queryId」；`images` 为空时仍不带字段。
 - 模拟引擎测试改为用 `Submit` 返回值断言 `TurnStarted.QueryId`，把归因承诺变成可执行契约。
 
-## 阶段 0 留下的已知缺口（阶段 1 前置条件，必须解决后才可放开并发）
+## 阶段 0 留下的已知缺口（2026-11-25 已解决）
 
-阶段 0 让「提交层」具备并发能力（`EngineTurnClient` 不再忙时拒绝、事件可归因），但**引擎执行层仍假设单活跃查询**：
+阶段 0 让「提交层」具备并发能力（`EngineTurnClient` 不再忙时拒绝、事件可归因），但当时**引擎执行层仍假设单活跃查询**：
 
-- `EngineSession.cs:70` 每个会话只 `CreateMainAgent` 一次，该 `AgentBase` 实例被所有 `SessionController` 共享
-  （`EngineSession.cs:111` 每查询新建 controller，但 `mainAgent:` 传的是同一实例）。
-- `SessionController.cs:232` 执行前写 `_mainAgent.CurrentInput = input`，随后 `ExecuteStreamAsync()`；
-  `AgentBase` 还有可变的 `_context`、`ChatHistory`、`Status`、`Output`（`agents_fork/AgentBase.cs`）。
-- 两条查询真的并发执行时会互相覆盖 `CurrentInput`、交错写 `ChatHistory` —— 事件归因正确但**内容错误**。
+- `EngineSession` 每个会话只 `CreateMainAgent` 一次，该 `AgentBase` 实例被所有 `SessionController` 共享；
+  `SessionController` 执行前写 `_mainAgent.CurrentInput = input`，`AgentBase` 还有可变的
+  `_context`、`ChatHistory`、`Status`、`Output`。两条查询真并发会互覆输入、交错写历史。
 
-当前不可达：`ReplShell` 忙时仍把输入排入 `_queuedInputs`，生产路径一次只跑一条查询；
-只有单元测试（注入假执行器）会并发。所以阶段 0 不为它加投机性串行化代码，
-但**阶段 1 把 ReplShell 改成并发提交之前，必须先给每条查询独立的 agent 实例**（复用
-`EngineAgentFactory.CreateMainAgent`，历史仍走共享 `IChatContextManager`），或引入等价的 per-query 执行槽。
+已按「per-query 主代理」修复：
 
-未做「先加锁串行化」的理由：那条路径今天没有任何生产消费者，加了也无法验证是真生效还是被绕开
-（本项目已两次栽在「声明了、有实现，但生产链根本不走」上）。
+- `EngineSession` 把会话身份（`ObjectId`）与主代理实例分开：`ObjectId` 跨查询共享，
+  主代理在回合执行器内**每查询 `EngineAgentFactory.CreateMainAgent` 新建**。
+  会话历史仍走共享 `IChatContextManager`，不随 agent 实例分裂。
+- 连带修正通知路由：`SessionController` 的 `IterationStartInjector` 原按 `_mainAgent.UniqueId`
+  排空后台通知；主代理每查询新建后 `UniqueId` 每回合都变，会让上一回合启动的后台 agent
+  完成通知落进无人消费的桶。改为按顶层消费者排空（`DrainFormatted()`，null = 所有目标桶），
+  与接口文档「null 表示顶层消费者」和 `HasPendingIterationInput` 的全局判定一致。
+
+仍未做「先加锁串行化」的替代路线，理由不变：锁门禁只减不增，且串行会让 Ctrl+B 后提交的新查询
+长时间静默等待，与「万物皆后台」目标相反。
+
+## 阶段 1：前台只做订阅切换（Ctrl+B，2026-11-25 已落地）
+
+`ReplShell` 从「持有唯一回合」变为「持有前台身份 + 若干后台桶」：
+
+- `_foregroundQueryId`：当前前台订阅的查询身份（视图只渲染它的事件）。
+- `_backgroundQueries`（`List<BackgroundQuery>`）：每条后台查询一个桶，`Pending` 按到达顺序
+  留事件，`Completed` 标记终态。桶是**视图缓冲**，不是执行槽 —— 查询本身在引擎侧独立运行。
+- `DrainEngine` 首行 `BufferIfBackgroundQuery` 拦截：事件归因到已知后台桶则只入缓冲、不渲染；
+  命中终态时记完成并提示「后台查询 q-x 已结束 — ctrl+b 切回查看（N 条事件待显示）」。
+- `Ctrl+B` 一个键两个互斥语义：前台忙 → 转后台（`_driver.EndTurn()` + 释放前台身份 + 定格已渲染内容，
+  不调用 `Interrupt`）；否则 → 切回最近的后台桶（未完成先 `BeginTurn`，再按序 `_driver.Apply` 补投）。
+
+键位分层按基准 `schema.ts:48`：`task:background` 属 `Task` 上下文（默认 `ctrl+b`），`Chat` 上下文
+的 `ctrl+b` 仍是编辑域光标左移。故 `HandleCtrlKey` 在全局单键分派**之前**插入判断，且条件为
+`_driver.IsBusy || _backgroundQueries.Count > 0` —— 闲且无后台查询时不接管，保住既有编辑行为。
+`DispatchCtrlAction` 同步新增 `TaskBackground` case（原先无此分支，走不到）。
+
+两条实现期才暴露的坑（都已用测试锁定）：
+
+- **前台身份必须在终态释放**。首版只在转后台/切回时改 `_foregroundQueryId`，回合自然结束时不清，
+  于是下一次提交误判「前台仍有主」被吞掉 —— 9 条既有提交测试（`IdleReturnDialogTests`、
+  `ReplShellWiringInputTests`）同时红，症状是「输入框清空了但引擎没收到」。
+- **不能靠 `??=` 静默丢弃**。首版 `_foregroundQueryId ??= _engine.Submit(...)` 在同一拍内连续提交
+  （或终态未到）时会把新查询直接扔掉。改为「总是提交 → 前台有空位则接管 → 否则注册为后台查询并提示」。
+  丢输入比多一条后台查询糟得多。
+
+验收：`NativeTui.Tests` 3199 通过 / 0 失败（新增 `QueryBackgroundTests` 5 条：提交接管前台、
+Ctrl+B 不打断、后台事件只入缓冲、后台完成不抢前台 busy、闲时 ctrl+b 仍是光标左移）；
+`NativeTui.Host.Tests` 178 通过；`Verify-StyleGate.py` 1817（新文件零违规）、
+`Verify-NoLockPrimitives.py` 64 处存量（未加锁）、`Verify-ExplicitOrder.py` /
+`Verify-RegistrationOrder.py` 与真机装配一致。
 
 ## 后果
 
@@ -179,4 +214,5 @@ public string? QueryId { get; init; }
   - `IReplEngine` 签名变更，需要同时升级 9 个实现/装饰器与测试 fake。
   - `EngineTurnClient`、`ChatService`、`SessionController` 的状态模型改动较大，必须靠红测试逐项锁定。
   - bridge_serve 阶段 0 仍单活跃回合，跨进程多查询要等阶段 1，不要误判为已完成。
-- 下一步（阶段 1）：task 登记/聚焦视图、Ctrl+B 纯切换、独立 transcript；阶段 2：SDK/NDJSON 协议与逐 token 落盘。
+- 下一步（阶段 2）：transcript 按 queryId 归属、独立 transcript 视图、SDK/NDJSON 协议与逐 token 落盘；
+  `bridge_serve` 跨进程多查询仍未放开（阶段 0 遗留）。

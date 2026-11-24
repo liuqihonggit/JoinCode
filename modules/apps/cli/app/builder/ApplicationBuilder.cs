@@ -184,6 +184,7 @@ public static class ApplicationBuilder {
             Quiet = result.Quiet,
             IncludePartialMessages = result.IncludePartialMessages,
             JsonSchema = result.JsonSchema,
+            Settings = result.Settings,
             DumpNodes = result.DumpNodes,
             DumpProfile = result.DumpProfile,
             Profile = result.Profile,

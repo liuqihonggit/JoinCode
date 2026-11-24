@@ -8,7 +8,7 @@
 
 **本轮范围**
 
-- TASK130 的 A 类 OPEN 项：A3、A4、A6（A6 已由 HEAD `74bb6047f` 完整落地，本批只保留 rebase 后的两项补强验证）。
+- TASK130 的 A 类 OPEN 项：A3、A6（A4 已于 2026-11-24 闭合；A6 已由 HEAD `74bb6047f` 完整落地，本批只保留 rebase 后的两项补强验证）。
 - TASK130 的 C2：低限额进程级验证。
 - 上次遗留的 Query 进程级 exe 验收（与 C2 共用 MockServer harness）。
 - B1 的人工矩阵准备与记录模板（执行仍由用户完成）。
@@ -26,7 +26,7 @@
 | 批次 | 项 | 现状 | 可本机自证 | 前置决策/条件 | 交付物 |
 |---|---|---|---|---|---|
 | P0 | A6 SessionStart `AdditionalConfig` 零消费 | 代码确认零读取 | 是 | D1：`additionalContext` / `initialUserMessage` 的注入通道 | 红测试 + 消费链 + 回归 |
-| P0 | A4 flag settings 策略锁 | ADR 0161 明确「flag 锁待后续接入」 | 是（先取证） | D2：施工或关闭为边界说明 | ADR 复核结论 + 代码/文档 |
+| P0 | A4 flag settings 策略锁 | **已施工**（2026-11-24） | 是 | D2 已闭合 | 代码 + 单测 + 真机日志 |
 | P0 | A3 斜杠命令取参审计 | 45 文件、46 处调用待逐条判定 | 是 | 无 | 审计表 + ②类修复 + 用例 |
 | P1 | C2 低限额进程级验证 | 同进程用例已绿，进程级未做 | 是（MockServer） | 无 | 两次 `jcc -p` + dump 证据 |
 | P1 | Query 进程级 exe 验收 | 单元测试 3/3，exe 未跑 | 是（MockServer） | 无 | 流式输出/异常/取消的进程证据 |
@@ -81,24 +81,29 @@ dotnet test test\unit\host.tests\Host.Tests.csproj
 
 ---
 
-### P0-2：A4 — flag settings 策略锁
+### P0-2：A4 — flag settings 策略锁 — **已施工（2026-11-24）**
 
-**目标**：确认 ADR 0161 的「flag settings 路径未接入」是真实安全缺口还是已声明的边界；前者施工，后者关闭并写清理由。
+**判定**：不是边界说明。基准 `sandbox-adapter.ts:647-664` 明确把 `flagSettings` 与 `policySettings` 同为
+`overridingSources`；本仓此前没有 `--settings` 入口、`ConfigLoader` 也从未传 flag 来源，属于真安全缺口。
 
-**步骤**
+**落地**
 
-1. 读 ADR 0161 §1/§3 和 `SandboxToggleCommand` / `SandboxPolicyResolver` / `ConfigLoader`。
-2. 查 `SettingsLoader.LoadAllSourcesAsync` 的 Five-source 合并，确认 flag settings 是否真的没有进入 policy 来源投影。
-3. 如果缺口成立：补来源投影与 `/sandbox` 锁；测试 `on/off/switch/exclude` 命中锁时拒绝并给出 managed 键名，`status/help` 仍可读。
-4. 如果只是边界说明：在 TASK130 A4 与 ADR 0161 补「为什么不需要 flag 锁」的证据，关闭项。
+1. CLI：`JccCliArg.Settings` + `CliArg.Settings`；`jcc --settings <file|inline-json>`。
+2. 加载：`SettingsLoader.LoadFlagSettingsAsync` 支持文件/内联 JSON，显式来源缺失/非法 JSON/解析失败 fail-fast。
+3. 投影：`SandboxPolicyResolver.Apply(config, policy, flag)` 合并三个锁定键并去重；managed 清单仍只认 policy。
+4. 来源提示：`SandboxPolicyConfig.FlagLockedKeys` / `PolicyLockedKeys`，`/sandbox` 按来源分别说明下一步。
+5. Hub：`ConfigLoader.ApplySandboxConfigAsync` 仅投影 sandbox，`LoadHubConfigAsync` 调用，避免 Hub 默认路径绕过策略锁。
+6. `config-print --settings` 已接线。
 
-**验收**
+**证据**
 
-```powershell
-dotnet test modules\composition\composition_tests\Composition.Tests.csproj --filter "FullyQualifiedName~Sandbox"
-```
+- `Guard.Config.Tests` 1358/1358；`Host.Tests` 1374/1374；`Composition.Tests` 1173/1173（需 Git PATH）；`Guard.Hooks.Tests` 615/615。
+- 全仓 `Build-AllDomains.ps1` 全部通过。
+- 真实 `jcc --settings`（文件/内联 JSON）日志均为 `[SANDBOX-POLICY] locked=True keys=[sandbox.enabled]`；
+  缺失文件 exit=2（`ConfigurationError`），输出 `Settings file not found for --settings`。
+- 真实 Hub 进程未跑：运行 `jcc` 时 A1 环境反复掉线；Hub 投影由 `ApplySandboxConfig_FlagSettings_AppliesPolicyLockForHubPath` 单测覆盖，不能冒充进程验收。
 
-**决策 D2**：若需要改 policy 来源模型，先补 ADR，再动代码；不允许直接改合并顺序。
+**决策 D2 已闭合**：选择施工，而不是关闭为边界。详细验收表见 TASK130 A4。
 
 ---
 
@@ -171,7 +176,7 @@ dotnet test modules\composition\composition_tests\Composition.Tests.csproj --fil
 
 ## 5. 本批第一个动作
 
-A6 已由 HEAD `74bb6047f` 完整落地，不再施工；本批先提交 rebase 后的两项补强与验证记录。下一项从 **P0-2 A4** 的 ADR/代码取证开始：先判定 flag settings 是真缺口还是已声明边界，再决定施工或关闭，禁止直接改合并顺序。
+A6 已由 HEAD `74bb6047f` 完整落地；A4 已于 2026-11-24 施工并通过定向/全量回归。下一项从 **P0-3 A3** 的斜杠命令取参审计开始。
 
 ## 6. Backlog（TASK128 后续独立切片，不在本批）
 
@@ -188,6 +193,6 @@ A6 已由 HEAD `74bb6047f` 完整落地，不再施工；本批先提交 rebase 
 | 编号 | 决策 | 推荐 | 阻塞项 |
 |---|---|---|---|
 | D1 | A6 的 `additionalContext` / `initialUserMessage` 通道 | HEAD 已定：`additionalContext` 走 session store + 每回合动态系统消息；`initialUserMessage` 只解析不消费 | 已闭合（HEAD `74bb6047f`） |
-| D2 | A4 施工还是关闭为边界 | 先 ADR 取证再定 | A4 |
+| D2 | A4 施工还是关闭为边界 | 已施工：flag + policy 双源锁，Hub 路径补投影 | 已闭合（2026-11-24） |
 | D3 | B2 Ctrl+B 产品语义 | 先设计稿后裁决 | B2 |
 

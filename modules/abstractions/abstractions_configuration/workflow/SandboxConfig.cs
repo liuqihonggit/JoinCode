@@ -66,6 +66,12 @@ public sealed record SandboxPolicyConfig {
     /// <summary>被策略锁定的 settings 键名（用于给用户可操作提示）。</summary>
     public List<string> LockedKeys { get; init; } = [];
 
+    /// <summary>由 managed-settings.json（policySettings）显式定义而锁定的键。</summary>
+    public List<string> PolicyLockedKeys { get; init; } = [];
+
+    /// <summary>由 <c>--settings</c>（flagSettings）显式定义而锁定的键。</summary>
+    public List<string> FlagLockedKeys { get; init; } = [];
+
     /// <summary>是否只允许 policySettings 的 network.allowedDomains。</summary>
     public bool AllowManagedDomainsOnly { get; init; }
 

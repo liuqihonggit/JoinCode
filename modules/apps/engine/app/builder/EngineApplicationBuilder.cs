@@ -224,7 +224,7 @@ public sealed class EngineApplicationBuilder {
             SkipProviderValidation = options.SkipProviderValidation
         };
 
-        var config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
+        var config = await loader.LoadConfigAsync(fs, flagSettingsSource: options.Settings).ConfigureAwait(false);
 
         config = await new Core.Configuration.SettingsMapper(registry).ApplyEnvOverridesAsync(config).ConfigureAwait(false);
 
@@ -282,6 +282,10 @@ public sealed class EngineApplicationBuilder {
                 Diag.EnableDebugLog();
             }
         }
+
+        // 沙箱配置与策略锁不从 Hub 协议走：Hub 只托管 Provider，sandbox 安全语义必须与本机 settings/flag/policy 同源
+        config = await Core.Configuration.ConfigLoader.ApplySandboxConfigAsync(
+            config, fs, options.Settings).ConfigureAwait(false);
 
         // 从服务端 /v1/models 获取可用模型列表，优先使用 --vendor 筛选和用户配置的模型
         var configuredModel = settings is not null && settings.TryGetActiveProfile(out var activeProfile) ? activeProfile.Model : null;

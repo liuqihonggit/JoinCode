@@ -301,6 +301,28 @@ public sealed class SandboxToggleCommandTest {
     }
 
     [Fact]
+    public async Task Execute_On_FlagLocked_ReportsSettingsSource() {
+        var cfg = new WorkflowConfig {
+            SandboxPolicy = new SandboxPolicyConfig {
+                Locked = true,
+                LockedKeys = [SandboxPolicyResolver.KeyEnabled],
+                FlagLockedKeys = [SandboxPolicyResolver.KeyEnabled],
+            },
+        };
+        var configMock = new Mock<IConfigurationService>();
+        var (cmd, manager, _, context, _) = Arrange(arguments: "on", workflowConfig: cfg, configOverride: configMock);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("被 --settings 锁定");
+        output.Should().Contain("--settings 已定义 sandbox.enabled");
+        output.Should().Contain("修改该文件/内联 JSON");
+        manager.Verify(m => m.EnterSandboxAsync(It.IsAny<SandboxOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+        configMock.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Execute_Off_PolicyLocked_DoesNotExitOrWrite() {
         var cfg = new WorkflowConfig {
             SandboxPolicy = new SandboxPolicyConfig { Locked = true, LockedKeys = [SandboxPolicyResolver.KeyAllowUnsandboxed] },

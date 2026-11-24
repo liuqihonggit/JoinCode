@@ -236,6 +236,14 @@ public sealed class CommandLineOptionsTests {
     }
 
     [Fact]
+    public void CliArgParser_ParseSettings_ShouldSetSettings() {
+        var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Settings, "./flag-settings.json" });
+
+        result.Settings.Should().Be("./flag-settings.json");
+        result.HasError.Should().BeFalse();
+    }
+
+    [Fact]
     public void CliArgParser_ParseDangerouslySkipPermissions_ShouldSetFlag() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.DangerouslySkipPermissions });
 

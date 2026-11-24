@@ -10,7 +10,7 @@
 
 | 类 | 含义 | 项 |
 |---|---|---|
-| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**已施工 + 真机端到端**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**已施工**） |
+| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁（**已施工**）· A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**已施工 + 真机端到端**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**已施工**） |
 | B | 只能人工 / 需外部条件 | B1 #52 双终端矩阵、B2 #51 Ctrl+B、B3 macOS Seatbelt |
 | C | 需凭据或 MockServer 才能跑完 | C1 #40 回合级真机探针、C2 #53 低限额进程级 |
 | D | 台账自身错误，需纠正 | D1「#15 待施工」已过期、D2 #53 表格行未划线、D3 D7 与总账 §3 矛盾 |
@@ -377,31 +377,59 @@ Plugin(4)/Tag(2)/Workflows(2)/Hooks(3) 共 11 处分支改用它。**全仓只�
 
 ---
 
-### A4. flag settings 路径的策略锁（**已核实：不适用，关闭**）
+### A4. flag settings 路径的策略锁（**已施工，2026-11-24**）
 
-**ADR 原文**（`docs/proposed/adr/0161-sandbox-policy-source-and-platform-truth.md:11`）：
-「本仓 `ConfigLoader` 未接入 flag settings 路径，故本轮只消费 policy 源，flag 锁待后续接入。」
+**判定：真安全缺口，不是边界说明**
 
-**核实结果：flag 源在本仓没有生产者，锁无从触发**
+基准 `src/utils/sandbox/sandbox-adapter.ts:647-664` 的 `areSandboxSettingsLockedByPolicy()` 使用
+`overridingSources = ['flagSettings','policySettings']`：任一源显式定义
+`sandbox.enabled` / `sandbox.autoAllowBashIfSandboxed` / `sandbox.allowUnsandboxedCommands` 即锁定本地 `/sandbox` 修改。
+`src/main.tsx:438-474` 的 `--settings` 支持文件路径或内联 JSON，非法 JSON / 文件不存在直接启动报错退出。
+本仓此前既无 `--settings` 入口，`ConfigLoader` 也从未传 `flagSettingsSource`，属于「打印出来≠生效」的真缺口。
 
-| 环节 | 事实 |
+**落地**
+
+| 层 | 实现 |
 |---|---|
-| 入口 | `CommandLineOptions` 44 个属性里**没有** `--settings`（唯一相近的 `SkipProviderConfig` 是另一件事）；全仓搜 `--settings` 只命中 `SettingSource` 的注释与 `SettingsLoader.LoadFlagSettingsAsync` 的文档注释 |
-| 装配 | `ConfigLoader.LoadConfigAsync` 调 `LoadAllSourcesAsync(fs, projectDir: …)` **不传 `flagSettingsPath`** → `LoadFlagSettingsAsync(fs, null)` 恒返回 null，flag 源永远空 |
-| 消费 | `SandboxPolicyResolver.Apply(config, policySettings)` 只读 policy 快照，与「flag 源恒空」自洽 |
+| CLI | `JccCliArg.Settings` + `CliArg.Settings`，`jcc --settings <file\|inline-json>`；`-h options` 已显示 |
+| 装配 | `CommandLineOptions.Settings` → `ApplicationBuilder.ParseArgs` → `EngineApplicationBuilder` 直接连接路径传 `options.Settings` |
+| 加载 | `SettingsLoader.LoadFlagSettingsAsync` 支持文件/内联 JSON；显式来源 fail-fast（缺失/非法 JSON/解析失败抛 `ConfigurationException`） |
+| 投影 | `SandboxPolicyResolver.Apply(config, policy, flag)`：flag + policy 合并锁定键并去重；`AllowManagedDomainsOnly` / `AllowManagedReadPathsOnly` 仍只认 policy |
+| 来源提示 | `SandboxPolicyConfig` 新增 `FlagLockedKeys` / `PolicyLockedKeys`，`/sandbox` 按 `managed-settings.json` / `--settings` 分句提示下一步 |
+| Hub | `ConfigLoader.ApplySandboxConfigAsync` 仅投影 sandbox，`LoadHubConfigAsync` 调用它；Hub 模式不再绕过 policy/flag 锁 |
 
-**结论**：不是漏实现一处判断，而是**整条 flag 路径没有入口**。此刻给 resolver 加 flag 锁判断只会得到一段永远为假的死代码，
-属"打印出来≠生效"的反面版本。故关闭本项，不做代码改动。
+**验收（基建实现 → 消费点 → 已实现 → 已验收）**
 
-**将来接入 `--settings` 时的验收口径（写清避免重犯）**
-1. `CommandLineOptions` 加 `SettingsPath`，参数解析与 `--help` 文案补齐；
-2. `LoadConfigAsync` 并行多读一份 flag 快照（与 policy 快照同款），传 `SandboxPolicyResolver.Apply(config, policy, flag)`
-   —— **只对三个锁键**（`sandbox.enabled` / `autoAllowBashIfSandboxed` / `allowUnsandboxedCommands`）合并 flag 来源，
-   `allowManagedDomainsOnly` / `allowManagedReadPathsOnly` **仍只认 policy**（基准语义：仅 managed 生效）；
-3. `SandboxPolicyConfig` 需要区分来源（现 `WritePolicyLocked` 的文案硬编码「managed-settings.json 已定义」，
-   flag 触发时会撒谎）—— 加 `FlagLockedKeys` 或带来源的键元组，`/sandbox` 提示按来源分句；
-4. 红测试：flag 快照显式 `enabled` → `/sandbox off` 被拒且提示写 flag；policy 与 flag 同时定义 → 两边键名都列出；
-   仅 policy 定义 → 沿用现状文案。
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---|---|---|---|
+| `SettingsLoader.LoadFlagSettingsAsync`（文件/内联 JSON/fail-fast） | `ConfigLoader.LoadConfigAsync`、`ApplySandboxConfigAsync`、`config-print --settings` | ✅ | ✅ 定向 14/14 + 真实 `jcc --settings` 文件/内联 JSON 日志 |
+| `SandboxPolicyResolver` flag+policy 锁定键合并 | `WorkflowConfig.SandboxPolicy`、`/sandbox on/off/switch/exclude` | ✅ | ✅ 单测（含来源字段）+ `/sandbox` 26/26 |
+| `ConfigLoader.ApplySandboxConfigAsync` | `EngineApplicationBuilder.LoadHubConfigAsync` | ✅ | ✅ 单测 `ApplySandboxConfig_FlagSettings_AppliesPolicyLockForHubPath`；⚠️ 真实 Hub 进程未跑（见下） |
+
+**证据命令与结果**
+
+```powershell
+# 真实进程：内联 JSON（直接连接路径）
+jcc --settings '{"current":{"sandbox":{"enabled":true}}}' -p ping
+# 日志： [SANDBOX-POLICY] locked=True keys=[sandbox.enabled]
+#       [SANDBOX] startup warning: 已启用沙箱（sandbox.enabled=true）...
+
+# 真实进程：文件形式
+jcc --settings .xxx\a4-home\flag-settings.json -p ping
+# 日志： [SANDBOX-POLICY] locked=True keys=[sandbox.enabled]（enabled=false 故无 startup warning）
+
+# 真实进程：缺失文件 fail-fast
+jcc --settings .xxx\a4-home\missing-flag.json -p ping
+# 输出：⚠ 警告: Settings file not found for --settings: ...；exit=2（ConfigurationError）
+
+dotnet test modules\guard\guard_config_tests\Guard.Config.Tests.csproj --no-build
+# 1358/1358
+dotnet test modules\composition\composition_tests\Composition.Tests.csproj --no-build --filter "FullyQualifiedName~SandboxToggleCommandTest"
+# 26/26
+```
+
+**遗留**：真实 Hub 进程验收未跑（运行 `jcc` 时 A1 Windows 环境反复掉线，无法稳定完成 Hub 启动链）；
+Hub 投影目前由 `ApplySandboxConfigAsync` 单测覆盖，不能当作进程级已验收。真实 `/sandbox` 来源文案由命令单测覆盖。
 
 ---
 

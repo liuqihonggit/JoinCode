@@ -263,6 +263,12 @@ public record CommandLineOptions {
     public string? JsonSchema { get; init; }
 
     /// <summary>
+    /// Flag settings 来源（--settings 参数）— 文件路径或内联 JSON。
+    /// <para>优先级高于项目/本地设置，低于 managed policy；sandbox 锁需同时识别该来源。</para>
+    /// </summary>
+    public string? Settings { get; init; }
+
+    /// <summary>
     /// 输出所有已注册节点列表（--dump-nodes 参数）— 诊断用，输出后退出
     /// </summary>
     public bool DumpNodes { get; init; }

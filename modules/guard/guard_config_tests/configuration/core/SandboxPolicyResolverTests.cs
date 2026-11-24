@@ -32,6 +32,8 @@ public sealed class SandboxPolicyResolverTests {
             SandboxPolicyResolver.KeyAutoAllow,
             SandboxPolicyResolver.KeyAllowUnsandboxed,
         ]);
+        result.SandboxPolicy.PolicyLockedKeys.Should().BeEquivalentTo(result.SandboxPolicy.LockedKeys);
+        result.SandboxPolicy.FlagLockedKeys.Should().BeEmpty();
         result.Sandbox.Enabled.Should().BeTrue("策略值已由 5 源合并进入 SandboxConfig，投影不得反向改值");
         result.Sandbox.AutoAllowBashIfSandboxed.Should().BeFalse("这里是合并结果，AutoAllow 的值由 SettingsMapper 负责");
     }
@@ -93,6 +95,48 @@ public sealed class SandboxPolicyResolverTests {
         result.Sandbox.Filesystem.AllowRead.Should().Equal(["/policy/read"]);
         result.Sandbox.Filesystem.DenyRead.Should().Equal(["/secret"], "denyRead 不在托管限定范围内，保持合并结果");
         result.SandboxPolicy.AllowManagedReadPathsOnly.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Given_Flag定义锁定键_When_Apply_Then_锁定但managed列表仍只认policy() {
+        var config = new WorkflowConfig {
+            Sandbox = new SandboxConfig {
+                Network = new SandboxNetworkConfig {
+                    AllowManagedDomainsOnly = true,
+                    AllowedDomains = ["user.example"],
+                },
+            },
+        };
+        var flag = PolicyWith(new SandboxSettings {
+            Enabled = true,
+            Network = new SandboxNetworkSettings {
+                AllowManagedDomainsOnly = true,
+                AllowedDomains = ["flag.example"],
+            },
+        });
+
+        var result = SandboxPolicyResolver.Apply(config, policySettings: null, flagSettings: flag);
+
+        result.SandboxPolicy.Locked.Should().BeTrue("flagSettings 与 policySettings 都高于 localSettings，必须锁本地修改");
+        result.SandboxPolicy.LockedKeys.Should().Contain(SandboxPolicyResolver.KeyEnabled);
+        result.SandboxPolicy.FlagLockedKeys.Should().Equal([SandboxPolicyResolver.KeyEnabled]);
+        result.SandboxPolicy.PolicyLockedKeys.Should().BeEmpty();
+        result.SandboxPolicy.AllowManagedDomainsOnly.Should().BeFalse("managed 开关只认 policy 源，flag 不得伪造");
+        result.Sandbox.Network.AllowManagedDomainsOnly.Should().BeFalse();
+        result.Sandbox.Network.AllowedDomains.Should().Contain("user.example");
+    }
+
+    [Fact]
+    public void Given_Flag和Policy重复定义同一键_When_Apply_Then_锁定键不重复() {
+        var config = new WorkflowConfig();
+        var flag = PolicyWith(new SandboxSettings { Enabled = true });
+        var policy = PolicyWith(new SandboxSettings { Enabled = false });
+
+        var result = SandboxPolicyResolver.Apply(config, policy, flag);
+
+        result.SandboxPolicy.LockedKeys.Should().Equal([SandboxPolicyResolver.KeyEnabled]);
+        result.SandboxPolicy.FlagLockedKeys.Should().Equal([SandboxPolicyResolver.KeyEnabled]);
+        result.SandboxPolicy.PolicyLockedKeys.Should().Equal([SandboxPolicyResolver.KeyEnabled]);
     }
 
     [Fact]

@@ -180,17 +180,33 @@
 
 ---
 
-### A8. chatinit-pipeline 其余节点在主链仍零执行（本轮新发现，**未闭合**）
+### A8. chatinit-pipeline 其余节点在主链仍零执行（**已分诊：2 项不缺、1 项真缺已修**）
 
-**证据**：见上条 P0-2。主链（`_mainAgent is not null`）只补了 SessionStart hook 一次；`context-load-mw`
-（`IChatContextManager.LoadContextAsync` 的**唯一**调用点）、`cost-restore-mw`、`config-change-start-mw` 仍只在回落链跑。
+**证据**：见上条 P0-2。主链（`_mainAgent is not null`）只补了 SessionStart hook 一次；`context-load-mw`、
+`cost-restore-mw`、`config-change-start-mw` 仍只在回落链（`ChatService.EnsureInitializedAsync` → admin `Initialize`）跑。
 
-**为什么不当场一起接**：`ContextLoadMiddleware` 会 `LoadContextAsync` + 装配 `ContentReplacementState`，
-主链当前的会话恢复走的是另一条路（transcript/`LoadSessionMessagesHandler`），贸然接上可能造成历史重复加载或
-内容替换状态被覆盖 —— 属于「改行为」而非「修 bug」，必须先有 resume/长会话的对照证据。
+**分诊（逐个查「有没有等价实现」，不按「中间件没跑＝功能缺失」一刀切）**
 
-**下一步判据**：主链跑 `--resume` 后对比 `GetMessageListAsync().Count`、`ContentReplacementState is null`、
-`[ORDER] middleware chatinit-pipeline:` 是否出现；三项同时成立才接。
+| 节点 | 主链缺不缺 | 证据 |
+|---|---|---|
+| `context-load-mw` | **不缺** | 历史恢复由宿主各自完成：CLI `SessionResumeStep` → `chatService.LoadSessionMessagesAsync`；TUI `HistorySeeder` → `LoadTranscriptAsync`。`LoadContextAsync` 的生产调用点只有这个中间件本身 —— 接上反而会**重复加载**同一份历史 |
+| `cost-restore-mw` | **不缺** | `SeedCarryover` 真实调用点有三处：`ContextPersistenceService.LoadAsync`（随消息恢复走）、`ResumeCommand`（恢复会话时）、以及本中间件。前两处覆盖主链 |
+| `config-change-start-mw` | **真缺** | `IConfigChangeNotifier.StartMonitoring` 全仓**唯一**调用点就在此中间件；`SettingsChangeApplier` 自己在构造时订阅了 `ConfigChanged`，但没人启动 watcher → **AGENTS.md / rules / commands / settings.json 的热重载在主链从未生效**（app 层也没有第二个 FileSystemWatcher） |
+
+**施工面（只修真缺的那一个）**：`EngineSessionFactory.CreateSessionAsync`（CLI 与 TUI 共用入口）在
+`StartModelFetchBackground` 旁启动一次监控：`services.GetService<IConfigChangeNotifier>()?.StartMonitoring(fs.GetCurrentDirectory())`，
+并打 `[CONFIG-WATCH]` 打点。不接整条 chatinit —— `ChatInitContext.ToolUseContext` 是 `required`，而 app 层
+**从不构造** `ToolUseContext`（生产里只有 `ChatService._toolUseContext` 一个实例，且为 `private`），
+强行接整链只会拿到一个与工具循环无关的孤儿实例，`ContentReplacementState` 装配变成无效动作。
+
+**验收**
+
+| 项 | 判据 |
+|---|---|
+| 真机打点 | `JCC_DEBUGLOG=1 jcc -p hi` 出现 `[CONFIG-WATCH] start`（此前 `StartMonitoring` 在整份日志里零命中） |
+| 回归 | `dotnet test tests?` 相关：`Guard.Hooks.Tests`（含 `ConfigChangeStartMiddlewareTest` 既往用例）全绿；`--dump-nodes` 节点数不变（未新增节点） |
+| 门禁 | StyleGate + 四道节点门禁 |
+| 不做 | 不接 `context-load` / `cost-restore`（已有等价路径，接上即重复）；`session-start-hook-mw` 已在 A6 单独接（见 P0-2） |
 
 ---
 

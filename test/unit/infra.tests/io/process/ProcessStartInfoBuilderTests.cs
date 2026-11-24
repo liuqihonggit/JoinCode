@@ -76,6 +76,30 @@ public sealed class ProcessStartInfoBuilderTests {
     }
 
     [Fact]
+    public void Build_WithStandardInput_RedirectsStandardInput() {
+        // TASK130-A6 附带修复的回归点：PhysicalProcessService 会无条件读 process.StandardInput，
+        // 未重定向时抛「StandardIn has not been redirected」→ 所有带 stdin 的一次性进程（含全部 bash hook）失败。
+        var builder = CreateBuilder();
+
+        var psi = builder.Build(new ProcessOptions {
+            FileName = "bash",
+            ArgumentList = ["-c", "cat"],
+            StandardInput = """{"session_id":"s1"}""",
+        });
+
+        psi.RedirectStandardInput.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Build_WithoutStandardInput_DoesNotRedirectStandardInput() {
+        var builder = CreateBuilder();
+
+        var psi = builder.Build(new ProcessOptions { FileName = "test" });
+
+        psi.RedirectStandardInput.Should().BeFalse("不给 stdin 就别开管道，否则子进程等输入会挂住");
+    }
+
+    [Fact]
     public void Build_WithDangerousArgument_Throws() {
         var builder = CreateBuilder();
 

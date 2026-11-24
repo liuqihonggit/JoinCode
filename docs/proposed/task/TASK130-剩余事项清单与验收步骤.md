@@ -1,4 +1,4 @@
-# TASK130 — 剩余事项清单与验收步骤（防遗忘台账）
+﻿# TASK130 — 剩余事项清单与验收步骤（防遗忘台账）
 
 > 用途：总账 [TASK103](TASK103-未清事项总账.md) 已把 #40/#42/#45/#46/#50/#53 全部闭合，
 > 但「剩余」散落在 TASK103 的决策记录、各子任务文档和 MEMORY 里，容易漏。本文把
@@ -10,7 +10,7 @@
 
 | 类 | 含义 | 项 |
 |---|---|---|
-| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `AdditionalConfig` 零消费（**本轮新发现**） |
+| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**新发现，未修**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**已施工**） |
 | B | 只能人工 / 需外部条件 | B1 #52 双终端矩阵、B2 #51 Ctrl+B、B3 macOS Seatbelt |
 | C | 需凭据或 MockServer 才能跑完 | C1 #40 回合级真机探针、C2 #53 低限额进程级 |
 | D | 台账自身错误，需纠正 | D1「#15 待施工」已过期、D2 #53 表格行未划线、D3 D7 与总账 §3 矛盾 |
@@ -110,25 +110,120 @@
 
 ---
 
-### A6. `SessionStartHookResult.AdditionalConfig` 零消费（本轮新发现，待施工）
+### A6. `SessionStartHookResult.AdditionalConfig` 零消费 —— **已施工（2026-11-24）**
 
-**证据**
-- `SessionStartHookManager.cs:62,66` 把 `additionalContext` / `initialUserMessage` 写进 `additionalConfig`，
-  返回 `SessionStartHookResult { AdditionalConfig = additionalConfig }`；
-- `grep "AdditionalConfig"` 全仓只有两处：`ISessionStartHookManager.cs:30`（定义）与上面这句（写入）。
-  **没有任何读取方** —— `SessionStartHookMiddleware` 只读 `ShouldProceed` / `Message`；
-- 对照：`UserPromptSubmit` 的 `additionalContext` 有真消费链（`ChatTelemetryPreHook` → `PreChatMiddleware` →
-  `OnText`），所以「同一个字段在 SessionStart 上不生效」不是协议没做，是这条链路没接。
+**三处断链（自上而下；P0 才是根因，只修 P2 等于白改）**
 
-**施工面（待定，先拍板再动）**
-- 二选一：① 让 `SessionStartHookMiddleware` 读取 `additionalContext` 并注入首轮 prompt（对齐基准 sessionStart hook 的
-  additionalContext 语义）；② `initialUserMessage` 需要「会话起始插一条 user 消息」的通道，可能落在
-  `IChatContextManager`。
-- 风险：SessionStart 在会话建立早期执行，注入时机与历史初始化顺序耦合 —— 必须先确认 `ChatInitContext` 时序，
-  否则会变成「注入了但被覆盖」。
+| # | 层 | 事实（file:line） | 后果 |
+|---|---|---|---|
+| P0 | 解析 | `HookExecutorBase.ParseHookSpecificOutput`（`guard_hooks/execution/hook_executors/HookExecutorBase.cs:207-238`）只读 `systemMessage` / `permissionDecision` / `updatedInput`，**不读 `additionalContext` / `initialUserMessage`**；exit-0 纯文本分支把 stdout 映射成 `Message`（:148） | 命令型 hook（bash/function）**根本无法产出**这两个字段 → 下游全是从未被执行过的死代码。**A5 的 `UserPromptSubmit.additionalContext` 对命令型 hook 同样是死的**：只有 `AgentHookExecutor`/`PromptHookExecutor` 内部走 `HookResult.Success(additionalContext:)` 才生效 —— A5 验收没覆盖这一层 |
+| P1 | 聚合 | `SessionStartHookManager.cs:61-67` 写进弱类型 `AdditionalConfig` 字典 | 键名靠字符串约定，改键名不会编译失败 |
+| P2 | 消费 | `SessionStartHookMiddleware.InvokeAsync:29-43` 只读 `ShouldProceed` / `Message` | 内容被丢弃；`grep AdditionalConfig` 全仓只有「定义 + 写入」两处 |
 
-**判定标准**：先写红测试（构造 hook 返回 `additionalContext` → 断言它出现在首轮模型输入/历史里），
-再决定通道；只写文档不接线的做法不接受（本轮 A5 的教训）。
+**通道决策（两条更省事的路都被证据否掉）**
+
+| 候选 | 否决理由 |
+|---|---|
+| 写进会话日志 `IChatContextManager.AddSystemMessageAsync` | ① resume 时 `ContextPersistenceService.LoadAsync:57-68` 把 system 消息当**静态提示词**处理 —— prompt 非空则静默丢弃、为空则被它顶替；② 进 transcript |
+| 只写一条动态系统消息（`AddDynamicSystemMessageAsync`） | `SystemPromptMiddleware:51` **每回合**先 `ClearDynamicSystemMessagesAsync` 再重建 → 首轮之后消失（台账预警的「注入了但被覆盖」实测为真） |
+| **采用：会话级 store + 独立中间件每回合补写一条动态系统消息** | 不被清（每回合重写）、不进 transcript、文本恒定故前缀缓存仍命中、按 sessionId 隔离防串会话 |
+
+**落点（已实现）**
+
+| 层 | 改动 |
+|---|---|
+| 解析 | `HookExecutorBase.ParseHookSpecificOutput` 增读 `additionalContext` / `initialUserMessage`（`TryGetString` 安全取值，非字符串不抛）；`ParseHookOutput` 增可选参数 `HookEvent? sourceEvent`，exit-0 纯文本 stdout 对 **SessionStart / UserPromptSubmit** 映射为 `AdditionalContext`（其余事件保持 `Message`，不扩大影响面）；调用方 `BashCommandHookExecutor` 传 `input.Event` |
+| 契约 | `SessionStartHookResult` 增类型化 `AdditionalContext` / `InitialUserMessage`（替代按字符串键读 `AdditionalConfig`）；`AdditionalConfig` 继续承载 `updatedInput` |
+| 聚合 | `SessionStartHookManager` 多条 hook 的 additionalContext 以空行拼接（顺序 = 配置顺序） |
+| 承接 | 新增 `ISessionStartContextStore` + `SessionStartContextStore`（单例、`Volatile` 换引用、按 sessionId 命中；**不用 `lock`** —— JCC4008 基线只减不增） |
+| 写入 | 新增 `SessionStartHookRunner`（两处调用点共用一份逻辑）；`SessionStartHookMiddleware`（chatinit 链，每 init 一次）与 `SessionController.EnsureSessionStartHookAsync`（主链，每会话一次，先置位再执行防重复副作用）都调它；无内容时写 null 防残留 |
+| 消费 | 新增 `session-start-context-mw`（`preprocess-prepare-pipeline`，priority 110，紧跟 `system-prompt-mw`）→ 仅当 store 的 sessionId 与当前 `IChatContextManager.SessionId` 一致才补写动态系统消息（fail-soft：写失败只打点不拦回合） |
+| 登记 | `resources/profiles/base.yaml` 加节点 + `DataDrivenPipelineComposition` 加 `F("preprocess-prepare-pipeline:session-start-context-mw", ...)` + `TestPipelineRegistration` 同步（实例型节点：显式登记 + profile 声明，符合 TASK100 S8 规程） |
+| 附带修 | `ProcessStartInfoBuilder.Build` 补 `RedirectStandardInput`（见下方 P0-1）——不加这一行，整条 hook 链路真机永远跑不通 |
+
+**`initialUserMessage` 判定：不适用（解析但不消费）**
+- 语义是「会话起始插一条 user 消息」。本仓**没有**「无输入自动开轮」模式：`SessionInitStep` 之后一律等用户输入，
+  `jcc -p <prompt>` 也必须有输入。自动插入会凭空产生一个用户回合 + 一次模型调用（计费、transcript 污染）。
+- 因此：解析进 `HookResult` / `SessionStartHookResult` 让契约成立，**不接消费端**；`SessionStartHookMiddleware`
+  遇到非空 `InitialUserMessage` 记一条 `LogDebug` 说明已忽略（判定在 `SessionStartHookRunner`），并留负向测试（断言它不进 store、不进动态系统消息）。
+- 与 D7 `suppressOutput` 的区别：那个是「本仓无可抑制对象」，这个是「本仓有对象但语义会伤害主链」——所以要留防回归测试。
+
+**验收（已跑，含真机）**
+
+| 项 | 结果 |
+|---|---|
+| `HookOutputParsingTests` 增 7 条（3 事实 + 1 非字符串容错 + 3 纯文本分事件） | 全绿；`Guard.Hooks.Tests` 全量 **612/612** |
+| `SessionStartHookManagerTests`（新建 6 条） | 单 hook 进类型化字段、两条空行拼接、`updatedInput` 留在 `AdditionalConfig`、阻断不带上下文 |
+| `SessionStartContextTests`（新建 9 条） | 同 session 恰一条动态消息、store 空零条、**不同 session 零条（防串会话）**、写失败仍调 next、无依赖不抛 |
+| `SessionStartHookMiddleware` 写 store / 清空 / `initialUserMessage` 不入 store | 3 条覆盖 |
+| **负向验证** | 把 `AddDynamicSystemMessageAsync` 换成空操作 → `Preprocess_SameSession_InjectsSingleDynamicMessage` 转红（`ContainSingle` 失败），还原转绿 |
+| 门禁 | ExplicitOrder / RegistrationOrder / NodeFactoryCoverage（**257 节点 / 257 工厂**）/ NoLockPrimitives / StyleGate 全绿 |
+| `--dump-nodes` | `preprocess-prepare-pipeline` = 7 节点，`session-start-context-mw (priority=110)` 紧跟 `system-prompt-mw` |
+| **真机端到端**（临时在 `~/.jcc/settings.json` 配 SessionStart hook，跑完已按备份还原、md5 一致） | `hook result outcome=Success addCtx=26` → `[SESSION-CONTEXT] 收到 additionalContext 26 字符` → `[SESSION-CONTEXT] 注入 26 字符`（即真的进了 `AddDynamicSystemMessageAsync`）。清理打点后复跑：`[ORDER] middleware preprocess-prepare-pipeline: … > SystemPromptMiddleware > SessionStartContextMiddleware > MemoryRecallMiddleware > …`，无残留打点 |
+
+**施工中另外挖出的两个 P0（都不在 A6 原诊断里，必须一起记账）**
+
+1. **`ProcessStartInfoBuilder.Build` 从不置 `RedirectStandardInput`** —— 而 `ProcessOptions.StandardInput` 的契约注释明写
+   「非 null = RedirectStandardInput=true + 写入 + 关闭」，`PhysicalProcessService.ExecuteAsync:45-48` 也无条件访问
+   `process.StandardInput`。结果：**任何带 stdin 的一次性进程直接抛「StandardIn has not been redirected」**，
+   也就是**全部 bash 型 hook 从未执行成功过**（A5 的 systemMessage、A6 的 additionalContext 都因此只有代码没有真机证据；
+   表现是 `HookOutcome.NonBlockingError`，被当成「hook 自己失败了」而静默吞掉）。
+   已修（`ProcessStartInfoBuilder.cs:56-63`）：`RedirectStandardInput = options.StandardInput is not null`，
+   并补 ① 构建器 2 条断言 ② **真机进程用例**（`bash -c cat` + stdin 回显 `stdin-probe-42`）→ `Infra.IO.Tests` **330/330**。
+
+2. **chatinit-pipeline 在主链上从未执行** —— `IChatInitializer` 在生产主链只有两个调用方：`InitializeHandler`（admin `Initialize`，
+   由 `ChatService.InitializeCoreAsync` 懒触发），而 `ChatService` 只在 `_mainAgent is null` 的回落链跑。
+   `SessionInitStep.cs:55` 把 `IChatInitializer` 解析进局部变量 `ci` 后**从未使用**（git 历史无 `ci.InitializeAsync`，一出生就是死变量）。
+   所以主链上 SessionStart hook 连「被调用」都没有 —— 这是 A6 真机第一次跑无任何日志的原因。
+   本轮只接了 `SessionStart` 这一半（`SessionController.PreProcessMainAgentAsync` 前的一会话一次调用，逻辑复用
+   `SessionStartHookRunner`，不复制实现）；**其余三个节点仍未在主链执行**，单列 A8，不夹带。
+
+---
+
+### A8. chatinit-pipeline 其余节点在主链仍零执行（本轮新发现，**未闭合**）
+
+**证据**：见上条 P0-2。主链（`_mainAgent is not null`）只补了 SessionStart hook 一次；`context-load-mw`
+（`IChatContextManager.LoadContextAsync` 的**唯一**调用点）、`cost-restore-mw`、`config-change-start-mw` 仍只在回落链跑。
+
+**为什么不当场一起接**：`ContextLoadMiddleware` 会 `LoadContextAsync` + 装配 `ContentReplacementState`，
+主链当前的会话恢复走的是另一条路（transcript/`LoadSessionMessagesHandler`），贸然接上可能造成历史重复加载或
+内容替换状态被覆盖 —— 属于「改行为」而非「修 bug」，必须先有 resume/长会话的对照证据。
+
+**下一步判据**：主链跑 `--resume` 后对比 `GetMessageListAsync().Count`、`ContentReplacementState is null`、
+`[ORDER] middleware chatinit-pipeline:` 是否出现；三项同时成立才接。
+
+---
+
+### A9. 用户侧 hook 配置格式与基准不一致（`$hook_type` vs `type`），且错写时**静默 0 条**（**已施工**）
+
+**证据**：`HookCommand` 的多态判别名是 `$hook_type`（`HookCommand.cs:6`），而基准/官方文档写 `"type": "command"`。
+按官方格式写配置 → `JsonFileHookConfigurationProvider.LoadHooksAsync` 反序列化失败 → 该来源 **0 条**，
+且没有任何 warning（异常被 `catch` 后只 `LogError` 进日志文件，CLI 侧完全无感）。本轮真机第一次冒烟就踩了：
+`hooks found config=0`，排查了三轮才发现是判别名不同。
+
+**落点（已实现）**
+
+| 环节 | 实现 |
+|---|---|
+| 别名接受 | `NormalizeHookTypeDiscriminator(json)` 在反序列化前把每个 hook 对象的 `type` 重写为 `$hook_type`（已有该键则不动，两种写法可混用）。**判别名必须是对象的第一个属性**，所以是「新建 JsonObject 后按原顺序搬字段」而不是就地追加 —— 就地追加 STJ 会抛 `TypeDiscriminatorPropertyName` 位置错误 |
+| 唯一来源 | `JsonFileHookConfigurationProvider.DiscriminatorProperty` 常量 + 单测断言它与 `HookCommand` 上 `JsonPolymorphicAttribute.TypeDiscriminatorPropertyName` 一致（防两处漂移） |
+| 静默失败告警 | 先算 `declaredCount`（配置里声明的 hook 条数），解析完成若 `declaredCount > 0 && hooks.Count == 0` → `LogWarning` 明示「声明了 N 条但一条也没解析成功」 |
+| 非法 JSON | `NormalizeHookTypeDiscriminator` 捕获 `JsonException` 后原样返回，仍由原解析路径报错（不吞错） |
+
+**验收**：`LoadHooksAsync_基准type写法_解析成功`（`type` → `BashCommandHook`、事件 = SessionStart）、
+`LoadHooksAsync_两种写法混用_各自解析`（2 条）、`DiscriminatorProperty_应与HookCommand多态特性一致`；
+负向验证：把 `normalized = json` 关掉 → 前两条转红，还原后 `Guard.Hooks.Tests` 615/615 绿。
+注意：**改完要重编测试项目**，只编 `Guard.Hooks` 时 `--no-build` 的测试跑的是测试输出目录里那份旧 DLL（会假绿）。
+
+---
+
+### A7. HTTP 型 hook 不解析 `hookSpecificOutput`（A6 施工中顺带发现，未修）
+
+**证据**：`HttpHookExecutor.ParseJsonResponse`（:129-155）是**另一份**实现，只取 `decision/reason/continue`，
+不调基类的 `ParseHookSpecificOutput` → http hook 同样产不出 `systemMessage` / `permissionDecision` /
+`additionalContext`。与 A6 的 P0 同源（协议解析两份实现）。
+**下一步**：抽掉这份复制品，改为复用基类解析（A6 已把基类补全）；需先确认 http hook 的历史行为差异（`message = Reason ?? Message`
+这一处语义），有回归风险，故单列不在 A6 内混改。
 
 ---
 
@@ -146,6 +241,18 @@ cd /d/project/w2
 grep -rn "GetNormalizedArgs" --include=*.cs modules | grep -v "/obj/" | wc -l   # 46
 grep -rn "GetNormalizedArgs" --include=*.cs modules | grep -v "/obj/"
 ```
+**本轮已测的口径（2026-11-24）**：46 处 = 1 处定义（`IChatCommand.GetNormalizedArgs`）+ 1 处测试引用 +
+**44 个真实调用点**。按「拿到之后怎么用」粗分：
+
+| 用法 | 处数 | 结论 |
+|---|---|---|
+| 继续 `.Split(...)` / `ParseFlags(...)` 做多段解析（Resume/Goal/SandboxToggle/Hooks/Diag） | 5 | **已等价安全**：`GetNormalizedArgs` 的 JSON 分支本来就是「抽值再空格拼回」，与 TUI 手输形态一致 |
+| 整串当单值（Color/Profile/Vendor/Effort/Statusline/Init/Rewind/Tag/Btw/Rename/Compact/Fork…） | 36 | **分两类**：自由文本类（`Btw`/`Rename`/`Compact` 的自定义指令）必须整串 → 保留；单值枚举类只要 `slash_call` 只送一个字段就正常，**只有多字段 JSON 会拼成 `"x true"` 才出错** |
+| 已显式绕开（ModelCommand 注释 + `GetSplitArgs()[0]`、ThinkbackCommand 重复调用） | 2 | 参照实现，可作为 ② 类改法模板 |
+
+**结论（把「46 处隐患」收缩成可判定的一小撮）**：绝大多数调用点**不需要改**。
+真需要逐条判定的是「**同时满足**：有 ≥2 个参数 且 把整串当单值用」的命令（如 `Export`、`Review`、`Install` 这类
+`<子动作> <目标>` 形态）。下一步按此筛选再逐条补 `GetSplitArgs()` 用例，而不是 44 个文件一刀切。
 **逐条判定口径（三分类，写进审计表）**
 - **① 需要整串**（自由文本类，如 `/plan` 的描述、`/memory search` 的查询词）→ 保留；
 - **② 需要单值**（如 `/model <name>`、`/theme <name>`）→ 改 `GetSplitArgs()[0]`，并补用例覆盖

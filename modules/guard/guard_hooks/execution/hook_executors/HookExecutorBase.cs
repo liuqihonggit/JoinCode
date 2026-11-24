@@ -117,7 +117,8 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
         string stderr,
         int exitCode,
         string command,
-        bool isAsync = false) {
+        bool isAsync = false,
+        HookEvent? sourceEvent = null) {
         // 异步钩子只返回接受状态
         if (isAsync) {
             return HookResult.Success();
@@ -143,6 +144,13 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
                 } catch (Exception ex) {
                     Logger?.LogWarning(ex, "Failed to parse hook JSON response");
                 }
+            }
+
+            // TASK130-A6 — SessionStart / UserPromptSubmit 的纯文本 stdout 是「给模型的上下文」而非用户消息
+            // （对齐基准 Exit code 0：这两个事件把 plain-text stdout 当 context 注入）。其余事件保持原语义。
+            var plain = stdout.Trim();
+            if (plain.Length > 0 && IsContextCarryingEvent(sourceEvent)) {
+                return HookResult.Success(additionalContext: plain);
             }
 
             return HookResult.Success(message: stdout);
@@ -202,12 +210,26 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     /// <summary>
     /// 解析特定于事件的输出（TASK071-D7+D8 — 对齐基准 processHookJSONOutput）：
     /// permissionDecision(allow/deny/ask) → PermissionRequestResult；
-    /// updatedInput → UpdatedInput；systemMessage → SystemMessage；suppressOutput → 标记。
+    /// updatedInput → UpdatedInput；systemMessage → SystemMessage；
+    /// additionalContext / initialUserMessage → 同名属性（TASK130-A6）。
     /// </summary>
     protected virtual HookResult ParseHookSpecificOutput(JsonObject specificOutput, HookResult result) {
         // D7 — systemMessage（对齐基准 hooks.ts:546）
         if (specificOutput["systemMessage"]?.GetValue<string>() is { } systemMessage) {
             result = result with { SystemMessage = systemMessage };
+        }
+
+        // TASK130-A6 — additionalContext / initialUserMessage。
+        // 补这两行的原因：此前只有 AgentHookExecutor / PromptHookExecutor 内部走
+        // HookResult.Success(additionalContext:) 才能产出该字段，命令型 hook 写
+        // hookSpecificOutput.additionalContext 会被静默丢弃（SessionStart 与
+        // UserPromptSubmit 两条注入链因此全是死代码）。
+        if (TryGetString(specificOutput, "additionalContext") is { Length: > 0 } additionalContext) {
+            result = result with { AdditionalContext = additionalContext };
+        }
+
+        if (TryGetString(specificOutput, "initialUserMessage") is { Length: > 0 } initialUserMessage) {
+            result = result with { InitialUserMessage = initialUserMessage };
         }
 
         // D8 — permissionDecision（对齐基准 hooks.ts:555-614）
@@ -236,6 +258,19 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
 
         return result;
     }
+
+    /// <summary>从 hookSpecificOutput 取字符串字段；缺失或非字符串返回 null（不抛）。</summary>
+    private static string? TryGetString(JsonObject source, string key)
+        => source[key] is JsonValue value && value.TryGetValue<string>(out var text) && !string.IsNullOrWhiteSpace(text)
+            ? text
+            : null;
+
+    /// <summary>
+    /// 纯文本 stdout 是否属于「注入模型上下文」的事件（TASK130-A6）。
+    /// 只有这两个事件在基准里把 plain-text stdout 当 context；其余事件保持 Message 语义。
+    /// </summary>
+    private static bool IsContextCarryingEvent(HookEvent? sourceEvent)
+        => sourceEvent is HookEvent.SessionStart or HookEvent.UserPromptSubmit;
 
     /// <summary>从 hookSpecificOutput 提取 updatedInput（7-620）。</summary>
     private static Dictionary<string, JsonElement>? ExtractUpdatedInput(JsonObject specificOutput) {

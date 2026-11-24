@@ -364,6 +364,61 @@ public sealed class JsonFileHookConfigurationProviderTest {
         hooks.Should().BeEmpty();
     }
 
+    // ── TASK130-A9：基准写法 "type":"command" 也要能解析（此前静默 0 条） ──
+
+    [Fact]
+    public async Task LoadHooksAsync_基准type写法_解析成功() {
+        var fs = new InMemoryFileSystem();
+        var filePath = "/test/settings.json";
+        await fs.WriteAllTextAsync(filePath, """
+        {
+          "hooks": {
+            "sessionStart": [
+              { "matcher": "tui", "hooks": [ { "type": "command", "command": "echo hello" } ] }
+            ]
+          }
+        }
+        """);
+
+        var provider = new JsonFileHookConfigurationProvider(filePath, HookSource.UserSettings, fs);
+        var hooks = await provider.LoadHooksAsync();
+
+        hooks.Should().ContainSingle("按官方文档写 type 必须生效，不许静默解析成 0 条");
+        hooks[0].Event.Should().Be(HookEvent.SessionStart);
+        hooks[0].Command.Should().BeOfType<BashCommandHook>()
+            .Subject.Command.Should().Be("echo hello");
+    }
+
+    [Fact]
+    public async Task LoadHooksAsync_两种写法混用_各自解析() {
+        var fs = new InMemoryFileSystem();
+        var filePath = "/test/settings.json";
+        await fs.WriteAllTextAsync(filePath, """
+        {
+          "hooks": {
+            "sessionStart": [
+              { "hooks": [ { "type": "command", "command": "echo official" } ] },
+              { "hooks": [ { "$hook_type": "command", "command": "echo native" } ] }
+            ]
+          }
+        }
+        """);
+
+        var provider = new JsonFileHookConfigurationProvider(filePath, HookSource.UserSettings, fs);
+        var hooks = await provider.LoadHooksAsync();
+
+        hooks.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void DiscriminatorProperty_应与HookCommand多态特性一致() {
+        var attribute = typeof(HookCommand).GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonPolymorphicAttribute), inherit: false)
+            .Cast<System.Text.Json.Serialization.JsonPolymorphicAttribute>()
+            .Single();
+
+        JsonFileHookConfigurationProvider.DiscriminatorProperty.Should().Be(attribute.TypeDiscriminatorPropertyName);
+    }
+
     [Fact]
     public async Task LoadHooksAsync_空hooks字段_返回空列表() {
         var fs = new InMemoryFileSystem();

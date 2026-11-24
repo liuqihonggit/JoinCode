@@ -18,6 +18,9 @@ public sealed class SessionController {
     private string? _lastStopReason;
     /// <summary>最近一次自动压缩后台任务（TASK070 — internal 测试观察点：单测 await 它消除 fire-and-forget 时序不确定性）。</summary>
     internal Task? LastAutoCompactTask { get; private set; }
+    /// <summary>主代理链的 SessionStart hook 是否已执行（每会话一次，TASK130-A6）。</summary>
+    private bool _sessionStartHookRan;
+
     /// <summary>本次 StreamResponseAsync 的 LLM 调用轮次数（每次 onDone 递增，回合开始复位；对齐 ClaudeCode SDK num_turns 语义）。</summary>
     private int _totalTurns;
     /// <summary>本回合总成本美元（对齐 ClaudeCode SDK total_cost_usd 语义）。</summary>
@@ -195,6 +198,12 @@ public sealed class SessionController {
 
         try {
             if (_mainAgent is not null) {
+                // TASK130-A6 — 主链会话初始化：chatinit-pipeline（context-load / cost-restore /
+                // config-change / session-start-hook）只在无主代理的 ChatService 回落链里被触发
+                // （ChatService.InitializeCoreAsync → admin Initialize），主链上从未执行过 ——
+                // 症状就是「SessionStart hook 配了也不跑」。这里按会话补一次，幂等由字段保证。
+                await EnsureSessionStartHookAsync(timeoutToken).ConfigureAwait(false);
+
                 // Bug 19 根因 A 修复：startCount 基于含系统提示词的快照计数，与 GetMessageListAsync 索引空间一致
                 var contextManagerForCount = _serviceProvider?.GetService<IChatContextManager>();
                 var startSnapshot = contextManagerForCount is not null
@@ -556,6 +565,23 @@ public sealed class SessionController {
         string? PromptInjection,
         string? ModalityInjection,
         bool Blocked = false);
+
+    /// <summary>
+    /// 主代理链的会话级 SessionStart hook — 每会话只执行一次（TASK130-A6）。
+    /// </summary>
+    /// <remarks>
+    /// 先置位再执行：hook 跑的是外部命令，失败或取消都不重试，避免每回合重复产生副作用。
+    /// </remarks>
+    private async Task EnsureSessionStartHookAsync(CancellationToken ct) {
+        if (_sessionStartHookRan || _serviceProvider is null) return;
+        _sessionStartHookRan = true;
+
+        var manager = _serviceProvider.GetService<ISessionStartHookManager>();
+        if (manager is null) return;
+
+        var store = _serviceProvider.GetService<ISessionStartContextStore>();
+        await SessionStartHookRunner.RunAsync(manager, store, _sessionId, "tui", logger: null, ct).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// 主代理路径预处理 — 对齐 PreChatMiddleware + ModalityValidationMiddleware：

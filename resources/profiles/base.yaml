@@ -64,6 +64,10 @@ consumers:
           pipeline-name: PreprocessPrepare
       - id: system-prompt-mw
         priority: 100
+      # TASK130-A6：SessionStart hook 的 additionalContext。必须排在 system-prompt-mw 之后 ——
+      # 后者每回合先 ClearDynamicSystemMessagesAsync，排在前面会被清掉。
+      - id: session-start-context-mw
+        priority: 110
       - id: memory-recall-mw
         priority: 150
       - id: reminder-injection-mw

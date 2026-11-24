@@ -125,6 +125,9 @@ public static class DataDrivenPipelineComposition {
         // preprocess-prepare-pipeline — IMiddleware<PreprocessContext>（准备阶段）
         yield return F("preprocess-prepare-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<PreprocessContext>(sp, "preprocess-prepare-pipeline"));
         yield return F("preprocess-prepare-pipeline:system-prompt-mw", sp => sp.GetRequiredService<SystemPromptMiddleware>());
+        // TASK130-A6：SessionStart hook 的 additionalContext。必须紧跟 system-prompt-mw ——
+        // 后者每回合先 ClearDynamicSystemMessagesAsync，写在前面的动态消息会被清掉。
+        yield return F("preprocess-prepare-pipeline:session-start-context-mw", sp => sp.GetRequiredService<SessionStartContextMiddleware>());
         // TASK127（#42）：查询期自动记忆召回。必须排在 system-prompt-mw 之后 —— 它在自己里面
         // ClearDynamicSystemMessagesAsync，排在前面写的动态消息会被清掉。
         yield return F("preprocess-prepare-pipeline:memory-recall-mw", sp => sp.GetRequiredService<MemoryRecallMiddleware>());

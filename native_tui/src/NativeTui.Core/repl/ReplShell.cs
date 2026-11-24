@@ -3391,7 +3391,48 @@ public sealed class ReplShell
             lines.AddRange(TranscriptLines.Project(item));
         }
 
+        lines.AddRange(ProjectBackgroundQueries());
+
         return new TranscriptSnapshot(lines, streamingLength);
+    }
+
+    /// <summary>后台查询内容补入 transcript（ADR 0165 阶段 1b）— 没被切回的后台查询，事件只躺在
+    /// <see cref="BackgroundQuery.Pending"/> 里，ctrl+o 看不到就等于永久丢失。这里用**离屏 driver**
+    /// 重放该桶事件再交给 <see cref="TranscriptLines.Project"/> 投影 —— 复用唯一渲染实现，
+    /// 不在 transcript 侧另写一套文本投影；已切回的桶 Pending 已清空，天然不重复。</summary>
+    /// <returns>追加在正文之后的分节行（无后台内容时为空）。</returns>
+    private List<string> ProjectBackgroundQueries()
+    {
+        var lines = new List<string>();
+        foreach (var background in _backgroundQueries)
+        {
+            if (background.Pending.Count == 0)
+            {
+                continue;
+            }
+
+            lines.Add(string.Empty);
+            lines.Add($"── 后台查询 {background.QueryId}（"
+                + $"{(background.Completed ? "已完成" : "运行中")}，{background.Pending.Count} 条事件）──");
+
+            var offscreen = new ReplView();
+            var spinner = new SpinnerItem();
+            var banner = new BannerItem(string.Empty, string.Empty, string.Empty, string.Empty);
+            offscreen.Messages.Add(banner);
+            offscreen.Messages.Add(spinner);
+            var driver = new ReplBridgeDriver(offscreen, spinner, banner);
+            foreach (var bridgeEvent in background.Pending)
+            {
+                driver.Apply(bridgeEvent);
+            }
+
+            foreach (var item in offscreen.Messages.Items)
+            {
+                lines.AddRange(TranscriptLines.Project(item));
+            }
+        }
+
+        return lines;
     }
 
     /// <summary>transcript 视图投影（渲染前 — RenderAndFlush 每帧调用）：

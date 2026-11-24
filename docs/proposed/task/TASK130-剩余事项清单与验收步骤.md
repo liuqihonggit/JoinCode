@@ -505,7 +505,13 @@ Ctrl+B 是纯视图切换，不 abort、不重跑、不重复计费。`ReplShell
 `Verify-StyleGate.py` 1817（新文件零违规）、`Verify-NoLockPrimitives.py` 64 处存量（未加锁）、
 `Verify-ExplicitOrder.py` / `Verify-RegistrationOrder.py` 双向一致。
 
-阶段 1 剩余：transcript 按 queryId 归属 + 独立 transcript 视图 + 真机 TUI 手工验收（#101）；
+**阶段 1b（transcript 归属，2026-11-25 完成）**：没被切回的后台查询，事件只在桶里 —— ctrl+o 看不到
+就等于永久丢失。`BuildTranscriptSnapshot` 现在对 `Pending` 非空的桶用**离屏 driver** 重放事件再交给
+`TranscriptLines.Project`，前置归属头 `── 后台查询 q-xxx（运行中/已完成，N 条事件）──`；渲染实现仍是唯一
+一份，切回后 `Pending` 已清空所以不重复、无后台时零追加。新增 `TranscriptQueryAttributionTests` 3 条，
+`NativeTui.Tests` **3202 / 0 失败**。
+
+阶段 1 剩余：独立 transcript 视图 + 真机 TUI 手工验收（#101，需人操作）；
 阶段 2：SDK/NDJSON 协议、`/clear` symlink 重链、逐 token 落盘。
 
 ### B3. macOS Seatbelt（需 macOS 真机 + 独立 ADR）

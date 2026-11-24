@@ -40,7 +40,11 @@ internal static class DshSmokeRunner {
         using var socket = new ClientWebSocket();
         await socket.ConnectAsync(new Uri($"ws://127.0.0.1:{host.Port}/api/remote.mux"), lifetime.Token);
 
+        var pendingQueue = new SmokePendingQueue();
+        services.PendingConfirmations.Attach(pendingQueue, new SmokePendingResolver(pendingQueue));
+
         await CheckHomepageAsync(http, host.BaseUrl, lifetime.Token);
+        await CheckPendingConfirmationsAsync(http, host.BaseUrl, pendingQueue, lifetime.Token);
         var sessionId = await CreateSessionAsync(http, tempRoot, lifetime.Token);
         await CheckSessionListedAsync(http, sessionId, lifetime.Token);
         await OpenEventStreamAsync(socket, lifetime.Token);
@@ -62,6 +66,52 @@ internal static class DshSmokeRunner {
         if (!hasHtml || !hasHostInjection) {
             throw new InvalidOperationException("首页缺少 HTML 或宿主注入标记，资产解包/注入链路异常");
         }
+    }
+
+    /// <summary>待确认收件箱真实 HTTP 链路：列表 → 单条批准 → 列表清空 → UI 脚本可注入。</summary>
+    private static async Task CheckPendingConfirmationsAsync(
+        HttpClient http, string baseUrl, SmokePendingQueue queue, CancellationToken cancellationToken) {
+        var ticket = queue.Enqueue(
+            "smoke-agent",
+            "Bash",
+            "冒烟：后台任务请求确认",
+            new Dictionary<string, JsonElement>(StringComparer.Ordinal) {
+                ["command"] = JsonDocument.Parse("\"npm test\"").RootElement.Clone(),
+            });
+
+        var listValue = await CallAsync(http, "pendingConfirmations/list", null, cancellationToken);
+        Console.WriteLine("[dsh-smoke] pendingConfirmations/list ok");
+        var list = listValue.Deserialize(DshJsonContext.Default.DshPendingConfirmationList)
+            ?? throw new InvalidOperationException("pendingConfirmations/list 返回空结果");
+        if (!list.Available || list.Items.Count != 1 || list.Items[0].Id != ticket.Id) {
+            throw new InvalidOperationException($"pendingConfirmations/list 异常：available={list.Available}, count={list.Items.Count}");
+        }
+
+        var resolveArgs = JsonSerializer.SerializeToElement(
+            new DshPendingConfirmationResolveArgs { Id = ticket.Id, Decision = "approve" },
+            DshJsonContext.Default.DshPendingConfirmationResolveArgs);
+        var resolveValue = await CallAsync(http, "pendingConfirmations/resolve", resolveArgs, cancellationToken);
+        Console.WriteLine("[dsh-smoke] pendingConfirmations/resolve ok");
+        var resolve = resolveValue.Deserialize(DshJsonContext.Default.DshPendingConfirmationResolveResult)
+            ?? throw new InvalidOperationException("pendingConfirmations/resolve 返回空结果");
+        if (!resolve.Resolved || resolve.Remaining != 0) {
+            throw new InvalidOperationException($"pendingConfirmations/resolve 未结算：resolved={resolve.Resolved}, remaining={resolve.Remaining}");
+        }
+
+        var afterValue = await CallAsync(http, "pendingConfirmations/list", null, cancellationToken);
+        Console.WriteLine("[dsh-smoke] pendingConfirmations/list after ok");
+        var after = afterValue.Deserialize(DshJsonContext.Default.DshPendingConfirmationList)
+            ?? throw new InvalidOperationException("pendingConfirmations/list 二次返回空结果");
+        if (!after.Available || after.Items.Count != 0) {
+            throw new InvalidOperationException($"结算后收件箱未清空：available={after.Available}, count={after.Items.Count}");
+        }
+
+        var uiScript = await http.GetStringAsync($"{baseUrl}api/pendingConfirmations/ui.js", cancellationToken);
+        if (!uiScript.Contains("jcc-pending", StringComparison.Ordinal)
+            || !uiScript.Contains("复核通过", StringComparison.Ordinal)) {
+            throw new InvalidOperationException("待确认收件箱前端脚本缺少面板/按钮标记");
+        }
+        Console.WriteLine($"[dsh-smoke] pendingConfirmations list/resolve ok ticket={ticket.Id}, ui.js len={uiScript.Length}");
     }
 
     /// <summary>session/create：在隔离目录建会话，返回会话 ID。</summary>
@@ -242,7 +292,11 @@ internal static class DshSmokeRunner {
             JsonSerializer.Serialize(envelope, DshJsonContext.Default.DshRpcRequest));
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
         using var response = await http.PostAsync($"api/{method}", content, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode) {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException(
+                $"{method} HTTP {(int)response.StatusCode} {response.ReasonPhrase}；响应体: {body[..Math.Min(body.Length, 200)]}");
+        }
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         var reply = await JsonSerializer.DeserializeAsync(stream, DshJsonContext.Default.DshRpcResponse, cancellationToken)
             ?? throw new InvalidOperationException($"{method} 响应为空");
@@ -257,6 +311,67 @@ internal static class DshSmokeRunner {
     private static void GuardNotEmpty(string value, string message) {
         if (string.IsNullOrEmpty(value)) {
             throw new InvalidOperationException(message);
+        }
+    }
+
+    /// <summary>冒烟队列 — 单线程串行调用，只保留一张票据，结算后移除，验证列表/清空真实路由。</summary>
+    private sealed class SmokePendingQueue : IPendingConfirmationQueue {
+        private readonly List<(PendingConfirmationItem Item, TaskCompletionSource<PendingConfirmationDecision> Completion)> _items = [];
+
+        /// <inheritdoc />
+        public bool HasPending => _items.Count > 0;
+
+        /// <inheritdoc />
+        public PendingConfirmationItem Enqueue(
+            string? agentId, string toolName, string reason,
+            IReadOnlyDictionary<string, JsonElement> arguments) {
+            var completion = new TaskCompletionSource<PendingConfirmationDecision>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var item = new PendingConfirmationItem {
+                Id = $"smoke-{Guid.NewGuid():N}",
+                AgentId = agentId,
+                ToolName = toolName,
+                Reason = reason,
+                Arguments = arguments,
+                CreatedAtUtc = DateTime.UtcNow,
+                Decision = completion.Task,
+            };
+            _items.Add((item, completion));
+            return item;
+        }
+
+        /// <inheritdoc />
+        public IReadOnlyList<PendingConfirmationItem> Snapshot() => [.. _items.Select(pair => pair.Item)];
+
+        /// <inheritdoc />
+        public bool TryResolve(string id, PendingConfirmationDecision decision) {
+            var index = _items.FindIndex(pair => pair.Item.Id == id);
+            if (index < 0) {
+                return false;
+            }
+            var completion = _items[index].Completion;
+            _items.RemoveAt(index);
+            completion.TrySetResult(decision);
+            return true;
+        }
+    }
+
+    /// <summary>冒烟结算器 — 直接委托队列，验证前端决策到票据的完整链路。</summary>
+    private sealed class SmokePendingResolver(SmokePendingQueue queue) : IPendingConfirmationResolver {
+        /// <inheritdoc />
+        public IReadOnlyList<PendingConfirmationItem> ListPending() => queue.Snapshot();
+
+        /// <inheritdoc />
+        public bool Resolve(string id, PendingConfirmationDecision decision) => queue.TryResolve(id, decision);
+
+        /// <inheritdoc />
+        public int ResolveAll(PendingConfirmationDecision decision) {
+            var count = 0;
+            foreach (var item in queue.Snapshot()) {
+                if (queue.TryResolve(item.Id, decision)) {
+                    count++;
+                }
+            }
+            return count;
         }
     }
 }

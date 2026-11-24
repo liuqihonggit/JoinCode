@@ -42,7 +42,7 @@
 | D10 执行后凭据外泄 | `ToolExecutionSupervisor` 扫描工具输出前 64K，命中凭据规则登记复核票据，不返回密钥原文 | 执行器定向测试 1 项通过 |
 | D11 AI 判定不可审计/不可回滚 | `PermissionJudgeAuditRecord` JSONL + `LlmJudgeShadow`（默认 false） | 分类器 14 项 + 中间件 6 项通过 |
 
-**未完成**：DSH WebView/TUI 真机 UI 验收（需图形/TTY 宿主）；Supervisor 的文件 diff/命令输出行为监控；用户 override → 规则沉淀；指标看板。已跑 `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
+**未完成**：Supervisor 的文件 diff/命令输出行为监控；用户 override → 规则沉淀；指标看板。真人 UI 已验收：真实 WebView2 中演示票据“待确认 1”→点击“复核通过”→“待确认 0”；真实 TTY 中 `/permissions pending` 输出空列表。另有 `jcc --selftest-tui`、`jcc --selftest-tui-commands` 53 条、`NativeGui.Host --dsh-smoke` 真实宿主链路通过。
 
 ### 2026-11-23 Git 接续：AI Judge 判定契约收口（已实现，待验证）
 
@@ -53,14 +53,35 @@
 - [x] 静态核对 DTO、源码生成器和审计消费，并运行 `git diff --check`。按用户要求实现优先，接续实现后未启动构建或测试，未提交未验证代码。
 - [x] 补跑 `Guard.Security.Tests` 的 `LlmAutoModeClassifierTests`、`AutoClassifierModeMappingTests` 两组定向用例，54 项通过；`Guard.Security.Tests` 全量非集成/非基准 1,317 项、`Guard.Config.Tests` 全量 1,349 项均通过。DSH WebView 与 TUI 真实 TTY 验收仍待执行，不以进程冒烟替代。
 
-本轮不实现用途未定的监控规则、override 规则沉淀、指标看板，也不变更模式默认值。完整策略版本、每回合预算和客户端超时配置仍待按 DSG053 收口；`AppliedAction` 记录的是分类器采用的动作，后续权限中间件仍按当前模式映射。
+本轮不实现用途未定的监控规则、override 规则沉淀、指标看板，也不变更模式默认值。完整策略版本、每任务预算和客户端超时配置已在 2026-11-24 接续补齐；预算边界是代理任务作用域，不是严格用户 turn。`AppliedAction` 记录的是分类器采用的动作，后续权限中间件仍按当前模式映射。
 
-### AI Judge 缓存优化（已实现，待验证）
+### AI Judge 缓存优化（已实现，单测已验证）
 
 - [x] 补测试：同作用域命中，跨会话、代理、模式、目录或参数不复用；显式目录优先、上下文不明时仍实时判定、硬拒绝优先于缓存、shadow 与正式判定隔离、正式缓存不得放宽确认。
 - [x] 将无界字典替换为私有 `MemoryCache`：512 条上限、30 分钟绝对过期；按可信代理作用域、有效模式、声明目录与完整参数指纹等分键，不在键里保留参数原文。超过指纹或原因长度限额只跳过缓存，不改变当次判定。接续前工作树补丁已备份至 `.xxx/backups/task105_before_cache.4My4QM`。
 - [x] 静态复核并回填 DSG053，`git diff --check` 通过。未运行全仓构建和宿主验收，未提交。
 - [x] 补可控时钟用例并定向实测：第 29 分钟命中不续期；第 30 分钟移除旧候选并重新判定，无响应时回落规则；填满生产配置的 512 条后再写入，仍不超限。测试使用生产缓存构造，只替换时钟。定向 54 项通过，日志见 `.xxx/logs/task105_judge_focused.log`。
+
+### 2026-11-24 AI Judge 预算、策略版本与超时收尾（已实现，单测已验证）
+
+- [x] `PermissionConfig` 新增 `LlmJudgeMaxCallsPerTask=10`、`LlmJudgeTimeoutMs=2500`；`ClassificationRequest` 承载两个内部字段，`AutoClassifierMiddleware` 从当前配置注入。
+- [x] `LlmAutoModeClassifier` 新增 `JudgePolicyVersion=judge-2026-11-24.1`、`ContextHash`、有界 `JudgeBudget`：按 `SubAgentContext.SessionId | AgentId | CreatedAt` 分桶，只有真实模型调用计数，缓存命中不消耗；预算耗尽直接回落规则并记 `budget-exhausted`。
+- [x] 模型调用用 linked CTS 包装超时，默认 2500ms、合法 100–3000ms；超时记 `no-response`，调用方主动取消仍向外传播；`PermissionJudgeClient` 的 3s 内部上限保留为兜底。
+- [x] 审计新增 `PolicyVersion/ContextHash/BudgetRemaining/BudgetExhausted`；`ContextHash` 只含策略版本、工具、操作类型、模式、shadow、操作摘要与代理身份，不写原始参数集合。诊断行 `[AI-JUDGE-AUDIT]` 增加剩余预算。
+- [x] 测试新增预算耗尽、任务作用域重置、缓存命中不耗预算、超时回落、中间件配置透传 5 项；`LlmAutoModeClassifierTests` 50 项通过；`Guard.Security.Tests` 全量 1,322 项、`Guard.Config.Tests` 全量 1,349 项通过。日志见 `.xxx/logs/task105_judge_budget_timeout.log`、`.xxx/logs/task105_guard_security_full.log`、`.xxx/logs/task105_guard_config_test.log`。
+- [x] 文档回填 DSG053 §4.3/§4.4/§4.5/§7/§8 与 ADR 0163。
+- 限制：预算边界是代理任务，不是严格用户 turn（当前无 turn id）；预算缓存 1024 条/30 分钟绝对过期，跨窗口或淘汰会重新计数；`contextHash` 只作审计关联，不是缓存键；`policyVersion` 为手写常量，提示词/门槛/动作约束变更时需同步升级。
+
+### 2026-11-23 合并后手动 exe 验收（部分完成）
+
+- [x] `jcc --selftest-tui`（`JCC_ALLOW_DIRECT_FALLBACK=1`）通过，输出 `HOST SELFTEST OK — 引擎进程内组装 + session_info 握手 + 权限模式真实回执`；日志 `.xxx/logs/task105_manual_selftest_tui_after_merge.log`。
+- [x] `jcc --selftest-tui-commands` 真实引擎命令链路：53 条命令，`OK=51`、退出类 `EXIT-OK=2`、`EMPTY/ERROR/TIMEOUT=0`；新增 `/permissions pending` 探针输出 `当前没有后台待确认事项。`，证明待确认分支在 TUI 真实宿主中可达。日志 `.xxx/logs/task105_manual_commands_after_merge_53.log`。
+- [x] `NativeGui.Host --dsh-smoke` 真实 HTTP/WS 宿主：`pendingConfirmations/list` 返回 1 条票据，`pendingConfirmations/resolve` 批准后剩余 0，二次列表清空；`/api/pendingConfirmations/ui.js` 返回 8,435 字节且包含 `jcc-pending` 面板与“复核通过”按钮；首页注入标记存在，既有 session/goals/并发主路径仍通过，整体 `PASS`。日志 `.xxx/logs/task105_manual_dsh_smoke_after_merge.log`。
+- [x] 真实 WebView2 目视验收：用临时环境变量在真实引擎队列登记一张演示票据，启动 `NativeGui.Host` 后角标显示“待确认 1”；打开面板可见 Bash/命令原文/代理与时间；点击“复核通过”后角标变为“待确认 0”，面板显示“当前没有需要确认的事项。”。截图 `.xxx/logs/task105_dsh_ui_demo_3.png`（批准前）、`.xxx/logs/task105_dsh_ui_approved.png`（批准后）。验收票据由真实队列/结算器处理，但票据登记是验收代码直接注入，不经过模型工具调用；临时代码已撤除并重新编译。
+- [x] 真实 TTY 目视验收：Windows Terminal 中启动 `jcc`（`JCC_ENDPOINT` 强制直连 + 演示 Key 打开登录门禁），输入 `/permissions pending`，输出“当前没有后台待确认事项。”。截图 `.xxx/logs/task105_tui_permissions_pending.png`。验收后 `auth.json` 已从备份恢复，演示 Key 未保留。
+- [x] `NativeTui.Host` 与 `NativeGui.Host` Debug 编译 0 警告 0 错误；移除临时演示代码后再次编译 `NativeGui.Host` 0 警告 0 错误。
+
+冒烟扩展说明：`DshSmokeRunner` 注入的是单线程假队列/结算器，只验证宿主协议、序列化和前端资产链路；不替代 `PendingConfirmationQueue` 与真实引擎票据的联调。TUI 探针新增的 `/permissions pending` 只读空列表，不制造真实票据，避免污染用户队列。
 
 工具笔记：当前 Git Bash 没有 `/usr/bin/rg`，按 `PATH` 解析 `rg`，或对已跟踪源码使用 `git grep`，不依赖写死的工具路径。
 
@@ -312,10 +333,11 @@
 | 提示词模式感知 | `FactInquirySection` / `SessionGuidanceSection` | ✅ 已接入模式感知 | ❌ 手动 exe 未做；✅ prompt 产物单测通过 |
 | 拒绝文案诱导 | `AgentRestrictionMiddleware` | ✅ 恢复工具过滤文案并给可操作引导 | ❌ 手动 exe 未做；✅ 文案单测通过 |
 | 真实工具名测试 | `AsyncAgentAllowedToolsTests` 等 | ✅ 改用真实工具名 + 后台拒绝集 | ✅ 单元测试通过 |
-| `PendingConfirmationQueue` + `IPendingConfirmationResolver` | `PermissionAwareToolExecutor`、DSH RPC、TUI 命令 | ✅ TTL 30min/上限 200/脱敏；批准/拒绝复核 + 通知 | ❌ 真人 UI 未验收；✅ 队列 9 项 + 执行器 23 项 + DSH 7 项 + TUI 24 项通过 |
-| 执行后 Supervisor + AI 审计/shadow | `PermissionAwareToolExecutor`、`LlmAutoModeClassifier`、`AutoClassifierMiddleware` | ✅ 凭据扫描登记复核票据；JSONL 审计 + `LlmJudgeShadow` 透传 | ❌ 手动 exe 未验收；✅ 执行器 1 项 + 分类器 14 项 + 中间件 6 项通过 |
+| `PendingConfirmationQueue` + `IPendingConfirmationResolver` | `PermissionAwareToolExecutor`、DSH RPC、TUI 命令 | ✅ TTL 30min/上限 200/脱敏；批准/拒绝复核 + 通知 | ✅ 真实 WebView2 票据列表/批准；真实 TTY `/permissions pending`；✅ 队列 9 项 + 执行器 23 项 + DSH 7 项 + TUI 24 项通过 |
+| 执行后 Supervisor + AI 审计/shadow | `PermissionAwareToolExecutor`、`LlmAutoModeClassifier`、`AutoClassifierMiddleware` | ✅ 凭据扫描登记复核票据；JSONL 审计 + `LlmJudgeShadow` 透传；`PolicyVersion/ContextHash` | ❌ 真实模型采样未做；✅ 执行器 1 项 + 分类器 50 项 + 中间件 9 项 + 全量 1,322 项通过 |
+| AI Judge 预算/超时 | `PermissionConfig`、`ClassificationRequest`、`AutoClassifierMiddleware`、`LlmAutoModeClassifier` | ✅ 每任务默认 10 次、缓存命中不耗、耗尽回落 `budget-exhausted`；默认 2.5s、上限 3s | ❌ 真实模型并发采样未做；✅ 预算/超时/透传 5 项新增用例 + 全量 1,322 项通过 |
 
-> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。DSH WebView/TUI 真机 UI 验收仍待图形/TTY 宿主；已跑 `jcc --selftest-tui` 通过引擎组装/握手/权限模式回执，未覆盖提问卡片。
+> `已验收`列必须走 ADR 0080 手动 exe 验收（真实运行非 mock）。DSH WebView2 与 TUI 真实 TTY 已目视验收（见 §0.1 2026-11-23 记录）；`jcc --selftest-tui` 通过引擎组装/握手/权限模式回执，`--selftest-tui-commands` 53 条命令、`NativeGui.Host --dsh-smoke` 真实宿主链路通过。
 
 ---
 

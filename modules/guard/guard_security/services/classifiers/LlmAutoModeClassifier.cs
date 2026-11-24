@@ -22,10 +22,21 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     private const int MaxCacheIdentityLength = 256;
     private const int MaxCacheDirectoryLength = 2048;
     private const int MaxCacheReasonLength = 256;
+    private const int BudgetEntryLimit = 1024;
+    private const int DefaultMaxCallsPerTask = 10;
+    private const int DefaultTimeoutMs = 2500;
+    private const int MaxTimeoutMs = 3_000;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan BudgetTtl = TimeSpan.FromMinutes(30);
+
+    /// <summary>判定策略版本 — 提示词、硬约束或门槛语义变化时递增，用于审计回放分组。</summary>
+    internal const string JudgePolicyVersion = "judge-2026-11-24.1";
 
     /// <summary>私有、有界的候选缓存；不持有命令或参数原文。</summary>
     private readonly MemoryCache _cache;
+
+    /// <summary>每任务调用预算 — 只缓存计数，不持有命令、参数或原始身份。</summary>
+    private readonly MemoryCache _budgetCache;
 
     /// <summary>当前缓存条目数，用于验证容量与过期移除。</summary>
     internal int CachedCandidateCount => _cache.Count;
@@ -46,6 +57,27 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     private readonly record struct JudgeOutcome(ClassificationResult? Candidate, PermissionJudgeFallbackReason? FallbackReason = null) {
         /// <summary>仅无回落原因时才可使用模型判定。</summary>
         internal ClassificationResult? Accepted => FallbackReason is null ? Candidate : null;
+    }
+
+    /// <summary>任务级 AI 判定计数器 — 原子消费，失败或缓存命中不增加预算。</summary>
+    private sealed class JudgeBudget {
+        private int _used;
+
+        /// <summary>尝试消费一次调用额度；超过上限返回 false。</summary>
+        internal bool TryConsume(int limit) {
+            while (true) {
+                var used = Volatile.Read(ref _used);
+                if (used >= limit) {
+                    return false;
+                }
+                if (Interlocked.CompareExchange(ref _used, used + 1, used) == used) {
+                    return true;
+                }
+            }
+        }
+
+        /// <summary>当前任务剩余额度。</summary>
+        internal int Remaining(int limit) => Math.Max(0, limit - Volatile.Read(ref _used));
     }
 
     private static readonly FrozenSet<char> CommandSeparators = FrozenSet.Create('&', '|', ';');
@@ -91,6 +123,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         _fileSystem = fileSystem;
         _auditPath = ResolveAuditPath();
         _cache = CreateCache();
+        _budgetCache = CreateBudgetCache();
     }
 
     /// <summary>测试入口 — 显式指定审计位置和缓存时钟，避免读写真实用户目录或依赖墙钟。</summary>
@@ -113,6 +146,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         _telemetryService = null;
         _llmThreshold = 0.8;
         _cache = CreateCache(cacheTimeProvider);
+        _budgetCache = CreateBudgetCache();
     }
 
     /// <summary>生产与测试共享容量、扫描间隔及淘汰逻辑；测试只替换时间源。</summary>
@@ -120,6 +154,12 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         SizeLimit = CacheEntryLimit,
         ExpirationScanFrequency = TimeSpan.FromMinutes(2),
         Clock = timeProvider is null ? null : new CacheClock(timeProvider),
+    });
+
+    /// <summary>预算缓存只保存计数，条目数与任务数有界；过期后新任务自然重新计数。</summary>
+    private static MemoryCache CreateBudgetCache() => new(new MemoryCacheOptions {
+        SizeLimit = BudgetEntryLimit,
+        ExpirationScanFrequency = TimeSpan.FromMinutes(2),
     });
 
     /// <inheritdoc />
@@ -160,9 +200,19 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
 
         var cacheKey = TryCreateCacheKey(request, stage1, shadow);
         var cached = ReadCachedCandidate(cacheKey, stage1.Action, shadow);
-        var outcome = cached is not null
-            ? new JudgeOutcome(cached)
-            : await ClassifyWithLlmAsync(judgeClient, request.ToolName, operation, stage1, ct).ConfigureAwait(false);
+        var maxCalls = ResolveMaxCalls(request.JudgeMaxCallsPerTask);
+        var timeoutMs = ResolveTimeoutMs(request.JudgeTimeoutMs);
+        var budget = GetBudget(CreateBudgetKey());
+        var budgetExhausted = false;
+        JudgeOutcome outcome;
+        if (cached is not null) {
+            outcome = new JudgeOutcome(cached);
+        } else if (budget is not null && !budget.TryConsume(maxCalls)) {
+            budgetExhausted = true;
+            outcome = new JudgeOutcome(null, PermissionJudgeFallbackReason.BudgetExhausted);
+        } else {
+            outcome = await ClassifyWithLlmAsync(judgeClient, request.ToolName, operation, stage1, timeoutMs, ct).ConfigureAwait(false);
+        }
         ct.ThrowIfCancellationRequested();
         var accepted = outcome.Accepted;
         if (cached is null && cacheKey is not null && accepted is not null &&
@@ -175,10 +225,42 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         }
 
         var decision = shadow ? stage1 : accepted ?? stage1;
-        await AuditAsync(request, operation, stage1, outcome, decision, shadow, cacheHit: cached is not null, ct).ConfigureAwait(false);
+        await AuditAsync(request, operation, stage1, outcome, decision, shadow, cacheHit: cached is not null,
+            budget, maxCalls, budgetExhausted, ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
         return decision;
     }
+
+    /// <summary>预算按代理任务作用域计数；无可靠代理身份时不启用预算，避免把不同任务混成一个桶。</summary>
+    private static string? CreateBudgetKey() {
+        var agent = SubAgentContext.Current;
+        if (agent is null || string.IsNullOrWhiteSpace(agent.SessionId) || string.IsNullOrWhiteSpace(agent.AgentId)) {
+            return null;
+        }
+
+        var identity = $"{agent.SessionId}|{agent.AgentId}|{agent.CreatedAt.Ticks}";
+        return Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)));
+    }
+
+    /// <summary>只消费真实模型调用；缓存命中直接返回，不触碰预算。</summary>
+    private JudgeBudget? GetBudget(string? key) {
+        if (key is null) {
+            return null;
+        }
+
+        return _budgetCache.GetOrCreate(key, _ => new JudgeBudget(), new MemoryCacheEntryOptions {
+            AbsoluteExpirationRelativeToNow = BudgetTtl,
+            Size = 1,
+        });
+    }
+
+    /// <summary>非法或非正预算回落默认值，不阻断权限判定。</summary>
+    private static int ResolveMaxCalls(int? configured) =>
+        configured is >= 1 and <= 100 ? configured.Value : DefaultMaxCallsPerTask;
+
+    /// <summary>超时下限 100ms、上限 3s；非法值回落 2500ms。</summary>
+    private static int ResolveTimeoutMs(int? configured) =>
+        configured is >= 100 and <= MaxTimeoutMs ? configured.Value : DefaultTimeoutMs;
 
     /// <summary>只为目录和代理作用域明确的 Bash 调用生成键；目录是命令声明目录，不是最终沙箱路径。</summary>
     private static JudgeCacheKey? TryCreateCacheKey(ClassificationRequest request, ClassificationResult rule, bool shadow) {
@@ -281,6 +363,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     /// <summary>释放私有判定缓存；异步释放由基类委托到此处。</summary>
     public override void Dispose() {
         _cache.DisposeSafe(_logger);
+        _budgetCache.DisposeSafe(_logger);
         base.Dispose();
     }
 
@@ -326,13 +409,18 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         string toolName,
         string operation,
         ClassificationResult stage1,
+        int timeoutMs,
         CancellationToken ct) {
         var userPrompt = BuildClassificationPrompt(toolName, operation);
         string? response;
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
         try {
-            response = await judgeClient.JudgeAsync(JudgeSystemPrompt, userPrompt, ct).ConfigureAwait(false);
+            response = await judgeClient.JudgeAsync(JudgeSystemPrompt, userPrompt, timeoutCts.Token).ConfigureAwait(false);
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
+        } catch (OperationCanceledException) {
+            return new(null, PermissionJudgeFallbackReason.NoResponse);
         } catch (Exception ex) {
             _logger?.LogWarning("[LlmAutoModeClassifier] LLM 分类失败 ({ExceptionType})，回退到 Stage 1 结果", ex.GetType().Name);
             _telemetryService?.RecordCount("security.llm_classification.error", description: "LLM classification error count");
@@ -463,11 +551,16 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         ClassificationResult applied,
         bool shadow,
         bool cacheHit,
+        JudgeBudget? budget,
+        int maxCalls,
+        bool budgetExhausted,
         CancellationToken ct) {
         ct.ThrowIfCancellationRequested();
         var stage2 = outcome.Candidate;
         var record = new PermissionJudgeAuditRecord {
             TimestampUtc = DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            PolicyVersion = JudgePolicyVersion,
+            ContextHash = ComputeContextHash(request, operation, shadow),
             ToolName = request.ToolName,
             Operation = Truncate(SecurityPatterns.RedactSecrets(operation), 512),
             Shadow = shadow,
@@ -481,10 +574,12 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
             AppliedClassification = applied.Classification.ToString(),
             AppliedAction = applied.Action.ToString(),
             CacheHit = cacheHit,
+            BudgetRemaining = budget?.Remaining(maxCalls),
+            BudgetExhausted = budgetExhausted,
             FallbackReason = outcome.FallbackReason?.ToValue(),
         };
 
-        Diag.WriteLine($"[AI-JUDGE-AUDIT] tool={request.ToolName} shadow={shadow} cacheHit={cacheHit} rule={record.RuleAction} llm={record.LlmAction ?? "unavailable"} applied={record.AppliedAction} fallback={record.FallbackReason ?? "none"}");
+        Diag.WriteLine($"[AI-JUDGE-AUDIT] tool={request.ToolName} shadow={shadow} cacheHit={cacheHit} budget={record.BudgetRemaining?.ToString() ?? "n/a"} rule={record.RuleAction} llm={record.LlmAction ?? "unavailable"} applied={record.AppliedAction} fallback={record.FallbackReason ?? "none"}");
         if (_fileSystem is null) {
             return;
         }
@@ -501,6 +596,23 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "[LlmAutoModeClassifier] AI 判定审计落盘失败，不影响本次权限决策");
         }
+    }
+
+    /// <summary>审计用上下文指纹 — 只含工具、模式、代理作用域与操作摘要，不含原始参数集合。</summary>
+    private static string ComputeContextHash(ClassificationRequest request, string operation, bool shadow) {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        AppendHashFrame(hash, System.Text.Encoding.UTF8.GetBytes(JudgePolicyVersion));
+        AppendHashFrame(hash, System.Text.Encoding.UTF8.GetBytes(request.ToolName));
+        AppendHashFrame(hash, System.Text.Encoding.UTF8.GetBytes(request.OperationType.ToString()));
+        AppendHashFrame(hash, System.Text.Encoding.UTF8.GetBytes(shadow ? "shadow" : "live"));
+        AppendHashFrame(hash, System.Text.Encoding.UTF8.GetBytes(request.CacheMode?.ToValue() ?? "unknown"));
+        AppendHashFrame(hash, System.Text.Encoding.UTF8.GetBytes(operation));
+        if (SubAgentContext.Current is { } agent) {
+            AppendHashFrame(hash, System.Text.Encoding.UTF8.GetBytes(agent.SessionId ?? ""));
+            AppendHashFrame(hash, System.Text.Encoding.UTF8.GetBytes(agent.AgentId));
+            AppendHashFrame(hash, System.Text.Encoding.UTF8.GetBytes(agent.CreatedAt.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        return Convert.ToHexString(hash.GetHashAndReset());
     }
 
     /// <summary>审计文件路径 — 测试/运维可用 JCC_PERMISSION_AUDIT_PATH 覆盖，默认 ~/.jcc/audit/permission_judge.jsonl。</summary>
@@ -527,6 +639,8 @@ internal enum PermissionJudgeFallbackReason {
     [EnumValue("invalid-response")] InvalidResponse,
     /// <summary>候选置信度未达到门槛。</summary>
     [EnumValue("low-confidence")] LowConfidence,
+    /// <summary>本任务 AI 判定调用预算耗尽，直接回落静态规则。</summary>
+    [EnumValue("budget-exhausted")] BudgetExhausted,
 }
 
 /// <summary>
@@ -577,6 +691,10 @@ public sealed class LlmClassificationResponseDto {
 public sealed class PermissionJudgeAuditRecord {
     /// <summary>UTC 时间（ISO 8601）。</summary>
     public string TimestampUtc { get; set; } = "";
+    /// <summary>判定策略版本 — 与提示词/门槛语义一起变更。</summary>
+    public string PolicyVersion { get; set; } = "";
+    /// <summary>上下文指纹 — 工具、模式、代理作用域与操作摘要的 SHA-256。</summary>
+    public string ContextHash { get; set; } = "";
     /// <summary>工具名。</summary>
     public string ToolName { get; set; } = "";
     /// <summary>脱敏后的操作摘要。</summary>
@@ -602,6 +720,11 @@ public sealed class PermissionJudgeAuditRecord {
     public string? LlmReason { get; set; }
     /// <summary>本次是否复用成功判定缓存。</summary>
     public bool CacheHit { get; set; }
+    /// <summary>本次判定后任务剩余预算；无可靠代理身份时不写。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? BudgetRemaining { get; set; }
+    /// <summary>本次是否因预算耗尽直接回落静态规则。</summary>
+    public bool BudgetExhausted { get; set; }
     /// <summary>静态回落原因；可用判定（含 shadow）不写此字段。</summary>
     public string? FallbackReason { get; set; }
     /// <summary>最终生效分类级别。</summary>

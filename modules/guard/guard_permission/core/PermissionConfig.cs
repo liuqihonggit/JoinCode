@@ -17,6 +17,18 @@ public class PermissionConfig {
     public bool LlmJudgeShadow { get; set; }
 
     /// <summary>
+    /// 单个代理任务允许触发 AI 判定的最大次数 — 预算耗尽后回落静态规则，防止灰区调用放大。
+    /// 只统计真实模型调用，缓存命中不消耗预算；合法范围 1–100，非法值回落 10。
+    /// </summary>
+    public int LlmJudgeMaxCallsPerTask { get; set; } = 10;
+
+    /// <summary>
+    /// 单次 AI 判定客户端超时（毫秒）— 权限检查不能被判定模型无限阻塞。
+    /// 合法范围 100–3000，非法值回落 2500。
+    /// </summary>
+    public int LlmJudgeTimeoutMs { get; set; } = 2500;
+
+    /// <summary>
     /// 自动批准的工具列表
     /// </summary>
     public ImmutableHamT<string, ToolPermissionRule> AutoApprovedTools { get; set; } = ImmutableHamT<string, ToolPermissionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);

@@ -285,28 +285,35 @@ public sealed class RawStdinPumpTests
     [Fact]
     public async Task Dispose_QueuedCommand_CompletesWaiter()
     {
-        using var entered = new ManualResetEventSlim();
-        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var pump = new RawStdinPump(clock: () =>
         {
-            entered.Set();
-            release.Wait();
+            entered.TrySetResult();
+            release.Task.GetAwaiter().GetResult();
             return 0;
         });
 
-        var first = Task.Run(() => pump.FeedForTest("\u001b["));
-        Assert.True(entered.Wait(TimeSpan.FromSeconds(1)));
+        try
+        {
+            var first = Task.Run(() => pump.FeedForTest("\u001b["));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(1));
 
-        var second = Task.Run(() => pump.FeedForTest("x"));
-        Assert.True(SpinWait.SpinUntil(() => pump.PendingCommandCount > 0, TimeSpan.FromSeconds(1)));
+            var second = Task.Run(() => pump.FeedForTest("x"));
+            Assert.True(SpinWait.SpinUntil(() => pump.PendingCommandCount > 0, TimeSpan.FromSeconds(1)));
 
-        pump.Dispose();
-        release.Set();
+            pump.Dispose();
+            release.TrySetResult();
 
-        await first.WaitAsync(TimeSpan.FromSeconds(1));
-        var completed = await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(1)));
-        Assert.Same(second, completed);
-        await second;
+            await first.WaitAsync(TimeSpan.FromSeconds(1));
+            var completed = await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(1)));
+            Assert.Same(second, completed);
+            await second;
+        }
+        finally
+        {
+            release.TrySetResult();
+        }
     }
 
     /// <summary>终端查询响应前置分流（TASK067 批4）— DA1 回复路由给 querier 等待方，

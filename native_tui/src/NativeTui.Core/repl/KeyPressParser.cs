@@ -3,8 +3,8 @@ namespace NativeTui.Core.Repl;
 /// <summary>
 /// 按键序列解码器 — 对齐基准 ink/parse-keypress + useTextInput 的序列语义。
 /// 契约：TryParseNext 把 buffer 视为当前全部可用输入 —
-/// chunk 末尾的孤立 ESC 解析为 Escape（基准用 ESC_TIMEOUT flush，此处以 chunk 边界近似）；
-/// 不完整前缀（如 "\x1b["）返回 false 且不消耗，由调用方攒够后重试。
+/// 不完整前缀（包括 chunk 末尾的孤立 ESC）返回 false 且不消耗，由调用方攒够后重试；
+/// 孤立 ESC 由调用方按 50ms 超时策略 force flush（对齐基准 ESC_TIMEOUT）。
 /// 无法识别的序列整体吞掉为 Unknown（Input 空），防止转义序列泄漏成文本（对齐基准 suppress 语义）。
 /// bracketed paste：\x1b[200~ 内容 \x1b[201~ 整块产出 Paste 事件（Input=粘贴原文），
 /// 终止标记未到达视为不完整前缀不消耗（粘贴块可跨 chunk 攒齐）。
@@ -28,7 +28,7 @@ public static class KeyPressParser
 
     /// <summary>超时 flush 入口（基准 App.tsx:309-333 flushIncomplete — 50ms NORMAL_TIMEOUT /
     /// :121,356 PASTE_TIMEOUT 500ms）：序列后半段永不到达时强制产出 —
-    /// 不完整 ESC 前缀产出 Escape（消耗 1 字节，剩余下轮按文本解析）；
+    /// 孤立 ESC 产出 Escape；其余不完整序列整体吞 Unknown，防残缺参数泄漏成文本；
     /// 不完整粘贴产出已有部分内容 Paste 事件（终止标记丢失释放通道 — 基准 emit pasteBuffer）。</summary>
     public static bool TryParseNext(ref ReadOnlySpan<char> buffer, out KeyPress key, bool force)
     {
@@ -44,10 +44,15 @@ public static class KeyPressParser
                 key = new KeyPress(KeyKind.Paste, buffer[PasteStart.Length..].ToString());
                 buffer = buffer[buffer.Length..];
             }
-            else
+            else if (buffer.Length == 1)
             {
                 key = KeyPress.Named(KeyKind.Escape);
                 buffer = buffer[1..];
+            }
+            else
+            {
+                key = NamedUnknown();
+                buffer = buffer[buffer.Length..];
             }
 
             return true;
@@ -112,6 +117,33 @@ public static class KeyPressParser
             return true;
         }
 
+        if (char.IsHighSurrogate(first))
+        {
+            if (buffer.Length == 1)
+            {
+                key = NamedUnknown();
+                return false;
+            }
+
+            if (!char.IsLowSurrogate(buffer[1]))
+            {
+                key = NamedUnknown();
+                buffer = buffer[1..];
+                return true;
+            }
+
+            key = KeyPress.Char(buffer[..2].ToString());
+            buffer = buffer[2..];
+            return true;
+        }
+
+        if (char.IsLowSurrogate(first))
+        {
+            key = NamedUnknown();
+            buffer = buffer[1..];
+            return true;
+        }
+
         key = KeyPress.Char(first.ToString());
         buffer = buffer[1..];
         return true;
@@ -138,16 +170,34 @@ public static class KeyPressParser
     {
         if (buffer.Length == 1)
         {
-            key = KeyPress.Named(KeyKind.Escape);
-            buffer = buffer[1..];
-            return true;
+            key = NamedUnknown();
+            return false;
         }
 
         var second = buffer[1];
+        if (char.IsHighSurrogate(second))
+        {
+            if (buffer.Length == 2)
+            {
+                key = NamedUnknown();
+                return false;
+            }
+
+            return char.IsLowSurrogate(buffer[2])
+                ? Consume(ref buffer, 3, KeyPress.Char(buffer[1..3].ToString()) with { Meta = true }, out key)
+                : Consume(ref buffer, 2, NamedUnknown(), out key);
+        }
+
+        if (char.IsLowSurrogate(second))
+        {
+            return Consume(ref buffer, 2, NamedUnknown(), out key);
+        }
+
         return second switch
         {
             '[' => ParseCsi(ref buffer, out key),
             'O' => ParseSs3(ref buffer, out key),
+            ']' => ParseOsc(ref buffer, out key),
             '\u001b' => Consume(ref buffer, 2, KeyPress.Named(KeyKind.Escape, meta: true), out key),
             '\r' or '\n' => Consume(ref buffer, 2, KeyPress.Named(KeyKind.Return, meta: true), out key),
             '\t' => Consume(ref buffer, 2, KeyPress.Named(KeyKind.Tab, meta: true), out key),
@@ -155,6 +205,31 @@ public static class KeyPressParser
             >= ' ' => Consume(ref buffer, 2, KeyPress.Char(second.ToString()) with { Meta = true }, out key),
             _ => Consume(ref buffer, 2, NamedUnknown(), out key),
         };
+    }
+
+    /// <summary>OSC 控制序列：BEL 或 ST 终结后整体吞 Unknown；未终结返回 false 等待后续块。</summary>
+    private static bool ParseOsc(ref ReadOnlySpan<char> buffer, out KeyPress key)
+    {
+        for (var i = 2; i < buffer.Length; i++)
+        {
+            var terminatorLength = buffer[i] switch
+            {
+                '\u0007' => 1,
+                '\u001b' when i + 1 < buffer.Length && buffer[i + 1] == '\\' => 2,
+                _ => 0,
+            };
+            if (terminatorLength == 0)
+            {
+                continue;
+            }
+
+            key = NamedUnknown();
+            buffer = buffer[(i + terminatorLength)..];
+            return true;
+        }
+
+        key = NamedUnknown();
+        return false;
     }
 
     /// <summary>CSI 序列：ESC [ params {;mod} final — 方向键/Home/End/Delete/Page + 修饰符 + SGR 鼠标解码
@@ -179,6 +254,12 @@ public static class KeyPressParser
         }
 
         // linux console 功能键变体（ESC[[A-E = F1-F5 — 基准 parse-keypress.ts:310-312）
+        if (rest[0] == '[' && rest.Length == 1)
+        {
+            key = NamedUnknown();
+            return false;
+        }
+
         if (rest[0] == '[' && rest.Length >= 2 && rest[1] is >= 'A' and <= 'E')
         {
             key = KeyPress.Named(rest[1] switch
@@ -395,26 +476,40 @@ public static class KeyPressParser
                 return KeyPress.Named(KeyKind.Backspace, ctrl, meta, shift);
             case 9:
                 return KeyPress.Named(KeyKind.Tab, ctrl, meta, shift);
-            // kitty 功能键区码点 57414-57417（F1-F4）— KeyKind.F1-F12 引入（B2 键位系统）
+            case >= 57399 and <= 57408:
+                return WithCodepointModifiers(KeyPress.Char(((char)('0' + codepoint - 57399)).ToString()), bits);
+            case 57409:
+                return WithCodepointModifiers(KeyPress.Char("."), bits);
+            case 57410:
+                return WithCodepointModifiers(KeyPress.Char("/"), bits);
+            case 57411:
+                return WithCodepointModifiers(KeyPress.Char("*"), bits);
+            case 57412:
+                return WithCodepointModifiers(KeyPress.Char("-"), bits);
+            case 57413:
+                return WithCodepointModifiers(KeyPress.Char("+"), bits);
             case 57414:
-                return KeyPress.Named(KeyKind.F1, ctrl, meta, shift);
+                return KeyPress.Named(KeyKind.Return, ctrl, meta, shift);
             case 57415:
-                return KeyPress.Named(KeyKind.F2, ctrl, meta, shift);
-            case 57416:
-                return KeyPress.Named(KeyKind.F3, ctrl, meta, shift);
-            case 57417:
-                return KeyPress.Named(KeyKind.F4, ctrl, meta, shift);
+                return WithCodepointModifiers(KeyPress.Char("="), bits);
             default:
-                // 控制码点（9/13/27/127 已在上方捕获）与越界/代理区码点不可打印 — Unknown 吞掉
-                if (codepoint is < 32 or > 0x10FFFF or (>= 0xD800 and <= 0xDFFF))
+                // 控制码点与 kitty 功能键保留区（BMP PUA）不可打印 — 未映射项吞 Unknown
+                if (codepoint is < 32 or > 0x10FFFF or (>= 0xD800 and <= 0xDFFF) or (>= 0xE000 and <= 0xF8FF))
                 {
                     return NamedUnknown();
                 }
 
-                var text = char.ConvertFromUtf32(codepoint);
-                var key = KeyPress.Char(text);
-                return key with { Ctrl = ctrl, Meta = meta, Shift = key.Shift || shift };
+                return WithCodepointModifiers(KeyPress.Char(char.ConvertFromUtf32(codepoint)), bits);
         }
+    }
+
+    /// <summary>应用 CSI u / modifyOtherKeys 修饰位；文本本身的 Shift 语义（如 '+'）保留。</summary>
+    private static KeyPress WithCodepointModifiers(KeyPress key, int bits)
+    {
+        var ctrl = (bits & 4) != 0;
+        var meta = (bits & 2) != 0;
+        var shift = (bits & 1) != 0;
+        return key with { Ctrl = ctrl, Meta = meta, Shift = key.Shift || shift };
     }
 
     /// <summary>十进制数字段解析；空段/非数字/溢出返回 -1（调用方按非法吞为 Unknown）。</summary>

@@ -3,7 +3,7 @@ namespace NativeTui.Tests.Repl;
 /// <summary>
 /// 按键解码器测试 — 对齐基准 ink/parse-keypress + useTextInput 的序列语义：
 /// 转义序列（方向键/Home/End/Delete/Page）、Ctrl 字母、Meta 前缀、chunk 边界。
-/// 契约：TryParseNext 把 buffer 视为当前全部可用输入 — chunk 末尾的孤立 ESC 解析为 Escape，
+/// 契约：TryParseNext 把 buffer 视为当前全部可用输入 — chunk 末尾的孤立 ESC 等待调用方超时刷新，
 /// 不完整前缀返回 false（等待更多输入）。
 /// </summary>
 public sealed class KeyPressParserTests
@@ -42,6 +42,22 @@ public sealed class KeyPressParserTests
         Assert.Equal(KeyKind.Char, key.Kind);
         Assert.Equal("A", key.Input);
         Assert.True(key.Shift);
+    }
+
+    [Fact]
+    public void AstralCharacter_ParsesAsSingleChar()
+    {
+        var keys = ParseAll("a😀b");
+        Assert.Equal(["a", "😀", "b"], keys.Select(key => key.Input));
+        Assert.All(keys, key => Assert.Equal(KeyKind.Char, key.Kind));
+    }
+
+    [Fact]
+    public void IncompleteSurrogatePair_RemainsPending()
+    {
+        var span = "\ud83d".AsSpan();
+        Assert.False(KeyPressParser.TryParseNext(ref span, out _));
+        Assert.Equal(1, span.Length);
     }
 
     [Theory]
@@ -185,6 +201,34 @@ public sealed class KeyPressParserTests
     }
 
     [Fact]
+    public void MetaAstralCharacter_ParsesAsSingleMetaChar()
+    {
+        var key = ParseOne("\u001b😀");
+        Assert.Equal(KeyKind.Char, key.Kind);
+        Assert.True(key.Meta);
+        Assert.Equal("😀", key.Input);
+    }
+
+    [Fact]
+    public void MetaAstralCharacter_SplitAfterHighSurrogate_RemainsPending()
+    {
+        var span = "\u001b\ud83d".AsSpan();
+        Assert.False(KeyPressParser.TryParseNext(ref span, out _));
+        Assert.Equal(2, span.Length);
+    }
+
+    [Fact]
+    public void MetaMalformedSurrogates_AreSwallowedAsUnknown()
+    {
+        foreach (var chunk in new[] { "\u001b\ud83dx", "\u001b\ude00" })
+        {
+            var key = ParseOne(chunk);
+            Assert.Equal(KeyKind.Unknown, key.Kind);
+            Assert.Equal(string.Empty, key.Input);
+        }
+    }
+
+    [Fact]
     public void MetaBackspace_Parses()
     {
         var key = ParseOne("\u001b\u007f");
@@ -201,10 +245,11 @@ public sealed class KeyPressParserTests
     }
 
     [Fact]
-    public void LoneEscape_AtChunkEnd_ParsesAsEscape()
+    public void LoneEscape_AtChunkEnd_RemainsIncomplete()
     {
-        var key = ParseOne("\u001b");
-        Assert.Equal(KeyKind.Escape, key.Kind);
+        var span = "\u001b".AsSpan();
+        Assert.False(KeyPressParser.TryParseNext(ref span, out _));
+        Assert.Equal(1, span.Length);
     }
 
     [Fact]
@@ -245,6 +290,14 @@ public sealed class KeyPressParserTests
     {
         var span = "\u001b[1;".AsSpan();
         Assert.False(KeyPressParser.TryParseNext(ref span, out _));
+    }
+
+    [Fact]
+    public void IncompleteLinuxFunctionKeyPrefix_ReturnsFalse()
+    {
+        var span = "\u001b[[".AsSpan();
+        Assert.False(KeyPressParser.TryParseNext(ref span, out _));
+        Assert.Equal(3, span.Length);
     }
 
     [Fact]
@@ -392,19 +445,19 @@ public sealed class KeyPressParserTests
     }
 
     /// <summary>超时 flush（基准 App.tsx:309-333 flushIncomplete — 50ms NORMAL_TIMEOUT）：
-    /// 序列后半段永不到达（慢链路丢失）时，孤立 ESC 前缀强制产出 Escape、剩余字节下轮按文本解析
-    ///（非 force 路径永久滞留 pending = 输入静默失联）。</summary>
+    /// 孤立 ESC 产出 Escape；其余不完整序列整体吞 Unknown，防残缺参数泄漏成文本。</summary>
     [Theory]
-    [InlineData("\u001b[")]
-    [InlineData("\u001b[1;")]
-    [InlineData("\u001bO")]
-    public void ForcedFlush_IncompleteEscapePrefix_ProducesEscape(string chunk)
+    [InlineData("\u001b", KeyKind.Escape)]
+    [InlineData("\u001b[", KeyKind.Unknown)]
+    [InlineData("\u001b[1;", KeyKind.Unknown)]
+    [InlineData("\u001bO", KeyKind.Unknown)]
+    [InlineData("\u001b]10;rgb:", KeyKind.Unknown)]
+    public void ForcedFlush_IncompleteEscapePrefix_DoesNotLeakRemainder(string chunk, KeyKind expected)
     {
         var span = chunk.AsSpan();
         Assert.True(KeyPressParser.TryParseNext(ref span, out var key, force: true));
-        Assert.Equal(KeyKind.Escape, key.Kind);
-        // 消耗 1 字节（仅 ESC）— 剩余前缀下轮按文本逐字符解析
-        Assert.Equal(chunk[1..], span.ToString());
+        Assert.Equal(expected, key.Kind);
+        Assert.True(span.IsEmpty);
     }
 
     /// <summary>超时 flush（基准 App.tsx:121,356 — 500ms PASTE_TIMEOUT）：

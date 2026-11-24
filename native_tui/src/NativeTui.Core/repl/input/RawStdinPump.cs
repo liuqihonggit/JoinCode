@@ -90,7 +90,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
         return dispatched;
     }
 
-    /// <summary>停泵（取消读循环 + 通道完成 + 关闭命令邮箱 — 阻塞中的 Read 由进程退出回收）。</summary>
+    /// <summary>停泵（取消读循环 + 通道完成 + 关闭命令邮箱；Actor 排空已排队命令后退出 — 阻塞中的 Read 由进程退出回收）。</summary>
     public void Dispose()
     {
         _cts.Cancel();
@@ -104,6 +104,9 @@ public sealed class RawStdinPump : IInputPump, IDisposable
 
     /// <summary>pending 残留字符量（测试/探针断言面 — 键风暴续投与收敛判定）。</summary>
     public int PendingCount => Volatile.Read(ref _pendingCount);
+
+    /// <summary>命令邮箱中尚未被 Actor 消费的命令数（Dispose 竞态测试的同步观测面）。</summary>
+    internal int PendingCommandCount => _commands.Reader.Count;
 
     /// <summary>
     /// 读循环（后台线程）— stdin 块读 → UTF-8 解码 → 投递解析 Actor（满时阻塞背压）。
@@ -145,7 +148,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     {
         try
         {
-            await foreach (var command in _commands.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
+            await foreach (var command in _commands.Reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false))
             {
                 try
                 {
@@ -204,8 +207,8 @@ public sealed class RawStdinPump : IInputPump, IDisposable
 
     /// <summary>
     /// 攒齐前缀逐键解析非阻塞投递通道 — <see cref="KeyPressParser.TryParseNext"/> 契约：
-    /// 不完整前缀（如孤立 "\x1b["）不消耗留在 pending 等下块；孤立 ESC 按 chunk 边界
-    /// 即时产出 Escape（ReadKey 通道的 KeyAvailable 语义近似）。通道满即停
+    /// 不完整前缀（包括孤立 ESC）不消耗留在 pending 等下块；孤立 ESC 超过 50ms 后
+    /// 由 force 路径产出 Escape。通道满即停
     ///（剩余留 pending 等下一命令触发 — 零等待根除自死锁）；
     /// 通道已关闭（Dispose 后）静默返回。仅解析 Actor 调用。
     /// </summary>
@@ -223,11 +226,15 @@ public sealed class RawStdinPump : IInputPump, IDisposable
             // 终端查询响应前置分流 — 探测回复（DECRPM/DA1/DA2/kitty flags/DSR/OSC）路由给
             // 等待方 promise，非键事件不入键流（对齐基准 parse-keypress.ts:484-487）；
             // querier 未注入时保持键解析路径（纯泵场景回复序列走 Unknown 吞噬防泄漏）
-            if (_querier is not null && TerminalResponseParser.TryParse(rest, out var consumedByResponse) is { } response)
+            if (_querier is not null)
             {
-                _querier.Route(response);
-                rest = rest[consumedByResponse..];
-                continue;
+                var response = TerminalResponseParser.TryParse(rest, out var consumedByResponse);
+                if (response is not null)
+                {
+                    _querier.Route(response);
+                    rest = rest[consumedByResponse..];
+                    continue;
+                }
             }
 
             var before = rest;
@@ -237,10 +244,14 @@ public sealed class RawStdinPump : IInputPump, IDisposable
                 // 强制产出释放通道：ESC 前缀 50ms / 粘贴 500ms）
                 if (_prefixStuckSince is { } since
                     && EscapeFlushPolicy.ShouldForceFlush(rest, _clock() - since)
-                    && KeyPressParser.TryParseNext(ref rest, out key, force: true)
-                    && _keys.Writer.TryWrite(key))
+                    && KeyPressParser.TryParseNext(ref rest, out key, force: true))
                 {
-                    continue;
+                    if (_keys.Writer.TryWrite(key))
+                    {
+                        continue;
+                    }
+
+                    rest = before;
                 }
 
                 break;

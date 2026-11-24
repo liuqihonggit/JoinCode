@@ -96,9 +96,11 @@ public sealed class TerminalResponseParserTests
     }
 
     /// <summary>不完整回复前缀（跨 chunk 攒齐语义交由调用方）— 返回 null 不误判。</summary>
-    [Fact]
-    public void IncompleteReplyPrefix_ReturnsNull()
+    [Theory]
+    [InlineData("\u001b[?2026")]
+    [InlineData("\u001b]11;rgb:")]
+    public void IncompleteReplyPrefix_ReturnsNull(string chunk)
     {
-        Assert.Null(TerminalResponseParser.TryParse("\u001b[?2026", out _));
+        Assert.Null(TerminalResponseParser.TryParse(chunk, out _));
     }
 }

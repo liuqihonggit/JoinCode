@@ -96,6 +96,10 @@ public sealed partial class ClearCommand : ChatCommandBase {
             }
         }
 
+        // 2.2 TASK135 B2 — 本代 SessionStart 已在此显式执行（source=clear），标记该代已跑：
+        // 否则新代首个查询会再跑一次 startup 版，hook 输出被重复注入上下文。
+        GetService<ISessionStartHookState>(context)?.MarkRan(newSessionId);
+
         // 3. 清屏
         context.ClearScreen?.Invoke();
 

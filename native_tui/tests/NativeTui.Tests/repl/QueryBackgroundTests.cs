@@ -128,4 +128,107 @@ public sealed class QueryBackgroundTests
         Assert.DoesNotContain(shell.View.Messages.Items.OfType<SystemNoticeItem>(),
             item => item.Text.Contains("后台", StringComparison.Ordinal));
     }
+
+    /// <summary>TASK135 B4 — 切回后台查询要带归属头（与离屏快照同格式），
+    /// 否则多查询交替切回时实时滚动区只是线性拼接，读者分不清哪段属于哪条查询。</summary>
+    [Fact]
+    public void FocusBackgroundQuery_EmitsAttributionHeader()
+    {
+        var (shell, engine) = CreateShell();
+        Type(shell, "long task");
+        shell.Submit();
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted { QueryId = "q-test" });
+        shell.DrainEngine();
+        PressCtrlB(shell);
+
+        engine.Events.Enqueue(new BridgeEvent.TokenDelta(5, "后台输出") { QueryId = "q-test" });
+        shell.DrainEngine();
+        PressCtrlB(shell);
+
+        var notices = shell.View.Messages.Items.OfType<SystemNoticeItem>().Select(i => i.Text).ToList();
+        Assert.Contains(notices, text => text.Contains("切回后台查询 q-test", StringComparison.Ordinal)
+                                         && text.Contains("运行中", StringComparison.Ordinal));
+    }
+
+    /// <summary>已完成后台查询切回：补投结束后有明确的结束分隔，读者知道这条查询到此为止。</summary>
+    [Fact]
+    public void FocusCompletedBackgroundQuery_EmitsClosingSeparator()
+    {
+        var (shell, engine) = CreateShell();
+        Type(shell, "long task");
+        shell.Submit();
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted { QueryId = "q-test" });
+        shell.DrainEngine();
+        PressCtrlB(shell);
+        engine.Events.Enqueue(new BridgeEvent.AssistantMessage("后台输出") { QueryId = "q-test" });
+        engine.Events.Enqueue(new BridgeEvent.TurnCompleted { QueryId = "q-test" });
+        shell.DrainEngine();
+
+        PressCtrlB(shell);
+
+        var notices = shell.View.Messages.Items.OfType<SystemNoticeItem>().Select(i => i.Text).ToList();
+        Assert.Contains(notices, text => text.Contains("后台查询 q-test 已结束", StringComparison.Ordinal));
+    }
+
+    /// <summary>TASK135 C1 回归 — 切回**已完成**的后台查询后，前台身份必须释放：
+    /// 否则下一次提交被当成「前台有主」静默转后台，等于吞掉用户输入。</summary>
+    [Fact]
+    public void FocusCompletedBackgroundQuery_NextSubmitStaysForeground()
+    {
+        var (shell, engine) = CreateShell();
+        Type(shell, "旧任务");
+        shell.Submit();
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted { QueryId = "q-test" });
+        shell.DrainEngine();
+        PressCtrlB(shell);
+        engine.Events.Enqueue(new BridgeEvent.AssistantMessage("旧回答") { QueryId = "q-test" });
+        engine.Events.Enqueue(new BridgeEvent.TurnCompleted { QueryId = "q-test" });
+        shell.DrainEngine();
+
+        PressCtrlB(shell); // 切回已完成的后台查询（只看结果）
+
+        Type(shell, "新问题");
+        shell.Submit();
+
+        Assert.DoesNotContain(shell.View.Messages.Items.OfType<SystemNoticeItem>(),
+            item => item.Text.Contains("新查询已提交到后台", StringComparison.Ordinal));
+    }
+
+    /// <summary>TASK135 C1 — 多条后台查询按「最近」逐个切回：每条的缓冲事件都要落回视图、互不串台。</summary>
+    [Fact]
+    public void MultipleBackgroundQueries_FocusEachInTurn()
+    {
+        var (shell, engine) = CreateShell();
+        engine.QueryIds.Enqueue("q-a");
+        engine.QueryIds.Enqueue("q-b");
+
+        Type(shell, "任务 A");
+        shell.Submit();
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted { QueryId = "q-a" });
+        shell.DrainEngine();
+        PressCtrlB(shell); // A → 后台
+
+        Type(shell, "任务 B");
+        shell.Submit();
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted { QueryId = "q-b" });
+        shell.DrainEngine();
+        PressCtrlB(shell); // B → 后台
+
+        engine.Events.Enqueue(new BridgeEvent.AssistantMessage("A 的输出") { QueryId = "q-a" });
+        engine.Events.Enqueue(new BridgeEvent.TurnCompleted { QueryId = "q-a" });
+        engine.Events.Enqueue(new BridgeEvent.AssistantMessage("B 的输出") { QueryId = "q-b" });
+        engine.Events.Enqueue(new BridgeEvent.TurnCompleted { QueryId = "q-b" });
+        shell.DrainEngine();
+
+        Assert.DoesNotContain(shell.View.Messages.Items.OfType<AssistantMessageItem>(),
+            item => item.Text.Contains("A 的输出", StringComparison.Ordinal));
+
+        PressCtrlB(shell); // 最近 = B
+        PressCtrlB(shell); // 次近 = A
+
+        var rendered = shell.View.Messages.Items.OfType<AssistantMessageItem>()
+            .Select(item => item.Text).ToList();
+        Assert.Contains(rendered, text => text.Contains("B 的输出", StringComparison.Ordinal));
+        Assert.Contains(rendered, text => text.Contains("A 的输出", StringComparison.Ordinal));
+    }
 }

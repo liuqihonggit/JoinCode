@@ -31,6 +31,19 @@ public sealed record TranscriptEntry {
     public string? Type { get; init; }
 
     /// <summary>
+    /// 产生该条目的查询标识（ADR 0165 / TASK135 A2）— 并发后台查询下用于归属与排序。
+    /// null = 无查询身份（旧记录/非查询写入）。
+    /// </summary>
+    public string? QueryId { get; init; }
+
+    /// <summary>
+    /// 会话内提交序号（TASK135 A2）— 提交时分配，读端按它稳定排序。
+    /// 并发查询的落盘顺序是**完成顺序**，不等于提问顺序；没有这个字段 resume 会上下文倒序。
+    /// null = 旧记录（排在有号记录之前，保持原有相对顺序）。
+    /// </summary>
+    public int? TurnSeq { get; init; }
+
+    /// <summary>
     /// 自定义标题 — 对齐 TS custom-title 条目
     /// </summary>
     public string? CustomTitle { get; init; }

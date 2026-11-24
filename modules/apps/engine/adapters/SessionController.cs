@@ -19,7 +19,7 @@ public sealed class SessionController {
     /// <summary>最近一次自动压缩后台任务（TASK070 — internal 测试观察点：单测 await 它消除 fire-and-forget 时序不确定性）。</summary>
     internal Task? LastAutoCompactTask { get; private set; }
     /// <summary>主代理链的 SessionStart hook 共享标记（每会话一次，ADR 0165 — 控制器改为每查询实例后仍需跨查询幂等）。</summary>
-    private readonly SessionStartHookState _sessionStartHookState;
+    private readonly ISessionStartHookState _sessionStartHookState;
 
     /// <summary>本次 StreamResponseAsync 的 LLM 调用轮次数（每次 onDone 递增，回合开始复位；对齐 ClaudeCode SDK num_turns 语义）。</summary>
     private int _totalTurns;
@@ -81,7 +81,7 @@ public sealed class SessionController {
         IServiceProvider? serviceProvider = null,
         IClockService? clock = null,
         AgentBase? mainAgent = null,
-        SessionStartHookState? sessionStartHookState = null) {
+        ISessionStartHookState? sessionStartHookState = null) {
         _chatService = chatService;
         _consumer = consumer;
         _turnDiffService = turnDiffService;
@@ -89,7 +89,10 @@ public sealed class SessionController {
         _serviceProvider = serviceProvider;
         _clock = clock ?? SystemClockService.Instance;
         _mainAgent = mainAgent;
-        _sessionStartHookState = sessionStartHookState ?? new SessionStartHookState();
+        // TASK135 B2 — 默认取容器里的单例：ClearCommand 等显式跑过 hook 的入口要能 MarkRan 同一实例
+        _sessionStartHookState = sessionStartHookState
+            ?? serviceProvider?.GetService<ISessionStartHookState>()
+            ?? new SessionStartHookState();
 
         // TASK070 E2/DSG046 — 重试感知绑定：主代理 BuildChatOptions → QueryOptions.OnRetry →
         // QueryEngine 指数退避重试前回调 → consumer.OnRetry 上屏（未注入 notifier = 静默重试旧行为）。
@@ -584,7 +587,7 @@ public sealed class SessionController {
     /// </remarks>
     private async Task EnsureSessionStartHookAsync(string sessionId, CancellationToken ct) {
         if (_serviceProvider is null) return;
-        if (Interlocked.Exchange(ref _sessionStartHookState.Ran, 1) != 0) return;
+        if (!_sessionStartHookState.TryBegin(sessionId)) return;
 
         var manager = _serviceProvider.GetService<ISessionStartHookManager>();
         if (manager is null) return;
@@ -876,9 +879,36 @@ public sealed class SessionTurnResult {
 }
 
 /// <summary>
-/// 会话级 SessionStart hook 标记（ADR 0165）— 每查询独立 SessionController 时由宿主共享同一实例，
-/// 保证 hook 每会话只跑一次，失败/取消也不重试（先置位语义不变）。
+/// 会话级 SessionStart hook 标记（ADR 0165 / TASK135 B2）— 每查询独立 SessionController 时共享同一实例，
+/// 保证 hook **每代**只跑一次；会话翻页（/clear、新会话、工具清空）换代后自动允许新代再跑一次。
 /// </summary>
-public sealed class SessionStartHookState {
-    internal int Ran;
+[Register(typeof(ISessionStartHookState), ServiceLifetime.Singleton)]
+public sealed class SessionStartHookState : ISessionStartHookState {
+    private string? _sessionId;
+    private int _ran;
+
+    /// <summary>取得本代 SessionStart 的执行权 — 同代只成功一次；sessionId 变化即换代，重置后允许再跑。</summary>
+    /// <param name="sessionId">本回合所属会话代次。</param>
+    /// <returns>true 表示调用方获得执行权（先置位，失败/取消不重试）。</returns>
+    public bool TryBegin(string sessionId) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        if (!string.Equals(Volatile.Read(ref _sessionId), sessionId, StringComparison.Ordinal)) {
+            // 换代：新代尚未跑过。旧代迟到的回合也会走到这里补跑一次 —— 代价是偶发多一次
+            // SessionStart，远小于「新代完全不跑」的代价。
+            Interlocked.Exchange(ref _sessionId, sessionId);
+            Interlocked.Exchange(ref _ran, 0);
+        }
+
+        return Interlocked.Exchange(ref _ran, 1) == 0;
+    }
+
+    /// <summary>标记该代已跑过 —— /clear 等显式执行过 SessionStart 的入口调用，
+    /// 避免新代首个查询再跑一次 startup 版（hook 输出会被重复注入上下文）。</summary>
+    /// <param name="sessionId">已跑过 hook 的会话代次。</param>
+    public void MarkRan(string sessionId) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        Interlocked.Exchange(ref _sessionId, sessionId);
+        Interlocked.Exchange(ref _ran, 1);
+    }
 }

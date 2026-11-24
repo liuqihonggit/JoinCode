@@ -4639,10 +4639,14 @@ public sealed class ReplShell
 
         var background = _backgroundQueries[^1];
         _backgroundQueries.RemoveAt(_backgroundQueries.Count - 1);
-        _foregroundQueryId = background.QueryId;
+        // TASK135 C1 — 已终态的查询没有「前台订阅」可言：若仍把身份挂在它身上，
+        // 用户下一次提交会被判成「前台有主」而静默转后台，等于吞掉输入。
+        _foregroundQueryId = background.Completed ? null : background.QueryId;
         var state = background.Completed ? "已完成" : "运行中";
+        // TASK135 B4 — 与 BuildTranscriptSnapshot 同一归属格式：否则多查询交替切回时，
+        // 实时滚动区只是线性拼接，读者分不清哪段属于哪条查询。
         AddMessage(new SystemNoticeItem(
-            $"切回后台查询 {background.QueryId}（{state}）— 补投 {background.Pending.Count} 条事件。"));
+            $"── 切回后台查询 {background.QueryId}（{state}，{background.Pending.Count} 条事件）──"));
 
         // 补投：驱动按事件流重建视图；未到终态时先 BeginTurn，终态事件自身会收尾
         if (!background.Completed)
@@ -4656,6 +4660,12 @@ public sealed class ReplShell
         }
 
         background.Pending.Clear();
+
+        if (background.Completed)
+        {
+            AddMessage(new SystemNoticeItem($"── 后台查询 {background.QueryId} 已结束 ──"));
+        }
+
         _lastTurnCompletionMs = background.Completed ? IdleClock() : _lastTurnCompletionMs;
     }
 

@@ -9,8 +9,16 @@ namespace Core.Context;
 /// /clear 换指针后不会把它搬去新代。</para>
 /// </summary>
 internal sealed class SessionStore : ISessionStore {
+    /// <summary>保留的会话代次上限（TASK135 B3）— /clear 保守不回收旧桶（在途查询还要写），
+    /// 靠这个上限防止长会话内存线性增长；按最近访问淘汰，在途查询每回合 GetLog 都会刷新访问时间。</summary>
+    internal const int MaxRetainedSessions = 16;
+
     private string _sessionId;
     private ImmutableHamT<string, AppendOnlyLog> _logs = ImmutableHamT<string, AppendOnlyLog>.Empty;
+
+    /// <summary>代次最近访问时间戳（Stopwatch tick）— 只用于淘汰排序，不参与数据语义。</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _lastAccess =
+        new(StringComparer.Ordinal);
 
     /// <summary>构造对话历史存储</summary>
     /// <param name="sessionId">初始会话标识</param>
@@ -19,15 +27,23 @@ internal sealed class SessionStore : ISessionStore {
     }
 
     private AppendOnlyLog GetOrAddLog(string sessionId) {
+        _lastAccess[sessionId] = System.Diagnostics.Stopwatch.GetTimestamp();
         if (_logs.TryGetValue(sessionId, out var existing)) return existing;
         var newLog = new AppendOnlyLog();
         while (true) {
             var current = _logs;
             if (current.TryGetValue(sessionId, out existing)) return existing;
             var updated = current.Add(sessionId, newLog);
-            if (Interlocked.CompareExchange(ref _logs, updated, current) == current) return newLog;
+            if (Interlocked.CompareExchange(ref _logs, updated, current) == current) {
+                // 新建代也要触发淘汰：否则「翻页产生新桶」的路径会让数量越界一格
+                EvictExcessEpochs(sessionId);
+                return newLog;
+            }
         }
     }
+
+    /// <summary>当前保留的代次数量（TASK135 B3 — 淘汰逻辑的可观测点）。</summary>
+    internal int RetainedSessionCount => _logs.Count;
 
     /// <summary>显式 sessionId 解析 — null/空时用当前指针（ADR 0167）。</summary>
     private string Resolve(string? sessionId) =>
@@ -55,7 +71,31 @@ internal sealed class SessionStore : ISessionStore {
     public int TruncateTo(int index) => TruncateTo(index, null);
 
     /// <inheritdoc />
-    public void SwitchSession(string sessionId) => _sessionId = sessionId;
+    public void SwitchSession(string sessionId) {
+        _sessionId = sessionId;
+        EvictExcessEpochs(sessionId);
+    }
+
+    /// <summary>代次数量超过上限时，按最近访问时间淘汰最久未用的其它代（TASK135 B3）。
+    /// 当前代与正在访问的代受保护；在途查询每回合都会 GetLog 刷新时间戳，正常情况下不会被选中。</summary>
+    private void EvictExcessEpochs(string protectedSessionId) {
+        var snapshot = _logs;
+        var excess = snapshot.Count - MaxRetainedSessions;
+        if (excess <= 0) return;
+
+        var current = _sessionId;
+        var victims = snapshot
+            .Where(kv => !string.Equals(kv.Key, current, StringComparison.Ordinal)
+                         && !string.Equals(kv.Key, protectedSessionId, StringComparison.Ordinal))
+            .OrderBy(kv => _lastAccess.TryGetValue(kv.Key, out var tick) ? tick : long.MinValue)
+            .Take(excess)
+            .Select(kv => kv.Key)
+            .ToList();
+
+        foreach (var victim in victims) {
+            ReleaseSession(victim);
+        }
+    }
 
     /// <inheritdoc />
     public int CountOf(string? sessionId) => GetOrAddLog(Resolve(sessionId)).Count;
@@ -86,7 +126,10 @@ internal sealed class SessionStore : ISessionStore {
             var current = _logs;
             if (!current.TryGetValue(sessionId, out _)) return false;
             var updated = current.Remove(sessionId);
-            if (Interlocked.CompareExchange(ref _logs, updated, current) == current) return true;
+            if (Interlocked.CompareExchange(ref _logs, updated, current) == current) {
+                _lastAccess.TryRemove(sessionId, out _);
+                return true;
+            }
         }
     }
 }

@@ -250,6 +250,8 @@ public sealed class EngineSessionInteractionCallbacksTests
     private sealed class FakeChatService : IChatService
     {
         public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        /// <summary>TASK135 B1 — 会话翻页入口；测试桩不做真实翻页。</summary>
+        public Task<string> StartNewConversationAsync(string? projectPath = null, CancellationToken cancellationToken = default) => Task.FromResult("new-session");
         public Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public IAsyncEnumerable<string> SendMessageStreamAsync(string message, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, CancellationToken cancellationToken = default, IEventConsumer? eventConsumer = null) => throw new NotSupportedException();

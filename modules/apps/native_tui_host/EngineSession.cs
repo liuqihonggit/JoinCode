@@ -106,7 +106,10 @@ public sealed class EngineSession : IAsyncDisposable {
 
             // ADR 0165 — 每条查询新建 SessionController，消费器来自该查询自身的 per-query consumer；
             // SessionStart hook 标记跨查询共享，保证会话级一次性语义。
-            var sessionStartHookState = new JoinCode.Adapters.SessionStartHookState();
+            // TASK135 B2 — 取容器单例（ClearCommand 显式跑完 clear 版 hook 后 MarkRan 同一实例，
+            // 新代首个查询才不会重复跑 startup 版）
+            var sessionStartHookState = engine.Services.GetService<JoinCode.Abstractions.Interfaces.ISessionStartHookState>()
+                ?? new JoinCode.Adapters.SessionStartHookState();
 
             // G3 D8 — 新会话启动器（ADR 0167：从「清当前桶」改为「会话翻页」）：
             // 生成新 sessionId + SwitchSession + 写 meta，旧代的消息与 transcript 原样留在旧目录。

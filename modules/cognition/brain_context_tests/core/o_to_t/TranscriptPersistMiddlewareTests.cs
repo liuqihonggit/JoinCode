@@ -133,6 +133,8 @@ public sealed class TranscriptPersistMiddlewareTests {
 
         transcript.Verify(t => t.AppendStreamingSnapshotAsync(
             "20260822-1200-proj-main",
+            It.IsAny<string?>(),
+            It.IsAny<int?>(),
             It.Is<string>(content => content.Length >= 512),
             It.IsAny<CancellationToken>()), Times.AtLeastOnce,
             "累积正文达到 512 字符阈值必须落旁路，否则打断后整段丢失");
@@ -148,7 +150,7 @@ public sealed class TranscriptPersistMiddlewareTests {
 
         await RunWithAsync(mw, DeltasAsync(new string('y', 600)));
 
-        transcript.Verify(t => t.ClearStreamingAsync("20260822-1200-proj-main", It.IsAny<CancellationToken>()), Times.Once,
+        transcript.Verify(t => t.ClearStreamingAsync("20260822-1200-proj-main", It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once,
             "正常落盘后旁路必须清理");
     }
 
@@ -161,19 +163,20 @@ public sealed class TranscriptPersistMiddlewareTests {
             () => RunWithAsync(mw, ThrowingAsync(new string('z', 600)))).ConfigureAwait(true);
 
         transcript.Verify(t => t.AppendStreamingSnapshotAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce,
+            It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce,
             "异常前已生成的内容仍要落旁路");
-        transcript.Verify(t => t.ClearStreamingAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never,
+        transcript.Verify(t => t.ClearStreamingAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never,
             "中断路径不得清理旁路，否则残稿永久丢失");
     }
 
     /// <summary>以指定事件流驱动中间件（收集下游收到的事件）。</summary>
     private static async Task<List<ChatStreamEvent>> RunWithAsync(
-        TranscriptPersistMiddleware mw, IAsyncEnumerable<ChatStreamEvent> stream, bool dryRun = false) {
+        TranscriptPersistMiddleware mw, IAsyncEnumerable<ChatStreamEvent> stream, bool dryRun = false, string? queryId = null) {
         var context = new ChatMiddlewareContext {
             Message = "hi",
             IsDryRun = dryRun,
             ToolUseContext = new ToolUseContext(),
+            QueryId = queryId,
         };
         var events = new List<ChatStreamEvent>();
         await foreach (var evt in mw.InvokeAsync(context, (_, _) => stream, CancellationToken.None).ConfigureAwait(true))
@@ -205,6 +208,53 @@ public sealed class TranscriptPersistMiddlewareTests {
             "回合出生在 s-old，/clear 之后也必须写 s-old（否则旧代记录不完整、新代被污染）");
         transcript.Verify(t => t.AppendEntriesAsync(
             "s-new", It.IsAny<IReadOnlyList<TranscriptEntry>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>TASK135 A1 — 查询身份必须传到旁路写/清：同一会话并行查询各写各的文件，不能共用一份。</summary>
+    [Fact]
+    public async Task InvokeAsync_CarriesQueryIdToStreamingSidecar() {
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> { new(MessageRole.Assistant, "答复") }));
+
+        await RunWithAsync(mw, DeltasAsync(new string('q', 600)), queryId: "q-trace").ConfigureAwait(true);
+
+        transcript.Verify(t => t.AppendStreamingSnapshotAsync(
+            "20260822-1200-proj-main",
+            "q-trace",
+            It.Is<int?>(seq => seq.HasValue),
+            It.Is<string>(content => content.Length >= 512),
+            It.IsAny<CancellationToken>()), Times.AtLeastOnce,
+            "旁路必须带本查询身份，否则并发查询共用一个文件会互删/串台");
+        transcript.Verify(t => t.ClearStreamingAsync(
+            "20260822-1200-proj-main", "q-trace", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>TASK135 A2 — 落盘条目必须带查询身份与提交序号，读端才能把乱序落盘还原成提问顺序。</summary>
+    [Fact]
+    public async Task InvokeAsync_StampsQueryIdAndTurnSeqOnPersistedEntries() {
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> {
+                new(MessageRole.User, "问题"),
+                new(MessageRole.Assistant, "回答"),
+            }));
+
+        var context = new ChatMiddlewareContext {
+            Message = "hi",
+            ToolUseContext = new ToolUseContext(),
+            QueryId = "q-order",
+            ConversationTurn = 7,
+        };
+        await foreach (var _ in mw.InvokeAsync(context, EmptyStreamAsync, CancellationToken.None).ConfigureAwait(true)) { }
+
+        transcript.Verify(t => t.AppendEntriesAsync(
+            "20260822-1200-proj-main",
+            It.Is<IReadOnlyList<TranscriptEntry>>(entries => entries.All(e => e.QueryId == "q-order" && e.TurnSeq == 7)),
+            It.IsAny<CancellationToken>()), Times.Once,
+            "落盘条目没带 TurnSeq 时，并发查询 resume 会上下文倒序");
     }
 
     /// <summary>下游开始即触发切换（模拟回合中途 /clear），随后正常消费空流。</summary>

@@ -196,7 +196,10 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
             Outcome = outcome,
             PreventContinuation = preventContinuation,
             StopReason = hookDecision.StopReason,
-            Message = hookDecision.Reason
+            // TASK130-A7 — `message` 是 HookDecision 里的「面向用户的提示消息」（见 DTO 注释），
+            // 只取 Reason 会让 `{"message":"..."}` 的 hook 静默无提示（HTTP 执行器原来的复制品
+            // 取的是 `Reason ?? Message`，合并两份实现时按更完整的语义统一）。
+            Message = hookDecision.Reason ?? hookDecision.Message
         };
 
         var node = JsonNode.Parse(jsonLine);

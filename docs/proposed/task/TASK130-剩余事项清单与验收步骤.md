@@ -10,7 +10,7 @@
 
 | 类 | 含义 | 项 |
 |---|---|---|
-| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**新发现，未修**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**已施工**） |
+| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**已施工 + 真机端到端**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**已施工**） |
 | B | 只能人工 / 需外部条件 | B1 #52 双终端矩阵、B2 #51 Ctrl+B、B3 macOS Seatbelt |
 | C | 需凭据或 MockServer 才能跑完 | C1 #40 回合级真机探针、C2 #53 低限额进程级 |
 | D | 台账自身错误，需纠正 | D1「#15 待施工」已过期、D2 #53 表格行未划线、D3 D7 与总账 §3 矛盾 |
@@ -217,13 +217,49 @@
 
 ---
 
-### A7. HTTP 型 hook 不解析 `hookSpecificOutput`（A6 施工中顺带发现，未修）
+### A7. HTTP 型 hook 不解析 `hookSpecificOutput`（**已施工 + 真机端到端**）
 
 **证据**：`HttpHookExecutor.ParseJsonResponse`（:129-155）是**另一份**实现，只取 `decision/reason/continue`，
 不调基类的 `ParseHookSpecificOutput` → http hook 同样产不出 `systemMessage` / `permissionDecision` /
 `additionalContext`。与 A6 的 P0 同源（协议解析两份实现）。
-**下一步**：抽掉这份复制品，改为复用基类解析（A6 已把基类补全）；需先确认 http hook 的历史行为差异（`message = Reason ?? Message`
-这一处语义），有回归风险，故单列不在 A6 内混改。
+**而且它没有一行测试**（`grep HttpHookExecutor` 只在生产代码里命中），所以漂移了也没人发现。
+
+**逐项差异表（删复制品前必须逐条判去向）**
+
+| # | 差异 | 基类行为 | HTTP 现行为 | 处置 |
+|---|---|---|---|---|
+| 1 | `hookSpecificOutput` | 解析（A6 已补全） | **不解析** | 采用基类（这就是修复本体） |
+| 2 | `message = Reason ?? Message` | 只取 `Reason` | `Reason ?? Message` | **把基类改成 `Reason ?? Message`**（`HookDecision.Message` 在 DTO 注释里就是「面向用户的提示消息」，只取 Reason 是漏读；现有测试无一断言该分支，属纯增益） |
+| 3 | `stopReason` | 透传 | 丢弃 | 采用基类 |
+| 4 | `continue` 与 `decision=block` 同时出现时谁赢 | block 赢（后赋值） | continue 赢（后赋值） | 采用基类：显式 block + `continue:true` 是自相矛盾输入，取更保守的 block |
+| 5 | `LlmJsonHelper.Deserialize` 是否带 Logger | 带（宽容修复提示进日志） | 不带 | 采用基类 |
+| 6 | 非 JSON 的 2xx 响应 | `Success(message: body)` | `Success(message: "HTTP 200: body")` | **保留 HTTP 特有的状态前缀**（HTTP hook 的 body 常是纯文本，前缀是排查线索） |
+| 7 | 非 2xx | 无对应语义 | 403 → Blocking；其余 → NonBlockingError | **保留**（HTTP 状态码语义，基类无此概念） |
+
+**落点**：删 `HttpHookExecutor.ParseJsonResponse`，`ParseHttpResponse` 的 JSON 分支改调基类
+`ParseJsonResponse(body, body, string.Empty)`（protected virtual，同程序集内可见），捕获异常后回落
+`HTTP {code}: {body}`；基类 `ParseJsonResponse` 的 `Message` 改 `Reason ?? Message`。
+
+**验收（先红后绿）**
+
+| 项 | 判据 |
+|---|---|
+| 新增 `HttpHookExecutorTests`（此前 0 条） | ①2xx + `hookSpecificOutput.additionalContext` → 字段落地（**修复前必红**）；②2xx + `permissionDecision:deny` → `PermissionDenyResult`；③2xx + `systemMessage` → 落地；④2xx + `{"message":"..."}` → `Message` 非空（#2 回归保护）；⑤2xx + 纯文本 → `Message` 带状态前缀（#6 不被改掉）；⑥403 → Blocking；⑦500 → NonBlockingError；⑧`stopReason` 透传 |
+| 基类回归 | `HookOutputParsingTests` 现有 7 条不变绿；`Guard.Hooks.Tests` 全量绿 |
+| 负向验证 | 把 `ParseHttpResponse` 的 JSON 分支改回旧实现（只读 decision/reason）→ ①③ 转红 |
+
+**验收结果（2026-11-24）**
+
+| 项 | 结果 |
+|---|---|
+| `HttpHookExecutorTests`（新建，11 条） | 11/11 绿 |
+| `Guard.Hooks.Tests` 全量 | **626/626**（原 615 + 11） |
+| 负向验证 | 临时覆写 `ParseJsonResponse` 为旧实现 → **5 条转红**（additionalContext / systemMessage / updatedInput / permissionDecision / stopReason），删除后转绿 |
+| `Verify-StyleGate.py` | 1814 项全绿 |
+| 解析实现份数 | 全仓只剩基类一处（`grep "override HookResult ParseJsonResponse"` 零命中） |
+| 真机端到端 | 本机起 python HTTP 服务（只回 `hookSpecificOutput.additionalContext`），`~/.jcc/settings.json` 临时加 `{"$hook_type":"http","url":"http://127.0.0.1:9913/hook"}`：请求体 189 字节 snake_case 送达服务端 → `[SESSION-CONTEXT] 收到 additionalContext 31 字符` → `注入 31 字符`。跑完 `settings.json` 按备份还原（md5 一致）、删除临时 `trusted_folders.json`、停服务 |
+| 注意 | 纯文本 2xx 的 Message 实际是 `HTTP OK: body`（`StatusCode` 渲染的是 ReasonPhrase 不是数字），断言按实际形态写 |
+| 门禁 | StyleGate + 四道节点门禁 |
 
 ---
 

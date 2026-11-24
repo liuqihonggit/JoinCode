@@ -242,7 +242,7 @@ public sealed class SimpleJqEvaluatorTests {
         result.Should().Be("""{"name":"test","id":42}""");
     }
 
-    /// <summary>官方 jq 习惯写法带空格 .a, .b — IsSupportedStage 的 !Contains(' ') 会误拒（TASK132 B1）</summary>
+    /// <summary>官方 jq 习惯写法带空格 .a, .b — IsSupportedStage 的 !Contains(' ') 会误拒（TASK134 B1）</summary>
     [Fact]
     public void Evaluate_CommaWithSpaces_ShouldOutputBoth() {
         var json = """{"name":"JoinCode","default_branch":"main"}""";

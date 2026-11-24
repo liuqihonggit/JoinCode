@@ -39,7 +39,7 @@ internal static class SimpleJqEvaluator {
         var stages = SplitPipeline(jqExpr);
         foreach (var stage in stages) {
             // 逗号分隔多表达式（.a, .b）官方写法带空格，IsSupportedStage 必须先按逗号切分再逐段校验，
-            // 否则 `.name, .id` 因含空格被整段误拒（TASK132 B1 真机复现）。
+            // 否则 `.name, .id` 因含空格被整段误拒（TASK134 B1 真机复现）。
             var commaParts = SplitTopLevelComma(stage);
             if (commaParts.Any(p => p.Length == 0)) {
                 error = $"不支持的 jq 语法: '{stage}'（逗号间为空）。正确写法: --jq '.field1, .field2'";
@@ -88,7 +88,7 @@ internal static class SimpleJqEvaluator {
 
     /// <summary>
     /// 路径段只接受字段名/下标/数组展开（.a.b[0][]），拒绝 `.name + " suffix"` 这类表达式。
-    /// 原先靠 !Contains(' ') 粗判，连带把官方写法 `.a, .b` 的空格也误拒（TASK132 B1）。
+    /// 原先靠 !Contains(' ') 粗判，连带把官方写法 `.a, .b` 的空格也误拒（TASK134 B1）。
     /// </summary>
     private static bool IsPathCharacters(string stage) {
         foreach (var c in stage) {

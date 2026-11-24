@@ -44,6 +44,7 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder {
             WorkingDirectory = options.WorkingDirectory ?? string.Empty,
             UseShellExecute = false,
             CreateNoWindow = true,
+            RedirectStandardInput = options.StandardInput is not null,
             RedirectStandardOutput = options.RedirectStandardOutput,
             RedirectStandardError = options.RedirectStandardError,
             // TASK130-A6 附带修复：<see cref="ProcessOptions.StandardInput"/> 的契约是
@@ -51,7 +52,8 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder {
             // 而 PhysicalProcessService 会无条件访问 process.StandardInput →
             // 抛「StandardIn has not been redirected」，所有带 stdin 的一次性进程（含全部
             // bash 型 hook）一律失败。缺这一行 = hook 子系统整体不可用。
-            RedirectStandardInput = options.StandardInput is not null,
+            // 同时显式指定无 BOM 的 stdin 编码，避免 BOM 字节污染 hook JSON。
+            StandardInputEncoding = options.StandardInput is not null ? _encodingProvider.Input : null,
             StandardOutputEncoding = options.StandardOutputEncoding ?? _encodingProvider.Output,
             StandardErrorEncoding = options.StandardErrorEncoding ?? _encodingProvider.Error,
         };

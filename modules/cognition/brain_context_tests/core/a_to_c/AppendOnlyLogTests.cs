@@ -24,6 +24,16 @@ public sealed class AppendOnlyLogTests {
     // === TrimLastTurn 测试 ===
 
     [Fact]
+    public void Append_SystemMessage_IsValid() {
+        var log = new AppendOnlyLog();
+
+        log.Append(new ApiMessage(MessageRole.System, "系统上下文"));
+
+        log.Count.Should().Be(1);
+        log[0].Role.Should().Be(MessageRole.System);
+    }
+
+    [Fact]
     public void TrimLastTurn_EmptyLog_ReturnsZero() {
         var log = new AppendOnlyLog();
 

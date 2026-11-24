@@ -31,7 +31,7 @@
 | P1 | C2 低限额进程级验证 | **已施工**（2026-11-24，`Wq01` E2E 常驻回归 + `bridge_serve --profile` 真 bug 修复） | 是（MockServer） | 无 | 单进程双回合：第 2 回合被拦 + MockServer 增量 == 1 |
 | P1 | Query 进程级 exe 验收 | **已施工**（2026-11-24，Streaming/Vd02/Ve06/Wq01 4/4，与 C2 共用 harness） | 是（MockServer） | 无 | 流式输出/异常/取消的进程证据 |
 | P1 | B1 双终端矩阵 | 探针 4/4，矩阵 10×2 未测 | 否（人工） | 真实 Windows Terminal + conhost | 矩阵结论 + 产物哈希 |
-| P2 | B2 Ctrl+B 主会话后台化 | 取证完成，产品决策未做 | 否（需裁决） | D3：并发/transcript/UI 状态机 | 一页设计稿，不直接照搬 |
+| P2 | B2 Ctrl+B 主会话后台化 | **已由 w2 分支 DSG054 承接并裁决**（2026-11-24：万物皆后台，阶段 0 查询身份地基先行），w4 不重复设计 | 否 | D3 已闭合（见 §7） | 设计稿在 w2：`docs/proposed/design/DSG054-主会话后台化Ctrl+B设计.md` |
 | P2 | C1 回合级真机探针 | 接线已修，缺真实 key | 否 | vendor API key | `[DREAM-AUTO]` 证据 |
 | P2 | B3 macOS Seatbelt | 显式未实现 | 否 | macOS 真机 + 独立 ADR | 外部条件满足后再立项 |
 | Backlog | TASK128 五个后续切片 | 已登记 | 视切片 | 见 §6 | 各自独立立项 |
@@ -127,7 +127,7 @@ dotnet test modules\composition\composition_tests\Composition.Tests.csproj -c De
 
 ---
 
-### P1-1：C2 + Query 进程级（共用 MockServer）— **已施工（2026-11-24）**
+### P1-1：C2 + Query 进程级（共用 MockServer）— **已合入（2026-11-24，PR #740 / squash `eca6d5c02`）**
 
 **结果**（实施与原步骤的差异已在 [TASK130 §C2](TASK130-剩余事项清单与验收步骤.md) 说明）：
 
@@ -186,7 +186,7 @@ dotnet test artifacts\bin\MockServer.E2E.Tests\Debug\net10.0\JoinCode.MockServer
 
 ## 5. 本批第一个动作
 
-A6 已由 HEAD `74bb6047f` 完整落地；A4 已于 2026-11-24 施工并通过定向/全量回归（PR #738，merge `138a98912`）；A3 已随 `c28d6412d`（PR #734）合入。**P0 批次全部闭合**；P1-1（C2 + Query 进程级）已于 2026-11-24 施工闭合。下一项从 **P1-2 B1 双终端矩阵**（需人工双终端）或 P2 项开始。
+A6 已由 HEAD `74bb6047f` 完整落地；A4 已于 2026-11-24 施工并通过定向/全量回归（PR #738，merge `138a98912`）；A3 已随 `c28d6412d`（PR #734）合入。**P0 批次全部闭合**；P1-1（C2 + Query 进程级）已随 PR #740 合入（squash `eca6d5c02`，含首轮 CI 时序 flake 修复）。B2 已由 w2 分支 `DSG054` 承接并完成用户裁决（万物皆后台），w4 不重复立项。下一项只剩 **P1-2 B1 双终端矩阵**（AI 侧采集卡已写入 [TASK129 §3](TASK129双终端输入验收.md)，需人工在真实 Windows Terminal + conhost 执行）；C1 需真实 vendor key、B3 需 macOS 真机，继续挂外部条件。
 
 ## 6. Backlog（TASK128 后续独立切片，不在本批）
 
@@ -204,5 +204,5 @@ A6 已由 HEAD `74bb6047f` 完整落地；A4 已于 2026-11-24 施工并通过�
 |---|---|---|---|
 | D1 | A6 的 `additionalContext` / `initialUserMessage` 通道 | HEAD 已定：`additionalContext` 走 session store + 每回合动态系统消息；`initialUserMessage` 只解析不消费 | 已闭合（HEAD `74bb6047f`） |
 | D2 | A4 施工还是关闭为边界 | 已施工：flag + policy 双源锁，Hub 路径补投影 | 已闭合（2026-11-24） |
-| D3 | B2 Ctrl+B 产品语义 | 先设计稿后裁决 | B2 |
+| D3 | B2 Ctrl+B 产品语义 | 已由 w2 分支 DSG054 裁决（2026-11-24，用户纠偏「万物皆后台」；阶段 0 查询身份地基先行） | 已闭合（w2 承接，w4 不重复设计） |
 

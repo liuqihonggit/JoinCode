@@ -55,7 +55,7 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `RoundGatePolicy`（0~10、类别、出口能力、verdict/调用解析） | `RoundGateSession` / `QueryEngine` / 工具处理器 | ✅ | ✅ 单测 `RoundGatePolicyTests`（解析、类别、出口、开关） |
+| `RoundGatePolicy`（0~10，11 由 [TASK133](TASK133-闸门失败放弃与完成交付PR.md) 追加） | `RoundGateSession` / `QueryEngine` / 工具处理器 | ✅ | ✅ 单测 `RoundGatePolicyTests`（解析、类别、出口、开关） |
 | `RoundGateSession`（计数/推荐/粘性熔断/终验） | `QueryEngine.ExecuteCoreLoopAsync` 收尾分支 | ✅ | ✅ 单测 `RoundGateSessionTests`（自验强制边、严格模式、降级、各熔断、申诉锁定） |
 | 按需注入：所选选项提示词 + 空证据才加三问 + 状态提示 | `round_gate` 工具结果 / 系统 Section（仅骨架） | ✅ | ✅ 单测（只注入所选项、有证据不注入护栏、阻断消息内容）+ 真机 A/B/C/D 复跑 |
 | `round_gate` 新增 `evidence`/`subject`/`verdict` | 工具注册表（源码生成器） | ✅ | ✅ 单测 `RoundGateToolHandlersTests`（23 通过）+ 编译通过 |

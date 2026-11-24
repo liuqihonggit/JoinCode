@@ -55,7 +55,7 @@ public enum RoundGateVerdict {
 /// 轮次闸门选项 — 收尾前必须选择下一步，编号即工具参数 choice 的取值。
 /// <para>
 /// 四类出口（设计：执行 / 验证 / 元操作 / 收敛）+ 挂起 + 出口：
-/// 执行 1/2、验证 3/4、元操作 7/8、收敛 9/10、挂起 6、出口 5（隐式出口 0）。
+/// 执行 1/2、验证 3/4、元操作 7/8、收敛 9/10/11、挂起 6、出口 5（隐式出口 0）。
 /// </para>
 /// </summary>
 public enum RoundGateChoice {
@@ -91,6 +91,12 @@ public enum RoundGateChoice {
 
     /// <summary>10 求助/升级 — 缺工具/权限/信息，模型自己解决不了。</summary>
     [EnumValue("escalate")] Escalate = 10,
+
+    /// <summary>
+    /// 11 放弃（失败终止）— 承认本次任务失败并停止投入，必须附失败报告；只在已有失败记录（3 verdict=fail）时可用。
+    /// <para>与 9 降级（交付可用子集）、10 求助（等外部输入后继续）不同，本项意味着不再继续做。</para>
+    /// </summary>
+    [EnumValue("abandon")] Abandon = 11,
 }
 
 /// <summary>
@@ -110,8 +116,8 @@ public static class RoundGatePolicy {
     /// <summary>最小合法选项编号（隐式出口 阻塞上报）。</summary>
     public const int MinChoiceNumber = (int)RoundGateChoice.BlockedReport;
 
-    /// <summary>最大合法选项编号（求助/升级）。</summary>
-    public const int MaxChoiceNumber = (int)RoundGateChoice.Escalate;
+    /// <summary>最大合法选项编号（放弃/失败终止）。</summary>
+    public const int MaxChoiceNumber = (int)RoundGateChoice.Abandon;
 
     /// <summary>闸门工具名（来自 SystemToolName 枚举唯一数据源）。</summary>
     public static string ToolName => SystemToolNameEnumConstants.RoundGate;
@@ -190,7 +196,7 @@ public static class RoundGatePolicy {
         RoundGateChoice.Continue or RoundGateChoice.NextTodo => RoundGateCategory.Execute,
         RoundGateChoice.SelfAccept or RoundGateChoice.UserAccept => RoundGateCategory.Verify,
         RoundGateChoice.Replan or RoundGateChoice.Rework => RoundGateCategory.Meta,
-        RoundGateChoice.Degrade or RoundGateChoice.Escalate => RoundGateCategory.Converge,
+        RoundGateChoice.Degrade or RoundGateChoice.Escalate or RoundGateChoice.Abandon => RoundGateCategory.Converge,
         RoundGateChoice.AwaitBackground => RoundGateCategory.Suspend,
         _ => RoundGateCategory.Exit
     };
@@ -210,6 +216,7 @@ public static class RoundGatePolicy {
             or RoundGateChoice.AwaitBackground
             or RoundGateChoice.Degrade
             or RoundGateChoice.Escalate
+            or RoundGateChoice.Abandon
             or RoundGateChoice.BlockedReport => true,
         _ => false
     };
@@ -231,6 +238,7 @@ public static class RoundGatePolicy {
         RoundGateChoice.Rework => "8 回退/修正",
         RoundGateChoice.Degrade => "9 降级交付",
         RoundGateChoice.Escalate => "10 求助/升级",
+        RoundGateChoice.Abandon => "11 放弃（失败终止）",
         _ => $"未知选项 {(int)choice}"
     };
 

@@ -38,11 +38,12 @@ public class RoundGateToolHandlers {
     /// <returns>对应选项的工作流提示词；非法选项/非法结论返回带允许值与正确写法的报错。</returns>
     [McpTool(SystemToolNameEnumConstants.RoundGate,
         "Mandatory round gate at turn end. Pick the next step: 1=continue, 2=next TODO, 3=self-accept (needs verdict), " +
-        "4=user accept, 5=done (needs a passed 3), 6=await background, 7=replan, 8=rework, 9=degrade, 10=escalate, 0=blocked. " +
-        "Only 4/5/6/9/10/0 can end the turn. The chosen option's prompt is injected into the result (no other option is preloaded).",
+        "4=user accept, 5=done (needs a passed 3), 6=await background, 7=replan, 8=rework, 9=degrade, 10=escalate, " +
+        "11=abandon (needs note + a recorded fail), 0=blocked. " +
+        "Only 4/5/6/9/10/11/0 can end the turn. The chosen option's prompt is injected into the result (no other option is preloaded).",
         MessageRoleEnumConstants.System)]
     public async Task<ToolResult> RoundGateAsync(
-        [McpToolParameter("Next step (0=blocked, 1=continue, 2=next TODO, 3=self-accept, 4=user accept, 5=done, 6=await, 7=replan, 8=rework, 9=degrade, 10=escalate)")] int choice,
+        [McpToolParameter("Next step (0=blocked, 1=continue, 2=next TODO, 3=self-accept, 4=user accept, 5=done, 6=await, 7=replan, 8=rework, 9=degrade, 10=escalate, 11=abandon)")] int choice,
         [McpToolParameter("One-line next action, or the reason for deviating from the recommendation (optional)", Required = false)] string? note = null,
         [McpToolParameter("Verifiable evidence for this round (optional; empty counts as idle)", Required = false)] string? evidence = null,
         [McpToolParameter("Defect/subject id for rework counting (optional)", Required = false)] string? subject = null,
@@ -65,6 +66,12 @@ public class RoundGateToolHandlers {
         if (parsed == RoundGateChoice.SelfAccept && parsedVerdict == RoundGateVerdict.None) {
             return ToolResultBuilder.Error()
                 .WithText(RoundGatePrompts.BuildInvalidVerdictMessage(null))
+                .Build();
+        }
+
+        if (parsed == RoundGateChoice.Abandon && string.IsNullOrWhiteSpace(note)) {
+            return ToolResultBuilder.Error()
+                .WithText(RoundGatePrompts.BuildAbandonNoteRequiredMessage())
                 .Build();
         }
 

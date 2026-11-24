@@ -60,6 +60,12 @@ public sealed class RoundGateSession {
     /// <summary>连续自验不通过次数。</summary>
     public int SelfAcceptFailStreak { get; private set; }
 
+    /// <summary>累计自验不通过次数 — 11 放弃的失败依据，不随返工清零。</summary>
+    public int FailedSelfAccepts { get; private set; }
+
+    /// <summary>是否具备"承认失败并终止"的依据（本会话至少记录过一次 3 verdict=fail）。</summary>
+    public bool HasFailureBasis => FailedSelfAccepts > 0;
+
     /// <summary>连续空转（无证据推进）轮次。</summary>
     public int IdleStreak { get; private set; }
 
@@ -109,8 +115,10 @@ public sealed class RoundGateSession {
                 StrictMode && !UserAcceptanceHandedOff
                     ? Recommend(RoundGateChoice.UserAccept, "严格模式：完成前必须移交用户验收", RoundGateChoice.Done, RoundGateChoice.Rework)
                     : Recommend(RoundGateChoice.Done, "自验通过——可进入完成终验", RoundGateChoice.UserAccept, RoundGateChoice.Rework),
-            RoundGateChoice.SelfAccept =>
-                Recommend(RoundGateChoice.Rework, "自验未通过——先返工修正缺陷", RoundGateChoice.Replan, RoundGateChoice.UserAccept),
+            RoundGateChoice.SelfAccept => HasFailureBasis
+                ? Recommend(RoundGateChoice.Rework, "自验未通过——先返工；若已确认修不动，可选 11 放弃并交代失败",
+                    RoundGateChoice.Replan, RoundGateChoice.Abandon)
+                : Recommend(RoundGateChoice.Rework, "自验未通过——先返工修正缺陷", RoundGateChoice.Replan, RoundGateChoice.UserAccept),
             RoundGateChoice.UserAccept =>
                 Recommend(RoundGateChoice.Done, "用户验收已移交——进入完成终验", RoundGateChoice.SelfAccept, RoundGateChoice.Rework),
             RoundGateChoice.Replan =>
@@ -119,6 +127,9 @@ public sealed class RoundGateSession {
                 Recommend(RoundGateChoice.SelfAccept, "后台信号到达——先验证产出", RoundGateChoice.Continue, RoundGateChoice.Degrade),
             RoundGateChoice.Degrade =>
                 Recommend(RoundGateChoice.UserAccept, "降级交付需用户验收确认", RoundGateChoice.Escalate, RoundGateChoice.Replan),
+            RoundGateChoice.Abandon =>
+                Recommend(RoundGateChoice.BlockedReport, "本次任务已放弃——等用户指示，不要自行续做",
+                    RoundGateChoice.Escalate, RoundGateChoice.Replan),
             _ => Recommend(RoundGateChoice.Continue, "上一轮已结束——新回合从头推进", RoundGateChoice.NextTodo, RoundGateChoice.Replan),
         };
     }
@@ -187,6 +198,16 @@ public sealed class RoundGateSession {
         if (recorded == RoundGateChoice.Degrade && !UserAcceptanceHandedOff)
             return RoundGateStopVerdict.Block("9 降级交付被拒：先选 4 用户验收，把降级方案、取舍与影响移交用户确认。");
 
+        if (recorded == RoundGateChoice.Abandon) {
+            if (!HasFailureBasis)
+                return RoundGateStopVerdict.Block(
+                    "11 放弃被拒：本会话还没有失败记录（3 verdict=fail）。先把失败讲清楚，别把放弃当成免验证出口。");
+
+            if (StrictMode && !UserAcceptanceHandedOff)
+                return RoundGateStopVerdict.Block(
+                    "严格模式：放弃前必须先选 4 用户验收，把失败报告与残留影响移交用户。");
+        }
+
         return RoundGateStopVerdict.Allow;
     }
 
@@ -202,6 +223,8 @@ public sealed class RoundGateSession {
             case RoundGateChoice.SelfAccept:
                 SelfAcceptPassed = invocation.Verdict == RoundGateVerdict.Pass;
                 SelfAcceptFailStreak = invocation.Verdict == RoundGateVerdict.Fail ? SelfAcceptFailStreak + 1 : 0;
+                if (invocation.Verdict == RoundGateVerdict.Fail)
+                    FailedSelfAccepts++;
                 if (invocation.Verdict == RoundGateVerdict.Pass)
                     UserRejectStreak = 0;
                 break;

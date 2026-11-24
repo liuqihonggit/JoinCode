@@ -6,11 +6,12 @@ namespace Core.Tests.Query.Gate;
 public sealed class RoundGateSessionTests {
     private static RoundGateInvocation Invoke(
         RoundGateChoice choice, RoundGateVerdict verdict = RoundGateVerdict.None,
-        string? evidence = null, string? subject = null) => new() {
+        string? evidence = null, string? subject = null, string? note = null) => new() {
         Choice = choice,
         Verdict = verdict,
         Evidence = evidence,
         Subject = subject,
+        Note = note,
     };
 
     /// <summary>取熔断强制项 — 未触发时直接失败（避免 null-forgiving）。</summary>
@@ -222,6 +223,54 @@ public sealed class RoundGateSessionTests {
 
         verdict.Allowed.Should().BeFalse("熔断要求改选 7 重新规划");
         verdict.Reason.Should().Contain("熔断");
+    }
+
+    [Fact]
+    public void Abandon_WithoutRecordedFailure_IsBlocked() {
+        var session = new RoundGateSession(strictMode: false);
+        session.Record(Invoke(RoundGateChoice.Abandon, evidence: "做不动了"));
+
+        var verdict = session.EvaluateStop(required: true);
+
+        verdict.Allowed.Should().BeFalse("没有失败记录时放弃就是免验证出口");
+        verdict.Reason.Should().Contain("还没有失败记录");
+        session.FailedSelfAccepts.Should().Be(0);
+    }
+
+    [Fact]
+    public void Abandon_AfterRecordedFailure_IsAllowed() {
+        var session = new RoundGateSession(strictMode: false);
+        session.Record(Invoke(RoundGateChoice.SelfAccept, RoundGateVerdict.Fail, evidence: "dotnet test 红"));
+        session.Record(Invoke(RoundGateChoice.Abandon, evidence: "同一处仍红，方案不成立"));
+
+        session.EvaluateStop(required: true).Allowed.Should().BeTrue();
+        session.FailedSelfAccepts.Should().Be(1, "失败依据是累计的，不随返工清零");
+    }
+
+    [Fact]
+    public void Abandon_ThenNextRound_DoesNotRecommendContinuation() {
+        var session = new RoundGateSession(strictMode: false);
+        session.Record(Invoke(RoundGateChoice.SelfAccept, RoundGateVerdict.Fail, evidence: "测试红"));
+
+        var step = session.Record(Invoke(RoundGateChoice.Abandon, note: "失败报告已写", evidence: "仍红"));
+
+        step.Recommendation.Choice.Should().Be(
+            RoundGateChoice.BlockedReport, "已放弃的任务不能再推荐 1 直接继续，否则等于引导自行续做");
+    }
+
+    [Fact]
+    public void Abandon_InStrictMode_RequiresUserAcceptanceHandoff() {
+        var session = new RoundGateSession(strictMode: true);
+        session.Record(Invoke(RoundGateChoice.SelfAccept, RoundGateVerdict.Fail, evidence: "测试红"));
+
+        session.Record(Invoke(RoundGateChoice.Abandon, evidence: "确认修不动"));
+        var blocked = session.EvaluateStop(required: true);
+        blocked.Allowed.Should().BeFalse();
+        blocked.Reason.Should().Contain("严格模式");
+
+        session.Record(Invoke(RoundGateChoice.UserAccept, evidence: "失败报告已移交"));
+        session.Record(Invoke(RoundGateChoice.Abandon, evidence: "用户已知晓"));
+        session.EvaluateStop(required: true).Allowed.Should().BeTrue();
     }
 
     [Fact]

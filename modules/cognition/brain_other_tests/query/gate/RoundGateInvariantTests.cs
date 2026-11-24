@@ -94,10 +94,25 @@ public sealed class RoundGateInvariantTests {
         if (strict && last == RoundGateChoice.Done && verdict.Allowed && LastHandoffMarker(sequence) != RoundGateChoice.UserAccept)
             Fail("严格模式 5 完成放行但没有已移交的 4 用户验收", sequence, strict, session);
 
+        // I8 11 放弃 ⇒ 序列里必须已有 3 verdict=fail
+        if (last == RoundGateChoice.Abandon && verdict.Allowed && !sequence.Any(
+                s => s.Choice == RoundGateChoice.SelfAccept && s.Verdict == RoundGateVerdict.Fail))
+            Fail("11 放弃放行但没有失败记录", sequence, strict, session);
+
+        // I9 严格模式 11 放弃 ⇒ 必须有已移交的 4
+        if (strict && last == RoundGateChoice.Abandon && verdict.Allowed
+            && LastHandoffMarker(sequence) != RoundGateChoice.UserAccept)
+            Fail("严格模式 11 放弃放行但没有已移交的 4 用户验收", sequence, strict, session);
+
         // I6 计数单源：ReplanCount 等于序列中 7 的出现次数
         var replans = sequence.Count(s => s.Choice == RoundGateChoice.Replan);
         if (session.ReplanCount != replans)
             Fail($"ReplanCount={session.ReplanCount} 与实际 {replans} 不符", sequence, strict, session);
+
+        // I10 失败依据单源：FailedSelfAccepts 等于序列中 3+fail 的次数
+        var failures = sequence.Count(s => s.Choice == RoundGateChoice.SelfAccept && s.Verdict == RoundGateVerdict.Fail);
+        if (session.FailedSelfAccepts != failures)
+            Fail($"FailedSelfAccepts={session.FailedSelfAccepts} 与实际 {failures} 不符", sequence, strict, session);
 
         // I7 自验状态与序列一致：最近一次 3 为 pass 且之后无作废动作 ⇒ 通过，否则未通过
         if (session.SelfAcceptPassed != ExpectedSelfAcceptPassed(sequence))

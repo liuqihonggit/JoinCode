@@ -55,7 +55,7 @@ public sealed class RoundGateToolHandlersTests {
     }
 
     [Theory]
-    [InlineData(11)]
+    [InlineData(12)]
     [InlineData(-3)]
     [InlineData(42)]
     public async Task RoundGateAsync_InvalidChoice_ReturnsGuidingError(int choice) {
@@ -74,6 +74,31 @@ public sealed class RoundGateToolHandlersTests {
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("不是合法的自验结论");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_Abandon_RequiresNoteAndInjectsFailureReportPrompt() {
+        var withoutNote = await _handler.RoundGateAsync(11).ConfigureAwait(true);
+        withoutNote.IsError.Should().BeTrue("choice=11 是失败终止，必须写失败报告");
+        withoutNote.GetFirstText().Should().Contain("失败报告");
+
+        var withNote = await _handler
+            .RoundGateAsync(11, note: "失败证据=测试红；已试=重试 3 次；根因=信息缺失；残留=未提交；建议=补需求")
+            .ConfigureAwait(true);
+        withNote.IsError.Should().BeFalse();
+        var text = withNote.GetFirstText();
+        text.Should().Contain("【闸门 · 11 放弃");
+        text.Should().Contain("已尝试");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_Done_InjectsPullRequestFlow() {
+        var result = await _handler.RoundGateAsync(5).ConfigureAwait(true);
+
+        var text = result.GetFirstText();
+        text.Should().Contain("PR");
+        text.Should().Contain("凭证");
+        text.Should().Contain("放弃创建 PR");
     }
 
     [Fact]

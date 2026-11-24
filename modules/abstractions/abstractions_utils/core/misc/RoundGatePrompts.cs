@@ -55,6 +55,13 @@ public static class RoundGatePrompts {
         3) 第三层 用户终验：高风险/主观项必须已通过 4 用户验收移交（严格模式 JCC_ROUND_GATE_STRICT=1 强制）。
         "做完"= 原始需求逐条有产出且通过终验，不是"我觉得差不多"。
         收尾总结必须写：完成了什么、验收证据在哪、还有哪些 ○ 待用户验收项。
+        4) 交付流程（有 git 仓库时按顺序做）：
+           a. 先提交并推送到功能分支（禁止 force push 到 main/master）；
+           b. 用 gh / jcc gh 创建 PR，目标 main，启用 auto-merge（squash），创建后用 pr checks 守 CI；
+           c. 提 PR 前先确认凭证（gh auth status / 可用 token）；若缺少 git 凭证、无 push 权限或没有 remote，
+              **放弃创建 PR**，不得反复重试或改走其它通道；
+              在最终总结里明确报告："未创建 PR + 具体原因 + 已完成到哪一步（本地提交/分支/未推送）"，
+              并给出用户补好凭证后可执行的下一条命令。
         """;
 
     /// <summary>选项 6 等候后台 — 有真实后台句柄。</summary>
@@ -103,6 +110,17 @@ public static class RoundGatePrompts {
         约束：不得用此出口逃避可自行解决的困难（可解却求助 = 摆烂）。
         """;
 
+    /// <summary>选项 11 放弃（失败终止）— 承认失败并停止投入。</summary>
+    public const string Abandon = """
+        【闸门 · 11 放弃（失败终止）】承认本次任务失败，停止继续投入。必须写全失败报告：
+        ① 失败现象与证据（测试输出 / 运行报错 / 明确不满足的需求条目）；
+        ② 已尝试的每条路径及各自失败证据（禁止只说"试过了"）；
+        ③ 根因判断：能力不足 / 信息缺失 / 权限缺失 / 方案本身不成立，属于哪一类；
+        ④ 残留影响：已改动文件、未完成需求、可能的风险；
+        ⑤ 可续做建议：换方案 / 换环境 / 换人各自需要什么。
+        禁止把"没做、不会做、不想做"包装成失败放弃；本项只在本会话已有 3 verdict=fail 记录时可用。
+        """;
+
     /// <summary>选项 0 阻塞上报 — 缺用户输入才能继续（隐式出口）。</summary>
     public const string BlockedReport = """
         【闸门 · 0 阻塞上报（隐式出口）】缺少只有用户能提供的输入，本轮直接停下并上报：
@@ -114,7 +132,7 @@ public static class RoundGatePrompts {
     /// <summary>全部选项一览（阻断消息与系统提示共用）。</summary>
     public const string AllOptions = """
         0 阻塞上报（隐式出口） / 1 直接继续 / 2 TODO 继续 / 3 自验 / 4 用户验收 / 5 完成 /
-        6 等候后台 / 7 重新规划 / 8 回退修正 / 9 降级交付 / 10 求助升级
+        6 等候后台 / 7 重新规划 / 8 回退修正 / 9 降级交付 / 10 求助升级 / 11 放弃（失败终止）
         """;
 
     /// <summary>取某个选项对应的注入文本。</summary>
@@ -132,6 +150,7 @@ public static class RoundGatePrompts {
         RoundGateChoice.Rework => Rework,
         RoundGateChoice.Degrade => Degrade,
         RoundGateChoice.Escalate => Escalate,
+        RoundGateChoice.Abandon => Abandon,
         _ => throw new ArgumentOutOfRangeException(nameof(choice), choice, "未知的轮次闸门选项")
     };
 
@@ -191,7 +210,7 @@ public static class RoundGatePrompts {
     /// <returns>报错文本。</returns>
     public static string BuildInvalidChoiceMessage(int choice) => $"""
         {RoundGatePolicy.ToolName} 参数错误: choice={choice} 不在允许范围。
-        原因: 只接受 0~10 的终点选项（0 为隐式出口"阻塞上报"）。
+        原因: 只接受 0~11 的终点选项（0 为隐式出口"阻塞上报"，11 为"放弃/失败终止"）。
         允许值: {AllOptions}
         正确写法: {RoundGatePolicy.ToolName}(choice=1) 直接继续；choice=3 verdict="pass" 自验通过；choice=5 完成（需先自验通过）。
         """;
@@ -211,4 +230,15 @@ public static class RoundGatePrompts {
             正确写法: {RoundGatePolicy.ToolName}(choice=3, verdict="pass", evidence="dotnet test 全绿")。
             """;
     }
+
+    /// <summary>
+    /// 构建"放弃未写失败报告"的报错 — choice=11 必须写清失败原因与残留影响。
+    /// </summary>
+    /// <returns>报错文本。</returns>
+    public static string BuildAbandonNoteRequiredMessage() => $"""
+        {RoundGatePolicy.ToolName} 参数错误: choice=11 放弃缺少 note（失败报告）。
+        原因: 放弃是失败终止，必须让用户看懂失败在哪、试过什么、留下什么，不能只丢一句"做不了"。
+        必填内容: 失败证据 / 已试路径 / 根因类别 / 残留影响 / 可续做建议。
+        正确写法: {RoundGatePolicy.ToolName}(choice=11, note="失败证据=…；已试=…；根因=…；残留=…；建议=…", evidence="测试输出片段")。
+        """;
 }

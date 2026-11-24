@@ -16,6 +16,7 @@ public sealed class RoundGatePolicyTests {
     [InlineData(8, RoundGateChoice.Rework)]
     [InlineData(9, RoundGateChoice.Degrade)]
     [InlineData(10, RoundGateChoice.Escalate)]
+    [InlineData(11, RoundGateChoice.Abandon)]
     public void TryFromNumber_AcceptsFullOptionSet(int number, RoundGateChoice expected) {
         RoundGatePolicy.TryFromNumber(number, out var choice).Should().BeTrue();
         choice.Should().Be(expected);
@@ -23,7 +24,7 @@ public sealed class RoundGatePolicyTests {
 
     [Theory]
     [InlineData(-1)]
-    [InlineData(11)]
+    [InlineData(12)]
     [InlineData(42)]
     public void TryFromNumber_RejectsOutOfRange(int number) {
         RoundGatePolicy.TryFromNumber(number, out _).Should().BeFalse();
@@ -32,6 +33,7 @@ public sealed class RoundGatePolicyTests {
     [Theory]
     [InlineData("0", RoundGateChoice.BlockedReport)]
     [InlineData("10", RoundGateChoice.Escalate)]
+    [InlineData("11", RoundGateChoice.Abandon)]
     [InlineData("1", RoundGateChoice.Continue)]
     [InlineData("5", RoundGateChoice.Done)]
     [InlineData("continue", RoundGateChoice.Continue)]
@@ -42,6 +44,9 @@ public sealed class RoundGatePolicyTests {
     [InlineData("done", RoundGateChoice.Done)]
     [InlineData(" DONE ", RoundGateChoice.Done)]
     [InlineData("blocked", RoundGateChoice.BlockedReport)]
+    [InlineData("escalate", RoundGateChoice.Escalate)]
+    [InlineData("abandon", RoundGateChoice.Abandon)]
+    [InlineData(" ABANDON ", RoundGateChoice.Abandon)]
     public void TryParseChoice_AcceptsNumbersAndCanonicalEnumValues(string raw, RoundGateChoice expected) {
         RoundGatePolicy.TryParseChoice(raw, out var choice).Should().BeTrue();
         choice.Should().Be(expected);
@@ -50,7 +55,6 @@ public sealed class RoundGatePolicyTests {
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    [InlineData("11")]
     [InlineData("unknown")]
     [InlineData("plan")]
     [InlineData("acceptance")]
@@ -68,6 +72,7 @@ public sealed class RoundGatePolicyTests {
     [InlineData(RoundGateChoice.Rework, RoundGateCategory.Meta)]
     [InlineData(RoundGateChoice.Degrade, RoundGateCategory.Converge)]
     [InlineData(RoundGateChoice.Escalate, RoundGateCategory.Converge)]
+    [InlineData(RoundGateChoice.Abandon, RoundGateCategory.Converge)]
     [InlineData(RoundGateChoice.AwaitBackground, RoundGateCategory.Suspend)]
     [InlineData(RoundGateChoice.Done, RoundGateCategory.Exit)]
     [InlineData(RoundGateChoice.BlockedReport, RoundGateCategory.Exit)]
@@ -86,6 +91,7 @@ public sealed class RoundGatePolicyTests {
     [InlineData(RoundGateChoice.AwaitBackground, true)]
     [InlineData(RoundGateChoice.Degrade, true)]
     [InlineData(RoundGateChoice.Escalate, true)]
+    [InlineData(RoundGateChoice.Abandon, true)]
     [InlineData(RoundGateChoice.BlockedReport, true)]
     public void IsExitChoice_OnlyExitFamilyCanStop(RoundGateChoice choice, bool expected) {
         RoundGatePolicy.IsExitChoice(choice).Should().Be(expected);
@@ -140,7 +146,9 @@ public sealed class RoundGatePolicyTests {
         choice.Should().Be(RoundGateChoice.Replan);
 
         RoundGatePolicy.TryReadChoiceFromJson("round_gate", "not-json", out _).Should().BeFalse();
-        RoundGatePolicy.TryReadChoiceFromJson("round_gate", """{"choice":11}""", out _).Should().BeFalse();
+        RoundGatePolicy.TryReadChoiceFromJson("round_gate", """{"choice":12}""", out _).Should().BeFalse();
+        RoundGatePolicy.TryReadChoiceFromJson("round_gate", """{"choice":11}""", out var abandon).Should().BeTrue();
+        abandon.Should().Be(RoundGateChoice.Abandon);
     }
 
     [Fact]
@@ -169,6 +177,36 @@ public sealed class RoundGatePolicyTests {
         text.Should().Contain("3 自验");
         text.Should().Contain("○");
         text.Should().Contain("完成");
+    }
+
+    [Fact]
+    public void DonePrompt_RequiresPullRequestAndCredentialFallback() {
+        var text = RoundGatePrompts.ForChoice(RoundGateChoice.Done);
+
+        text.Should().Contain("PR", "完成流程必须要求创建 PR");
+        text.Should().Contain("auto-merge");
+        text.Should().Contain("凭证", "缺少 git 凭证时必须放弃 PR");
+        text.Should().Contain("放弃创建 PR");
+        text.Should().Contain("未创建 PR", "放弃后必须在总结里报告原因");
+    }
+
+    [Fact]
+    public void AbandonPrompt_RequiresFailureReportAndRecordedFailure() {
+        var text = RoundGatePrompts.ForChoice(RoundGateChoice.Abandon);
+
+        text.Should().Contain("失败报告");
+        text.Should().Contain("已尝试");
+        text.Should().Contain("残留影响");
+        text.Should().Contain("verdict=fail", "放弃只允许在有失败记录后使用");
+    }
+
+    [Fact]
+    public void AbandonWithoutNote_ErrorExplainsRequiredReport() {
+        var text = RoundGatePrompts.BuildAbandonNoteRequiredMessage();
+
+        text.Should().Contain("note");
+        text.Should().Contain("失败证据");
+        text.Should().Contain("正确写法");
     }
 
     [Fact]

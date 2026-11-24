@@ -252,6 +252,9 @@ public enum JccEnvVar {
     [EnumValue("JCC_ROUND_GATE_MAX_REJECT")]
     [SubCommandInfo("闸门拦截收尾上限 (默认 6；0=不限制)", "运行时配置")]
     RoundGateMaxReject,
+    [EnumValue("JCC_ROUND_GATE_STRICT")]
+    [SubCommandInfo("闸门严格模式 (1=true；完成/降级前必须已移交用户验收)", "运行时配置")]
+    RoundGateStrict,
 
     // TASK102 后续 — 循环上限配置化（原硬编码 128/5）
     [EnumValue("JCC_MAX_TOOL_CALL_ITERATIONS")]

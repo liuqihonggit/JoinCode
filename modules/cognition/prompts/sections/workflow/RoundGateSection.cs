@@ -1,7 +1,7 @@
 namespace Core.Prompts.Sections;
 
 /// <summary>
-/// 轮次闸门 Section — 告知 AI 收尾前必须调用 round_gate 选择下一步。
+/// 轮次闸门 Section — 只注入协议骨架与硬约束；逐选项提示词由 round_gate 工具结果按需注入。
 /// <para>闸门关闭（JCC_ROUND_GATE=off 或 auto 下的无人值守会话）时返回 null，不注入任何内容。</para>
 /// </summary>
 [PromptSection(Name = "round_gate", InjectOn = PromptSectionInject.AgentMode)]
@@ -17,14 +17,16 @@ public static class RoundGateSection {
         return $"""
             # 轮次闸门（{RoundGatePolicy.ToolName}）
 
-            本会话启用了强制轮次闸门。每当你准备结束一轮工作时，必须调用 {RoundGatePolicy.ToolName} 工具声明下一步：
-            1 直接继续 / 2 TODO 继续 / 3 规划任务 / 4 验收 / 5 结束。
+            收尾前必须调用 {RoundGatePolicy.ToolName} 声明下一步；不调用会被运行时拦截并强制续跑。
+            工具结果只注入你所选那一项的提示词与下一轮推荐，不预载其它选项。
 
-            - 只有选择 5 结束才允许停止；未过闸门就收尾会被运行时拦截并强制续跑。
-            - 任务未完成、未验收时不要选择 5，否则会被记为早退。
-            - 选择 4 验收时必须启动真实 exe 验证（ADR 0080），禁止用单元测试代替验收；
-              需要用户亲自验收的项用 ○ 标记并在回复末尾提示用户。
-            - 该工具不等待用户输入，可在无人值守模式使用。
+            - 只有 4 用户验收 / 5 完成 / 6 等候后台 / 9 降级交付 / 10 求助升级 / 11 放弃 / 0 阻塞上报 能收尾。
+            - 5 完成必须先有 3 自验（verdict=pass）；9 降级需已移交 4；严格模式（JCC_ROUND_GATE_STRICT=1）下 5 和 11 也需先 4。
+            - 11 放弃只在本会话已有 3 verdict=fail 记录时可用，且必须写失败报告；它是失败终止，不是免验证出口。
+            - 熔断：重规划>2 次 → 10；同一缺陷返工>2 次 → 7；自验连续 3 轮不通过 → 10；连续 2 轮无证据 → 7。
+            - 5 完成时按 "提交 → push → 创建 PR（auto-merge）" 交付；缺 git 凭证则放弃 PR 并在总结里报告原因。
+            - 偏离推荐需在 note 写理由，连续 2 次后锁定推荐项。
+            - 全局原则：把整件事做完再交卷；缺用户输入才停下；这不免除高风险/破坏性操作前的确认。
             """;
     }
 

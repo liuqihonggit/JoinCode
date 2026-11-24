@@ -390,10 +390,17 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
-    /// <summary>系统旁白（TASK130-A5 — hook systemMessage）— 交互模式 dim 行打印；NDJSON 模式暂不投影
-    /// （基准侧该内容走 attachment，本仓 SDK 协议无对应消息类型，不臆造字段）。</summary>
+    /// <summary>系统旁白（TASK130-A5 — hook systemMessage）— 交互模式 dim 行打印；
+    /// NDJSON 模式投影为 <c>system/hook_system_message</c>（基准侧该内容走 attachment，SDK 无 attachment 通道，
+    /// 用同名子类型承载 <c>content</c>）。</summary>
     public void OnSystemNotice(string message) {
-        if (_agentMode || string.IsNullOrEmpty(message)) {
+        if (string.IsNullOrEmpty(message)) {
+            return;
+        }
+
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkHookSystemMessage.Create(_sessionId, message));
             return;
         }
 

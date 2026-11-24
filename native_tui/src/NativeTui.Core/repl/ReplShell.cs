@@ -107,6 +107,27 @@ public sealed class ReplShell
     /// <summary>排队输入条数上限（守卫 — 狂敲防队列无限膨胀：满后新输入丢弃带反馈）。</summary>
     internal const int MaxQueuedInputs = 10;
 
+    /// <summary>前台查询身份（ADR 0165 阶段 1）— 当前「订阅中」的查询；null = 前台无查询。
+    /// Ctrl+B 只改这个值，不 abort、不重跑。</summary>
+    private string? _foregroundQueryId;
+
+    /// <summary>后台查询（ADR 0165 阶段 1）— 转后台后到达的事件按 queryId 缓冲，切回时按序补投，
+    /// 期间不渲染到前台（否则两条查询的输出会交错成一条）。</summary>
+    private readonly List<BackgroundQuery> _backgroundQueries = [];
+
+    /// <summary>后台查询缓冲槽 — 按 queryId 归集未渲染事件与完成态。</summary>
+    private sealed class BackgroundQuery(string queryId)
+    {
+        /// <summary>查询身份。</summary>
+        public string QueryId { get; } = queryId;
+
+        /// <summary>待补投事件（转后台之后到达、尚未渲染）。</summary>
+        public List<BridgeEvent> Pending { get; } = [];
+
+        /// <summary>是否已到终态（turn_completed/turn_interrupted 已入缓冲）。</summary>
+        public bool Completed { get; set; }
+    }
+
     /// <summary>消息光标导航协调器（交互层 Step1 — 第四交互态，优先级低于权限/模型/搜索模态）。</summary>
     private readonly MessageCursor _cursorNav = new();
 
@@ -1016,6 +1037,12 @@ public sealed class ReplShell
         var interrupted = false;
         foreach (var bridgeEvent in _engine.DrainEvents())
         {
+            // ADR 0165 阶段 1 — 后台查询的事件只入缓冲，不渲染到前台（否则两条查询输出交错）
+            if (BufferIfBackgroundQuery(bridgeEvent))
+            {
+                continue;
+            }
+
             if (bridgeEvent is BridgeEvent.TurnStarted)
             {
                 _engineDeadBusyTicks = 0;
@@ -1031,6 +1058,9 @@ public sealed class ReplShell
             if (bridgeEvent is BridgeEvent.TurnCompleted or BridgeEvent.TurnInterrupted)
             {
                 _lastTurnCompletionMs = IdleClock();
+                // ADR 0165 — 前台查询到终态即释放身份（缓冲拦截已排除后台查询，此处必为前台或无身份事件）；
+                // 不释放会让下一次提交误以为前台仍有主，静默丢掉新查询。
+                _foregroundQueryId = null;
             }
 
             _driver.Apply(bridgeEvent);
@@ -1902,6 +1932,16 @@ public sealed class ReplShell
             return;
         }
 
+        // ADR 0165 阶段 1 — Task 上下文（基准 schema.ts:48「前台任务/代理运行时」）：有前台查询运行
+        // 或存在后台查询时 ctrl+b 命中 task:background（转后台 / 切回）；闲且无后台任务时该上下文不活跃，
+        // ctrl+b 仍落下方编辑 switch（光标左移）——与基准 Task/Chat 上下文分层一致。
+        if ((_driver.IsBusy || _backgroundQueries.Count > 0)
+            && _keybindings.MatchAction(KeybindingContext.Task, key) == KeybindingAction.TaskBackground)
+        {
+            ToggleQueryBackground();
+            return;
+        }
+
         // B4 — 单键全局键分派（chat:externalEditor=ctrl+g / app:toggleTranscript=ctrl+o /
         // app:redraw=ctrl+l / history:search=ctrl+r / chat:stash=ctrl+s / app:exit=ctrl+d 空输入 —
         // 序列键不参与单键匹配，MatchAction 跳过多键 chord 对齐基准 resolver Phase 1）
@@ -2028,6 +2068,9 @@ public sealed class ReplShell
                 // 基准 defaultBindings.ts:15 IMAGE_PASTE_KEY 平台分支；Meta 路径 HandleMetaKey
                 // 表查询与 Ctrl 路径本方法共用此分派 — 两侧入口对齐基准 useKeybindings 单消费面）
                 PasteImageFromClipboard();
+                return true;
+            case KeybindingAction.TaskBackground: // task:background（Task 上下文默认 ctrl+b）
+                ToggleQueryBackground();
                 return true;
             case KeybindingAction.AppExit: // app:exit（默认 ctrl+d — 双击确认窗口逻辑在 HandleExitCtrlD 保留）
                 if (_input.Text.Length == 0)
@@ -4455,16 +4498,126 @@ public sealed class ReplShell
     /// <param name="attachments">提交冻结附件快照（空 = 无附件）。</param>
     private void SubmitToEngine(string expanded, IReadOnlyList<ImageAttachment> attachments)
     {
-        if (attachments.Count == 0)
+        var queryId = attachments.Count == 0
+            ? _engine.Submit(expanded)
+            : _engine.Submit(StripImagePlaceholders(expanded, attachments),
+                attachments.Select(static attachment => new BridgeImageAttachment(
+                    attachment.Base64, attachment.MediaType, attachment.Filename)).ToList());
+
+        // ADR 0165 — 提交即获得查询身份；前台空闲时本次提交接管前台订阅
+        if (_foregroundQueryId is null)
         {
-            _engine.Submit(expanded);
+            _foregroundQueryId = queryId;
             return;
         }
 
-        var images = attachments.Select(static attachment => new BridgeImageAttachment(
-            attachment.Base64, attachment.MediaType, attachment.Filename)).ToList();
-        _engine.Submit(StripImagePlaceholders(expanded, attachments), images);
+        // 前台仍有主（同一拍内连续提交 / 前台尚未收到终态）— 新提交不自弃，注册为后台查询：
+        // 事件进缓冲不串台，用户 ctrl+b 可见（静默丢弃输入比多一条后台查询更糟）。
+        TrackBackgroundQuery(queryId);
+        AddMessage(new SystemNoticeItem(
+            $"新查询已提交到后台（{queryId}）— 前台仍在跟踪 {_foregroundQueryId}；ctrl+b 切换。"));
     }
+
+    /// <summary>登记一条后台查询（幂等 — 已登记则不重复建桶）。</summary>
+    /// <param name="queryId">查询身份。</param>
+    private void TrackBackgroundQuery(string queryId)
+    {
+        if (_backgroundQueries.Find(query => query.QueryId == queryId) is null)
+        {
+            _backgroundQueries.Add(new BackgroundQuery(queryId));
+        }
+    }
+
+    /// <summary>后台查询事件入缓冲（ADR 0165 阶段 1）— 非前台且已知为后台的查询：事件按序留存，
+    /// 终态记完成并提示；返回 true 表示本事件已消费（调用方跳过渲染）。
+    /// 未知 queryId（启动握手/旧引擎未带身份）一律按前台处理，不吞事件。</summary>
+    /// <param name="bridgeEvent">引擎事件。</param>
+    /// <returns>是否已作为后台事件缓冲。</returns>
+    private bool BufferIfBackgroundQuery(BridgeEvent bridgeEvent)
+    {
+        if (bridgeEvent.QueryId is not { } queryId || queryId == _foregroundQueryId)
+        {
+            return false;
+        }
+
+        var background = _backgroundQueries.Find(query => query.QueryId == queryId);
+        if (background is null)
+        {
+            return false;
+        }
+
+        background.Pending.Add(bridgeEvent);
+        if (bridgeEvent is BridgeEvent.TurnCompleted or BridgeEvent.TurnInterrupted)
+        {
+            background.Completed = true;
+            AddMessage(new SystemNoticeItem(
+                $"后台查询 {queryId} 已结束 — ctrl+b 切回查看（{background.Pending.Count} 条事件待显示）。"));
+        }
+
+        return true;
+    }
+
+    /// <summary>Ctrl+B（task:background）— 前台忙则转入后台（不打断、不重跑、不重复计费），
+    /// 否则切回最近的后台查询。两次语义互斥，同一个键完成「出去 / 回来」。</summary>
+    private void ToggleQueryBackground()
+    {
+        if (TryBackgroundForegroundQuery())
+        {
+            return;
+        }
+
+        FocusMostRecentBackgroundQuery();
+    }
+
+    /// <summary>前台查询转后台：定格已渲染的前台内容（保留在原位置），UI 回到空闲可继续输入，
+    /// 之后该查询的事件全部进缓冲。前台空闲/无身份时返回 false（交给切回路径）。</summary>
+    /// <returns>是否发生转后台。</returns>
+    private bool TryBackgroundForegroundQuery()
+    {
+        if (_foregroundQueryId is not { } queryId || !_driver.IsBusy)
+        {
+            return false;
+        }
+
+        TrackBackgroundQuery(queryId);
+
+        _driver.EndTurn();
+        _foregroundQueryId = null;
+        AddMessage(new SystemNoticeItem($"查询已转入后台（{queryId}）— 继续运行不打断；再次 ctrl+b 切回。"));
+        return true;
+    }
+
+    /// <summary>切回最近的后台查询：补投其缓冲事件（按到达顺序），并恢复为前台订阅。</summary>
+    private void FocusMostRecentBackgroundQuery()
+    {
+        if (_backgroundQueries.Count == 0)
+        {
+            AddMessage(new SystemNoticeItem("当前没有后台查询。ctrl+b 在前台查询运行时转入后台。"));
+            return;
+        }
+
+        var background = _backgroundQueries[^1];
+        _backgroundQueries.RemoveAt(_backgroundQueries.Count - 1);
+        _foregroundQueryId = background.QueryId;
+        var state = background.Completed ? "已完成" : "运行中";
+        AddMessage(new SystemNoticeItem(
+            $"切回后台查询 {background.QueryId}（{state}）— 补投 {background.Pending.Count} 条事件。"));
+
+        // 补投：驱动按事件流重建视图；未到终态时先 BeginTurn，终态事件自身会收尾
+        if (!background.Completed)
+        {
+            _driver.BeginTurn();
+        }
+
+        foreach (var bridgeEvent in background.Pending)
+        {
+            _driver.Apply(bridgeEvent);
+        }
+
+        background.Pending.Clear();
+        _lastTurnCompletionMs = background.Completed ? IdleClock() : _lastTurnCompletionMs;
+    }
+
 
     /// <summary>剥离提交文本中的图片占位（E4+G3 — 基准 Image refs become content blocks：
     /// [Image #N] 是 TUI 显示形态，引擎提交文本不携带，图片数据走附件通道）；按冻结快照附件

@@ -11,7 +11,8 @@ public sealed class BridgeServeLoopTests {
 
     [Fact]
     public async Task Submit_RunsTurn_WithLifecycleEventsInOrder() {
-        using var stdin = new StringReader(WriteRequest(new CliBridge.BridgeRequest.Submit("你好")) + "\n");
+        var req = new CliBridge.BridgeRequest.Submit("你好") { QueryId = "q-1" };
+        using var stdin = new StringReader(WriteRequest(req) + "\n");
         await using var stdout = new StringWriter();
         await using var stderr = new StringWriter();
 
@@ -24,23 +25,24 @@ public sealed class BridgeServeLoopTests {
         }, CancellationToken.None);
 
         Assert.Equal(0, exitCode);
-        // durationMs 为真实墙钟差（非确定），thinking_ended 行按前缀匹配
+        // durationMs 为真实墙钟差（非确定），thinking_ended 行按前缀匹配；
+        // ADR 0165 — 本回合全部事件必须归因到请求指定的 queryId
         var lines = stdout.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(6, lines.Length);
-        Assert.Equal("{\"type\":\"turn_started\"}", lines[0]);
-        Assert.Equal("{\"type\":\"thinking_started\"}", lines[1]);
+        Assert.Equal("{\"type\":\"turn_started\",\"queryId\":\"q-1\"}", lines[0]);
+        Assert.Equal("{\"type\":\"thinking_started\",\"queryId\":\"q-1\"}", lines[1]);
         Assert.StartsWith("{\"type\":\"thinking_ended\",\"durationMs\":", lines[2]);
-        Assert.EndsWith("}", lines[2]);
-        Assert.Equal("{\"type\":\"token_delta\",\"length\":4,\"text\":\"回复正文\"}", lines[3]);
-        Assert.Equal("{\"type\":\"assistant_message\",\"text\":\"回复正文\"}", lines[4]);
-        Assert.Equal("{\"type\":\"turn_completed\"}", lines[5]);
+        Assert.EndsWith(",\"queryId\":\"q-1\"}", lines[2]);
+        Assert.Equal("{\"type\":\"token_delta\",\"length\":4,\"text\":\"回复正文\",\"queryId\":\"q-1\"}", lines[3]);
+        Assert.Equal("{\"type\":\"assistant_message\",\"text\":\"回复正文\",\"queryId\":\"q-1\"}", lines[4]);
+        Assert.Equal("{\"type\":\"turn_completed\",\"queryId\":\"q-1\"}", lines[5]);
     }
 
     [Fact]
     public async Task Interrupt_CancelsTurn_EmitsTurnInterrupted() {
         using var stdin = new StringReader(string.Join('\n',
-            WriteRequest(new CliBridge.BridgeRequest.Submit("长任务")),
-            WriteRequest(new CliBridge.BridgeRequest.Interrupt())));
+            WriteRequest(new CliBridge.BridgeRequest.Submit("长任务") { QueryId = "q-1" }),
+            WriteRequest(new CliBridge.BridgeRequest.Interrupt { QueryId = "q-1" })));
         await using var stdout = new StringWriter();
         await using var stderr = new StringWriter();
 
@@ -50,9 +52,28 @@ public sealed class BridgeServeLoopTests {
 
         Assert.Equal(0, exitCode);
         Assert.Equal(
-            "{\"type\":\"turn_started\"}\n" +
-            "{\"type\":\"turn_interrupted\"}\n",
+            "{\"type\":\"turn_started\",\"queryId\":\"q-1\"}\n" +
+            "{\"type\":\"turn_interrupted\",\"queryId\":\"q-1\"}\n",
             stdout.ToString());
+    }
+
+    /// <summary>ADR 0165 定向取消 — interrupt 带他人/过期 queryId 时不得误杀在途回合
+    /// （迟到的 Esc 不能杀掉新提交）。</summary>
+    [Fact]
+    public async Task Interrupt_WithStaleQueryId_DoesNotCancelActiveTurn() {
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(new CliBridge.BridgeRequest.Submit("长任务") { QueryId = "q-new" }),
+            WriteRequest(new CliBridge.BridgeRequest.Interrupt { QueryId = "q-old" }),
+            WriteRequest(new CliBridge.BridgeRequest.Interrupt { QueryId = "q-new" })));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(), async (input, consumer, ct) => {
+            await Task.Delay(Timeout.Infinite, ct);
+        }, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        // 只有 q-new 的那次 interrupt 生效 → 恰好一条 turn_interrupted
+        Assert.Equal(1, stdout.ToString().Split('\n').Count(l => l.Contains("\"turn_interrupted\"", StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -70,7 +91,7 @@ public sealed class BridgeServeLoopTests {
     [Fact]
     public async Task Eof_ExitsWithZero_AfterTurnCompletes() {
         // submit 后无 quit，stdin 直接结束：回合收尾 + 退出
-        using var stdin = new StringReader(WriteRequest(new CliBridge.BridgeRequest.Submit("x")) + "\n");
+        using var stdin = new StringReader(WriteRequest(new CliBridge.BridgeRequest.Submit("x") { QueryId = "q-1" }) + "\n");
         await using var stdout = new StringWriter();
 
         var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
@@ -81,7 +102,7 @@ public sealed class BridgeServeLoopTests {
             }, CancellationToken.None);
 
         Assert.Equal(0, exitCode);
-        Assert.EndsWith("{\"type\":\"turn_completed\"}\n", stdout.ToString());
+        Assert.EndsWith("{\"type\":\"turn_completed\",\"queryId\":\"q-1\"}\n", stdout.ToString());
     }
 
     [Fact]
@@ -341,7 +362,7 @@ public sealed class BridgeServeLoopTests {
 
     [Fact]
     public async Task Submit_WithSeq_EmitsEventsWithAckSeq() {
-        var req = new CliBridge.BridgeRequest.Submit("你好") { Seq = 42 };
+        var req = new CliBridge.BridgeRequest.Submit("你好") { Seq = 42, QueryId = "q-1" };
         using var stdin = new StringReader(WriteRequest(req) + "\n");
         await using var stdout = new StringWriter();
 
@@ -355,8 +376,8 @@ public sealed class BridgeServeLoopTests {
         Assert.Equal(0, exitCode);
         var output = stdout.ToString();
         Assert.Contains("\"ackSeq\":42", output);
-        Assert.Contains("{\"type\":\"turn_started\",\"ackSeq\":42}", output);
-        Assert.Contains("{\"type\":\"turn_completed\",\"ackSeq\":42}", output);
+        Assert.Contains("{\"type\":\"turn_started\",\"ackSeq\":42,\"queryId\":\"q-1\"}", output);
+        Assert.Contains("{\"type\":\"turn_completed\",\"ackSeq\":42,\"queryId\":\"q-1\"}", output);
     }
 
     [Fact]

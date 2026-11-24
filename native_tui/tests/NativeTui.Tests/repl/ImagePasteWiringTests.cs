@@ -278,14 +278,14 @@ public sealed class ImagePasteWiringTests
     // ==== G3 附件提交通道（无附件零破坏 + bridge DTO 投影字段）====
 
     [Fact]
-    public void Submit_WithoutAttachments_UsesSingleParameterSubmit_NoBreakage()
+    public void Submit_WithoutAttachments_RecordsNoAttachment()
     {
         var (shell, engine) = CreateShell(StubLoader);
         Type(shell, "纯文本提交");
 
         shell.Submit();
 
-        // 零破坏 — 无附件走原单参 Submit（不进图片重载记录面）
+        // 无附件 — 提交本身照常上引擎，但附件记录面必须为空（不得凭空投影附件）
         Assert.Empty(engine.SubmitsWithImages);
         Assert.Equal(["纯文本提交"], engine.Submits);
     }

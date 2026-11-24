@@ -19,14 +19,15 @@ public sealed class SimulatedEngineTests
         public void Advance(long ms) => _ms += ms;
     }
 
-    /// <summary>Submit 后首拍排空：立即产出 TurnStarted。</summary>
+    /// <summary>Submit 后首拍排空：立即产出 TurnStarted，且事件的 queryId 与 Submit 返回值一致（ADR 0165 归因契约）。</summary>
     [Fact]
     public void Submit_Drains_TurnStartedImmediately()
     {
         var engine = new SimulatedEngine(static () => 0L);
-        engine.Submit("all");
+        var queryId = engine.Submit("all");
         var events = engine.DrainEvents();
-        Assert.Equal([new BridgeEvent.TurnStarted()], events);
+        Assert.False(string.IsNullOrWhiteSpace(queryId));
+        Assert.Equal([new BridgeEvent.TurnStarted { QueryId = queryId }], events);
     }
 
     /// <summary>虚拟时钟 1.3s：进入 ToolUse 阶段，产出 ToolCall 事件（Edit — 演示 StructuredDiff 链路）。</summary>
@@ -210,8 +211,8 @@ public sealed class SimulatedEngineTests
     public void Submit_SlashPrefixedCommand_RoutesLikeBareCommand(string input)
     {
         var engine = new SimulatedEngine(static () => 0L);
-        engine.Submit(input);
-        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+        var queryId = engine.Submit(input);
+        Assert.Equal([new BridgeEvent.TurnStarted { QueryId = queryId }], engine.DrainEvents());
     }
 
     /// <summary>斜杠前缀带尾随空格（Tab 接受形态 "/cmd "）：trim 后等价路由。</summary>
@@ -219,8 +220,8 @@ public sealed class SimulatedEngineTests
     public void Submit_SlashCommandWithTrailingSpace_RoutesAfterTrim()
     {
         var engine = new SimulatedEngine(static () => 0L);
-        engine.Submit("/md ");
-        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+        var queryId = engine.Submit("/md ");
+        Assert.Equal([new BridgeEvent.TurnStarted { QueryId = queryId }], engine.DrainEvents());
     }
 
     /// <summary>忙时 Interrupt：产出 TurnInterrupted，回合终止。</summary>
@@ -228,11 +229,11 @@ public sealed class SimulatedEngineTests
     public void Interrupt_WhileBusy_Emits_TurnInterrupted()
     {
         var engine = new SimulatedEngine(static () => 0L);
-        engine.Submit("all");
+        var queryId = engine.Submit("all");
         engine.DrainEvents();
 
         engine.Interrupt();
-        Assert.Equal([new BridgeEvent.TurnInterrupted()], engine.DrainEvents());
+        Assert.Equal([new BridgeEvent.TurnInterrupted { QueryId = queryId }], engine.DrainEvents());
         Assert.Empty(engine.DrainEvents());
     }
 
@@ -248,6 +249,23 @@ public sealed class SimulatedEngineTests
         Assert.Contains(engine.DrainEvents(), e => e is BridgeEvent.Error { Message.Length: > 0 });
     }
 
+    /// <summary>忙时被拒的提交不得抢走在途回合的归因：拒绝事件归被拒 id，
+    /// 在途回合后续事件仍归原 id（否则 Ctrl+B 面板会把两条查询的状态混在一起）。</summary>
+    [Fact]
+    public void Submit_WhileBusy_DoesNotStealAttributionOfRunningTurn()
+    {
+        var engine = new SimulatedEngine(static () => 0L);
+        var running = engine.Submit("all");
+        engine.DrainEvents();
+
+        var rejected = engine.Submit("md");
+        Assert.NotEqual(running, rejected);
+        Assert.Equal(rejected, Assert.IsType<BridgeEvent.Error>(Assert.Single(engine.DrainEvents())).QueryId);
+
+        engine.Interrupt();
+        Assert.Equal([new BridgeEvent.TurnInterrupted { QueryId = running }], engine.DrainEvents());
+    }
+
     /// <summary>打断后再 Submit：可开始新回合（状态机复位）。</summary>
     [Fact]
     public void Submit_AfterInterrupt_StartsNewTurn()
@@ -258,8 +276,8 @@ public sealed class SimulatedEngineTests
         engine.Interrupt();
         engine.DrainEvents();
 
-        engine.Submit("all");
-        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+        var nextQueryId = engine.Submit("all");
+        Assert.Equal([new BridgeEvent.TurnStarted { QueryId = nextQueryId }], engine.DrainEvents());
     }
 
     /// <summary>SetPermissionMode：本地立即回执 PermissionModeChanged（统一事件语义）。</summary>
@@ -297,19 +315,20 @@ public sealed class SimulatedEngineTests
     public void Submit_WithImages_CountsAttachmentsAndRoutesText()
     {
         var engine = new SimulatedEngine(static () => 0L);
-        engine.Submit("md", [
+        var firstId = engine.Submit("md", [
             new BridgeImageAttachment("QUJD", "image/png", "a.png"),
             new BridgeImageAttachment("QkM=", "image/jpeg", "b.jpg"),
         ]);
-        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+        Assert.Equal([new BridgeEvent.TurnStarted { QueryId = firstId }], engine.DrainEvents());
 
         engine.Interrupt();
         engine.DrainEvents();
-        engine.Submit("md", [new BridgeImageAttachment("QUJD", "image/png", "a.png")]);
+        var secondId = engine.Submit("md", [new BridgeImageAttachment("QUJD", "image/png", "a.png")]);
 
-        // 计数跨提交累加（2 + 1 = 3）+ 文本路由不受附件影响
+        // 计数跨提交累加（2 + 1 = 3）+ 文本路由不受附件影响；两回合 queryId 互不相同
         Assert.Equal(3, engine.SubmittedImageCount);
-        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+        Assert.NotEqual(firstId, secondId);
+        Assert.Equal([new BridgeEvent.TurnStarted { QueryId = secondId }], engine.DrainEvents());
     }
 
     /// <summary>图片重载 null/空附件 — 等价单参提交不计数（接口默认成员语义对齐）。</summary>
@@ -317,10 +336,10 @@ public sealed class SimulatedEngineTests
     public void Submit_WithNullImages_EquivalentToSingleParameter()
     {
         var engine = new SimulatedEngine(static () => 0L);
-        engine.Submit("md", images: null);
+        var queryId = engine.Submit("md", images: null);
 
         Assert.Equal(0, engine.SubmittedImageCount);
-        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+        Assert.Equal([new BridgeEvent.TurnStarted { QueryId = queryId }], engine.DrainEvents());
     }
 
     // ==== G3 新会话（D8 Clear — 回合状态复位演示语义）====
@@ -340,9 +359,9 @@ public sealed class SimulatedEngineTests
         // 回合已复位 — 时间推进不产完成事件（旧回合终止）
         Assert.DoesNotContain(engine.DrainEvents(), e => e is BridgeEvent.TurnCompleted);
 
-        // 状态复位 — 可开新回合（TurnStarted 即新脚本起点）
-        engine.Submit("md");
-        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+        // 状态复位 — 可开新回合（TurnStarted 即新脚本起点，归因到新 queryId）
+        var nextQueryId = engine.Submit("md");
+        Assert.Equal([new BridgeEvent.TurnStarted { QueryId = nextQueryId }], engine.DrainEvents());
     }
 
     /// <summary>StartNewConversation：事件队列保序不清（在途 Error 诱导等已产出事件仍可达下拍排空）。</summary>

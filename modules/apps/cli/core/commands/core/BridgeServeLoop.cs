@@ -51,6 +51,7 @@ internal static class BridgeServeLoop {
         }
         CancellationTokenSource? turnCts = null;
         Task? turnTask = null;
+        string? currentQueryId = null;
         var exit = false;
         ulong? lastProcessedSeq = null;
 
@@ -66,13 +67,13 @@ internal static class BridgeServeLoop {
                 default:
                     if (request is not null) {
                         if (request is Cli.Bridge.BridgeRequest.Submit { Seq: { } dupSeq } && dupSeq == lastProcessedSeq) {
-                            WriteEvent(synced, new Cli.Bridge.BridgeEvent.Error("重复提交(seq 已处理)，已忽略。") { AckSeq = dupSeq });
-                            WriteEvent(synced, new Cli.Bridge.BridgeEvent.TurnCompleted() { AckSeq = dupSeq });
+                            WriteEvent(synced, new Cli.Bridge.BridgeEvent.Error("重复提交(seq 已处理)，已忽略。") { AckSeq = dupSeq, QueryId = request.QueryId });
+                            WriteEvent(synced, new Cli.Bridge.BridgeEvent.TurnCompleted() { AckSeq = dupSeq, QueryId = request.QueryId });
                             break;
                         }
                         if (request is Cli.Bridge.BridgeRequest.Submit { Seq: { } newSeq })
                             lastProcessedSeq = newSeq;
-                        (exit, turnCts, turnTask) = DispatchRequest(request, synced, consumer, executeTurn, applyPermissionMode, backgroundPump, turnCts, turnTask);
+                        (exit, turnCts, turnTask, currentQueryId) = DispatchRequest(request, synced, consumer, executeTurn, applyPermissionMode, backgroundPump, turnCts, turnTask, currentQueryId);
                     }
                     break;
             }
@@ -88,8 +89,9 @@ internal static class BridgeServeLoop {
     }
 
     /// <summary>分派单条请求：submit 起新回合（忙时拒绝；带图片附件经
-    /// <see cref="ProjectImageAttachments"/> 降级投影）/ interrupt 取消 / set_permission_mode 权限应用 / quit 退出。</summary>
-    private static (bool Exit, CancellationTokenSource? TurnCts, Task? TurnTask) DispatchRequest(
+    /// <see cref="ProjectImageAttachments"/> 降级投影）/ interrupt 定向取消 / set_permission_mode 权限应用 / quit 退出。
+    /// 返回值携带当前活跃查询身份（ADR 0165）— interrupt 据此判定是否命中在途查询。</summary>
+    private static (bool Exit, CancellationTokenSource? TurnCts, Task? TurnTask, string? QueryId) DispatchRequest(
         Cli.Bridge.BridgeRequest request,
         TextWriter stdout,
         BridgeEventConsumer consumer,
@@ -97,26 +99,36 @@ internal static class BridgeServeLoop {
         PermissionModeApplier? applyPermissionMode,
         BackgroundTaskEventPump? backgroundPump,
         CancellationTokenSource? turnCts,
-        Task? turnTask) {
+        Task? turnTask,
+        string? currentQueryId) {
         switch (request) {
             case Cli.Bridge.BridgeRequest.Submit(var text, var images):
                 if (turnTask is { IsCompleted: false }) {
                     WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error(
-                        "回合进行中，本次提交已忽略。如需提交新输入，请先发送 interrupt 打断当前回合。") { AckSeq = request.Seq });
-                    return (false, turnCts, turnTask);
+                        "回合进行中，本次提交已忽略。如需提交新输入，请先发送 interrupt 打断当前回合。") { AckSeq = request.Seq, QueryId = request.QueryId });
+                    return (false, turnCts, turnTask, currentQueryId);
                 }
 
+                // ADR 0165：阶段 0 bridge_serve 仍单活跃回合，但 queryId 必须在协议层贯通；
+                // 旧请求无 queryId 时生成一个，保证本回合所有事件归因一致。
+                var queryId = request.QueryId;
+                if (string.IsNullOrWhiteSpace(queryId))
+                    queryId = $"q-{Guid.NewGuid():N}";
                 turnCts?.Dispose();
                 var newCts = new CancellationTokenSource();
                 var newTask = RunTurnAsync(stdout, consumer, executeTurn, backgroundPump,
-                    ProjectImageAttachments(text, images), newCts.Token, request.Seq);
-                return (false, newCts, newTask);
+                    ProjectImageAttachments(text, images), newCts.Token, request.Seq, queryId);
+                return (false, newCts, newTask, queryId);
             case Cli.Bridge.BridgeRequest.Interrupt:
+                // ADR 0165：定向取消 — 带 queryId 且与在途查询不一致时是过期/他人的打断，
+                // 不得误杀当前回话（旧实现无条件 Cancel，会让迟到的 Esc 杀掉新提交）。
+                if (request.QueryId is { } target && target != currentQueryId)
+                    return (false, turnCts, turnTask, currentQueryId);
                 turnCts?.Cancel();
-                return (false, turnCts, turnTask);
+                return (false, turnCts, turnTask, currentQueryId);
             case Cli.Bridge.BridgeRequest.SetPermissionMode(var mode):
                 ApplyPermissionMode(stdout, applyPermissionMode, mode, request.Seq);
-                return (false, turnCts, turnTask);
+                return (false, turnCts, turnTask, currentQueryId);
             case Cli.Bridge.BridgeRequest.StopTask(var kind, var taskId):
                 // M8-8 后续 — 停止后台任务分派（fire-and-forget：泵内部吞异常降级 + cancelled 终态
                 // upsert 经 consumer 回推 background_task 行，请求读循环不等待 — 对齐 interrupt 即返形态）；
@@ -125,11 +137,11 @@ internal static class BridgeServeLoop {
                 // 泵未注入（引擎无后台能力 — 面板无条目，请求实际不可达）静默跳过
                 if (backgroundPump is not null)
                     _ = backgroundPump.StopTaskAsync(kind, taskId, CancellationToken.None);
-                return (false, turnCts, turnTask);
+                return (false, turnCts, turnTask, currentQueryId);
             case Cli.Bridge.BridgeRequest.Quit:
-                return (true, turnCts, turnTask);
+                return (true, turnCts, turnTask, currentQueryId);
             default:
-                return (false, turnCts, turnTask);
+                return (false, turnCts, turnTask, currentQueryId);
         }
     }
 
@@ -179,18 +191,20 @@ internal static class BridgeServeLoop {
         BackgroundTaskEventPump? backgroundPump,
         string input,
         CancellationToken ct,
-        ulong? seq) {
-        WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnStarted() { AckSeq = seq });
+        ulong? seq,
+        string queryId) {
+        WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnStarted() { AckSeq = seq, QueryId = queryId });
         consumer.Reset();
         consumer.SetAckSeq(seq);
+        consumer.SetQueryId(queryId);
         try {
             await executeTurn(input, consumer, ct).ConfigureAwait(false);
-            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnCompleted() { AckSeq = seq });
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnCompleted() { AckSeq = seq, QueryId = queryId });
         } catch (OperationCanceledException) {
-            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnInterrupted() { AckSeq = seq });
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnInterrupted() { AckSeq = seq, QueryId = queryId });
         } catch (Exception ex) {
-            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error($"回合执行失败：{ex.Message}") { AckSeq = seq });
-            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnCompleted() { AckSeq = seq });
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error($"回合执行失败：{ex.Message}") { AckSeq = seq, QueryId = queryId });
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnCompleted() { AckSeq = seq, QueryId = queryId });
         } finally {
             if (backgroundPump is not null)
                 await backgroundPump.PublishSnapshotAsync(CancellationToken.None).ConfigureAwait(false);

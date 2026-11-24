@@ -96,10 +96,10 @@ public sealed class PermissionExplainerAssemblyTests {
 
     /// <summary>空引擎（shell 构造需要，本测试不驱动回合）。</summary>
     private sealed class IdleReplEngine : IReplEngine {
-        public void Submit(string text) {
-        }
+        public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images = null, string? queryId = null) =>
+            string.IsNullOrWhiteSpace(queryId) ? "q-test" : queryId;
 
-        public void Interrupt() {
+        public void Interrupt(string? queryId = null) {
         }
 
         public void SetPermissionMode(string mode) {

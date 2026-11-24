@@ -28,6 +28,8 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
 
     private readonly ConcurrentQueue<BridgeEvent> _events;
     private readonly Func<long> _wallClock;
+    private readonly string? _queryId;
+    private readonly MessageIdSequence _messageIds;
     private readonly StringBuilder _fullResponse = new();
     private readonly StringBuilder _thinkingContent = new();
     private long? _thinkingStartMs;
@@ -36,22 +38,26 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
 
     /// <summary>本回合思考块被服务端脱敏（TASK069 #18 — 无 CoT 文本，OnDone 带标记供 UI 渲染存根）。</summary>
     private bool _thinkingRedacted;
-    private int _messageId;
 
     /// <summary>命令回合纯文本模式（TASK065 F6 — DispatchSlashCommandAsync 置位：OnDone 跳过
     /// Markdig 投影发 Markdown:null，防 /help 类缩进对齐文本被解释为代码块/框线表格错位；
     /// OnDone 后自动复位，Reset 兜底复位 — 对话回合 Markdown 投影不受影响）。</summary>
     private bool _commandPlainTextMode;
 
-    /// <summary>构造函数 — 自建队列（独立使用场景）；注入墙钟（测试注入确定性时钟）。</summary>
-    public InProcessEventConsumer(Func<long>? wallClock = null)
-        : this([], wallClock) {
+    /// <summary>构造函数 — 自建队列（独立使用场景）；注入墙钟、queryId（ADR 0165）与会话级消息序号。</summary>
+    public InProcessEventConsumer(Func<long>? wallClock = null, string? queryId = null, MessageIdSequence? messageIds = null)
+        : this([], wallClock, queryId, messageIds) {
     }
 
-    /// <summary>构造函数 — 注入共享队列（EngineTurnClient 场景：生命周期事件与回合内部事件同队 FIFO 保序）。</summary>
-    public InProcessEventConsumer(ConcurrentQueue<BridgeEvent> events, Func<long>? wallClock = null) {
+    /// <summary>构造函数 — 注入共享队列（EngineTurnClient 场景：生命周期与回合内部事件同队 FIFO 保序）；
+    /// queryId 非空时所有查询事件自动归因（background_task 例外，自带 TaskId）；
+    /// messageIds 由宿主共享 — 每查询独立 consumer 时消息序号仍需会话级递增（ADR 0165）。</summary>
+    public InProcessEventConsumer(ConcurrentQueue<BridgeEvent> events, Func<long>? wallClock = null,
+        string? queryId = null, MessageIdSequence? messageIds = null) {
         _events = events;
         _wallClock = wallClock ?? (static () => Environment.TickCount64);
+        _queryId = queryId;
+        _messageIds = messageIds ?? new MessageIdSequence();
     }
 
     /// <summary>重置回合内状态（新一轮对话前由宿主调用，防跨回合泄漏；队列不清 — 回合边界由生命周期事件标记）。
@@ -76,7 +82,7 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         if (content.Length == 0)
             return;
         _fullResponse.Append(content);
-        _events.Enqueue(new BridgeEvent.TokenDelta(content.Length, content));
+        WriteEvent(new BridgeEvent.TokenDelta(content.Length, content));
     }
 
     /// <summary>收到思考内容 — 回合内首个思考发 thinking_started（回合内单次信号，Reset 后新回合再发）；
@@ -85,7 +91,7 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         if (thinking.Length > 0) {
             if (!_thinkingSignalled) {
                 _thinkingSignalled = true;
-                _events.Enqueue(new BridgeEvent.ThinkingStarted());
+                WriteEvent(new BridgeEvent.ThinkingStarted());
             }
 
             if (_thinkingStartMs is null) {
@@ -103,7 +109,7 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _thinkingRedacted = true;
         if (!_thinkingSignalled) {
             _thinkingSignalled = true;
-            _events.Enqueue(new BridgeEvent.ThinkingStarted());
+            WriteEvent(new BridgeEvent.ThinkingStarted());
         }
 
         _thinkingStartMs ??= _wallClock();
@@ -111,20 +117,20 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
 
     /// <summary>工具调用开始 → tool_call(name, args)；思考结束时结算 thinking_ended。</summary>
     public void OnToolStart(string toolName, string? toolCallId, string? arguments) {        EndThinkingIfActive();
-        _events.Enqueue(new BridgeEvent.ToolCall(toolName, arguments ?? string.Empty));
+        WriteEvent(new BridgeEvent.ToolCall(toolName, arguments ?? string.Empty));
     }
 
     /// <summary>工具调用结束 → tool_result(截断摘要 + 结构化 isError + 结构化补丁投影 + 原始输出预截断投影)。
     /// TASK069-M2/M5 — isError 结构化下发（此前只折成摘要文本前缀，TUI 拿不到权威标记）。</summary>
     public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch, string? errorCode = null) {
         var (rawOutput, hiddenLines) = ProjectRawOutput(resultText);
-        _events.Enqueue(new BridgeEvent.ToolResult(BuildSummary(resultText), ProjectPatch(patch), rawOutput, hiddenLines, isError));
+        WriteEvent(new BridgeEvent.ToolResult(BuildSummary(resultText), ProjectPatch(patch), rawOutput, hiddenLines, isError));
     }
 
     /// <summary>工具调用进度 → ToolProgress（TASK065 P3 — Bash/PowerShell 执行中输出快照流式上屏；
     /// progressType 透传引擎侧既有类型，null message 空串投影 — 对齐 bridge 形态逐行为镜像）。</summary>
     public void OnToolProgress(string toolName, string progressType, string? progressMessage, long? elapsedTimeMs = null) {
-        _events.Enqueue(new BridgeEvent.ToolProgress(toolName, progressType, progressMessage ?? string.Empty, elapsedTimeMs));
+        WriteEvent(new BridgeEvent.ToolProgress(toolName, progressType, progressMessage ?? string.Empty, elapsedTimeMs));
     }
 
     /// <summary>检测到循环输出 — TUI 不消费，忽略（对齐 bridge 形态）。</summary>
@@ -145,10 +151,10 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
             // TASK062 结构化组装 — MessageId 会话级递增（Ctrl+O 定位/transcript 对账）+
             // 思考总时长（多段累计）+ CoT 全文（Ctrl+O 展开渲染；空 → null 不输出字段）
             var thinking = _thinkingContent.ToString();
-            _events.Enqueue(new BridgeEvent.AssistantMessage(
+            WriteEvent(new BridgeEvent.AssistantMessage(
                 fullText,
                 _commandPlainTextMode ? null : MarkdigProjector.ProjectOptional(fullText),
-                MessageId: ++_messageId,
+                MessageId: _messageIds.Next(),
                 ThinkingDurationMs: _thinkingTotalMs,
                 ThinkingContent: thinking.Length > 0 ? thinking : null,
                 ThinkingRedacted: _thinkingRedacted));
@@ -162,48 +168,49 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     /// <summary>子代理启动 → SubagentStarted（DSG041 批4 — 显式实现：DIM 默认实现经类类型调用不可见；
     /// ReplBridgeDriver 路由已就绪，分组渲染零改动验收面）。</summary>
     public void OnSubagentStarted(string subagentId, string agentType, string description, string? role = null) {
-        _events.Enqueue(new BridgeEvent.SubagentStarted(subagentId, agentType, description));
+        WriteEvent(new BridgeEvent.SubagentStarted(subagentId, agentType, description));
     }
 
     /// <summary>子代理工具活动 → SubagentToolUse（原地更新组条目 + 活动日志环形缓冲）。</summary>
     public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) {
-        _events.Enqueue(new BridgeEvent.SubagentToolUse(subagentId, toolName, summary, tokenGain));
+        WriteEvent(new BridgeEvent.SubagentToolUse(subagentId, toolName, summary, tokenGain));
     }
 
     /// <summary>子代理完成 → SubagentFinished（条目定格，isError 聚合组头 ● 红；tokenTotal 完成态权威校正）。</summary>
     public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal, TokenUsage? usage = null) {
-        _events.Enqueue(new BridgeEvent.SubagentFinished(subagentId, isError, tokenTotal));
+        WriteEvent(new BridgeEvent.SubagentFinished(subagentId, isError, tokenTotal));
     }
 
     /// <summary>上下文余量 → ContextUsage（M8-7 TASK064 P1 — 引擎回调三参直传内存事件；
     /// percentLeft 引擎侧算好，ReplBridgeDriver 路由 footer 告警。接口同步由引擎侧 IEventConsumer DIM 完成）。</summary>
     public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) {
-        _events.Enqueue(new BridgeEvent.ContextUsage(promptTokens, contextWindowTokens, percentLeft));
+        WriteEvent(new BridgeEvent.ContextUsage(promptTokens, contextWindowTokens, percentLeft));
     }
 
     /// <summary>后台任务状态更新 → BackgroundTask（M8-8 — 四参直传内存事件；(kind,taskId) upsert 常驻面板条目，
     /// 终态驻留。接口同步由引擎侧 IEventConsumer DIM 完成 — 签名一致自动成为实现，未就位时孤立方法编译即过）。</summary>
     public void OnBackgroundTask(string kind, string taskId, string description, string state) {
+        // 会话级 upsert 事件以自身 TaskId 归因，不打查询 queryId（ADR 0165）
         _events.Enqueue(new BridgeEvent.BackgroundTask(kind, taskId, description, state));
     }
 
     /// <summary>上下文压缩完成 → CompactCompleted（TASK070 C6/DSG046 — 四参直传内存事件；
     /// ReplBridgeDriver 路由 TokenUsageTracker.Reset + 通知上屏。显式实现：DIM 默认实现经类类型调用不可见 — 先例同上）。</summary>
     public void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) {
-        _events.Enqueue(new BridgeEvent.CompactCompleted(messagesSummarized, originalTokens, compressedTokens, isAuto));
+        WriteEvent(new BridgeEvent.CompactCompleted(messagesSummarized, originalTokens, compressedTokens, isAuto));
     }
 
     /// <summary>自动重试通知 → Retry（TASK070 E2/DSG046 — 四参直传内存事件，ReplBridgeDriver 路由 spinner 行提示；
     /// 显式实现：DIM 默认实现经类类型调用不可见 — 先例同上）。</summary>
     public void OnRetry(string reason, int attempt, int maxRetries, int delayMs) {
-        _events.Enqueue(new BridgeEvent.Retry(reason, attempt, maxRetries, delayMs));
+        WriteEvent(new BridgeEvent.Retry(reason, attempt, maxRetries, delayMs));
     }
 
     /// <summary>系统旁白 → SystemNotice（TASK130-A5 — hook systemMessage 上屏；ReplBridgeDriver 落 dim 行，
     /// 不进对话正文。显式实现：DIM 默认实现经类类型调用不可见 — 先例同上）。</summary>
     public void OnSystemNotice(string message) {
         if (!string.IsNullOrEmpty(message)) {
-            _events.Enqueue(new BridgeEvent.SystemNotice(message));
+            WriteEvent(new BridgeEvent.SystemNotice(message));
         }
     }
 
@@ -215,8 +222,12 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         return (IReadOnlyList<BridgeEvent>?)drained ?? [];
     }
 
-    /// <summary>写入一条事件 — 无界 Channel TryWrite 永远成功（回合线程不阻塞）。</summary>
-    private void WriteEvent(BridgeEvent bridgeEvent) => _events.Enqueue(bridgeEvent);
+    /// <summary>写入一条查询事件 — 自动打当前 queryId（ADR 0165）；无界队列入队不阻塞。</summary>
+    private void WriteEvent(BridgeEvent bridgeEvent) {
+        if (!string.IsNullOrEmpty(_queryId))
+            bridgeEvent = bridgeEvent with { QueryId = _queryId };
+        _events.Enqueue(bridgeEvent);
+    }
 
     /// <summary>回合用量汇总 → TokenUsage 事件（OnDone 收尾发射；usage null 不发 — 无数据不噪音；
     /// ContextTokens/ContextLimitTokens 引擎暂无 context window 数据源，null 通道留待接线）。</summary>
@@ -286,4 +297,15 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
                     NewLineNumber = line.NewLineNumber,
                 }).ToArray(),
             }).ToArray();
+}
+
+/// <summary>
+/// 会话级消息序号（ADR 0165）— 每条查询各自持有 consumer 后，MessageId 仍需跨查询递增
+/// （Ctrl+O 定位 / transcript 对账依赖会话内唯一序号）；由宿主持有一个实例注入各查询 consumer。
+/// </summary>
+public sealed class MessageIdSequence {
+    private int _value;
+
+    /// <summary>取下一个序号（1 起，并发安全）。</summary>
+    public int Next() => Interlocked.Increment(ref _value);
 }

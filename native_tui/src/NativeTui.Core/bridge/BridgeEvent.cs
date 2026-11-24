@@ -42,6 +42,13 @@ public abstract record BridgeEvent
     public ulong? AckSeq { get; init; }
 
     /// <summary>
+    /// 查询身份（ADR 0165）— 由该查询产生的事件都带同一 queryId；会话级事件不带。
+    /// null 表示旧对端/非查询事件（兼容旧 JSON）。
+    /// </summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? QueryId { get; init; }
+
+    /// <summary>
     /// 会话握手（引擎启动后首条事件）— 版本/当前模型/权限模式/bypass 可用性/cwd/供应商/登录态。
     /// Model 为 null 表示引擎未设置模型（banner 显示"当前模型未设置"）；
     /// Vendor 为 null 表示引擎未上报（banner 退化为不带供应商前缀，旧引擎兼容）；

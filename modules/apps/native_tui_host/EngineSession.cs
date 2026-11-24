@@ -67,7 +67,10 @@ public sealed class EngineSession : IAsyncDisposable {
             var checker = await ResolvePermissionCheckerAsync(engine.Services).ConfigureAwait(false);
             var fastMode = engine.Services.GetService<IFastModeService>();
             askBridge.AttachNotificationQueue(engine.Services.GetService<IAgentNotificationQueue>());
-            var mainAgent = EngineAgentFactory.CreateMainAgent(engine.Services, new Session().ObjectId);
+            // ADR 0165 — 会话身份跨查询共享，主代理改为**每查询新建**（见回合执行器）：
+            // AgentBase 持有可变的 CurrentInput/_context/ChatHistory/Status/Output，
+            // 两条查询并发共用同一实例会互覆输入、交错写历史（事件归因正确但内容错误）。
+            var sessionObjectId = new Session().ObjectId;
 
             // M8-5 命令交互回调桥 — 回调管道随回合执行器闭包传递（Bind 前回调为 null 安全降级，
             // Program 在 shell 构造后 Bind：/clear → 清滚动区、/exit → 主循环结束）
@@ -98,8 +101,9 @@ public sealed class EngineSession : IAsyncDisposable {
                 throw new InvalidOperationException("TUI 模式需要聊天服务，但 ChatService 为 null");
             var chatService = engine.ChatService;
 
-            // 首次 submit 时绑定回合驱动器 — consumer 即进程内事件出口（client 构造，全程同一实例，对齐 BridgeServeCommand 先例）
-            SessionController? controller = null;
+            // ADR 0165 — 每条查询新建 SessionController，消费器来自该查询自身的 per-query consumer；
+            // SessionStart hook 标记跨查询共享，保证会话级一次性语义。
+            var sessionStartHookState = new JoinCode.Adapters.SessionStartHookState();
             var client = new EngineTurnClient(
                 (input, consumer, turnCt) => {
                     // TASK064 斜杠命令分流（对齐 CliSession.ProcessInputAsync：/ 开头走命令执行不进 LLM）
@@ -107,9 +111,10 @@ public sealed class EngineSession : IAsyncDisposable {
                         return DispatchSlashCommandAsync(engine.Services, input, consumer, commandCallbacks, turnCt);
                     }
 
-                    controller ??= new SessionController(
+                    var controller = new SessionController(
                         chatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
-                        mainAgent: mainAgent);
+                        mainAgent: EngineAgentFactory.CreateMainAgent(engine.Services, sessionObjectId),
+                        sessionStartHookState: sessionStartHookState);
                     return RunTurnAsync(controller, input, turnCt);
                 },
                 BuildPermissionModeApplier(checker),

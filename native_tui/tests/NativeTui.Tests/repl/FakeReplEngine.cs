@@ -27,23 +27,24 @@ internal sealed class FakeReplEngine : IReplEngine
     /// <summary>引擎存活标记（测试可置 false 模拟死亡）。</summary>
     public bool Alive = true;
 
-    /// <summary>记录提交。</summary>
-    public void Submit(string text) => Submits.Add(text);
-
-    /// <summary>记录带附件提交（G3 图片重载 — 三面记录：SubmitsWithImages 文本+计数、
-    /// SubmittedImages 附件本体、转调单参共用 Submits）。</summary>
-    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images)
+    /// <summary>记录提交（ADR 0165 — 返回/回显 queryId）。仅带附件时进图片记录面
+    /// （SubmitsWithImages/SubmittedImages 语义 = 「真的带了几个附件」，纯文本提交只进 Submits）。</summary>
+    public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images = null, string? queryId = null)
     {
-        SubmitsWithImages.Add((text, images?.Count ?? 0));
-        SubmittedImages.Add(images ?? []);
-        Submit(text);
+        if (images is { Count: > 0 }) {
+            SubmitsWithImages.Add((text, images.Count));
+            SubmittedImages.Add(images);
+        }
+
+        Submits.Add(text);
+        return string.IsNullOrWhiteSpace(queryId) ? "q-test" : queryId;
     }
 
     /// <summary>记录新会话请求（G3 — D8 Clear 引擎调用断言面）。</summary>
     public void StartNewConversation() => NewConversations++;
 
-    /// <summary>记录打断。</summary>
-    public void Interrupt() => Interrupts++;
+    /// <summary>记录打断（queryId 仅记录次数 — 本桩不驱动回合）。</summary>
+    public void Interrupt(string? queryId = null) => Interrupts++;
 
     /// <summary>记录权限模式。</summary>
     public void SetPermissionMode(string mode) => PermissionModes.Add(mode);

@@ -9,7 +9,6 @@ public partial class ChatService : IChatService {
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<ChatService>? _logger;
     private readonly IAsyncLazy<int> _initLazy;
-    private int _conversationTurn;
 
     /// <summary>
     /// 聊天中间件管道 — 由通用 StreamMiddlewarePipeline 构建
@@ -22,11 +21,13 @@ public partial class ChatService : IChatService {
     private readonly MiddlewarePipeline<ChatAdminContext> _adminPipeline;
 
     /// <summary>
-    /// 工具执行上下文 — 对齐 TS ToolUseContext
-    /// 维护技能执行时 contextModifier 修改的会话级状态（allowedTools/model/effort）
-    /// 以及内容替换状态（contentReplacementState）
+    /// 工具执行上下文已按查询隔离（ADR 0165）— 见 <see cref="ChatQueryScope.ToolUseContext"/>，
+    /// Singleton ChatService 不再持有跨查询共享实例。
     /// </summary>
-    private readonly ToolUseContext _toolUseContext = new();
+
+    /// <summary>会话级轮次计数器（ADR 0165）— 查询开始时原子分配序号注入 scope；
+    /// 并发查询各得不同序号，不与 ToolUseContext 一同隔离。</summary>
+    private int _conversationTurn;
 
     /// <summary>
     /// 文件读取监听器订阅 — 用于追踪最近读取的文件，压缩后恢复上下文
@@ -55,7 +56,7 @@ public partial class ChatService : IChatService {
         // 对齐 TS: registerFileReadListener — 追踪最近读取的文件
         if (fileReadListenerRegistry is not null) {
             _fileReadListenerSubscription = fileReadListenerRegistry.Register(
-                new FileReadTracker(_toolUseContext));
+                new FileReadTracker());
         }
 
         _initLazy = new AsyncLazy<int>(InitializeCoreAsync);
@@ -69,7 +70,7 @@ public partial class ChatService : IChatService {
         var context = new ChatAdminContext {
             Operation = ChatAdminOperation.Initialize,
             ContextManager = _contextManager,
-            ToolUseContext = _toolUseContext,
+            ToolUseContext = ChatQueryScope.CurrentOrNull?.ToolUseContext ?? new ToolUseContext(),
         };
         await _adminPipeline.ExecuteAsync(context, CancellationToken.None).ConfigureAwait(false);
         return 0;
@@ -88,17 +89,14 @@ public partial class ChatService : IChatService {
     /// 通过中间件管道执行，从 ChatStreamEvent 中提取文本内容。
     /// </summary>
     public async IAsyncEnumerable<string> SendMessageStreamAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn());
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.stream", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.stream", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
 
-        try {
-            await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
-                if (evt.Type == ChatStreamEventType.Content && evt.Content is not null) {
-                    yield return evt.Content;
-                }
+        await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
+            if (evt.Type == ChatStreamEventType.Content && evt.Content is not null) {
+                yield return evt.Content;
             }
-        } finally {
-            await CleanupAsync(context).ConfigureAwait(false);
         }
     }
 
@@ -107,18 +105,15 @@ public partial class ChatService : IChatService {
     /// 每轮工具调用产生 ToolStart/ToolEnd 事件，最终产生 Done 事件。
     /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default, IEventConsumer? eventConsumer = null) {
+        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn());
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         // 发送提醒注入 — system-reminder 形态追加到消息末尾（10 分钟冷却；与 SessionController 共享静态 Instance，
         // GUI 主链路与 TUI 回退路径互斥覆盖，冷却防双注入）
         message = SendReminderInjector.Instance.Append(message);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.events", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId, EventConsumer = eventConsumer, RequireRoundGate = RoundGatePolicy.IsEnabledForChatPipeline() };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.events", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId, EventConsumer = eventConsumer, RequireRoundGate = RoundGatePolicy.IsEnabledForChatPipeline() };
 
-        try {
-            await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
-                yield return evt;
-            }
-        } finally {
-            await CleanupAsync(context).ConfigureAwait(false);
+        await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
+            yield return evt;
         }
     }
 
@@ -128,40 +123,31 @@ public partial class ChatService : IChatService {
     /// 通过中间件管道执行，收集所有文本内容后返回。
     /// </summary>
     public async Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default) {
+        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn());
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.sync", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.sync", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
 
-        try {
-            var responseBuilder = new StringBuilder();
+        var responseBuilder = new StringBuilder();
 
-            await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
-                if (evt.Type == ChatStreamEventType.Content && evt.Content is not null) {
-                    responseBuilder.Append(evt.Content);
-                }
+        await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
+            if (evt.Type == ChatStreamEventType.Content && evt.Content is not null) {
+                responseBuilder.Append(evt.Content);
             }
-
-            var aiResponse = responseBuilder.ToString();
-            if (string.IsNullOrEmpty(aiResponse)) {
-                aiResponse = "抱歉，我无法生成回复。";
-            }
-
-            var injectionInfo = context.PreprocessResult?.PromptInjectionInfo;
-            return !string.IsNullOrEmpty(injectionInfo)
-                ? $"{injectionInfo}\n\n{aiResponse}"
-                : aiResponse;
-        } finally {
-            await CleanupAsync(context).ConfigureAwait(false);
         }
+
+        var aiResponse = responseBuilder.ToString();
+        if (string.IsNullOrEmpty(aiResponse)) {
+            aiResponse = "抱歉，我无法生成回复。";
+        }
+
+        var injectionInfo = context.PreprocessResult?.PromptInjectionInfo;
+        return !string.IsNullOrEmpty(injectionInfo)
+            ? $"{injectionInfo}\n\n{aiResponse}"
+            : aiResponse;
     }
 
-    /// <summary>
-    /// 清理逻辑 — 递增对话轮次
-    /// 用量处理、清理注入、保存上下文已移入独立中间件
-    /// </summary>
-    private Task CleanupAsync(ChatMiddlewareContext context) {
-        Interlocked.Increment(ref _conversationTurn);
-        return Task.CompletedTask;
-    }
+    /// <summary>分配下一个会话轮次序号（0 起）— 并发安全，每个查询拿唯一序号。</summary>
+    private int NextConversationTurn() => Interlocked.Increment(ref _conversationTurn) - 1;
 
     // === 管理操作 — 通过 admin 管道执行 ===
 
@@ -277,7 +263,7 @@ public partial class ChatService : IChatService {
             Operation = ChatAdminOperation.CompactHistory,
             ContextManager = _contextManager,
             Summary = summary,
-            ToolUseContext = _toolUseContext,
+            ToolUseContext = ChatQueryScope.CurrentOrNull?.ToolUseContext ?? new ToolUseContext(),
         };
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
         if (context.Error is not null)
@@ -326,18 +312,9 @@ public partial class ChatService : IChatService {
 /// 追踪最近读取的文件路径，用于压缩后恢复上下文
 /// </summary>
 internal sealed class FileReadTracker : IFileReadListener {
-    private readonly ToolUseContext _toolUseContext;
-
-    /// <summary>
-    /// 初始化文件读取追踪器
-    /// </summary>
-    /// <param name="toolUseContext">工具使用上下文</param>
-    public FileReadTracker(ToolUseContext toolUseContext) {
-        _toolUseContext = toolUseContext;
-    }
 
     /// <summary>记录文件读取事件,追踪最近读取的文件路径</summary>
     public void OnFileRead(FileReadEventArgs e) {
-        _toolUseContext.RecordFileRead(e.FilePath);
+        ChatQueryScope.CurrentOrNull?.ToolUseContext.RecordFileRead(e.FilePath);
     }
 }

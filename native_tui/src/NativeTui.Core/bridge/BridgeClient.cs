@@ -49,27 +49,30 @@ public sealed class BridgeClient : IDisposable
         return new BridgeClient(process, pump);
     }
 
-    /// <summary>提交用户输入（开始回合）。</summary>
-    public void Submit(string text) =>
-        BridgeProtocol.WriteRequest(_stdin, new BridgeRequest.Submit(text));
+    /// <summary>提交用户输入（开始查询，ADR 0165）。</summary>
+    public string Submit(string text) => Submit(text, images: null, queryId: null);
 
-    /// <summary>提交用户输入（带图片附件 — TASK066 板块 G G4 bridge 协议图片通道）：
-    /// images 非空时数组随行写出（camelCase base64/mediaType/filename）；null/空归一为不带字段
-    /// — 与单参形态字节等价（IReplEngine.Submit 契约"null/空附件等价单参提交"的协议层落点，
-    /// 空数组 WhenWritingNull 不忽略 — 本类为唯一写协议出口，归一收口在此）。</summary>
+    /// <summary>提交用户输入（带图片附件 + queryId — ADR 0165 / TASK066 板块 G G4）：
+    /// images 非空时数组随行写出；queryId 显式给出或新生成，写进请求行并同步返回给调用方。</summary>
     /// <param name="text">提交文本（图片占位 [Image #N] 已由 shell 剥离）。</param>
     /// <param name="images">图片附件快照（null/空 = 无附件 — 不带 images 字段）。</param>
-    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images) =>
-        BridgeProtocol.WriteRequest(_stdin, new BridgeRequest.Submit(text, NormalizeImages(images)));
+    /// <param name="queryId">显式查询身份；null/空时生成。</param>
+    /// <returns>生效 queryId。</returns>
+    public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images, string? queryId = null) {
+        var effective = string.IsNullOrWhiteSpace(queryId) ? QueryIdFactory.New() : queryId;
+        BridgeProtocol.WriteRequest(_stdin,
+            new BridgeRequest.Submit(text, NormalizeImages(images)) { QueryId = effective });
+        return effective;
+    }
 
     /// <summary>附件快照归一（G4）：null/空 → null（协议不带字段，旧行为字节等价）；
     /// 非空 → 拷贝为数组（快照隔离 — 外部可变列表不逃逸进协议行）。</summary>
     private static BridgeImageAttachment[]? NormalizeImages(IReadOnlyList<BridgeImageAttachment>? images) =>
         images is { Count: > 0 } ? [.. images] : null;
 
-    /// <summary>打断当前回合。</summary>
-    public void Interrupt() =>
-        BridgeProtocol.WriteRequest(_stdin, new BridgeRequest.Interrupt());
+    /// <summary>打断指定查询（null = 让引擎按旧语义处理全部在途查询）。</summary>
+    public void Interrupt(string? queryId = null) =>
+        BridgeProtocol.WriteRequest(_stdin, new BridgeRequest.Interrupt { QueryId = queryId });
 
     /// <summary>切换权限模式（mode 为协议值 plan/auto/ask/bypass/unattended；生效值以引擎回执事件为准）。</summary>
     public void SetPermissionMode(string mode) =>

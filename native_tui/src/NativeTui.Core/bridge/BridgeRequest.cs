@@ -21,6 +21,13 @@ public abstract record BridgeRequest
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ulong? Seq { get; init; }
 
+    /// <summary>
+    /// 查询身份（ADR 0165）— submit/interrupt 指定或回显的 queryId；
+    /// null 表示旧客户端（bridge_serve 兼容降级为单查询语义）。
+    /// </summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? QueryId { get; init; }
+
     /// <summary>提交用户输入，开始回合。</summary>
     /// <param name="Text">提交文本（图片占位 [Image #N] 已由 shell 剥离）。</param>
     /// <param name="Images">图片附件数组（TASK066 板块 G G4 bridge 协议图片通道 — null 不序列化字段

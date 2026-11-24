@@ -18,8 +18,8 @@ public sealed class SessionController {
     private string? _lastStopReason;
     /// <summary>最近一次自动压缩后台任务（TASK070 — internal 测试观察点：单测 await 它消除 fire-and-forget 时序不确定性）。</summary>
     internal Task? LastAutoCompactTask { get; private set; }
-    /// <summary>主代理链的 SessionStart hook 是否已执行（每会话一次，TASK130-A6）。</summary>
-    private bool _sessionStartHookRan;
+    /// <summary>主代理链的 SessionStart hook 共享标记（每会话一次，ADR 0165 — 控制器改为每查询实例后仍需跨查询幂等）。</summary>
+    private readonly SessionStartHookState _sessionStartHookState;
 
     /// <summary>本次 StreamResponseAsync 的 LLM 调用轮次数（每次 onDone 递增，回合开始复位；对齐 ClaudeCode SDK num_turns 语义）。</summary>
     private int _totalTurns;
@@ -80,7 +80,8 @@ public sealed class SessionController {
         string sessionId,
         IServiceProvider? serviceProvider = null,
         IClockService? clock = null,
-        AgentBase? mainAgent = null) {
+        AgentBase? mainAgent = null,
+        SessionStartHookState? sessionStartHookState = null) {
         _chatService = chatService;
         _consumer = consumer;
         _turnDiffService = turnDiffService;
@@ -88,6 +89,7 @@ public sealed class SessionController {
         _serviceProvider = serviceProvider;
         _clock = clock ?? SystemClockService.Instance;
         _mainAgent = mainAgent;
+        _sessionStartHookState = sessionStartHookState ?? new SessionStartHookState();
 
         // TASK070 E2/DSG046 — 重试感知绑定：主代理 BuildChatOptions → QueryOptions.OnRetry →
         // QueryEngine 指数退避重试前回调 → consumer.OnRetry 上屏（未注入 notifier = 静默重试旧行为）。
@@ -98,7 +100,10 @@ public sealed class SessionController {
             // 主代理路径绕过 QueryLoopMiddleware — 后台通知在每轮迭代步首注入查询历史，并阻止收尾丢掉回调
             if (_serviceProvider?.GetService<IAgentNotificationQueue>() is { } notificationQueue) {
                 _mainAgent.IterationStartInjector = (history, _) => {
-                    foreach (var text in notificationQueue.DrainFormatted(_mainAgent.UniqueId)) {
+                    // ADR 0165 — 按顶层消费者排空（null = 所有目标桶），不再按 _mainAgent.UniqueId：
+                    // 主代理改为每查询新建后 UniqueId 每回合都变，用它做桶键会让「上一回合启动的
+                    // 后台 agent 完成通知」落进无人消费的桶；主代理本就是唯一的顶层消费者。
+                    foreach (var text in notificationQueue.DrainFormatted()) {
                         history.AddUserMessage(text);
                         Diag.WriteLine($"[BACKGROUND-NOTIFY] 轮内注入进入主代理历史 长度={text.Length}");
                     }
@@ -573,8 +578,8 @@ public sealed class SessionController {
     /// 先置位再执行：hook 跑的是外部命令，失败或取消都不重试，避免每回合重复产生副作用。
     /// </remarks>
     private async Task EnsureSessionStartHookAsync(CancellationToken ct) {
-        if (_sessionStartHookRan || _serviceProvider is null) return;
-        _sessionStartHookRan = true;
+        if (_serviceProvider is null) return;
+        if (Interlocked.Exchange(ref _sessionStartHookState.Ran, 1) != 0) return;
 
         var manager = _serviceProvider.GetService<ISessionStartHookManager>();
         if (manager is null) return;
@@ -861,4 +866,12 @@ public sealed class SessionTurnResult {
         Response = partialResponse,
         OriginalException = originalException
     };
+}
+
+/// <summary>
+/// 会话级 SessionStart hook 标记（ADR 0165）— 每查询独立 SessionController 时由宿主共享同一实例，
+/// 保证 hook 每会话只跑一次，失败/取消也不重试（先置位语义不变）。
+/// </summary>
+public sealed class SessionStartHookState {
+    internal int Ran;
 }

@@ -452,6 +452,62 @@ Hub 投影目前由 `ApplySandboxConfigAsync` 单测覆盖，不能当作进程�
 `docs/proposed/design/DSG054-主会话后台化Ctrl+B设计.md`（2026-11-24：用户纠偏「万物皆后台」，
 阶段 0 查询身份地基先行），w4 B2 不再重复设计；实现进度以 DSG054 为准。
 
+**设计定稿（2026-11-24）**：[DSG054](../../proposed/design/DSG054-主会话后台化Ctrl+B设计.md) §9。
+§7「两查询并发需 7 项改造」是误判；§8「abort 前台 + 独立 query 续跑」虽与 Claude Code 基准
+（`REPL.tsx:2555-2606` → `LocalMainSessionTask.ts:338-479`）一致，但用户明确否定其打断语义。
+最终裁决为**万物皆后台**：查询从第一刻就是有身份的 task，前台只是订阅当前聚焦 task 的异步视图；
+Ctrl+B 是纯视图切换，不 abort、不重跑、不重复计费。`ReplShell.cs:1926-1928` 的 Ctrl+B 当前实为光标左移，
+阶段 1 需与视图切换分层处理。
+
+**阶段 0（查询身份地基，2026-11-24 开工 → 2026-11-25 完成）**：ADR
+[0165](../../proposed/adr/0165-everything-is-background-query-identity.md) 已 accepted。
+红测试先行（四项目分别在新增 API/属性处编译失败），实现后全绿：
+
+| 测试项目 | 结果 |
+|----------|------|
+| `NativeTui.Tests` | 3193 / 0 失败 |
+| `Host.Tests` | 1379 / 0 失败 |
+| `NativeTui.Host.Tests` | 177 / 0 失败 |
+| `Brain.Context.Tests` | 967 / 0 失败 |
+
+落地内容：
+- `IReplEngine.Submit(...)` 返回 queryId、`Interrupt(queryId)` 定向取消；9 个实现/装饰器与测试桩全部透传。
+- `BridgeEvent`/`BridgeRequest` 双端镜像新增 `QueryId`（`WhenWritingNull`）；`submit` 必带，
+  生命周期与查询内部事件统一归因，会话级事件（`session_info`/`permission_mode_changed`/`background_task`）不带。
+- `EngineTurnClient` 单回合槽 → `ConcurrentDictionary<queryId, QueryRun>`；**每条查询独立 consumer**
+  （`_fullResponse`/`_thinkingContent` 不再跨查询串写）；忙时不再拒绝。
+- 唯一仍拒绝：同 queryId 并发复用（身份冲突），错误文案含「占用者 + Interrupt(id) + 换新 id」可执行诱导。
+- `bridge_serve` 的 `interrupt` 带不匹配 queryId 时不再误杀在途回合（迟到的 Esc 不杀新提交）。
+- `ChatService` 回合状态入 `ChatQueryScope`（AsyncLocal）：`ToolUseContext` per-query；
+  `ConversationTurn` 从会话级计数器原子分配后注入（**不**在 scope 内归零，否则每个查询都自称第 0 轮）。
+- `SessionController` 改「每查询新建实例」，会话级 `SessionStart` hook 标记外置共享。
+
+实现期处置的旧断言（避免被误读为「改测试变绿」）：
+- 「忙时提交拒绝 + 回 Esc 诱导」前提被 ADR 0165 废除 → 改写为「同 queryId 并发复用被拒 + 诱导可执行」。
+- 协议字节断言从「与无 queryId 旧形态等价」→「必带 queryId；`images` 为空仍不带字段」。
+- 模拟引擎断言改用 `Submit` 返回值核对 `TurnStarted.QueryId`。
+
+**阶段 1 前台侧（2026-11-25 完成，#100）** — Ctrl+B 纯视图切换：
+
+- `ReplShell` 新增 `_foregroundQueryId`（前台订阅的身份）+ `_backgroundQueries`（每查询一个事件桶）；
+  `DrainEngine` 首行拦截：归因到后台桶的事件只入缓冲不渲染，终态记完成并提示「ctrl+b 切回查看」。
+- `Ctrl+B` 一个键两个互斥语义：前台忙 → 转后台（`_driver.EndTurn()` + 释放前台身份，**不调用 `Interrupt`**）；
+  否则切回最近后台桶（未完成先 `BeginTurn`，再按序 `Apply` 补投）。
+- 键位分层按基准 `schema.ts:48`：`task:background`（默认 `ctrl+b`）属 `Task` 上下文，`Chat` 上下文的
+  `ctrl+b` 仍是光标左移。`HandleCtrlKey` 在全局单键分派**之前**判断，条件为
+  `IsBusy || _backgroundQueries.Count > 0`（闲且无后台不接管，保住既有编辑行为）；
+  `DispatchCtrlAction` 补上原先缺失的 `TaskBackground` 分支。
+- 两个只有跑测试才暴露的坑：① 前台身份必须在 `TurnCompleted`/`TurnInterrupted` 时释放，
+  否则下次提交被误判「前台仍有主」而静默吞掉（9 条既有提交测试同红）；② 不能用
+  `_foregroundQueryId ??= Submit(...)`，同拍连提会丢输入 —— 改为「总是提交 → 有空位接管 → 否则注册为后台查询」。
+
+验收：`NativeTui.Tests` **3199 / 0 失败**（新增 `QueryBackgroundTests` 5 条）、`NativeTui.Host.Tests` 178、
+`Verify-StyleGate.py` 1817（新文件零违规）、`Verify-NoLockPrimitives.py` 64 处存量（未加锁）、
+`Verify-ExplicitOrder.py` / `Verify-RegistrationOrder.py` 双向一致。
+
+阶段 1 剩余：transcript 按 queryId 归属 + 独立 transcript 视图 + 真机 TUI 手工验收（#101）；
+阶段 2：SDK/NDJSON 协议、`/clear` symlink 重链、逐 token 落盘。
+
 ### B3. macOS Seatbelt（需 macOS 真机 + 独立 ADR）
 
 **证据**：TASK103:254 —— 当前显式报「未实现」，不进 provider 链。**外部条件缺失，不可在本机施工。**

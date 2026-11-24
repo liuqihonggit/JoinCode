@@ -7,6 +7,7 @@ namespace Core.Context;
 [Register(typeof(IChatService), ServiceLifetime.Singleton)]
 public partial class ChatService : IChatService {
     private readonly IChatContextManager _contextManager;
+    private readonly ITranscriptService? _transcriptService;
     private readonly ILogger<ChatService>? _logger;
     private readonly IAsyncLazy<int> _initLazy;
 
@@ -42,13 +43,16 @@ public partial class ChatService : IChatService {
     /// <param name="adminPipeline">管理操作中间件管道</param>
     /// <param name="fileReadListenerRegistry">文件读取监听器注册表（可选）</param>
     /// <param name="logger">可选日志记录器</param>
+    /// <param name="transcriptService">transcript 服务（可选）— 会话翻页要落新代 meta；null 时翻页降级为清内存</param>
     public ChatService(
         IChatContextManager contextManager,
         StreamMiddlewarePipeline<ChatMiddlewareContext, ChatStreamEvent> middlewarePipeline,
         MiddlewarePipeline<ChatAdminContext> adminPipeline,
         IFileReadListenerRegistry? fileReadListenerRegistry = null,
-        ILogger<ChatService>? logger = null) {
+        ILogger<ChatService>? logger = null,
+        ITranscriptService? transcriptService = null) {
         _contextManager = contextManager;
+        _transcriptService = transcriptService;
         _middlewarePipeline = middlewarePipeline;
         _adminPipeline = adminPipeline;
         _logger = logger;
@@ -89,9 +93,9 @@ public partial class ChatService : IChatService {
     /// 通过中间件管道执行，从 ChatStreamEvent 中提取文本内容。
     /// </summary>
     public async IAsyncEnumerable<string> SendMessageStreamAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn());
+        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn(), sessionId: _contextManager.SessionId);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.stream", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.stream", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = queryScope.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId, QueryId = queryScope.QueryId };
 
         await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
             if (evt.Type == ChatStreamEventType.Content && evt.Content is not null) {
@@ -105,12 +109,12 @@ public partial class ChatService : IChatService {
     /// 每轮工具调用产生 ToolStart/ToolEnd 事件，最终产生 Done 事件。
     /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default, IEventConsumer? eventConsumer = null) {
-        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn());
+        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn(), sessionId: _contextManager.SessionId);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         // 发送提醒注入 — system-reminder 形态追加到消息末尾（10 分钟冷却；与 SessionController 共享静态 Instance，
         // GUI 主链路与 TUI 回退路径互斥覆盖，冷却防双注入）
         message = SendReminderInjector.Instance.Append(message);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.events", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId, EventConsumer = eventConsumer, RequireRoundGate = RoundGatePolicy.IsEnabledForChatPipeline() };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.events", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = queryScope.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId, QueryId = queryScope.QueryId, EventConsumer = eventConsumer, RequireRoundGate = RoundGatePolicy.IsEnabledForChatPipeline() };
 
         await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
             yield return evt;
@@ -123,9 +127,9 @@ public partial class ChatService : IChatService {
     /// 通过中间件管道执行，收集所有文本内容后返回。
     /// </summary>
     public async Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default) {
-        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn());
+        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn(), sessionId: _contextManager.SessionId);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.sync", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.sync", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = queryScope.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId, QueryId = queryScope.QueryId };
 
         var responseBuilder = new StringBuilder();
 
@@ -150,6 +154,34 @@ public partial class ChatService : IChatService {
     private int NextConversationTurn() => Interlocked.Increment(ref _conversationTurn) - 1;
 
     // === 管理操作 — 通过 admin 管道执行 ===
+
+    /// <summary>
+    /// 开始新会话（ADR 0167 会话翻页 / TASK135 B1）— 幂等入口：无需 transcript 服务的极简宿主
+    /// 降级为清内存，语义与升级前一致。
+    /// </summary>
+    /// <param name="projectPath">新会话项目路径；null 用当前目录。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>新会话标识。</returns>
+    public async Task<string> StartNewConversationAsync(string? projectPath = null, CancellationToken cancellationToken = default) {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        if (_transcriptService is null) {
+            // 无 transcript 服务（极简宿主/测试）：没有磁盘代次可翻，退回清内存
+            await ClearHistoryAsync(cancellationToken).ConfigureAwait(false);
+            return _contextManager.SessionId;
+        }
+
+        return await SessionEpochSwitcher.BeginNewAsync(
+            _contextManager,
+            _transcriptService,
+            new SessionEpochOptions {
+                ProjectPath = projectPath ?? Environment.CurrentDirectory,
+                // 工具调用拿不到在途查询数，保守不回收（与 /clear 同一取舍）
+                ReleaseOldBucket = false,
+            },
+            _logger,
+            cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// 清空聊天历史记录，保留系统提示词，重置会话统计和空闲检测状态

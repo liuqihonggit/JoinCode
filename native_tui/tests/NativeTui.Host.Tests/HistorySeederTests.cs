@@ -68,6 +68,12 @@ public sealed class HistorySeederTests
         }
 
         public Task MigrateLegacyAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        /// <summary>流式旁路（ADR 0166）— 历史种子不关心，no-op。</summary>
+        public Task AppendStreamingSnapshotAsync(string sessionId, string? queryId, int? turnSeq, string content, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        /// <summary>流式旁路清理（ADR 0166）— 历史种子不关心，no-op。</summary>
+        public Task ClearStreamingAsync(string sessionId, string? queryId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     /// <summary>用户输入条目。</summary>

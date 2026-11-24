@@ -29,6 +29,34 @@ internal interface ISessionStore {
 
     /// <summary>切换会话 — 按 sessionId 隔离对话历史</summary>
     void SwitchSession(string sessionId);
+
+    // === ADR 0167 会话代次：按显式 sessionId 解析，null = 当前指针 ===
+    // 与上面「当前会话」成员一一对应。在途查询用 queryId 时代（ChatQueryScope.SessionId）调用，
+    // 保证 /clear 换指针之后它的读写仍落在出生时的桶里。
+
+    /// <summary>指定会话的消息条数（null = 当前）</summary>
+    int CountOf(string? sessionId);
+
+    /// <summary>指定会话的对话日志（null = 当前）</summary>
+    AppendOnlyLog GetLog(string? sessionId);
+
+    /// <summary>指定会话的消息快照（null = 当前）</summary>
+    IReadOnlyList<ApiMessage> ToMessages(string? sessionId);
+
+    /// <summary>追加消息到指定会话（null = 当前）</summary>
+    void Append(ApiMessage message, string? sessionId);
+
+    /// <summary>原地压缩指定会话（null = 当前）</summary>
+    void CompactInPlace(IReadOnlyList<ApiMessage> messages, string? sessionId);
+
+    /// <summary>裁剪指定会话的最后一轮（null = 当前）</summary>
+    int TrimLastTurn(string? sessionId);
+
+    /// <summary>截断指定会话到指定索引（null = 当前）</summary>
+    int TruncateTo(int index, string? sessionId);
+
+    /// <summary>释放已封存的会话桶（ADR 0167 — /clear 换代号后旧代不再驻留内存）</summary>
+    bool ReleaseSession(string sessionId);
 }
 
 /// <summary>

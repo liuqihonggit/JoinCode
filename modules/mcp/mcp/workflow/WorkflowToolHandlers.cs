@@ -218,7 +218,10 @@ public class WorkflowToolHandlers {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkflowChatServiceUnavailable)).Build();
         }
 
-        await _chatService.ClearHistoryAsync().ConfigureAwait(false);
+        // TASK135 B1 — 工具语义对齐 /clear：会话翻页（换 sessionId，旧代留在磁盘）。
+        // 只清内存会让模型对用户说「已清空」，而 resume 时整段历史又回来。
+        var newSessionId = await _chatService.StartNewConversationAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        _logger?.LogInformation("workflow_clear_history 已翻页到新会话 {SessionId}", newSessionId);
         return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowChatHistoryCleared)).Build();
     }
 

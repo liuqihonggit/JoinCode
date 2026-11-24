@@ -30,19 +30,45 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
     /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>流式旁路落盘节流：累积字符阈值（ADR 0166 — 与 200ms 时间阈值先到者触发）。</summary>
+    private const int StreamingFlushChars = 512;
+
+    /// <summary>流式旁路落盘节流：时间阈值（Stopwatch tick，200ms）。</summary>
+    private static readonly long StreamingFlushTicks = Stopwatch.Frequency / 5;
+
     /// <summary>
     /// 透传下游事件 → 下游完成后取快照差量写 transcript。
     /// 不缓冲事件流，保证流式响应实时性（对齐 SaveContextMiddleware 模式）。
+    /// ADR 0166：透传途中按节流把「已生成的累积全文」写进旁路，打断/崩溃后由读端收编。
     /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
+        // ADR 0167 — 会话代次在**进入时**快照：回合中途 /clear 换了 sessionId，本回合仍落旧代。
+        // 优先取查询作用域（ChatService 进入时已钉住），无作用域时退回当前指针的快照。
+        var sessionId = ChatQueryScope.CurrentOrNull?.SessionId ?? _contextManager.SessionId;
+        // TASK135 A1 — 查询身份同样在进入时快照：旁路按查询分文件，同一会话的并行查询不互删。
+        var queryId = context.QueryId ?? ChatQueryScope.CurrentOrNull?.QueryId;
+
         // Bug 19 根因 A 修复：startCount 必须基于含系统提示词的快照计数，与 GetMessageListAsync 索引空间一致
         var startSnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
         var startCount = startSnapshot.Count;
 
+        // ADR 0166 — 流式旁路：只在能落盘的场合累积（dry run / worker / 无服务一律不写）
+        var streaming = ShouldPersist(context) ? new StringBuilder() : null;
+        var lastFlushTicks = 0L;
+
         await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
+            if (streaming is not null && IsAssistantTextDelta(evt)) {
+                streaming.Append(evt.Content);
+                var now = Stopwatch.GetTimestamp();
+                if (streaming.Length >= StreamingFlushChars || now - lastFlushTicks >= StreamingFlushTicks) {
+                    lastFlushTicks = now;
+                    await AppendStreamingSnapshotSafeAsync(streaming.ToString(), sessionId, queryId, context.ConversationTurn, ct).ConfigureAwait(false);
+                }
+            }
+
             yield return evt;
         }
 
@@ -55,8 +81,11 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
             yield break;
 
         var snapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
-        if (snapshot.Count <= startCount)
+        if (snapshot.Count <= startCount) {
+            // 正常结束但本轮没有新增消息（空回合）— 旁路也要清，否则残留会被下次加载收编成幽灵消息
+            await ClearStreamingSafeAsync(sessionId, queryId, ct).ConfigureAwait(false);
             yield break;
+        }
 
         var entries = new List<TranscriptEntry>(snapshot.Count - startCount);
         for (var i = startCount; i < snapshot.Count; i++) {
@@ -73,18 +102,73 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
                 Content = content,
                 Timestamp = DateTime.UtcNow,
                 ModelId = context.FinalModelId,
+                // TASK135 A2 — 归属本回合查询并带上会话内提交序号：并发落盘乱序时读端按 TurnSeq 还原提问顺序
+                QueryId = queryId,
+                TurnSeq = context.ConversationTurn,
             });
         }
 
-        if (entries.Count == 0)
+        if (entries.Count == 0) {
+            await ClearStreamingSafeAsync(sessionId, queryId, ct).ConfigureAwait(false);
             yield break;
+        }
 
         try {
-            await _transcriptService.AppendEntriesAsync(_contextManager.SessionId, entries, ct).ConfigureAwait(false);
+            await _transcriptService.AppendEntriesAsync(sessionId, entries, ct).ConfigureAwait(false);
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
         } catch (Exception ex) {
-            _logger?.LogError(ex, "[TranscriptPersist] transcript 写入失败（会话 {SessionId}），本轮对话可能丢失", _contextManager.SessionId);
+            _logger?.LogError(ex, "[TranscriptPersist] transcript 写入失败（会话 {SessionId}），本轮对话可能丢失", sessionId);
+        }
+
+        // ADR 0166 — 本回合已完整落盘，旁路使命结束
+        await ClearStreamingSafeAsync(sessionId, queryId, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>是否应在本回合写流式旁路（dry run / worker 进程 / 无 transcript 服务都不写）。</summary>
+    /// <param name="context">中间件上下文。</param>
+    /// <returns>是否写旁路。</returns>
+    private bool ShouldPersist(ChatMiddlewareContext context) {
+        if (context.IsDryRun || _transcriptService is null) return false;
+        var agentRole = Environment.GetEnvironmentVariable(JccEnvVar.AgentRole.ToValue());
+        return !string.Equals(agentRole, "worker", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>是否为助手正文增量（只累积 Content；思考/工具事件不属回复正文）。</summary>
+    /// <param name="evt">流事件。</param>
+    /// <returns>是否正文增量。</returns>
+    private static bool IsAssistantTextDelta(ChatStreamEvent evt) =>
+        evt.Type == ChatStreamEventType.Content && !string.IsNullOrEmpty(evt.Content);
+
+    /// <summary>写旁路快照 — 失败只记日志，绝不打断对话（与 OnError=Continue 语义一致）。</summary>
+    /// <param name="content">累积全文。</param>
+    /// <param name="sessionId">本回合所属会话代次（进入时快照）。</param>
+    /// <param name="queryId">本回合查询身份（进入时快照）；null 走遗留单旁路文件。</param>
+    /// <param name="turnSeq">会话内提交序号（TASK135 A2 — 收编残稿要回到正确位置）。</param>
+    /// <param name="ct">取消令牌。</param>
+    private async Task AppendStreamingSnapshotSafeAsync(string content, string sessionId, string? queryId, int? turnSeq, CancellationToken ct) {
+        if (_transcriptService is null) return;
+        try {
+            await _transcriptService.AppendStreamingSnapshotAsync(sessionId, queryId, turnSeq, content, ct).ConfigureAwait(false);
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            throw;
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 旁路写入失败（会话 {SessionId}），本回合退回仅在结束时落盘", sessionId);
+        }
+    }
+
+    /// <summary>清理旁路 — 失败只记日志（残留旁路最多多一条残稿，不会污染主记录语义）。</summary>
+    /// <param name="sessionId">本回合所属会话代次（进入时快照）。</param>
+    /// <param name="queryId">本回合查询身份（进入时快照）。</param>
+    /// <param name="ct">取消令牌。</param>
+    private async Task ClearStreamingSafeAsync(string sessionId, string? queryId, CancellationToken ct) {
+        if (_transcriptService is null) return;
+        try {
+            await _transcriptService.ClearStreamingAsync(sessionId, queryId, ct).ConfigureAwait(false);
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            throw;
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 旁路清理失败（会话 {SessionId}）", sessionId);
         }
     }
 }

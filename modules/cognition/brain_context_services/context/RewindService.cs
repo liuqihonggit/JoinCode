@@ -24,34 +24,34 @@ internal sealed class RewindService : IRewindService {
     }
 
     /// <inheritdoc />
-    public RewindResult RewindLastTurn() {
-        var removed = _sessionStore.TrimLastTurn();
+    public RewindResult RewindLastTurn(string? sessionId) {
+        var removed = _sessionStore.TrimLastTurn(sessionId);
         _logger.LogInformation("撤回最后一轮对话 (SP-3)，移除 {Count} 条消息，剩余 {Remaining} 条",
-            removed, _sessionStore.Count);
+            removed, _sessionStore.CountOf(sessionId));
 
         _telemetryService?.RecordCount("context.rewind.count", new() { ["kind"] = "last_turn" }, "count", "Context rewind count");
 
-        return RewindResult.Ok(RewindKind.TrimLastTurn, removed, _sessionStore.Count);
+        return RewindResult.Ok(RewindKind.TrimLastTurn, removed, _sessionStore.CountOf(sessionId));
     }
 
     /// <inheritdoc />
-    public RewindResult RewindToMessageIndex(int messageIndex) {
-        if (messageIndex < 0 || messageIndex > _sessionStore.Count) {
+    public RewindResult RewindToMessageIndex(int messageIndex, string? sessionId) {
+        if (messageIndex < 0 || messageIndex > _sessionStore.CountOf(sessionId)) {
             return RewindResult.Fail(
-                $"消息索引 {messageIndex} 超出范围 [0, {_sessionStore.Count}]");
+                $"消息索引 {messageIndex} 超出范围 [0, {_sessionStore.CountOf(sessionId)}]");
         }
 
-        var removed = _sessionStore.TruncateTo(messageIndex);
+        var removed = _sessionStore.TruncateTo(messageIndex, sessionId);
         _logger.LogInformation("撤回到消息索引 {Index} (SP-5)，移除 {Count} 条消息，剩余 {Remaining} 条",
-            messageIndex, removed, _sessionStore.Count);
+            messageIndex, removed, _sessionStore.CountOf(sessionId));
 
-        return RewindResult.Ok(RewindKind.TruncateToIndex, removed, _sessionStore.Count);
+        return RewindResult.Ok(RewindKind.TruncateToIndex, removed, _sessionStore.CountOf(sessionId));
     }
 
     /// <inheritdoc />
-    public RewindResult RewindToStart() {
-        var removed = _sessionStore.Count;
-        _sessionStore.CompactInPlace([]);
+    public RewindResult RewindToStart(string? sessionId) {
+        var removed = _sessionStore.CountOf(sessionId);
+        _sessionStore.CompactInPlace([], sessionId);
         _promptStore.ResetCache();
 
         _logger.LogInformation("撤回到会话初始状态 (SP-0)，移除 {Count} 条消息，前缀保留", removed);

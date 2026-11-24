@@ -25,13 +25,13 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
     private readonly MessageIdSequence _messageIds = new();
     private int _disposed;
 
-    /// <summary>新会话待清标记（G3 D8 — StartNewConversation 置位，下个 Submit 命令由回合 Actor 消费：
-    /// 启动清上下文任务并串行等待完成 — 清上下文不打断在途查询，忙时调用挂起到查询结束后的下个查询）。</summary>
+    /// <summary>新会话待翻页标记（G3 D8 — StartNewConversation 置位，下个 Submit 命令由回合 Actor 消费：
+    /// 启动会话翻页任务并串行等待完成 — 翻页不打断在途查询，忙时调用挂起到查询结束后的下个查询）。</summary>
     private bool _newConversationPending;
 
     /// <summary>构造函数 — 注入回合执行器（生产侧绑定 SessionController.StreamResponseAsync）、权限模式应用器（可选）、
     /// 后台任务事件泵（M8-8 可选 — 回合终态后快照下发，null = 无后台任务事件）与新会话启动器
-    ///（G3 可选 — 生产侧绑定 IChatService.ClearHistoryAsync，null = 无会话概念宿主纯标记零成本）。</summary>
+    ///（G3 可选 — 生产侧绑定 SessionEpochSwitcher.BeginNewAsync，null = 无会话概念宿主纯标记零成本）。</summary>
     public EngineTurnClient(TurnExecutor executeTurn, PermissionModeApplier? applyPermissionMode = null,
         BackgroundTaskEventPump? backgroundPump = null, NewConversationStarter? startNewConversation = null) {
         _executeTurn = executeTurn;
@@ -56,8 +56,8 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
     /// <param name="mode">模式字符串（plan/auto/ask/bypass/unattended）</param>
     public delegate string? PermissionModeApplier(string mode);
 
-    /// <summary>新会话启动器（G3 D8 — Clear 语义引擎侧落点）— 清引擎对话上下文（生产侧绑定
-    /// IChatService.ClearHistoryAsync，对齐引擎 /clear 斜杠命令 ClearCommand.ExecuteAsync 同一 API）；
+    /// <summary>新会话启动器（G3 D8 / ADR 0167 — Clear 语义引擎侧落点）— 会话翻页（生产侧绑定
+    /// SessionEpochSwitcher.BeginNewAsync，与引擎 /clear 斜杠命令 ClearCommand 同一落点）；
     /// 返回 Task 由查询开始前串行等待（防清历史与查询读上下文竞态），失败降级 Error 诱导继续原会话。</summary>
     /// <returns>清上下文任务。</returns>
     public delegate Task NewConversationStarter();

@@ -43,8 +43,11 @@ public sealed class EngineSession : IAsyncDisposable {
     /// <summary>引擎服务容器 — 宿主组装层消费（命令清单/历史种子等只读解析）。</summary>
     public IServiceProvider Services => _engine.Services;
 
-    /// <summary>当前会话标识 — 历史种子排除当前会话防双份。</summary>
-    public string SessionId => _engine.SessionId;
+    /// <summary>当前会话标识 — 历史种子排除当前会话防双份。
+    /// ADR 0167 — 必须实时读 <see cref="IChatContextManager.SessionId"/>：`/clear` 换代后工厂生成的
+    /// init 快照（`_engine.SessionId`）已过期，新查询的 SessionController 会拿旧 id 写旧 transcript。</summary>
+    public string SessionId =>
+        _engine.Services.GetService<IChatContextManager>()?.SessionId ?? _engine.SessionId;
 
     /// <summary>重发 session_info 事件 — 模型/供应商切换等运行时状态变化后刷新 banner（ReplBridgeDriver.ApplySessionInfo 差分上屏）。</summary>
     public void RefreshSessionInfo() => _client.Enqueue(BuildSessionInfoEvent(_checker, _fastMode, _engine.Config));
@@ -103,7 +106,34 @@ public sealed class EngineSession : IAsyncDisposable {
 
             // ADR 0165 — 每条查询新建 SessionController，消费器来自该查询自身的 per-query consumer；
             // SessionStart hook 标记跨查询共享，保证会话级一次性语义。
-            var sessionStartHookState = new JoinCode.Adapters.SessionStartHookState();
+            // TASK135 B2 — 取容器单例（ClearCommand 显式跑完 clear 版 hook 后 MarkRan 同一实例，
+            // 新代首个查询才不会重复跑 startup 版）
+            var sessionStartHookState = engine.Services.GetService<JoinCode.Abstractions.Interfaces.ISessionStartHookState>()
+                ?? new JoinCode.Adapters.SessionStartHookState();
+
+            // G3 D8 — 新会话启动器（ADR 0167：从「清当前桶」改为「会话翻页」）：
+            // 生成新 sessionId + SwitchSession + 写 meta，旧代的消息与 transcript 原样留在旧目录。
+            // 在途查询按 ChatQueryScope.SessionId 继续写旧代，新提交落新代。
+            // ReleaseOldBucket=false：这里拿不到可靠的在途查询数，误回收会让在途回合写进重建的空桶。
+            async Task StartNewConversationAsync() {
+                var contextManager = engine.Services.GetService<IChatContextManager>();
+                if (contextManager is null) {
+                    // 极简宿主降级为原语义（清内存）
+                    await chatService.ClearHistoryAsync(CancellationToken.None).ConfigureAwait(false);
+                    return;
+                }
+
+                await global::Core.Context.SessionEpochSwitcher.BeginNewAsync(
+                    contextManager,
+                    engine.Services.GetService<ITranscriptService>(),
+                    new global::Core.Context.SessionEpochOptions {
+                        ProjectPath = Environment.CurrentDirectory,
+                        ReleaseOldBucket = false,
+                    },
+                    logger: engine.Services.GetService<ILogger<EngineSession>>(),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
+            }
+
             var client = new EngineTurnClient(
                 (input, consumer, turnCt) => {
                     // TASK064 斜杠命令分流（对齐 CliSession.ProcessInputAsync：/ 开头走命令执行不进 LLM）
@@ -112,17 +142,16 @@ public sealed class EngineSession : IAsyncDisposable {
                     }
 
                     var controller = new SessionController(
-                        chatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
+                        chatService, consumer, new TurnDiffService(),
+                        engine.Services.GetService<IChatContextManager>()?.SessionId ?? engine.SessionId,
+                        engine.Services,
                         mainAgent: EngineAgentFactory.CreateMainAgent(engine.Services, sessionObjectId),
                         sessionStartHookState: sessionStartHookState);
                     return RunTurnAsync(controller, input, turnCt);
                 },
                 BuildPermissionModeApplier(checker),
                 backgroundPump,
-                // G3 D8 — 新会话启动器绑定引擎真实 API：IChatService.ClearHistoryAsync（IChatService.cs:23，
-                // 与引擎 /clear 斜杠命令 ClearCommand.ExecuteAsync 同一落点 — 清对话上下文即 D8 Clear 语义）；
-                // EngineTurnClient 在下回合执行器前串行等待完成（防清历史与回合读上下文竞态）
-                () => chatService.ClearHistoryAsync(CancellationToken.None));
+                StartNewConversationAsync);
 
             if (backgroundPump is not null) {
                 backgroundPump.Bind(client.Consumer);

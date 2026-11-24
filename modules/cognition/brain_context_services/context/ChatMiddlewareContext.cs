@@ -84,6 +84,12 @@ public sealed class ChatMiddlewareContext {
     public string SessionId { get; init; } = global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
     /// <summary>
+    /// 当前查询 ID（ADR 0165）— 由 ChatService 从 <c>ChatQueryScope</c> 带入，供 transcript 旁路等
+    /// 按查询隔离的写路径使用。null 表示无查询身份（极简宿主/测试直连）。
+    /// </summary>
+    public string? QueryId { get; init; }
+
+    /// <summary>
     /// 当前代理标识 — null 表示主代理，子代理设为唯一 ID。用于缓存破坏检测按 agent 隔离基线。
     /// </summary>
     public string? AgentId { get; init; }

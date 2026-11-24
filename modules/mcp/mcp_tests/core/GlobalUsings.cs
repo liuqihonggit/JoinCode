@@ -25,6 +25,7 @@ global using McpProtocol;
 global using McpProtocol.Contracts;
 global using McpToolDispatch;
 global using McpToolRegistry;
+global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using System.Collections.Concurrent;
 global using System.Collections.Frozen;

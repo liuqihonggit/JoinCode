@@ -421,6 +421,8 @@ public class JccChatSessionAssemblyTests {
     private sealed class RecordingChatService : IChatService {
         public string? LastSystemPrompt { get; private set; }
 
+        /// <summary>TASK135 B1 — 会话翻页入口；测试桩不做真实翻页。</summary>
+        public Task<string> StartNewConversationAsync(string? projectPath = null, CancellationToken cancellationToken = default) => Task.FromResult("new-session");
         public Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default)
             => Task.FromResult(string.Empty);
 

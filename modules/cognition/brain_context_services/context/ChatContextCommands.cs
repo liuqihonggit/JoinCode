@@ -3,6 +3,9 @@ namespace Core.Context;
 /// <summary>
 /// 聊天上下文 Actor 命令类型 — 每个命令对应一个 ChatContextManager 操作，由 ChatContextActor Consumer 串行处理。
 /// <para>TASK001: AsyncLock 迁移到 Actor 邮箱管道，消除 22 处显式锁。</para>
+/// <para>ADR 0167: 涉及对话桶的命令都带 <c>SessionId</c> — 由 ChatContextManager 在**调用线程**解析
+/// （ChatQueryScope.SessionId ?? 当前指针），Actor 只看命令字段，不再读「当前指针」。
+/// 纯提示词/工具规格命令与会话无关，不带。</para>
 /// </summary>
 public abstract record ChatContextCommand {
     /// <summary>将异常设置到 Reply — AOT 友好（避免反射），由各子类重写</summary>
@@ -10,7 +13,7 @@ public abstract record ChatContextCommand {
 }
 
 /// <summary>加载上下文 — 对应 LoadContextAsync</summary>
-public sealed record LoadContextCmd(TaskCompletionSource Reply) : ChatContextCommand {
+public sealed record LoadContextCmd(TaskCompletionSource Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
@@ -19,19 +22,20 @@ public sealed record LoadContextCmd(TaskCompletionSource Reply) : ChatContextCom
 public sealed record AddUserMessageCmd(
     string Content,
     MessageOriginKind? OriginKind,
-    TaskCompletionSource Reply) : ChatContextCommand {
+    TaskCompletionSource Reply,
+    string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
 
 /// <summary>添加压缩摘要消息 — 对应 AddCompactSummaryMessageAsync</summary>
-public sealed record AddCompactSummaryCmd(string Content, TaskCompletionSource Reply) : ChatContextCommand {
+public sealed record AddCompactSummaryCmd(string Content, TaskCompletionSource Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
 
 /// <summary>添加助手消息 — 对应 AddAssistantMessageAsync</summary>
-public sealed record AddAssistantMessageCmd(string Content, TaskCompletionSource Reply) : ChatContextCommand {
+public sealed record AddAssistantMessageCmd(string Content, TaskCompletionSource Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
@@ -40,7 +44,8 @@ public sealed record AddAssistantMessageCmd(string Content, TaskCompletionSource
 public sealed record AddAssistantToolCallCmd(
     string? Content,
     IReadOnlyDictionary<string, JsonElement> Metadata,
-    TaskCompletionSource Reply) : ChatContextCommand {
+    TaskCompletionSource Reply,
+    string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
@@ -49,7 +54,8 @@ public sealed record AddAssistantToolCallCmd(
 public sealed record AddToolResultCmd(
     string Content,
     IReadOnlyDictionary<string, JsonElement> Metadata,
-    TaskCompletionSource Reply) : ChatContextCommand {
+    TaskCompletionSource Reply,
+    string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
@@ -59,13 +65,14 @@ public sealed record AddToolResultWithBlocksCmd(
     string Content,
     IReadOnlyDictionary<string, JsonElement> Metadata,
     IReadOnlyList<ToolContent>? ContentBlocks,
-    TaskCompletionSource Reply) : ChatContextCommand {
+    TaskCompletionSource Reply,
+    string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
 
 /// <summary>添加系统消息 — 对应 AddSystemMessageAsync</summary>
-public sealed record AddSystemMessageCmd(string Content, TaskCompletionSource Reply) : ChatContextCommand {
+public sealed record AddSystemMessageCmd(string Content, TaskCompletionSource Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
@@ -83,7 +90,7 @@ public sealed record ClearDynamicSystemMessagesCmd(TaskCompletionSource Reply) :
 }
 
 /// <summary>清空对话消息 — 对应 ClearMessagesAsync</summary>
-public sealed record ClearMessagesCmd(TaskCompletionSource Reply) : ChatContextCommand {
+public sealed record ClearMessagesCmd(TaskCompletionSource Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
@@ -95,13 +102,13 @@ public sealed record UpdateSystemPromptCmd(string SystemPrompt, TaskCompletionSo
 }
 
 /// <summary>获取组装后的消息列表 — 对应 GetMessageListAsync</summary>
-public sealed record GetMessageListCmd(TaskCompletionSource<MessageList> Reply) : ChatContextCommand {
+public sealed record GetMessageListCmd(TaskCompletionSource<MessageList> Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
 
 /// <summary>保存上下文 — 对应 SaveContextAsync</summary>
-public sealed record SaveContextCmd(TaskCompletionSource Reply) : ChatContextCommand {
+public sealed record SaveContextCmd(TaskCompletionSource Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
@@ -110,25 +117,27 @@ public sealed record SaveContextCmd(TaskCompletionSource Reply) : ChatContextCom
 public sealed record FoldIfNeededCmd(
     ContextFoldDecision Decision,
     string? AgentId,
-    TaskCompletionSource<ContextFoldResult> Reply) : ChatContextCommand {
+    TaskCompletionSource<ContextFoldResult> Reply,
+    string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
 
 /// <summary>撤回最后一轮对话 — 对应 RewindLastTurnAsync</summary>
-public sealed record RewindLastTurnCmd(TaskCompletionSource<RewindResult> Reply) : ChatContextCommand {
+public sealed record RewindLastTurnCmd(TaskCompletionSource<RewindResult> Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
 
 /// <summary>撤回到指定消息索引 — 对应 RewindToMessageIndexAsync</summary>
-public sealed record RewindToMessageIndexCmd(int MessageIndex, TaskCompletionSource<RewindResult> Reply) : ChatContextCommand {
+public sealed record RewindToMessageIndexCmd(
+    int MessageIndex, TaskCompletionSource<RewindResult> Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
 
 /// <summary>撤回到会话初始状态 — 对应 RewindToStartAsync</summary>
-public sealed record RewindToStartCmd(TaskCompletionSource<RewindResult> Reply) : ChatContextCommand {
+public sealed record RewindToStartCmd(TaskCompletionSource<RewindResult> Reply, string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
@@ -144,7 +153,8 @@ public sealed record UpdateToolSpecsCmd(
 /// <summary>记录提示词前缀状态快照 — 对应 RecordPromptStateAsync</summary>
 public sealed record RecordPromptStateCmd(
     string? AgentId,
-    TaskCompletionSource<PromptStateSnapshot> Reply) : ChatContextCommand {
+    TaskCompletionSource<PromptStateSnapshot> Reply,
+    string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }
@@ -154,7 +164,8 @@ public sealed record CheckCacheBreakCmd(
     PromptStateSnapshot Snapshot,
     TokenUsage Usage,
     string? AgentId,
-    TaskCompletionSource<CacheBreakResult> Reply) : ChatContextCommand {
+    TaskCompletionSource<CacheBreakResult> Reply,
+    string SessionId) : ChatContextCommand {
     /// <inheritdoc />
     public override void SetReplyException(Exception ex) => Reply.SetException(ex);
 }

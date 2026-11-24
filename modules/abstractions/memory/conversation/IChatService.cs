@@ -21,6 +21,17 @@ public interface IChatService : IAsyncDisposable {
     IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, CancellationToken cancellationToken = default, IEventConsumer? eventConsumer = null);
     /// <summary>异步清空对话历史。</summary>
     Task ClearHistoryAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 开始新会话（会话翻页，ADR 0167 / TASK135 B1）— 生成新 sessionId，旧代消息与 transcript
+    /// 原样留在磁盘，当前桶切到新代。与 <c>/clear</c> 同语义。
+    /// **工具路径必须走这里**：只调 <see cref="ClearHistoryAsync"/> 会「清内存不清磁盘」，
+    /// 模型对用户说已清空、下次 resume 全部回来。
+    /// </summary>
+    /// <param name="projectPath">新会话所属项目路径（落 meta.json）；null 用当前目录。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>新会话标识。</returns>
+    Task<string> StartNewConversationAsync(string? projectPath = null, CancellationToken cancellationToken = default);
     /// <summary>异步获取消息列表。</summary>
     Task<IReadOnlyList<ApiMessageRecord>> GetMessageListAsync(CancellationToken cancellationToken = default);
     /// <summary>异步设置系统提示词。</summary>

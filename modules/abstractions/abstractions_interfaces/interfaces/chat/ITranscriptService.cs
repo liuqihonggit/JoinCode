@@ -64,6 +64,29 @@ public interface ITranscriptService {
     Task<bool> EnsureSessionAsync(string sessionId, SessionInfo info, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 流式旁路快照（ADR 0166 / TASK135 A1）— 回合未结束时把「当前已生成的全文」写到旁路文件，
+    /// 打断/崩溃后 <see cref="LoadTranscriptAsync"/> 会自动收编最后一行，不再丢整段回复。
+    /// 写方负责节流（默认 200ms 或 512 字符），本方法不做去重。
+    /// **按查询分文件**：同一会话可有多条查询并行（ADR 0165），共用一份旁路会互相覆盖/互删。
+    /// </summary>
+    /// <param name="sessionId">会话标识。</param>
+    /// <param name="queryId">查询标识（ADR 0165）；null 表示无身份调用方，落到遗留单旁路文件。</param>
+    /// <param name="turnSeq">会话内提交序号（TASK135 A2）；收编后的残稿按它与主记录一起排序。</param>
+    /// <param name="content">当前已生成的累积全文（不是增量）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    Task AppendStreamingSnapshotAsync(string sessionId, string? queryId, int? turnSeq, string content, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 清理流式旁路（ADR 0166）— 回合正常落盘后调用；文件不存在时是 no-op。
+    /// 异常/取消路径**不要**调用：旁路要留在磁盘上等下次加载收编。
+    /// 只清本查询自己的旁路，不得影响同会话其他在途查询（TASK135 A1）。
+    /// </summary>
+    /// <param name="sessionId">会话标识。</param>
+    /// <param name="queryId">查询标识（ADR 0165）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    Task ClearStreamingAsync(string sessionId, string? queryId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 迁移旧扁平格式(.json 直接在 sessions 根目录)到每会话子目录格式 — 幂等,不删旧文件
     /// 修复路径重构后现有扁平 .json 扫不到的 regression
     /// </summary>

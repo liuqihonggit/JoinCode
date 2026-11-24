@@ -52,12 +52,12 @@ internal sealed class ContextPersistenceService : IContextPersistenceService {
             var (systemPrompt, chatHistory) = await _stateService.LoadStateAsync(cancellationToken).ConfigureAwait(false);
 
             _promptStore.Update(systemPrompt ?? string.Empty);
-            _sessionStore.CompactInPlace([]);
+            _sessionStore.CompactInPlace([], sessionId);
 
             if (chatHistory is { Count: > 0 }) {
                 foreach (var msg in chatHistory) {
                     if (msg.Role != MessageRole.System) {
-                        _sessionStore.Append(new ApiMessage(msg.Role, msg.Content, msg.Metadata));
+                        _sessionStore.Append(new ApiMessage(msg.Role, msg.Content, msg.Metadata), sessionId);
                         continue;
                     }
 
@@ -69,9 +69,9 @@ internal sealed class ContextPersistenceService : IContextPersistenceService {
             }
 
             _logger.LogInformation("聊天上下文已加载，静态前缀长度: {Len}, 对话消息数: {Count}",
-                _promptStore.StaticPrompt.Length, _sessionStore.Count);
+                _promptStore.StaticPrompt.Length, _sessionStore.CountOf(sessionId));
 
-            span?.SetTag("context.message_count", _sessionStore.Count);
+            span?.SetTag("context.message_count", _sessionStore.CountOf(sessionId));
             span?.SetStatus(TelemetryStatusCode.Ok);
 
             if (_metaStore is not null && _sessionStats is not null) {
@@ -108,7 +108,7 @@ internal sealed class ContextPersistenceService : IContextPersistenceService {
         }
 
         var snip = ContextFoldDecider.SnipStaleToolResults(
-            _sessionStore.Log,
+            _sessionStore.GetLog(sessionId),
             _contextWindowResolver.ResolveCurrentContextWindow(),
             _thresholds);
 
@@ -151,7 +151,7 @@ internal sealed class ContextPersistenceService : IContextPersistenceService {
     /// </summary>
     private async Task SaveCoreAsync(string sessionId, CancellationToken cancellationToken) {
         var staticPrefix = _promptStore.StaticPrompt;
-        var conversationSnapshot = new MessageList(_sessionStore.ToMessages());
+        var conversationSnapshot = new MessageList(_sessionStore.ToMessages(sessionId));
 
         await _stateService.SaveStateAsync(staticPrefix, conversationSnapshot, cancellationToken).ConfigureAwait(false);
 

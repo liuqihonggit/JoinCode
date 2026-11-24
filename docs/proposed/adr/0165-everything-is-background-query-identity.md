@@ -204,6 +204,25 @@ Ctrl+B 不打断、后台事件只入缓冲、后台完成不抢前台 busy、�
 `Verify-NoLockPrimitives.py` 64 处存量（未加锁）、`Verify-ExplicitOrder.py` /
 `Verify-RegistrationOrder.py` 与真机装配一致。
 
+## 阶段 1b：transcript 按 queryId 归属（2026-11-25 已落地）
+
+阶段 1 只解决了「渲染分流」，没解决「记录完整性」：没被切回的后台查询，事件全躺在
+`BackgroundQuery.Pending` 里，ctrl+o 的 transcript 是主视图投影 —— 看不到就等于永久丢失。
+
+补法（`ReplShell.ProjectBackgroundQueries`）：进入 transcript 拍摄快照时，对每个 `Pending` 非空的桶
+用**离屏 driver** 重放事件，再把结果交给 `TranscriptLines.Project` 投影，前置一行归属头
+`── 后台查询 q-xxx（运行中/已完成，N 条事件）──`。
+
+两条设计约束：
+
+- **不另写一套文本投影**。离屏 `ReplView` + `SpinnerItem` + `BannerItem` 构造一个临时 `ReplBridgeDriver`，
+  事件走与主屏完全相同的 `Apply` 路径 —— 渲染实现只有一份，字段格式不会两处漂移。
+- **靠 `Pending` 清空天然去重**。切回时 `FocusMostRecentBackgroundQuery` 已经 `Pending.Clear()` 且把事件
+  补投进主视图，所以「已切回的桶不再进 transcript」不需要额外标记位；无后台桶时零追加（不多空行）。
+
+验收：`NativeTui.Tests` 3202 通过 / 0 失败，新增 `TranscriptQueryAttributionTests` 3 条
+（后台内容可见 + 带归属头、切回后不重复、无后台零破坏）。
+
 ## 后果
 
 - 正面：

@@ -58,7 +58,151 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     public async Task<IReadOnlyList<TranscriptEntry>> LoadTranscriptAsync(string sessionId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         var filePath = GetTranscriptPath(sessionId);
-        return await _writer.LoadTranscriptAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var entries = await _writer.LoadTranscriptAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var adopted = await AdoptStreamingPartialAsync(sessionId, entries, cancellationToken).ConfigureAwait(false);
+        return OrderByTurnSeq(adopted);
+    }
+
+    /// <summary>TASK135 A2 — 并发查询的落盘顺序是**完成顺序**，不等于提问顺序。
+    /// 条目带提交时分配的 <c>TurnSeq</c> 时按它稳定排序（同号保持落盘内部顺序）；
+    /// 旧记录无号，排在有号之前并保持原相对顺序。<c>OrderBy</c> 本身稳定。</summary>
+    /// <param name="entries">加载到的记录。</param>
+    /// <returns>按提问顺序排列的记录。</returns>
+    private static IReadOnlyList<TranscriptEntry> OrderByTurnSeq(IReadOnlyList<TranscriptEntry> entries) {
+        if (entries.Count < 2) return entries;
+        if (!entries.Any(static entry => entry.TurnSeq.HasValue)) return entries;
+
+        return entries.OrderBy(static entry => entry.TurnSeq ?? int.MinValue).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task AppendStreamingSnapshotAsync(string sessionId, string? queryId, int? turnSeq, string content, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        if (string.IsNullOrEmpty(content)) return;
+
+        var filePath = GetStreamingPath(sessionId, queryId);
+        var snapshot = new TranscriptEntry {
+            Role = "assistant",
+            Content = content,
+            Timestamp = _clock.GetUtcNow(),
+            Type = StreamingEntryType,
+            QueryId = queryId,
+            TurnSeq = turnSeq,
+        }.WithSessionId(sessionId);
+        await _writer.AppendEntryAsync(filePath, snapshot, cancellationToken).ConfigureAwait(false);
+        _logger?.LogDebug("[STREAM-PERSIST] 会话 {SessionId} 查询 {QueryId} 旁路快照 {Length} 字符",
+            sessionId, queryId ?? "(legacy)", content.Length);
+    }
+
+    /// <inheritdoc />
+    public Task ClearStreamingAsync(string sessionId, string? queryId, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var filePath = GetStreamingPath(sessionId, queryId);
+        try {
+            if (_fs.FileExists(filePath)) {
+                _fs.DeleteFile(filePath);
+                _logger?.LogDebug("[STREAM-PERSIST] 会话 {SessionId} 查询 {QueryId} 旁路已清理（回合正常落盘）",
+                    sessionId, queryId ?? "(legacy)");
+            }
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
+            // 清理失败不影响会话：残留旁路下次 LoadTranscriptAsync 会被收编，最多多一条残稿
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 会话 {SessionId} 查询 {QueryId} 旁路清理失败",
+                sessionId, queryId ?? "(legacy)");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>收编中断回合的旁路残稿（ADR 0166 / TASK135 A1+A3）— 每个查询一份旁路文件，
+    /// 取各自最后一行（累积全文，最全）作为一条 assistant 记录；主文件末条 assistant
+    /// 已包含同一段内容时跳过。**收编即消费**：写入主 transcript 后删除该旁路，
+    /// 否则每次加载都会重复收编同一条残稿。</summary>
+    /// <param name="sessionId">会话标识。</param>
+    /// <param name="entries">主 transcript 已加载的记录。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>收编后的记录列表（无旁路或已收编时原样返回）。</returns>
+    private async Task<IReadOnlyList<TranscriptEntry>> AdoptStreamingPartialAsync(
+        string sessionId, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken) {
+        var sessionDir = GetSessionDir(sessionId);
+        if (!_fs.DirectoryExists(sessionDir)) return entries;
+
+        string[] sidecars;
+        try {
+            sidecars = _fs.GetFiles(sessionDir, StreamingFilePattern, SearchOption.TopDirectoryOnly);
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 会话 {SessionId} 旁路枚举失败，忽略残稿", sessionId);
+            return entries;
+        }
+
+        if (sidecars.Length == 0) return entries;
+
+        var adopted = new List<TranscriptEntry>(entries.Count + sidecars.Length);
+        adopted.AddRange(entries);
+
+        foreach (var streamingPath in sidecars) {
+            var partial = await LoadLastSnapshotSafeAsync(streamingPath, cancellationToken).ConfigureAwait(false);
+            if (partial is null) {
+                await DeleteSidecarSafeAsync(streamingPath, sessionId).ConfigureAwait(false);
+                continue;
+            }
+
+            // 判重只跟主文件已有内容比（多份旁路彼此独立，不能因为 A 是 B 的前缀就吞掉 B）
+            var lastAssistant = entries.LastOrDefault(
+                e => string.Equals(e.Role, "assistant", StringComparison.OrdinalIgnoreCase));
+            if (lastAssistant is not null && lastAssistant.Content.Contains(partial.Content, StringComparison.Ordinal)) {
+                // 完整回复已落盘，旁路只是收尾失败 —— 消费掉，避免每次加载重复比对
+                await DeleteSidecarSafeAsync(streamingPath, sessionId).ConfigureAwait(false);
+                continue;
+            }
+
+            var entry = partial with { SessionId = sessionId, Type = StreamingEntryType };
+            adopted.Add(entry);
+
+            // 收编即消费：先落主文件再删旁路。落盘失败保留旁路，下次加载可重试。
+            try {
+                await _writer.AppendEntryAsync(GetTranscriptPath(sessionId), entry, cancellationToken).ConfigureAwait(false);
+                await DeleteSidecarSafeAsync(streamingPath, sessionId).ConfigureAwait(false);
+                _logger?.LogWarning("[STREAM-PERSIST] 会话 {SessionId} 收编中断回合残稿 {Path}（{Length} 字符）",
+                    sessionId, Path.GetFileName(streamingPath), entry.Content.Length);
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
+                _logger?.LogWarning(ex, "[STREAM-PERSIST] 会话 {SessionId} 残稿落盘失败，保留旁路待下次加载",
+                    sessionId);
+            }
+        }
+
+        return adopted;
+    }
+
+    /// <summary>读一份旁路的最后一条非空快照；文件损坏/为空返回 null。</summary>
+    /// <param name="streamingPath">旁路文件路径。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>最后一条快照或 null。</returns>
+    private async Task<TranscriptEntry?> LoadLastSnapshotSafeAsync(string streamingPath, CancellationToken cancellationToken) {
+        try {
+            var partials = await _writer.LoadTranscriptAsync(streamingPath, cancellationToken).ConfigureAwait(false);
+            return partials.LastOrDefault(e => !string.IsNullOrEmpty(e.Content));
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 旁路读取失败，忽略残稿 {Path}", Path.GetFileName(streamingPath));
+            return null;
+        }
+    }
+
+    /// <summary>删除旁路文件；失败只记日志（下次加载再收编一次，不致命）。</summary>
+    /// <param name="streamingPath">旁路文件路径。</param>
+    /// <param name="sessionId">会话标识（日志用）。</param>
+    private Task DeleteSidecarSafeAsync(string streamingPath, string sessionId) {
+        try {
+            if (_fs.FileExists(streamingPath)) {
+                _fs.DeleteFile(streamingPath);
+            }
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 会话 {SessionId} 旁路删除失败 {Path}",
+                sessionId, Path.GetFileName(streamingPath));
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -291,6 +435,30 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         }
 
         return records;
+    }
+
+    /// <summary>流式旁路条目类型（ADR 0166 — 读端按普通 assistant 消息消费，Type 只用于观测与识别）。</summary>
+    public const string StreamingEntryType = "streaming-partial";
+
+    /// <summary>流式旁路文件名（与会话目录内的 transcript.jsonl 并列）— 无查询身份时的遗留单文件。</summary>
+    private const string StreamingFileName = "streaming.jsonl";
+
+    /// <summary>旁路枚举模式 — 同时覆盖遗留 <c>streaming.jsonl</c> 与按查询分文件的 <c>streaming.&lt;queryId&gt;.jsonl</c>。</summary>
+    private const string StreamingFilePattern = "streaming*.jsonl";
+
+    /// <summary>流式旁路文件路径（ADR 0166 — 路径知识只住在本服务，不暴露给调用方）。
+    /// TASK135 A1：按 queryId 分文件，同一会话的多条并行查询各写各的，不再互删/串台。</summary>
+    /// <param name="sessionId">会话标识。</param>
+    /// <param name="queryId">查询标识；null 落到遗留单旁路文件。</param>
+    /// <returns>旁路 JSONL 绝对路径。</returns>
+    private string GetStreamingPath(string sessionId, string? queryId) {
+        var dir = GetSessionDir(sessionId);
+        if (string.IsNullOrEmpty(queryId)) {
+            return Path.Combine(dir, StreamingFileName);
+        }
+
+        TranscriptFileWriter.ValidateId(queryId, nameof(queryId));
+        return Path.Combine(dir, $"streaming.{queryId}.jsonl");
     }
 
     private string GetTranscriptPath(string sessionId) {

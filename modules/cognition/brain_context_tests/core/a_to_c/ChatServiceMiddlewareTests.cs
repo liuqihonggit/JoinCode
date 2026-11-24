@@ -9,7 +9,8 @@ public sealed class ChatServiceMiddlewareTests {
     /// </summary>
     private static ChatService CreateService(
         IEnumerable<IChatMiddleware> middlewares,
-        Mock<IChatUsageProcessor>? usageProcessorMock = null) {
+        Mock<IChatUsageProcessor>? usageProcessorMock = null,
+        ITranscriptService? transcriptService = null) {
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MessageList());
@@ -35,7 +36,39 @@ public sealed class ChatServiceMiddlewareTests {
             contextManager.Object,
             middlewarePipeline,
             adminPipeline,
-            logger: NullLogger<ChatService>.Instance);
+            logger: NullLogger<ChatService>.Instance,
+            transcriptService: transcriptService);
+    }
+
+    // === TASK135 B1 — 工具路径的会话翻页入口 ===
+
+    /// <summary>StartNewConversationAsync 必须真的翻页（换 sessionId、写新代元数据），不是只清内存。</summary>
+    [Fact]
+    public async Task StartNewConversationAsync_WithTranscriptService_SwitchesSession() {
+        var contextManager = new Mock<IChatContextManager>();
+        contextManager.SetupGet(c => c.SessionId).Returns("s-old");
+        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new MessageList());
+        contextManager.Setup(c => c.SaveContextAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var transcript = new Mock<ITranscriptService>();
+        transcript.Setup(t => t.EnsureSessionAsync(It.IsAny<string>(), It.IsAny<SessionInfo>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var middlewarePipeline = new StreamMiddlewarePipeline<ChatMiddlewareContext, ChatStreamEvent>(
+            Array.Empty<IStreamMiddleware<ChatMiddlewareContext, ChatStreamEvent>>(), onError: (_, _) => { });
+        var adminPipeline = new MiddlewarePipeline<ChatAdminContext>(
+            Array.Empty<IMiddleware<ChatAdminContext>>(), onError: (_, _) => { });
+
+        await using var service = new ChatService(
+            contextManager.Object, middlewarePipeline, adminPipeline,
+            logger: NullLogger<ChatService>.Instance, transcriptService: transcript.Object);
+
+        var newSessionId = await service.StartNewConversationAsync("/repo").ConfigureAwait(true);
+
+        newSessionId.Should().NotBe("s-old", "会话翻页必须换新 id，否则旧代记录会被新回合续写");
+        contextManager.Verify(c => c.SwitchSession(newSessionId), Times.Once);
+        transcript.Verify(t => t.EnsureSessionAsync(
+            newSessionId, It.Is<SessionInfo>(info => info.ProjectPath == "/repo"), It.IsAny<CancellationToken>()),
+            Times.Once, "新会话必须落 meta，否则 /resume 列表看不到它");
     }
 
     // === 管道构建 ===

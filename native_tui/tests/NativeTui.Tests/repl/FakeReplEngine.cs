@@ -21,6 +21,9 @@ internal sealed class FakeReplEngine : IReplEngine
     /// <summary>收到的图片附件快照（G3 图片重载 — 每次 Submit 重载的附件列表原样记录，供 bridge DTO 字段断言）。</summary>
     public List<IReadOnlyList<BridgeImageAttachment>> SubmittedImages { get; } = [];
 
+    /// <summary>预设的 queryId 序列（TASK135 C1 — 多查询测试）；队列空时退回 q-test。</summary>
+    public Queue<string> QueryIds { get; } = new();
+
     /// <summary>待排空事件队列（DrainEvents 一次清空）。</summary>
     public Queue<BridgeEvent> Events { get; } = new();
 
@@ -37,7 +40,8 @@ internal sealed class FakeReplEngine : IReplEngine
         }
 
         Submits.Add(text);
-        return string.IsNullOrWhiteSpace(queryId) ? "q-test" : queryId;
+        if (!string.IsNullOrWhiteSpace(queryId)) return queryId;
+        return QueryIds.Count > 0 ? QueryIds.Dequeue() : "q-test";
     }
 
     /// <summary>记录新会话请求（G3 — D8 Clear 引擎调用断言面）。</summary>

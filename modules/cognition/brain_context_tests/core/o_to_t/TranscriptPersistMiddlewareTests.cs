@@ -120,4 +120,169 @@ public sealed class TranscriptPersistMiddlewareTests {
 
         events.Should().NotBeNull("落盘异常不得吞掉下游事件流（OnError=Continue 契约）");
     }
+
+    /// <summary>流式正文累积超过节流阈值即写旁路快照（ADR 0166 — 打断/崩溃只丢节流窗口内的内容）。</summary>
+    [Fact]
+    public async Task InvokeAsync_WithContentDeltas_WritesStreamingSnapshots() {
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> { new(MessageRole.Assistant, "答复") }));
+
+        await RunWithAsync(mw, DeltasAsync(new string('x', 600)));
+
+        transcript.Verify(t => t.AppendStreamingSnapshotAsync(
+            "20260822-1200-proj-main",
+            It.IsAny<string?>(),
+            It.IsAny<int?>(),
+            It.Is<string>(content => content.Length >= 512),
+            It.IsAny<CancellationToken>()), Times.AtLeastOnce,
+            "累积正文达到 512 字符阈值必须落旁路，否则打断后整段丢失");
+    }
+
+    /// <summary>回合正常结束并落盘后清理旁路（否则下次加载会收编成重复残稿）。</summary>
+    [Fact]
+    public async Task InvokeAsync_AfterTurnPersisted_ClearsStreaming() {
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> { new(MessageRole.Assistant, "答复") }));
+
+        await RunWithAsync(mw, DeltasAsync(new string('y', 600)));
+
+        transcript.Verify(t => t.ClearStreamingAsync("20260822-1200-proj-main", It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once,
+            "正常落盘后旁路必须清理");
+    }
+
+    /// <summary>流中断（取消/异常）时**不清理**旁路 — 残稿要留在磁盘上等下次加载收编。</summary>
+    [Fact]
+    public async Task InvokeAsync_WhenStreamThrows_KeepsStreaming() {
+        var (mw, transcript, _) = Create();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => RunWithAsync(mw, ThrowingAsync(new string('z', 600)))).ConfigureAwait(true);
+
+        transcript.Verify(t => t.AppendStreamingSnapshotAsync(
+            It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce,
+            "异常前已生成的内容仍要落旁路");
+        transcript.Verify(t => t.ClearStreamingAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never,
+            "中断路径不得清理旁路，否则残稿永久丢失");
+    }
+
+    /// <summary>以指定事件流驱动中间件（收集下游收到的事件）。</summary>
+    private static async Task<List<ChatStreamEvent>> RunWithAsync(
+        TranscriptPersistMiddleware mw, IAsyncEnumerable<ChatStreamEvent> stream, bool dryRun = false, string? queryId = null) {
+        var context = new ChatMiddlewareContext {
+            Message = "hi",
+            IsDryRun = dryRun,
+            ToolUseContext = new ToolUseContext(),
+            QueryId = queryId,
+        };
+        var events = new List<ChatStreamEvent>();
+        await foreach (var evt in mw.InvokeAsync(context, (_, _) => stream, CancellationToken.None).ConfigureAwait(true))
+            events.Add(evt);
+        return events;
+    }
+
+    /// <summary>ADR 0167 — 回合进行中发生 /clear（换 sessionId），本回合 transcript 仍必须落**旧**代。
+    /// 现状（红）：落盘时实时读 <c>_contextManager.SessionId</c>，会写到新代目录。</summary>
+    [Fact]
+    public async Task InvokeAsync_SessionSwitchedMidTurn_StillWritesToOriginalSession() {
+        var session = "s-old";
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupGet(c => c.SessionId).Returns(() => session);
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> { new(MessageRole.User, "旧问题") }))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> {
+                new(MessageRole.User, "旧问题"),
+                new(MessageRole.User, "本回合的问题"),
+                new(MessageRole.Assistant, "本回合的回答"),
+            }));
+
+        await RunWithAsync(mw, SwitchSessionAsync(() => session = "s-new")).ConfigureAwait(true);
+
+        transcript.Verify(t => t.AppendEntriesAsync(
+            "s-old",
+            It.Is<IReadOnlyList<TranscriptEntry>>(entries => entries.Count == 2),
+            It.IsAny<CancellationToken>()), Times.Once,
+            "回合出生在 s-old，/clear 之后也必须写 s-old（否则旧代记录不完整、新代被污染）");
+        transcript.Verify(t => t.AppendEntriesAsync(
+            "s-new", It.IsAny<IReadOnlyList<TranscriptEntry>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>TASK135 A1 — 查询身份必须传到旁路写/清：同一会话并行查询各写各的文件，不能共用一份。</summary>
+    [Fact]
+    public async Task InvokeAsync_CarriesQueryIdToStreamingSidecar() {
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> { new(MessageRole.Assistant, "答复") }));
+
+        await RunWithAsync(mw, DeltasAsync(new string('q', 600)), queryId: "q-trace").ConfigureAwait(true);
+
+        transcript.Verify(t => t.AppendStreamingSnapshotAsync(
+            "20260822-1200-proj-main",
+            "q-trace",
+            It.Is<int?>(seq => seq.HasValue),
+            It.Is<string>(content => content.Length >= 512),
+            It.IsAny<CancellationToken>()), Times.AtLeastOnce,
+            "旁路必须带本查询身份，否则并发查询共用一个文件会互删/串台");
+        transcript.Verify(t => t.ClearStreamingAsync(
+            "20260822-1200-proj-main", "q-trace", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>TASK135 A2 — 落盘条目必须带查询身份与提交序号，读端才能把乱序落盘还原成提问顺序。</summary>
+    [Fact]
+    public async Task InvokeAsync_StampsQueryIdAndTurnSeqOnPersistedEntries() {
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> {
+                new(MessageRole.User, "问题"),
+                new(MessageRole.Assistant, "回答"),
+            }));
+
+        var context = new ChatMiddlewareContext {
+            Message = "hi",
+            ToolUseContext = new ToolUseContext(),
+            QueryId = "q-order",
+            ConversationTurn = 7,
+        };
+        await foreach (var _ in mw.InvokeAsync(context, EmptyStreamAsync, CancellationToken.None).ConfigureAwait(true)) { }
+
+        transcript.Verify(t => t.AppendEntriesAsync(
+            "20260822-1200-proj-main",
+            It.Is<IReadOnlyList<TranscriptEntry>>(entries => entries.All(e => e.QueryId == "q-order" && e.TurnSeq == 7)),
+            It.IsAny<CancellationToken>()), Times.Once,
+            "落盘条目没带 TurnSeq 时，并发查询 resume 会上下文倒序");
+    }
+
+    /// <summary>下游开始即触发切换（模拟回合中途 /clear），随后正常消费空流。</summary>
+    private static async IAsyncEnumerable<ChatStreamEvent> SwitchSessionAsync(
+        Action onEnter, [EnumeratorCancellation] CancellationToken ct = default) {
+        onEnter();
+        await Task.CompletedTask.ConfigureAwait(true);
+        yield break;
+    }
+
+    /// <summary>把文本切成分片 Content 事件（模拟流式正文）。</summary>
+    private static async IAsyncEnumerable<ChatStreamEvent> DeltasAsync(string text) {
+        for (var i = 0; i < text.Length; i += 100) {
+            yield return new ChatStreamEvent {
+                Type = ChatStreamEventType.Content,
+                Content = text.Substring(i, Math.Min(100, text.Length - i)),
+            };
+        }
+
+        await Task.CompletedTask.ConfigureAwait(true);
+    }
+
+    /// <summary>先吐分片正文再抛异常（模拟流中断）。</summary>
+    private static async IAsyncEnumerable<ChatStreamEvent> ThrowingAsync(string text) {
+        await foreach (var evt in DeltasAsync(text).ConfigureAwait(true)) {
+            yield return evt;
+        }
+
+        throw new InvalidOperationException("stream aborted");
+    }
 }

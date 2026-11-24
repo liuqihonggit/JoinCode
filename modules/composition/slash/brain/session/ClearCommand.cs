@@ -37,6 +37,8 @@ public sealed partial class ClearCommand : ChatCommandBase {
         // 对齐 TS: clearConversation — 直接清除，无需确认
         // TS 没有 --force 标志，直接执行清除
 
+        var oldSessionId = context.SessionId;
+
         // 1. 执行 SessionEnd hooks（清除前）— TASK071 命令技能-② 修复：
         // 旧实现注释 SessionEnd 却调 ISessionStartHookManager.OnSessionStartAsync（SessionEnd:clear 永不执行）；
         // 对齐 TS clearConversation:69 executeSessionEndHooks('clear') 走 HookOrchestrator 广播
@@ -45,10 +47,10 @@ public sealed partial class ClearCommand : ChatCommandBase {
             try {
                 var payload = new Dictionary<string, JsonElement> {
                     ["source"] = JsonElementHelper.FromString("clear"),
-                    ["session_id"] = JsonElementHelper.FromString(context.SessionId),
+                    ["session_id"] = JsonElementHelper.FromString(oldSessionId),
                 };
                 await foreach (var _ in orchestrator.ExecuteHooksAsync(
-                    HookEvent.SessionEnd, payload, sessionId: context.SessionId, cancellationToken: context.CancellationToken)
+                    HookEvent.SessionEnd, payload, sessionId: oldSessionId, cancellationToken: context.CancellationToken)
                     .ConfigureAwait(false)) {
                     // 广播消费 — 结果由事件层记录（SessionEnd 无阻断语义）
                 }
@@ -57,23 +59,46 @@ public sealed partial class ClearCommand : ChatCommandBase {
             }
         }
 
-        // 2. 清空聊天历史
-        await context.GetCommandServices().ChatService.ClearHistoryAsync(context.CancellationToken).ConfigureAwait(false);
-        _logger?.LogInformation("聊天历史已清空");
+        // 2. 会话翻页（ADR 0167）— 不再只清内存消息列表：生成新 sessionId，旧代完整留在磁盘，
+        // 在途回合按自己出生时的代次继续落旧目录。旧桶保守不回收（斜杠命令拿不到在途查询数，
+        // 误回收会让在途回合写进被重建的空桶）。
+        var contextManager = GetService<IChatContextManager>(context);
+        var newSessionId = oldSessionId;
+        if (contextManager is not null) {
+            newSessionId = await SessionEpochSwitcher.BeginNewAsync(
+                contextManager,
+                GetService<ITranscriptService>(context),
+                new SessionEpochOptions {
+                    ProjectPath = Environment.CurrentDirectory,
+                    ReleaseOldBucket = false,
+                },
+                _logger,
+                context.CancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation("会话已翻页 {Old} → {New}", oldSessionId, newSessionId);
+        } else {
+            // 无上下文管理器（极简宿主/测试）降级为原语义
+            await context.GetCommandServices().ChatService.ClearHistoryAsync(context.CancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation("聊天历史已清空（无 IChatContextManager，降级为清内存）");
+        }
 
         // 2.1 清除后 SessionStart hooks（TASK071 — 对齐 TS clearConversation:245 processSessionStartHooks('clear')；
-        // 旧实现把 SessionStart 放在清除前，时序错位）
+        // 旧实现把 SessionStart 放在清除前，时序错位。ADR 0167 — 换代后必须用新 sessionId，
+        // 否则 hook 读到的是上一代的会话）
         var sessionStartManager = GetService<ISessionStartHookManager>(context);
         if (sessionStartManager is not null) {
             try {
                 await sessionStartManager.OnSessionStartAsync(new SessionStartHookContext {
-                    SessionId = context.SessionId,
+                    SessionId = newSessionId,
                     Source = "clear",
                 }, context.CancellationToken).ConfigureAwait(false);
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "SessionStart hook 执行失败（清除后）");
             }
         }
+
+        // 2.2 TASK135 B2 — 本代 SessionStart 已在此显式执行（source=clear），标记该代已跑：
+        // 否则新代首个查询会再跑一次 startup 版，hook 输出被重复注入上下文。
+        GetService<ISessionStartHookState>(context)?.MarkRan(newSessionId);
 
         // 3. 清屏
         context.ClearScreen?.Invoke();
@@ -82,11 +107,11 @@ public sealed partial class ClearCommand : ChatCommandBase {
         // 对齐 TS: clearSessionCaches
         await ClearSessionCachesAsync(context).ConfigureAwait(false);
 
-        // 5. 异步清除思考存储
+        // 5. 异步清除思考存储（ADR 0167 — 清的是**旧**会话的思考内容，新会话还没有思考）
         var thinkingStore = context.GetCommandServices().ThinkingStore;
         if (thinkingStore is not null) {
             try {
-                await thinkingStore.ClearAsync(context.SessionId, context.CancellationToken).ConfigureAwait(false);
+                await thinkingStore.ClearAsync(oldSessionId, context.CancellationToken).ConfigureAwait(false);
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "思考存储清除失败");
             }

@@ -94,9 +94,23 @@ internal static class CommandTestHarness {
     private static readonly SemaphoreSlim CaptureLock = new(1, 1);
 
     /// <summary>
+    /// 最近一次捕获 writer 的宿主引用 — 所有权在此，不由捕获段终结（见 <see cref="CaptureOutputAsync"/> 注释）：
+    /// 并行测试类可能仍持有它的引用并晚到写入，故不能 Dispose；留引用也避免"局部变量未释放"的静态检查误判。
+    /// </summary>
+    private static TextWriter? _retainedCaptureWriter;
+
+    /// <summary>
     /// 执行命令并捕获控制台输出 — SetOut 重定向 StringWriter,finally 恢复原始输出流；
     /// 全局互斥（见 CaptureLock 注释 — CI 实证类间并行输出互串）
     /// </summary>
+    /// <para>
+    /// 捕获 writer **不 Dispose**（CI run #1361 实证）：<c>Console.Out</c> 是进程全局态，
+    /// 捕获段期间并行的非捕获类（如 DebugLogCommandTest）会读到这个 writer 的引用，
+    /// 若其写入晚于捕获段结束，就会撞上已关闭的 <see cref="StringWriter"/>
+    /// （<c>ObjectDisposedException: Cannot write to a closed TextWriter</c>）。
+    /// 写入方的时机不可知，故 writer 生命周期不能由本方法单方面终结；
+    /// StringWriter 只包一个本方法持有的 StringBuilder，无外部资源可放，不 Dispose 无泄漏。
+    /// </para>
     /// <typeparam name="T">命令执行结果类型</typeparam>
     /// <param name="action">待执行的命令调用</param>
     /// <returns>(命令结果, 捕获的输出文本)</returns>
@@ -105,7 +119,10 @@ internal static class CommandTestHarness {
         try {
             var output = new StringBuilder();
             var originalOut = Console.Out;
-            await using var writer = new StringWriter(output);
+            var writer = new StringWriter(output);
+            // 所有权转移给静态字段（不 Dispose）：Console.Out 是进程全局，捕获段期间并行的
+            // 非捕获测试类会拿到这个 writer 的引用，写入时机晚于捕获段结束时不能撞上"已关闭"
+            _retainedCaptureWriter = writer;
             Console.SetOut(writer);
             try {
                 var result = await action();

@@ -236,3 +236,65 @@ SDK/NDJSON 事件、`/clear` 后 symlink 重链、逐 token 实时落盘——�
   `x` 停止只取消后台那条、不影响新前台查询。
 - 回归：Ctrl+B 闲时仍是光标左移；transcript 模态下翻不变；后台 agent 链 4/4 用例不变；忙时拒绝测试仍绿。
 - 门禁：StyleGate + 节点/顺序门禁全绿。
+
+---
+
+## 9. 用户纠偏 — "万物皆后台"（覆盖 §8，2026-11-24 定稿）
+
+用户指出：Ctrl+B 不该打断查询再重跑，"默认转后台的行为就应该一开始就放后台，只是异步拉取状态展示在前台——万物皆后台"。
+
+### 9.1 为什么这个批评是对的
+
+§8 的 abort+续跑（照抄基准）有**本质缺陷**：`REPL.tsx:2555-2606` 的 `abortController.abort('background')`
+打断跑了一半的查询——已生成的 token、正在执行的工具调用、已扣的费用全部作废，然后用复制的历史重跑一条。
+基准那么写不是因为它是好设计，而是因为**基准的前台 query 没有 task 身份**，只能事后补票。
+代码里那一堆 `removeByFilter`、`Dedupicate`、`alreadyNotified` 竞态清理正是这个妥协的代价。
+
+用户的模型更本质：**查询从第一刻就是有身份的后台 task，前台只是订阅其状态的视图**。
+Ctrl+B 变成纯视图切换（换"当前显示哪个 task"），不 abort、不重跑、无费用损失。
+这与基准 `LocalMainSessionTask` 目标相同，但不需要事后补票。
+
+### 9.2 本仓具备的地基（AsyncLocal 先例）
+
+基准用 `AsyncLocalStorage` 隔离并发 query 的上下文。本仓已有同款机制：
+`SubAgentContext.cs:4`、`SubAgentEventChannel.cs:11`、`SessionContext.cs:9` 均为 `AsyncLocal`，
+`AsyncLocalScope<T>`（`abstractions_primitives_utils/src/core/scopes/AsyncLocalScope.cs`）提供 Enter 作用域。
+所以"并发流隔离"不是从零造轮子。
+
+`ChatService` 的两个实例字段（Singleton）是主要污染点：`_conversationTurn`（`ChatService.cs:12`）、
+`_toolUseContext`（`:29`），消费面只在 `ChatService` 内部 7 处（`:58/72/92/114/132/162/280`），
+改成 AsyncLocal 作用域可控。
+
+### 9.3 实施顺序（地基先行，不做 abort+续跑）
+
+**阶段 0 — 查询身份与事件归因（地基，必须先做）**
+
+1. `IReplEngine.Submit(text)` → 返回/携带 `queryId`（taskId）；`BridgeEvent`（`BridgeEvent.cs:35-42`）增加 `queryId`。
+2. `EngineTurnClient` 单 `_turnCts/_turnTask` → `queryId → (Cts, Task)` 映射，`Interrupt(queryId)` 定向取消。
+3. `ChatService._conversationTurn` / `_toolUseContext` 改 AsyncLocal 作用域（借 `AsyncLocalScope<T>`），
+   隔离并发查询的工具权限/内容替换状态。
+4. `SessionController` 实例级回合状态（`_hasSubstantiveOutput`/`_lastStopReason` 等十余字段，
+   `:12-37`）移入 per-turn context。
+
+**阶段 1 — 万物皆后台（task 一等公民）**
+
+5. 每个 query 注册为 task：`IAgentNotificationQueue`/`BackgroundTaskPanel` 已有面板与通知出口；
+   `AgentTranscriptService.AppendEntryAsync(sessionId, taskId, entry)` 写独立 transcript。
+6. 前台变订阅视图：`ReplBridgeDriver` 单一 `IsBusy`/spinner（`ReplBridgeDriver.cs:129/508/536`）按 queryId 多槽；
+   `ReplShell.DrainEngine` 按当前聚焦 taskId 投影事件到主视图。
+7. Ctrl+B = 切换聚焦 taskId（非 abort）：忙时切到后台 task、清空输入；再按切回；
+   键位冲突见 §8.3 第 5 点（`ReplShell.cs:1926-1928` 光标左移）。
+
+**阶段 2 — 协议与边缘**（SDK/NDJSON 事件、`/clear` symlink 重链、逐 token 落盘）
+
+### 9.4 与 §7/§8 的关系
+
+- §7 列的 7 项改造，在"万物皆后台"模型下**全部需要**，但性质从"为并发付出代价"变成"给查询建立身份的地基"。
+- §8 的 abort+续跑**作废**：它是用重复计算换架构不改，与用户"无损切换"的诉求冲突。
+- 保留 §4/§5 的状态机与 transcript 隔离设计（仍然成立）。
+
+### 9.5 当前状态
+
+用户已明确方向，但阶段 0 触及核心契约（`IReplEngine`、`BridgeEvent`、`IChatService` 行为），
+属跨域契约变更，需先写 ADR + 红测试，编译面覆盖 native_tui + 引擎 + host.tests。
+**开工前确认**：是否接受"阶段 0 地基先行"（而非先做键位探针或阶段 1 视图）。

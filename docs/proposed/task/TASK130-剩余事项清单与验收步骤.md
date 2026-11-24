@@ -317,15 +317,62 @@ grep -rn "GetNormalizedArgs" --include=*.cs modules | grep -v "/obj/"
 dotnet test modules/composition/composition_tests/Composition.Tests.csproj -c Debug --no-build --filter "FullyQualifiedName~Command"
 ```
 
+**逐条审计结果（2026-11-24，43 个命令文件）**
+
+按「是否真的会因空格拼接而取错值」逐条看，结论分两类：
+
+| 类 | 命令 | 判定 |
+|---|---|---|
+| 自由文本整串（必须整串，**不改**） | `Btw` `Rename` `Compact` `Feedback` `Plan` 的描述、`Falv` 的假定内容 | 正确：这些就是用户原话 |
+| 多参数 `子命令 + 目标`（**重点查**） | `Plugin`(install/uninstall/enable/disable) `Tag`(add/remove) `Workflows`(run/status) `Hooks`(add/remove/test) | **发现真 bug（见下）**，非 JSON 拼接问题 |
+| 单值枚举（`slash_call` 只送一字段即可） | `Color` `Profile` `Vendor` `Effort` `Statusline` `Init` `Rewind` `Copy` `Advisor` `Switch` `Trust` `Review` `Install` … | 无隐患：整串即唯一值 |
+
+**真正的 bug 不在「多字段 JSON」，而在「前缀命中」**：这些命令原来是
+`args.StartsWith("add")` + `args["add".Length..]`，于是
+
+- `/tag address` → 命中 `add`，标签名变成 `ress`（**静默写入一个错误标签**）
+- `/workflows runner` → 命中 `run`，工作流名变成 `ner`
+- `/plugin installer.exe` → 命中 `install`，路径变成 `er.exe`
+
+**修法（已实现）**：`ChatCommandBase.TryTakeSubCommand(args, subCommand, out rest)` —— 子命令后必须是串尾或空白；
+Plugin(4)/Tag(2)/Workflows(2)/Hooks(3) 共 11 处分支改用它。**全仓只剩这一份前缀判定**。
+
+**验收结果**
+
+| 项 | 结果 |
+|---|---|
+| 新增 `SubCommandBoundaryTest`（13 条：11 组词边界理论值 + 2 条 `/tag` 行为） | 13/13 绿；`/tag address` 断言 `AddTag` **零调用** |
+| 负向验证 | 删掉词边界那 3 行 → **5 条转红**（address/addx/runner/installer.exe + `/tag address`），还原转绿 |
+| `Composition.Tests` 全量 | **1172/1172** 绿 |
+| 注意 | 该测试项目首次构建报大批 `CS0234`（引用程序集过期），`dotnet restore --force` 后正常 —— 与本改动无关 |
+
 ---
 
-### A4. flag settings 路径的策略锁（ADR 0161 注明未接）
+### A4. flag settings 路径的策略锁（**已核实：不适用，关闭**）
 
-**证据**：TASK103:254 记「flag settings 路径的策略锁未接入（ADR 0161 已注明，现只消费
-`managed-settings.json`）」。
-**先做**：读 ADR 0161 确认「策略锁」的准确语义与目标文件，再判断是施工还是补文档说明。
-**判定**：若属「管理策略应覆盖命令行 flag」这一类安全语义，必须施工；若只是 ADR 里的一句
-边界说明，则在总账关闭并注明理由。
+**ADR 原文**（`docs/proposed/adr/0161-sandbox-policy-source-and-platform-truth.md:11`）：
+「本仓 `ConfigLoader` 未接入 flag settings 路径，故本轮只消费 policy 源，flag 锁待后续接入。」
+
+**核实结果：flag 源在本仓没有生产者，锁无从触发**
+
+| 环节 | 事实 |
+|---|---|
+| 入口 | `CommandLineOptions` 44 个属性里**没有** `--settings`（唯一相近的 `SkipProviderConfig` 是另一件事）；全仓搜 `--settings` 只命中 `SettingSource` 的注释与 `SettingsLoader.LoadFlagSettingsAsync` 的文档注释 |
+| 装配 | `ConfigLoader.LoadConfigAsync` 调 `LoadAllSourcesAsync(fs, projectDir: …)` **不传 `flagSettingsPath`** → `LoadFlagSettingsAsync(fs, null)` 恒返回 null，flag 源永远空 |
+| 消费 | `SandboxPolicyResolver.Apply(config, policySettings)` 只读 policy 快照，与「flag 源恒空」自洽 |
+
+**结论**：不是漏实现一处判断，而是**整条 flag 路径没有入口**。此刻给 resolver 加 flag 锁判断只会得到一段永远为假的死代码，
+属"打印出来≠生效"的反面版本。故关闭本项，不做代码改动。
+
+**将来接入 `--settings` 时的验收口径（写清避免重犯）**
+1. `CommandLineOptions` 加 `SettingsPath`，参数解析与 `--help` 文案补齐；
+2. `LoadConfigAsync` 并行多读一份 flag 快照（与 policy 快照同款），传 `SandboxPolicyResolver.Apply(config, policy, flag)`
+   —— **只对三个锁键**（`sandbox.enabled` / `autoAllowBashIfSandboxed` / `allowUnsandboxedCommands`）合并 flag 来源，
+   `allowManagedDomainsOnly` / `allowManagedReadPathsOnly` **仍只认 policy**（基准语义：仅 managed 生效）；
+3. `SandboxPolicyConfig` 需要区分来源（现 `WritePolicyLocked` 的文案硬编码「managed-settings.json 已定义」，
+   flag 触发时会撒谎）—— 加 `FlagLockedKeys` 或带来源的键元组，`/sandbox` 提示按来源分句；
+4. 红测试：flag 快照显式 `enabled` → `/sandbox off` 被拒且提示写 flag；policy 与 flag 同时定义 → 两边键名都列出；
+   仅 policy 定义 → 沿用现状文案。
 
 ---
 

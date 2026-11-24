@@ -29,8 +29,7 @@ public sealed class TagCommand : ChatCommandBase {
             return Task.FromResult(ChatCommandResult.Continue());
         }
 
-        if (args.StartsWith("add", StringComparison.OrdinalIgnoreCase)) {
-            var tagName = args["add".Length..].Trim();
+        if (ChatCommandBase.TryTakeSubCommand(args, "add", out var tagName)) {
             if (string.IsNullOrEmpty(tagName)) {
                 TerminalHelper.WriteLine("用法: /tag add <tag_name>");
                 return Task.FromResult(ChatCommandResult.Continue());
@@ -42,18 +41,17 @@ public sealed class TagCommand : ChatCommandBase {
             } else {
                 TerminalHelper.WriteLine($"标签已存在: {tagName}");
             }
-        } else if (args.StartsWith("remove", StringComparison.OrdinalIgnoreCase)) {
-            var tagName = args["remove".Length..].Trim();
-            if (string.IsNullOrEmpty(tagName)) {
+        } else if (ChatCommandBase.TryTakeSubCommand(args, "remove", out var tagToRemove)) {
+            if (string.IsNullOrEmpty(tagToRemove)) {
                 TerminalHelper.WriteLine("用法: /tag remove <tag_name>");
                 return Task.FromResult(ChatCommandResult.Continue());
             }
 
-            var removed = tagService.RemoveTag(context.SessionId, tagName);
+            var removed = tagService.RemoveTag(context.SessionId, tagToRemove);
             if (removed) {
-                TerminalHelper.WriteLine($"已移除标签: {tagName}");
+                TerminalHelper.WriteLine($"已移除标签: {tagToRemove}");
             } else {
-                TerminalHelper.WriteLine($"标签不存在: {tagName}");
+                TerminalHelper.WriteLine($"标签不存在: {tagToRemove}");
             }
         } else {
             TerminalHelper.WriteLine($"未知操作: {args}");

@@ -116,6 +116,29 @@ public abstract class ChatCommandBase : IChatCommand {
     }
 
     /// <summary>
+    /// 子命令词边界匹配 — 整串取参时按前缀分派会误命中：<c>/tag address</c> 命中 <c>add</c> 后
+    /// 把 <c>ress</c> 当标签名、<c>/workflows runner</c> 命中 <c>run</c> 后把 <c>ner</c> 当工作流名，
+    /// 结果是「静默操作了另一个名字」。这里要求子命令后必须是串尾或空白。
+    /// </summary>
+    /// <param name="args">整串参数（通常是 <see cref="GetNormalizedArgs"/> 的返回值）。</param>
+    /// <param name="subCommand">子命令字面量。</param>
+    /// <param name="rest">命中时返回子命令之后的剩余串（已 Trim）；未命中为空串。</param>
+    /// <returns>命中返回 true。</returns>
+    internal static bool TryTakeSubCommand(string args, string subCommand, out string rest) {
+        rest = string.Empty;
+        if (args.Length < subCommand.Length || !args.StartsWith(subCommand, StringComparison.OrdinalIgnoreCase)) {
+            return false;
+        }
+
+        if (args.Length > subCommand.Length && args[subCommand.Length] is not (' ' or '	')) {
+            return false;
+        }
+
+        rest = args[subCommand.Length..].Trim();
+        return true;
+    }
+
+    /// <summary>
     /// 获取拆分后的参数数组。
     /// <para><c>slash_call</c> 把 key=value / JSON 都规范化成 JSON 字符串放进 <see cref="ChatCommandContext.Arguments"/>，
     /// 只按空格 Split 会把 <c>{"flags":"-p"}</c> 当成一个整体参数，命令里的 ParseFlags 永远匹配不到。

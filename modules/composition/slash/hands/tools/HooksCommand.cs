@@ -21,15 +21,15 @@ public sealed class HooksCommand : ChatCommandBase {
             return await ListHooksAsync(hookManager).ConfigureAwait(false);
         }
 
-        if (args.StartsWith("add", StringComparison.OrdinalIgnoreCase)) {
+        if (ChatCommandBase.TryTakeSubCommand(args, "add", out _)) {
             return await AddHookAsync(hookManager, args, context.CancellationToken).ConfigureAwait(false);
         }
 
-        if (args.StartsWith("remove", StringComparison.OrdinalIgnoreCase)) {
+        if (ChatCommandBase.TryTakeSubCommand(args, "remove", out _)) {
             return await RemoveHookAsync(hookManager, args, context.CancellationToken).ConfigureAwait(false);
         }
 
-        if (args.StartsWith("test", StringComparison.OrdinalIgnoreCase)) {
+        if (ChatCommandBase.TryTakeSubCommand(args, "test", out _)) {
             return TestHook(args);
         }
 

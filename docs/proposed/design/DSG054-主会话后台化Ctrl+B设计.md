@@ -1,9 +1,11 @@
 # DSG054 — 主会话后台化（Ctrl+B）专项设计（待裁决，零实现）
 
 > 状态：**只做设计，用户裁决前不写任何实现代码** · 日期 2026-11-24
-> **⚠️ 可行性复核（2026-11-24，裁决为 D 之后）**：深查发现本仓引擎在四层显式实现"单会话单回合在途"，
-> D 方案第一阶段"后台化后用户发新查询"的前提**当前架构不成立**。详见 §7，本设计已被 §7 结论覆盖，
-> 原 §4/§5 保留作为"若做架构改造后的目标态"参考。
+> **✅ 可行性复核结论（2026-11-24）**：§7 曾判定"四层单回合约束使 D 前提不成立"——那是基于
+> "两条查询并发"的误读。深查基准一手源码发现 Ctrl+B 的真实语义是**打断前台 + 另起一条独立 query 续跑**
+> （`REPL.tsx:2555-2606` `abortController.abort('background')` → `startBackgroundSession`），并非两条并发。
+> 本仓有同款生产蓝图 `BtwCommand.RunSideQuestionAsync`（`BtwCommand.cs:67-102`），积木齐全，
+> **7 项架构改造不需要**。最终路线见 §8，§4/§5 作为目标态参考、§7 保留作为被否路线的取证。
 > 来源：TASK130 B2 / TASK103 §2.3 #51 / TASK071-A7 · 取证底稿：[TASK120](../task/TASK120-LocalAgentTask后台化任务类型-差异取证.md)
 > 基准树：`D:\project\claude-code-rust\claude-code-rev-main\src` · 本仓：`D:\project\w2`
 
@@ -155,3 +157,82 @@ Running ──查询终态──> Completed/Failed (发一次通知, 面板可�
 **改造面（若用户仍要做，7 项，属架构级）**：①回合槽改 `queryId → (Cts,Task)` 映射 + `Submit` 返回 queryId；②`BridgeEvent` 加 queryId、每 query 独立 consumer；③`ReplBridgeDriver`/`ReplShell` 单一 `IsBusy` 改多槽、Ctrl+B 从光标左移解绑；④`SessionController` 实例级回合状态移入 per-turn context；⑤`ChatService`/`AgentBase` 共享对话状态按 query 隔离；⑥transcript 改 `{sessionId}/queries/{queryId}.jsonl` 再归并；⑦协议 ADR 0150/TASK060 与两组忙时拒绝测试重写。
 
 **当前处置**：设计稿保留为目标态参考，**不改任何生产代码**；B2 重新回到用户裁决点——(甲) 接受 7 项架构改造，(乙) 降级为 C（只做前台 agent 后台化，不动主会话并发），(丙) 暂缓。
+
+---
+
+## 8. 最终路线 — 绕行方案（abort + 独立续跑，2026-11-24 定稿）
+
+### 8.1 基准的真实语义（一手源码纠正 §7 的误读）
+
+我此前把 Ctrl+B 理解为"前台查询不中断地转后台 + 用户并发发新查询"，据此判定需要 7 项引擎改造。
+读基准 `screens/REPL.tsx:2555-2606` 后确认这个理解错了：
+
+```
+handleBackgroundQuery():
+  abortController?.abort('background')        // ① 打断前台那条
+  removedNotifications = removeByFilter(task-notification)
+  getToolUseContext / getSystemPrompt / ...   // ② 重建 query 上下文
+  startBackgroundSession({                    // ③ 用已有 messages 起一条全新独立 query
+    messages: [...messagesRef.current, ...uniqueNotifications], ...
+  })
+```
+
+`tasks/LocalMainSessionTask.ts:338-479` `startBackgroundSession` 内部 `for await (const event of query({...}))`
+是一条**全新的 query 调用**，事件写进 task 自己的 `bgMessages[]` 与独立 transcript
+（`recordSidechainTranscript`），不进主视图。任意时刻只有一条流在跑——**没有并发**。
+
+`hooks/useSessionBackgrounding.ts:41-66` 的"再按 Ctrl+B 回前台"也只是把 task 的 `messages` 同步到主视图
+并置 `foregroundedTaskId`，不是把两条流来回切。
+
+### 8.2 本仓积木盘点（全部现成，无需改引擎并发）
+
+| 基准机制 | 本仓等价积木 | 证据 |
+|---|---|---|
+| 独立 `query()` 调用 | `IQueryEngine.QueryAsync` + `AgentBase.ExecuteStreamAsync` | `IQueryEngine.cs:12-22`、`AgentBase.cs:361-424` |
+| 复制主历史做前缀 | `IChatContextManager.GetMessageListAsync()` 逐条复制 | `BtwCommand.cs:72-82`（**生产蓝图，同款模式**） |
+| 不写回主上下文 | `new AgentBase` 不注入 ContextManager | `BtwCommand.cs:84-92` |
+| 独立事件缓冲 | `new InProcessEventConsumer(独立 ConcurrentQueue<BridgeEvent>)` | `InProcessEventConsumer.cs:52-55` |
+| 独立 transcript | `IAgentTranscriptService.AppendEntryAsync(sessionId, agentId, entry)` | `AgentTranscriptService.cs:34-55`（按 subagents/{agentId} 分文件） |
+| 完成通知 | `IAgentNotificationQueue` + `AgentTaskNotification.ToXml()` | `AgentServiceImpl.cs:823-839`、`IAgentService.cs:158-210` |
+| 面板/详情/停止 | `OnBackgroundTask → BackgroundTaskPanel.Upsert`，kind 是自由字符串 | `ReplBridgeDriver.cs:256-259`、`BackgroundTaskPanel.cs:95-113` |
+| abort 前台 | 现有 `IReplEngine.Interrupt()` | `ReplShell.cs:1933-1936`、`EngineTurnClient.cs:228-230` |
+
+**结论**：`EngineTurnClient` 单回合槽、`BridgeServeLoop` 忙拒绝、BridgeEvent 无 queryId、
+SessionController 实例级状态——这四层约束**对绕行方案都不构成阻塞**，因为新 query 根本不进回合槽、
+不与前台流共用事件队列。§7 的 7 项改造是"真并发"路线才需要的，本方案不采用。
+
+### 8.3 第一阶段改动清单（3 处新增 + 2 处改）
+
+**新增**
+
+1. **主会话后台续跑编排服务**（引擎侧，可注入）：`MainSessionBackgroundService` —— 
+   `BackgroundAsync(history, prompt, ct)`：生成 `s`-前缀 taskId → 复制历史 → `new AgentBase`（不注入
+   ContextManager，对齐 BtwCommand）→ 绑独立 `InProcessEventConsumer` → `ExecuteStreamAsync` →
+   chunk 投影为 `TranscriptEntry` 写独立 transcript → 终态推 `OnBackgroundTask(kind="main-session", ...)` +
+   `IAgentNotificationQueue.Enqueue`。**取消**：服务自持 per-task CTS，面板 `x` 停止时定向取消（不碰全局
+   `Interrupt()`）。
+2. **chunk → transcript 投影胶水**：`AgentStreamChunk`（Content/ToolUse/ToolResult/Usage）→ `TranscriptEntry`，
+   含 modelId 与 tool call 空 content 的处理；第一阶段只写完整消息，不做逐 token 落盘。
+3. **状态机**（纯逻辑可测）：`MainSessionBackgroundState` 五态
+   `Running/Foregrounded/Completed/Failed/Cancelled` + 通知去重（沿用基准 `notified` 原子 check-and-set
+   语义，`completeMainSessionTask` 对应本仓实现）。
+
+**改**
+
+4. `ReplShell.DispatchCtrlAction` 加 `TaskBackground` case（当前缺失）：忙时调用编排服务 +
+   `_engine.Interrupt()` + 清空输入/排队；闲时不消费。
+5. **键位冲突**：`ReplShell.cs:1926-1928` 的 `case "b": _input.Left()` 当前占用 Ctrl+B；按上下文分层——
+   transcript 模态内保留 less 下翻（`TranscriptController` 优先消费），忙时让位 `TaskBackground`，
+   闲时 prompt 态保留光标左移。**这一点必须真机确认默认绑定 `KeybindingProfile.cs:241` 的 Task 上下文
+   是否在 prompt 态生效**，若全局生效则需调整绑定表而不是抢 switch。
+
+**不做（第一阶段）**：前后台"观看态"消息同步到主视图（基准 `foregroundMainSessionTask`）、
+SDK/NDJSON 事件、`/clear` 后 symlink 重链、逐 token 实时落盘——均留第二阶段（对齐用户裁决 D）。
+
+### 8.4 验收判据（第一阶段）
+
+- 红测试：状态机五态转移 + 通知去重；编排服务独立队列不污染主 consumer；`DispatchCtrlAction` 忙时消费/闲时不消费。
+- 真机：PTY + MockServer，忙时 Ctrl+B → 前台清空可输入、后台 query 跑完推面板通知、点详情可见完整回复；
+  `x` 停止只取消后台那条、不影响新前台查询。
+- 回归：Ctrl+B 闲时仍是光标左移；transcript 模态下翻不变；后台 agent 链 4/4 用例不变；忙时拒绝测试仍绿。
+- 门禁：StyleGate + 节点/顺序门禁全绿。

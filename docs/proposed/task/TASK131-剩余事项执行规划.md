@@ -18,7 +18,7 @@
 **不在范围**
 
 - 已闭合的 A1、A2、A5、D1-D3 不重做。
-- C1（真实 vendor key）和 B3（macOS Seatbelt）受外部条件阻塞，只保留验收步骤。
+- C1 已用本地 MockServer 在真进程 `jcc -p` 闭合（无需真实 vendor key）；B3（macOS Seatbelt）受外部条件阻塞，只保留验收步骤。
 - 其他历史任务文档中的旧欠账；以 TASK130 为唯一剩余事项入口。
 
 ## 2. 剩余事项总表
@@ -33,7 +33,7 @@
 | P1 | TASK135 hook 旁白全事件投影 | **已施工并验收**（2026-11-25，统一 `HookSystemMessageChannel` + 顶层 `systemMessage` 解析；Guard 643/643、Host 1375/1375、真机 2 条 `[HOOK-NOTICE]`） | 是（无 key 真进程） | 无 | `TASK135-hook旁白全事件投影.md` |
 | P1 | B1 双终端矩阵 | 探针 4/4，矩阵 10×2 未测 | 否（人工） | 真实 Windows Terminal + conhost | 矩阵结论 + 产物哈希 |
 | P2 | B2 Ctrl+B 主会话后台化 | **已由 w2 分支 DSG054 承接并裁决**（2026-11-24：万物皆后台，阶段 0 查询身份地基先行），w4 不重复设计 | 否 | D3 已闭合（见 §7） | 设计稿在 w2：`docs/proposed/design/DSG054-主会话后台化Ctrl+B设计.md` |
-| P2 | C1 回合级真机探针 | 接线已修，缺真实 key | 否 | vendor API key | `[DREAM-AUTO]` 证据 |
+| P2 | C1 回合级真机探针 | **已施工并验收**（2026-11-25，MockServer 真进程 `jcc -p`：`[DREAM-AUTO] fire sessions=10 prior=0` → 次轮 `skip: time-gate`；探针暴露 3 个真实缺陷已修复，见 TASK136 §5） | 是（无 key 真进程） | 无 | `TASK136-无人值守批次TODO.md` §5 + `t136-c1-run7/8.txt` |
 | P2 | B3 macOS Seatbelt | 显式未实现 | 否 | macOS 真机 + 独立 ADR | 外部条件满足后再立项 |
 | Backlog | TASK128 五个后续切片 | 已登记 | 视切片 | 见 §6 | 各自独立立项 |
 
@@ -174,7 +174,7 @@ dotnet test artifacts\bin\MockServer.E2E.Tests\Debug\net10.0\JoinCode.MockServer
 ### P2：B2 / C1 / B3
 
 - B2：先写一页设计稿，明确 Ctrl+B 主会话后台化的并发查询、transcript 归属、Esc/Ctrl+B 返回状态机、失败回滚；用户裁决前不写实现。
-- C1：等 vendor key；按 TASK126 §5.3 跑 `[DREAM-AUTO]`，无 key 不伪造。
+- C1：**已闭合** — 本地 MockServer + `JCC_ALLOW_DIRECT_FALLBACK=1` 真进程回合，不伪造真实 key；`[DREAM-AUTO] fire` 与后续 `skip: time-gate` 双证据见 TASK136 §5。
 - B3：等 macOS 真机；先独立 ADR，不在 Windows 上假实现 Seatbelt。
 
 ## 4. 提交与验收纪律

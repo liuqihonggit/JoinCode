@@ -37,3 +37,4 @@ global using QueryTokenBudgetMiddleware = Core.Query.TokenBudgetMiddleware;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using SkillContext = Core.Skills.SkillContext;
 global using TokenBudgetMiddleware = JoinCode.Pipelines.Middlewares.TokenBudgetMiddleware;
+global using Core.Plugins;

@@ -128,4 +128,25 @@ public sealed class ServiceRegistrationTests {
         Assert.True(config.AutoMemoryEnabled, "未注册 WorkflowConfig 时保持默认 true");
         Assert.True(config.Enabled);
     }
+
+    /// <summary>
+    /// TASK136 C1 真机探针的回归锁：插件容器**必须**能解析 <c>ISessionScanner</c>。
+    /// 修复前 <c>DreamPlugin.LoadAsync</c> 只注册 <c>AutoDreamConfig</c>，真机日志是
+    /// <c>[DREAM-AUTO] resolve: 插件容器内缺失 ISessionScanner</c>，自动整合永不触发。
+    /// </summary>
+    [Fact]
+    public async Task DreamPlugin_LoadAsync_RegistersSessionScannerInPluginContainer() {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var ctx = new JoinCode.Abstractions.Entity.PluginContext(DreamPlugin.PluginName, services);
+        await using var plugin = new DreamPlugin();
+
+        var result = await plugin.LoadAsync(ctx).ConfigureAwait(true);
+
+        Assert.True(result.Success);
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IDreamFeature));
+        await using var provider = services.BuildServiceProvider();
+        var scanner = provider.GetRequiredService<JoinCode.Dream.Services.ISessionScanner>();
+        Assert.NotNull(scanner);
+    }
 }

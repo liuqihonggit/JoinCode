@@ -7,15 +7,18 @@ namespace JoinCode.Dream;
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
 [Register(typeof(ICommandRegistrationHook), ServiceLifetime.Singleton)]
 public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrationHook {
+    /// <summary>插件名 — 跨容器解析（<c>IPluginManager.GetWorkflowPlugin</c>）的唯一来源。</summary>
+    public const string PluginName = "Dream";
+
     private readonly List<string> _registeredCommandNames = new();
 
     /// <summary>
     /// 构造 DreamPlugin
     /// </summary>
-    public DreamPlugin() : base("Dream") { }
+    public DreamPlugin() : base(PluginName) { }
 
     /// <summary>插件名称</summary>
-    public override string Name => "Dream";
+    public override string Name => PluginName;
     /// <summary>插件版本</summary>
     public override string Version => "1.0.0";
     /// <summary>插件描述</summary>
@@ -28,6 +31,8 @@ public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrati
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>操作结果</returns>
     public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default) {
+        // TASK136 C1 真机探针：插件服务注册进 WorkflowPluginHost 的独立容器，
+        // AddDreamPluginServices 必须完整覆盖运行时依赖（config/feature/scanner/registry/lock）。
         ctx.ConfigureServices(static s => s.AddDreamPluginServices());
         return Task.FromResult(OperationResult.Ok());
     }

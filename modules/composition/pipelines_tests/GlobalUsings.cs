@@ -23,3 +23,6 @@ global using JoinCode.Pipelines.Middlewares;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using System.Runtime.CompilerServices;
+global using Core.Plugins;
+global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Models;

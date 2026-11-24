@@ -3,6 +3,7 @@
 - 日期：2026-11-24
 - 关联 ADR：[0164](../adr/0164-round-gate-state-machine.md)、[0159](../adr/0159-round-gate-turn-termination.md)
 - 前序任务：[TASK102](TASK102-轮次闸门与循环合并立项.md)
+- 自查验收：[TASK132-验收报告](TASK132-验收报告.md)（不变量穷举 95 万实例 / 变异自检 6/6 / 真机 A-G / 常驻 token -48%）
 
 ## 用户诉求
 
@@ -62,6 +63,10 @@
 | `JCC_ROUND_GATE_STRICT` | `RoundGatePolicy.ReadStrictMode` → 会话 | ✅ | ✅ 单测（严格模式完成需 4 移交） |
 | 收尾裁决（验证链 + 熔断 + 出口） | QueryEngine 完成分支 | ✅ | ✅ 集成测试（未自验选 5 被拦截、自验后选 5 收尾） |
 | 真机 exe 验收（ADR 0080） | `artifacts/bin/JoinCode/Debug/net10.0/jcc.exe` + OpenAI.MockServer 脚本 | ✅ | ✅ 四条真机链路见下方"真机验收记录" |
+| 不变量穷举 | `RoundGateInvariantTests`（任意 ≤4 步序列 × 7 条不变量） | ✅ | ✅ 约 95 万实例全通过 |
+| 变异自检 | `non_deliverables_tools/scripts/verify/round_gate_mutation_check.py` | ✅ | ✅ 6/6 变异被抓住，还原后 Gate 复跑绿 |
+| 出口真机 E/F/G | `.xxx/gate132_{e,f,g}_mockserver.json` + 真 jcc | ✅ | ✅ 三条 `EXIT=0`；F 真实打出"9 降级交付被拒" |
+| 常驻体积基线 | `non_deliverables_tools/scripts/verify/round_gate_token_baseline.py` | ✅ | ✅ 常驻 736→381 token（-48%） |
 
 ### 真机验收记录（ADR 0080，2026-11-24）
 

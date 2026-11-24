@@ -27,7 +27,7 @@
 |---|---|---|---|---|---|
 | P0 | A6 SessionStart `AdditionalConfig` 零消费 | 代码确认零读取 | 是 | D1：`additionalContext` / `initialUserMessage` 的注入通道 | 红测试 + 消费链 + 回归 |
 | P0 | A4 flag settings 策略锁 | **已施工**（2026-11-24） | 是 | D2 已闭合 | 代码 + 单测 + 真机日志 |
-| P0 | A3 斜杠命令取参审计 | 45 文件、46 处调用待逐条判定 | 是 | 无 | 审计表 + ②类修复 + 用例 |
+| P0 | A3 斜杠命令取参审计 | **已施工**（2026-11-24，随 `c28d6412d`/PR #734 合入） | 是 | 无 | 审计表（TASK130 A3）+ `TryTakeSubCommand` 词边界修复 + `SubCommandBoundaryTest` 13 条 |
 | P1 | C2 低限额进程级验证 | 同进程用例已绿，进程级未做 | 是（MockServer） | 无 | 两次 `jcc -p` + dump 证据 |
 | P1 | Query 进程级 exe 验收 | 单元测试 3/3，exe 未跑 | 是（MockServer） | 无 | 流式输出/异常/取消的进程证据 |
 | P1 | B1 双终端矩阵 | 探针 4/4，矩阵 10×2 未测 | 否（人工） | 真实 Windows Terminal + conhost | 矩阵结论 + 产物哈希 |
@@ -107,22 +107,22 @@ dotnet test test\unit\host.tests\Host.Tests.csproj
 
 ---
 
-### P0-3：A3 — 斜杠命令取参审计
+### P0-3：A3 — 斜杠命令取参审计 — **已施工（2026-11-24，随 `c28d6412d` 合入）**
 
-**目标**：46 处 `GetNormalizedArgs` 逐条分三类，只修「单值命令把多字段 JSON 拼成整串」这一类。
+**结论（详见 [TASK130](TASK130-剩余事项清单与验收步骤.md) A3 段逐条审计结果）**
 
-**步骤**
-
-1. 生成审计表：文件、命令、调用行、分类 ①整串 / ②单值 / ③混用、现状、动作。
-2. ②类改 `GetSplitArgs()[0]` 或等价具名取值；每个改动补「JSON 形态 + 裸文本」两条用例。
-3. ①/③ 只记录理由，禁止一刀切。
-4. 审计表落到本文件附录或独立表格；完成后回写 TASK130 A3。
+- 46 处 `GetNormalizedArgs` 逐条三分类后，真 bug 不在「多字段 JSON 拼接」，而在「前缀命中」：
+  `args.StartsWith("add")` 让 `/tag address` 静默写成标签 `ress`、`/workflows runner` 变 `ner`、`/plugin installer.exe` 变 `er.exe`。
+- 修法：`ChatCommandBase.TryTakeSubCommand`（子命令后必须是串尾或空白），Plugin(4)/Tag(2)/Workflows(2)/Hooks(3) 共 11 处分支改用；
+  全仓只剩这一份前缀判定。自由文本整串类（`Btw`/`Rename`/`Compact` 等）按 ① 类保留。
+- 用例：`SubCommandBoundaryTest` 13 条（11 组词边界理论值 + 2 条 `/tag` 行为，含 `AddTag` 零调用断言）；
+  负向验证删词边界 3 行 → 5 条转红；`Composition.Tests` 全量绿（A4 轮复跑 1173/1173）。
 
 **验收**
 
 ```powershell
-rg -n "GetNormalizedArgs" modules --glob "*.cs"
-dotnet test modules\composition\composition_tests\Composition.Tests.csproj --filter "FullyQualifiedName~Command"
+rg -n "TryTakeSubCommand" modules --glob "*.cs"
+dotnet test modules\composition\composition_tests\Composition.Tests.csproj -c Debug --no-build --filter "FullyQualifiedName~Command"
 ```
 
 ---
@@ -176,7 +176,7 @@ dotnet test modules\composition\composition_tests\Composition.Tests.csproj --fil
 
 ## 5. 本批第一个动作
 
-A6 已由 HEAD `74bb6047f` 完整落地；A4 已于 2026-11-24 施工并通过定向/全量回归。下一项从 **P0-3 A3** 的斜杠命令取参审计开始。
+A6 已由 HEAD `74bb6047f` 完整落地；A4 已于 2026-11-24 施工并通过定向/全量回归（PR #738，merge `138a98912`）；A3 已随 `c28d6412d`（PR #734）合入。**P0 批次全部闭合**，下一项从 **P1-1 C2 + Query 进程级验收**（共用 MockServer）开始。
 
 ## 6. Backlog（TASK128 后续独立切片，不在本批）
 

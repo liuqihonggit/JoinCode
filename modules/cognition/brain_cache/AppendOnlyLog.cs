@@ -24,7 +24,8 @@ public sealed class AppendOnlyLog {
     /// <param name="message">待追加的消息</param>
     public void Append(ApiMessage message) {
         ArgumentNullException.ThrowIfNull(message);
-        if (message.Role == default)
+        // MessageRole.System 是枚举零值，不能用 Role == default 判断（会误拒合法系统消息）。
+        if (message.Role is not (MessageRole.System or MessageRole.User or MessageRole.Assistant or MessageRole.Tool))
             throw new ArgumentException("Message must have a valid role.", nameof(message));
         _entries.Add(message);
     }

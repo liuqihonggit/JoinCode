@@ -4,7 +4,7 @@
 > 收尾时改为 TASK134（2026-11-24）。文档内容、提交历史与验收结论不变。
 
 > 来源：2026-11-24 排查 PR #734「无冲突仍要 rebase 重跑 CI」时的真实工具摩擦。
-> 状态：A/B 已实施并真机验收；C 批三项经试做/核实后全部收口（C1 试做后回滚、C2 不做、C3 误判）。详见 §2 与 §3。
+> 状态：A/B/C1 已实施并真机验收；C2 不做、C3 证实误判。C1 经二次治疗从「回滚」改为「状态码成对判据落地」。详见 §2 与 §3。
 > 职责边界：**只改 PR 环境工具链**，不碰 CI/E2E 代码问题（后者属另一职责）。
 > 约束：每项走「红测试 → 实现 → 编译 → 绿测试 → 真机 exe 验收 → 提交」。
 
@@ -14,7 +14,7 @@
 |---|------|------|------|
 | 1 | `gh --version` 报「缺少 gh 分组」 | **根因已定位（2026-11-24 深挖修正）**：PATH 的 `jcc` → `C:/Users/54076/bin/jcc.d/dev/jcc.exe`（11-16 部署，旧 CLI 无 `gh` 命令节点），报「缺少 gh 分组」的是**旧 CLI 路由层**，不是 delegate。当前源码 `modules/apps/cli/core/commands/core/CliCommandNodes.cs:370` 有 `gh` 节点、`GhSubCommand.cs` 正确透传；新编 `artifacts/bin/JoinCode/.../jcc.exe gh --version` 正常路由（只因 artifacts 无 jcc-gh.exe 而报「找不到」，非「缺少分组」）。TASK101 C6 验收用 `jcc-gh.exe` 直调绕过 CLI → 假绿 | **部署陈旧 + 验收绕过真实入口**：部署目录 jcc.exe 半年未刷新，且 C6 的 exe 验收没走用户实际路径 |
 | 2 | `gh api ... --jq '.a, .b'` 报「不支持的 jq 语法」 | `SimpleJqEvaluator.IsSupportedStage` 只认单表达式，逗号分隔被拒；官方 jq 合法 | 能力缺口：文档化的「jq 子集」未含多字段选择 |
-| 3 | REST PATCH 返回 404，`documentation_url` 是泛化的 `https://docs.github.com/rest` | 本机网络层拦写方法（GET 正常、PATCH/POST-to-non-graphql 被伪装 404）；GraphQL POST 可用 | 环境问题，但工具**无法自证**，只能靠人肉猜到「改走 GraphQL」 |
+| 3 | REST PATCH 返回 404，`documentation_url` 是泛化的 `https://docs.github.com/rest` | 本机网络层拦写方法（GET 正常、PATCH/POST-to-non-graphql 被伪装 404）；GraphQL POST 可用 | 工具**已能自证**：用「写 404 + 同路径 GET 成功」状态码对判定并提示改走 GraphQL（C1 二次治疗） |
 | 4 | `gh pr merge --auto` 报告成功，但 REST 读 `auto_merge` 为 null | GraphQL 查 `autoMergeRequest.enabledAt` 有值——REST 字段映射与 GraphQL 不一致 | 观测口径分裂，容易误判「操作没生效」 |
 | 5 | 查 `strict` 字段名靠 introspection 试错 | GraphQL 字段是 `requiresStrictStatusChecks`（非 `strictRequiredStatusChecksPolicy`）；无高层命令 | 缺高层封装：`gh branch set-protection` 之类 |
 
@@ -43,7 +43,7 @@
 
 | 项 | 改法 | 验收 |
 |----|------|------|
-| C1 | ~~泛化 404 提示~~ **已试做并回滚**：单测绿（Error/Body 两种来源都覆盖），但真机无效——本机 wrapper 在响应到达 gh 前已改写 body，`documentation_url` 原始信号不可见。按"不留假绿"原则回滚代码，只在 `BuildApiErrorHint` 留一条注释记录原因 | 真机 PATCH 仍显示"仓库不存在"→ 判据不成立，回滚 |
+| C1 | **成对判据落地（2026-11-24 二次治疗）**：上次依赖 body 里的 `documentation_url` 被 wrapper 改写 → 真机无效回滚；这次改用**工具层直接拿到的状态码**——写方法 404 时自动发同路径 GET：GET 成功=资源存在但写被拦（提示改走 GraphQL），GET 也 404=真不存在（保留原提示）。规避了 body 改写坑 | 真机 A：PATCH `main/protection` → 「同路径 GET 成功...网络层拦截...改走 GraphQL」✅；真机 B：PATCH 不存在分支 → 保留「仓库不存在/路径错误」未误报 ✅；800/800 单测含 3 条成对判据新测 |
 | C2 | ~~高层命令 `gh branch set-protection --no-strict`~~ **收口不做**：C1 已证明工具层拿不到环境信号；新增 McpTool 名要改生成器 + 跨项目编译，边际收益不抵风险（开心路径纪律）。GraphQL 写法固化在任务日志 | 无需验收 |
 | C3 | ~~`gh pr merge --auto` 回读统一走 GraphQL~~ **证实是误判**：部署刷新后 REST `--jq .auto_merge` 正确返回对象；此前读到 null 是 auto-merge 刚启用时的时序，不是字段映射 bug | 真机 `gh api repos/liuqihonggit/JoinCode/pulls/734 --jq .auto_merge` 返回完整对象 ✅ |
 
@@ -56,7 +56,8 @@
 | A3 文档约定 | TASK101 C 批脚注 | ✅ | ✅ 已补「改 gh/CLI 后必须重跑 Deploy + 验 PATH 入口」 |
 | B1 多字段 jq（含带空格） | `SimpleJqEvaluator` | ✅ | ✅ 29/29 单测；真机 `.name, .default_branch` → `JoinCode/main` |
 | B2 错误文案 | 同上 | ✅ | ✅ 非法连续逗号 → `正确写法: --jq '.field1, .field2'` |
-| C1 泛化 404 提示 | — | ❌ 试做后回滚 | 单测绿但真机无效（wrapper 改写 body 导致信号消失）；留注释防重踩 |
+| C1 写方法 404 成对判据 | `GitHubToolHandlers.Api.cs` | ✅ | ✅ 单测 3 条新测 + 800/800 全量；真机存在/不存在资源两条路径分别给出正确提示，未误报 |
+| C1 旧方案（documentation_url） | — | ❌ 已回滚 | body 被 wrapper 改写导致真机无效；改为状态码成对判据后解决 |
 | C2 高层 set-protection | — | ❌ 不做 | 决策见 §2 |
 | C3 auto-merge 回读 | — | ❌ 不需 | 误判，REST 正常，真机已验 |
 
@@ -85,3 +86,13 @@ A（假绿修复，P0）→ B（jq 子集）→ C（写方法可见性）。每�
 <!-- 原因: C1 单测用模拟 Error/Body 全绿，真机却因为本机 wrapper 在响应到达 gh 前改写 body 而拿不到 documentation_url 信号——这是"测试绿≠真机绿"的又一实例，与本任务 A 批消除的假绿同类；留着会重蹈覆辙。C3 是误判（auto-merge 刚启用时读得太早），C2 的环境信号已被 C1 证伪 -->
 <!-- 替代方案: 硬编码"PATCH 404 就提示网络层"（会误报所有真实 404，违反错误提示纪律）；在 wrapper 层加透传字段（超出工具职责）——均否决 -->
 <!-- 验证: C1 真机 PATCH 仍显示"仓库不存在"→ 判据不成立；回滚后 gh.tests 799/799；git diff 确认测试文件零残留 -->
+
+<!-- 🤖 Auto Decision: 2026-11-24 TASK134-C2（二次治疗） -->
+<!-- 决策: C1 不维持回滚，改用「写方法 404 + 同路径 GET 成功」状态码成对判据重新落地 -->
+<!-- 原因: 用户追问「刻意不治能否真治」。反思上次失败的根因是判据取自 body（被 wrapper 改写），
+     不是"环境问题不可解"。状态码是工具层直接拿到的，不经 wrapper —— 换个判据就能真机有效。
+     写方法 404 时自动 GET 同路径：成功=资源存在但写被拦（提示改走 GraphQL），失败=真不存在（保留原提示），
+     不误报真实 404。GET 方法不做探测，graphql/auto-merge 路径排除。 -->
+<!-- 替代方案: 继续 document_url 检测（已证伪）；硬编码 PATCH 404=网络层（误报真实 404）——否决 -->
+<!-- 验证: 红测试 3 条（成对判据/双404保留/GET不探测）→ 全量 800/800；
+     真机 PATCH main/protection → 新提示含「网络层拦截+GraphQL」；PATCH 不存在分支 → 老提示未误报；GET 回归正常。 -->

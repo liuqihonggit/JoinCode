@@ -48,7 +48,21 @@ public partial class GitHubToolHandlers {
         }
         var cleanPath = UndoMsysPathConversion(path);
         var result = await _apiClient.SendAsync(httpMethod, cleanPath, resolvedBody, query, paginate == true, cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(BuildApiErrorHint(cleanPath, result.StatusCode, result.Error));
+        if (!result.Success) {
+            // 写方法 404 的成对判据（TASK134 C1）：body 在本机被 wrapper 改写，documentation_url 不可见；
+            // 改用「同路径 GET 是否成功」区分「资源不存在」与「写方法被网络层拦截」。
+            // 两个状态码都是工具层直接拿到，不经过 wrapper 改写 —— 避免上次单测绿真机无效的坑。
+            var writeProbeSucceeded = false;
+            if (result.StatusCode == 404 && httpMethod != HttpMethod.Get && IsProbeableResourcePath(cleanPath)) {
+                try {
+                    var probe = await _apiClient.SendAsync(HttpMethod.Get, cleanPath, query: query, ct: cancellationToken).ConfigureAwait(false);
+                    writeProbeSucceeded = probe.Success;
+                } catch (Exception ex) {
+                    _logger?.LogDebug(ex, "写方法 404 的 GET 探测失败，按原提示返回: {Path}", cleanPath);
+                }
+            }
+            return Fail(BuildApiErrorHint(cleanPath, result.StatusCode, result.Error, writeProbeSucceeded));
+        }
 
         var output = string.IsNullOrWhiteSpace(jq)
             ? result.Body
@@ -154,18 +168,27 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 可探测的资源型路径 — 写方法 404 时对其发同路径 GET 判断资源是否存在。
+    /// 排除 graphql（POST 到端点本身，GET 无意义）与 auto-merge（其 404 有专属语义提示）。
+    /// </summary>
+    private static bool IsProbeableResourcePath(string path)
+        => !path.Equals("graphql", StringComparison.OrdinalIgnoreCase)
+           && !path.Contains("auto-merge", StringComparison.OrdinalIgnoreCase)
+           && path.StartsWith("repos/", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// 构建 API 错误诱导提示 — 根据端点模式 + 状态码给出"为什么失败 + 接下来怎么做"
     /// <para>原则(AGENTS.md 错误提示必须有诱导方式): 禁止纯拒绝无引导,否则 AI 不知道错误含义会换命令尝试</para>
+    /// <para>writeProbeSucceeded: 写方法 404 时同路径 GET 是否成功 —— 成功说明资源存在、写方法被拦（TASK134 C1）</para>
     /// </summary>
-    private static string BuildApiErrorHint(string path, int statusCode, string originalError) {
-        // 注：曾尝试在 404 时检测泛化 documentation_url 提示"网络层拦截写方法"（TASK134 C1），
-        // 单测绿但真机无效——本机 wrapper 在响应到达 gh 前已改写 body，原始 documentation_url 不可见。
-        // 按"不留假绿"原则回滚；环境限制记入 TASK134 文档，不再在工具层猜测。
+    private static string BuildApiErrorHint(string path, int statusCode, string originalError, bool writeProbeSucceeded = false) {
         var hint = (statusCode, path) switch {
             (404, var p) when p.Contains("auto-merge", StringComparison.OrdinalIgnoreCase)
                 => "404 Not Found — 可能原因: ① 仓库 Settings → General → Pull Requests 未勾选 Allow auto-merge ② PR 不存在 ③ 端点路径错误。建议: 改用 gh_pr_merge --auto_merge 启用(走 GraphQL enablePullRequestAutoMerge)",
+            (404, var p) when writeProbeSucceeded
+                => $"404 Not Found — 同路径 GET 成功（资源存在），但写方法被拒。可能原因: 本机网络层拦截 REST 写方法（GET 正常、写方法被伪装 404）。建议: 改走 GraphQL POST（端点 graphql，mutation），或换用专用 gh 命令（如 gh_branch_sync_protection）。路径: {p}",
             (404, var p) when p.StartsWith("repos/", StringComparison.OrdinalIgnoreCase) && p.Count(c => c == '/') >= 2
-                => $"404 Not Found — 可能原因: ① 仓库不存在或无权限 ② 端点路径错误。路径: {p}",
+                => $"404 Not Found — 可能原因: ① 仓库不存在或无权限 ② 端点路径错误。同路径 GET 也未找到资源。路径: {p}",
             (403, var p) when p.Contains("/merge", StringComparison.OrdinalIgnoreCase)
                 => "403 Forbidden — 可能原因: ① 分支保护规则未满足(required checks 未通过/未匹配) ② Token 缺少 repo scope ③ 需 admin 强制合并。建议: gh pr checks 查 CI 状态, 或 gh_branch_sync_protection 同步 check 名",
             (403, _)

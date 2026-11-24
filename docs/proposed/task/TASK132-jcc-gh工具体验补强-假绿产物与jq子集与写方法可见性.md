@@ -1,7 +1,7 @@
 # TASK132 jcc-gh 工具体验补强 — 假绿产物、jq 子集与写方法可见性
 
 > 来源：2026-11-24 排查 PR #734「无冲突仍要 rebase 重跑 CI」时的真实工具摩擦。
-> 状态：proposed（规划阶段，未实施）。
+> 状态：A/B 已实施并真机验收；C 批三项经试做/核实后全部收口（C1 试做后回滚、C2 不做、C3 误判）。详见 §2 与 §3。
 > 职责边界：**只改 PR 环境工具链**，不碰 CI/E2E 代码问题（后者属另一职责）。
 > 约束：每项走「红测试 → 实现 → 编译 → 绿测试 → 真机 exe 验收 → 提交」。
 
@@ -40,22 +40,22 @@
 
 | 项 | 改法 | 验收 |
 |----|------|------|
-| C1 | `gh api` 收到 404 且 body 的 `documentation_url` 为泛化 `https://docs.github.com/rest` 时，追加提示「写方法可能被网络层拦截；GET 正常可先确认资源存在；分支保护写操作可改走 GraphQL `updateBranchProtectionRule`」 | 单测：构造泛化 404 → 含提示；构造真实 404（具体 docs url）→ 不误报 |
-| C2 | 高层命令 `gh branch set-protection --no-strict`（或等价）封装 GraphQL mutation，内部查 rule id + 字段名，用户不必记 `requiresStrictStatusChecks` | 真机对测试分支改 strict 后 GraphQL 回读一致；不传 `--no-strict` 时不改动其他设置 |
-| C3 | `gh pr merge --auto` 回读统一走 GraphQL `autoMergeRequest`，避免 REST null 假阴性 | 真机：启用后命令自身回读 `enabledAt` 非空 |
+| C1 | ~~泛化 404 提示~~ **已试做并回滚**：单测绿（Error/Body 两种来源都覆盖），但真机无效——本机 wrapper 在响应到达 gh 前已改写 body，`documentation_url` 原始信号不可见。按"不留假绿"原则回滚代码，只在 `BuildApiErrorHint` 留一条注释记录原因 | 真机 PATCH 仍显示"仓库不存在"→ 判据不成立，回滚 |
+| C2 | ~~高层命令 `gh branch set-protection --no-strict`~~ **收口不做**：C1 已证明工具层拿不到环境信号；新增 McpTool 名要改生成器 + 跨项目编译，边际收益不抵风险（开心路径纪律）。GraphQL 写法固化在任务日志 | 无需验收 |
+| C3 | ~~`gh pr merge --auto` 回读统一走 GraphQL~~ **证实是误判**：部署刷新后 REST `--jq .auto_merge` 正确返回对象；此前读到 null 是 auto-merge 刚启用时的时序，不是字段映射 bug | 真机 `gh api repos/liuqihonggit/JoinCode/pulls/734 --jq .auto_merge` 返回完整对象 ✅ |
 
 ## 3. 四列验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|:------:|:------:|
-| A1 delegate 对账 | `Pack-ToolNodes.ps1` | 待实施 | 待负向实验 |
-| A2 文档与编译约定 | `AGENTS.md`、TASK101 C 批 | 待实施 | 待文档核对 |
-| A3 双路径 exe 验收 | gh 验收脚本 | 待实施 | 待真机 |
-| B1 多字段 jq | `SimpleJqEvaluator` | 待实施 | 待单测 + 真机 |
-| B2 错误文案 | 同上 | 待实施 | 待负向测试 |
-| C1 泛化 404 提示 | `gh api` 错误路径 | 待实施 | 待单测 |
-| C2 高层 set-protection | `gh branch` | 待实施 | 待真机 |
-| C3 auto-merge 回读 | `gh pr merge` | 待实施 | 待真机 |
+| A1 部署入口行为验收 | `Deploy-JccDev.ps1:219` | ✅ | ✅ 负向：旧部署 exit 1「缺少 gh 分组」；修复后 `jcc gh --version` exit 0 + SHA256 对账 |
+| A2 哈希对账替代长度对账 | 同上 `:138` | ✅ | ✅ 旧/新 jcc.exe 同为 162304 字节但哈希不同，长度对账漏过、SHA256 抓到 |
+| A3 文档约定 | TASK101 C 批脚注 | ✅ | ✅ 已补「改 gh/CLI 后必须重跑 Deploy + 验 PATH 入口」 |
+| B1 多字段 jq（含带空格） | `SimpleJqEvaluator` | ✅ | ✅ 29/29 单测；真机 `.name, .default_branch` → `JoinCode/main` |
+| B2 错误文案 | 同上 | ✅ | ✅ 非法连续逗号 → `正确写法: --jq '.field1, .field2'` |
+| C1 泛化 404 提示 | — | ❌ 试做后回滚 | 单测绿但真机无效（wrapper 改写 body 导致信号消失）；留注释防重踩 |
+| C2 高层 set-protection | — | ❌ 不做 | 决策见 §2 |
+| C3 auto-merge 回读 | — | ❌ 不需 | 误判，REST 正常，真机已验 |
 
 ## 4. 风险与回滚
 
@@ -76,3 +76,9 @@ A（假绿修复，P0）→ B（jq 子集）→ C（写方法可见性）。每�
 <!-- 原因: 本次排查绕圈的根因是「文档✅ ≠ 产物有」和「工具报错不指向真因」，两者都在 PR 环境职责内；E2E 退出码 210 属 CI 代码问题，用户明确划走 -->
 <!-- 替代方案: 立即改 C2 高层命令（先把工具补齐）——否决，因为 A 的假绿会让任何新功能的验收再次失真，地基先修 -->
 <!-- 验证: 规划阶段未改代码；实证来自本次 exe/GraphQL/UTF-16 DLL 字符串检查 -->
+
+<!-- 🤖 Auto Decision: 2026-11-24 TASK132-C -->
+<!-- 决策: C1 试做后回滚，C2 不做，C3 证实误判；只留一条代码注释 + 文档记录 -->
+<!-- 原因: C1 单测用模拟 Error/Body 全绿，真机却因为本机 wrapper 在响应到达 gh 前改写 body 而拿不到 documentation_url 信号——这是"测试绿≠真机绿"的又一实例，与本任务 A 批消除的假绿同类；留着会重蹈覆辙。C3 是误判（auto-merge 刚启用时读得太早），C2 的环境信号已被 C1 证伪 -->
+<!-- 替代方案: 硬编码"PATCH 404 就提示网络层"（会误报所有真实 404，违反错误提示纪律）；在 wrapper 层加透传字段（超出工具职责）——均否决 -->
+<!-- 验证: C1 真机 PATCH 仍显示"仓库不存在"→ 判据不成立；回滚后 gh.tests 799/799；git diff 确认测试文件零残留 -->

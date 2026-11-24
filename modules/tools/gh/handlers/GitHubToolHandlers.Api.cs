@@ -158,6 +158,9 @@ public partial class GitHubToolHandlers {
     /// <para>原则(AGENTS.md 错误提示必须有诱导方式): 禁止纯拒绝无引导,否则 AI 不知道错误含义会换命令尝试</para>
     /// </summary>
     private static string BuildApiErrorHint(string path, int statusCode, string originalError) {
+        // 注：曾尝试在 404 时检测泛化 documentation_url 提示"网络层拦截写方法"（TASK132 C1），
+        // 单测绿但真机无效——本机 wrapper 在响应到达 gh 前已改写 body，原始 documentation_url 不可见。
+        // 按"不留假绿"原则回滚；环境限制记入 TASK132 文档，不再在工具层猜测。
         var hint = (statusCode, path) switch {
             (404, var p) when p.Contains("auto-merge", StringComparison.OrdinalIgnoreCase)
                 => "404 Not Found — 可能原因: ① 仓库 Settings → General → Pull Requests 未勾选 Allow auto-merge ② PR 不存在 ③ 端点路径错误。建议: 改用 gh_pr_merge --auto_merge 启用(走 GraphQL enablePullRequestAutoMerge)",

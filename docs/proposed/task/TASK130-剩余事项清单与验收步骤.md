@@ -101,8 +101,7 @@
 | 真机冒烟 | `JCC_DEBUGLOG=1 jcc -p hi` → 16 条 `[ORDER] middleware`，照常打到模型 401（无 key），无新崩溃 |
 
 **仍缺（如实登记，未做）**
-- 其余 hook 事件（PreToolUse/PostToolUse/Stop/SessionStart…）的 `systemMessage` 仍未投影 —— 本轮只接
-  `UserPromptSubmit`（唯一每回合都跑、用户最常写 notice 的事件）。要做需在 `HookOrchestrator` 统一出口加 sink，另立项。
+- ~~其余 hook 事件（PreToolUse/PostToolUse/Stop/SessionStart…）的 `systemMessage` 仍未投影~~ — **已由 TASK135 闭合**（统一旁白通道 + 顶层 `systemMessage` 解析；Guard 643/643、Host 1375/1375、真机两条 `[HOOK-NOTICE]`）。
 - NDJSON/agentMode 无投影（协议缺 attachment 类型）。
 - **新发现 A6**：`SessionStartHookResult.AdditionalConfig` **零读取** —— `SessionStartHookManager` 把
   `additionalContext` / `initialUserMessage` 聚合进这个字典，但全仓没有任何消费方读取它

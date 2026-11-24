@@ -49,6 +49,38 @@ public sealed class HookOutputParsingTests {
         result.SystemMessage.Should().Be("warning from hook");
     }
 
+    // TASK135 — 官方文档示例是顶层 {"systemMessage":"..."}；此前只认 hookSpecificOutput，
+    // 这类 hook 的旁白在解析层就被静默丢弃（对齐基准 hooks.ts:545-547）。
+    [Fact]
+    public void ParseHookOutput_TopLevelSystemMessage_SetsSystemMessage() {
+        var executor = new TestHookExecutor();
+        var stdout = """{"systemMessage":"顶层旁白"}""";
+
+        var result = executor.TestParseHookOutput(stdout);
+
+        result.SystemMessage.Should().Be("顶层旁白");
+    }
+
+    [Fact]
+    public void ParseHookOutput_BothSystemMessages_NestedWins() {
+        var executor = new TestHookExecutor();
+        var stdout = """{"systemMessage":"顶层","hookSpecificOutput":{"systemMessage":"嵌套"}}""";
+
+        var result = executor.TestParseHookOutput(stdout);
+
+        result.SystemMessage.Should().Be("嵌套", "两处同时出现时以 hookSpecificOutput 为准");
+    }
+
+    [Fact]
+    public void ParseHookOutput_NonStringTopLevelSystemMessage_DoesNotThrow() {
+        var executor = new TestHookExecutor();
+        var stdout = """{"systemMessage":{"nested":"object"}}""";
+
+        var result = executor.TestParseHookOutput(stdout);
+
+        result.SystemMessage.Should().BeNull();
+    }
+
     [Fact]
     public void ParseHookOutput_UpdatedInput_SetsUpdatedInput() {
         var executor = new TestHookExecutor();

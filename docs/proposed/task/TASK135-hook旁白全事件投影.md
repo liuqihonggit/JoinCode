@@ -1,6 +1,6 @@
 # TASK135 — hook `systemMessage` 全事件投影（A5 剩余）
 
-> 状态：**已登记，施工中（2026-11-25）** · 来源：[TASK130 A5 仍缺](TASK130-剩余事项清单与验收步骤.md)「其余 hook 事件（PreToolUse/PostToolUse/Stop/SessionStart…）的 `systemMessage` 仍未投影」
+> 状态：**已施工并验收（2026-11-25）** · 来源：[TASK130 A5 仍缺](TASK130-剩余事项清单与验收步骤.md)「其余 hook 事件（PreToolUse/PostToolUse/Stop/SessionStart…）的 `systemMessage` 仍未投影」
 > 基线：`main` / `w4` = `613ce862a`（PR #741 合并后）
 > 纪律：先本文档，再代码；每步可编译、可定向验证；PR 前先告知用户。
 
@@ -109,6 +109,18 @@ dotnet build modules\apps\engine\engine.csproj -c Debug   # 以实际 csproj 名
 UserPromptSubmit 旁白；NDJSON 不渲染旁白属已知边界，不作为失败。
 
 **负向验证**：临时移除编排器发布两行 → PreToolUse/Stop 用例转红；恢复转绿。
+
+### 4.1 验收结果（2026-11-25）
+
+| 项 | 结果 |
+|---|---|
+| `Guard.Hooks.Tests` 过滤（Channel + Orchestrator + Parsing） | 38/38 |
+| `Guard.Hooks.Tests` 全量 | 643/643 |
+| `Host.Tests` 全量（含 `SessionControllerTests` 36/36） | 1375/1375 |
+| 编译 | `Guard.Hooks` / `JoinCode.Engine` / `JoinCode`（jcc）均 0 警告 0 错误 |
+| 负向验证 | 注释掉编排器 `PublishSystemMessageSafely` 调用 → 仅 2 条转红（`PreToolUseSystemMessage_PublishesToCapture`、`BlockingWithSystemMessage_PublishesBeforeBreak`），恢复后 38/38 绿（证据 `.xxx/logs/t135-negative-red.txt`、`.xxx/logs/t135-green.txt`） |
+| 真机冒烟 | 隔离 `JCC_APP_DATA_FOLDER=.xxx\t135-home`，SessionStart 两条 hook 分别输出顶层 / 嵌套 `systemMessage`；`JCC_DEBUGLOG=1 jcc -p "t135 final"` 日志两条 `[HOOK-NOTICE] 21 chars` / `[HOOK-NOTICE] 18 chars`，无 UserPromptSubmit 重复旁白（证据 `.xxx/logs/t135-real-hook-notice.txt`）。无 key 照常 401，不作为失败 |
+| 施工期发现 | 未信任工作区时 D9 trust 门禁会**静默跳过所有 hook**（本次首跑因此零结果）；隔离目录补 `trusted_folders.json` 后才触发。属既有安全行为，非缺陷，真机采集需先信任 |
 
 ## 5. 风险与回滚
 

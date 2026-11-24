@@ -30,6 +30,7 @@
 | P0 | A3 斜杠命令取参审计 | **已施工**（2026-11-24，随 `c28d6412d`/PR #734 合入） | 是 | 无 | 审计表（TASK130 A3）+ `TryTakeSubCommand` 词边界修复 + `SubCommandBoundaryTest` 13 条 |
 | P1 | C2 低限额进程级验证 | **已施工**（2026-11-24，`Wq01` E2E 常驻回归 + `bridge_serve --profile` 真 bug 修复） | 是（MockServer） | 无 | 单进程双回合：第 2 回合被拦 + MockServer 增量 == 1 |
 | P1 | Query 进程级 exe 验收 | **已施工**（2026-11-24，Streaming/Vd02/Ve06/Wq01 4/4，与 C2 共用 harness） | 是（MockServer） | 无 | 流式输出/异常/取消的进程证据 |
+| P1 | TASK135 hook 旁白全事件投影 | **已施工并验收**（2026-11-25，统一 `HookSystemMessageChannel` + 顶层 `systemMessage` 解析；Guard 643/643、Host 1375/1375、真机 2 条 `[HOOK-NOTICE]`） | 是（无 key 真进程） | 无 | `TASK135-hook旁白全事件投影.md` |
 | P1 | B1 双终端矩阵 | 探针 4/4，矩阵 10×2 未测 | 否（人工） | 真实 Windows Terminal + conhost | 矩阵结论 + 产物哈希 |
 | P2 | B2 Ctrl+B 主会话后台化 | **已由 w2 分支 DSG054 承接并裁决**（2026-11-24：万物皆后台，阶段 0 查询身份地基先行），w4 不重复设计 | 否 | D3 已闭合（见 §7） | 设计稿在 w2：`docs/proposed/design/DSG054-主会话后台化Ctrl+B设计.md` |
 | P2 | C1 回合级真机探针 | 接线已修，缺真实 key | 否 | vendor API key | `[DREAM-AUTO]` 证据 |

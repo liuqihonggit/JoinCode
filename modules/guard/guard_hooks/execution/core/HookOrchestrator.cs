@@ -85,6 +85,9 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
         var hasResult = false;
 
         await foreach (var result in ExecuteHooksInternalAsync(input, cancellationToken)) {
+            // TASK135 — 统一旁白出口：任一事件产出的 systemMessage 在 yield 前投递，调用方因 Blocking
+            // 提前 break 也不会漏掉（对齐基准 hooks.ts:2770-2780 的 hook_system_message 语义）。
+            PublishSystemMessageSafely(input.Event, result.SystemMessage);
             hasResult = true;
             yield return result;
 
@@ -124,6 +127,20 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
         };
 
         return ExecuteHooksAsync(input, cancellationToken);
+    }
+
+    /// <summary>TASK135 — 旁白投递 fail-soft：消费者异常只记录日志，不影响 hook 结果与后续 hook。
+    /// 空白消息与 UserPromptSubmit（既有出口）由 <see cref="HookSystemMessageChannel.Publish"/> 直接跳过。</summary>
+    private void PublishSystemMessageSafely(HookEvent hookEvent, string? systemMessage) {
+        if (string.IsNullOrWhiteSpace(systemMessage)) {
+            return;
+        }
+
+        try {
+            HookSystemMessageChannel.Publish(hookEvent, systemMessage);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "hook systemMessage 旁白投递失败：event={Event}", hookEvent);
+        }
     }
 
     /// <summary>TASK071-D9 — trust 门禁判定（对齐基准 shouldSkipHookDueToTrust）：

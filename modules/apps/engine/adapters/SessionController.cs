@@ -185,6 +185,14 @@ public sealed class SessionController {
         // TASK073 Phase 2: 会话状态变更 — idle → running（在 Reset 之后调用，避免 EnsureSystemInit 被重置导致重复输出）
         _consumer.OnSessionStateChanged("running");
 
+        // TASK135 — 本回合 hook 旁白出口：一切 hook 事件（UserPromptSubmit 走既有两条链，通道内跳过）
+        // 的 systemMessage 都在这里落到用户可见的 SystemNotice；只上屏、不进 fullResponse。
+        // 捕获覆盖本方法所有 return/catch 出口，回合结束后到达的后台 hook 因上下文无捕获而静默丢弃。
+        using var hookNoticeCapture = HookSystemMessageChannel.BeginCapture(notice => {
+            Diag.WriteLine($"[HOOK-NOTICE] {notice.Length} chars");
+            _consumer.OnSystemNotice(notice);
+        });
+
         var fullResponse = new StringBuilder();
         var thinkingContent = new StringBuilder();
         var lastModelId = (string?)null;

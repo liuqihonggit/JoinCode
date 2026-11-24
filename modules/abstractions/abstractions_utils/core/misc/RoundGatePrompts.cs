@@ -179,11 +179,8 @@ public static class RoundGatePrompts {
 
         return $"""
             ⛔ 收尾被拦截（第 {rejection} 次，{limitText}）：{reason}
-            必须调用 {RoundGatePolicy.ToolName} 选择下一步，允许值：{AllOptions}
-            - 产出必须过 3 自验（verdict=pass）才能选 5 完成；
-            - 4 用户验收 / 9 降级交付 / 10 求助 / 0 阻塞上报 才允许把本轮交给用户；
-            - 闸门推荐：{RoundGatePolicy.Describe(recommendation.Choice)} —— {recommendation.Reason}（备选：{alternatives}）
-            {EvidenceGuardrail}
+            调用 {RoundGatePolicy.ToolName} 选择下一步（各选项含义见工具描述）；产出要先过 3 自验（verdict=pass）才能选 5 完成。
+            推荐：{RoundGatePolicy.Describe(recommendation.Choice)} —— {recommendation.Reason}（备选：{alternatives}）
             """;
     }
 

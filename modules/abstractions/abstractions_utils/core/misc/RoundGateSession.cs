@@ -131,8 +131,9 @@ public sealed class RoundGateSession {
     public RoundGateStep Record(RoundGateInvocation invocation) {
         ArgumentNullException.ThrowIfNull(invocation);
 
-        var recommendation = Recommend();
-        var isAppeal = invocation.Choice != recommendation.Choice;
+        // 偏离判定用"本次选择前"的推荐；输出推荐用"本次选择后"的状态，否则注入的下一轮推荐会滞后一格
+        var baseline = Recommend();
+        var isAppeal = invocation.Choice != baseline.Choice;
         AppealStreak = isAppeal ? AppealStreak + 1 : 0;
 
         var hasEvidence = !string.IsNullOrWhiteSpace(invocation.Evidence);
@@ -144,6 +145,8 @@ public sealed class RoundGateSession {
         ApplyTransition(invocation);
         LastChoice = invocation.Choice;
         Fuse = ResolveFuse(invocation);
+
+        var recommendation = Recommend();
 
         return new RoundGateStep {
             Choice = invocation.Choice,

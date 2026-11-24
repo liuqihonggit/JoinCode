@@ -86,10 +86,27 @@ public sealed class RoundGateToolHandlersTests {
     }
 
     [Fact]
-    public async Task RoundGateAsync_AlwaysInjectsEvidenceGuardrail() {
+    public async Task RoundGateAsync_WithoutEvidence_InjectsIdleGuardrail() {
         var result = await _handler.RoundGateAsync(1).ConfigureAwait(true);
 
         result.GetFirstText().Should().Contain("每轮必答三问");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_WithEvidence_DoesNotPreloadGuardrail() {
+        var result = await _handler.RoundGateAsync(1, evidence: "dotnet test 全绿").ConfigureAwait(true);
+
+        result.GetFirstText().Should().NotContain("每轮必答三问", "有证据时不再常驻三问说明，避免每轮重复注入");
+    }
+
+    [Fact]
+    public async Task RoundGateAsync_InjectsOnlySelectedOptionPrompt() {
+        var result = await _handler.RoundGateAsync(3, verdict: "pass", evidence: "dotnet test 全绿").ConfigureAwait(true);
+
+        var text = result.GetFirstText();
+        text.Should().Contain("【闸门 · 3 自验】");
+        text.Should().NotContain("【闸门 · 1 直接继续】", "其它选项提示词必须按需注入，不得预载");
+        text.Should().NotContain("【闸门 · 9 降级交付】");
     }
 
     [Fact]

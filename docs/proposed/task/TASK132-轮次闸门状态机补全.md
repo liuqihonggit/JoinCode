@@ -56,7 +56,7 @@
 |---------|--------|--------|--------|
 | `RoundGatePolicy`（0~10、类别、出口能力、verdict/调用解析） | `RoundGateSession` / `QueryEngine` / 工具处理器 | ✅ | ✅ 单测 `RoundGatePolicyTests`（解析、类别、出口、开关） |
 | `RoundGateSession`（计数/推荐/粘性熔断/终验） | `QueryEngine.ExecuteCoreLoopAsync` 收尾分支 | ✅ | ✅ 单测 `RoundGateSessionTests`（自验强制边、严格模式、降级、各熔断、申诉锁定） |
-| 11 段选项提示词 + 三问护栏 + 状态提示 | `round_gate` 工具结果 / 系统 Section | ✅ | ✅ 单测（提示词关键约束、阻断消息内容） |
+| 按需注入：所选选项提示词 + 空证据才加三问 + 状态提示 | `round_gate` 工具结果 / 系统 Section（仅骨架） | ✅ | ✅ 单测（只注入所选项、有证据不注入护栏、阻断消息内容）+ 真机 A/B/C/D 复跑 |
 | `round_gate` 新增 `evidence`/`subject`/`verdict` | 工具注册表（源码生成器） | ✅ | ✅ 单测 `RoundGateToolHandlersTests`（23 通过）+ 编译通过 |
 | 状态机推荐/熔断并入工具结果 | `QueryEngine.AppendRoundGateAdvisory` | ✅ | ✅ 集成测试断言工具被调用 2 次、注入阻断消息 |
 | `JCC_ROUND_GATE_STRICT` | `RoundGatePolicy.ReadStrictMode` → 会话 | ✅ | ✅ 单测（严格模式完成需 4 移交） |
@@ -79,14 +79,37 @@
 > 注：任务处理器日志中的 `[RoundGate] choice=… recommended=…` 未上屏（该 logger 在 `-p` 模式下无 sink），
 > 选择与推荐事实由工具结果注入文本 + 拦截日志共同证明。
 
+### 注入瘦身与两处状态机修正（2026-11-24，用户要求"选完才注入"）
+
+用户明确：**一个工具不同参数是对的**，要改的是"不要全量注入提示词"。据此做了四项：
+
+| 改动 | 之前 | 之后 |
+|------|------|------|
+| 系统 Section | 常驻 11 项 `AllOptions` + 全量状态机条文（~25 行） | 只保留协议骨架 + 收尾白名单 + 验证边 + 熔断 + 申诉（~10 行） |
+| 工具结果 | 每次注入 `EvidenceGuardrail` 三问 | 仅当本轮 `evidence` 为空才注入；有证据不再说教 |
+| 阻断消息 | 拼 `AllOptions` 全表 + 常驻护栏 | 只留"拦截原因 + 推荐/备选 + 一条验证边提醒"；非法参数报错仍列允许值（诱导式报错例外） |
+| 推荐计算 | `Record` 先算推荐、后做状态迁移 → 注入的"下一轮推荐"滞后一格（真机 A 中 `3 pass` 后仍推 8 返工） | 迁移后再算推荐；申诉判定仍对比"迁移前"的推荐 |
+
+对应的红→绿测试：
+
+- `RoundGateSessionTests.Record_SelfAcceptPass_RecommendsDoneForNextRound`（先红：期望 5、实得 8）。
+- `RoundGateToolHandlersTests.RoundGateAsync_WithEvidence_DoesNotPreloadGuardrail` /
+  `RoundGateAsync_InjectsOnlySelectedOptionPrompt`（断言只出现 `【闸门 · 3 自验】`，不含 1/9 的段落）。
+- `QueryEngineRoundGateTests.ErroredGateCall_DoesNotMutateGateState`（先红：参数报错的 `choice=3` 被记成一次失败自验）→ 修复：QueryEngine 仅在 `!toolResult.IsError` 时 `Record`。
+
+真机复跑（同 A/B/C/D 脚本，日志 `.xxx/logs/gate132_{a,b,c,d}_slim3.log`）：四条均 `EXIT=0`；
+A 现在在 `3 verdict=pass` 之后直接注入 `推荐下一轮：5 完成 —— 自验通过`，不再出现滞后的"8 回退"；C 在严格模式下 `3 pass` 后推荐 `4 用户验收`。
+
 ### 已跑验证
 
 ```bash
 dotnet build modules/abstractions/abstractions_utils/Abstractions.Utils.csproj      # 0 警告 0 错误
 dotnet build modules/mcp/mcp_tests/Mcp.Tests.csproj                               # 0 警告 0 错误
 dotnet build modules/cognition/brain_other_tests/Brain.Other.Tests.csproj         # 0 警告 0 错误
-dotnet test  modules/cognition/brain_other_tests/... --filter "FullyQualifiedName~Core.Tests.Query.Gate"  # 108 通过
-dotnet test  modules/mcp/mcp_tests/... --filter "FullyQualifiedName~RoundGate"    # 23 通过
+dotnet test  modules/cognition/brain_other_tests/... --filter "FullyQualifiedName~Core.Tests.Query.Gate"  # 111 通过
+dotnet test  modules/mcp/mcp_tests/... --filter "FullyQualifiedName~RoundGate"    # 25 通过
+dotnet test  modules/cognition/brain_prompts_tests/...                            # 229 通过
+pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 -Configuration Debug      # 全仓 4 项全通过
 ```
 
 ### ○ 待用户验收项（真机链路已验证，剩余是交互体感）
@@ -105,6 +128,24 @@ dotnet test  modules/mcp/mcp_tests/... --filter "FullyQualifiedName~RoundGate"  
 - 熔断粘性只在"改选强制项"时解除，若强制项本身不可行（如强制 10 但无外部资源），仍可继续选 10 并收尾。
 
 ## 自动决策记录
+
+<!-- 🤖 Auto Decision: 2026-11-24 -->
+<!-- 决策: 系统 Section 只放协议骨架，11 项细则改为"选完哪项才注入哪项"，三问护栏按"无 evidence"条件注入 -->
+<!-- 原因: 用户明确"单工具不同参数是对的，不要全量注入提示词"；全量常驻既费 token，也让模型每轮重读同一份说明 -->
+<!-- 替代方案: 拆成多个工具（被用户否决）；Section 保留全表只压缩措辞（仍是全量注入，不解决诉求） -->
+<!-- 验证: 工具测试断言只注入所选项 + 真机 A/B/C/D 复跑 EXIT=0 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-11-24 -->
+<!-- 决策: Record 推荐改为"状态迁移后计算"，申诉判定保留"迁移前"的基线推荐 -->
+<!-- 原因: 真机发现 3 verdict=pass 之后仍推荐 8 返工（推荐滞后一格），会把 AI 引向错误的下一步 -->
+<!-- 替代方案: 保持滞后但在文本里标注"上一轮推荐"（语义更绕，且工具结果就是给下一轮用的） -->
+<!-- 验证: 新增红测试 Record_SelfAcceptPass_RecommendsDoneForNextRound 转绿，真机 A 复跑显示推荐 5 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-11-24 -->
+<!-- 决策: 报错的 round_gate 调用不推进状态机（QueryEngine 仅在 !toolResult.IsError 时 Record） -->
+<!-- 原因: 参数写错（如 choice=3 漏 verdict）会被记成一次失败自验，虚增 SelfAcceptFailStreak 直至误触熔断 -->
+<!-- 替代方案: 工具内吞掉错误只回提示（违反"报错必须带正确写法"的诱导式报错规则，且剥夺运行时可见性） -->
+<!-- 验证: 新增红测试 ErroredGateCall_DoesNotMutateGateState 转绿 ✅ -->
 
 <!-- 🤖 Auto Decision: 2026-11-24 -->
 <!-- 决策: 状态机放在 RoundGateSession（abstractions_utils），而不是工具处理器内部 -->

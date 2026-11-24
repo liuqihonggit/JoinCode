@@ -141,6 +141,31 @@ public sealed class QueryEngineRoundGateTests {
     }
 
     [Fact]
+    public async Task ErroredGateCall_DoesNotMutateGateState() {
+        using var env = EnvVarScope.Set(JccEnvVar.RoundGateMaxReject.ToValue(), "2");
+        var (engine, queryService, registry) = CreateEngine();
+        registry.Setup(r => r.ExecuteToolAsync(
+                It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ReturnsAsync(new ToolResult {
+                IsError = true,
+                Content = [new ToolContent { Type = ToolContentType.Text, Text = "round_gate 参数错误: verdict=未提供" }]
+            });
+        var history = new MessageList();
+
+        queryService.Enqueue(Text("第一次想停"));
+        queryService.Enqueue(GateCall(3));
+        queryService.Enqueue(Text("第二次想停"));
+
+        var chunks = await RunAsync(engine, history, new QueryOptions { RequireRoundGate = true }).ConfigureAwait(true);
+
+        chunks.Should().Contain(c => c.Type == AgentStreamChunkType.Complete);
+        history.Should().Contain(m => m.Content != null && m.Content.Contains("还没有调用"),
+            "报错的闸门调用不算一次有效选择，状态机必须保持不变");
+        history.Should().NotContain(m => m.Content != null && m.Content.Contains("是中间态"),
+            "若把报错调用记成 choice=3，收尾会被误判成中间态");
+    }
+
+    [Fact]
     public async Task RejectionLimitReached_ForcesCompletionWithWarning() {
         using var env = EnvVarScope.Set(JccEnvVar.RoundGateMaxReject.ToValue(), "1");
         var (engine, queryService, _) = CreateEngine();

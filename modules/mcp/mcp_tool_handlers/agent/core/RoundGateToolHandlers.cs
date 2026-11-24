@@ -37,20 +37,16 @@ public class RoundGateToolHandlers {
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>对应选项的工作流提示词；非法选项/非法结论返回带允许值与正确写法的报错。</returns>
     [McpTool(SystemToolNameEnumConstants.RoundGate,
-        "Mandatory round gate. Before ending your turn you MUST call this and pick the next step: " +
-        "1=continue directly, 2=next TODO, 3=self-acceptance (verdict=pass|fail), 4=hand off to user acceptance, " +
-        "5=done (requires a passed self-acceptance), 6=await background handle, 7=replan, 8=rework a defect, " +
-        "9=degraded delivery (needs user acceptance handoff), 10=escalate/ask for help, 0=blocked on user input. " +
-        "Only 4/5/6/9/10/0 can stop the turn; stopping otherwise is blocked by the runtime state machine. " +
-        "Each choice injects the corresponding workflow prompt plus the recommended next option. " +
-        "Pass evidence to prove real progress (empty evidence accumulates idle rounds and forces a replan).",
+        "Mandatory round gate at turn end. Pick the next step: 1=continue, 2=next TODO, 3=self-accept (needs verdict), " +
+        "4=user accept, 5=done (needs a passed 3), 6=await background, 7=replan, 8=rework, 9=degrade, 10=escalate, 0=blocked. " +
+        "Only 4/5/6/9/10/0 can end the turn. The chosen option's prompt is injected into the result (no other option is preloaded).",
         MessageRoleEnumConstants.System)]
     public async Task<ToolResult> RoundGateAsync(
-        [McpToolParameter("Next step: 0=blocked, 1=continue, 2=next TODO, 3=self-accept, 4=user accept, 5=done, 6=await background, 7=replan, 8=rework, 9=degrade, 10=escalate")] int choice,
-        [McpToolParameter("One-line note about the next action or the reason for deviating from the recommendation (optional)", Required = false)] string? note = null,
-        [McpToolParameter("Verifiable evidence summary for this round (optional; empty counts as idle)", Required = false)] string? evidence = null,
-        [McpToolParameter("Defect/subject id used for rework counting (optional)", Required = false)] string? subject = null,
-        [McpToolParameter("Self-acceptance verdict for choice=3: pass|fail (required when choice=3)", Required = false)] string? verdict = null,
+        [McpToolParameter("Next step (0=blocked, 1=continue, 2=next TODO, 3=self-accept, 4=user accept, 5=done, 6=await, 7=replan, 8=rework, 9=degrade, 10=escalate)")] int choice,
+        [McpToolParameter("One-line next action, or the reason for deviating from the recommendation (optional)", Required = false)] string? note = null,
+        [McpToolParameter("Verifiable evidence for this round (optional; empty counts as idle)", Required = false)] string? evidence = null,
+        [McpToolParameter("Defect/subject id for rework counting (optional)", Required = false)] string? subject = null,
+        [McpToolParameter("Verdict for choice=3: pass|fail (required when choice=3)", Required = false)] string? verdict = null,
         CancellationToken cancellationToken = default) {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -76,7 +72,10 @@ public class RoundGateToolHandlers {
         if (parsed == RoundGateChoice.NextTodo)
             text = await AppendReadyTodosAsync(text, cancellationToken).ConfigureAwait(false);
 
-        text = $"{text}\n\n{RoundGatePrompts.EvidenceGuardrail}";
+        // 三问护栏按需注入 — 只有本轮没提交证据时才提醒，避免每次调用都常驻一段说明
+        if (string.IsNullOrWhiteSpace(evidence))
+            text = $"{text}\n\n{RoundGatePrompts.EvidenceGuardrail}";
+
         text = AppendInvocationEcho(text, note, evidence, subject, parsedVerdict);
 
         _logger?.LogInformation("[RoundGate] choice={Choice} verdict={Verdict} subject={Subject} evidence={HasEvidence}",

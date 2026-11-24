@@ -241,6 +241,17 @@ public sealed class RoundGateSessionTests {
     }
 
     [Fact]
+    public void Record_SelfAcceptPass_RecommendsDoneForNextRound() {
+        var session = new RoundGateSession(strictMode: false);
+        session.Record(Invoke(RoundGateChoice.Continue, evidence: "已改文件"));
+
+        var step = session.Record(Invoke(RoundGateChoice.SelfAccept, verdict: RoundGateVerdict.Pass, evidence: "测试全绿"));
+
+        step.Recommendation.Choice.Should().Be(
+            RoundGateChoice.Done, "推荐必须反映本次选择之后的状态，否则注入给 AI 的'下一轮推荐'会滞后一格");
+    }
+
+    [Fact]
     public void StateAdvisory_ReportsRecommendationAppealAndFuse() {
         var session = new RoundGateSession(strictMode: false);
         session.Record(Invoke(RoundGateChoice.Continue));

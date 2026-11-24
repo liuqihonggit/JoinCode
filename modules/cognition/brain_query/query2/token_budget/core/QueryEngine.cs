@@ -384,7 +384,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     }
 
                     // TASK102/TASK132 轮次闸门：记录选择 → 更新状态机（计数/熔断/申诉）→ 把推荐与熔断提示并入工具结果
-                    if (RoundGatePolicy.TryReadInvocation(toolCall.ToolName, toolCall.Arguments, toolCall.RawArguments, out var gateInvocation)) {
+                    // 报错的闸门调用（参数非法等）不算有效选择，不能推进状态机，否则会误记一次失败自验
+                    if (!toolResult.IsError && RoundGatePolicy.TryReadInvocation(toolCall.ToolName, toolCall.Arguments, toolCall.RawArguments, out var gateInvocation)) {
                         var gateStep = roundGateSession.Record(gateInvocation);
                         toolResult = AppendRoundGateAdvisory(toolResult, gateStep);
                         _logger?.LogInformation("[RoundGate] choice={Choice} recommended={Recommended} appeal={IsAppeal} fuse={Fuse}",

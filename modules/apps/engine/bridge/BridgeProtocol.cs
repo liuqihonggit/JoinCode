@@ -20,6 +20,13 @@ public abstract record BridgeRequest
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ulong? Seq { get; init; }
 
+    /// <summary>
+    /// 查询身份（ADR 0165）— 与 native_tui 侧 BridgeRequest.QueryId 逐字段镜像；
+    /// null 表示旧客户端（兼容降级为单查询语义）。
+    /// </summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? QueryId { get; init; }
+
     /// <summary>提交用户输入，开始回合（G4 — images 可选图片附件数组：null 不序列化字段
     /// WhenWritingNull，旧 TUI JSON 零破坏 — 对齐 BridgeDiffLine 行号字段扩展先例；
     /// 与 native_tui 侧 BridgeRequest.Submit 逐字段镜像，JSON 形状由 BridgeJsonContractTests 锁定防漂移）。</summary>
@@ -77,6 +84,13 @@ public abstract record BridgeEvent
     /// </summary>
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ulong? AckSeq { get; init; }
+
+    /// <summary>
+    /// 查询身份（ADR 0165）— 与 native_tui 侧 BridgeEvent.QueryId 逐字段镜像；
+    /// null 表示旧对端/非查询事件。
+    /// </summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? QueryId { get; init; }
 
     /// <summary>
     /// 会话握手（引擎启动后首条事件）— 版本/当前模型/权限模式/bypass 可用性/cwd。

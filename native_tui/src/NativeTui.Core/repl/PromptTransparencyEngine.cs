@@ -19,21 +19,20 @@ public sealed class PromptTransparencyEngine(IReplEngine inner) : IReplEngine
         }
     }
 
-    /// <summary>提交回合 — /prompt 另开一屏（transcript 备用屏）查看首次注入内容，其余原样透传。</summary>
-    public void Submit(string text) {
+    /// <summary>提交查询（ADR 0165）— /prompt 另开一屏查看注入内容（本地消费，仍返回 queryId），其余原样透传。</summary>
+    public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images = null, string? queryId = null) {
+        var effective = string.IsNullOrWhiteSpace(queryId) ? Bridge.QueryIdFactory.New() : queryId;
         if (text.Trim().Equals("/prompt", StringComparison.OrdinalIgnoreCase)) {
             _shell?.TogglePromptContext();
-            return;
+            return effective;
         }
 
-        inner.Submit(text);
+        inner.Submit(text, images, effective);
+        return effective;
     }
 
-    /// <summary>提交回合（带附件）— 原样透传。</summary>
-    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images) => inner.Submit(text, images);
-
-    /// <summary>打断当前回合。</summary>
-    public void Interrupt() => inner.Interrupt();
+    /// <summary>打断指定查询。</summary>
+    public void Interrupt(string? queryId = null) => inner.Interrupt(queryId);
 
     /// <summary>请求权限模式切换。</summary>
     public void SetPermissionMode(string mode) => inner.SetPermissionMode(mode);

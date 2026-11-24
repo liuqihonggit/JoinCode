@@ -425,10 +425,13 @@ public sealed class PermissionDialogTests
         public Queue<BridgeEvent> Events { get; } = new();
 
         /// <summary>记录提交。</summary>
-        public void Submit(string text) => Submits.Add(text);
+        public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images = null, string? queryId = null) {
+            Submits.Add(text);
+            return string.IsNullOrWhiteSpace(queryId) ? "q-test" : queryId;
+        }
 
         /// <summary>记录打断。</summary>
-        public void Interrupt() => Interrupts++;
+        public void Interrupt(string? queryId = null) => Interrupts++;
 
         /// <summary>记录权限模式。</summary>
         public void SetPermissionMode(string mode)

@@ -76,8 +76,9 @@ public sealed class HistorySeederTests
     /// <summary>最小假引擎（历史种子测试不需要回合行为）。</summary>
     private sealed class StubEngine : IReplEngine
     {
-        public void Submit(string text) { }
-        public void Interrupt() { }
+        public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images = null, string? queryId = null) =>
+            string.IsNullOrWhiteSpace(queryId) ? "q-test" : queryId;
+        public void Interrupt(string? queryId = null) { }
         public void SetPermissionMode(string mode) { }
         public IReadOnlyList<BridgeEvent> DrainEvents() => [];
         public bool IsAlive => true;

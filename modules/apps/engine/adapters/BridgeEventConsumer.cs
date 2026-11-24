@@ -28,6 +28,7 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
     private long? _thinkingStartMs;
     private bool _thinkingSignalled;
     private ulong? _ackSeq;
+    private string? _queryId;
 
     /// <summary>构造函数 — 注入事件输出口与墙钟（测试注入确定性时钟）。</summary>
     public BridgeEventConsumer(TextWriter stdout, Func<long>? wallClock = null) {
@@ -38,12 +39,16 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
     /// <summary>设置回函确认流水号（ADR 0150）— BridgeServeLoop 在回合开始前调用，回合内事件带此 ack_seq。</summary>
     public void SetAckSeq(ulong? seq) => _ackSeq = seq;
 
+    /// <summary>设置当前查询身份（ADR 0165）— 回合内查询事件带此 queryId；background_task 例外。</summary>
+    public void SetQueryId(string? queryId) => _queryId = queryId;
+
     /// <summary>重置状态（新一轮对话前由 BridgeServeLoop 调用，防跨回合泄漏）。</summary>
     public void Reset() {
         _fullResponse.Clear();
         _thinkingStartMs = null;
         _thinkingSignalled = false;
         _ackSeq = null;
+        _queryId = null;
     }
 
     /// <summary>收到文本内容 → token_delta(length, text)（M8-1 逐字流式 — 携带增量文本，TUI StreamingTextItem 消费）；思考结束时结算 thinking_ended。</summary>
@@ -217,6 +222,11 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
     private void WriteEvent(Cli.Bridge.BridgeEvent bridgeEvent) {
         if (_ackSeq is { } seq && bridgeEvent.AckSeq is null)
             bridgeEvent = bridgeEvent with { AckSeq = seq };
+        // background_task 自带 TaskId，属会话级 upsert，不打查询 queryId（ADR 0165）
+        if (_queryId is { } queryId
+            && bridgeEvent.QueryId is null
+            && bridgeEvent is not Cli.Bridge.BridgeEvent.BackgroundTask)
+            bridgeEvent = bridgeEvent with { QueryId = queryId };
         _stdout.Write(Cli.Bridge.BridgeProtocol.SerializeEvent(bridgeEvent) + "\n");
         _stdout.Flush();
     }

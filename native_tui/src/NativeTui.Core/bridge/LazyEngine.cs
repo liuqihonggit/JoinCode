@@ -8,7 +8,7 @@ namespace NativeTui.Core.Bridge;
 internal sealed class LazyEngine : IReplEngine
 {
     private IReplEngine? _real;
-    private readonly ConcurrentQueue<(string Text, IReadOnlyList<BridgeImageAttachment>? Images)> _pendingSubmit = new();
+    private readonly ConcurrentQueue<(string Text, IReadOnlyList<BridgeImageAttachment>? Images, string QueryId)> _pendingSubmit = new();
     private readonly ConcurrentQueue<BridgeEvent> _pendingEvents = new();
     private int _draining;
 
@@ -28,13 +28,15 @@ internal sealed class LazyEngine : IReplEngine
         if (Volatile.Read(ref _real) is null) _pendingEvents.Enqueue(new BridgeEvent.Error(message));
     }
 
-    public void Submit(string text) => Submit(text, null);
+    public string Submit(string text) => Submit(text, null, null);
 
-    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images)
+    public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images, string? queryId = null)
     {
-        // 一律先入队再冲刷：FIFO 保证预热期排队的消息先于就绪后的新消息送达
-        _pendingSubmit.Enqueue((text, images));
+        var effective = string.IsNullOrWhiteSpace(queryId) ? QueryIdFactory.New() : queryId;
+        // 一律先入队再冲刷：FIFO 保证预热期排队的消息先于就绪后的新消息送达；queryId 随排队保留（ADR 0165）
+        _pendingSubmit.Enqueue((text, images, effective));
         if (Volatile.Read(ref _real) is { } real) FlushPendingSubmits(real);
+        return effective;
     }
 
     /// <summary>单冲刷者 CAS — 多生产者同一时刻只有一个在调用 real.Submit，保持 FIFO 顺序。</summary>
@@ -43,7 +45,7 @@ internal sealed class LazyEngine : IReplEngine
         if (Interlocked.CompareExchange(ref _draining, 1, 0) != 0) return;
         try
         {
-            while (_pendingSubmit.TryDequeue(out var msg)) real.Submit(msg.Text, msg.Images);
+            while (_pendingSubmit.TryDequeue(out var msg)) real.Submit(msg.Text, msg.Images, msg.QueryId);
         }
         finally
         {
@@ -54,7 +56,7 @@ internal sealed class LazyEngine : IReplEngine
         if (!_pendingSubmit.IsEmpty) FlushPendingSubmits(real);
     }
 
-    public void Interrupt() => Volatile.Read(ref _real)?.Interrupt();
+    public void Interrupt(string? queryId = null) => Volatile.Read(ref _real)?.Interrupt(queryId);
 
     public void SetPermissionMode(string mode) => Volatile.Read(ref _real)?.SetPermissionMode(mode);
 

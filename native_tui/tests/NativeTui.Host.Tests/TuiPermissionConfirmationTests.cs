@@ -65,11 +65,11 @@ public sealed class TuiPermissionConfirmationTests {
     /// <summary>最小假引擎（ReplShell 构造依赖 — 对话框交互不触达引擎）。</summary>
     private sealed class IdleEngine : IReplEngine {
         /// <summary>未使用。</summary>
-        public void Submit(string text) {
-        }
+        public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images = null, string? queryId = null) =>
+            string.IsNullOrWhiteSpace(queryId) ? "q-test" : queryId;
 
         /// <summary>未使用。</summary>
-        public void Interrupt() {
+        public void Interrupt(string? queryId = null) {
         }
 
         /// <summary>未使用。</summary>

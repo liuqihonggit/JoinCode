@@ -26,30 +26,21 @@ public sealed class ClarifyModeEngine(
         }
     }
 
-    /// <summary>提交回合 — /?? //ask 开头时组合澄清回合，其余原样透传。</summary>
-    public void Submit(string text) {
+    /// <summary>提交查询（ADR 0165）— /?? //ask 开头时组合澄清回合，其余原样透传；queryId 全程保留。</summary>
+    public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images = null, string? queryId = null) {
+        var effective = string.IsNullOrWhiteSpace(queryId) ? Bridge.QueryIdFactory.New() : queryId;
         var composed = TryComposeClarifyTurn(text);
         if (composed is not null) {
-            inner.Submit(composed);
-            return;
+            inner.Submit(composed, images, effective);
+            return effective;
         }
 
-        inner.Submit(text);
+        inner.Submit(text, images, effective);
+        return effective;
     }
 
-    /// <summary>提交回合（带附件）— 澄清回合携带图片附件透传。</summary>
-    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images) {
-        var composed = TryComposeClarifyTurn(text);
-        if (composed is not null) {
-            inner.Submit(composed, images);
-            return;
-        }
-
-        inner.Submit(text, images);
-    }
-
-    /// <summary>打断当前回合。</summary>
-    public void Interrupt() => inner.Interrupt();
+    /// <summary>打断指定查询。</summary>
+    public void Interrupt(string? queryId = null) => inner.Interrupt(queryId);
 
     /// <summary>请求权限模式切换。</summary>
     public void SetPermissionMode(string mode) => inner.SetPermissionMode(mode);

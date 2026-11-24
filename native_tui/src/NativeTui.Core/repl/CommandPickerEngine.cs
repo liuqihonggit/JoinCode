@@ -37,10 +37,11 @@ public sealed class CommandPickerEngine(
         }
     }
 
-    /// <summary>提交 — 目标命令拦截打开选择器（清单经 listProvider 从引擎投影）；其余透传。
+    /// <summary>提交 — 目标命令拦截打开选择器（本地消费，仍返回 queryId）；其余透传并保留 queryId（ADR 0165）。
     /// TASK066 D5 — effort 配置/应用回调同步注入（provider null 时选择器不启用 effort 区）。</summary>
-    public void Submit(string text)
+    public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images = null, string? queryId = null)
     {
+        var effective = string.IsNullOrWhiteSpace(queryId) ? Bridge.QueryIdFactory.New() : queryId;
         if (_shell is not null && text.Trim() == command)
         {
             var items = listProvider();
@@ -55,14 +56,15 @@ public sealed class CommandPickerEngine(
                     }
                 };
             _shell.BeginModelPicker(items, id => OnSelected(id, items), Title, Subtitle, effortConfigProvider?.Invoke(), onEffortApplied);
-            return;
+            return effective;
         }
 
-        inner.Submit(text);
+        inner.Submit(text, images, effective);
+        return effective;
     }
 
-    /// <summary>打断 — 透传内层。</summary>
-    public void Interrupt() => inner.Interrupt();
+    /// <summary>打断指定查询 — 透传内层。</summary>
+    public void Interrupt(string? queryId = null) => inner.Interrupt(queryId);
 
     /// <summary>权限模式 — 透传内层。</summary>
     public void SetPermissionMode(string mode) => inner.SetPermissionMode(mode);

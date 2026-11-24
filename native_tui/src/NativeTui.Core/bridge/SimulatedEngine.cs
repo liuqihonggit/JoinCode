@@ -69,6 +69,9 @@ public sealed class SimulatedEngine : IReplEngine
     /// <summary>回合计时起点（clock 值）。</summary>
     private long _turnStart;
 
+    /// <summary>当前演示查询身份（ADR 0165）— 演示引擎单回合，事件统一经 <see cref="Enqueue"/> 打标。</summary>
+    private string? _queryId;
+
     /// <summary>已推进到的阶段（0=Thinking / 1=ToolUse / 2=Responding / 3=完成）。</summary>
     private int _stage;
 
@@ -217,14 +220,14 @@ public sealed class SimulatedEngine : IReplEngine
     /// <summary>进程内模拟 — 恒存活。</summary>
     public bool IsAlive => true;
 
-    /// <summary>提交回合（带图片附件 — E4+G3 图片通道演示验证）：附件计数（SubmittedImageCount 供演示/测试
-    /// 断言）+ 原文本路由单参 Submit（演示引擎无多模态语义 — 引擎消息模型 string-only，附件不进演示脚本）。</summary>
+    /// <summary>提交查询（带图片附件 + queryId — ADR 0165）：附件计数 + 生成/回显 queryId。</summary>
     /// <param name="text">提交文本（占位已由 shell 剥离）。</param>
     /// <param name="images">图片附件（null/空 = 等价单参提交，不计数）。</param>
-    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images)
+    /// <param name="queryId">显式查询身份；null/空时生成。</param>
+    public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images, string? queryId = null)
     {
         SubmittedImageCount += images?.Count ?? 0;
-        Submit(text);
+        return Submit(text, queryId);
     }
 
     /// <summary>开始新会话（G3 — D8 Clear 演示语义）：重置内部回合状态（在途回合中止 + 阶段/子代理列表/
@@ -234,6 +237,7 @@ public sealed class SimulatedEngine : IReplEngine
     {
         _inTurn = false;
         _stage = 0;
+        _queryId = null;
         _subagents = [];
         _subagentStartedSent = false;
         _subagentTurnCompleted = false;
@@ -243,22 +247,28 @@ public sealed class SimulatedEngine : IReplEngine
     /// <summary>收到图片附件总计数（G3 演示验证 — 图片重载提交累计，单参提交不增）。</summary>
     public int SubmittedImageCount { get; private set; }
 
-    /// <summary>提交回合：忙时拒绝回 Error 诱导（对齐 EngineTurnClient 语义）；未知命令拒绝回 Error 诱导
-    /// （列出全部演示命令与用途 — 含为什么拒绝/怎么做）；有效命令选定脚本、入队 TurnStarted 并开始计时。</summary>
-    public void Submit(string text)
+    /// <summary>提交查询（单参形态，ADR 0165）。</summary>
+    public string Submit(string text) => Submit(text, queryId: null);
+
+    /// <summary>提交回合：忙时拒绝回 Error 诱导（演示引擎保持单脚本语义）；未知命令拒绝回 Error 诱导；
+    /// 有效命令选定脚本、入队带 queryId 的 TurnStarted 并开始计时。</summary>
+    private string Submit(string text, string? queryId)
     {
+        var effective = string.IsNullOrWhiteSpace(queryId) ? QueryIdFactory.New() : queryId;
         if (_inTurn)
         {
-            _pending.Enqueue(new BridgeEvent.Error("回合进行中，请等待完成或按 Esc 打断后再提交。"));
-            return;
+            Enqueue(new BridgeEvent.Error("回合进行中，请等待完成或按 Esc 打断后再提交。") { QueryId = effective });
+            return effective;
         }
 
         if (ParseCommand(text) is not { } script)
         {
-            _pending.Enqueue(new BridgeEvent.Error(UnknownCommandMessage(text)));
-            return;
+            Enqueue(new BridgeEvent.Error(UnknownCommandMessage(text)) { QueryId = effective });
+            return effective;
         }
 
+        // 只有被接受的查询才接管 _queryId —— 否则被拒的提交会把在途回合的后续事件错记到自己名下
+        _queryId = effective;
         _script = script;
         _inTurn = true;
         _stage = 0;
@@ -270,8 +280,16 @@ public sealed class SimulatedEngine : IReplEngine
             _subagentTurnCompleted = false;
         }
 
-        _pending.Enqueue(new BridgeEvent.TurnStarted());
+        Enqueue(new BridgeEvent.TurnStarted());
+        return effective;
     }
+
+    /// <summary>事件入队 — 未显式归因的事件统一打当前演示查询的 queryId（ADR 0165）；
+    /// 已带 QueryId 的事件（如被拒提交的 Error）保持自己的归因，不得被在途查询覆盖。</summary>
+    private void Enqueue(BridgeEvent bridgeEvent) =>
+        _pending.Enqueue(bridgeEvent.QueryId is null && _queryId is not null
+            ? bridgeEvent with { QueryId = _queryId }
+            : bridgeEvent);
 
     /// <summary>演示命令路由（trim 后匹配，兼容斜杠前缀 /md 形态 — TUI 补全接受后提交带 /）— null = 未知命令；
     /// agents 支持 "agents" / "agents N"（N=1..999，非法后缀拒绝）。</summary>
@@ -323,21 +341,21 @@ public sealed class SimulatedEngine : IReplEngine
     private static string UnknownCommandMessage(string input) =>
         $"未知演示命令「{input}」。可用命令：md（Markdown 全形态渲染）、diff（结构化补丁）、perm（权限对话框）、all（完整回合 = 补丁 + Markdown）、agents（并行子代理分组，可带数量如 agents 300）。可直接输入命令或输入 / 弹出补全列表选择。";
 
-    /// <summary>打断当前回合（闲时 no-op）。</summary>
-    public void Interrupt()
+    /// <summary>打断当前演示查询（null = 当前查询；显式非当前 queryId 则 no-op）。</summary>
+    public void Interrupt(string? queryId = null)
     {
-        if (!_inTurn)
+        if (!_inTurn || (queryId is not null && queryId != _queryId))
         {
             return;
         }
 
         _inTurn = false;
-        _pending.Enqueue(new BridgeEvent.TurnInterrupted());
+        Enqueue(new BridgeEvent.TurnInterrupted());
     }
 
     /// <summary>权限模式本地立即回执（统一事件语义 — 与真实引擎回执路径一致）。</summary>
     public void SetPermissionMode(string mode) =>
-        _pending.Enqueue(new BridgeEvent.PermissionModeChanged(mode));
+        Enqueue(new BridgeEvent.PermissionModeChanged(mode));
 
     /// <summary>排空事件：先推进时间驱动状态机（产出到期迁移事件），再清空队列。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents()
@@ -377,7 +395,7 @@ public sealed class SimulatedEngine : IReplEngine
             _subagentStartedSent = true;
             foreach (var subagent in _subagents)
             {
-                _pending.Enqueue(new BridgeEvent.SubagentStarted($"agent-{subagent.Index}", subagent.AgentType, subagent.Description));
+                Enqueue(new BridgeEvent.SubagentStarted($"agent-{subagent.Index}", subagent.AgentType, subagent.Description));
             }
         }
 
@@ -386,7 +404,7 @@ public sealed class SimulatedEngine : IReplEngine
             while (subagent.ToolUsesLeft > 0 && subagent.NextToolAtMs <= elapsed)
             {
                 var useIndex = SubagentToolUsesPerAgent - subagent.ToolUsesLeft;
-                _pending.Enqueue(new BridgeEvent.SubagentToolUse(
+                Enqueue(new BridgeEvent.SubagentToolUse(
                     $"agent-{subagent.Index}",
                     SubagentToolNames[(subagent.Index + useIndex) % SubagentToolNames.Length],
                     $"demo/file{subagent.Index % 5}.cs",
@@ -398,7 +416,7 @@ public sealed class SimulatedEngine : IReplEngine
             if (subagent.ToolUsesLeft == 0 && subagent.FinishAtMs <= elapsed)
             {
                 subagent.IsDone = true;
-                _pending.Enqueue(new BridgeEvent.SubagentFinished($"agent-{subagent.Index}", IsError: subagent.Index % 7 == 6, TokenTotal: 1200 + (subagent.Index * 311) % 9000));
+                Enqueue(new BridgeEvent.SubagentFinished($"agent-{subagent.Index}", IsError: subagent.Index % 7 == 6, TokenTotal: 1200 + (subagent.Index * 311) % 9000));
             }
         }
 
@@ -407,9 +425,9 @@ public sealed class SimulatedEngine : IReplEngine
             _subagentTurnCompleted = true;
             _inTurn = false;
             var failures = _subagents.Count(static subagent => subagent.Index % 7 == 6);
-            _pending.Enqueue(new BridgeEvent.AssistantMessage($"演示回复 — {_subagents.Count} 个子代理并行完成（{failures} 个失败）分组渲染链路运行正常。"));
+            Enqueue(new BridgeEvent.AssistantMessage($"演示回复 — {_subagents.Count} 个子代理并行完成（{failures} 个失败）分组渲染链路运行正常。"));
             EnqueueDemoTokenUsage();
-            _pending.Enqueue(new BridgeEvent.TurnCompleted());
+            Enqueue(new BridgeEvent.TurnCompleted());
         }
     }
 
@@ -424,11 +442,11 @@ public sealed class SimulatedEngine : IReplEngine
         _stage = 1;
         if (_script is TurnScript.Full or TurnScript.Diff)
         {
-            _pending.Enqueue(new BridgeEvent.ToolCall("Edit", "demo/simulated.cs"));
+            Enqueue(new BridgeEvent.ToolCall("Edit", "demo/simulated.cs"));
         }
         else if (_script is TurnScript.Permission)
         {
-            _pending.Enqueue(new BridgeEvent.PermissionRequest(PermissionToolName, PermissionDescription));
+            Enqueue(new BridgeEvent.PermissionRequest(PermissionToolName, PermissionDescription));
         }
     }
 
@@ -449,7 +467,7 @@ public sealed class SimulatedEngine : IReplEngine
         if (_script is TurnScript.Full or TurnScript.Diff)
         {
             // 工具结果带原始输出（多行折叠演示 — 渲染层 3 行预览 + HiddenLines 折叠提示）
-            _pending.Enqueue(new BridgeEvent.ToolResult(
+            Enqueue(new BridgeEvent.ToolResult(
                 "Updated demo/simulated.cs (simulated)",
                 SimulatedPatch,
                 DemoToolRawOutput,
@@ -465,9 +483,9 @@ public sealed class SimulatedEngine : IReplEngine
         {
             _stage = 3;
             _inTurn = false;
-            _pending.Enqueue(new BridgeEvent.AssistantMessage(CompletionText(_script), CompletionMarkdown(_script)));
+            Enqueue(new BridgeEvent.AssistantMessage(CompletionText(_script), CompletionMarkdown(_script)));
             EnqueueDemoTokenUsage();
-            _pending.Enqueue(new BridgeEvent.TurnCompleted());
+            Enqueue(new BridgeEvent.TurnCompleted());
             return;
         }
 
@@ -475,9 +493,9 @@ public sealed class SimulatedEngine : IReplEngine
         {
             // M8-1：分片队列非空发带文本增量（StreamingTextItem 逐字上屏），耗尽后回落纯计数形态
             if (_streamSlices.TryDequeue(out var slice)) {
-                _pending.Enqueue(new BridgeEvent.TokenDelta(slice.Length, slice));
+                Enqueue(new BridgeEvent.TokenDelta(slice.Length, slice));
             } else {
-                _pending.Enqueue(new BridgeEvent.TokenDelta(TokenDeltaPerTick));
+                Enqueue(new BridgeEvent.TokenDelta(TokenDeltaPerTick));
             }
         }
     }
@@ -510,7 +528,7 @@ public sealed class SimulatedEngine : IReplEngine
     /// （对齐真实引擎 OnDone usage 投影事件形态，S4 TokenUsageTracker 消费链路演示；
     /// context = input + output 语义自洽）。</summary>
     private void EnqueueDemoTokenUsage() =>
-        _pending.Enqueue(new BridgeEvent.TokenUsage(
+        Enqueue(new BridgeEvent.TokenUsage(
             InputTokens: 1284, OutputTokens: 356, ContextTokens: 1640, ContextLimitTokens: 131072));
 
     /// <summary>完成消息文本（按脚本语义区分）。</summary>

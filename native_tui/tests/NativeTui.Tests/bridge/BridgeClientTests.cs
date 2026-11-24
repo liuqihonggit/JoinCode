@@ -64,10 +64,10 @@ public sealed class BridgeClientTests
     {
         var (client, stdin) = CreateClient();
 
-        client.Submit("look at this", [new BridgeImageAttachment("aGk=", "image/png", "shot.png")]);
+        client.Submit("look at this", [new BridgeImageAttachment("aGk=", "image/png", "shot.png")], queryId: "q-1");
 
         Assert.Equal(
-            "{\"type\":\"submit\",\"text\":\"look at this\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"shot.png\"}]}\n",
+            "{\"type\":\"submit\",\"text\":\"look at this\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"shot.png\"}],\"queryId\":\"q-1\"}\n",
             stdin.ToString());
     }
 
@@ -78,34 +78,47 @@ public sealed class BridgeClientTests
         var (client, stdin) = CreateClient();
 
         client.Submit("two shots",
-            [new BridgeImageAttachment("aGk=", "image/png", "a.png"), new BridgeImageAttachment("eQ==", "image/jpeg", "b.jpg")]);
+            [new BridgeImageAttachment("aGk=", "image/png", "a.png"), new BridgeImageAttachment("eQ==", "image/jpeg", "b.jpg")],
+            queryId: "q-2");
 
         Assert.Equal(
-            "{\"type\":\"submit\",\"text\":\"two shots\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"a.png\"},{\"base64\":\"eQ==\",\"mediaType\":\"image/jpeg\",\"filename\":\"b.jpg\"}]}\n",
+            "{\"type\":\"submit\",\"text\":\"two shots\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"a.png\"},{\"base64\":\"eQ==\",\"mediaType\":\"image/jpeg\",\"filename\":\"b.jpg\"}],\"queryId\":\"q-2\"}\n",
             stdin.ToString());
     }
 
-    /// <summary>Submit 空附件数组 — 归一为不带 images 字段（与旧单参形态字节等价 —
-    /// IReplEngine.Submit 契约"null/空附件等价单参提交"的协议层落点）。</summary>
+    /// <summary>Submit 空附件数组 — 归一为不带 images 字段，但 queryId 必带（ADR 0165 事件归因前提）。</summary>
     [Fact]
-    public void Submit_EmptyImages_WritesLegacyJsonByteEquivalent()
+    public void Submit_EmptyImages_OmitsImagesFieldButCarriesQueryId()
     {
         var (client, stdin) = CreateClient();
 
-        client.Submit("x", Array.Empty<BridgeImageAttachment>());
+        client.Submit("x", Array.Empty<BridgeImageAttachment>(), queryId: "q-3");
 
-        Assert.Equal("{\"type\":\"submit\",\"text\":\"x\"}\n", stdin.ToString());
+        Assert.Equal("{\"type\":\"submit\",\"text\":\"x\",\"queryId\":\"q-3\"}\n", stdin.ToString());
     }
 
-    /// <summary>Submit null 附件 — 同空数组归一（不带字段，旧行为字节等价）。</summary>
+    /// <summary>Submit null 附件 — 同空数组归一（不带 images 字段），queryId 仍必带。</summary>
     [Fact]
-    public void Submit_NullImages_WritesLegacyJsonByteEquivalent()
+    public void Submit_NullImages_OmitsImagesFieldButCarriesQueryId()
     {
         var (client, stdin) = CreateClient();
 
-        client.Submit("x", images: null);
+        client.Submit("x", images: null, queryId: "q-4");
 
-        Assert.Equal("{\"type\":\"submit\",\"text\":\"x\"}\n", stdin.ToString());
+        Assert.Equal("{\"type\":\"submit\",\"text\":\"x\",\"queryId\":\"q-4\"}\n", stdin.ToString());
+    }
+
+    /// <summary>Submit 不传 queryId — 客户端本地生成并返回，写出的 queryId 与返回值一致
+    /// （ADR 0165：前台必须立刻知道查询身份，不能等首个事件回来才知道）。</summary>
+    [Fact]
+    public void Submit_WithoutQueryId_GeneratesAndWritesIt()
+    {
+        var (client, stdin) = CreateClient();
+
+        var queryId = client.Submit("x");
+
+        Assert.False(string.IsNullOrWhiteSpace(queryId));
+        Assert.Contains($"\"queryId\":\"{queryId}\"", stdin.ToString(), StringComparison.Ordinal);
     }
 
     /// <summary>BridgeEngine 适配器 — IReplEngine.Submit 双参接口多态调用经转发写子进程 stdin
@@ -118,10 +131,11 @@ public sealed class BridgeClientTests
         var replEngine = (IReplEngine)engine;
 
         replEngine.Submit("two shots",
-            [new BridgeImageAttachment("aGk=", "image/png", "a.png"), new BridgeImageAttachment("eQ==", "image/jpeg", "b.jpg")]);
+            [new BridgeImageAttachment("aGk=", "image/png", "a.png"), new BridgeImageAttachment("eQ==", "image/jpeg", "b.jpg")],
+            queryId: "q-5");
 
         Assert.Equal(
-            "{\"type\":\"submit\",\"text\":\"two shots\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"a.png\"},{\"base64\":\"eQ==\",\"mediaType\":\"image/jpeg\",\"filename\":\"b.jpg\"}]}\n",
+            "{\"type\":\"submit\",\"text\":\"two shots\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"a.png\"},{\"base64\":\"eQ==\",\"mediaType\":\"image/jpeg\",\"filename\":\"b.jpg\"}],\"queryId\":\"q-5\"}\n",
             stdin.ToString());
     }
 }

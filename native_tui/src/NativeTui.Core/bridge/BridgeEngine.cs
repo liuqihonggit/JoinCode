@@ -16,19 +16,18 @@ public sealed class BridgeEngine : IReplEngine, IDisposable
     /// <summary>子进程存活（退出后 shell 空闲时追加退出消息并结束）。</summary>
     public bool IsAlive => _client.IsEngineAlive;
 
-    /// <summary>提交回合 — 写子进程 stdin（submit 请求）。</summary>
-    public void Submit(string text) => _client.Submit(text);
+    /// <summary>提交查询 — 写子进程 stdin（submit 请求），返回 queryId（ADR 0165）。</summary>
+    public string Submit(string text) => _client.Submit(text);
 
-    /// <summary>提交回合（带图片附件 — TASK066 板块 G G4）：转 BridgeClient 双参写出
-    /// （images 非空带 images 字段；null/空不带 — 与旧单参形态字节等价）。显式实现取代
-    /// IReplEngine.Submit 默认成员的图片丢弃路径 — bridge 模式 ReplShell 提交附件直达引擎侧
-    /// 降级投影（此前默认转调单参图片静默丢失 — TASK066 板块 G 登记的 P3 遗留修复）。</summary>
-    /// <param name="text">提交文本（图片占位 [Image #N] 已由 shell 剥离 — 基准 Image refs become content blocks）。</param>
+    /// <summary>提交查询（带图片附件 + queryId — ADR 0165 / TASK066 板块 G G4）。</summary>
+    /// <param name="text">提交文本（图片占位 [Image #N] 已由 shell 剥离）。</param>
     /// <param name="images">图片附件快照（bridge 协议 DTO — null/空 = 无附件）。</param>
-    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images) => _client.Submit(text, images);
+    /// <param name="queryId">显式查询身份；null/空时由 BridgeClient 生成。</param>
+    public string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images, string? queryId = null) =>
+        _client.Submit(text, images, queryId);
 
-    /// <summary>打断当前回合 — 写子进程 stdin（interrupt 请求）。</summary>
-    public void Interrupt() => _client.Interrupt();
+    /// <summary>打断指定查询 — 写子进程 stdin（interrupt 请求，ADR 0165）。</summary>
+    public void Interrupt(string? queryId = null) => _client.Interrupt(queryId);
 
     /// <summary>请求权限模式切换 — 写子进程 stdin（回执事件为准）。</summary>
     public void SetPermissionMode(string mode) => _client.SetPermissionMode(mode);

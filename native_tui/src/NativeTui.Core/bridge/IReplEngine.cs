@@ -8,18 +8,21 @@ namespace NativeTui.Core.Bridge;
 /// </summary>
 public interface IReplEngine
 {
-    /// <summary>提交回合（空文本由 shell 过滤；忙时由实现拒绝并回 Error 事件诱导）。</summary>
-    void Submit(string text);
+    /// <summary>
+    /// 提交查询（ADR 0165）— 返回本次查询身份；调用方可忽略返回值（旧源码调用零破坏）。
+    /// 查询从提交那一刻起就是 task，实现不得因已有在途查询而拒绝新提交。
+    /// </summary>
+    /// <param name="text">提交文本（空文本由 shell 过滤）。</param>
+    /// <param name="images">图片附件快照（null/空 = 无附件）。</param>
+    /// <param name="queryId">显式查询身份；null/空由实现生成。</param>
+    /// <returns>生效 queryId（与本次查询产生的全部事件一致）。</returns>
+    string Submit(string text, IReadOnlyList<BridgeImageAttachment>? images = null, string? queryId = null);
 
-    /// <summary>提交回合（带图片附件 — TASK066 板块 G G3 / E4 引擎协议：附件转引擎图片消息）。
-    /// 默认成员转调单参 <see cref="Submit(string)"/> — 旧实现（子进程 BridgeClient 等）零破坏，
-    /// 对齐 StopBackgroundTask 默认成员先例；null/空附件等价单参提交。</summary>
-    /// <param name="text">提交文本（图片占位 [Image #N] 已由 shell 剥离 — 基准 Image refs become content blocks）。</param>
-    /// <param name="images">图片附件快照（bridge 协议 DTO — null/空 = 无附件）。</param>
-    void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images) => Submit(text);
-
-    /// <summary>打断当前回合（实现负责回 turn_interrupted；闲时 no-op）。</summary>
-    void Interrupt();
+    /// <summary>
+    /// 打断指定查询（ADR 0165）— 实现负责回 turn_interrupted；闲时 no-op。
+    /// null 兼容旧语义：无聚焦概念的阶段 0 取消全部在途查询，阶段 1 由 ReplShell 传显式 queryId。
+    /// </summary>
+    void Interrupt(string? queryId = null);
 
     /// <summary>请求权限模式切换（footer 以 permission_mode_changed 回执为准 — 本地实现立即回执）。</summary>
     void SetPermissionMode(string mode);

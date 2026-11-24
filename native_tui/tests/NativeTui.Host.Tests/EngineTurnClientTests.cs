@@ -53,23 +53,26 @@ public sealed class EngineTurnClientTests {
         Assert.IsType<BridgeEvent.ThinkingStarted>(second[1]);
     }
 
+    /// <summary>ADR 0165 — 忙不再是拒绝理由；唯一仍拒绝的情形是「同一 queryId 并发复用」
+    /// （身份冲突，会让两条查询的事件无法区分）。拒绝必须给可执行诱导。</summary>
     [Fact]
-    public async Task Submit_WhileBusy_RejectsWithInductiveError() {
+    public async Task Submit_WithDuplicateQueryId_WhileRunning_RejectsWithInductiveError() {
         var release = new TaskCompletionSource();
         var client = new EngineTurnClient((input, c, ct) => release.Task);
 
-        client.Submit("第一回合");
-        client.Submit("第二回合");
+        client.Submit("第一回合", images: null, queryId: "q-1");
+        client.Submit("第二回合", images: null, queryId: "q-1");
         var beforeRelease = client.DrainEvents();
         release.SetResult();
         var turnEvents = await WaitTurnAndDrainAsync(client);
 
-        // 第一回合 TurnStarted 已入队（先于忙时拒绝）+ 拒绝 Error 诱导
+        // 第一回合 TurnStarted 已入队（先于身份冲突拒绝）+ 拒绝 Error 诱导
         Assert.Equal([
             typeof(BridgeEvent.TurnStarted),
             typeof(BridgeEvent.Error)], beforeRelease.Select(e => e.GetType()).ToArray());
         var error = Assert.IsType<BridgeEvent.Error>(beforeRelease[1]);
-        Assert.Contains("Esc", error.Message);
+        Assert.Contains("仍在进行中", error.Message);
+        Assert.Contains("Interrupt", error.Message);
         Assert.IsType<BridgeEvent.TurnCompleted>(Assert.Single(turnEvents));
     }
 

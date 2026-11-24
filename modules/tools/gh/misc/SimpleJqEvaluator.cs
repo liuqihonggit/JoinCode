@@ -38,9 +38,16 @@ internal static class SimpleJqEvaluator {
 
         var stages = SplitPipeline(jqExpr);
         foreach (var stage in stages) {
-            if (!IsSupportedStage(stage)) {
-                error = $"不支持的 jq 语法: '{stage}'。支持 .field / .a.b / .a[] / [N] / select(.f==\"v\") / {{k: .f}} / length / 管道 |"
-                    + "（注意整条表达式要以 . 开头，例如 --jq .login）";
+            // 逗号分隔多表达式（.a, .b）官方写法带空格，IsSupportedStage 必须先按逗号切分再逐段校验，
+            // 否则 `.name, .id` 因含空格被整段误拒（TASK132 B1 真机复现）。
+            var commaParts = SplitTopLevelComma(stage);
+            if (commaParts.Any(p => p.Length == 0)) {
+                error = $"不支持的 jq 语法: '{stage}'（逗号间为空）。正确写法: --jq '.field1, .field2'";
+                return null;
+            }
+            if (!commaParts.All(IsSupportedStage)) {
+                error = $"不支持的 jq 语法: '{stage}'。支持 .field / .a.b / .a[] / [N] / select(.f==\"v\") / {{k: .f}} / length / 管道 | / 逗号分隔多字段"
+                    + "（例如 --jq '.login, .id'；单个字段写 --jq .login）";
                 return null;
             }
             var next = ApplyStage(node, stage);
@@ -71,13 +78,25 @@ internal static class SimpleJqEvaluator {
     private static string WriteScalarOrJson(JsonNode? node)
         => node is null ? "null" : node is JsonValue val && val.TryGetValue<string>(out var s) ? s : WriteNodeWithEncoder(node);
 
-    /// <summary>判断 stage 是否为支持的 jq 语法 — 用于区分"路径不存在"与"不支持的语法"</summary>
+    /// <summary>判断单个阶段是否为支持的 jq 语法 — 用于区分"路径不存在"与"不支持的语法"</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsSupportedStage(string stage)
         => stage.StartsWith("select(", StringComparison.Ordinal)
            || stage.StartsWith('{')
            || stage == "length"
-           || (stage.StartsWith('.') && !stage.Contains(' '));
+           || (stage.StartsWith('.') && IsPathCharacters(stage));
+
+    /// <summary>
+    /// 路径段只接受字段名/下标/数组展开（.a.b[0][]），拒绝 `.name + " suffix"` 这类表达式。
+    /// 原先靠 !Contains(' ') 粗判，连带把官方写法 `.a, .b` 的空格也误拒（TASK132 B1）。
+    /// </summary>
+    private static bool IsPathCharacters(string stage) {
+        foreach (var c in stage) {
+            if (char.IsLetterOrDigit(c) || c is '.' or '_' or '-' or '[' or ']') continue;
+            return false;
+        }
+        return true;
+    }
 
     /// <summary>
     /// 用 UnsafeRelaxedJsonEscaping 序列化（不转义中文/emoji），
@@ -136,7 +155,7 @@ internal static class SimpleJqEvaluator {
             var s when s.StartsWith("select(", StringComparison.Ordinal) => ApplySelect(input, s),
             var s when s.StartsWith('{') => ApplyObjectConstruct(input, s),
             "length" => ApplyLength(input),
-            var s when s.StartsWith('.') && !s.Contains(' ') => ApplyPath(input, stage),
+            var s when s.StartsWith('.') => ApplyPath(input, s),
             _ => null,
         };
 

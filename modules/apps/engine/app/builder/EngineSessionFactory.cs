@@ -150,6 +150,9 @@ public sealed class EngineSessionFactory {
         if (!options.SkipModelFetch && !IsEnvSkipModelFetch())
             StartModelFetchBackground(fs, host.Services, cancellationToken);
 
+        if (options.NeedsConfigHotReload)
+            StartConfigChangeMonitoring(fs, host.Services);
+
         var chatService = options.SkipChatServices
             ? null
             : host.Services.GetRequiredService<IChatService>();
@@ -183,6 +186,30 @@ public sealed class EngineSessionFactory {
     private static bool IsEnvSkipModelFetch() {
         var value = Environment.GetEnvironmentVariable(JccEnvVar.SkipModelFetch.ToValue());
         return value is "1" or "true" or "yes";
+    }
+
+    /// <summary>
+    /// 启动配置文件变更监控（TASK130-A8）— AGENTS.md / rules / commands / settings.json 热重载的唯一入口。
+    /// <para>
+    /// `IConfigChangeNotifier.StartMonitoring` 全仓原本只有 chatinit 的 `config-change-start-mw` 一处在调，
+    /// 而 chatinit 在主代理路径不可达（`ChatInitContext.ToolUseContext` 是 required，app 层从不构造
+    /// `ToolUseContext`），所以热重载**从未启动**过。这里在 CLI 与 TUI 共用的会话创建入口启动一次；
+    /// `StartMonitoring` 内部是先停后启的幂等命令，重复调用不会叠加 watcher。
+    /// </para>
+    /// <para>
+    /// 仅长驻会话调用（由 <see cref="CommandLineOptions.NeedsConfigHotReload"/> 判定）：一次性 -p 进程
+    /// 没有热重载消费者，却要承担 watcher 在退出链上的 Dispose 成本，详见 TASK130-A8 回头修正。
+    /// </para>
+    /// </summary>
+    private static void StartConfigChangeMonitoring(IFileSystem fs, IServiceProvider services) {
+        var notifier = services.GetService<IConfigChangeNotifier>();
+        if (notifier is null) {
+            return;
+        }
+
+        var workingDir = fs.GetCurrentDirectory();
+        notifier.StartMonitoring(workingDir);
+        Diag.WriteLine($"[CONFIG-WATCH] start dir={workingDir}");
     }
 
     /// <summary>

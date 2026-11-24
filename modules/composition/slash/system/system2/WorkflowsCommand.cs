@@ -20,8 +20,7 @@ public sealed class WorkflowsCommand : ChatCommandBase {
             return ListWorkflows(context.GetCommandServices().PluginManager);
         }
 
-        if (args.StartsWith("run", StringComparison.OrdinalIgnoreCase)) {
-            var name = args["run".Length..].Trim();
+        if (ChatCommandBase.TryTakeSubCommand(args, "run", out var name)) {
             if (string.IsNullOrEmpty(name)) {
                 TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsRunUsage));
                 return ChatCommandResult.Continue();
@@ -29,8 +28,7 @@ public sealed class WorkflowsCommand : ChatCommandBase {
             return await RunWorkflowAsync(context, name).ConfigureAwait(false);
         }
 
-        if (args.StartsWith("status", StringComparison.OrdinalIgnoreCase)) {
-            var workflowId = args["status".Length..].Trim();
+        if (ChatCommandBase.TryTakeSubCommand(args, "status", out var workflowId)) {
             if (string.IsNullOrEmpty(workflowId)) {
                 TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsStatusUsage));
                 return ChatCommandResult.Continue();

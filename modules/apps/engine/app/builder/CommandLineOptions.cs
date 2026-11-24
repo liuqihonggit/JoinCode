@@ -147,6 +147,15 @@ public record CommandLineOptions {
             || DetectedHeadlessMode != HeadlessMode.Interactive);
 
     /// <summary>
+    /// 是否需要配置文件热重载（AGENTS.md / rules / commands / settings.json）。
+    /// <para>只对长驻会话（TUI/GUI）有意义：一次性 -p / 非交互 / headless 进程跑完即退出，
+    /// `ConfigChanged` 没有存活消费者；此时启动 watcher 只会把 Actor 的 Dispose
+    /// （consumer 退出 + in-flight 收尾 + 底层 FileSystemWatcher 释放）塞进退出关键路径。
+    /// Linux inotify 上该收尾可能拖过 `--await` 看门狗，进程被 1234 强杀（退出码截为 210）。</para>
+    /// </summary>
+    public bool NeedsConfigHotReload => !IsNonInteractiveMode;
+
+    /// <summary>
     /// 结构化 JSON 输出模式（--json 参数）
     /// 子命令和非交互模式下生效：stdout 输出 {ok,data,meta} 结构化 JSON
     /// 交互模式保持彩色输出不变

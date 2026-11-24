@@ -139,6 +139,13 @@ PR #700（TASK099 B7 合入）过程中暴露两类真实致红问题与一组�
   - 验收：gh.tests 793/793，Host.Tests CliOutputEnvelope 33/33，exe 全项实测（见四列验收表）。
 - 分支保护实同步（用户授权 `sync-protection`）：+`build / Build UI`、+`unit-tests / Honesty checklist matches doc`、+`unit-tests / Lock primitives - baseline only decreases`；首跑误删 `detect` 暴露 parser 缺口 — ci.yml 无 `name:` 的本地 job 不被解析，已修（`ExtractAllJobNames` 无 name 回退 job_id；`ExtractAllCheckNames` 支持裸前缀 + 排除 `uses:` caller job），补回 `detect` 后终态 38 个 check、审计 0 差异。gh.tests 794/794。
 
+> **TASK132 A3 补充（2026-11-24）**：C6 的 `gh --version` 验收是假绿——只直调 `jcc-gh.exe`，
+> 没走用户实际的 `jcc gh --version`。当时 PATH 上部署的 `jcc.d/dev/jcc.exe` 是 11-16 旧构建，
+> CLI 根本无 `gh` 命令节点，报「缺少 gh 分组」。**改 gh/CLI 后必须重跑 `Deploy-JccDev.ps1`
+> 并用部署入口 `jcc gh --version` 验收**（该脚本现已内置此检查 + SHA256 逐字节对账）。
+> 另：`gh.csproj` 单独改依赖后若报 CS0234，先 `dotnet restore --force`，再带依赖重编，
+> 并重跑 Deploy——否则部署目录里留旧 jcc-gh.dll 会撞 `TypeLoadException`。
+
 <!-- 🤖 Auto Decision: 2026-11-20 TASK101-C -->
 <!-- 决策: C2 直接删除旧的 matrix 解析路径而不是在审计里做兼容映射；C5 采用"注册表边界说明"而非把 gh_* 合并进 MCP 注册表 -->
 <!-- 原因: 两套 check 名口径（裸值 vs 全名）正是误报根因，保留旧解析只会复发；合并注册表需主进程跨 exe 拉取 172 工具，启动开销与双源漂移都比一句说明更贵 -->

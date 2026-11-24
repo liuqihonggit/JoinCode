@@ -241,4 +241,32 @@ public sealed class SimpleJqEvaluatorTests {
         var result = SimpleJqEvaluator.Evaluate(json, """{name: .name, id: .id}""");
         result.Should().Be("""{"name":"test","id":42}""");
     }
+
+    /// <summary>官方 jq 习惯写法带空格 .a, .b — IsSupportedStage 的 !Contains(' ') 会误拒（TASK132 B1）</summary>
+    [Fact]
+    public void Evaluate_CommaWithSpaces_ShouldOutputBoth() {
+        var json = """{"name":"JoinCode","default_branch":"main"}""";
+        var result = SimpleJqEvaluator.TryEvaluate(json, ".name, .default_branch", out var error);
+        result.Should().Be("JoinCode\nmain");
+        error.Should().BeNull();
+    }
+
+    /// <summary>带空格的嵌套逗号路径 — 空格只应被当作分隔符忽略，不是语法错误</summary>
+    [Fact]
+    public void Evaluate_NestedCommaWithSpaces_ShouldOutputBoth() {
+        var json = """{"required_status_checks":{"strict":false},"enforce_admins":{"enabled":true}}""";
+        var result = SimpleJqEvaluator.TryEvaluate(json, ".required_status_checks.strict, .enforce_admins.enabled", out var error);
+        result.Should().Be("false\ntrue");
+        error.Should().BeNull();
+    }
+
+    /// <summary>非法连续逗号必须明确报错，不能静默当单表达式（B2 错误文案含示例）</summary>
+    [Fact]
+    public void TryEvaluate_DoubleComma_ShouldErrorWithExample() {
+        var json = """{"name":"a","id":1}""";
+        var result = SimpleJqEvaluator.TryEvaluate(json, ".name,,.id", out var error);
+        result.Should().BeNull();
+        error.Should().Contain("不支持的 jq 语法");
+        error.Should().Contain("--jq '.field1, .field2'");
+    }
 }

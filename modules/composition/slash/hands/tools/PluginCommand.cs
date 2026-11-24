@@ -24,8 +24,7 @@ public sealed class PluginCommand : ChatCommandBase {
             return await ListPluginsAsync(pluginManager).ConfigureAwait(false);
         }
 
-        if (args.StartsWith("install", StringComparison.OrdinalIgnoreCase)) {
-            var path = args["install".Length..].Trim();
+        if (ChatCommandBase.TryTakeSubCommand(args, "install", out var path)) {
             if (string.IsNullOrEmpty(path)) {
                 TerminalHelper.WriteLine("用法: /plugin install <exe-path>");
                 return ChatCommandResult.Continue();
@@ -33,31 +32,28 @@ public sealed class PluginCommand : ChatCommandBase {
             return await InstallPluginAsync(pluginManager, path, context).ConfigureAwait(false);
         }
 
-        if (args.StartsWith("uninstall", StringComparison.OrdinalIgnoreCase)) {
-            var name = args["uninstall".Length..].Trim();
-            if (string.IsNullOrEmpty(name)) {
+        if (ChatCommandBase.TryTakeSubCommand(args, "uninstall", out var uninstallTarget)) {
+            if (string.IsNullOrEmpty(uninstallTarget)) {
                 TerminalHelper.WriteLine("用法: /plugin uninstall <name>");
                 return ChatCommandResult.Continue();
             }
-            return await UnloadPluginAsync(pluginManager, name).ConfigureAwait(false);
+            return await UnloadPluginAsync(pluginManager, uninstallTarget).ConfigureAwait(false);
         }
 
-        if (args.StartsWith("enable", StringComparison.OrdinalIgnoreCase)) {
-            var name = args["enable".Length..].Trim();
-            if (string.IsNullOrEmpty(name)) {
+        if (ChatCommandBase.TryTakeSubCommand(args, "enable", out var enableTarget)) {
+            if (string.IsNullOrEmpty(enableTarget)) {
                 TerminalHelper.WriteLine("用法: /plugin enable <name>");
                 return ChatCommandResult.Continue();
             }
-            return await TogglePluginAsync(name, enable: true, context).ConfigureAwait(false);
+            return await TogglePluginAsync(enableTarget, enable: true, context).ConfigureAwait(false);
         }
 
-        if (args.StartsWith("disable", StringComparison.OrdinalIgnoreCase)) {
-            var name = args["disable".Length..].Trim();
-            if (string.IsNullOrEmpty(name)) {
+        if (ChatCommandBase.TryTakeSubCommand(args, "disable", out var disableTarget)) {
+            if (string.IsNullOrEmpty(disableTarget)) {
                 TerminalHelper.WriteLine("用法: /plugin disable <name>");
                 return ChatCommandResult.Continue();
             }
-            return await TogglePluginAsync(name, enable: false, context).ConfigureAwait(false);
+            return await TogglePluginAsync(disableTarget, enable: false, context).ConfigureAwait(false);
         }
 
         TerminalHelper.WriteLine($"未知操作: {args}");

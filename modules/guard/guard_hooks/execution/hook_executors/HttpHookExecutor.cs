@@ -103,7 +103,11 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook> {
             // 尝试解析 JSON 响应
             if (!string.IsNullOrEmpty(body) && body.Trim().StartsWith('{')) {
                 try {
-                    return ParseJsonResponse(body);
+                    // TASK130-A7 — 复用基类解析。此处原有一份复制品（只读 decision/reason/continue），
+                    // 导致 http hook 永远产不出 hookSpecificOutput 里的 systemMessage /
+                    // permissionDecision / additionalContext，与命令型 hook 协议不一致，
+                    // 且因为一条测试都没有，漂移很久没人发现。
+                    return ParseJsonResponse(body.Trim(), body, string.Empty);
                 } catch (Exception ex) {
                     Logger?.LogWarning(ex, "Failed to parse HTTP hook JSON response");
                 }
@@ -124,35 +128,6 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook> {
         return HookResult.NonBlockingError(
             error: $"HTTP {response.StatusCode}: {body}",
             message: $"External service returned {response.StatusCode}");
-    }
-
-    private HookResult ParseJsonResponse(string json) {
-        var hookDecision = LlmJsonHelper.Deserialize(json, HooksJsonContext.Default.HookDecision, out var repairHint);
-        if (hookDecision is null) {
-            if (!string.IsNullOrEmpty(repairHint))
-                Logger?.LogWarning("外部 Hook JSON 反序列化失败/已宽容修复: {Detail}", repairHint);
-            return new HookResult { Outcome = HookOutcome.Success };
-        }
-
-        var outcome = HookOutcome.Success;
-        var preventContinuation = false;
-        string? message = null;
-
-        if (hookDecision.Decision?.ToLowerInvariant() == PermissionBehaviorEnumConstants.Block) {
-            outcome = HookOutcome.Blocking;
-            preventContinuation = true;
-        }
-
-        message = hookDecision.Reason ?? hookDecision.Message;
-
-        if (hookDecision.Continue.HasValue)
-            preventContinuation = !hookDecision.Continue.Value;
-
-        return new HookResult {
-            Outcome = outcome,
-            Message = message,
-            PreventContinuation = preventContinuation
-        };
     }
 
     private string InterpolateEnvVars(string value, IReadOnlyList<string>? allowedEnvVars) {

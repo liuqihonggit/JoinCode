@@ -133,7 +133,8 @@ Write-Host "  核心文件: 通过" -ForegroundColor Green
 
 # ── 逐项对账：部署目录里的主项目文件必须与主项目产物逐字节一致 ────────
 # ADR 0132 要求部署后验证 DLL 时间戳，根因是「卫星项目同名文件盖掉主项目」这个坑反复出现。
-# 只查时间戳不够直观，直接比大小：466 个文件逐项比，几十毫秒，任何一项不符都说明被覆盖了。
+# 只查时间戳/长度不够：实测旧 jcc.exe 与新 jcc.exe 同为 162304 字节但哈希不同，
+# 旧 jcc 无 gh 命令节点 → `jcc gh --version` 报「缺少 gh 分组」（TASK132 A1）。改用 SHA256 逐字节对账。
 $mismatches = @()
 $mainPayload = @(Get-ChildItem $mainOutDir -File | Where-Object { $_.Extension -in '.dll', '.exe', '.json' })
 foreach ($f in $mainPayload) {
@@ -142,9 +143,10 @@ foreach ($f in $mainPayload) {
         $mismatches += "$($f.Name) 未部署"
         continue
     }
-    $deployed = Get-Item $dst
-    if ($deployed.Length -ne $f.Length) {
-        $mismatches += ("{0} 被覆盖: 产物 {1} 字节 / 部署 {2} 字节" -f $f.Name, $f.Length, $deployed.Length)
+    $srcHash = (Get-FileHash -Path $f.FullName -Algorithm SHA256).Hash
+    $dstHash = (Get-FileHash -Path $dst -Algorithm SHA256).Hash
+    if ($srcHash -ne $dstHash) {
+        $mismatches += ("{0} 与产物不一致: 产物 {1} / 部署 {2}" -f $f.Name, $srcHash.Substring(0, 12), $dstHash.Substring(0, 12))
     }
 }
 if ($mismatches.Count -gt 0) {
@@ -211,6 +213,18 @@ if ($jccProbe.Code -eq 0 -and $jccProbe.Output -match '635') {
 } else {
     Write-Host "  jcc tool tree 未按预期发现工具节点（退出码 $($jccProbe.Code)）" -ForegroundColor Red
     ($jccProbe.Output -split "`r?`n" | Select-Object -First 6) | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+    exit 1
+}
+
+# 用户实际入口的 gh 命令验证：必须由部署目录的 jcc.exe 路由到 jcc-gh.exe。
+# TASK132 A1：C6 曾经的验收只直调 jcc-gh.exe 绕过 CLI，旧 CLI 无 gh 命令节点时照样绿。
+# 判据是 `jcc gh --version` exit 0 且输出含 "jcc gh (jcc-gh)"。
+$ghProbe = Invoke-Capture -Exe $jccExe -Arguments @("gh", "--version")
+if ($ghProbe.Code -eq 0 -and $ghProbe.Output -match 'jcc gh \(jcc-gh\)') {
+    Write-Host "  jcc gh --version: 部署入口路由正常" -ForegroundColor Green
+} else {
+    Write-Host "  jcc gh --version 失败（退出码 $($ghProbe.Code)）—— CLI 路由或 jcc-gh.exe 不同步" -ForegroundColor Red
+    ($ghProbe.Output -split "`r?`n" | Select-Object -First 6) | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
     exit 1
 }
 

@@ -10,7 +10,7 @@
 
 | 类 | 含义 | 项 |
 |---|---|---|
-| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**新发现，未修**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**已施工**） |
+| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**已施工 + 真机端到端**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**已施工**） |
 | B | 只能人工 / 需外部条件 | B1 #52 双终端矩阵、B2 #51 Ctrl+B、B3 macOS Seatbelt |
 | C | 需凭据或 MockServer 才能跑完 | C1 #40 回合级真机探针、C2 #53 低限额进程级 |
 | D | 台账自身错误，需纠正 | D1「#15 待施工」已过期、D2 #53 表格行未划线、D3 D7 与总账 §3 矛盾 |
@@ -180,17 +180,62 @@
 
 ---
 
-### A8. chatinit-pipeline 其余节点在主链仍零执行（本轮新发现，**未闭合**）
+### A8. chatinit-pipeline 其余节点在主链仍零执行（**已分诊：2 项不缺、1 项真缺已修**）
 
-**证据**：见上条 P0-2。主链（`_mainAgent is not null`）只补了 SessionStart hook 一次；`context-load-mw`
-（`IChatContextManager.LoadContextAsync` 的**唯一**调用点）、`cost-restore-mw`、`config-change-start-mw` 仍只在回落链跑。
+**证据**：见上条 P0-2。主链（`_mainAgent is not null`）只补了 SessionStart hook 一次；`context-load-mw`、
+`cost-restore-mw`、`config-change-start-mw` 仍只在回落链（`ChatService.EnsureInitializedAsync` → admin `Initialize`）跑。
 
-**为什么不当场一起接**：`ContextLoadMiddleware` 会 `LoadContextAsync` + 装配 `ContentReplacementState`，
-主链当前的会话恢复走的是另一条路（transcript/`LoadSessionMessagesHandler`），贸然接上可能造成历史重复加载或
-内容替换状态被覆盖 —— 属于「改行为」而非「修 bug」，必须先有 resume/长会话的对照证据。
+**分诊（逐个查「有没有等价实现」，不按「中间件没跑＝功能缺失」一刀切）**
 
-**下一步判据**：主链跑 `--resume` 后对比 `GetMessageListAsync().Count`、`ContentReplacementState is null`、
-`[ORDER] middleware chatinit-pipeline:` 是否出现；三项同时成立才接。
+| 节点 | 主链缺不缺 | 证据 |
+|---|---|---|
+| `context-load-mw` | **不缺** | 历史恢复由宿主各自完成：CLI `SessionResumeStep` → `chatService.LoadSessionMessagesAsync`；TUI `HistorySeeder` → `LoadTranscriptAsync`。`LoadContextAsync` 的生产调用点只有这个中间件本身 —— 接上反而会**重复加载**同一份历史 |
+| `cost-restore-mw` | **不缺** | `SeedCarryover` 真实调用点有三处：`ContextPersistenceService.LoadAsync`（随消息恢复走）、`ResumeCommand`（恢复会话时）、以及本中间件。前两处覆盖主链 |
+| `config-change-start-mw` | **真缺** | `IConfigChangeNotifier.StartMonitoring` 全仓**唯一**调用点就在此中间件；`SettingsChangeApplier` 自己在构造时订阅了 `ConfigChanged`，但没人启动 watcher → **AGENTS.md / rules / commands / settings.json 的热重载在主链从未生效**（app 层也没有第二个 FileSystemWatcher） |
+
+**施工面（只修真缺的那一个）**：`EngineSessionFactory.CreateSessionAsync`（CLI 与 TUI 共用入口）在
+`StartModelFetchBackground` 旁启动一次监控：`services.GetService<IConfigChangeNotifier>()?.StartMonitoring(fs.GetCurrentDirectory())`，
+并打 `[CONFIG-WATCH]` 打点。不接整条 chatinit —— `ChatInitContext.ToolUseContext` 是 `required`，而 app 层
+**从不构造** `ToolUseContext`（生产里只有 `ChatService._toolUseContext` 一个实例，且为 `private`），
+强行接整链只会拿到一个与工具循环无关的孤儿实例，`ContentReplacementState` 装配变成无效动作。
+
+**验收**
+
+| 项 | 判据 |
+|---|---|
+| 真机打点 | `JCC_DEBUGLOG=1 jcc -p hi` 出现 `[CONFIG-WATCH] start`（此前 `StartMonitoring` 在整份日志里零命中） |
+| 回归 | `dotnet test tests?` 相关：`Guard.Hooks.Tests`（含 `ConfigChangeStartMiddlewareTest` 既往用例）全绿；`--dump-nodes` 节点数不变（未新增节点） |
+| 门禁 | StyleGate + 四道节点门禁 |
+| 不做 | 不接 `context-load` / `cost-restore`（已有等价路径，接上即重复）；`session-start-hook-mw` 已在 A6 单独接（见 P0-2） |
+
+**回头修正（CI #734 稳定红，2026-11-24）**
+
+初版把 `StartConfigChangeMonitoring` 无条件放在 `EngineSessionFactory.CreateSessionAsync`，CLI 一次性
+`-p` 进程也被迫构造 watcher Actor。CI 上 `e2e / E2E - Provider + Cluster` 连续两次稳定失败，退出码 **210**：
+
+| 证据 | 值 |
+|---|---|
+| `210` 的来源 | `ExitCode.AwaitTimeout = 1234`，Linux 进程退出码截低 8 位：`1234 & 0xFF = 210` |
+| 主流程 | `[RUN] pipeline done, exitCode=0` **已打出**，jcc 自测启动耗时 1.9~3.3s |
+| 测试耗时 | 32s —— 主流程结束后进程未退出，被自己的 `--await 30s` 看门狗强杀 |
+| 对照 | #733（无 A8）该 job 3~6s 通过；#734（含 A8）两次稳定 32s 失败；A7/A3 均不碰进程生命周期 |
+
+根因不是热重载功能本身错了，而是**启动点选错**：热重载是长驻会话（GUI/TUI）的能力，一次性进程跑完即退出，
+`ConfigChanged` 没有存活的消费者；watcher 的 `Actor.DisposeAsync`（consumer 退出 + in-flight 收尾 +
+`FileSystemWatcher.DisposeAsync`）被塞进 Main 返回后的退出关键路径，Linux inotify 上拖过 30s 看门狗。
+
+**修正**：策略下沉到 `CommandLineOptions.NeedsConfigHotReload => !IsNonInteractiveMode`（唯一数据源），
+会话工厂只在长驻会话启动监控；`-p` / 非交互 / headless 一律跳过。
+
+**修正后验收**
+
+| 项 | 判据 |
+|---|---|
+| 红测试 | 先加 4 条 `NeedsConfigHotReload_*`，编译报 CS1061（属性不存在） |
+| 绿测试 | `dotnet test test/unit/host.tests --filter FullyQualifiedName~NeedsConfigHotReload` → 4/4 |
+| 真机（一次性） | `JCC_DEBUGLOG=1 jcc -p hi` 的 `[CONFIG-WATCH]` 命中数 = **0**（改前为 1）；`pipeline done` 正常 |
+| 策略对侧 | 单元测试锁定交互 / `ForceInteractive` 时 `NeedsConfigHotReload = true`，调用点 `if (options.NeedsConfigHotReload)` 已代码审查确认。TUI 需真实终端，重定向 stdin 会在进入会话工厂前被拒（`交互模式需要真实终端`），故不做假真机验收 |
+| CI | `e2e / E2E - Provider + Cluster` 恢复 3~6s 通过；退出码不再是 210 |
 
 ---
 
@@ -217,13 +262,49 @@
 
 ---
 
-### A7. HTTP 型 hook 不解析 `hookSpecificOutput`（A6 施工中顺带发现，未修）
+### A7. HTTP 型 hook 不解析 `hookSpecificOutput`（**已施工 + 真机端到端**）
 
 **证据**：`HttpHookExecutor.ParseJsonResponse`（:129-155）是**另一份**实现，只取 `decision/reason/continue`，
 不调基类的 `ParseHookSpecificOutput` → http hook 同样产不出 `systemMessage` / `permissionDecision` /
 `additionalContext`。与 A6 的 P0 同源（协议解析两份实现）。
-**下一步**：抽掉这份复制品，改为复用基类解析（A6 已把基类补全）；需先确认 http hook 的历史行为差异（`message = Reason ?? Message`
-这一处语义），有回归风险，故单列不在 A6 内混改。
+**而且它没有一行测试**（`grep HttpHookExecutor` 只在生产代码里命中），所以漂移了也没人发现。
+
+**逐项差异表（删复制品前必须逐条判去向）**
+
+| # | 差异 | 基类行为 | HTTP 现行为 | 处置 |
+|---|---|---|---|---|
+| 1 | `hookSpecificOutput` | 解析（A6 已补全） | **不解析** | 采用基类（这就是修复本体） |
+| 2 | `message = Reason ?? Message` | 只取 `Reason` | `Reason ?? Message` | **把基类改成 `Reason ?? Message`**（`HookDecision.Message` 在 DTO 注释里就是「面向用户的提示消息」，只取 Reason 是漏读；现有测试无一断言该分支，属纯增益） |
+| 3 | `stopReason` | 透传 | 丢弃 | 采用基类 |
+| 4 | `continue` 与 `decision=block` 同时出现时谁赢 | block 赢（后赋值） | continue 赢（后赋值） | 采用基类：显式 block + `continue:true` 是自相矛盾输入，取更保守的 block |
+| 5 | `LlmJsonHelper.Deserialize` 是否带 Logger | 带（宽容修复提示进日志） | 不带 | 采用基类 |
+| 6 | 非 JSON 的 2xx 响应 | `Success(message: body)` | `Success(message: "HTTP 200: body")` | **保留 HTTP 特有的状态前缀**（HTTP hook 的 body 常是纯文本，前缀是排查线索） |
+| 7 | 非 2xx | 无对应语义 | 403 → Blocking；其余 → NonBlockingError | **保留**（HTTP 状态码语义，基类无此概念） |
+
+**落点**：删 `HttpHookExecutor.ParseJsonResponse`，`ParseHttpResponse` 的 JSON 分支改调基类
+`ParseJsonResponse(body, body, string.Empty)`（protected virtual，同程序集内可见），捕获异常后回落
+`HTTP {code}: {body}`；基类 `ParseJsonResponse` 的 `Message` 改 `Reason ?? Message`。
+
+**验收（先红后绿）**
+
+| 项 | 判据 |
+|---|---|
+| 新增 `HttpHookExecutorTests`（此前 0 条） | ①2xx + `hookSpecificOutput.additionalContext` → 字段落地（**修复前必红**）；②2xx + `permissionDecision:deny` → `PermissionDenyResult`；③2xx + `systemMessage` → 落地；④2xx + `{"message":"..."}` → `Message` 非空（#2 回归保护）；⑤2xx + 纯文本 → `Message` 带状态前缀（#6 不被改掉）；⑥403 → Blocking；⑦500 → NonBlockingError；⑧`stopReason` 透传 |
+| 基类回归 | `HookOutputParsingTests` 现有 7 条不变绿；`Guard.Hooks.Tests` 全量绿 |
+| 负向验证 | 把 `ParseHttpResponse` 的 JSON 分支改回旧实现（只读 decision/reason）→ ①③ 转红 |
+
+**验收结果（2026-11-24）**
+
+| 项 | 结果 |
+|---|---|
+| `HttpHookExecutorTests`（新建，11 条） | 11/11 绿 |
+| `Guard.Hooks.Tests` 全量 | **626/626**（原 615 + 11） |
+| 负向验证 | 临时覆写 `ParseJsonResponse` 为旧实现 → **5 条转红**（additionalContext / systemMessage / updatedInput / permissionDecision / stopReason），删除后转绿 |
+| `Verify-StyleGate.py` | 1814 项全绿 |
+| 解析实现份数 | 全仓只剩基类一处（`grep "override HookResult ParseJsonResponse"` 零命中） |
+| 真机端到端 | 本机起 python HTTP 服务（只回 `hookSpecificOutput.additionalContext`），`~/.jcc/settings.json` 临时加 `{"$hook_type":"http","url":"http://127.0.0.1:9913/hook"}`：请求体 189 字节 snake_case 送达服务端 → `[SESSION-CONTEXT] 收到 additionalContext 31 字符` → `注入 31 字符`。跑完 `settings.json` 按备份还原（md5 一致）、删除临时 `trusted_folders.json`、停服务 |
+| 注意 | 纯文本 2xx 的 Message 实际是 `HTTP OK: body`（`StatusCode` 渲染的是 ReasonPhrase 不是数字），断言按实际形态写 |
+| 门禁 | StyleGate + 四道节点门禁 |
 
 ---
 
@@ -265,15 +346,62 @@ grep -rn "GetNormalizedArgs" --include=*.cs modules | grep -v "/obj/"
 dotnet test modules/composition/composition_tests/Composition.Tests.csproj -c Debug --no-build --filter "FullyQualifiedName~Command"
 ```
 
+**逐条审计结果（2026-11-24，43 个命令文件）**
+
+按「是否真的会因空格拼接而取错值」逐条看，结论分两类：
+
+| 类 | 命令 | 判定 |
+|---|---|---|
+| 自由文本整串（必须整串，**不改**） | `Btw` `Rename` `Compact` `Feedback` `Plan` 的描述、`Falv` 的假定内容 | 正确：这些就是用户原话 |
+| 多参数 `子命令 + 目标`（**重点查**） | `Plugin`(install/uninstall/enable/disable) `Tag`(add/remove) `Workflows`(run/status) `Hooks`(add/remove/test) | **发现真 bug（见下）**，非 JSON 拼接问题 |
+| 单值枚举（`slash_call` 只送一字段即可） | `Color` `Profile` `Vendor` `Effort` `Statusline` `Init` `Rewind` `Copy` `Advisor` `Switch` `Trust` `Review` `Install` … | 无隐患：整串即唯一值 |
+
+**真正的 bug 不在「多字段 JSON」，而在「前缀命中」**：这些命令原来是
+`args.StartsWith("add")` + `args["add".Length..]`，于是
+
+- `/tag address` → 命中 `add`，标签名变成 `ress`（**静默写入一个错误标签**）
+- `/workflows runner` → 命中 `run`，工作流名变成 `ner`
+- `/plugin installer.exe` → 命中 `install`，路径变成 `er.exe`
+
+**修法（已实现）**：`ChatCommandBase.TryTakeSubCommand(args, subCommand, out rest)` —— 子命令后必须是串尾或空白；
+Plugin(4)/Tag(2)/Workflows(2)/Hooks(3) 共 11 处分支改用它。**全仓只剩这一份前缀判定**。
+
+**验收结果**
+
+| 项 | 结果 |
+|---|---|
+| 新增 `SubCommandBoundaryTest`（13 条：11 组词边界理论值 + 2 条 `/tag` 行为） | 13/13 绿；`/tag address` 断言 `AddTag` **零调用** |
+| 负向验证 | 删掉词边界那 3 行 → **5 条转红**（address/addx/runner/installer.exe + `/tag address`），还原转绿 |
+| `Composition.Tests` 全量 | **1172/1172** 绿 |
+| 注意 | 该测试项目首次构建报大批 `CS0234`（引用程序集过期），`dotnet restore --force` 后正常 —— 与本改动无关 |
+
 ---
 
-### A4. flag settings 路径的策略锁（ADR 0161 注明未接）
+### A4. flag settings 路径的策略锁（**已核实：不适用，关闭**）
 
-**证据**：TASK103:254 记「flag settings 路径的策略锁未接入（ADR 0161 已注明，现只消费
-`managed-settings.json`）」。
-**先做**：读 ADR 0161 确认「策略锁」的准确语义与目标文件，再判断是施工还是补文档说明。
-**判定**：若属「管理策略应覆盖命令行 flag」这一类安全语义，必须施工；若只是 ADR 里的一句
-边界说明，则在总账关闭并注明理由。
+**ADR 原文**（`docs/proposed/adr/0161-sandbox-policy-source-and-platform-truth.md:11`）：
+「本仓 `ConfigLoader` 未接入 flag settings 路径，故本轮只消费 policy 源，flag 锁待后续接入。」
+
+**核实结果：flag 源在本仓没有生产者，锁无从触发**
+
+| 环节 | 事实 |
+|---|---|
+| 入口 | `CommandLineOptions` 44 个属性里**没有** `--settings`（唯一相近的 `SkipProviderConfig` 是另一件事）；全仓搜 `--settings` 只命中 `SettingSource` 的注释与 `SettingsLoader.LoadFlagSettingsAsync` 的文档注释 |
+| 装配 | `ConfigLoader.LoadConfigAsync` 调 `LoadAllSourcesAsync(fs, projectDir: …)` **不传 `flagSettingsPath`** → `LoadFlagSettingsAsync(fs, null)` 恒返回 null，flag 源永远空 |
+| 消费 | `SandboxPolicyResolver.Apply(config, policySettings)` 只读 policy 快照，与「flag 源恒空」自洽 |
+
+**结论**：不是漏实现一处判断，而是**整条 flag 路径没有入口**。此刻给 resolver 加 flag 锁判断只会得到一段永远为假的死代码，
+属"打印出来≠生效"的反面版本。故关闭本项，不做代码改动。
+
+**将来接入 `--settings` 时的验收口径（写清避免重犯）**
+1. `CommandLineOptions` 加 `SettingsPath`，参数解析与 `--help` 文案补齐；
+2. `LoadConfigAsync` 并行多读一份 flag 快照（与 policy 快照同款），传 `SandboxPolicyResolver.Apply(config, policy, flag)`
+   —— **只对三个锁键**（`sandbox.enabled` / `autoAllowBashIfSandboxed` / `allowUnsandboxedCommands`）合并 flag 来源，
+   `allowManagedDomainsOnly` / `allowManagedReadPathsOnly` **仍只认 policy**（基准语义：仅 managed 生效）；
+3. `SandboxPolicyConfig` 需要区分来源（现 `WritePolicyLocked` 的文案硬编码「managed-settings.json 已定义」，
+   flag 触发时会撒谎）—— 加 `FlagLockedKeys` 或带来源的键元组，`/sandbox` 提示按来源分句；
+4. 红测试：flag 快照显式 `enabled` → `/sandbox off` 被拒且提示写 flag；policy 与 flag 同时定义 → 两边键名都列出；
+   仅 policy 定义 → 沿用现状文案。
 
 ---
 

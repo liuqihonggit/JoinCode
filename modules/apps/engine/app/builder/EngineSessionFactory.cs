@@ -150,7 +150,8 @@ public sealed class EngineSessionFactory {
         if (!options.SkipModelFetch && !IsEnvSkipModelFetch())
             StartModelFetchBackground(fs, host.Services, cancellationToken);
 
-        StartConfigChangeMonitoring(fs, host.Services);
+        if (options.NeedsConfigHotReload)
+            StartConfigChangeMonitoring(fs, host.Services);
 
         var chatService = options.SkipChatServices
             ? null
@@ -194,6 +195,10 @@ public sealed class EngineSessionFactory {
     /// 而 chatinit 在主代理路径不可达（`ChatInitContext.ToolUseContext` 是 required，app 层从不构造
     /// `ToolUseContext`），所以热重载**从未启动**过。这里在 CLI 与 TUI 共用的会话创建入口启动一次；
     /// `StartMonitoring` 内部是先停后启的幂等命令，重复调用不会叠加 watcher。
+    /// </para>
+    /// <para>
+    /// 仅长驻会话调用（由 <see cref="CommandLineOptions.NeedsConfigHotReload"/> 判定）：一次性 -p 进程
+    /// 没有热重载消费者，却要承担 watcher 在退出链上的 Dispose 成本，详见 TASK130-A8 回头修正。
     /// </para>
     /// </summary>
     private static void StartConfigChangeMonitoring(IFileSystem fs, IServiceProvider services) {

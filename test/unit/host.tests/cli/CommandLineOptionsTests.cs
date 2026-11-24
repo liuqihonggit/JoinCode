@@ -40,6 +40,35 @@ public sealed class CommandLineOptionsTests {
     }
 
     [Fact]
+    public void NeedsConfigHotReload_WithPrompt_ShouldBeFalse() {
+        // 一次性 -p 进程跑完即退出：热重载没有消费者，watch root 的 Dispose 反而卡在退出链上
+        var options = new CommandLineOptions { Prompt = "并行编写三个模块的文档" };
+
+        options.NeedsConfigHotReload.Should().BeFalse();
+    }
+
+    [Fact]
+    public void NeedsConfigHotReload_WithNonInteractiveFlag_ShouldBeFalse() {
+        var options = new CommandLineOptions { NonInteractive = true };
+
+        options.NeedsConfigHotReload.Should().BeFalse();
+    }
+
+    [Fact]
+    public void NeedsConfigHotReload_Interactive_ShouldBeTrue() {
+        var options = new CommandLineOptions();
+
+        options.NeedsConfigHotReload.Should().BeTrue();
+    }
+
+    [Fact]
+    public void NeedsConfigHotReload_WithForceInteractive_ShouldBeTrue() {
+        var options = new CommandLineOptions { NonInteractive = true, ForceInteractive = true };
+
+        options.NeedsConfigHotReload.Should().BeTrue();
+    }
+
+    [Fact]
     public void IsPipeMode_WithPipeName_ShouldBeTrue() {
         var options = new CommandLineOptions { PipeName = "test-pipe" };
 

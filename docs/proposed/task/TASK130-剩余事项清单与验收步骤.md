@@ -208,6 +208,35 @@
 | 门禁 | StyleGate + 四道节点门禁 |
 | 不做 | 不接 `context-load` / `cost-restore`（已有等价路径，接上即重复）；`session-start-hook-mw` 已在 A6 单独接（见 P0-2） |
 
+**回头修正（CI #734 稳定红，2026-11-24）**
+
+初版把 `StartConfigChangeMonitoring` 无条件放在 `EngineSessionFactory.CreateSessionAsync`，CLI 一次性
+`-p` 进程也被迫构造 watcher Actor。CI 上 `e2e / E2E - Provider + Cluster` 连续两次稳定失败，退出码 **210**：
+
+| 证据 | 值 |
+|---|---|
+| `210` 的来源 | `ExitCode.AwaitTimeout = 1234`，Linux 进程退出码截低 8 位：`1234 & 0xFF = 210` |
+| 主流程 | `[RUN] pipeline done, exitCode=0` **已打出**，jcc 自测启动耗时 1.9~3.3s |
+| 测试耗时 | 32s —— 主流程结束后进程未退出，被自己的 `--await 30s` 看门狗强杀 |
+| 对照 | #733（无 A8）该 job 3~6s 通过；#734（含 A8）两次稳定 32s 失败；A7/A3 均不碰进程生命周期 |
+
+根因不是热重载功能本身错了，而是**启动点选错**：热重载是长驻会话（GUI/TUI）的能力，一次性进程跑完即退出，
+`ConfigChanged` 没有存活的消费者；watcher 的 `Actor.DisposeAsync`（consumer 退出 + in-flight 收尾 +
+`FileSystemWatcher.DisposeAsync`）被塞进 Main 返回后的退出关键路径，Linux inotify 上拖过 30s 看门狗。
+
+**修正**：策略下沉到 `CommandLineOptions.NeedsConfigHotReload => !IsNonInteractiveMode`（唯一数据源），
+会话工厂只在长驻会话启动监控；`-p` / 非交互 / headless 一律跳过。
+
+**修正后验收**
+
+| 项 | 判据 |
+|---|---|
+| 红测试 | 先加 4 条 `NeedsConfigHotReload_*`，编译报 CS1061（属性不存在） |
+| 绿测试 | `dotnet test test/unit/host.tests --filter FullyQualifiedName~NeedsConfigHotReload` → 4/4 |
+| 真机（一次性） | `JCC_DEBUGLOG=1 jcc -p hi` 的 `[CONFIG-WATCH]` 命中数 = **0**（改前为 1）；`pipeline done` 正常 |
+| 策略对侧 | 单元测试锁定交互 / `ForceInteractive` 时 `NeedsConfigHotReload = true`，调用点 `if (options.NeedsConfigHotReload)` 已代码审查确认。TUI 需真实终端，重定向 stdin 会在进入会话工厂前被拒（`交互模式需要真实终端`），故不做假真机验收 |
+| CI | `e2e / E2E - Provider + Cluster` 恢复 3~6s 通过；退出码不再是 210 |
+
 ---
 
 ### A9. 用户侧 hook 配置格式与基准不一致（`$hook_type` vs `type`），且错写时**静默 0 条**（**已施工**）

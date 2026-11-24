@@ -156,16 +156,37 @@ public sealed class KittyProtocolParserTests
     }
 
     [Theory]
-    [InlineData(57414, KeyKind.F1)]
-    [InlineData(57415, KeyKind.F2)]
-    [InlineData(57416, KeyKind.F3)]
-    [InlineData(57417, KeyKind.F4)]
-    public void KittyFunctionKeyCodepoints_MapToFKeys(int codepoint, KeyKind expected)
+    [InlineData(57399, KeyKind.Char, "0")]
+    [InlineData(57400, KeyKind.Char, "1")]
+    [InlineData(57401, KeyKind.Char, "2")]
+    [InlineData(57402, KeyKind.Char, "3")]
+    [InlineData(57403, KeyKind.Char, "4")]
+    [InlineData(57404, KeyKind.Char, "5")]
+    [InlineData(57405, KeyKind.Char, "6")]
+    [InlineData(57406, KeyKind.Char, "7")]
+    [InlineData(57407, KeyKind.Char, "8")]
+    [InlineData(57408, KeyKind.Char, "9")]
+    [InlineData(57409, KeyKind.Char, ".")]
+    [InlineData(57410, KeyKind.Char, "/")]
+    [InlineData(57411, KeyKind.Char, "*")]
+    [InlineData(57412, KeyKind.Char, "-")]
+    [InlineData(57413, KeyKind.Char, "+")]
+    [InlineData(57414, KeyKind.Return, "")]
+    [InlineData(57415, KeyKind.Char, "=")]
+    public void KittyKeypadCodepoints_MapCorrectly(int codepoint, KeyKind expectedKind, string expectedInput)
     {
-        // kitty 功能键区 57414-57417（F1-F4）— KeyKind.F1-F12 引入（B2 键位系统）后精确映射
         var key = ParseOne($"\u001b[{codepoint}u");
-        Assert.Equal(expected, key.Kind);
-        Assert.Equal(string.Empty, key.Input);
+        Assert.Equal(expectedKind, key.Kind);
+        Assert.Equal(expectedInput, key.Input);
+    }
+
+    [Theory]
+    [InlineData(57416)]
+    [InlineData(57417)]
+    public void UnsupportedKittyFunctionalCodepoints_AreUnknown(int codepoint)
+    {
+        var key = ParseOne($"\u001b[{codepoint}u");
+        Assert.Equal(KeyKind.Unknown, key.Kind);
     }
 
     [Fact]

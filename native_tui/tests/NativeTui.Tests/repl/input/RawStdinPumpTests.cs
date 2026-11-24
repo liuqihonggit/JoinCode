@@ -3,7 +3,7 @@ namespace NativeTui.Tests.Repl;
 /// <summary>
 /// RawStdinPump 全链测试（DSG042 P2）— FeedForTest 注入绕过 stdin Read，验证
 /// 解析→通道→Drain 全链：单键/VT 序列（方向键修饰组合 ReadKey 通道不可得的形态）/
-/// bracketed paste 整块（重组状态机天然不需要）/ 不完整前缀跨块攒齐 / 孤立 ESC 即时产出 /
+/// bracketed paste 整块（重组状态机天然不需要）/ 不完整前缀跨块攒齐 / 孤立 ESC 超时产出 /
 /// 键序保序 / 空排空返回 false。真实 stdin 阻塞行为由宿主 exe 手动验收（ADR 0080）。
 /// </summary>
 public sealed class RawStdinPumpTests
@@ -137,13 +137,66 @@ public sealed class RawStdinPumpTests
     }
 
     [Fact]
-    public void LoneEscape_ChunkBoundary_ProducesEscapeImmediately()
+    public void LoneEscape_ChunkBoundary_WaitsForContinuation()
     {
-        // 孤立 ESC 按 chunk 边界即时产出（不等超时 — ReadKey 通道 KeyAvailable 语义近似）
-        using var pump = CreatePump();
-        var keys = FeedAndDrain(pump, "\u001b");
-        var key = Assert.Single(keys);
+        var clock = new ManualClock();
+        using var pump = CreatePump(clock);
+        Assert.Empty(FeedAndDrain(pump, "\u001b"));
+
+        clock.Advance(51);
+        var key = Assert.Single(DrainKeys(pump));
         Assert.Equal(KeyKind.Escape, key.Kind);
+    }
+
+    [Fact]
+    public void EscapeSequence_SplitAfterEscape_Accumulates()
+    {
+        var clock = new ManualClock();
+        using var pump = CreatePump(clock);
+        Assert.Empty(FeedAndDrain(pump, "\u001b"));
+
+        clock.Advance(20);
+        var key = Assert.Single(FeedAndDrain(pump, "[D"));
+        Assert.Equal(KeyKind.LeftArrow, key.Kind);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    [Fact]
+    public void AstralCharacter_SplitAcrossFeeds_ParsesAsSingleChar()
+    {
+        using var pump = CreatePump();
+        Assert.Empty(FeedAndDrain(pump, "\ud83d"));
+        Assert.Equal(1, pump.PendingCount);
+
+        var key = Assert.Single(FeedAndDrain(pump, "\ude00"));
+        Assert.Equal(KeyKind.Char, key.Kind);
+        Assert.Equal("😀", key.Input);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    [Fact]
+    public void MetaAstralCharacter_SplitAfterHighSurrogate_ParsesAsSingleChar()
+    {
+        using var pump = CreatePump();
+        Assert.Empty(FeedAndDrain(pump, "\u001b\ud83d"));
+        Assert.Equal(2, pump.PendingCount);
+
+        var key = Assert.Single(FeedAndDrain(pump, "\ude00"));
+        Assert.Equal(KeyKind.Char, key.Kind);
+        Assert.True(key.Meta);
+        Assert.Equal("😀", key.Input);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    [Fact]
+    public void LinuxFunctionKey_SplitAfterSecondBracket_Accumulates()
+    {
+        using var pump = CreatePump();
+        Assert.Empty(FeedAndDrain(pump, "\u001b[["));
+
+        var key = Assert.Single(FeedAndDrain(pump, "A"));
+        Assert.Equal(KeyKind.F1, key.Kind);
+        Assert.Equal(0, pump.PendingCount);
     }
 
     [Fact]
@@ -229,6 +282,33 @@ public sealed class RawStdinPumpTests
         Assert.Single(keys);
     }
 
+    [Fact]
+    public async Task Dispose_QueuedCommand_CompletesWaiter()
+    {
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var pump = new RawStdinPump(clock: () =>
+        {
+            entered.Set();
+            release.Wait();
+            return 0;
+        });
+
+        var first = Task.Run(() => pump.FeedForTest("\u001b["));
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(1)));
+
+        var second = Task.Run(() => pump.FeedForTest("x"));
+        Assert.True(SpinWait.SpinUntil(() => pump.PendingCommandCount > 0, TimeSpan.FromSeconds(1)));
+
+        pump.Dispose();
+        release.Set();
+
+        await first.WaitAsync(TimeSpan.FromSeconds(1));
+        var completed = await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(1)));
+        Assert.Same(second, completed);
+        await second;
+    }
+
     /// <summary>终端查询响应前置分流（TASK067 批4）— DA1 回复路由给 querier 等待方，
     /// 不入键流（对齐基准 parse-keypress.ts:484-487 路由语义）；后续键正常解析。</summary>
     [Fact]
@@ -250,6 +330,56 @@ public sealed class RawStdinPumpTests
         Assert.Equal(0, pump.PendingCount);
     }
 
+    [Fact]
+    public async Task TerminalReply_OscSplitAcrossFeeds_RoutesWithoutLeakingKeys()
+    {
+        using var querier = new TerminalQuerier(new StringWriter());
+        var clock = new ManualClock();
+        using var pump = new RawStdinPump(querier, clock: () => clock.Now);
+        var query = querier.QueryAsync("\u001b]10;?\u0007", TerminalResponseKind.Osc, TimeSpan.FromSeconds(5));
+
+        Assert.Empty(FeedAndDrain(pump, "\u001b]10;rgb:"));
+        var keys = FeedAndDrain(pump, "1/1/1\u0007a");
+
+        var response = await query.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.NotNull(response);
+        Assert.Equal("10;rgb:1/1/1", response.Payload);
+        var key = Assert.Single(keys);
+        Assert.Equal(KeyKind.Char, key.Kind);
+        Assert.Equal("a", key.Input);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    [Fact]
+    public void TerminalReply_IncompleteCsiPrefix_StillTimesOut()
+    {
+        using var querier = new TerminalQuerier(new StringWriter());
+        var clock = new ManualClock();
+        using var pump = new RawStdinPump(querier, clock: () => clock.Now);
+        Assert.Empty(FeedAndDrain(pump, "\u001b[?2026"));
+        Assert.True(pump.PendingCount > 0);
+
+        clock.Advance(51);
+        var keys = DrainKeys(pump);
+
+        Assert.Equal(KeyKind.Unknown, Assert.Single(keys).Kind);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    [Fact]
+    public void TerminalReply_IncompleteOscPrefix_TimesOutWithoutBlockingInput()
+    {
+        using var querier = new TerminalQuerier(new StringWriter());
+        var clock = new ManualClock();
+        using var pump = new RawStdinPump(querier, clock: () => clock.Now);
+        Assert.Empty(FeedAndDrain(pump, "\u001b]10;rgb:"));
+
+        clock.Advance(51);
+        Assert.Equal(KeyKind.Unknown, Assert.Single(DrainKeys(pump)).Kind);
+        Assert.Equal(0, pump.PendingCount);
+        Assert.Equal("x", Assert.Single(FeedAndDrain(pump, "x")).Input);
+    }
+
     /// <summary>querier 未注入 — 回复序列走键解析路径（Unknown 吞噬防泄漏，泵独立场景兼容）。</summary>
     [Fact]
     public void TerminalReply_WithoutQuerier_SwallowsAsUnknownKey()
@@ -261,10 +391,10 @@ public sealed class RawStdinPumpTests
         Assert.Equal(0, pump.PendingCount);
     }
 
-    /// <summary>不完整 ESC 前缀滞留超 50ms — 强制 flush 产出 Escape（基准 App.tsx:309-333 flushIncomplete
-    ///——非 force 路径永久滞留 = 输入静默失联）；50ms 内不 flush（等待凑齐窗口）。</summary>
+    /// <summary>不完整 ESC 前缀滞留超 50ms — 整体吞 Unknown 释放 pending，残缺参数不泄漏成文本；
+    /// 50ms 内不 flush（等待凑齐窗口）。</summary>
     [Fact]
-    public void IncompleteEscapePrefix_StuckBeyond50Ms_ForcesEscapeFlush()
+    public void IncompleteEscapePrefix_StuckBeyond50Ms_SwallowsIncompleteSequence()
     {
         var clock = new ManualClock();
         using var pump = CreatePump(clock);
@@ -277,8 +407,8 @@ public sealed class RawStdinPumpTests
         Assert.True(pump.PendingCount > 0);
 
         clock.Advance(30);
-        var keys = DrainKeys(pump);
-        Assert.Contains(keys, static k => k.Kind == KeyKind.Escape);
+        var key = Assert.Single(DrainKeys(pump));
+        Assert.Equal(KeyKind.Unknown, key.Kind);
         Assert.Equal(0, pump.PendingCount);
     }
 
@@ -299,6 +429,24 @@ public sealed class RawStdinPumpTests
         var paste = Assert.Single(DrainKeys(pump));
         Assert.Equal(KeyKind.Paste, paste.Kind);
         Assert.Equal("partial content", paste.Input);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    [Fact]
+    public void ForcedFlush_ChannelFull_DoesNotLosePaste()
+    {
+        var clock = new ManualClock();
+        using var pump = CreatePump(clock);
+        pump.FeedForTest(new string('k', 256));
+        pump.FeedForTest("\u001b[200~partial");
+        Assert.True(pump.PendingCount > 0);
+
+        clock.Advance(501);
+        var keys = DrainKeys(pump);
+
+        Assert.Equal(257, keys.Count);
+        Assert.Equal(KeyKind.Paste, keys[^1].Kind);
+        Assert.Equal("partial", keys[^1].Input);
         Assert.Equal(0, pump.PendingCount);
     }
 

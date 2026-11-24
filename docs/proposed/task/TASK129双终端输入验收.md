@@ -86,6 +86,15 @@ New-Item -ItemType Directory -Force $out | Out-Null
 
 判定口径：`已消费` = 应用行为按期望变化；`仅解码` = 采样有事件但应用无对应行为；`宿主截获` = 终端自己处理了该键（写明按键与宿主行为）；`未测` = 没有窗口证据。两窗填完后把 20 格结论合并回 §1 表与 TASK066 B6、TASK121。
 
+### 3.5 自动化采样记录（2026-11-25，AI 执行，非人工判定）
+
+> 本节只记录已经采到的原始事实，**不替代 §3.4 的人工判定卡**。
+
+- 产物基线：`jcc.exe` SHA-256 `3305FB99E73CEA2044D24DD7B58FFB917B42C37BB7DBAD01C32709DD56C94787`（2026-11-25 构建，§3.0 的旧 hash 已失效）。
+- WT：`WT_SESSION` 非空（`40cbbfb4-...`），探针 53 事件；`probe.txt` 完整，含 F11 被 WT 截获全屏并触发 `[resize] cols=209 rows=56`；鼠标按下/释放/滚轮与 Alt-Tab 回切均有事件。证据目录 `.xxx/logs/b1/wt/`。
+- conhost：`WT_SESSION` 为空，探针 83 事件并有截图（含 `[resize] cols=190 rows=63`、鼠标拖动），但 `probe.txt` 未取得（`AttachConsole` dump 失败、UIA TextPattern 不支持 `ConsoleWindowClass`）。证据目录 `.xxx/logs/b1/conhost/`。
+- 结论：WT 行可供人工判定；conhost 行只能算部分采样，判定卡中按“未测/待补采样”处理。真实 IME、生产 REPL 行为、忙时真实模型回合均未自动覆盖。
+
 ## 2. 已有验证和边界
 
 - Git Bash 下对已有 Debug 产物运行 `printf 'ab\025\033[D\033[1;5D\033[200~中文粘贴内容\033[201~\037你\r' | ./artifacts/bin/JoinCode/Debug/net10.0/jcc.exe --selftest-input`，返回 `INPUT SELFTEST OK`。此前直接运行未喂 stdin，预期收 9、实际 0，补齐输入后通过。产物 SHA-256：`7f8849c41523dbc66013994202a6e535366b0b41c00a8a17c0351ccac6263eb0`。这是已有二进制的管道测试，不含本次新探针，也不证明双终端实测。

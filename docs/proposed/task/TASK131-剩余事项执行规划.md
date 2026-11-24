@@ -140,6 +140,11 @@ dotnet test modules\composition\composition_tests\Composition.Tests.csproj -c De
   ParseArgs），引擎静默回退 base。修复：BridgeServeCommand 与 `--vendor`/`--model` 同构解析带入 options.Profile。
 - Query 进程级：Streaming 超时验收 + Vd02 异常路径 + Ve06 多轮 + Wq01（含流式事件与回合异常
   → error 事件）**4/4 通过**，证据 `.xxx/logs/p1-1-e2e-evidence.txt`；TASK130 §C2、TASK128 未验项均已回写。
+- PR #740 首轮 CI 唯一失败是 `Bridge.Tests.BridgeSessionTrackerTests.GetDurationMs_KnownSession_ReturnsElapsed`
+  时序 flake（2997ms < 2999ms）：`CreateState` 的 `StartTime` 取真实 `DateTime.UtcNow`，与
+  `FakeClockService` 构造时刻存在毫秒漂移。修法为测试侧确定性化（注册时 `StartTime = clock.GetUtcNow()`，
+  `Advance(3s)` 后精确断言 `== 3000`），生产 API 未改；`Bridge.Tests` 全量 633/633 通过，
+  证据 `.xxx/logs/pr740-flake-fix.txt`。
 
 **验收**
 

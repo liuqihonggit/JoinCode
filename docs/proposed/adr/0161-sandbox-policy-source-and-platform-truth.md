@@ -1,6 +1,6 @@
 # 0161. Sandbox 策略源与平台真值 — managed 投影与 Seatbelt 缺口显式化
 
-- 状态：accepted（已实现，TASK104 R6/R7）
+- 状态：accepted（已实现，TASK104 R6/R7；2026-11-24 补齐 flag 锁、来源提示与 Hub 投影）
 - 日期：2026-11-22
 - 决策者：项目架构组
 

@@ -16,7 +16,9 @@ internal static class ConfigPrintCommand {
         }
 
         var fs = IO.FileSystem.FileSystemFactory.Create();
-        var settings = await Core.Configuration.SettingsLoader.LoadAllSourcesAsync(fs, null, null, ct).ConfigureAwait(false);
+        var cliArgs = CliArgParser.Parse(args);
+        var settings = await Core.Configuration.SettingsLoader.LoadAllSourcesAsync(
+            fs, projectDir: null, flagSettingsSource: cliArgs.Settings, cancellationToken: ct).ConfigureAwait(false);
         var json = RelaxedJsonSerializer.SerializeIndented(settings, Core.Configuration.ConfigIndentedJsonContext.Default);
         System.Console.WriteLine(json);
         return 0;

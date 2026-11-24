@@ -77,8 +77,28 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
         _ => false,
     };
 
-    /// <summary>输出策略锁原因与下一步 — 对齐「错误提示必须带诱导方式」。</summary>
+    /// <summary>输出策略锁原因与下一步 — 对齐「错误提示必须带诱导方式」，并按 policy / flag 来源分句。</summary>
     private static void WritePolicyLocked(SandboxPolicyConfig policy) {
+        var policyPart = policy.PolicyLockedKeys.Count > 0
+            ? $"managed-settings.json 已定义 {string.Join(", ", policy.PolicyLockedKeys)}"
+            : null;
+        var flagPart = policy.FlagLockedKeys.Count > 0
+            ? $"--settings 已定义 {string.Join(", ", policy.FlagLockedKeys)}"
+            : null;
+
+        if (policyPart is not null || flagPart is not null) {
+            var title = policyPart is not null ? "沙箱设置被企业策略锁定" : "沙箱设置被 --settings 锁定";
+            var details = string.Join("；", new[] { policyPart, flagPart }.OfType<string>());
+            TerminalHelper.WriteLine($"{title}：{details}。");
+            if (policyPart is not null) {
+                TerminalHelper.WriteLine("本地 /sandbox 不能修改托管键；请让管理员修改 managed-settings.json，或移除对应键后重启。");
+            }
+            if (flagPart is not null) {
+                TerminalHelper.WriteLine("本地 /sandbox 不能覆盖 --settings；请修改该文件/内联 JSON，或不传 --settings 后重启。");
+            }
+            return;
+        }
+
         var keys = policy.LockedKeys.Count > 0 ? string.Join(", ", policy.LockedKeys) : "sandbox.*";
         TerminalHelper.WriteLine($"沙箱设置被企业策略锁定：managed-settings.json 已定义 {keys}。");
         TerminalHelper.WriteLine("本地 /sandbox 不能修改这些键；请让管理员修改托管策略文件，或移除对应键后重启。");

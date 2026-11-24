@@ -117,6 +117,10 @@ public enum CliArg {
     [CliOption(JccCliArgEnumConstants.JsonSchema, "", "JSON Schema for structured output (creates a StructuredOutput tool)", AcceptsValue = true, Category = "输出")]
     JsonSchema,
 
+    /// <summary>从文件或内联 JSON 加载 flag settings（优先级高于项目/本地设置，低于 managed policy）</summary>
+    [CliOption(JccCliArgEnumConstants.Settings, "", "从文件或内联 JSON 加载 flag settings（优先级高于项目/本地设置，低于 managed policy）", AcceptsValue = true, Category = "配置", Example = "jcc --settings ./settings.json -p \"hello\"")]
+    Settings,
+
     /// <summary>输出所有已注册节点列表（诊断用）</summary>
     [CliOption(JccCliArgEnumConstants.DumpNodes, "", "输出所有已注册节点列表（诊断用）", Category = "诊断")]
     DumpNodes,

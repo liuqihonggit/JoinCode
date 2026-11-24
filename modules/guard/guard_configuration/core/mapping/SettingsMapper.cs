@@ -216,7 +216,10 @@ public sealed partial class SettingsMapper : ServiceEntity {
     /// 缺省（null）保留 <see cref="SandboxConfig"/> 的基准默认（enabled=false / autoAllow=true /
     /// allowUnsandboxed=true），不能用 <c>?? false</c> 把「未配置」误判成「关闭」。</para>
     /// </summary>
-    private static WorkflowConfig ApplySandboxSettings(WorkflowConfig config, SettingsJson? settings) {
+    /// <summary>
+    /// 仅应用沙箱相关配置到 <see cref="WorkflowConfig"/> — Hub 模式等不构造 Provider 的路径复用。
+    /// </summary>
+    public static WorkflowConfig ApplySandboxSettings(WorkflowConfig config, SettingsJson? settings) {
         var sandbox = settings?.Current?.Sandbox;
         if (sandbox is null) return config;
 

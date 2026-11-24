@@ -638,6 +638,47 @@ public class SettingsLoaderTests : IDisposable {
         settings.AutoFetchModels.Should().BeTrue("autoFetchModels 应为 true");
     }
 
+    #region P9b: --settings flag 来源 fail-fast
+
+    [Fact]
+    public async Task FlagSettings_InlineJson_Parses() {
+        var result = await SettingsLoader.LoadFlagSettingsAsync(
+            _fs, """{"current":{"sandbox":{"enabled":true}}}""").ConfigureAwait(true);
+
+        var parsed = result ?? throw new InvalidOperationException("flag settings 应解析成功");
+        var current = parsed.Current ?? throw new InvalidOperationException("current 应存在");
+        var sandbox = current.Sandbox ?? throw new InvalidOperationException("sandbox 应存在");
+        sandbox.Enabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task FlagSettings_MissingFile_Throws() {
+        var missing = Path.Combine(_tempDir, "missing-flag-settings.json");
+
+        var act = () => SettingsLoader.LoadFlagSettingsAsync(_fs, missing);
+
+        await act.Should().ThrowAsync<ConfigurationException>().WithMessage("*not found*");
+    }
+
+    [Fact]
+    public async Task FlagSettings_InvalidInlineJson_Throws() {
+        var act = () => SettingsLoader.LoadFlagSettingsAsync(_fs, "{\"current\":");
+
+        await act.Should().ThrowAsync<ConfigurationException>().WithMessage("*Invalid JSON*");
+    }
+
+    [Fact]
+    public async Task LoadAllSources_FlagSettingsMissing_Propagates() {
+        var missing = Path.Combine(_tempDir, "missing-flag-settings.json");
+
+        var act = () => SettingsLoader.LoadAllSourcesAsync(
+            _fs, projectDir: _tempDir, flagSettingsSource: missing);
+
+        await act.Should().ThrowAsync<ConfigurationException>().WithMessage("*not found*");
+    }
+
+    #endregion
+
     private static HubConfigDefaultResponse CreateSampleHubConfig() {
         return new HubConfigDefaultResponse {
             CurrentProfile = "test-provider",

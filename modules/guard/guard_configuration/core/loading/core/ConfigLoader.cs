@@ -32,10 +32,19 @@ public class ConfigLoader {
     }
 
     /// <summary>
-    /// 加载配置
+    /// 加载配置（无 flag settings 来源）。
+    /// </summary>
+    public Task<WorkflowConfig> LoadConfigAsync(IFileSystem fs, CancellationToken cancellationToken = default)
+        => LoadConfigAsync(fs, flagSettingsSource: null, cancellationToken);
+
+    /// <summary>
+    /// 加载配置，并可从 <c>--settings</c> 的 flag 来源额外加载一份设置。
     /// 配置优先级（从低到高）: UserSettings → ProjectSettings → LocalSettings → FlagSettings → PolicySettings → 环境变量 → Provider 定义环境变量
     /// </summary>
-    public async Task<WorkflowConfig> LoadConfigAsync(IFileSystem fs, CancellationToken cancellationToken = default) {
+    /// <param name="fs">文件系统。</param>
+    /// <param name="flagSettingsSource">flag settings 文件路径或内联 JSON。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    public async Task<WorkflowConfig> LoadConfigAsync(IFileSystem fs, string? flagSettingsSource, CancellationToken cancellationToken = default) {
         try {
             // Step 1: 并行加载多源配置 + 规则文件 + auth.json（4 路并行 I/O）
             var projectDir = fs.GetCurrentDirectory();
@@ -43,21 +52,27 @@ public class ConfigLoader {
             var settingsTask = SettingsLoader.LoadAllSourcesAsync(
                 fs,
                 projectDir: projectDir,
+                flagSettingsSource: flagSettingsSource,
                 cancellationToken: cancellationToken,
                 logger: _logger);
             // policy 源单独再读一次：合并后的 SettingsJson 已丢失来源，sandbox 策略锁/托管清单需要独立快照
             var policySettingsTask = SettingsLoader.LoadPolicySettingsAsync(fs, cancellationToken, _logger);
+            // flag 源同样单独取快照：策略锁必须同时覆盖 flagSettings（基准 areSandboxSettingsLockedByPolicy）
+            var flagSettingsTask = string.IsNullOrWhiteSpace(flagSettingsSource)
+                ? Task.FromResult<SettingsJson?>(null)
+                : SettingsLoader.LoadFlagSettingsAsync(fs, flagSettingsSource, cancellationToken, _logger);
             await using var rulesLoader = new ProjectRulesLoader(fs);
             var projectRulesTask = rulesLoader.LoadRulesAsync(projectDir, cancellationToken);
             var externalRulesLoader = new ExternalRulesLoader(fs);
             var externalRulesTask = externalRulesLoader.LoadProjectRulesAsync(projectDir, cancellationToken);
             var authTask = LoadAuthFileAsync(fs, cancellationToken);
 
-            await Task.WhenAll(settingsTask, policySettingsTask, projectRulesTask, externalRulesTask, authTask).ConfigureAwait(false);
+            await Task.WhenAll(settingsTask, policySettingsTask, flagSettingsTask, projectRulesTask, externalRulesTask, authTask).ConfigureAwait(false);
             sw?.Stop();
 
             var settings = await settingsTask.ConfigureAwait(false);
             var policySettings = await policySettingsTask.ConfigureAwait(false);
+            var flagSettings = await flagSettingsTask.ConfigureAwait(false);
             var preloadedAuthData = await authTask.ConfigureAwait(false);
 
             // Step 1.5: 将 SettingsJson.Vendor 模型数据灌入 ModelConfigLoader（唯一数据入口）
@@ -86,7 +101,7 @@ public class ConfigLoader {
             var sw2 = PerfTimer.Start("  Step3-5 映射+EnvOverride+ApiKey");
             _settingsMapper.SkipProviderValidation = SkipProviderValidation;
             var config = _settingsMapper.ToWorkflowConfig(settings);
-            config = SandboxPolicyResolver.Apply(config, policySettings);
+            config = SandboxPolicyResolver.Apply(config, policySettings, flagSettings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
             config = await _settingsMapper.ApplyEnvOverridesAsync(config, settings).ConfigureAwait(false);
@@ -110,6 +125,32 @@ public class ConfigLoader {
         } catch (Exception ex) when (ex is not ConfigurationException) {
             throw new ConfigurationException("[GRD006] 加载配置失败", ex);
         }
+    }
+
+    /// <summary>
+    /// 仅加载并应用沙箱配置（settings + flag + policy）— 供 Hub 模式等不构造 Provider 的启动路径复用。
+    /// <para>Hub 模式跳过 <c>LoadConfigAsync</c> 以避免 Provider 注册表/模型目录开销，但 sandbox 策略锁
+    /// 属于安全语义，必须与直接连接路径同源同效。</para>
+    /// </summary>
+    /// <param name="config">已构造的基础配置（Provider 可由调用方决定）。</param>
+    /// <param name="fs">文件系统。</param>
+    /// <param name="flagSettingsSource">flag settings 文件路径或内联 JSON。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <param name="logger">可选日志。</param>
+    public static async Task<WorkflowConfig> ApplySandboxConfigAsync(
+        WorkflowConfig config, IFileSystem fs, string? flagSettingsSource,
+        CancellationToken cancellationToken = default, ILogger? logger = null) {
+        var projectDir = fs.GetCurrentDirectory();
+        var settings = await SettingsLoader.LoadAllSourcesAsync(
+            fs, projectDir: projectDir, flagSettingsSource: flagSettingsSource,
+            cancellationToken: cancellationToken, logger: logger).ConfigureAwait(false);
+        var policySettings = await SettingsLoader.LoadPolicySettingsAsync(fs, cancellationToken, logger).ConfigureAwait(false);
+        var flagSettings = string.IsNullOrWhiteSpace(flagSettingsSource)
+            ? null
+            : await SettingsLoader.LoadFlagSettingsAsync(fs, flagSettingsSource, cancellationToken, logger).ConfigureAwait(false);
+
+        return SandboxPolicyResolver.Apply(
+            SettingsMapper.ApplySandboxSettings(config, settings), policySettings, flagSettings);
     }
 
     /// <summary>

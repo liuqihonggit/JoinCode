@@ -13,7 +13,7 @@ public static class SettingsLoader {
     public static async Task<SettingsJson> LoadAllSourcesAsync(
         IFileSystem fs,
         string? projectDir = null,
-        string? flagSettingsPath = null,
+        string? flagSettingsSource = null,
         CancellationToken cancellationToken = default,
         ILogger? logger = null) {
         SettingsJson? merged = null;
@@ -24,7 +24,7 @@ public static class SettingsLoader {
             (SettingSource.UserSettings, () => LoadUserSettingsAsync(fs, cancellationToken, logger)),
             (SettingSource.ProjectSettings, () => LoadProjectSettingsAsync(fs, projectDir, cancellationToken, logger)),
             (SettingSource.LocalSettings, () => LoadLocalSettingsAsync(fs, projectDir, cancellationToken, logger)),
-            (SettingSource.FlagSettings, () => LoadFlagSettingsAsync(fs, flagSettingsPath, cancellationToken, logger)),
+            (SettingSource.FlagSettings, () => LoadFlagSettingsAsync(fs, flagSettingsSource, cancellationToken, logger)),
             (SettingSource.PolicySettings, () => LoadPolicySettingsAsync(fs, cancellationToken, logger)),
         };
 
@@ -33,8 +33,8 @@ public static class SettingsLoader {
             SettingsJson? result = null;
             try {
                 result = await s.Loader().ConfigureAwait(false);
-            } catch (Exception ex) {
-                // 单个来源加载失败不影响其他来源
+            } catch (Exception ex) when (s.Source != SettingSource.FlagSettings) {
+                // 非显式来源单源加载失败不影响其他来源；--settings 是用户显式指定的安全来源，必须 fail-fast
                 logger?.LogWarning(ex, "Failed to load settings from source");
             }
             return (s.Source, result);
@@ -246,11 +246,43 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 加载 CLI 标志设置: --settings 参数指定的路径
+    /// 加载 CLI 标志设置 — <c>--settings</c> 支持文件路径或内联 JSON（对齐基准）。
+    /// <para>显式来源必须 fail-fast：文件不存在、内联 JSON 非法、文件解析失败都抛 <see cref="ConfigurationException"/>，
+    /// 避免策略锁因拼写错误静默失效（基准 main.tsx 对 --settings 同样启动报错退出）。</para>
     /// </summary>
-    public static async Task<SettingsJson?> LoadFlagSettingsAsync(IFileSystem fs, string? flagSettingsPath, CancellationToken cancellationToken = default, ILogger? logger = null) {
-        if (string.IsNullOrEmpty(flagSettingsPath)) return null;
-        return await LoadSettingsFileAsync(fs, flagSettingsPath, cancellationToken, logger).ConfigureAwait(false);
+    /// <param name="fs">文件系统。</param>
+    /// <param name="flagSettingsSource">文件路径或内联 JSON；空值返回 null。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <param name="logger">可选日志。</param>
+    /// <returns>解析后的设置；来源为空返回 null。</returns>
+    public static async Task<SettingsJson?> LoadFlagSettingsAsync(
+        IFileSystem fs,
+        string? flagSettingsSource,
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null) {
+        if (string.IsNullOrWhiteSpace(flagSettingsSource)) return null;
+
+        var source = flagSettingsSource.Trim();
+        if (source.StartsWith('{')) {
+            try {
+                var parsed = RelaxedJsonSerializer.Deserialize(source, ConfigJsonContext.Default.SettingsJson);
+                return parsed ?? throw new ConfigurationException("Invalid JSON provided to --settings");
+            } catch (ConfigurationException) {
+                throw;
+            } catch (Exception ex) {
+                throw new ConfigurationException($"Invalid JSON provided to --settings: {ex.Message}", ex);
+            }
+        }
+
+        if (!fs.FileExists(source)) {
+            throw new ConfigurationException($"Settings file not found for --settings: {source}");
+        }
+
+        var result = await LoadSettingsFileAsync(fs, source, cancellationToken, logger).ConfigureAwait(false);
+        if (result is null) {
+            throw new ConfigurationException($"Failed to parse settings file for --settings: {source}");
+        }
+        return result;
     }
 
     /// <summary>

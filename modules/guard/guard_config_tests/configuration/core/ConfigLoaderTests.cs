@@ -121,6 +121,46 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
+    public async Task LoadConfig_FlagSettingsFile_AppliesPolicyLock() {
+        var flagPath = Path.Combine(_tempAppDataDir, "flag-settings.json");
+        _ = _fs.WriteAllText(flagPath, """
+        {"current":{"sandbox":{"enabled":true}}}
+        """);
+        Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, "sk-test-flag-policy");
+
+        var config = await _loader.LoadConfigAsync(_fs, flagSettingsSource: flagPath).ConfigureAwait(true);
+
+        config.Sandbox.Enabled.Should().BeTrue("flagSettings 参与 5 源合并");
+        config.SandboxPolicy.Locked.Should().BeTrue("flagSettings 显式定义 enabled，必须锁本地 /sandbox 修改");
+        config.SandboxPolicy.LockedKeys.Should().Equal([SandboxPolicyResolver.KeyEnabled]);
+    }
+
+    [Fact]
+    public async Task LoadConfig_FlagSettingsInlineJson_AppliesPolicyLock() {
+        Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, "sk-test-flag-policy");
+
+        var config = await _loader.LoadConfigAsync(
+            _fs,
+            flagSettingsSource: """{"current":{"sandbox":{"enabled":false}}}""").ConfigureAwait(true);
+
+        config.SandboxPolicy.Locked.Should().BeTrue("内联 flag JSON 与文件形式必须同语义");
+        config.SandboxPolicy.LockedKeys.Should().Equal([SandboxPolicyResolver.KeyEnabled]);
+    }
+
+    [Fact]
+    public async Task ApplySandboxConfig_FlagSettings_AppliesPolicyLockForHubPath() {
+        var flagPath = Path.Combine(_tempAppDataDir, "hub-flag-settings.json");
+        _ = _fs.WriteAllText(flagPath, """{"current":{"sandbox":{"enabled":true}}}""");
+
+        var config = await ConfigLoader.ApplySandboxConfigAsync(
+            new WorkflowConfig(), _fs, flagPath).ConfigureAwait(true);
+
+        config.Sandbox.Enabled.Should().BeTrue("Hub 模式也必须消费 flag settings");
+        config.SandboxPolicy.Locked.Should().BeTrue();
+        config.SandboxPolicy.LockedKeys.Should().Equal([SandboxPolicyResolver.KeyEnabled]);
+    }
+
+    [Fact]
     public async Task LoadConfig_DebugLogAbsentOrFalse_DiagUnchanged() {
         Diag.ResetRuntimeDebugLogForTest();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, "sk-test-debuglog-key");

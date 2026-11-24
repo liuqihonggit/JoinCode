@@ -69,6 +69,7 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkRateLimitEventMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkRateLimitInfo))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkLocalCommandOutputMessage))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(SdkHookSystemMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkFilesPersistedMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkPersistedFile))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkFailedFile))]

@@ -553,9 +553,33 @@ public sealed record SdkRateLimitInfo {
     public string? RateLimitType { get; init; }
 }
 
-/// <summary>本地命令输出消息 — 对齐基准侧 system/local_command_output 事件</summary>
-public sealed record SdkLocalCommandOutputMessage : SdkMessageBase {
+/// <summary>
+/// Hook 系统旁白消息 — 语义对齐基准侧 attachment <c>hook_system_message</c>。
+/// <para>SDK 协议没有 attachment 通道，但 NDJSON 消费方仍需要一个可辨识的 <c>system</c> 子类型；
+/// 这里用 <c>system/hook_system_message</c> 承载 <c>content</c>，字段名与基准 attachment 一致。</para>
+/// </summary>
+public sealed record SdkHookSystemMessage : SdkMessageBase {
     /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型 — 对齐基准 attachment 类型 <c>hook_system_message</c></summary>
+    public string Subtype => "hook_system_message";
+    /// <summary>旁白文本 — 对齐基准 attachment 的 content</summary>
+    public string Content { get; init; } = string.Empty;
+    /// <summary>Hook 名称 — 本仓 <c>IEventConsumer.OnSystemNotice</c> 当前不携带，保留 null 不写</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_name")]
+    public string? HookName { get; init; }
+    /// <summary>Hook 事件 — 同上，保留 null 不写</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_event")]
+    public string? HookEvent { get; init; }
+    /// <summary>关联工具调用标识 — 同上，保留 null 不写</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("tool_use_id")]
+    public string? ToolUseId { get; init; }
+    /// <summary>创建带默认 Uuid 的 Hook 系统旁白消息实例</summary>
+    public static SdkHookSystemMessage Create(string? sessionId, string content) => new() { Uuid = NewUuid(), SessionId = sessionId, Content = content };
+}
+
+/// <summary>本地命令输出消息 — 对齐基准侧 system/local_command_output 事件</summary>
+public sealed record SdkLocalCommandOutputMessage : SdkMessageBase {    /// <summary>消息类型</summary>
     public string Type => "system";
     /// <summary>消息子类型</summary>
     public string Subtype => "local_command_output";

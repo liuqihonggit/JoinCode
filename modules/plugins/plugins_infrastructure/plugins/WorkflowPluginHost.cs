@@ -152,10 +152,7 @@ public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost {
 
             var result = await _plugin.UnloadAsync().ConfigureAwait(false);
 
-            if (_pluginServiceProvider is IDisposable disposable) {
-                disposable.Dispose();
-                _pluginServiceProvider = null;
-            }
+            await DisposePluginServicesAsync().ConfigureAwait(false);
 
             _logger?.LogInformation("工作流插件 {PluginName} 卸载完成", _plugin.Name);
             return result;
@@ -182,6 +179,25 @@ public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost {
             throw new InvalidOperationException(PluginErrors.ServiceContainerNotBuilt(_plugin.Name));
         }
         return _pluginServiceProvider.GetRequiredService<T>();
+    }
+
+    /// <summary>
+    /// 异步释放插件服务容器 — 容器内有仅实现 <c>IAsyncDisposable</c> 的服务（如 DreamFeature）时，
+    /// 同步 <c>ServiceProvider.Dispose()</c> 会抛 <c>InvalidOperationException</c>，卸载因此失败。
+    /// </summary>
+    private async ValueTask DisposePluginServicesAsync() {
+        if (_pluginServiceProvider is IAsyncDisposable asyncProvider) {
+            await asyncProvider.DisposeAsync().ConfigureAwait(false);
+        } else {
+            _pluginServiceProvider?.Dispose();
+        }
+        _pluginServiceProvider = null;
+    }
+
+    /// <inheritdoc />
+    public override async ValueTask DisposeAsync() {
+        await DisposePluginServicesAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 
     /// <summary>

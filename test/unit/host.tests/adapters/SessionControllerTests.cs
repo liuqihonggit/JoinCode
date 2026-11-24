@@ -85,6 +85,25 @@ public sealed class SessionControllerTests {
         Assert.DoesNotContain("hook:", Assert.Single(consumer.TextEvents));
     }
 
+    /// <summary>TASK135 — 回合内任意 hook 的 systemMessage 经旁白通道直达消费者；
+    /// 回合结束后同一上下文再发布应被丢弃（捕获已释放）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_HookSystemMessage_DeliveredOnlyDuringTurn() {
+        var consumer = new RecordingEventConsumer();
+        var chatService = CreateHookPublishingChatService("来自 PreToolUse 的旁白");
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal("来自 PreToolUse 的旁白", Assert.Single(consumer.SystemNotices));
+        Assert.Equal("ok", result.Response);
+        Assert.False(
+            global::Core.Hooks.HookSystemMessageChannel.Publish(
+                HookEvent.Stop, "回合外的旁白"),
+            "回合捕获释放后不应再投递");
+        Assert.Single(consumer.SystemNotices);
+    }
+
     [Fact]
     public async Task StreamResponseAsync_Thinking_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
@@ -874,6 +893,24 @@ public sealed class SessionControllerTests {
         mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
             .Returns((string input, CancellationToken ct, IEventConsumer? _) => EmitEventsAsync(events, ct));
         return mock.Object;
+    }
+
+    /// <summary>TASK135 — 流枚举中途发布 hook 旁白，模拟工具链 hook 在本回合内产出 systemMessage。</summary>
+    private static IChatService CreateHookPublishingChatService(string message) {
+        var mock = new Mock<IChatService>();
+        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
+            .Returns((string _, CancellationToken ct, IEventConsumer? __) => PublishHookNoticeThenEmitAsync(message, ct));
+        return mock.Object;
+    }
+
+    private static async IAsyncEnumerable<ChatStreamEvent> PublishHookNoticeThenEmitAsync(
+        string message,
+        [EnumeratorCancellation] CancellationToken ct) {
+        global::Core.Hooks.HookSystemMessageChannel.Publish(HookEvent.PreToolUse, message)
+            .Should().BeTrue("回合捕获应处于激活状态");
+        ct.ThrowIfCancellationRequested();
+        yield return ChatStreamEvent.Text("ok");
+        yield return ChatStreamEvent.Done();
     }
 
     private static IChatService CreateMockChatService(Func<string, Exception> throwFunc, int delayMs = 0) {

@@ -46,9 +46,9 @@ public static class DataDrivenPipelineComposition {
     private static JoinCode.Dream.AutoDreamTrigger? ResolveAutoDreamTrigger(IServiceProvider sp) {
         // 解析本身也要进 try：「没注册」由 GetService 返回 null，但「注册了却激活失败」是抛出来的。
         try {
-            var config = sp.GetService<JoinCode.Dream.AutoDreamConfig>();
-            var feature = sp.GetService<JoinCode.Dream.IDreamFeature>();
-            var scanner = sp.GetService<JoinCode.Dream.Services.ISessionScanner>();
+            var config = ResolveDreamService<JoinCode.Dream.AutoDreamConfig>(sp);
+            var feature = ResolveDreamService<JoinCode.Dream.IDreamFeature>(sp);
+            var scanner = ResolveDreamService<JoinCode.Dream.Services.ISessionScanner>(sp);
             if (config is null || feature is null || scanner is null) {
                 return null;
             }
@@ -57,12 +57,46 @@ public static class DataDrivenPipelineComposition {
                 feature,
                 scanner,
                 config,
-                @lock: sp.GetService<JoinCode.Dream.Services.ConsolidationLock>(),
+                @lock: ResolveDreamService<JoinCode.Dream.Services.ConsolidationLock>(sp),
                 logger: sp.GetService<ILogger<JoinCode.Dream.AutoDreamTrigger>>());
         } catch (Exception ex) {
             Diag.WriteLine($"[DREAM-AUTO] hook disabled: {ex.GetType().Name}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// 解析 Dream 服务 —— 先查主容器，再降级到插件宿主自己的容器。
+    /// </summary>
+    /// <remarks>
+    /// Dream 插件由 <c>McpInitModule</c> 后台加载，<c>DreamPlugin.LoadAsync</c> 的服务注册进
+    /// <c>WorkflowPluginHost</c> 的**独立** <c>ServiceProvider</c>（<c>_pluginServices.BuildServiceProvider()</c>），
+    /// 主容器构建完成后无法再看见它们。真机 <c>jcc -p</c> 实测：<c>[CAPS-PLUGIN] dream=load</c>，
+    /// 但本方法每次 <c>GetService</c> 都拿 null，钩子永久停在「等待注册」，自动整合从不触发。
+    /// 因此主容器取不到时必须回落到 <c>IPluginManager.GetWorkflowPlugin("Dream")</c> 的插件容器。
+    /// </remarks>
+    private static T? ResolveDreamService<T>(IServiceProvider sp) where T : class {
+        var direct = sp.GetService<T>();
+        if (direct is not null) {
+            return direct;
+        }
+
+        var manager = sp.GetService<Core.Plugins.IPluginManager>();
+        if (manager is null) {
+            Diag.WriteLine($"[DREAM-AUTO] resolve: IPluginManager 缺失（{typeof(T).Name}）");
+            return null;
+        }
+
+        if (manager.GetWorkflowPlugin(JoinCode.Dream.DreamPlugin.PluginName) is null) {
+            Diag.WriteLine($"[DREAM-AUTO] resolve: 插件宿主缺失（{typeof(T).Name}），已加载=[{string.Join(",", manager.LoadedWorkflowPluginNames)}]");
+            return null;
+        }
+
+        var fromPlugin = manager.GetWorkflowPlugin(JoinCode.Dream.DreamPlugin.PluginName)?.GetService<T>();
+        if (fromPlugin is null) {
+            Diag.WriteLine($"[DREAM-AUTO] resolve: 插件容器内缺失 {typeof(T).Name}");
+        }
+        return fromPlugin;
     }
 
     /// <summary>

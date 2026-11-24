@@ -1,0 +1,89 @@
+# TASK136 — 无人值守批次 TODO（剩余清单收口）
+
+> 状态：**执行中（2026-11-25）** · 基线 `w4` = `b55550b24`（TASK135 已提交待 PR）
+> 用户诉求：睡觉期间一次性推进剩余清单，先 TODO 表再施工，最后统一 PR；不要东读一个西读一个。
+> 范围界定：**不是全系列修复**。只收口 TASK130/131/135 里 AI 可自证的剩余项；TASK128 backlog（SSE / TUI 首帧 / GraphRAG / Pithos / CI 缓存）、TASK071 模型目录等一律不做。
+
+## 1. 已闭合（本批前置）
+
+| 项 | 状态 | 证据 |
+|---|---|---|
+| TASK135 hook 旁白全事件投影 | 已施工、已验收、已推送 | 代码 `c11b9b02b`，证据 `b55550b24`，Guard 643 / Host 1375 / 真机两条 `[HOOK-NOTICE]` |
+
+## 2. TODO 表
+
+| # | 项 | 目标 | 验收 | 状态 |
+|---|---|---|---|---|
+| T1 | TASK131 C1 回合级真机探针 | 用本地 OpenAI MockServer 伪造 vendor（无需真实 key），跑真实 `jcc -p` 回合，打通 `StopHookMiddleware → QueryStopHookManager → AutoDreamStopHook → AutoDreamTrigger`，观察 `[DREAM-AUTO]` 三态 | MockServer 收到 ≥1 次请求；jcc 回合成功；日志出现 `[DREAM-AUTO] fire` 或明确的 `skip: *` 门；无 key、无真实凭据 | ✅ 通过（探针暴露 3 个真实缺陷并修复） |
+| T2 | TASK130 A5 NDJSON/agentMode 旁白投影 | 把 `IEventConsumer.OnSystemNotice` 在 `--agent-mode` 下映射为 SDK `system` 事件，补齐 A5 最后缺口 | 单测锁定 JSON `type/subtype/content`；真机 `jcc -p --agent-mode` 输出该事件；交互模式 dim 行不回归 | ✅ 通过（`--format ndjson`；`system/hook_system_message`） |
+| T3 | B1 双终端矩阵（可自动部分） | 真实 WT / conhost 窗口，AI 驱动可自动键位采样；IME/鼠标/系统粘贴等不可自动项**如实记未测** | `TASK129 §3.4` 两窗判定卡回填；不可自动项明确标未测，不用探针冒充 | ⚠️ 部分完成（WT 53 事件 + 完整 `probe.txt`；conhost 83 事件但无可读 `probe.txt`；判定卡待人工） |
+| T4 | 批次收尾 | 台账回写、全仓编译、统一 PR、守 CI 到绿 | `Build-AllDomains` 全绿；PR 合并/或明确失败原因 | 待施工 |
+
+## 3. 决策与边界
+
+- **T1 不伪造 key**：MockServer 是仓库既有 E2E 假 LLM；`JCC_ENDPOINT + JCC_ALLOW_DIRECT_FALLBACK=1` 显式绕过 Hub。这是真实进程级回合，不是单测替代。
+- **T2 协议不臆造**：优先对齐既有 SDK `system/<subtype>` 形态；若找不到基准对应消息，则只补本仓已文档化的 subtype，并在文档登记与基准的差异。
+- **T3 不冒充人工**：能由 AI 在真实窗口驱动的按键才算；不能自动的项宁写「未测」。
+- **统一 PR**：本批所有 commit 完成后一次 PR；PR 前不再单独征询（用户已明确授权本批）。
+
+## 4. 施工顺序
+
+T1（闭合外部条件阻塞项）→ T2（同域收口）→ T3（真实终端 best effort）→ T4（台账 + 编译 + PR）。
+
+## 5. T1 探针结果（2026-11-25）
+
+**环境**：本地 `JoinCode.OpenAI.MockServer`（`scripted_turns`：`bash sleep 3` + follow-up 文本），隔离 AppData `.xxx\t136-home`，`JCC_ALLOW_DIRECT_FALLBACK=1` + `JCC_ENDPOINT=http://localhost:51169`，无真实 key。MockServer 共收到 7 次 `/chat/completions`（Request #0–#6）。
+
+**探针依次暴露 3 个真实缺陷（均已修复并锁定）**：
+
+| # | 缺陷 | 根因 | 修复 |
+|---|---|---|---|
+| A | `[DREAM-AUTO] hook waiting` 永久停留 | Dream 服务注册在 `WorkflowPluginHost` 的独立 `ServiceProvider`，主容器 `sp.GetService` 恒 null | 主容器取不到时回落 `IPluginManager.GetWorkflowPlugin("Dream")` 的插件容器（`DataDrivenPipelineComposition.ResolveDreamService`） |
+| B | 插件容器内 `IDreamFeature` / `ISessionScanner` 缺失 | `AddDreamPluginServices` 只注册 `AutoDreamConfig`；`[Register]` 生成器方法无人调用 | 在 `AddDreamPluginServices` 补齐 Dream 运行时最小集（fs / chat completion / scanner / persistence / registry / lock / feature） |
+| C | 卸载 Dream 插件抛 `InvalidOperationException: ... Use DisposeAsync` | `WorkflowPluginHost.UnloadAsync` 对含 `IAsyncDisposable` 服务的容器调用同步 `Dispose()` | 新增 `DisposePluginServicesAsync()`，`UnloadAsync` 与 `DisposeAsync` 均走异步释放 |
+
+**真机证据**：
+
+- 修复 C 后第一次运行：`[DREAM-AUTO] fire sessions=10 prior=0`（`t136-c1-run7.txt`）。
+- 紧接着第二次运行：`[DREAM-AUTO] skip: time-gate 0.1h < 24h`（`t136-c1-run8.txt`）—— 证明首次 fire 真的写了 consolidation 锁，时间门随后生效；两轮均 `EXIT=0`，无卸载异常。
+- 红→绿：Pipelines 新增 `PluginHostContainer_ResolvesDreamAndFires` 修复前 5s 超时，修复后通过；Dream 新增 `DreamPlugin_LoadAsync_RegistersSessionScannerInPluginContainer` 修复前缺 scanner；Plugins 新增 `UnloadAsync_PluginContainerHasAsyncOnlyService_DisposesAsynchronously` 修复前 5s 超时。
+- 回归：`Pipelines.Tests` 81/81、`Dream.Tests` 213/213；`Plugins.Tests` 193 通过，5 个 `NativePluginHostE2ETests` 因本机未发布 native DLL 抛 `SkipException`（既有环境项，与本次改动无关）。
+
+## 6. T2 结果（2026-11-25）
+
+**协议取舍**：基准侧 `hook_system_message` 是 attachment，不在 `system` 事件里；本仓 NDJSON 没有 attachment 通道。为让 SDK 消费方可辨识且不臆造无关字段，投影为 `type=system, subtype=hook_system_message, content=<message>`，`hook_name/hook_event/tool_use_id` 当前 `OnSystemNotice(string)` 不携带，保持 null（`WhenWritingNull` 不输出）。
+
+**落点**：`SdkMessage.cs` 新增 `SdkHookSystemMessage`；`CliOutputJsonContext` 注册类型；`CliEventConsumer.OnSystemNotice` 在 `_agentMode` 下 `EnsureSystemInit` + `WriteSdkJson`，交互模式 dim 行原样保留。
+
+**验收**：
+
+- 单测 `CliEventConsumerSystemNoticeTests` 3/3：agentMode JSON 的 `type/subtype/content/session_id`、空旁白零输出、交互模式不输出 JSON 且保留 dim 行。
+- 真机 `jcc -p "T136 T2 NDJSON 旁白" --format ndjson`（`t136-home` + `trusted_folders.json` + `scripted_turns` MockServer）：两条 `{"type":"system","subtype":"hook_system_message","content":"T135-TOP-LEVEL-NOTICE"}` / `"...T135-NESTED-NOTICE..."`，`EXIT=0`（证据 `.xxx/logs/t136-t2-agent.out.jsonl`）。
+- 命令名更正：当前 CLI 没有 `--agent-mode`，NDJSON 模式是 `--format ndjson`（`jcc -h options` 可见）。
+- 注意：未信任工作区时 hook 会被 trust 门禁静默跳过（TASK135 已记录），探针目录需先写 `trusted_folders.json`。
+
+## 7. T3 结果（2026-11-25，部分完成）
+
+**产物基线**：本轮 Debug `jcc.exe` 实测 SHA-256 = `3305FB99E73CEA2044D24DD7B58FFB917B42C37BB7DBAD01C32709DD56C94787`（TASK129 §3.0 的 `1E2D021C...` 是旧构建，不再作为基线）。两窗登记文件均记录同一 hash。
+
+**WT 窗口（完整）**：
+
+- 开窗方式：`wt.exe -w new -d D:\project\w4 powershell.exe -NoProfile -File .xxx\b1\run-wt.ps1`；`window.txt` 记录 `wt_session=[40cbbfb4-496e-4b5a-a60b-45087d5f9040]`，宿主 `powershell.exe`。
+- 采样：`--probe-terminal-input` 共 53 个事件，`probe.txt` 含开头 `[terminal-input] wt-host=False wt-session=True mouse=True cols=120 rows=30` 与结束 `采样结束，已记录 53 个事件`。
+- 已自动驱动：ASCII/中文（`U+4E2D` 等）、四方向、Tab/BackTab、Return、Ctrl+A/C、Esc、Home/End/PgUp/PgDn、F1–F12、四行中文粘贴（`Paste ... chars=23`）、左键按下/释放 + 拖动（release `col=148 row=29`）、滚轮、Alt-Tab 切出再切回（回切后连续 `Char U+006F/0063/0075...`）、F11 触发宿主全屏 + `[resize] cols=209 rows=56`。
+- 证据：`.xxx\logs\b1\wt\probe.txt`、`probe-keys.png`、`probe-mouse.png`、`probe-focus.png`、`probe-end.png`。
+
+**conhost 窗口（部分）**：
+
+- 开窗方式：`Start-Process powershell.exe -NoProfile -File .xxx\b1\run-conhost.ps1`（`conhost.exe powershell.exe` 直接启动不产生可用窗口，已放弃该入口）；`window.txt` 记录 `wt_session=[]`，宿主 `powershell.exe`；hash 同上。
+- 采样：`--probe-terminal-input` 结束行 `已记录 83 个事件`，截图含 `[resize] cols=190 rows=63`、鼠标按下/拖动/滚轮事件；但 `probe.txt` 未能取得（进程在尝试用 Win32 `AttachConsole` 读取缓冲区前已退出，两次 dump 均失败：`ATTACH_FAIL:87` / `ATTACH_FAIL:6`；UIA TextPattern 对 `ConsoleWindowClass` 返回“不支持的模式”）。失败 dump 已归档为 `probe-dump-failed.txt` / `probe-dump-test-failed.txt` 以免误认为有效 `probe.txt`。
+- 证据：`.xxx\logs\b1\conhost\probe-keys.png`、`probe-end.png`、`window.txt`、`exe-sha256.txt`。
+- 结论：**不能据此判定矩阵通过**；`§3.4` 判定卡保留给人工，conhost 行按“未测/待补采样”处理。
+
+**未自动项（如实记未测）**：真实中文 IME 候选选择（当前用 `cu.type` 走的是 Unicode 文本注入，不等于 IME 上屏）、真实鼠标滚轮/拖拽在 REPL 中的编辑行为、系统级 Ctrl+V 与终端 Bracketed paste 的差异、生产 REPL 内 `/help` 等本地命令行为、忙时焦点切换的真实模型回合（本轮只测了探针层面的 Alt-Tab）。这些均未用探针输出冒充“应用已消费”。
+
+<!-- 🤖 Auto Decision: 2026-11-25 -->
+<!-- 决策: 批次只做 TASK130/131/135 剩余，不扩散到 TASK128 backlog/历史全系列 -->
+<!-- 原因: 用户质问“你是在做全系列修复吗”，并明确害怕 AI 忘记剩余任务而不是要扫全部历史 -->
+<!-- 替代方案: 从 TASK103 总账捞零散项（范围失控，已否定） -->
+<!-- 验证: T1/T2 已通过并推送；T3 部分完成（WT 完整、conhost 缺 probe.txt）；T4 收尾中 -->

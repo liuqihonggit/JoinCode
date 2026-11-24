@@ -203,8 +203,17 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
         };
 
         var node = JsonNode.Parse(jsonLine);
-        if (node?["hookSpecificOutput"] is JsonObject specificOutputObj) {
-            result = ParseHookSpecificOutput(specificOutputObj, result);
+        if (node is JsonObject rootObject) {
+            // TASK135 — 顶层 systemMessage（官方文档示例 {"systemMessage":"..."} 形态）。
+            // 此前只读 hookSpecificOutput，导致这类 hook 的输出被静默丢弃（对齐基准 hooks.ts:545-547）。
+            if (TryGetString(rootObject, "systemMessage") is { Length: > 0 } topLevelSystemMessage) {
+                result = result with { SystemMessage = topLevelSystemMessage };
+            }
+
+            // 嵌套形态优先于顶层：两处同时出现时以 hookSpecificOutput 为准。
+            if (rootObject["hookSpecificOutput"] is JsonObject specificOutputObj) {
+                result = ParseHookSpecificOutput(specificOutputObj, result);
+            }
         }
 
         return result;

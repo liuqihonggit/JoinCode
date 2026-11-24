@@ -101,9 +101,8 @@
 | 真机冒烟 | `JCC_DEBUGLOG=1 jcc -p hi` → 16 条 `[ORDER] middleware`，照常打到模型 401（无 key），无新崩溃 |
 
 **仍缺（如实登记，未做）**
-- 其余 hook 事件（PreToolUse/PostToolUse/Stop/SessionStart…）的 `systemMessage` 仍未投影 —— 本轮只接
-  `UserPromptSubmit`（唯一每回合都跑、用户最常写 notice 的事件）。要做需在 `HookOrchestrator` 统一出口加 sink，另立项。
-- NDJSON/agentMode 无投影（协议缺 attachment 类型）。
+- ~~其余 hook 事件（PreToolUse/PostToolUse/Stop/SessionStart…）的 `systemMessage` 仍未投影~~ — **已由 TASK135 闭合**（统一旁白通道 + 顶层 `systemMessage` 解析；Guard 643/643、Host 1375/1375、真机两条 `[HOOK-NOTICE]`）。
+- ~~NDJSON/agentMode 无投影（协议缺 attachment 类型）~~ — **已由 TASK136 T2 闭合**：`--format ndjson` 投影为 `system/hook_system_message`（`content` 对齐基准 attachment；`hook_name/hook_event/tool_use_id` 当前通道不携带，保持 null 不写）；真机两条旁白 JSON 见 `.xxx/logs/t136-t2-agent.out.jsonl`。
 - **新发现 A6**：`SessionStartHookResult.AdditionalConfig` **零读取** —— `SessionStartHookManager` 把
   `additionalContext` / `initialUserMessage` 聚合进这个字典，但全仓没有任何消费方读取它
   （`grep "AdditionalConfig"` 只有定义与写入两处）。TASK130 早前把「写入」误记成「有消费点」。

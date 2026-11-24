@@ -179,6 +179,70 @@ public sealed class AutoDreamStopHookTests {
     }
 
     /// <summary>
+    /// 真机容器形态：Dream 服务在**插件自己的容器**里（<c>WorkflowPluginHost</c>），主容器拿不到。
+    /// 这正是 TASK136 C1 真机探针暴露的差异 —— 既有用例都把 Dream 服务塞进主容器，
+    /// 「每段单测绿、拼起来却不触发」的缝就一直没被覆盖。钩子必须能从插件宿主取到服务。
+    /// </summary>
+    [Fact]
+    public async Task PluginHostContainer_ResolvesDreamAndFires() {
+        var fired = new TaskCompletionSource();
+        var dream = new Mock<JoinCode.Dream.IDreamFeature>();
+        dream.Setup(d => d.ExecuteAsync(It.IsAny<JoinCode.Dream.DreamRequest>(), It.IsAny<CancellationToken>()))
+            .Returns((JoinCode.Dream.DreamRequest request, CancellationToken token) => {
+                fired.TrySetResult();
+                return Task.FromResult(JoinCode.Dream.DreamResult.Success("ok", "task-1", 1, 5));
+            });
+        var scanner = new Mock<JoinCode.Dream.Services.ISessionScanner>();
+        scanner.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["s1"]);
+        var config = new JoinCode.Dream.AutoDreamConfig { MinHours = 0, MinSessions = 1, ProjectDir = "/proj-plugin-host" };
+
+        await using var host = new WorkflowPluginHost(new ConfiguringPlugin("Dream", services => {
+            services.AddSingleton(config);
+            services.AddSingleton(new JoinCode.Dream.Services.ConsolidationLock(
+                config, new Testing.Common.Services.InMemoryFileSystem()));
+            services.AddSingleton(scanner.Object);
+            services.AddSingleton(dream.Object);
+        }));
+        (await host.LoadAsync().ConfigureAwait(true)).Success.Should().BeTrue();
+
+        var manager = new Mock<IPluginManager>();
+        manager.Setup(m => m.GetWorkflowPlugin("Dream")).Returns(host);
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(manager.Object);
+        services.RegisterBaseMiddlewareServices();
+
+        await using var sp = services.BuildServiceProvider();
+        var hook = sp.GetServices<Core.Query.StopHooks.IQueryStopHook>().Single();
+
+        var result = await hook.OnStopAsync(Context(), CancellationToken.None).ConfigureAwait(true);
+        result.ShouldStop.Should().BeFalse();
+        await fired.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
+    }
+
+    /// <summary>测试用工作流插件 — 把服务注册进插件宿主自己的容器（模拟 DreamPlugin.LoadAsync）。</summary>
+    private sealed class ConfiguringPlugin(string name, Action<IServiceCollection> configure) : IWorkflowPlugin {
+        public string Name => name;
+        /// <summary>插件版本。</summary>
+        public string Version => "1.0.0";
+        /// <summary>插件描述。</summary>
+        public string Description => "test";
+        /// <summary>注册服务。</summary>
+        public Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default) {
+            ctx.ConfigureServices(configure);
+            return Task.FromResult(OperationResult.Ok());
+        }
+        /// <summary>初始化。</summary>
+        public Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
+            => Task.FromResult(OperationResult.Ok());
+        /// <summary>卸载。</summary>
+        public Task<PluginUnloadResult> UnloadAsync()
+            => Task.FromResult(PluginUnloadResult.Success(name, TimeSpan.Zero));
+    }
+
+    /// <summary>
     /// 装配级串通：注册 → DI → <c>QueryStopHookManager</c>（构造期收集）→ 钩子 → 触发器 → 执行体。
     /// 这条用例补的是「每一段单测都绿、拼起来却不通」的缝（TASK100 §25 的老问题）。
     /// </summary>

@@ -303,4 +303,120 @@ public class HookOrchestratorTests {
 
         hookExecuted.Should().BeTrue("无 trustManager 应正常执行 hooks（向后兼容）");
     }
+
+    /// <summary>TASK135 — PreToolUse 的 systemMessage 经统一出口进入当前回合旁白捕获。</summary>
+    [Fact]
+    public async Task ExecuteHooksAsync_PreToolUseSystemMessage_PublishesToCapture() {
+        _sessionManagerMock
+            .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FunctionHook> {
+                new() {
+                    Id = "notice-hook",
+                    Callback = (_, _) => Task.FromResult(new HookResult {
+                        Outcome = HookOutcome.Success,
+                        SystemMessage = "工具前旁白"
+                    })
+                }
+            });
+
+        var messages = new List<string>();
+        using var capture = HookSystemMessageChannel.BeginCapture(messages.Add);
+
+        var input = new HookInput {
+            Event = HookEvent.PreToolUse,
+            ToolName = ShellToolNameEnumConstants.Bash,
+            SessionId = "test-session",
+            Payload = new Dictionary<string, JsonElement>()
+        };
+        await _orchestrator.ExecuteHooksAsync(input).ToListAsync().ConfigureAwait(true);
+
+        messages.Should().ContainSingle().Which.Should().Be("工具前旁白");
+    }
+
+    /// <summary>TASK135 — 空白 systemMessage 不投递。</summary>
+    [Fact]
+    public async Task ExecuteHooksAsync_BlankSystemMessage_DoesNotPublish() {
+        _sessionManagerMock
+            .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FunctionHook> {
+                new() {
+                    Id = "blank-hook",
+                    Callback = (_, _) => Task.FromResult(new HookResult {
+                        Outcome = HookOutcome.Success,
+                        SystemMessage = "   "
+                    })
+                }
+            });
+
+        var messages = new List<string>();
+        using var capture = HookSystemMessageChannel.BeginCapture(messages.Add);
+
+        var input = new HookInput {
+            Event = HookEvent.PostToolUse,
+            ToolName = ShellToolNameEnumConstants.Bash,
+            SessionId = "test-session",
+            Payload = new Dictionary<string, JsonElement>()
+        };
+        await _orchestrator.ExecuteHooksAsync(input).ToListAsync().ConfigureAwait(true);
+
+        messages.Should().BeEmpty();
+    }
+
+    /// <summary>TASK135 — UserPromptSubmit 由既有两条出口处理，编排器不得再投递（防重复上屏）。</summary>
+    [Fact]
+    public async Task ExecuteHooksAsync_UserPromptSubmitSystemMessage_IsNotPublished() {
+        _sessionManagerMock
+            .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FunctionHook> {
+                new() {
+                    Id = "prompt-hook",
+                    Callback = (_, _) => Task.FromResult(new HookResult {
+                        Outcome = HookOutcome.Success,
+                        SystemMessage = "不应重复"
+                    })
+                }
+            });
+
+        var messages = new List<string>();
+        using var capture = HookSystemMessageChannel.BeginCapture(messages.Add);
+
+        var input = new HookInput {
+            Event = HookEvent.UserPromptSubmit,
+            SessionId = "test-session",
+            Payload = new Dictionary<string, JsonElement>()
+        };
+        await _orchestrator.ExecuteHooksAsync(input).ToListAsync().ConfigureAwait(true);
+
+        messages.Should().BeEmpty();
+    }
+
+    /// <summary>TASK135 — 阻塞结果也先投递旁白再 break（对齐基准 blocking 仍产出 systemMessage）。</summary>
+    [Fact]
+    public async Task ExecuteHooksAsync_BlockingWithSystemMessage_PublishesBeforeBreak() {
+        _sessionManagerMock
+            .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FunctionHook> {
+                new() {
+                    Id = "blocking-hook",
+                    Callback = (_, _) => Task.FromResult(new HookResult {
+                        Outcome = HookOutcome.Blocking,
+                        PreventContinuation = true,
+                        SystemMessage = "被拦截也要提示"
+                    })
+                }
+            });
+
+        var messages = new List<string>();
+        using var capture = HookSystemMessageChannel.BeginCapture(messages.Add);
+
+        var input = new HookInput {
+            Event = HookEvent.PreToolUse,
+            ToolName = ShellToolNameEnumConstants.Bash,
+            SessionId = "test-session",
+            Payload = new Dictionary<string, JsonElement>()
+        };
+        await _orchestrator.ExecuteHooksAsync(input).ToListAsync().ConfigureAwait(true);
+
+        messages.Should().ContainSingle().Which.Should().Be("被拦截也要提示");
+    }
 }

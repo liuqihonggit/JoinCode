@@ -10,7 +10,7 @@
 
 | 类 | 含义 | 项 |
 |---|---|---|
-| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**新发现，未修**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**新发现，未修**） |
+| A | 本机可施工、可自证 | A1 M1 用户消息前缀选中色（**核实＝早已实现**，本轮补测试）· A2 D7 `suppressOutput`（**已核实＝不适用**）· A3 斜杠命令取参审计 · A4 flag settings 策略锁 · A5 hook `systemMessage`（**已施工**）· A6 SessionStart `additionalContext` 零消费（**已施工 + 真机端到端**）· A7 HTTP hook 不解析 `hookSpecificOutput`（**新发现，未修**）· A8 chatinit 其余节点主链零执行（**新发现，未闭合**）· A9 hook 配置 `$hook_type` 与基准 `type` 不一致且静默 0 条（**已施工**） |
 | B | 只能人工 / 需外部条件 | B1 #52 双终端矩阵、B2 #51 Ctrl+B、B3 macOS Seatbelt |
 | C | 需凭据或 MockServer 才能跑完 | C1 #40 回合级真机探针、C2 #53 低限额进程级 |
 | D | 台账自身错误，需纠正 | D1「#15 待施工」已过期、D2 #53 表格行未划线、D3 D7 与总账 §3 矛盾 |
@@ -194,15 +194,26 @@
 
 ---
 
-### A9. 用户侧 hook 配置格式与基准不一致（`$hook_type` vs `type`），且错写时**静默 0 条**（本轮新发现，未修）
+### A9. 用户侧 hook 配置格式与基准不一致（`$hook_type` vs `type`），且错写时**静默 0 条**（**已施工**）
 
 **证据**：`HookCommand` 的多态判别名是 `$hook_type`（`HookCommand.cs:6`），而基准/官方文档写 `"type": "command"`。
 按官方格式写配置 → `JsonFileHookConfigurationProvider.LoadHooksAsync` 反序列化失败 → 该来源 **0 条**，
 且没有任何 warning（异常被 `catch` 后只 `LogError` 进日志文件，CLI 侧完全无感）。本轮真机第一次冒烟就踩了：
 `hooks found config=0`，排查了三轮才发现是判别名不同。
 
-**建议修法**（未做，避免与 A6 混改）：接受 `type` 作为 `$hook_type` 的别名（自定义 `JsonConverter` 或读取前的键重写），
-并在「某来源有 `hooks` 键但解析出 0 条」时**打一条 warning**（静默 0 条是最难查的失败形态）。
+**落点（已实现）**
+
+| 环节 | 实现 |
+|---|---|
+| 别名接受 | `NormalizeHookTypeDiscriminator(json)` 在反序列化前把每个 hook 对象的 `type` 重写为 `$hook_type`（已有该键则不动，两种写法可混用）。**判别名必须是对象的第一个属性**，所以是「新建 JsonObject 后按原顺序搬字段」而不是就地追加 —— 就地追加 STJ 会抛 `TypeDiscriminatorPropertyName` 位置错误 |
+| 唯一来源 | `JsonFileHookConfigurationProvider.DiscriminatorProperty` 常量 + 单测断言它与 `HookCommand` 上 `JsonPolymorphicAttribute.TypeDiscriminatorPropertyName` 一致（防两处漂移） |
+| 静默失败告警 | 先算 `declaredCount`（配置里声明的 hook 条数），解析完成若 `declaredCount > 0 && hooks.Count == 0` → `LogWarning` 明示「声明了 N 条但一条也没解析成功」 |
+| 非法 JSON | `NormalizeHookTypeDiscriminator` 捕获 `JsonException` 后原样返回，仍由原解析路径报错（不吞错） |
+
+**验收**：`LoadHooksAsync_基准type写法_解析成功`（`type` → `BashCommandHook`、事件 = SessionStart）、
+`LoadHooksAsync_两种写法混用_各自解析`（2 条）、`DiscriminatorProperty_应与HookCommand多态特性一致`；
+负向验证：把 `normalized = json` 关掉 → 前两条转红，还原后 `Guard.Hooks.Tests` 615/615 绿。
+注意：**改完要重编测试项目**，只编 `Guard.Hooks` 时 `--no-build` 的测试跑的是测试输出目录里那份旧 DLL（会假绿）。
 
 ---
 
@@ -230,6 +241,18 @@ cd /d/project/w2
 grep -rn "GetNormalizedArgs" --include=*.cs modules | grep -v "/obj/" | wc -l   # 46
 grep -rn "GetNormalizedArgs" --include=*.cs modules | grep -v "/obj/"
 ```
+**本轮已测的口径（2026-11-24）**：46 处 = 1 处定义（`IChatCommand.GetNormalizedArgs`）+ 1 处测试引用 +
+**44 个真实调用点**。按「拿到之后怎么用」粗分：
+
+| 用法 | 处数 | 结论 |
+|---|---|---|
+| 继续 `.Split(...)` / `ParseFlags(...)` 做多段解析（Resume/Goal/SandboxToggle/Hooks/Diag） | 5 | **已等价安全**：`GetNormalizedArgs` 的 JSON 分支本来就是「抽值再空格拼回」，与 TUI 手输形态一致 |
+| 整串当单值（Color/Profile/Vendor/Effort/Statusline/Init/Rewind/Tag/Btw/Rename/Compact/Fork…） | 36 | **分两类**：自由文本类（`Btw`/`Rename`/`Compact` 的自定义指令）必须整串 → 保留；单值枚举类只要 `slash_call` 只送一个字段就正常，**只有多字段 JSON 会拼成 `"x true"` 才出错** |
+| 已显式绕开（ModelCommand 注释 + `GetSplitArgs()[0]`、ThinkbackCommand 重复调用） | 2 | 参照实现，可作为 ② 类改法模板 |
+
+**结论（把「46 处隐患」收缩成可判定的一小撮）**：绝大多数调用点**不需要改**。
+真需要逐条判定的是「**同时满足**：有 ≥2 个参数 且 把整串当单值用」的命令（如 `Export`、`Review`、`Install` 这类
+`<子动作> <目标>` 形态）。下一步按此筛选再逐条补 `GetSplitArgs()` 用例，而不是 44 个文件一刀切。
 **逐条判定口径（三分类，写进审计表）**
 - **① 需要整串**（自由文本类，如 `/plan` 的描述、`/memory search` 的查询词）→ 保留；
 - **② 需要单值**（如 `/model <name>`、`/theme <name>`）→ 改 `GetSplitArgs()[0]`，并补用例覆盖

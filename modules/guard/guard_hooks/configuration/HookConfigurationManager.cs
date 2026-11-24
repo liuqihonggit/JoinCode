@@ -316,6 +316,13 @@ public interface IHookConfigurationProvider {
 /// JSON 文件配置提供者
 /// </summary>
 public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvider {
+    /// <summary>
+    /// <see cref="HookCommand"/> 的多态判别属性名（唯一来源是 <c>HookCommand</c> 上的
+    /// <c>JsonPolymorphic(TypeDiscriminatorPropertyName = ...)</c>；此处显式持有是为了能在反序列化前做键重写，
+    /// 由单测断言与特性一致，避免两处漂移）。
+    /// </summary>
+    internal const string DiscriminatorProperty = "$hook_type";
+
     private readonly string _filePath;
     private readonly HookSource _source;
     private readonly IFileSystem _fs;
@@ -349,11 +356,14 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
 
         try {
             var json = await _fs.ReadAllText(_filePath).ConfigureAwait(false);
-            var settings = RelaxedJsonSerializer.Deserialize(json, HooksJsonContext.Default.HookSettingsFile);
+            var normalized = NormalizeHookTypeDiscriminator(json);
+            var settings = RelaxedJsonSerializer.Deserialize(normalized, HooksJsonContext.Default.HookSettingsFile);
 
             if (settings?.Hooks == null) {
                 return hooks;
             }
+
+            var declaredCount = settings.Hooks.Sum(e => e.Value.Sum(m => m.Hooks.Count));
 
             foreach (var eventEntry in settings.Hooks) {
                 var hookEvent = HookEventExtensions.FromValue(eventEntry.Key);
@@ -373,11 +383,71 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
                     }
                 }
             }
+
+            // 静默 0 条是最难查的失败形态（本轮真机踩过：判别名写成基准的 "type" → 整份配置解析成 0 条，
+            // CLI 侧毫无提示）。这里在「声明了 hooks 却一条也解析不出来」时明确告警。
+            if (declaredCount > 0 && hooks.Count == 0) {
+                _logger?.LogWarning(
+                    "Hook 配置 {FilePath} 声明了 {Count} 条 hook，但一条也没解析成功 —— 检查 hookSpecificOutput/type 判别字段与事件名",
+                    _filePath,
+                    declaredCount);
+            }
         } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to load hooks from {FilePath}", _filePath);
         }
 
         return hooks;
+    }
+
+    /// <summary>
+    /// 兼容基准的 <c>"type": "command"</c> 写法（TASK130-A9）。
+    /// <para>
+    /// 本仓 <see cref="HookCommand"/> 的多态判别名是 <c>$hook_type</c>，而基准/官方文档写 <c>type</c>。
+    /// 按官方格式写的配置会解析成 0 条且无任何提示 —— 这里在反序列化前把 <c>type</c> 重命名为
+    /// <c>$hook_type</c>（已有 <c>$hook_type</c> 时不动），两种写法都能生效。
+    /// </para>
+    /// </summary>
+    internal static string NormalizeHookTypeDiscriminator(string json) {
+        if (!json.Contains("\"type\"", StringComparison.Ordinal)) {
+            return json;
+        }
+
+        try {
+            if (JsonNode.Parse(json) is not JsonObject root || root["hooks"] is not JsonObject events) {
+                return json;
+            }
+
+            var changed = false;
+            foreach (var eventEntry in events) {
+                if (eventEntry.Value is not JsonArray matchers) continue;
+
+                foreach (var matcher in matchers) {
+                    if (matcher is not JsonObject matcherObject || matcherObject["hooks"] is not JsonArray hookList) continue;
+
+                    for (var index = 0; index < hookList.Count; index++) {
+                        if (hookList[index] is not JsonObject hookObject) continue;
+                        if (hookObject.ContainsKey(DiscriminatorProperty) || hookObject["type"] is not JsonValue typeValue) continue;
+                        if (!typeValue.TryGetValue<string>(out var typeText)) continue;
+
+                        // System.Text.Json 要求多态判别名必须是对象的**第一个**属性（追加到末尾会抛），
+                        // 所以这里重建对象：先写判别名，再按原顺序搬其余字段。
+                        var rebuilt = new JsonObject { [DiscriminatorProperty] = JsonValue.Create(typeText) };
+                        foreach (var property in hookObject) {
+                            if (property.Key is "type") continue;
+                            rebuilt[property.Key] = property.Value?.DeepClone();
+                        }
+
+                        hookList[index] = rebuilt;
+                        changed = true;
+                    }
+                }
+            }
+
+            return changed ? root.ToJsonString() : json;
+        } catch (JsonException) {
+            // 非法 JSON 交回原解析路径，由它的错误日志报出来。
+            return json;
+        }
     }
 
     /// <inheritdoc />

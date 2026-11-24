@@ -529,7 +529,33 @@ Ctrl+B 是纯视图切换，不 abort、不重跑、不重复计费。`ReplShell
 全仓编译 `solution` 域因本机 `jcchub` 进程锁住 `artifacts/bin/Hub/*.dll`（MSB3021/3027，非编译错误）未过，
 native_tui / native_gui 三域全 True —— 待 CI 复核。
 
-阶段 2 剩余：SDK/NDJSON 事件、`/clear` symlink 重链（本仓映射为「/clear 后旧后台 task 的 transcript 归属」）。
+**阶段 2 第二批（`/clear` 会话代次，2026-11-25 完成）**：ADR
+[0167](../../proposed/adr/0167-session-epoch-query-identity.md) accepted。原来 `/clear` 只清内存消息列表，
+`sessionId` 不变 → 磁盘上没有任何代次区分，产生三个洞：① resume 旧 id 会把 clear 前历史全部读回来；
+② 在途回合的 `startCount` 与清空后的列表错位，`snapshot.Count <= startCount` 静默 return，本回合一个字都不落盘；
+③ 旧后台 task 跨代续写。
+
+- `ChatQueryScope` 增加 `SessionId`（与 `QueryId`/`ConversationTurn` 同层，`Enter` 时快照）。
+- `ISessionStore` 全部成员支持显式 sessionId（`null` = 当前指针），新增 `ReleaseSession`；
+  `ChatContextManager` 的 13 个 Actor 命令带 `SessionId`，**在调用线程解析**（Actor 消费时 AsyncLocal 已离开）。
+- `/clear` 改为**会话翻页**：`SessionEpochSwitcher.BeginNewAsync` 生成新 id + `SwitchSession` + `EnsureSessionAsync`，
+  旧代消息与 transcript 原样留在旧目录。斜杠命令与 TUI 新会话启动器两个落点同步。
+- 在途回合钉住出生代次：`TranscriptPersistMiddleware` 进入时快照 sessionId、`SessionController.StreamResponseAsync`
+  入口进 scope（CLI 侧 controller 长生命周期，`/clear` 后 `_sessionId` 会过期，入口改读 `IChatContextManager.SessionId`）。
+- `EngineSession.SessionId` 改实时读 `IChatContextManager.SessionId`（工厂生成的 init 快照在翻页后已过期）。
+- 读端（`SessionResumeStep` / `ResumeCommand` / `HistorySeeder` / `ForkCommand`）**一行未改** —— 换目录天然隔离。
+
+验收：`Brain.Context.Tests` **981/0**（新增 `ChatQueryScopeTests` 2 条、`ChatContextManagerSessionScopeTests` 4 条、
+`SessionEpochSwitcherTests` 4 条、`TranscriptPersistMiddlewareTests` 1 条）、`Host.Tests` 1379/0、
+`NativeTui.Host.Tests` 178/0、`NativeTui.Tests` 3202/0、`Abs.Core.Tests` 467/0、`McpToolDispatch.Tests` 535/0、
+`Guard.Security.Tests` 1322/0、`NativeGui.Core.Tests` 423/0、`NativeGui.Host.Tests` 50/0、`Vault.Other.Tests` 393/0；
+StyleGate 1818（与 HEAD 基线逐项一致，新文件零违规）、NoLockPrimitives 64 处存量、ExplicitOrder / RegistrationOrder 通过。
+
+已知缺口（写进 ADR）：`SessionStartHookState` 不随换代重置（TUI 主链的 SessionStart hook 不会在 `/clear` 后重跑）；
+`workflow clear_history` MCP 工具仍走 `ClearHistoryAsync`（语义是「清历史」而非「新会话」，未纳入翻页）；
+`ReleaseSession` 两个调用点都传 `false`（拿不到可靠的在途查询数，误回收会让在途回合写进重建的空桶）。
+
+阶段 2 剩余：SDK/NDJSON 事件。
 
 ### B3. macOS Seatbelt（需 macOS 真机 + 独立 ADR）
 

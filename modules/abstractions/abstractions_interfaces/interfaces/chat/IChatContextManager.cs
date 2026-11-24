@@ -15,6 +15,10 @@ public interface IChatContextManager {
     /// <summary>切换会话 — 按 sessionId 隔离对话历史，切回时自动恢复对应桶</summary>
     void SwitchSession(string sessionId);
 
+    /// <summary>释放已封存的会话桶（ADR 0167 — `/clear` 换代号后旧代不再驻留内存）</summary>
+    /// <param name="sessionId">要释放的会话标识</param>
+    void ReleaseSession(string sessionId);
+
     /// <summary>加载上下文。</summary>
     /// <param name="cancellationToken">取消令牌。</param>
     Task LoadContextAsync(CancellationToken cancellationToken = default);

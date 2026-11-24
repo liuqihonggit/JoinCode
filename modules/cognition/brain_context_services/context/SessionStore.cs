@@ -5,6 +5,8 @@ namespace Core.Context;
 /// <para>单一数据源: ImmutableHamT&lt;string, AppendOnlyLog&gt; _logs</para>
 /// <para>线程安全: SwitchSession 可在外部线程调用，GetOrAddLog 使用 CAS 无锁并发;</para>
 /// <para>Append/CompactInPlace/TrimLastTurn/TruncateTo 由 Actor Consumer 串行调用。</para>
+/// <para>ADR 0167: 全部成员支持显式 sessionId（null = 当前指针）— 在途查询按出生时的会话代次读写，
+/// /clear 换指针后不会把它搬去新代。</para>
 /// </summary>
 internal sealed class SessionStore : ISessionStore {
     private string _sessionId;
@@ -27,27 +29,64 @@ internal sealed class SessionStore : ISessionStore {
         }
     }
 
-    /// <inheritdoc />
-    public int Count => Log.Count;
+    /// <summary>显式 sessionId 解析 — null/空时用当前指针（ADR 0167）。</summary>
+    private string Resolve(string? sessionId) =>
+        string.IsNullOrEmpty(sessionId) ? _sessionId : sessionId;
 
     /// <inheritdoc />
-    public AppendOnlyLog Log => GetOrAddLog(_sessionId);
+    public int Count => CountOf(null);
 
     /// <inheritdoc />
-    public IReadOnlyList<ApiMessage> ToMessages() => Log.ToMessages();
+    public AppendOnlyLog Log => GetLog(null);
 
     /// <inheritdoc />
-    public void Append(ApiMessage message) => Log.Append(message);
+    public IReadOnlyList<ApiMessage> ToMessages() => ToMessages(null);
 
     /// <inheritdoc />
-    public void CompactInPlace(IReadOnlyList<ApiMessage> messages) => Log.CompactInPlace(messages);
+    public void Append(ApiMessage message) => Append(message, null);
 
     /// <inheritdoc />
-    public int TrimLastTurn() => Log.TrimLastTurn();
+    public void CompactInPlace(IReadOnlyList<ApiMessage> messages) => CompactInPlace(messages, null);
 
     /// <inheritdoc />
-    public int TruncateTo(int index) => Log.TruncateTo(index);
+    public int TrimLastTurn() => TrimLastTurn(null);
+
+    /// <inheritdoc />
+    public int TruncateTo(int index) => TruncateTo(index, null);
 
     /// <inheritdoc />
     public void SwitchSession(string sessionId) => _sessionId = sessionId;
+
+    /// <inheritdoc />
+    public int CountOf(string? sessionId) => GetOrAddLog(Resolve(sessionId)).Count;
+
+    /// <inheritdoc />
+    public AppendOnlyLog GetLog(string? sessionId) => GetOrAddLog(Resolve(sessionId));
+
+    /// <inheritdoc />
+    public IReadOnlyList<ApiMessage> ToMessages(string? sessionId) => GetOrAddLog(Resolve(sessionId)).ToMessages();
+
+    /// <inheritdoc />
+    public void Append(ApiMessage message, string? sessionId) => GetOrAddLog(Resolve(sessionId)).Append(message);
+
+    /// <inheritdoc />
+    public void CompactInPlace(IReadOnlyList<ApiMessage> messages, string? sessionId) =>
+        GetOrAddLog(Resolve(sessionId)).CompactInPlace(messages);
+
+    /// <inheritdoc />
+    public int TrimLastTurn(string? sessionId) => GetOrAddLog(Resolve(sessionId)).TrimLastTurn();
+
+    /// <inheritdoc />
+    public int TruncateTo(int index, string? sessionId) => GetOrAddLog(Resolve(sessionId)).TruncateTo(index);
+
+    /// <inheritdoc />
+    public bool ReleaseSession(string sessionId) {
+        if (string.IsNullOrEmpty(sessionId)) return false;
+        while (true) {
+            var current = _logs;
+            if (!current.TryGetValue(sessionId, out _)) return false;
+            var updated = current.Remove(sessionId);
+            if (Interlocked.CompareExchange(ref _logs, updated, current) == current) return true;
+        }
+    }
 }

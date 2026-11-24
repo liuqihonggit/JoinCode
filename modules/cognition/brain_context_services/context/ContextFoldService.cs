@@ -74,6 +74,7 @@ internal sealed class ContextFoldService : IContextFoldService {
     public async Task<ContextFoldResult> FoldIfNeededAsync(
         ContextFoldDecision decision,
         string? agentId,
+        string? sessionId,
         CancellationToken cancellationToken) {
         if (_foldExecutor == null) {
             if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive) {
@@ -83,7 +84,7 @@ internal sealed class ContextFoldService : IContextFoldService {
             return new ContextFoldResult {
                 Folded = false,
                 Decision = decision,
-                OriginalMessageCount = _sessionStore.Count
+                OriginalMessageCount = _sessionStore.CountOf(sessionId)
             };
         }
 
@@ -92,7 +93,7 @@ internal sealed class ContextFoldService : IContextFoldService {
 
         try {
             var snip = ContextFoldDecider.SnipStaleToolResults(
-                _sessionStore.Log,
+                _sessionStore.GetLog(sessionId),
                 _contextWindowResolver.ResolveCurrentContextWindow(),
                 _thresholds);
 
@@ -124,16 +125,16 @@ internal sealed class ContextFoldService : IContextFoldService {
                         Folded = false,
                         Decision = decision,
                         Snip = snip,
-                        OriginalMessageCount = _sessionStore.Count
+                        OriginalMessageCount = _sessionStore.CountOf(sessionId)
                     };
                 }
             }
 
             var foldResult = decision switch {
-                ContextFoldDecision.FoldNormal => await _foldExecutor.FoldAsync(_sessionStore.Log, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: false, _thresholds, cancellationToken).ConfigureAwait(false),
-                ContextFoldDecision.FoldAggressive => await _foldExecutor.FoldAsync(_sessionStore.Log, _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: true, _thresholds, cancellationToken).ConfigureAwait(false),
-                ContextFoldDecision.ExitWithSummary => _foldExecutor.TrimTrailingAndPrepareExit(_sessionStore.Log),
-                _ => new ContextFoldResult { Folded = false, Decision = decision, OriginalMessageCount = _sessionStore.Count }
+                ContextFoldDecision.FoldNormal => await _foldExecutor.FoldAsync(_sessionStore.GetLog(sessionId), _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: false, _thresholds, cancellationToken).ConfigureAwait(false),
+                ContextFoldDecision.FoldAggressive => await _foldExecutor.FoldAsync(_sessionStore.GetLog(sessionId), _contextWindowResolver.ResolveCurrentContextWindow(), aggressive: true, _thresholds, cancellationToken).ConfigureAwait(false),
+                ContextFoldDecision.ExitWithSummary => _foldExecutor.TrimTrailingAndPrepareExit(_sessionStore.GetLog(sessionId)),
+                _ => new ContextFoldResult { Folded = false, Decision = decision, OriginalMessageCount = _sessionStore.CountOf(sessionId) }
             };
 
             if (snip.Results > 0) {
@@ -158,7 +159,7 @@ internal sealed class ContextFoldService : IContextFoldService {
 
             if ((foldResult.Folded || snip.Results > 0) && decision is not ContextFoldDecision.None) {
                 var postFoldTokens = ContextFoldDecider.EstimateTokenCount(
-                    _sessionStore.ToMessages(), _toolSpecStore.CurrentSpecs, _thresholds);
+                    _sessionStore.ToMessages(sessionId), _toolSpecStore.CurrentSpecs, _thresholds);
                 var ctxMax = _contextWindowResolver.ResolveCurrentContextWindow();
                 if (postFoldTokens > ctxMax * _thresholds.EmergencyThreshold) {
                     _logger?.LogError("上下文溢出：折叠后 {Tokens} token 仍超过紧急阈值 {Threshold} token（ctxMax={CtxMax}）",

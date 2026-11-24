@@ -175,6 +175,11 @@ public sealed class SessionController {
     /// 流式处理用户输入 — 统一的事件消费逻辑
     /// </summary>
     public async Task<SessionTurnResult> StreamResponseAsync(string input, CancellationToken cancellationToken) {
+        // ADR 0167 — 本回合的会话代次在入口钉住。CLI 侧 controller 长生命周期（一次构造多次回合），
+        // `/clear` 换代后 _sessionId 会过期；TUI 侧每查询新建 controller，两者都取「当前指针」的快照。
+        var turnSessionId = _serviceProvider?.GetService<IChatContextManager>()?.SessionId ?? _sessionId;
+        using var queryScope = Core.Context.ChatQueryScope.Enter(sessionId: turnSessionId);
+
         // 发送提醒注入 — system-reminder 形态追加到消息末尾（10 分钟冷却；斜杠命令在 EngineSession 层已分流，
         // 此处兜底判定）。CurrentInput（LLM prompt）与 AddUserMessageAsync（历史落库）同源生效。
         input = SendReminderInjector.Instance.Append(input);
@@ -207,7 +212,7 @@ public sealed class SessionController {
                 // config-change / session-start-hook）只在无主代理的 ChatService 回落链里被触发
                 // （ChatService.InitializeCoreAsync → admin Initialize），主链上从未执行过 ——
                 // 症状就是「SessionStart hook 配了也不跑」。这里按会话补一次，幂等由字段保证。
-                await EnsureSessionStartHookAsync(timeoutToken).ConfigureAwait(false);
+                await EnsureSessionStartHookAsync(turnSessionId, timeoutToken).ConfigureAwait(false);
 
                 // Bug 19 根因 A 修复：startCount 基于含系统提示词的快照计数，与 GetMessageListAsync 索引空间一致
                 var contextManagerForCount = _serviceProvider?.GetService<IChatContextManager>();
@@ -215,7 +220,7 @@ public sealed class SessionController {
                     ? await contextManagerForCount.GetMessageListAsync(timeoutToken).ConfigureAwait(false)
                     : null;
                 var startCount = startSnapshot?.Count ?? 0;
-                var preprocess = await PreProcessMainAgentAsync(input, timeoutToken).ConfigureAwait(false);
+                var preprocess = await PreProcessMainAgentAsync(input, turnSessionId, timeoutToken).ConfigureAwait(false);
                 if (preprocess.Blocked) {
                     // TASK130-A5 — UserPromptSubmit hook 阻断：与回落管道 return false 同语义（不进模型）
                     return SessionTurnResult.Error("请求被 UserPromptSubmit hook 阻止", string.Empty);
@@ -264,7 +269,7 @@ public sealed class SessionController {
 
                 auditLogger?.LogInformation("[Audit] Assistant: {Chars} chars, Model={Model}", fullResponse.Length, lastModelId);
 
-                await PostProcessMainAgentAsync(preprocess.PreprocessResult, fullResponse.ToString(), startCount, lastModelId, cancellationToken).ConfigureAwait(false);
+                await PostProcessMainAgentAsync(preprocess.PreprocessResult, fullResponse.ToString(), startCount, lastModelId, turnSessionId, cancellationToken).ConfigureAwait(false);
             } else {
                 await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken, _consumer).ConfigureAwait(false)) {
                     hasReceivedEvent = true;
@@ -276,7 +281,7 @@ public sealed class SessionController {
             LastResponse = fullResponse.ToString();
 
             // 等待思考内容持久化完成，避免 fire-and-forget 丢失
-            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, cancellationToken).ConfigureAwait(false);
+            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, turnSessionId, cancellationToken).ConfigureAwait(false);
 
             // TASK070 C4/DSG046 — 回合终态自动压缩判定（对齐 TS autoCompact.ts:241-351 回合末触发）：
             // Done 权威 usage + ICompactService.ShouldAutoCompact 阈值命中时，压缩异步执行不阻塞 idle 返回。
@@ -305,21 +310,21 @@ public sealed class SessionController {
             // TASK073 Phase 4 — 文件持久化事件：回合结束后通知 SDK 消费方 transcript 已落盘
             // 对齐基准侧 print.ts:2256-2272 — 回合结束后触发 system/files_persisted 事件
             _consumer.OnFilesPersisted(
-                files: [new JoinCode.Abstractions.Interfaces.PersistedFileInfo($"{_sessionId}/transcript.jsonl", "")],
+                files: [new JoinCode.Abstractions.Interfaces.PersistedFileInfo($"{turnSessionId}/transcript.jsonl", "")],
                 failed: null
             );
 
             return SessionTurnResult.Success(LastResponse, requestTimestamp);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !hasReceivedEvent) {
-            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
+            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, turnSessionId, CancellationToken.None).ConfigureAwait(false);
             return SessionTurnResult.Timeout(apiTimeoutMs);
         } catch (OperationCanceledException) {
             LastResponse = fullResponse.ToString();
-            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
+            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, turnSessionId, CancellationToken.None).ConfigureAwait(false);
             return SessionTurnResult.FromCancellation(LastResponse);
         } catch (Exception ex) {
             LastResponse = fullResponse.ToString();
-            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
+            await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, turnSessionId, CancellationToken.None).ConfigureAwait(false);
 
             var crashStore = _serviceProvider?.GetService<ICrashSnapshotStore>();
             if (crashStore is not null && ex is not OperationCanceledException) {
@@ -328,7 +333,7 @@ public sealed class SessionController {
                         fenceName: "MainAgent",
                         severity: CrashSeverity.Error,
                         exception: ex,
-                        executionContext: new CrashExecutionContext { SessionId = _sessionId }));
+                        executionContext: new CrashExecutionContext { SessionId = turnSessionId }));
                 } catch (Exception snapshotEx) {
                     _serviceProvider?.GetService<ILogger<SessionController>>()?.LogWarning(snapshotEx, "[SessionController] 崩溃快照保存失败");
                 }
@@ -577,7 +582,7 @@ public sealed class SessionController {
     /// <remarks>
     /// 先置位再执行：hook 跑的是外部命令，失败或取消都不重试，避免每回合重复产生副作用。
     /// </remarks>
-    private async Task EnsureSessionStartHookAsync(CancellationToken ct) {
+    private async Task EnsureSessionStartHookAsync(string sessionId, CancellationToken ct) {
         if (_serviceProvider is null) return;
         if (Interlocked.Exchange(ref _sessionStartHookState.Ran, 1) != 0) return;
 
@@ -585,14 +590,14 @@ public sealed class SessionController {
         if (manager is null) return;
 
         var store = _serviceProvider.GetService<ISessionStartContextStore>();
-        await SessionStartHookRunner.RunAsync(manager, store, _sessionId, "tui", logger: null, ct).ConfigureAwait(false);
+        await SessionStartHookRunner.RunAsync(manager, store, sessionId, "tui", logger: null, ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 主代理路径预处理 — 对齐 PreChatMiddleware + ModalityValidationMiddleware：
     /// 文件上下文 + prompt injection + context 准备 + prompt 状态记录 + 模态验证
     /// </summary>
-    private async Task<MainAgentPreprocess> PreProcessMainAgentAsync(string input, CancellationToken ct) {
+    private async Task<MainAgentPreprocess> PreProcessMainAgentAsync(string input, string sessionId, CancellationToken ct) {
         if (_serviceProvider is null) return new MainAgentPreprocess(null, null, null);
 
         var fileContextService = _serviceProvider.GetService<IChatFileContextService>();
@@ -614,7 +619,7 @@ public sealed class SessionController {
         // 回落管道 ChatTelemetryPreHook 里跑），故 additionalContext / systemMessage 在生产主链上从未生效。
         // 这里复用同一执行器：阻断即中止回合，additionalContext 追加到注入文本，systemMessage 走旁白通道。
         var hookOutcome = await JoinCode.App.Middlewares.UserPromptSubmitHookRunner.RunAsync(
-            _serviceProvider.GetService<IHookOrchestrator>(), input, _sessionId, ct).ConfigureAwait(false);
+            _serviceProvider.GetService<IHookOrchestrator>(), input, sessionId, ct).ConfigureAwait(false);
         if (hookOutcome.Blocked) {
             return new MainAgentPreprocess(preprocessResult, null, null, Blocked: true);
         }
@@ -664,7 +669,7 @@ public sealed class SessionController {
     /// 主代理路径后处理 — 对齐 SaveContextMiddleware + CleanupInjectionsMiddleware：
     /// 回写 assistant 响应 → 持久化上下文 → 清理注入
     /// </summary>
-    private async Task PostProcessMainAgentAsync(PreprocessResult? preprocessResult, string assistantResponse, int startCount, string? modelId, CancellationToken ct) {
+    private async Task PostProcessMainAgentAsync(PreprocessResult? preprocessResult, string assistantResponse, int startCount, string? modelId, string sessionId, CancellationToken ct) {
         if (_serviceProvider is null) return;
 
         var contextManager = _serviceProvider.GetService<IChatContextManager>();
@@ -727,7 +732,9 @@ public sealed class SessionController {
                 });
             }
             if (entries.Count > 0) {
-                await transcriptService.AppendEntriesAsync(contextManager.SessionId, entries, ct).ConfigureAwait(false);
+                // ADR 0167 — 落盘目标钉住本回合的会话代次（作用域优先，其次构造时快照），
+                // 不读 contextManager.SessionId：回合中途 /clear 换指针会把本回合写到新代。
+                await transcriptService.AppendEntriesAsync(sessionId, entries, ct).ConfigureAwait(false);
             }
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
@@ -739,12 +746,12 @@ public sealed class SessionController {
     /// <summary>
     /// 持久化思考内容 — 等待完成并记录失败，避免 fire-and-forget 静默丢失
     /// </summary>
-    private async Task StoreThinkingIfAnyAsync(StringBuilder thinkingContent, string? modelId, CancellationToken ct) {
+    private async Task StoreThinkingIfAnyAsync(StringBuilder thinkingContent, string? modelId, string sessionId, CancellationToken ct) {
         if (thinkingContent.Length == 0) return;
         var thinkingStore = _serviceProvider?.GetService<IThinkingStore>();
         if (thinkingStore is null) return;
         try {
-            await thinkingStore.StoreAsync(_sessionId, thinkingContent.ToString(), modelId, ct).ConfigureAwait(false);
+            await thinkingStore.StoreAsync(sessionId, thinkingContent.ToString(), modelId, ct).ConfigureAwait(false);
         } catch (Exception ex) {
             var logger = _serviceProvider?.GetService<ILogger<SessionController>>();
             logger?.LogError(ex, "[SessionController] 思考内容持久化失败");

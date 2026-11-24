@@ -181,6 +181,40 @@ public sealed class TranscriptPersistMiddlewareTests {
         return events;
     }
 
+    /// <summary>ADR 0167 — 回合进行中发生 /clear（换 sessionId），本回合 transcript 仍必须落**旧**代。
+    /// 现状（红）：落盘时实时读 <c>_contextManager.SessionId</c>，会写到新代目录。</summary>
+    [Fact]
+    public async Task InvokeAsync_SessionSwitchedMidTurn_StillWritesToOriginalSession() {
+        var session = "s-old";
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupGet(c => c.SessionId).Returns(() => session);
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> { new(MessageRole.User, "旧问题") }))
+            .ReturnsAsync(new MessageList(new List<ApiMessage> {
+                new(MessageRole.User, "旧问题"),
+                new(MessageRole.User, "本回合的问题"),
+                new(MessageRole.Assistant, "本回合的回答"),
+            }));
+
+        await RunWithAsync(mw, SwitchSessionAsync(() => session = "s-new")).ConfigureAwait(true);
+
+        transcript.Verify(t => t.AppendEntriesAsync(
+            "s-old",
+            It.Is<IReadOnlyList<TranscriptEntry>>(entries => entries.Count == 2),
+            It.IsAny<CancellationToken>()), Times.Once,
+            "回合出生在 s-old，/clear 之后也必须写 s-old（否则旧代记录不完整、新代被污染）");
+        transcript.Verify(t => t.AppendEntriesAsync(
+            "s-new", It.IsAny<IReadOnlyList<TranscriptEntry>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>下游开始即触发切换（模拟回合中途 /clear），随后正常消费空流。</summary>
+    private static async IAsyncEnumerable<ChatStreamEvent> SwitchSessionAsync(
+        Action onEnter, [EnumeratorCancellation] CancellationToken ct = default) {
+        onEnter();
+        await Task.CompletedTask.ConfigureAwait(true);
+        yield break;
+    }
+
     /// <summary>把文本切成分片 Content 事件（模拟流式正文）。</summary>
     private static async IAsyncEnumerable<ChatStreamEvent> DeltasAsync(string text) {
         for (var i = 0; i < text.Length; i += 100) {

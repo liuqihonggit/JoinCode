@@ -44,4 +44,28 @@ public sealed class ChatQueryScopeTests {
 
         Assert.False(string.IsNullOrWhiteSpace(Core.Context.ChatQueryScope.Current.QueryId));
     }
+
+    /// <summary>ADR 0167 — 会话代次必须随查询钉住：scope 内读到的 sessionId 不随外部切换而变化。</summary>
+    [Fact]
+    public async Task Enter_WithSessionId_PinsItAcrossExternalSwitch() {
+        using var scope = Core.Context.ChatQueryScope.Enter("q-1", sessionId: "s-old");
+
+        await Task.Yield();
+
+        Assert.Equal("s-old", Core.Context.ChatQueryScope.Current.SessionId);
+    }
+
+    /// <summary>ADR 0167 — 并发查询各持自己的代次，外层切换不影响内层。</summary>
+    [Fact]
+    public async Task Enter_NestedScopes_KeepIndependentSessionIds() {
+        using (Core.Context.ChatQueryScope.Enter("q-outer", sessionId: "s-old")) {
+            await Task.Yield();
+
+            using (Core.Context.ChatQueryScope.Enter("q-inner", sessionId: "s-new")) {
+                Assert.Equal("s-new", Core.Context.ChatQueryScope.Current.SessionId);
+            }
+
+            Assert.Equal("s-old", Core.Context.ChatQueryScope.Current.SessionId);
+        }
+    }
 }

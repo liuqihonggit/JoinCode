@@ -45,6 +45,10 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
+        // ADR 0167 — 会话代次在**进入时**快照：回合中途 /clear 换了 sessionId，本回合仍落旧代。
+        // 优先取查询作用域（ChatService 进入时已钉住），无作用域时退回当前指针的快照。
+        var sessionId = ChatQueryScope.CurrentOrNull?.SessionId ?? _contextManager.SessionId;
+
         // Bug 19 根因 A 修复：startCount 必须基于含系统提示词的快照计数，与 GetMessageListAsync 索引空间一致
         var startSnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
         var startCount = startSnapshot.Count;
@@ -59,7 +63,7 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
                 var now = Stopwatch.GetTimestamp();
                 if (streaming.Length >= StreamingFlushChars || now - lastFlushTicks >= StreamingFlushTicks) {
                     lastFlushTicks = now;
-                    await AppendStreamingSnapshotSafeAsync(streaming.ToString(), ct).ConfigureAwait(false);
+                    await AppendStreamingSnapshotSafeAsync(streaming.ToString(), sessionId, ct).ConfigureAwait(false);
                 }
             }
 
@@ -77,7 +81,7 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
         var snapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
         if (snapshot.Count <= startCount) {
             // 正常结束但本轮没有新增消息（空回合）— 旁路也要清，否则残留会被下次加载收编成幽灵消息
-            await ClearStreamingSafeAsync(ct).ConfigureAwait(false);
+            await ClearStreamingSafeAsync(sessionId, ct).ConfigureAwait(false);
             yield break;
         }
 
@@ -100,20 +104,20 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
         }
 
         if (entries.Count == 0) {
-            await ClearStreamingSafeAsync(ct).ConfigureAwait(false);
+            await ClearStreamingSafeAsync(sessionId, ct).ConfigureAwait(false);
             yield break;
         }
 
         try {
-            await _transcriptService.AppendEntriesAsync(_contextManager.SessionId, entries, ct).ConfigureAwait(false);
+            await _transcriptService.AppendEntriesAsync(sessionId, entries, ct).ConfigureAwait(false);
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
         } catch (Exception ex) {
-            _logger?.LogError(ex, "[TranscriptPersist] transcript 写入失败（会话 {SessionId}），本轮对话可能丢失", _contextManager.SessionId);
+            _logger?.LogError(ex, "[TranscriptPersist] transcript 写入失败（会话 {SessionId}），本轮对话可能丢失", sessionId);
         }
 
         // ADR 0166 — 本回合已完整落盘，旁路使命结束
-        await ClearStreamingSafeAsync(ct).ConfigureAwait(false);
+        await ClearStreamingSafeAsync(sessionId, ct).ConfigureAwait(false);
     }
 
     /// <summary>是否应在本回合写流式旁路（dry run / worker 进程 / 无 transcript 服务都不写）。</summary>
@@ -133,28 +137,30 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
 
     /// <summary>写旁路快照 — 失败只记日志，绝不打断对话（与 OnError=Continue 语义一致）。</summary>
     /// <param name="content">累积全文。</param>
+    /// <param name="sessionId">本回合所属会话代次（进入时快照）。</param>
     /// <param name="ct">取消令牌。</param>
-    private async Task AppendStreamingSnapshotSafeAsync(string content, CancellationToken ct) {
+    private async Task AppendStreamingSnapshotSafeAsync(string content, string sessionId, CancellationToken ct) {
         if (_transcriptService is null) return;
         try {
-            await _transcriptService.AppendStreamingSnapshotAsync(_contextManager.SessionId, content, ct).ConfigureAwait(false);
+            await _transcriptService.AppendStreamingSnapshotAsync(sessionId, content, ct).ConfigureAwait(false);
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
         } catch (Exception ex) {
-            _logger?.LogWarning(ex, "[STREAM-PERSIST] 旁路写入失败（会话 {SessionId}），本回合退回仅在结束时落盘", _contextManager.SessionId);
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 旁路写入失败（会话 {SessionId}），本回合退回仅在结束时落盘", sessionId);
         }
     }
 
     /// <summary>清理旁路 — 失败只记日志（残留旁路最多多一条残稿，不会污染主记录语义）。</summary>
+    /// <param name="sessionId">本回合所属会话代次（进入时快照）。</param>
     /// <param name="ct">取消令牌。</param>
-    private async Task ClearStreamingSafeAsync(CancellationToken ct) {
+    private async Task ClearStreamingSafeAsync(string sessionId, CancellationToken ct) {
         if (_transcriptService is null) return;
         try {
-            await _transcriptService.ClearStreamingAsync(_contextManager.SessionId, ct).ConfigureAwait(false);
+            await _transcriptService.ClearStreamingAsync(sessionId, ct).ConfigureAwait(false);
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
         } catch (Exception ex) {
-            _logger?.LogWarning(ex, "[STREAM-PERSIST] 旁路清理失败（会话 {SessionId}）", _contextManager.SessionId);
+            _logger?.LogWarning(ex, "[STREAM-PERSIST] 旁路清理失败（会话 {SessionId}）", sessionId);
         }
     }
 }

@@ -89,9 +89,9 @@ public partial class ChatService : IChatService {
     /// 通过中间件管道执行，从 ChatStreamEvent 中提取文本内容。
     /// </summary>
     public async IAsyncEnumerable<string> SendMessageStreamAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
-        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn());
+        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn(), sessionId: _contextManager.SessionId);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.stream", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.stream", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = queryScope.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId };
 
         await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
             if (evt.Type == ChatStreamEventType.Content && evt.Content is not null) {
@@ -105,12 +105,12 @@ public partial class ChatService : IChatService {
     /// 每轮工具调用产生 ToolStart/ToolEnd 事件，最终产生 Done 事件。
     /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default, IEventConsumer? eventConsumer = null) {
-        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn());
+        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn(), sessionId: _contextManager.SessionId);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         // 发送提醒注入 — system-reminder 形态追加到消息末尾（10 分钟冷却；与 SessionController 共享静态 Instance，
         // GUI 主链路与 TUI 回退路径互斥覆盖，冷却防双注入）
         message = SendReminderInjector.Instance.Append(message);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.events", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId, EventConsumer = eventConsumer, RequireRoundGate = RoundGatePolicy.IsEnabledForChatPipeline() };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.events", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = queryScope.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId, EventConsumer = eventConsumer, RequireRoundGate = RoundGatePolicy.IsEnabledForChatPipeline() };
 
         await foreach (var evt in _middlewarePipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false)) {
             yield return evt;
@@ -123,9 +123,9 @@ public partial class ChatService : IChatService {
     /// 通过中间件管道执行，收集所有文本内容后返回。
     /// </summary>
     public async Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default) {
-        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn());
+        using var queryScope = ChatQueryScope.Enter(conversationTurn: NextConversationTurn(), sessionId: _contextManager.SessionId);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.sync", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.sync", ConversationTurn = queryScope.ConversationTurn, ToolUseContext = queryScope.ToolUseContext, SessionId = queryScope.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId };
 
         var responseBuilder = new StringBuilder();
 

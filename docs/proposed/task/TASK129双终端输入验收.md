@@ -1,6 +1,6 @@
 # TASK129 — #52 Windows Terminal / conhost 输入验收
 
-状态：采样入口与输出用例已编译通过（`NativeTui.Host.Tests` 4/4 绿，重定向守卫真机返回 1）；矩阵与真机采样待人工。来源：[TASK121](TASK121-DSG042-P3输入泵默认与退役复核.md)、[TASK122](TASK122-未完成事项交接-专项与人工验收.md)。
+状态：采样入口与输出用例已编译通过（`NativeTui.Host.Tests` 4/4 绿，重定向守卫真机返回 1）；采集卡与空白判定表已就绪（§3），矩阵真机采样待人工执行。来源：[TASK121](TASK121-DSG042-P3输入泵默认与退役复核.md)、[TASK122](TASK122-未完成事项交接-专项与人工验收.md)。
 
 ## 1. 先采样，再验 REPL
 
@@ -22,6 +22,69 @@
 | 焦点与扩展键盘协议 | 本探针不主动开启焦点或 kitty 协议，不用它替代此项 | 在忙碌生产回合切出/切回；保留焦点变化证据。若宿主不发送可区分的 Shift+Enter 等序列，单记未上报，不算通过 | 待测 | 待测 |
 
 每格记录 `应用已消费`、`仅解码通过`、`宿主截获/未上报` 或 `未测`，附窗口身份、产物哈希、按键及最小诊断输出。两端结果回填 TASK066 B6 与 TASK121，不能用 Demo（默认 Win32 回退泵）替代生产 Windows 的 Raw 路径。
+
+## 3. 一次性采集卡（AI 生成，人工执行）
+
+> 目的：让 §1 的 10×2 矩阵每格都有"窗口身份 + 产物哈希 + 按键 → 采样输出 → REPL 行为"的可复核证据。
+> 纪律：探针只采样、不判分；矩阵结论只由人按实测填写，**未测就写未测**，禁止用"探针能跑"代替"应用已消费"。
+
+### 3.0 产物基线
+
+本轮 Debug 产物（2026-11-25 构建）SHA-256：`1E2D021C5B0185D9C91762AD2CCC0EB5094EFD5F8B53FE844E75E7F972B0940C`。
+执行时以窗口内 `Get-FileHash` 的实测值为准；两窗必须是同一哈希，否则作废重来。
+
+### 3.1 开窗与登记（每个窗口各做一次）
+
+```powershell
+# 在仓库根执行；wt 窗口用 wt，conhost 窗口把 $out 改成 .xxx\logs\b1\conhost
+$exe = ".\artifacts\bin\JoinCode\Debug\net10.0\jcc.exe"
+$out = ".xxx\logs\b1\wt"
+New-Item -ItemType Directory -Force $out | Out-Null
+(Get-FileHash $exe -Algorithm SHA256).Hash | Set-Content "$out\exe-sha256.txt"
+"wt_session=[$env:WT_SESSION] host=$((Get-Process -Id $PID).Path)" | Set-Content "$out\window.txt"
+```
+
+- WT：Win+R 运行 `wt.exe -w new powershell.exe -NoProfile`，窗口内 `$env:WT_SESSION` 非空。
+- conhost：从资源管理器或 Win+R 运行 `conhost.exe powershell.exe -NoProfile`（**不要**从 WT 里再开，否则会继承 `WT_SESSION`），窗口内 `$env:WT_SESSION` 应为空；同时用可见窗口确认经典滚动条/标题栏形态。
+
+### 3.2 输入采样（每窗一次，覆盖下表 10 行）
+
+```powershell
+& $exe --probe-terminal-input    # 不接管道、不设 JCC_FORCE_TTY；Ctrl+Q 结束，3 分钟自动退出
+```
+
+按 §1 表逐行输入：ASCII/中文 IME、四方向与 Tab/Enter、Ctrl 组合与 Esc、Shift+Tab、Home/End/PgUp/PgDn、F1–F12、四行中文粘贴、左键/拖动/滚轮、两次 resize、忙时切出切回。每行至少产生一次可辨认的 `[n] KeyKind ...` 行。
+
+证据归档（`$out` 下）：
+
+- `probe.txt`：把探针 scrollback 全选复制保存（WT 选区后 Ctrl+Shift+C；conhost 用「标记→复制」），必须包含开头 `[terminal-input] wt-host=...` 与服务结束行。
+- `probe-*.png`：关键行（中文 IME、Shift+Tab、F 键、paste、鼠标、resize）各一张截图；文本复制不完整时以截图为准。
+- 探针拒绝 stdout 重定向，**不要**用 `| Tee-Object` / `> file` 采集，否则守卫直接 exit=1。
+
+### 3.3 生产 REPL（同窗同产物）
+
+```powershell
+& $exe      # 无参数进入生产 REPL；编辑类操作不需要模型
+```
+
+按 §1 表右列逐项操作；`/help`、`/version` 等本地命令不需要密钥。需要真实回合的"忙时焦点切换"一格，按 [ADR 0077](../../implemented/adr/engineering_ci_test/0077-mockserver-jcc-joint-testing.md) 起本地 MockServer + 临时应用数据目录，**禁止使用真实凭据**；没有 MockServer 条件就记「未测」。
+
+### 3.4 每窗判定卡（复制后逐格填写）
+
+| 检查项 | 采样实测（贴 `[n]` 行） | REPL 实测（贴行为） | 判定 | 证据文件 |
+|---|---|---|---|---|
+| ASCII、中文 IME、编辑 | | | 已消费 / 仅解码 / 宿主截获 / 未测 | |
+| 方向键、Tab、Enter | | | | |
+| Ctrl 组合和 Esc | | | | |
+| Shift+Tab | | | | |
+| Home / End / PgUp / PgDn | | | | |
+| F1–F12 | | | | |
+| Bracketed paste | | | | |
+| 左键、拖动、滚轮 | | | | |
+| Resize + 连续键 | | | | |
+| 焦点与扩展键盘协议 | | | | |
+
+判定口径：`已消费` = 应用行为按期望变化；`仅解码` = 采样有事件但应用无对应行为；`宿主截获` = 终端自己处理了该键（写明按键与宿主行为）；`未测` = 没有窗口证据。两窗填完后把 20 格结论合并回 §1 表与 TASK066 B6、TASK121。
 
 ## 2. 已有验证和边界
 

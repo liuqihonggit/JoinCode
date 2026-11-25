@@ -51,6 +51,15 @@ public abstract record SdkMessageBase {
     /// <summary>会话标识</summary>
     [System.Text.Json.Serialization.JsonPropertyName("session_id")]
     public string? SessionId { get; init; }
+
+    /// <summary>
+    /// 查询身份（ADR 0165 / TASK137）— 一条进程可承载多次查询（SDK 流式输入、bridge_serve），
+    /// 消费方据此把消息归到具体查询。null = 作用域外发出（如 system/init 握手），不写字段。
+    /// </summary>
+    [System.Text.Json.Serialization.JsonPropertyName("query_id")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? QueryId { get; init; }
+
     /// <summary>生成新的标准 UUID 字符串</summary>
     protected static string NewUuid() => System.Guid.NewGuid().ToString();
 }

@@ -52,7 +52,12 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
                 return;
             }
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            await session.ProcessUserInputAsync(prompt, ct).ConfigureAwait(false);
+            try {
+                await session.ProcessUserInputAsync(prompt, ct).ConfigureAwait(false);
+            } finally {
+                // TASK137 — 查询身份在回合开始时就已生成；失败/取消路径同样要能归因（catch 里只补错误分类）
+                context.QueryId = session.LastQueryId;
+            }
             sw.Stop();
             context.ElapsedMs = sw.ElapsedMilliseconds;
             context.NumTurns = session.TotalTurns;

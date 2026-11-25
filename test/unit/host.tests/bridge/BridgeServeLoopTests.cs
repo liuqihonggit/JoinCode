@@ -105,8 +105,10 @@ public sealed class BridgeServeLoopTests {
         Assert.EndsWith("{\"type\":\"turn_completed\",\"queryId\":\"q-1\"}\n", stdout.ToString());
     }
 
+    /// <summary>TASK136（ADR 0165 阶段 2）— 忙时提交不再被拒：两条都起。
+    /// 旧客户端不带 queryId 时由 loop 各自生成身份（旧文案「回合进行中，本次提交已忽略」已删除）。</summary>
     [Fact]
-    public async Task SubmitWhileBusy_EmitsErrorWithInductiveMessage() {
+    public async Task SubmitWhileBusy_StartsSecondQuery() {
         using var stdin = new StringReader(string.Join('\n',
             WriteRequest(new CliBridge.BridgeRequest.Submit("第一回合")),
             WriteRequest(new CliBridge.BridgeRequest.Submit("第二回合")),
@@ -114,15 +116,31 @@ public sealed class BridgeServeLoopTests {
         await using var stdout = new StringWriter();
 
         var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
-            async (input, consumer, ct) => await Task.Delay(Timeout.Infinite, ct),
-            CancellationToken.None);
+            (input, consumer, ct) => Task.Delay(Timeout.Infinite, ct), CancellationToken.None).ConfigureAwait(true);
 
-        // 忙时第二 submit 被拒（诱导提示），interrupt 未发出 → 第一回合仍挂起 → quit 取消收尾后退出
         Assert.Equal(0, exitCode);
-        Assert.Contains("turn_started", stdout.ToString());
-        var errorLine = stdout.ToString().Split('\n').Single(l => l.Contains("\"error\""));
-        Assert.Contains("回合进行中", errorLine);
-        Assert.Contains("interrupt", errorLine);
+        var lines = stdout.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.DoesNotContain(lines, line => line.Contains("\"type\":\"error\"", StringComparison.Ordinal));
+
+        var startedIds = lines
+            .Where(line => line.Contains("\"type\":\"turn_started\"", StringComparison.Ordinal))
+            .Select(QueryIdOf)
+            .OfType<string>()
+            .ToArray();
+        Assert.Equal(2, startedIds.Length);
+        Assert.Equal(2, startedIds.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    /// <summary>从事件行取 queryId（断言身份分布用；不引入 JSON 解析只为读一个字段）。</summary>
+    /// <param name="line">协议事件行。</param>
+    /// <returns>queryId，缺字段时 null。</returns>
+    private static string? QueryIdOf(string line) {
+        const string marker = "\"queryId\":\"";
+        var at = line.IndexOf(marker, StringComparison.Ordinal);
+        if (at < 0) return null;
+        var start = at + marker.Length;
+        var end = line.IndexOf('"', start);
+        return end < 0 ? null : line[start..end];
     }
 
     [Fact]

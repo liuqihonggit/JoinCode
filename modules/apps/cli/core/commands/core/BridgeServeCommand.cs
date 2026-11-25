@@ -67,14 +67,16 @@ internal static class BridgeServeCommand {
             // 每回合终态后全量快照 upsert；两查询面均可选（引擎未注册时泵为 null，零行为变化）
             var backgroundPump = CreateBackgroundTaskPump(engine.Services);
 
-            var mainAgent = EngineAgentFactory.CreateMainAgent(engine.Services, new Session().ObjectId);
-            SessionController? controller = null;
+            // ADR 0165 / TASK136 — 会话级 ObjectId 共享，**每查询新建 SessionController + 主代理**：
+            // 回合级状态（_hasSubstantiveOutput/_lastStopReason/_turnToolCalls 等）不得跨查询共享，
+            // 否则并发查询会互相污染终止判定；consumer 由 loop 按查询新建（回合内状态不串台）。
+            // SessionStart hook 标记走容器单例（ISessionStartHookState），仍是会话级一次性语义。
+            var sessionObjectId = new Session().ObjectId;
 
             return await BridgeServeLoop.RunAsync(stdin, stdout, Console.Error, (input, consumer, turnCt) => {
-                // 首次 submit 时绑定回合驱动器 — consumer 即协议事件出口（loop 构造，全程同一实例）
-                controller ??= new SessionController(
+                var controller = new SessionController(
                     chatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
-                    mainAgent: mainAgent);
+                    mainAgent: EngineAgentFactory.CreateMainAgent(engine.Services, sessionObjectId));
                 return RunTurnAsync(controller, input, turnCt);
             }, ct, BuildPermissionModeApplier(permissionChecker), backgroundPump).ConfigureAwait(false);
         } finally {

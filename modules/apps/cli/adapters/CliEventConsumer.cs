@@ -519,9 +519,14 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         return doc.RootElement.Clone();
     }
 
-    /// <summary>写入 SDK JSON 消息到 stdout</summary>
-    private void WriteSdkJson<T>(T message) {
-        var json = RelaxedJsonSerializer.Serialize(message, _jsonContext);
+    /// <summary>当前查询身份（ADR 0165 / TASK137）— 回合作用域外（system/init 握手等）返回 null，
+    /// 序列化时 WhenWritingNull 不写字段，旧消费方零影响。</summary>
+    private static string? CurrentQueryId() => Core.Context.ChatQueryScope.CurrentOrNull?.QueryId;
+
+    /// <summary>写入 SDK JSON 消息到 stdout（ADR 0165 / TASK137 — 逐条打查询身份）</summary>
+    private void WriteSdkJson<T>(T message) where T : Cli.Output.SdkMessageBase {
+        var stamped = CurrentQueryId() is { } queryId ? message with { QueryId = queryId } : message;
+        var json = RelaxedJsonSerializer.Serialize(stamped, _jsonContext);
         Console.WriteLine(json);
         if (Console.IsOutputRedirected) Console.Out.Flush();
     }

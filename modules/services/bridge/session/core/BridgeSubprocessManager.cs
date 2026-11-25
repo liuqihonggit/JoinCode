@@ -388,7 +388,7 @@ public sealed class BridgeSubprocessSpawner {
         }
 
         // 构建带 transcript 的路径
-        var argList = BuildArgumentList(new BridgeSubprocessOptions {
+        var argList = BuildChildArguments(new BridgeSubprocessOptions {
             SessionId = options.SessionId,
             SdkUrl = options.SdkUrl,
             AccessToken = options.AccessToken,
@@ -527,9 +527,19 @@ public sealed class BridgeSubprocessSpawner {
     }
 
     /// <summary>
-    /// 构建命令行参数列表 — 对齐 TS 端子进程参数，使用 ArgumentList 消除字符串拼接注入风险
+    /// 构建子进程命令行参数 — 使用 ArgumentList 消除字符串拼接注入风险。
+    /// <para>TASK138：**只拼本仓 <c>jcc</c> 真实解析的选项**。此前照 TS 端拼了 <c>--print</c> /
+    /// <c>--sdk-url</c> / <c>--session-id</c> / <c>--replay-user-messages</c> / <c>--debug-file</c>，
+    /// 这五个在 CLI 的 <c>CliArg</c> 里都没有登记，子进程第一个 token 就倒（<c>Unknown option</c>），
+    /// 也就是说该路径从未真实跑通过。逐项取舍见 <c>docs/proposed/task/TASK138-*.md</c> §4。</para>
+    /// <para>公开可见是为让门禁单测（<c>BridgeChildArgumentsTests</c>）能对着 CLI 的 <c>CliArgParser</c>
+    /// 逐个选项核对「拼出来的参数是否真能解析」，避免再次出现「拼了不存在的参数」。
+    /// 注：本库不引用 CLI 程序集，所以这段契约只能靠那个单测保证，不能在此处 <c>cref</c>。</para>
     /// </summary>
-    private static IReadOnlyList<string> BuildArgumentList(BridgeSubprocessOptions options) {
+    /// <param name="options">子进程选项</param>
+    /// <returns>参数列表（不含可执行文件名）</returns>
+    public static IReadOnlyList<string> BuildChildArguments(BridgeSubprocessOptions options) {
+        ArgumentNullException.ThrowIfNull(options);
         var args = new List<string>();
 
         // 额外脚本参数 — 对齐 TS 端: [...deps.scriptArgs, ...]
@@ -539,34 +549,17 @@ public sealed class BridgeSubprocessSpawner {
             }
         }
 
-        // --print 模式（非交互）
-        args.Add(JccCliArg.Print.ToValue());
-
-        if (options.SdkUrl is not null) {
-            args.Add(JccCliArg.SdkUrl.ToValue());
-            args.Add(options.SdkUrl);
-        }
-
-        if (options.SessionId is not null) {
-            args.Add(JccCliArg.SessionId.ToValue());
-            args.Add(options.SessionId);
-        }
-
+        // 输入协议：stdin 逐行 NDJSON user 消息 = 一次查询（TASK138）。
+        // 该模式同时隐含「非交互」——不再需要 --print，也不需要 -p 提示词（首回合从 stdin 来）。
         args.Add(JccCliArg.InputFormat.ToValue());
-        args.Add("stream-json");
-
+        args.Add(StreamJson);
         args.Add(JccCliArg.OutputFormat.ToValue());
-        args.Add("stream-json");
+        args.Add(StreamJson);
 
-        args.Add(JccCliArg.ReplayUserMessages.ToValue());
-
+        // 调试日志：子进程侧唯一支持的形状是指向 stderr 的开关（无 --debug-file 消费方）。
+        // 文件回溯由父进程负责：stdout 全量落 bridge-transcript-{id}.json。
         if (options.DebugLog) {
             args.Add(JccCliArg.DebugLog.ToValue());
-        }
-
-        if (!string.IsNullOrEmpty(options.DebugFile)) {
-            args.Add(JccCliArg.DebugFile.ToValue());
-            args.Add(options.DebugFile);
         }
 
         if (!string.IsNullOrEmpty(options.PermissionMode)) {
@@ -576,6 +569,9 @@ public sealed class BridgeSubprocessSpawner {
 
         return args;
     }
+
+    /// <summary>SDK 方言的流式格式名 — <c>--input-format</c> / <c>--output-format</c> 共用。</summary>
+    private const string StreamJson = "stream-json";
 
     /// <summary>
     /// 优雅关闭所有子进程 — 对齐 TS 端 runBridgeLoop 的关闭流程

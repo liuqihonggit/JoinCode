@@ -141,6 +141,21 @@ public static class ApplicationBuilder {
     }
 
     /// <summary>
+    /// 归一输出格式（TASK138）— SDK 客户端用 <c>--output-format stream-json</c>，本仓协议名是 ndjson，
+    /// 两者同义（每行一个 JSON）；<c>--input-format stream-json</c> 且未显式指定输出格式时默认 ndjson
+    /// （否则事件以人类可读文本写进 stdout，SDK 侧无法解析）。
+    /// </summary>
+    /// <param name="outputFormat">--output-format 的值（SDK 方言，可空）</param>
+    /// <param name="format">--format 的值（本仓方言，可空）</param>
+    /// <param name="inputFormat">--input-format 的值（可空）</param>
+    /// <returns>归一后的输出格式值</returns>
+    private static string? NormalizeOutputFormat(string? outputFormat, string? format, string? inputFormat) {
+        var effective = string.IsNullOrWhiteSpace(outputFormat) ? format : outputFormat;
+        var normalized = string.Equals(effective, "stream-json", StringComparison.OrdinalIgnoreCase) ? "ndjson" : effective;
+        return normalized ?? (string.Equals(inputFormat, "stream-json", StringComparison.OrdinalIgnoreCase) ? "ndjson" : null);
+    }
+
+    /// <summary>
     /// 解析命令行参数
     /// </summary>
     public static CommandLineOptions ParseArgs(string[] args) {
@@ -177,7 +192,8 @@ public static class ApplicationBuilder {
             SystemPrompt = result.SystemPrompt,
             AppendSystemPrompt = result.AppendSystemPrompt,
             JsonOutput = result.Json,
-            OutputFormat = result.Format,
+            OutputFormat = NormalizeOutputFormat(result.OutputFormat, result.Format, result.InputFormat),
+            InputFormat = result.InputFormat,
             DryRun = result.DryRun,
             Yes = result.Yes,
             Force = result.Force,

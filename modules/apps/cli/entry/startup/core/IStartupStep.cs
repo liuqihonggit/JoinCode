@@ -40,6 +40,9 @@ public sealed class StartupContext {
     /// </summary>
     public string? SessionId { get; set; }
 
+    /// <summary>最近一回合的查询身份（TASK137）— 由执行步骤从会话读取，结果消息按它归因</summary>
+    public string? QueryId { get; set; }
+
     /// <summary>
     /// 非交互模式的提示词 — 由 PromptStep 设置，由 ExecuteStep 消费
     /// </summary>

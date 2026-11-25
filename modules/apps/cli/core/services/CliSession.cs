@@ -51,6 +51,9 @@ public sealed class CliSession {
     /// <summary>本回合 Done 权威 usage 快照（9对齐 ClaudeCode SDK usage 语义）</summary>
     public JoinCode.Abstractions.LLM.Chat.TokenUsage? LastUsage => _controller?.LastUsage;
 
+    /// <summary>最近一回合的查询身份（TASK137）— NDJSON 结果消息按它归因。</summary>
+    public string? LastQueryId => _controller?.LastQueryId;
+
     /// <summary>本回合总成本美元（对齐 ClaudeCode SDK total_cost_usd 语义）</summary>
     public decimal LastCostUsd => _controller?.LastCostUsd ?? 0m;
 

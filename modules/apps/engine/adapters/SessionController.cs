@@ -60,6 +60,9 @@ public sealed class SessionController {
     /// <summary>本回合结构化输出（对齐 ClaudeCode SDK structured_output 语义）</summary>
     public System.Text.Json.JsonElement? LastStructuredOutput { get; private set; }
 
+    /// <summary>本回合查询身份（ADR 0165 / TASK137）— 宿主据此给对外事件归因；未开始回合时为 null。</summary>
+    public string? LastQueryId { get; private set; }
+
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _chatService;
 
@@ -182,6 +185,8 @@ public sealed class SessionController {
         // `/clear` 换代后 _sessionId 会过期；TUI 侧每查询新建 controller，两者都取「当前指针」的快照。
         var turnSessionId = _serviceProvider?.GetService<IChatContextManager>()?.SessionId ?? _sessionId;
         using var queryScope = Core.Context.ChatQueryScope.Enter(sessionId: turnSessionId);
+        // TASK137 — 本回合查询身份外泄给宿主：NDJSON/SDK 出口按它归因
+        LastQueryId = queryScope.QueryId;
 
         // 发送提醒注入 — system-reminder 形态追加到消息末尾（10 分钟冷却；斜杠命令在 EngineSession 层已分流，
         // 此处兜底判定）。CurrentInput（LLM prompt）与 AddUserMessageAsync（历史落库）同源生效。

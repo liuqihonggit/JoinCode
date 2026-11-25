@@ -606,33 +606,55 @@ class Program {
         }
     }
 
+    /// <summary>原始参数里的输出形状（options 解析前的最小判定）</summary>
+    private enum RawOutputMode {
+        /// <summary>人类可读文本</summary>
+        Text,
+        /// <summary>单个 JSON 信封</summary>
+        Json,
+        /// <summary>逐行 JSON 事件流</summary>
+        Ndjson,
+    }
+
+    /// <summary>
+    /// 扫描原始 args 判定输出形状 — 供 <see cref="StartEarlyAwaitTimer"/> 等在
+    /// <c>CommandLineOptions</c> 解析前就要决定「错误信封长什么样」的路径使用。
+    /// <para>TASK138：SDK 方言 <c>--output-format stream-json</c> 等价 <c>--format ndjson</c>；
+    /// <c>--input-format stream-json</c> 隐含输出为 ndjson（应用层归一），所以也算进来 ——
+    /// 否则超时/参数错误会把人类可读文本写进协议流，SDK 客户端 JSON 解析直接崩。</para>
+    /// </summary>
+    /// <param name="args">原始命令行参数</param>
+    /// <returns>输出形状</returns>
+    private static RawOutputMode ScanRawOutputMode(string[] args) {
+        var mode = RawOutputMode.Text;
+        for (var i = 0; i < args.Length; i++) {
+            if (args[i] == JccCliArgEnumConstants.Json)
+                mode = RawOutputMode.Json; // 不提前返回：后出现的显式流式格式应胜出（与改造前「两个探测各自独立扫描」一致）
+
+            var isOutputSide = args[i] == JccCliArgEnumConstants.Format || args[i] == JccCliArgEnumConstants.OutputFormat;
+            var isInputSide = args[i] == JccCliArgEnumConstants.InputFormat;
+            if ((!isOutputSide && !isInputSide) || i + 1 >= args.Length)
+                continue;
+
+            var value = args[i + 1];
+            if (string.Equals(value, OutputFormatEnumConstants.Json, StringComparison.OrdinalIgnoreCase))
+                mode = RawOutputMode.Json;
+            else if (string.Equals(value, OutputFormatEnumConstants.Ndjson, StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(value, "stream-json", StringComparison.OrdinalIgnoreCase))
+                return RawOutputMode.Ndjson; // 显式流式优先于先前看到的 --format json
+        }
+        return mode;
+    }
+
     /// <summary>
     /// 从原始 args 中检测是否启用结构化输出模式（JSON 或 NDJSON）— 供 StartEarlyAwaitTimer 在 options 解析前使用。
     /// </summary>
-    private static bool IsStructuredOutputFromArgs(string[] args) {
-        for (var i = 0; i < args.Length; i++) {
-            if (args[i] == "--json")
-                return true;
-            if (args[i] == "--format" && i + 1 < args.Length) {
-                var fmt = args[i + 1];
-                if (string.Equals(fmt, "json", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(fmt, "ndjson", StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-        }
-        return false;
-    }
+    private static bool IsStructuredOutputFromArgs(string[] args) => ScanRawOutputMode(args) != RawOutputMode.Text;
 
     /// <summary>
     /// 从原始 args 中检测是否启用 NDJSON 模式 — 供 StartEarlyAwaitTimer 在 options 解析前使用。
     /// </summary>
-    private static bool IsNdjsonFromArgs(string[] args) {
-        for (var i = 0; i < args.Length - 1; i++) {
-            if (args[i] == "--format" && string.Equals(args[i + 1], "ndjson", StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-        return false;
-    }
+    private static bool IsNdjsonFromArgs(string[] args) => ScanRawOutputMode(args) == RawOutputMode.Ndjson;
 
     /// <summary>
     /// 启动 --await N 超时计时器。
@@ -714,7 +736,9 @@ class Program {
     /// </summary>
     private static string? ValidateEnumArgs(string[] args) {
         var validPermissionModes = new[] { PermissionModeEnumConstants.Plan, PermissionModeEnumConstants.Auto, PermissionModeEnumConstants.Ask, PermissionModeEnumConstants.Bypass };
-        var validFormats = new[] { OutputFormatEnumConstants.Text, OutputFormatEnumConstants.Json, OutputFormatEnumConstants.Ndjson };
+        // stream-json 是 SDK 方言（应用层归一为 ndjson）— 此处放行
+        var validFormats = new[] { OutputFormatEnumConstants.Text, OutputFormatEnumConstants.Json, OutputFormatEnumConstants.Ndjson, "stream-json" };
+        var validInputFormats = new[] { "stream-json" };
 
         for (var i = 0; i < args.Length - 1; i++) {
             if (args[i] == JccCliArgEnumConstants.PermissionMode) {
@@ -722,10 +746,15 @@ class Program {
                 if (!validPermissionModes.Contains(value, StringComparer.OrdinalIgnoreCase))
                     return $"--permission-mode 的值 '{value}' 无效，有效值为: {string.Join(", ", validPermissionModes)}";
             }
-            if (args[i] == JccCliArgEnumConstants.Format) {
+            if (args[i] == JccCliArgEnumConstants.Format || args[i] == JccCliArgEnumConstants.OutputFormat) {
                 var value = args[i + 1];
                 if (!validFormats.Contains(value, StringComparer.OrdinalIgnoreCase))
-                    return $"--format 的值 '{value}' 无效，有效值为: {string.Join(", ", validFormats)}";
+                    return $"{args[i]} 的值 '{value}' 无效，有效值为: {string.Join(", ", validFormats)}";
+            }
+            if (args[i] == JccCliArgEnumConstants.InputFormat) {
+                var value = args[i + 1];
+                if (!validInputFormats.Contains(value, StringComparer.OrdinalIgnoreCase))
+                    return $"--input-format 的值 '{value}' 无效，有效值为: {string.Join(", ", validInputFormats)}";
             }
         }
         return null;

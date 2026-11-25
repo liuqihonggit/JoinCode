@@ -144,6 +144,8 @@ public record CommandLineOptions {
         !ForceInteractive
         && (NonInteractive
             || !string.IsNullOrWhiteSpace(Prompt)
+            // TASK138 — stream-json 输入是从 stdin 驱动的非交互形态，不依赖 -p 提示词
+            || IsStreamJsonInputMode
             || DetectedHeadlessMode != HeadlessMode.Interactive);
 
     /// <summary>
@@ -170,6 +172,12 @@ public record CommandLineOptions {
     public string? OutputFormat { get; init; }
 
     /// <summary>
+    /// 输入格式（--input-format）— 仅 stream-json 有意义：stdin 逐行读 NDJSON 用户消息，
+    /// 一条进程承载多次查询（SDK 客户端形态）；null/text 表示传统单发 -p 提示词。
+    /// </summary>
+    public string? InputFormat { get; init; }
+
+    /// <summary>
     /// 是否启用 JSON 输出模式（综合 JsonOutput 和 OutputFormat 判断）
     /// </summary>
     public bool IsJsonMode => JsonOutput || string.Equals(OutputFormat, "json", StringComparison.OrdinalIgnoreCase);
@@ -178,7 +186,14 @@ public record CommandLineOptions {
     /// 是否启用 NDJSON 流式输出模式（--format ndjson）— 每行一个 JSON 事件对象，输出到 stdout
     /// <para>与 <see cref="IsJsonMode"/> 互斥：JSON 模式输出单个信封，NDJSON 模式输出事件流</para>
     /// </summary>
-    public bool IsNdjsonMode => string.Equals(OutputFormat, "ndjson", StringComparison.OrdinalIgnoreCase);
+    public bool IsNdjsonMode => string.Equals(OutputFormat, "ndjson", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(OutputFormat, "stream-json", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// SDK 流式输入模式（TASK138）— stdin 逐行读 NDJSON 用户消息，一条进程承载多次查询；
+    /// 输出强制为 NDJSON（事件流 + 每查询一条 result）。
+    /// </summary>
+    public bool IsStreamJsonInputMode => string.Equals(InputFormat, "stream-json", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 是否启用结构化输出模式（JSON 或 NDJSON）— 需要抑制 stdout 信息输出

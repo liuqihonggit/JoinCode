@@ -48,19 +48,34 @@
 ## 5. 验证
 
 - **单测**：`Host.Tests` 全量（含新增 4 条）全绿。
-- **E2E 断言**：vf03 已加 `query_id` 断言。**本机跑不通**——常驻 `jcchub`（PID 见 `artifacts/bin/Hub/*.dll` 锁）
-  抢占 provider，子进程走 Hub 而非 MockServer，401 失败（既有环境问题，与本改动无关），留 CI 验证。
+- **真机（`jcc -p "hi" --format ndjson --model nonexistent-xyz`，401 快速失败不烧 token）**：
+
+  ```
+  {"type":"system","subtype":"init",...}                     ← 回合前握手，无 query_id
+  {"type":"auth_status",...}                                 ← 同上
+  {"type":"system","subtype":"session_state_changed","state":"running",...,"query_id":"q-32d60f…"}
+  {"type":"system","subtype":"session_state_changed","state":"idle",...,"query_id":"q-32d60f…"}
+  {"type":"result","subtype":"error_during_execution",...,"query_id":"q-32d60f…"}
+  ```
+
+  判读：回合内消息与结果消息归因到同一 `q-…`；握手类消息不带该字段；**失败路径也有身份**
+  （证明 `try/finally` 回填生效，而非只在成功分支）。
+- **E2E 断言**：vf03 已加 `query_id` 断言，但本机 E2E 跑不通——常驻 `jcchub` 抢占 provider，
+  子进程走 Hub 而非 MockServer（401，既有环境问题），留 CI 验证；上面那条真机证据已独立覆盖同一判据。
+- **坑（血的教训）**：`-p` 会**吞掉下一个 token 当提示词**，所以 `jcc -p --json "hi"` 里的 `--json`
+  被当成 prompt —— 标志必须写在提示词之后（`jcc -p "hi" --json`）。此前用错顺序，误判过"结构化输出不生效"。
 - **协议兼容**：`query_id` 为增量字段且空值不写；`SdkResultMessage_WithoutQueryId_OmitsField` 锁住形状。
 
-## 6. 本轮不做（需单独立项）
+## 6. 本轮不做（已由 [TASK138](TASK138-SDK流式输入模式.md) 承接）
 
-1. **`--input-format stream-json` 流式输入模式**：一条进程内多次查询的真正前置。当前
+1. **`--input-format stream-json` 流式输入模式**：一条进程内多次查询的真正前置。当时
    `JccCliArg.InputFormat` 只有声明，无解析、无 runner；`BridgeSubprocessManager` 已按该模式拼参，
    所以 bridge 服务拉起 jcc 的路径**目前必然失败**（`--output-format` 未知 + `stream-json` 非法值）。
-   这是「协议参数 + runner」双缺失，不是加个字段能补的。
+   → **TASK138 已补参数面 + 输入 DTO/解析器 + 回合循环**。
 2. **`BridgeSubprocessManager` 参数纠偏**：应与 (1) 一起改（单独改成 `--format ndjson` 仍会因
    `-p` 缺提示词而失败，改一半比不改更难查）。
-3. **queryId 贯通 `bridge` 服务协议面**（websocket `BridgeServerMessage`）—— 与 (1) 同源。
+   → **TASK138 已改：只拼本仓真实解析的选项，并加门禁单测 `BridgeChildArgumentsTests`**。
+3. **queryId 贯通 `bridge` 服务协议面**（websocket `BridgeServerMessage`）—— 仍待单独立项。
 
 ## 7. 教训
 

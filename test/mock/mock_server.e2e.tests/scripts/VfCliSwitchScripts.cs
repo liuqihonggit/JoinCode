@@ -63,7 +63,7 @@ public static class VfCliSwitchScripts {
 
     /// <summary>
     /// vf03: --format ndjson — `jcc --format ndjson`，
-    /// 可观测信号 NDJSON 事件流（含 "type" 字段）。
+    /// 可观测信号 NDJSON 事件流（含 "type" 字段 + TASK137 查询身份 "query_id"）。
     /// </summary>
     public static ConversationScript Vf03FormatNdjson => new() {
         Name = "vf03 format ndjson",
@@ -79,6 +79,7 @@ public static class VfCliSwitchScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "ndjson", Description = "vf03: 应包含 ndjson 格式响应" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "query_id", Description = "vf03: NDJSON 每条消息带查询身份（ADR 0165 / TASK137）" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vf03: 不应有错误" },
                 ]
             }

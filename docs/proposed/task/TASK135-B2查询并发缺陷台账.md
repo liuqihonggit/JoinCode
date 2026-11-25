@@ -91,7 +91,9 @@
 
 ### 批次 D — 已裁决不在本轮
 
-- [~] **D1 SDK/NDJSON 协议 queryId** — 属阶段 2 剩余大项（协议面），另立任务，不混进缺陷修复。
+- [x] **D1 SDK/NDJSON 协议 queryId** — 已由 [TASK137](TASK137-NDJSON协议查询身份.md) 落地：
+  `SdkMessageBase.query_id`（WhenWritingNull）+ `WriteSdkJson<T>` 逐条打标 + 结果消息（含失败路径）归因；
+  顺带查实两处缺口（`--input-format` 无消费方、`BridgeSubprocessManager` 传 `--output-format` 未知选项）记入 TASK137 §6。
 - [x] **D2 bridge_serve 跨进程多查询** — 已由 [TASK136](TASK136-bridge_serve跨进程多查询.md) 落地：
   `ConcurrentDictionary<string, TurnRun>` + 每查询独立消费器 + 每查询 `SessionController`；
   真机双查询并发（401 交错）验证。

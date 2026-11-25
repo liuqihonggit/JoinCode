@@ -92,7 +92,9 @@
 ### 批次 D — 已裁决不在本轮
 
 - [~] **D1 SDK/NDJSON 协议 queryId** — 属阶段 2 剩余大项（协议面），另立任务，不混进缺陷修复。
-- [~] **D2 bridge_serve 跨进程多查询** — 仍是单活跃回合，属阶段 2 剩余，另立任务。
+- [x] **D2 bridge_serve 跨进程多查询** — 已由 [TASK136](TASK136-bridge_serve跨进程多查询.md) 落地：
+  `ConcurrentDictionary<string, TurnRun>` + 每查询独立消费器 + 每查询 `SessionController`；
+  真机双查询并发（401 交错）验证。
 - [~] **D3 真机 TUI 手工验收（#101）** — 需人操作，见 TASK129 采集卡。
 
 ## 2. 修复记录

@@ -29,7 +29,7 @@
 - [x] NativeTui 串行编译与全量测试。
 - [x] 输入竞态重复 16 轮与相关门禁。
 - [x] 真实 stdin exe 验收。
-- [ ] 提交、推送 w3、创建 auto-merge PR 并守 CI。
+- [x] 提交并推送 w3、创建 squash auto-merge PR；CI 守候记录见 PR 检查。
 
 ## 优化后结果
 

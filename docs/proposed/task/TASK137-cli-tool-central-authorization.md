@@ -110,7 +110,9 @@
 
 ### 阶段 5：全仓收敛与验收
 
-- [ ] 仓库门禁验证每个策略工具恰好由一个参数声明所有者分析器覆盖。
+- [x] 仓库门禁验证每个策略工具恰好由一个参数声明所有者分析器覆盖。
+  - `Verify-ToolNodes.ps1` 声明侧新增：策略存在、`policy_id`、`executables`（含 delegate exe）、策略工具集合与 node.yaml 双向相等、csproj 含分析器与 `AdditionalFiles`、委托工程内嵌策略；CI 已跑 `-DeclarationsOnly`。
+  - 真机：门禁通过 13 组/635 工具；负例路径由集合对账直接覆盖（缺/多都会列出工具名）。
 - [x] 审计包含 agent/session、exe、tool、规范化参数摘要、策略版本/哈希、拒绝层。
   - broker `WriteAudit`：`JCC_CLI_AUDIT_LOG` 指定路径时逐判定追加 JSONL（旁路失败不改判定）。
   - 字段：timestamp、agent/session、permissionMode、group、tool、executable、policy id/version、参数名、参数 SHA-256 摘要、allowed、layer、reason；策略哈希待信任目录，grant redeem 在会话 token 模型下不适用。
@@ -132,7 +134,7 @@
 | 一次性执行 grant + redeem | `CliNodeRunner` local / delegate | ❌ 当前为作用域会话 token（ADR 偏离，待阶段 2 加固） | ❌ |
 | 参数权限硬规则 | broker `CliToolPolicyEvaluator` | ✅ 未知参数/deny 参数/工具域/拒绝集 | ✅ `--pages`→126 `Policy.Deny`；`--bogus`→126 `Policy.Parameter` |
 | 迁移门禁（无策略 exe 旧行为） | `CliToolAuthorizationClient.AuthorizeCoreAsync` | ✅ `Policy.NotEnforced`；3/3 门禁测试 | ✅ 各组直跑统一 126；delegate/host 无策略 exe 仍按旧行为 |
-| Roslyn 参数对账分析器 | 13 个组 csproj | ✅ JCC13001/13002/13004/13008；13/13 测试 | ✅ 13 组编译零诊断；119/119 契约测试 |
+| Roslyn 参数对账分析器 | 13 个组 csproj + `Verify-ToolNodes.ps1` 声明门禁 | ✅ JCC13001/13002/13004/13008；13/13 测试；策略/节点/分析器接线仓库门禁 | ✅ 13 组编译零诊断；119/119 契约测试；`-DeclarationsOnly` 通过 |
 | subagent 有效工具域 | `ContextSetupMiddleware`、`SubAgentContext` | ✅ 交集 + 空交集哨兵；6/6 测试 | ❌ 真实子代理会话待阶段 4 |
 | 发现与执行同源 | `ToolsSection`、`CliToolCommand` tree/find/help、`CliToolScopeFilter` | ✅ `ScopeSnapshot` + 首轮组目录裁剪（`tool_ids`）；8 个过滤测试 + 3 个提示词测试 + broker 快照测试 | ✅ 受限 tree/help/find 真机裁剪，无会话全量；首轮提示词单测覆盖，真实子代理会话待阶段 4 联调 |
 | 权限审计与诱导错误 | broker `WriteAudit`（`JCC_CLI_AUDIT_LOG`）+ CLI stderr | ✅ JSONL 字段含 agent/session/参数名/摘要/策略版本/层；策略哈希归入信任目录 | ✅ 真机 12 条审计（host 与 github 路径）；单测断言放行/拒绝记录 |

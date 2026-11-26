@@ -359,7 +359,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
    - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
-   - 审计段已完成：`JCC_CLI_AUDIT_LOG` JSONL + 真机 12 条；覆盖门禁与信任目录待办。
+   - 审计段已完成：`JCC_CLI_AUDIT_LOG` JSONL + 真机 12 条；覆盖门禁已并入 `Verify-ToolNodes.ps1 -DeclarationsOnly`（策略/节点/分析器接线/委托内嵌）；策略哈希与信任目录待办。
 
 每阶段独立编译、测试、提交；跨域契约变更执行 `Build-AllDomains.ps1`。
 

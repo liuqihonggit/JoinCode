@@ -1,0 +1,1493 @@
+# github 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.github
+policy_version: 1
+executables:
+  - jcc-tool-github.exe
+
+tools:
+  subscribe_pr:
+    effect: allow
+    parameters: []
+  gh_api:
+    effect: allow
+    parameters:
+      path:
+        effect: allow
+      method:
+        effect: allow
+      body:
+        effect: allow
+      body_file:
+        effect: allow
+      fields:
+        effect: allow
+      jq:
+        effect: allow
+      paginate:
+        effect: allow
+      max_lines:
+        effect: allow
+      working_dir:
+        effect: allow
+  gh_auth_status:
+    effect: allow
+    parameters: []
+  gh_auth_login:
+    effect: allow
+    parameters:
+      token:
+        effect: allow
+      host:
+        effect: allow
+  gh_auth_token:
+    effect: allow
+    parameters:
+      host:
+        effect: allow
+  gh_auth_refresh:
+    effect: allow
+    parameters:
+      host:
+        effect: allow
+  gh_auth_logout:
+    effect: allow
+    parameters:
+      host:
+        effect: allow
+  gh_auth_setup_git:
+    effect: allow
+    parameters:
+      host:
+        effect: allow
+  gh_config_list:
+    effect: allow
+    parameters:
+      host:
+        effect: allow
+  gh_config_get:
+    effect: allow
+    parameters:
+      key:
+        effect: allow
+      host:
+        effect: allow
+  gh_config_set:
+    effect: allow
+    parameters:
+      key:
+        effect: allow
+      value:
+        effect: allow
+      host:
+        effect: allow
+  gh_branch_sync_protection:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+      yml_path:
+        effect: allow
+      dry_run:
+        effect: allow
+  gh_branch_audit_protection:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+      yml_path:
+        effect: allow
+  gh_branch_list:
+    effect: allow
+    parameters: []
+  gh_branch_view:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+  gh_branch_create:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+      from:
+        effect: allow
+      sha:
+        effect: allow
+  gh_branch_delete:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+  gh_branch_rename:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+      new_name:
+        effect: allow
+  gh_gist_list:
+    effect: allow
+    parameters: []
+  gh_gist_view:
+    effect: allow
+    parameters:
+      gist_id:
+        effect: allow
+  gh_gist_create:
+    effect: allow
+    parameters:
+      filename:
+        effect: allow
+      content:
+        effect: allow
+      description:
+        effect: allow
+  gh_gist_delete:
+    effect: allow
+    parameters:
+      gist_id:
+        effect: allow
+  gh_gist_edit:
+    effect: allow
+    parameters:
+      gist_id:
+        effect: allow
+      description:
+        effect: allow
+      filename:
+        effect: allow
+      content:
+        effect: allow
+  gh_gist_rename:
+    effect: allow
+    parameters:
+      gist_id:
+        effect: allow
+      old_filename:
+        effect: allow
+      new_filename:
+        effect: allow
+  gh_gist_clone:
+    effect: allow
+    parameters:
+      gist_id:
+        effect: allow
+      dir:
+        effect: allow
+  gh_issue_list:
+    effect: allow
+    parameters:
+      state:
+        effect: allow
+      label:
+        effect: allow
+      assignee:
+        effect: allow
+      author:
+        effect: allow
+      mention:
+        effect: allow
+      milestone:
+        effect: allow
+      search:
+        effect: allow
+      type:
+        effect: allow
+  gh_issue_view:
+    effect: allow
+    parameters:
+      comments:
+        effect: allow
+      web:
+        effect: allow
+  gh_issue_create:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      body:
+        effect: allow
+      body_file:
+        effect: allow
+      label:
+        effect: allow
+      assignee:
+        effect: allow
+      milestone:
+        effect: allow
+      project:
+        effect: allow
+      attach:
+        effect: allow
+      blocked_by:
+        effect: allow
+      blocking:
+        effect: allow
+      parent:
+        effect: allow
+      type:
+        effect: allow
+  gh_issue_close:
+    effect: allow
+    parameters:
+      comment:
+        effect: allow
+      reason:
+        effect: allow
+      duplicate_of:
+        effect: allow
+  gh_issue_comment:
+    effect: allow
+    parameters:
+      body:
+        effect: allow
+  gh_issue_reopen:
+    effect: allow
+    parameters:
+      comment:
+        effect: allow
+  gh_issue_edit:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      body:
+        effect: allow
+      body_file:
+        effect: allow
+      label:
+        effect: allow
+      add_label:
+        effect: allow
+      remove_label:
+        effect: allow
+      assignee:
+        effect: allow
+      add_assignee:
+        effect: allow
+      remove_assignee:
+        effect: allow
+      milestone:
+        effect: allow
+      remove_milestone:
+        effect: allow
+      add_project:
+        effect: allow
+      remove_project:
+        effect: allow
+      attach:
+        effect: allow
+      add_sub_issue:
+        effect: allow
+      remove_sub_issue:
+        effect: allow
+      parent:
+        effect: allow
+      remove_parent:
+        effect: allow
+      add_blocked_by:
+        effect: allow
+      remove_blocked_by:
+        effect: allow
+      add_blocking:
+        effect: allow
+      remove_blocking:
+        effect: allow
+      type:
+        effect: allow
+      remove_type:
+        effect: allow
+  gh_issue_delete:
+    effect: allow
+    parameters:
+      yes:
+        effect: allow
+  gh_issue_lock:
+    effect: allow
+    parameters:
+      reason:
+        effect: allow
+  gh_issue_unlock:
+    effect: allow
+    parameters: []
+  gh_issue_status:
+    effect: allow
+    parameters: []
+  gh_issue_develop:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+      list:
+        effect: allow
+      checkout:
+        effect: allow
+  gh_issue_pin:
+    effect: allow
+    parameters: []
+  gh_issue_unpin:
+    effect: allow
+    parameters: []
+  gh_issue_transfer:
+    effect: allow
+    parameters:
+      destination_repo:
+        effect: allow
+  gh_label_list:
+    effect: allow
+    parameters:
+      search:
+        effect: allow
+      sort:
+        effect: allow
+      order:
+        effect: allow
+  gh_label_view:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+  gh_label_create:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+      color:
+        effect: allow
+      description:
+        effect: allow
+      force:
+        effect: allow
+  gh_label_delete:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+      yes:
+        effect: allow
+  gh_label_edit:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+      new_name:
+        effect: allow
+      color:
+        effect: allow
+      description:
+        effect: allow
+  gh_label_clone:
+    effect: allow
+    parameters:
+      source_repo:
+        effect: allow
+      force:
+        effect: allow
+  gh_milestone_list:
+    effect: allow
+    parameters:
+      state:
+        effect: allow
+  gh_milestone_view:
+    effect: allow
+    parameters:
+      number:
+        effect: allow
+  gh_notification_list:
+    effect: allow
+    parameters:
+      unread:
+        effect: allow
+  gh_team_list:
+    effect: allow
+    parameters:
+      org:
+        effect: allow
+  gh_collaborator_list:
+    effect: allow
+    parameters: []
+  gh_org_list:
+    effect: allow
+    parameters: []
+  gh_org_view:
+    effect: allow
+    parameters:
+      org:
+        effect: allow
+  gh_ssh_key_list:
+    effect: allow
+    parameters: []
+  gh_ssh_key_add:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      key:
+        effect: allow
+  gh_ssh_key_delete:
+    effect: allow
+    parameters:
+      key_id:
+        effect: allow
+  gh_ssh_key_view:
+    effect: allow
+    parameters:
+      key_id:
+        effect: allow
+  gh_gpg_key_list:
+    effect: allow
+    parameters: []
+  gh_gpg_key_add:
+    effect: allow
+    parameters:
+      key:
+        effect: allow
+  gh_gpg_key_delete:
+    effect: allow
+    parameters:
+      key_id:
+        effect: allow
+  gh_gpg_key_view:
+    effect: allow
+    parameters:
+      key_id:
+        effect: allow
+  gh_browse:
+    effect: allow
+    parameters:
+      target:
+        effect: allow
+      branch:
+        effect: allow
+      commit:
+        effect: allow
+      actions:
+        effect: allow
+      releases:
+        effect: allow
+      projects:
+        effect: allow
+      settings:
+        effect: allow
+      blame:
+        effect: allow
+      no_browser:
+        effect: allow
+  gh_cache_list:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+      key:
+        effect: allow
+  gh_cache_delete:
+    effect: allow
+    parameters:
+      cache_id:
+        effect: allow
+      all:
+        effect: allow
+  gh_cache_clear_log:
+    effect: allow
+    parameters:
+      expired_only:
+        effect: allow
+  gh_ruleset_list:
+    effect: allow
+    parameters:
+      org:
+        effect: allow
+  gh_ruleset_view:
+    effect: allow
+    parameters:
+      ruleset_id:
+        effect: allow
+      org:
+        effect: allow
+  gh_ruleset_check:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+  gh_status:
+    effect: allow
+    parameters:
+      org:
+        effect: allow
+      exclude:
+        effect: allow
+  gh_codespace_list:
+    effect: allow
+    parameters: []
+  gh_codespace_create:
+    effect: allow
+    parameters:
+      repo:
+        effect: allow
+      branch:
+        effect: allow
+      machine:
+        effect: allow
+      devcontainer_path:
+        effect: allow
+      display_name:
+        effect: allow
+  gh_codespace_delete:
+    effect: allow
+    parameters:
+      codespace_name:
+        effect: allow
+  gh_codespace_code:
+    effect: allow
+    parameters:
+      codespace_name:
+        effect: allow
+  gh_codespace_ssh:
+    effect: allow
+    parameters:
+      codespace_name:
+        effect: allow
+  gh_discussion_list:
+    effect: allow
+    parameters: []
+  gh_discussion_view:
+    effect: allow
+    parameters:
+      number:
+        effect: allow
+  gh_discussion_create:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      body:
+        effect: allow
+      category:
+        effect: allow
+  gh_discussion_edit:
+    effect: allow
+    parameters:
+      number:
+        effect: allow
+      title:
+        effect: allow
+      body:
+        effect: allow
+  gh_discussion_comment:
+    effect: allow
+    parameters:
+      number:
+        effect: allow
+      body:
+        effect: allow
+  gh_project_list:
+    effect: allow
+    parameters:
+      owner:
+        effect: allow
+  gh_project_view:
+    effect: allow
+    parameters:
+      number:
+        effect: allow
+      owner:
+        effect: allow
+  gh_project_create:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      owner:
+        effect: allow
+  gh_project_delete:
+    effect: allow
+    parameters:
+      number:
+        effect: allow
+      owner:
+        effect: allow
+  gh_project_edit:
+    effect: allow
+    parameters:
+      number:
+        effect: allow
+      title:
+        effect: allow
+      description:
+        effect: allow
+      owner:
+        effect: allow
+  gh_project_close:
+    effect: allow
+    parameters:
+      number:
+        effect: allow
+      owner:
+        effect: allow
+  gh_alias_list:
+    effect: allow
+    parameters: []
+  gh_alias_set:
+    effect: allow
+    parameters:
+      alias:
+        effect: allow
+      command:
+        effect: allow
+      shell:
+        effect: allow
+  gh_alias_delete:
+    effect: allow
+    parameters:
+      alias:
+        effect: allow
+  gh_extension_list:
+    effect: allow
+    parameters: []
+  gh_extension_install:
+    effect: allow
+    parameters:
+      extension:
+        effect: allow
+  gh_extension_upgrade:
+    effect: allow
+    parameters:
+      extension:
+        effect: allow
+  gh_extension_remove:
+    effect: allow
+    parameters:
+      extension:
+        effect: allow
+  gh_licenses:
+    effect: allow
+    parameters: []
+  gh_pr_view:
+    effect: allow
+    parameters:
+      comments:
+        effect: allow
+      web:
+        effect: allow
+      refresh:
+        effect: allow
+  gh_pr_list:
+    effect: allow
+    parameters:
+      state:
+        effect: allow
+      author:
+        effect: allow
+      label:
+        effect: allow
+      assignee:
+        effect: allow
+      head:
+        effect: allow
+      draft:
+        effect: allow
+      search:
+        effect: allow
+  gh_pr_diff:
+    effect: allow
+    parameters:
+      name_only:
+        effect: allow
+      exclude:
+        effect: allow
+      patch:
+        effect: allow
+  gh_pr_checks:
+    effect: allow
+    parameters:
+      required:
+        effect: allow
+      watch:
+        effect: allow
+      interval:
+        effect: allow
+      fail_fast:
+        effect: allow
+      limit:
+        effect: allow
+      refresh:
+        effect: allow
+      all:
+        effect: allow
+  gh_pr_wait:
+    effect: allow
+    parameters:
+      timeout_seconds:
+        effect: allow
+      poll_interval_seconds:
+        effect: allow
+      fail_fast:
+        effect: allow
+  gh_pr_merge:
+    effect: allow
+    parameters:
+      merge_method:
+        effect: allow
+      auto_merge:
+        effect: allow
+      disable_auto:
+        effect: allow
+      subject:
+        effect: allow
+      body:
+        effect: allow
+      admin:
+        effect: allow
+      delete_branch:
+        effect: allow
+  gh_pr_checkout:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+      force:
+        effect: allow
+      detach:
+        effect: allow
+  gh_pr_close:
+    effect: allow
+    parameters:
+      comment:
+        effect: allow
+      delete_branch:
+        effect: allow
+  gh_pr_reopen:
+    effect: allow
+    parameters:
+      comment:
+        effect: allow
+  gh_pr_create:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      head:
+        effect: allow
+      body:
+        effect: allow
+      body_file:
+        effect: allow
+      draft:
+        effect: allow
+      assignee:
+        effect: allow
+      label:
+        effect: allow
+      reviewer:
+        effect: allow
+      milestone:
+        effect: allow
+      project:
+        effect: allow
+      fill:
+        effect: allow
+      fill_first:
+        effect: allow
+      fill_verbose:
+        effect: allow
+      auto_merge:
+        effect: allow
+      merge_method:
+        effect: allow
+      dry_run:
+        effect: allow
+      no_maintainer_edit:
+        effect: allow
+      recover:
+        effect: allow
+      attach:
+        effect: allow
+      wait:
+        effect: allow
+      fail_fast:
+        effect: allow
+      wait_timeout:
+        effect: allow
+  gh_pr_comment:
+    effect: allow
+    parameters:
+      body:
+        effect: allow
+  gh_pr_edit:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      body:
+        effect: allow
+      body_file:
+        effect: allow
+      label:
+        effect: allow
+      add_label:
+        effect: allow
+      remove_label:
+        effect: allow
+      assignee:
+        effect: allow
+      add_reviewer:
+        effect: allow
+      remove_reviewer:
+        effect: allow
+      add_assignee:
+        effect: allow
+      remove_assignee:
+        effect: allow
+      milestone:
+        effect: allow
+      remove_milestone:
+        effect: allow
+      add_project:
+        effect: allow
+      remove_project:
+        effect: allow
+      attach:
+        effect: allow
+      auto_merge:
+        effect: allow
+      merge_method:
+        effect: allow
+  gh_pr_review:
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      body:
+        effect: allow
+  gh_pr_lock:
+    effect: allow
+    parameters:
+      reason:
+        effect: allow
+  gh_pr_unlock:
+    effect: allow
+    parameters: []
+  gh_pr_status:
+    effect: allow
+    parameters:
+      conflict_status:
+        effect: allow
+  gh_pr_ready:
+    effect: allow
+    parameters:
+      pr_number:
+        effect: allow
+      undo:
+        effect: allow
+  gh_pr_revert:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      body:
+        effect: allow
+      draft:
+        effect: allow
+  gh_pr_update_branch:
+    effect: allow
+    parameters:
+      pr_number:
+        effect: allow
+      rebase:
+        effect: allow
+  gh_release_list:
+    effect: allow
+    parameters:
+      exclude_drafts:
+        effect: allow
+      exclude_prereleases:
+        effect: allow
+  gh_release_view:
+    effect: allow
+    parameters:
+      tag:
+        effect: allow
+      web:
+        effect: allow
+  gh_release_create:
+    effect: allow
+    parameters:
+      tag:
+        effect: allow
+      title:
+        effect: allow
+      notes:
+        effect: allow
+      notes_file:
+        effect: allow
+      draft:
+        effect: allow
+      prerelease:
+        effect: allow
+      target:
+        effect: allow
+      generate_notes:
+        effect: allow
+      make_latest:
+        effect: allow
+      discussion_category:
+        effect: allow
+      fail_on_no_commits:
+        effect: allow
+      notes_from_tag:
+        effect: allow
+      notes_start_tag:
+        effect: allow
+      verify_tag:
+        effect: allow
+  gh_release_download:
+    effect: allow
+    parameters:
+      tag:
+        effect: allow
+      dir:
+        effect: allow
+      pattern:
+        effect: allow
+      max_threads:
+        effect: allow
+      resume:
+        effect: allow
+      clobber:
+        effect: allow
+      skip_existing:
+        effect: allow
+  gh_release_upload:
+    effect: allow
+    parameters:
+      tag:
+        effect: allow
+      files:
+        effect: allow
+      clobber:
+        effect: allow
+  gh_release_delete:
+    effect: allow
+    parameters:
+      tag:
+        effect: allow
+      yes:
+        effect: allow
+      cleanup_tag:
+        effect: allow
+  gh_release_delete_asset:
+    effect: allow
+    parameters:
+      tag:
+        effect: allow
+      asset_name:
+        effect: allow
+  gh_release_edit:
+    effect: allow
+    parameters:
+      tag:
+        effect: allow
+      new_tag:
+        effect: allow
+      title:
+        effect: allow
+      notes:
+        effect: allow
+      notes_file:
+        effect: allow
+      generate_notes:
+        effect: allow
+      draft:
+        effect: allow
+      prerelease:
+        effect: allow
+      target:
+        effect: allow
+      make_latest:
+        effect: allow
+  gh_release_verify:
+    effect: allow
+    parameters:
+      tag:
+        effect: allow
+  gh_release_verify_asset:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      tag:
+        effect: allow
+  gh_repo_view:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+      web:
+        effect: allow
+  gh_repo_clone:
+    effect: allow
+    parameters:
+      repo:
+        effect: allow
+      dir:
+        effect: allow
+      depth:
+        effect: allow
+      bare:
+        effect: allow
+      single_branch:
+        effect: allow
+      filter:
+        effect: allow
+      sparse:
+        effect: allow
+      upstream_remote_name:
+        effect: allow
+  gh_repo_create:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+      visibility:
+        effect: allow
+      description:
+        effect: allow
+      add_readme:
+        effect: allow
+      homepage:
+        effect: allow
+      gitignore:
+        effect: allow
+      license:
+        effect: allow
+      template:
+        effect: allow
+      include_all_branches:
+        effect: allow
+      org:
+        effect: allow
+      team:
+        effect: allow
+      clone:
+        effect: allow
+      source:
+        effect: allow
+      push:
+        effect: allow
+      disable_issues:
+        effect: allow
+      disable_wiki:
+        effect: allow
+      web:
+        effect: allow
+  gh_repo_fork:
+    effect: allow
+    parameters:
+      repo:
+        effect: allow
+      clone:
+        effect: allow
+      org:
+        effect: allow
+      fork_name:
+        effect: allow
+      default_branch_only:
+        effect: allow
+      remote:
+        effect: allow
+  gh_repo_list:
+    effect: allow
+    parameters:
+      language:
+        effect: allow
+      visibility:
+        effect: allow
+      source:
+        effect: allow
+      fork:
+        effect: allow
+      archived:
+        effect: allow
+      topic:
+        effect: allow
+  gh_repo_edit:
+    effect: allow
+    parameters:
+      description:
+        effect: allow
+      homepage:
+        effect: allow
+      visibility:
+        effect: allow
+      default_branch:
+        effect: allow
+      has_issues:
+        effect: allow
+      has_wiki:
+        effect: allow
+      has_projects:
+        effect: allow
+      delete_branch_on_merge:
+        effect: allow
+      enable_discussions:
+        effect: allow
+      enable_squash_merge:
+        effect: allow
+      enable_merge_commit:
+        effect: allow
+      enable_rebase_merge:
+        effect: allow
+      enable_auto_merge:
+        effect: allow
+      allow_update_branch:
+        effect: allow
+      allow_forking:
+        effect: allow
+      template:
+        effect: allow
+      squash_merge_commit_message:
+        effect: allow
+      enable_advanced_security:
+        effect: allow
+      enable_secret_scanning:
+        effect: allow
+      enable_secret_scanning_push_protection:
+        effect: allow
+      add_topic:
+        effect: allow
+      remove_topic:
+        effect: allow
+      accept_visibility_change_consequences:
+        effect: allow
+  gh_repo_delete:
+    effect: allow
+    parameters:
+      repo:
+        effect: allow
+      yes:
+        effect: allow
+  gh_repo_archive:
+    effect: allow
+    parameters: []
+  gh_repo_unarchive:
+    effect: allow
+    parameters: []
+  gh_repo_rename:
+    effect: allow
+    parameters:
+      new_name:
+        effect: allow
+  gh_repo_sync:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+      source:
+        effect: allow
+  gh_repo_set_default:
+    effect: allow
+    parameters:
+      repository:
+        effect: allow
+      view:
+        effect: allow
+      unset:
+        effect: allow
+  gh_repo_set_default_branch:
+    effect: allow
+    parameters:
+      branch:
+        effect: allow
+  gh_repo_autolink_list:
+    effect: allow
+    parameters: []
+  gh_repo_autolink_view:
+    effect: allow
+    parameters:
+      autolink_id:
+        effect: allow
+  gh_repo_autolink_create:
+    effect: allow
+    parameters:
+      key_prefix:
+        effect: allow
+      url_template:
+        effect: allow
+  gh_repo_autolink_delete:
+    effect: allow
+    parameters:
+      autolink_id:
+        effect: allow
+  gh_repo_deploy_key_list:
+    effect: allow
+    parameters: []
+  gh_repo_deploy_key_add:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      key:
+        effect: allow
+      read_only:
+        effect: allow
+  gh_repo_deploy_key_delete:
+    effect: allow
+    parameters:
+      key_id:
+        effect: allow
+  gh_repo_gitignore_list:
+    effect: allow
+    parameters: []
+  gh_repo_gitignore_view:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+  gh_repo_license_list:
+    effect: allow
+    parameters: []
+  gh_repo_license_view:
+    effect: allow
+    parameters:
+      key:
+        effect: allow
+  gh_run_list:
+    effect: allow
+    parameters:
+      status:
+        effect: allow
+      branch:
+        effect: allow
+      event_type:
+        effect: allow
+      workflow:
+        effect: allow
+      user:
+        effect: allow
+      commit:
+        effect: allow
+      created:
+        effect: allow
+      refresh:
+        effect: allow
+  gh_run_view:
+    effect: allow
+    parameters:
+      run_id:
+        effect: allow
+      pr:
+        effect: allow
+      job_id:
+        effect: allow
+      log:
+        effect: allow
+      max_lines:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
+      expand:
+        effect: allow
+      filter:
+        effect: allow
+      refresh:
+        effect: allow
+      web:
+        effect: allow
+      attempt:
+        effect: allow
+      log_failed:
+        effect: allow
+      context:
+        effect: allow
+      around:
+        effect: allow
+      all:
+        effect: allow
+      max_lines_per_job:
+        effect: allow
+  gh_run_rerun:
+    effect: allow
+    parameters:
+      failed_only:
+        effect: allow
+      debug:
+        effect: allow
+      job:
+        effect: allow
+  gh_run_cancel:
+    effect: allow
+    parameters: []
+  gh_run_wait:
+    effect: allow
+    parameters:
+      timeout_seconds:
+        effect: allow
+      poll_interval_seconds:
+        effect: allow
+      fail_fast:
+        effect: allow
+  gh_run_download:
+    effect: allow
+    parameters:
+      dir:
+        effect: allow
+      name:
+        effect: allow
+  gh_run_delete:
+    effect: allow
+    parameters: []
+  gh_run_watch:
+    effect: allow
+    parameters:
+      interval:
+        effect: allow
+      compact:
+        effect: allow
+      exit_status:
+        effect: allow
+  gh_ci_alerts:
+    effect: allow
+    parameters:
+      mark_read:
+        effect: allow
+  gh_search_repos:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      sort:
+        effect: allow
+      order:
+        effect: allow
+      language:
+        effect: allow
+      owner:
+        effect: allow
+      topic:
+        effect: allow
+  gh_search_issues:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      sort:
+        effect: allow
+      order:
+        effect: allow
+  gh_search_prs:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      sort:
+        effect: allow
+      order:
+        effect: allow
+  gh_search_code:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      sort:
+        effect: allow
+      order:
+        effect: allow
+      language:
+        effect: allow
+      extension:
+        effect: allow
+      path:
+        effect: allow
+      filename:
+        effect: allow
+  gh_search_commits:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      sort:
+        effect: allow
+      order:
+        effect: allow
+  gh_search_users:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      sort:
+        effect: allow
+      order:
+        effect: allow
+  gh_secret_list:
+    effect: allow
+    parameters: []
+  gh_secret_set:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+      body:
+        effect: allow
+      env:
+        effect: allow
+  gh_secret_delete:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+  gh_variable_list:
+    effect: allow
+    parameters: []
+  gh_variable_get:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+  gh_variable_set:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+      body:
+        effect: allow
+  gh_variable_delete:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+  gh_workflow_list:
+    effect: allow
+    parameters:
+      all:
+        effect: allow
+  gh_workflow_view:
+    effect: allow
+    parameters:
+      workflow_id:
+        effect: allow
+      yaml:
+        effect: allow
+      web:
+        effect: allow
+  gh_workflow_run:
+    effect: allow
+    parameters:
+      workflow_id:
+        effect: allow
+      inputs:
+        effect: allow
+  gh_workflow_enable:
+    effect: allow
+    parameters:
+      workflow_id:
+        effect: allow
+  gh_workflow_disable:
+    effect: allow
+    parameters:
+      workflow_id:
+        effect: allow

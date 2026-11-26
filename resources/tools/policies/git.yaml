@@ -1,0 +1,104 @@
+# git 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.git
+policy_version: 1
+executables:
+  - jcc-tool-git.exe
+
+tools:
+  git_status:
+    effect: allow
+    parameters:
+      working_dir:
+        effect: allow
+  git_add:
+    effect: allow
+    parameters:
+      path:
+        effect: allow
+      working_dir:
+        effect: allow
+  git_commit:
+    effect: allow
+    parameters:
+      message:
+        effect: allow
+      working_dir:
+        effect: allow
+      allow_empty:
+        effect: allow
+  git_push:
+    effect: allow
+    parameters:
+      remote:
+        effect: allow
+      branch:
+        effect: allow
+      working_dir:
+        effect: allow
+      force:
+        effect: allow
+  git_pull:
+    effect: allow
+    parameters:
+      remote:
+        effect: allow
+      branch:
+        effect: allow
+      working_dir:
+        effect: allow
+  git_log:
+    effect: allow
+    parameters:
+      count:
+        effect: allow
+      working_dir:
+        effect: allow
+      format:
+        effect: allow
+  git_diff:
+    effect: allow
+    parameters:
+      path:
+        effect: allow
+      working_dir:
+        effect: allow
+      mode:
+        effect: allow
+  git_branch:
+    effect: allow
+    parameters:
+      branch_name:
+        effect: allow
+      operation:
+        effect: allow
+      working_dir:
+        effect: allow
+      base_branch:
+        effect: allow
+  git_clone:
+    effect: allow
+    parameters:
+      url:
+        effect: allow
+      directory:
+        effect: allow
+      parent_dir:
+        effect: allow
+      branch:
+        effect: allow
+      recursive:
+        effect: allow
+  git_submodule_update:
+    effect: allow
+    parameters:
+      working_dir:
+        effect: allow
+      depth:
+        effect: allow
+      jobs:
+        effect: allow
+      adaptive:
+        effect: allow

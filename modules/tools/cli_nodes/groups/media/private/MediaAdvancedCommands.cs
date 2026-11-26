@@ -174,7 +174,8 @@ internal static partial class MediaCommands {
         var label = Required(o, "label", "image_drill_down");
         var depth = GetInt(o, "currentDepth", 0);
         var maxDepth = GetInt(o, "maxDepth", 3);
-        var system = $"You analyze a specific image label in depth. Current depth {depth}/{maxDepth}. Return concise JSON with attributes.";
+        var tokenBudget = Math.Clamp(GetInt(o, "tokenBudget", 2000), 100, 32000);
+        var system = $"You analyze a specific image label in depth. Current depth {depth}/{maxDepth}. Keep the reply within {tokenBudget} tokens. Return concise JSON with attributes.";
         var reply = await MediaLlm.AskVisionAsync(system, $"深入分析标签「{label}」的属性细节，以JSON返回。", img, "image/png", ct).ConfigureAwait(false);
         Console.Out.WriteLine(reply);
         return 0;

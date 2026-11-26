@@ -91,8 +91,8 @@ internal static partial class MediaCommands {
     // ==================== 进程干预 ====================
 
     private static Task<int> ListProcessesAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
-        var filter = Get(o, "name_filter", "");
-        var maxCount = Math.Clamp(GetInt(o, "max_count", 50), 1, 1000);
+        var filter = Get(o, "nameFilter", "");
+        var maxCount = Math.Clamp(GetInt(o, "maxCount", 50), 1, 1000);
         var processes = Process.GetProcesses();
         try {
             var lines = processes

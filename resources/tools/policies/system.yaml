@@ -1,0 +1,468 @@
+# system 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.system
+policy_version: 1
+executables:
+  - jcc-tool-system.exe
+
+tools:
+  config_get:
+    effect: allow
+    parameters:
+      setting:
+        effect: allow
+  config_set:
+    effect: allow
+    parameters:
+      setting:
+        effect: allow
+      value:
+        effect: allow
+  config_list:
+    effect: allow
+    parameters: []
+  agent:
+    effect: allow
+    parameters:
+      description:
+        effect: allow
+      prompt:
+        effect: allow
+      subagent_type:
+        effect: allow
+      model:
+        effect: allow
+      name:
+        effect: allow
+      run_in_background:
+        effect: allow
+      isolation:
+        effect: allow
+      cwd:
+        effect: allow
+      memory:
+        effect: allow
+      dry_run:
+        effect: allow
+  agent_send_message:
+    effect: allow
+    parameters:
+      to:
+        effect: allow
+      message:
+        effect: allow
+      summary:
+        effect: allow
+  forward_user_input:
+    effect: allow
+    parameters:
+      agentId:
+        effect: allow
+      userInput:
+        effect: allow
+  agent_list:
+    effect: allow
+    parameters: []
+  agent_status:
+    effect: allow
+    parameters:
+      agent_id:
+        effect: allow
+  agent_stop:
+    effect: allow
+    parameters:
+      agent_id:
+        effect: allow
+  agent_running:
+    effect: allow
+    parameters: []
+  agent_get_messages:
+    effect: allow
+    parameters:
+      agent_id:
+        effect: allow
+  diagnose_error:
+    effect: allow
+    parameters:
+      errorMessage:
+        effect: allow
+      failedToolName:
+        effect: allow
+      workingDirectory:
+        effect: allow
+  fix_shell_error:
+    effect: allow
+    parameters:
+      failedCommand:
+        effect: allow
+      errorOutput:
+        effect: allow
+      exitCode:
+        effect: allow
+  fix_file_error:
+    effect: allow
+    parameters:
+      filePath:
+        effect: allow
+      errorMessage:
+        effect: allow
+  fix_merge_conflict:
+    effect: allow
+    parameters:
+      source_worktree_path:
+        effect: allow
+      target_worktree_path:
+        effect: allow
+      error_message:
+        effect: allow
+  resume_timed_out_task:
+    effect: allow
+    parameters:
+      original_command:
+        effect: allow
+      original_tool:
+        effect: allow
+      timeout_minutes:
+        effect: allow
+      working_directory:
+        effect: allow
+  continue_long_running_task:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+      additional_minutes:
+        effect: allow
+  stop_long_running_task:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+  permission_add_rule:
+    effect: allow
+    parameters:
+      agent_pattern:
+        effect: allow
+      mode:
+        effect: allow
+      level:
+        effect: allow
+      allowed_tools:
+        effect: allow
+      denied_tools:
+        effect: allow
+      description:
+        effect: allow
+      priority:
+        effect: allow
+  permission_remove_rule:
+    effect: allow
+    parameters:
+      agent_pattern:
+        effect: allow
+  permission_list_rules:
+    effect: allow
+    parameters: []
+  permission_check_tool:
+    effect: allow
+    parameters:
+      agent_name:
+        effect: allow
+      tool_name:
+        effect: allow
+  permission_check_path:
+    effect: allow
+    parameters:
+      agent_name:
+        effect: allow
+      path:
+        effect: allow
+  permission_get_agent_rule:
+    effect: allow
+    parameters:
+      agent_name:
+        effect: allow
+  permission_clear_rules:
+    effect: allow
+    parameters:
+      confirm:
+        effect: allow
+  policy_check:
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      string:
+        effect: allow
+  policy_list:
+    effect: allow
+    parameters: []
+  model_search:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      max_results:
+        effect: allow
+  tool_search:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      max_results:
+        effect: allow
+  mcp_ai_workflow_workflow_chat:
+    effect: allow
+    parameters:
+      message:
+        effect: allow
+  push_notification:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      message:
+        effect: allow
+      level:
+        effect: allow
+      persistent:
+        effect: allow
+  remote_trigger:
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      trigger_id:
+        effect: allow
+      body:
+        effect: allow
+  shake_window:
+    effect: allow
+    parameters:
+      reason:
+        effect: allow
+  flash_taskbar:
+    effect: allow
+    parameters: []
+  get_process_info:
+    effect: allow
+    parameters: []
+  analytics_report:
+    effect: allow
+    parameters:
+      days:
+        effect: allow
+  analytics_tools:
+    effect: allow
+    parameters:
+      days:
+        effect: allow
+  analytics_events:
+    effect: allow
+    parameters:
+      event_type:
+        effect: allow
+      limit:
+        effect: allow
+  analytics_export:
+    effect: allow
+    parameters:
+      start_date:
+        effect: allow
+      end_date:
+        effect: allow
+  analytics_clear:
+    effect: allow
+    parameters:
+      older_than_days:
+        effect: allow
+      confirm:
+        effect: allow
+  brief_mode:
+    effect: allow
+    parameters:
+      enabled:
+        effect: allow
+  brief_status:
+    effect: allow
+    parameters: []
+  send_user_message:
+    effect: allow
+    parameters:
+      message:
+        effect: allow
+      attachments:
+        effect: allow
+      status:
+        effect: allow
+  ctx_inspect:
+    effect: allow
+    parameters:
+      inspect_type:
+        effect: allow
+  snip:
+    effect: allow
+    parameters:
+      mode:
+        effect: allow
+      message_index:
+        effect: allow
+  sleep:
+    effect: allow
+    parameters:
+      duration_seconds:
+        effect: allow
+      reason:
+        effect: allow
+      tick_interval_seconds:
+        effect: allow
+  sleep_until:
+    effect: allow
+    parameters:
+      target_time:
+        effect: allow
+      timezone_offset_hours:
+        effect: allow
+  list_peers:
+    effect: allow
+    parameters: []
+  ask_user_question:
+    effect: allow
+    parameters:
+      questions:
+        effect: allow
+  confirm_action:
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      message:
+        effect: allow
+  agent_system_stats:
+    effect: allow
+    parameters: []
+  agent_list_stats:
+    effect: allow
+    parameters: []
+  agent_stats:
+    effect: allow
+    parameters:
+      agent_name:
+        effect: allow
+  agent_history:
+    effect: allow
+    parameters:
+      agent_name:
+        effect: allow
+      limit:
+        effect: allow
+  agent_running_stats:
+    effect: allow
+    parameters: []
+  agent_execution_detail:
+    effect: allow
+    parameters:
+      execution_id:
+        effect: allow
+  agent_clear_history:
+    effect: allow
+    parameters:
+      older_than_days:
+        effect: allow
+      confirm:
+        effect: allow
+  memory_daily_log_append:
+    effect: allow
+    parameters:
+      content:
+        effect: allow
+      category:
+        effect: allow
+      related_memory_id:
+        effect: allow
+  memory_daily_log_get:
+    effect: allow
+    parameters: []
+  memory_search_history:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      limit:
+        effect: allow
+  memory_team_sync:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+  memory_team_status:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+  memory_scan:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      category:
+        effect: allow
+      limit:
+        effect: allow
+  memory_age:
+    effect: allow
+    parameters:
+      attention_only:
+        effect: allow
+  memory_cleanup:
+    effect: allow
+    parameters:
+      archive_after_days:
+        effect: allow
+      delete_after_days:
+        effect: allow
+      confirm:
+        effect: allow
+  memory_health:
+    effect: allow
+    parameters: []
+  memory_add_team_path:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+      path:
+        effect: allow
+      is_shared:
+        effect: allow
+      allowed_agents:
+        effect: allow
+  memory_list_team_paths:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+  memory_remove_team_path:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+      path:
+        effect: allow
+  memory_scan_team:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+      query:
+        effect: allow
+      limit:
+        effect: allow
+  mcp_ai_workflow_workflow_clear_history:
+    effect: allow
+    parameters: []
+  mcp_ai_workflow_workflow_get_history:
+    effect: allow
+    parameters: []

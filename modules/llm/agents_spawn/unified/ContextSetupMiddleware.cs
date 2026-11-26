@@ -210,11 +210,25 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         return filtered;
     }
 
+    /// <summary>
+    /// 合并调用方与 AgentDefinition 的工具域 — 两处都指定时必须取交集，调用方不能扩大定义域。
+    /// <para>空集合表示"未指定"（沿用对方）；交集为空时写入 <see cref="ToolDomainConstants.NoToolsPermitted"/>，
+    /// 不能返回空列表 —— 空列表在过滤层表示"不限制"，会反向放大权限。</para>
+    /// </summary>
     private static List<string>? MergeAllowedTools(IEnumerable<string>? callerTools, List<string>? definitionTools) {
-        if (callerTools is not null && callerTools.Any())
-            return callerTools.ToList();
-        return definitionTools;
+        var caller = NormalizeToolNames(callerTools);
+        var definition = NormalizeToolNames(definitionTools);
+
+        if (caller.Count == 0) return definition.Count == 0 ? null : definition;
+        if (definition.Count == 0) return caller;
+
+        var definitionSet = new HashSet<string>(definition, StringComparer.OrdinalIgnoreCase);
+        var intersection = caller.Where(definitionSet.Contains).ToList();
+        return intersection.Count > 0 ? intersection : [ToolDomainConstants.NoToolsPermitted];
     }
+
+    private static List<string> NormalizeToolNames(IEnumerable<string>? tools) =>
+        tools is null ? [] : [.. tools.Where(static name => !string.IsNullOrWhiteSpace(name))];
 
     /// <summary>合并调用方拒绝工具与 AgentDefinition 拒绝工具 — 调用方（后台策略）优先但两者都保留。</summary>
     private static List<string> MergeDeniedTools(IEnumerable<string>? callerTools, List<string>? definitionTools) {

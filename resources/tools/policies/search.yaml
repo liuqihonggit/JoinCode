@@ -1,0 +1,343 @@
+# search 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.search
+policy_version: 1
+executables:
+  - jcc-tool-search.exe
+
+tools:
+  glob:
+    effect: allow
+    parameters:
+      pattern:
+        effect: allow
+      path:
+        effect: allow
+  grep:
+    effect: allow
+    parameters:
+      pattern:
+        effect: allow
+      path:
+        effect: allow
+      glob:
+        effect: allow
+      output_mode:
+        effect: allow
+      case_insensitive:
+        effect: allow
+      multiline:
+        effect: allow
+      file_type:
+        effect: allow
+      before:
+        effect: allow
+      after:
+        effect: allow
+      context:
+        effect: allow
+      line_numbers:
+        effect: allow
+      head_limit:
+        effect: allow
+      offset:
+        effect: allow
+  search_code:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      path:
+        effect: allow
+  search_text:
+    effect: allow
+    parameters:
+      pattern:
+        effect: allow
+      path:
+        effect: allow
+  search_files:
+    effect: allow
+    parameters:
+      pattern:
+        effect: allow
+      path:
+        effect: allow
+  search_codebase:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      path:
+        effect: allow
+  code_search:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      path:
+        effect: allow
+  symbol_search:
+    effect: allow
+    parameters:
+      symbol:
+        effect: allow
+      path:
+        effect: allow
+  search_symbol:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+  search_comprehensive:
+    effect: allow
+    parameters:
+      pattern:
+        effect: allow
+      max_token_budget:
+        effect: allow
+      include_ast:
+        effect: allow
+  search_definition:
+    effect: allow
+    parameters:
+      symbol_name:
+        effect: allow
+  search_references:
+    effect: allow
+    parameters:
+      symbol_name:
+        effect: allow
+      limit:
+        effect: allow
+  search_callers:
+    effect: allow
+    parameters:
+      symbol_name:
+        effect: allow
+      limit:
+        effect: allow
+  search_callees:
+    effect: allow
+    parameters:
+      symbol_name:
+        effect: allow
+      limit:
+        effect: allow
+  search_call_chain:
+    effect: allow
+    parameters:
+      from:
+        effect: allow
+      to:
+        effect: allow
+  search_impact_scope:
+    effect: allow
+    parameters:
+      symbol_name:
+        effect: allow
+  search_inheritors:
+    effect: allow
+    parameters:
+      symbol_name:
+        effect: allow
+  search_dependencies:
+    effect: allow
+    parameters:
+      symbol_name:
+        effect: allow
+  search_affected_files:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+  create_index:
+    effect: allow
+    parameters:
+      workspace_root:
+        effect: allow
+      force:
+        effect: allow
+  update_index:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+  search_stats:
+    effect: allow
+    parameters: []
+  search_explore:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      level:
+        effect: allow
+  search_semantic:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      top_k:
+        effect: allow
+      include_source_text:
+        effect: allow
+      include_parent_document:
+        effect: allow
+      include_graph:
+        effect: allow
+      file_type:
+        effect: allow
+      namespace_filter:
+        effect: allow
+      symbol_kind:
+        effect: allow
+      persist_dir:
+        effect: allow
+  search_project_deps:
+    effect: allow
+    parameters:
+      project_path:
+        effect: allow
+  search_project_dependents:
+    effect: allow
+    parameters:
+      project_path:
+        effect: allow
+  search_affected_projects:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+  search_project_nugets:
+    effect: allow
+    parameters:
+      project_path:
+        effect: allow
+  search_nuget_projects:
+    effect: allow
+    parameters:
+      package_name:
+        effect: allow
+  search_all_projects:
+    effect: allow
+    parameters: []
+  search_document:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      top_k:
+        effect: allow
+      include_source_text:
+        effect: allow
+      persist_dir:
+        effect: allow
+  graph_detect_communities:
+    effect: allow
+    parameters:
+      repo_id:
+        effect: allow
+  graph_get_hub_nodes:
+    effect: allow
+    parameters:
+      top_n:
+        effect: allow
+      repo_id:
+        effect: allow
+  graph_detect_dead_code:
+    effect: allow
+    parameters:
+      repo_id:
+        effect: allow
+  search_subgraph:
+    effect: allow
+    parameters:
+      center_symbol:
+        effect: allow
+      hops:
+        effect: allow
+      max_edges:
+        effect: allow
+      repo_id:
+        effect: allow
+  graph_analyze_change_impact:
+    effect: allow
+    parameters:
+      changed_files:
+        effect: allow
+      repo_id:
+        effect: allow
+  graph_save:
+    effect: allow
+    parameters:
+      directory:
+        effect: allow
+      repo_id:
+        effect: allow
+  graph_load:
+    effect: allow
+    parameters:
+      directory:
+        effect: allow
+      repo_id:
+        effect: allow
+  graph_export_dot:
+    effect: allow
+    parameters:
+      repo_id:
+        effect: allow
+  graph_export_html:
+    effect: allow
+    parameters:
+      repo_id:
+        effect: allow
+  graph_export_wiki:
+    effect: allow
+    parameters:
+      repo_id:
+        effect: allow
+  search_graph:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      max_results:
+        effect: allow
+      repo_id:
+        effect: allow
+  search_path:
+    effect: allow
+    parameters:
+      from_symbol:
+        effect: allow
+      to_symbol:
+        effect: allow
+      repo_id:
+        effect: allow
+  search_explain:
+    effect: allow
+    parameters:
+      symbol_name:
+        effect: allow
+      limit:
+        effect: allow
+      repo_id:
+        effect: allow
+  graph_register:
+    effect: allow
+    parameters:
+      repo_id:
+        effect: allow
+      workspace_root:
+        effect: allow
+  graph_unregister:
+    effect: allow
+    parameters:
+      repo_id:
+        effect: allow
+  graph_repos:
+    effect: allow
+    parameters: []

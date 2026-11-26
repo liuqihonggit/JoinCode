@@ -10,6 +10,11 @@
 
   <ItemGroup>
     <EmbeddedResource Include="help.txt" LogicalName="JoinCode.CliNodes.Groups.system.help.txt" />
+    <EmbeddedResource Include="$(RepoRoot)resources/tools/policies/system.yaml" LogicalName="JoinCode.CliNodes.Groups.system.policy.yaml" />
+    <AdditionalFiles Include="$(RepoRoot)resources/tools/policies/system.yaml" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/cli_permission_analyzer/CliPermission.Analyzer.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

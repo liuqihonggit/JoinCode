@@ -165,7 +165,29 @@ internal static class CliToolCommand {
         var exe = call.ExplicitExe ?? ResolveGroupExe(target.Group);
         if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe)) return WriteExeMissing(target.Group, exe);
 
-        return await LaunchAsync(exe, target, call, ct).ConfigureAwait(false);
+        return await LaunchAsync(exe, target, call, ResolveAuthorizationEnvironment(), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 解析本次子进程的授权环境：agent shell 已注入则沿用它；手工调用则在当前 jcc 进程启动 broker。
+    /// <para>分组 exe 只接受 broker 会话，直接运行无法构造有效令牌。</para>
+    /// </summary>
+    private static IReadOnlyDictionary<string, string> ResolveAuthorizationEnvironment() {
+        var pipe = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.PipeVariable);
+        var token = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.TokenVariable);
+        if (!string.IsNullOrWhiteSpace(pipe) && !string.IsNullOrWhiteSpace(token)) {
+            return new Dictionary<string, string>(StringComparer.Ordinal) {
+                [CliAuthorizationEnvironment.PipeVariable] = pipe,
+                [CliAuthorizationEnvironment.TokenVariable] = token
+            };
+        }
+
+        return CliAuthorizationBrokerRuntime.EnsureEnvironment(
+            agentId: "jcc-manual",
+            sessionId: "jcc-tool-call",
+            allowedTools: [],
+            deniedTools: [],
+            permissionMode: null);
     }
 
     /// <summary>
@@ -397,13 +419,20 @@ internal static class CliToolCommand {
     /// 上层 agent 只能等整轮超时。超时按 GNU timeout 惯例返回 124，并杀掉整棵进程树
     /// （工具 exe 常自己再起子进程，只杀父进程会留下孤儿）。</para>
     /// </summary>
-    private static async Task<int> LaunchAsync(string exe, CallTarget target, CallArguments call, CancellationToken ct) {
+    private static async Task<int> LaunchAsync(
+        string exe,
+        CallTarget target,
+        CallArguments call,
+        IReadOnlyDictionary<string, string> authorizationEnvironment,
+        CancellationToken ct) {
         var psi = new ProcessStartInfo(exe) {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        foreach (var pair in authorizationEnvironment)
+            psi.Environment[pair.Key] = pair.Value;
         // ArgumentList 逐参数传递，不手工拼命令行字符串 — 避免空格/引号/特殊字符转义问题。
         psi.ArgumentList.Add(target.Tool);
         foreach (var arg in call.PassThrough)

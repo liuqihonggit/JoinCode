@@ -1,0 +1,21 @@
+schema_version: 1
+policy_id: cli.auth_test
+policy_version: 1
+executables:
+  - JoinCode.CliNodes.Tests.dll
+tools:
+  read:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_read]
+  write:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_write]
+      content:
+        effect: allow
+        capabilities: [workspace_write]

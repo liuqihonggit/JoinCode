@@ -1,0 +1,509 @@
+# slash 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.slash
+policy_version: 1
+executables:
+  - jcc-tool-slash.exe
+
+tools:
+  "/advisor":
+    effect: allow
+    parameters:
+      model:
+        effect: allow
+  "/agents":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      name:
+        effect: allow
+  "/assistant":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/buddy":
+    effect: allow
+    parameters: []
+  "/generate":
+    effect: allow
+    parameters:
+      description:
+        effect: allow
+  "/memory":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/plan":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      description:
+        effect: allow
+  "/switch":
+    effect: allow
+    parameters:
+      target:
+        effect: allow
+  "/ultraplan":
+    effect: allow
+    parameters:
+      goal:
+        effect: allow
+      steps:
+        effect: allow
+      execute:
+        effect: allow
+  "/login":
+    effect: allow
+    parameters:
+      provider:
+        effect: allow
+      oauth:
+        effect: allow
+  "/logout":
+    effect: allow
+    parameters:
+      provider:
+        effect: allow
+  "/oauth-refresh":
+    effect: allow
+    parameters:
+      provider:
+        effect: allow
+  "/privacy-settings":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      value:
+        effect: allow
+  "/trust":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/bridge":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/bridge-kick":
+    effect: allow
+    parameters:
+      session-id:
+        effect: allow
+  "/peers":
+    effect: allow
+    parameters: []
+  "/add-dir":
+    effect: allow
+    parameters:
+      path:
+        effect: allow
+      remember:
+        effect: allow
+  "/analyze":
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+  "/code-index":
+    effect: allow
+    parameters: []
+  "/commit":
+    effect: allow
+    parameters:
+      message:
+        effect: allow
+  "/diff":
+    effect: allow
+    parameters:
+      scope:
+        effect: allow
+  "/execute":
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+  "/files":
+    effect: allow
+    parameters: []
+  "/review":
+    effect: allow
+    parameters:
+      pr_number:
+        effect: allow
+  "/security-review":
+    effect: allow
+    parameters: []
+  "/worktree":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      options:
+        effect: allow
+  "/color":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/config":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      key:
+        effect: allow
+      value:
+        effect: allow
+  "/doctor":
+    effect: allow
+    parameters: []
+  "/env":
+    effect: allow
+    parameters:
+      filter:
+        effect: allow
+  "/init":
+    effect: allow
+    parameters:
+      mode:
+        effect: allow
+  "/permissions":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      args:
+        effect: allow
+  "/profile":
+    effect: allow
+    parameters: []
+  "/reset-config":
+    effect: allow
+    parameters:
+      scope:
+        effect: allow
+  "/sandbox-toggle":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/theme":
+    effect: allow
+    parameters:
+      theme:
+        effect: allow
+  "/vim":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/??":
+    effect: allow
+    parameters:
+      description:
+        effect: allow
+  "/context":
+    effect: allow
+    parameters: []
+  "/help":
+    effect: allow
+    parameters: []
+  "/insights":
+    effect: allow
+    parameters:
+      mode:
+        effect: allow
+  "/release-notes":
+    effect: allow
+    parameters:
+      version:
+        effect: allow
+  "/stats":
+    effect: allow
+    parameters:
+      scope:
+        effect: allow
+  "/status":
+    effect: allow
+    parameters: []
+  "/usage":
+    effect: allow
+    parameters: []
+  "/version":
+    effect: allow
+    parameters: []
+  "/falv":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/cost":
+    effect: allow
+    parameters:
+      scope:
+        effect: allow
+  "/effort":
+    effect: allow
+    parameters:
+      level:
+        effect: allow
+  "/extra-usage":
+    effect: allow
+    parameters: []
+  "/fast":
+    effect: allow
+    parameters:
+      state:
+        effect: allow
+  "/model":
+    effect: allow
+    parameters:
+      model_id:
+        effect: allow
+  "/rate-limit-options":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/sampling":
+    effect: allow
+    parameters:
+      temperature:
+        effect: allow
+      maxTokens:
+        effect: allow
+  "/thinkback":
+    effect: allow
+    parameters:
+      count:
+        effect: allow
+  "/vendor":
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+  "/simple":
+    effect: allow
+    parameters: []
+  "/chrome":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/desktop":
+    effect: allow
+    parameters: []
+  "/ide":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      file_path:
+        effect: allow
+  "/mobile":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/branch":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      name:
+        effect: allow
+  "/brief":
+    effect: allow
+    parameters:
+      state:
+        effect: allow
+  "/clear":
+    effect: allow
+    parameters: []
+  "/compact":
+    effect: allow
+    parameters:
+      instructions:
+        effect: allow
+  "/exit":
+    effect: allow
+    parameters: []
+  "/fork":
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+  "/history":
+    effect: allow
+    parameters: []
+  "/quit":
+    effect: allow
+    parameters: []
+  "/rename":
+    effect: allow
+    parameters:
+      new_name:
+        effect: allow
+  "/resume":
+    effect: allow
+    parameters:
+      session-id:
+        effect: allow
+  "/rewind":
+    effect: allow
+    parameters:
+      target:
+        effect: allow
+  "/session":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      id:
+        effect: allow
+  "/btw":
+    effect: allow
+    parameters:
+      question:
+        effect: allow
+  "/feedback":
+    effect: allow
+    parameters:
+      feedback:
+        effect: allow
+  "/share":
+    effect: allow
+    parameters: []
+  "/stickers":
+    effect: allow
+    parameters: []
+  "/voice":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/copy":
+    effect: allow
+    parameters:
+      target:
+        effect: allow
+  "/debuglog":
+    effect: allow
+    parameters:
+      flags:
+        effect: allow
+  "/diag":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      name:
+        effect: allow
+  "/export":
+    effect: allow
+    parameters:
+      target:
+        effect: allow
+  "/heapdump":
+    effect: allow
+    parameters: []
+  "/statusline":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      template:
+        effect: allow
+  "/summary":
+    effect: allow
+    parameters: []
+  "/tag":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      tag_name:
+        effect: allow
+  "/upgrade":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/workflows":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      name:
+        effect: allow
+  "/goal":
+    effect: allow
+    parameters:
+      subcommand:
+        effect: allow
+      objective:
+        effect: allow
+      constraint:
+        effect: allow
+      budget:
+        effect: allow
+      cron:
+        effect: allow
+  "/proactive":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/tasks":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+  "/hooks":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      args:
+        effect: allow
+  "/install":
+    effect: allow
+    parameters:
+      package:
+        effect: allow
+  "/install-github-app":
+    effect: allow
+    parameters: []
+  "/mcp":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      args:
+        effect: allow
+  "/plugin":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      name:
+        effect: allow
+  "/skills":
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      skill-name:
+        effect: allow
+  "/tools":
+    effect: allow
+    parameters: []

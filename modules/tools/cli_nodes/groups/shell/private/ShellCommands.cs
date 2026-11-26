@@ -36,12 +36,14 @@ internal static partial class ShellCommands {
 
     private static Task<int> BashAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var command = RequiredCommand(o, "bash");
-        return RunProcessAsync("cmd.exe", ["/c", command], WorkingDirectory(o), TimeoutMs(o), ct);
+        var label = Get(o, "description", "");
+        return RunProcessAsync("cmd.exe", ["/c", command], WorkingDirectory(o), TimeoutMs(o), label, ct);
     }
 
     private static Task<int> PowerShellAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var command = RequiredCommand(o, "powershell");
-        return RunProcessAsync("powershell.exe", ["-NoProfile", "-Command", command], WorkingDirectory(o), TimeoutMs(o), ct);
+        var label = Get(o, "description", "");
+        return RunProcessAsync("powershell.exe", ["-NoProfile", "-Command", command], WorkingDirectory(o), TimeoutMs(o), label, ct);
     }
 
     private static Task<int> PowerShellScriptAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
@@ -55,19 +57,19 @@ internal static partial class ShellCommands {
         args.AddRange(["-File", path]);
         var extra = Get(o, "arguments", "");
         if (extra.Length > 0) args.Add(extra);
-        return RunProcessAsync("powershell.exe", args.ToArray(), WorkingDirectory(o), TimeoutMs(o), ct);
+        return RunProcessAsync("powershell.exe", args.ToArray(), WorkingDirectory(o), TimeoutMs(o), "", ct);
     }
 
     private static Task<int> PowerShellVersionAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) =>
         RunProcessAsync("powershell.exe",
             ["-NoProfile", "-Command", "$PSVersionTable | Out-String"],
-            WorkingDirectory(o), TimeoutMs(o), ct);
+            Directory.GetCurrentDirectory(), 180000, "", ct);
 
     private static Task<int> PowerShellExecutionPolicyAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var scope = Get(o, "scope", "Process");
         return RunProcessAsync("powershell.exe",
             ["-NoProfile", "-Command", $"Get-ExecutionPolicy -Scope {scope}"],
-            WorkingDirectory(o), TimeoutMs(o), ct);
+            Directory.GetCurrentDirectory(), 180000, "", ct);
     }
 
     private static Task<int> PowerShellSetExecutionPolicyAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
@@ -77,11 +79,11 @@ internal static partial class ShellCommands {
         if (IsTrue(o, "force")) script += " -Force";
         return RunProcessAsync("powershell.exe",
             ["-NoProfile", "-Command", script],
-            WorkingDirectory(o), TimeoutMs(o), ct);
+            Directory.GetCurrentDirectory(), 180000, "", ct);
     }
 
     private static async Task<int> RunProcessAsync(
-        string exe, string[] args, string workDir, int timeoutMs, CancellationToken ct) {
+        string exe, string[] args, string workDir, int timeoutMs, string label, CancellationToken ct) {
         var psi = new ProcessStartInfo(exe) {
             WorkingDirectory = workDir,
             RedirectStandardOutput = true,
@@ -100,8 +102,9 @@ internal static partial class ShellCommands {
             await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
         } catch (OperationCanceledException) {
             if (!process.HasExited) process.Kill(entireProcessTree: true);
+            var suffix = string.IsNullOrWhiteSpace(label) ? "" : $"（描述: {label}）";
             throw new ArgumentException(
-                $"命令执行超时 {timeoutMs}ms（ShellCommands 超时保护层拦截，子进程已终止）。正确写法: 增大 --timeout，或把长命令拆成更小步骤。");
+                $"命令执行超时 {timeoutMs}ms{suffix}（ShellCommands 超时保护层拦截，子进程已终止）。正确写法: 增大 --timeout，或把长命令拆成更小步骤。");
         }
         Console.Out.Write(await stdout.ConfigureAwait(false));
         Console.Error.Write(await stderr.ConfigureAwait(false));

@@ -14,6 +14,15 @@ public interface IToolFilterPolicy {
     ToolFilterResult Check(ToolFilterContext context);
 }
 
+/// <summary>工具域的语义常量。</summary>
+public static class ToolDomainConstants {
+    /// <summary>
+    /// 交集为空的哨兵名 — 白名单用空集合表示"不限制"，无法表达"全部拒绝"；
+    /// 写入一个不可能存在的工具名，使所有工具都落在白名单之外。
+    /// </summary>
+    public const string NoToolsPermitted = "__no_tools_permitted__";
+}
+
 /// <summary>
 /// 工具过滤上下文 — 3 层检查的输入。
 /// </summary>

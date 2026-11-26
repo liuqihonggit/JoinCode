@@ -1,7 +1,7 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed**
-- 日期：2026-11-25
+- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；作用域会话 token 已替代一次性 grant 作为第一阶段实现，一次性 grant 加固待确认
+- 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
 - 关联：[ADR 0162](0162-task-scoped-permission-overlay.md)、[ADR 0163](0163-ai-permission-judge-and-autonomous-mode.md)、[TASK137](../task/TASK137-cli-tool-central-authorization.md)
@@ -61,10 +61,15 @@ ADR 0157 已明确记录 local bash/powershell 绕过宿主 Shell 中间件栈�
 3. 规范化工具别名、参数别名和环境变量来源参数。
 4. 执行不可绕过的 CLI 硬策略。
 5. 调用现有 `PermissionChecker` 决定剩余 allow/ask/deny。
-6. 签发一次性执行 grant，或拒绝并给出可诱导错误。
+6. 按当前会话作用域返回授权判定（allow 或带诱导的 deny），或拒绝并给出可诱导错误。
 7. 写统一审计记录。
 
-工具组 exe 不读取策略做角色判断，也不实现 allow/ask/deny 聚合。它只向 broker 兑现 opaque grant；broker 校验 invocation、参数摘要、exe 身份、策略哈希、委托链、过期时间与一次性 nonce。
+工具组 exe 不读取策略做角色判断，也不实现 allow/ask/deny 聚合。它只携带 opaque 会话 token 向 broker 请求判定；broker 每次都用该 exe 上报的实际工具与规范化参数重新评估，token 本身不含权限真相。
+
+> 实现注记（2026-11-26）：file 切片落地的是“作用域会话 token + 每调用重判”，不是一次性 grant。
+> 重放在语义上等价于同一 agent 在自己工具域内再次调用，不越权；参数被替换也只会走完整策略判定。
+> 一次性 grant（绑定参数摘要、exe 身份、策略哈希、nonce 与短过期）保留为阶段 2 的加固项，
+> 用于把“同一 agent 的任意调用”进一步收紧为“宿主批准过的那次调用”。
 
 #### 为什么必须跨进程传递授权上下文
 
@@ -87,19 +92,18 @@ shell 环境清洗器必须显式保留授权凭据变量，同时禁止把 brok
 
 | 模式 | 授权与执行流程 |
 |---|---|
-| local | `jcc tool call` → 父 broker 授权 → 启动组 exe 并传递一次性 grant → 组 exe redeem → 调用 local handler |
-| delegate | broker 授权完整委托链 → 组 exe redeem → 以链式 grant 启动 delegate exe → delegate redeem → 执行实现 |
+| local | `jcc tool call` → 父 broker 会话凭据注入环境 → 启动组 exe → 组 exe 携带实际工具/参数请求判定 → 调用 local handler |
+| delegate | 组 exe 向同一 broker 判定后启动 delegate exe；子进程继承同一会话凭据，delegate 路径同样受作用域约束 |
 | host | broker 在父宿主的原任务上下文授权，并通过现有 `PermissionAwareToolExecutor` / slash 执行链执行；不再由失去 AsyncLocal 的子进程重复决策 |
-| help / tree / find | 不签发执行 grant；按当前可见工具域返回元数据 |
+| help / tree / find | 不请求执行判定；按当前可见工具域返回元数据 |
 
 关键约束：
 
 - `CliToolCommand.RunCallAsync` 在 local/delegate/host 分叉前进入 broker，不再只做 profile 组门禁。
 - host 工具由父宿主执行，避免子进程丢失 session、agent、ask 队列与 Hub 状态。
-- grant 绑定 canonical tool、规范化参数摘要、目标 exe 身份、策略版本/哈希、agent/session、委托链、nonce 与短过期时间。
-- grant 通过环境或受控 stdin 传递，不放在命令行参数中。
-- redeem 使用原子一次性消费；重放、修改参数、更换 exe、过期 grant 全部拒绝。
-- direct 运行组 exe 执行工具时，如果没有有效 grant，返回授权要求与 `jcc tool call` 正确用法；`-h` 和 `--list-local` 不需要 grant。
+- 会话凭据绑定 agent/session 与有效工具域；判定输入是 canonical tool + 规范化参数 + 目标 exe 身份。
+- 凭据通过环境传递，不放在命令行参数中；每次执行都重新判定，不复用上一次的允许结果。
+- direct 运行组 exe 执行工具时，如果没有有效会话凭据，返回授权要求与 `jcc tool call` 正确用法；`-h` 和 `--list-local` 不需要凭据。
 - 因此 ADR 0157 的“独立 exe”仍表示物理进程隔离，但不再表示“可绕过 jcc 直接执行”。这是本 ADR 对 0157 安全边界的明确收窄。
 
 ### 3. 权限 YAML 的单一来源与嵌入方式
@@ -189,7 +193,7 @@ tools:
 2. 计算 agent 有效工具域，执行工具级硬拒绝。
 3. 规范化参数，执行参数级硬拒绝与能力检查。
 4. 调用现有 `PermissionChecker`，由现有中间件决定动态风险、ask、AI Judge 与临时批准。
-5. 签发一次性 grant 或返回拒绝。
+5. 返回 allow 判定或带诱导的拒绝。
 
 不可绕过约束：
 
@@ -337,13 +341,13 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 
 放弃原因：破坏工具 exe 依赖墙，且标准 Roslyn compilation 看不到 ProjectReference 源码。采用“声明所有者分析 + 仓库覆盖门禁”更符合项目边界。
 
-### F. 继续允许无 grant 直接运行 local/delegate exe
+### F. 继续允许无会话凭据直接运行 local/delegate exe
 
 放弃原因：agent 可绕过 `jcc tool call`，集中授权形同虚设。独立 exe 的价值是进程隔离，不是无授权执行。
 
 ## 分阶段实施
 
-1. **file 垂直切片**：策略 schema、嵌入、broker、grant、local 执行、分析器、真实子代理拒绝/放行。
+1. **file 垂直切片**：策略 schema、嵌入、broker、作用域会话凭据、local 执行、分析器、真实子代理拒绝/放行。
 2. **local/delegate 全量**：13 组策略与 delegate 链，参数闭包分析、未知参数拒绝。
 3. **host/slash/base/launcher**：父宿主执行、结构化 slash 参数、全局与元命令参数。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
@@ -374,8 +378,9 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
 - [ ] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
 - [ ] Bypass 不能越过 CLI hard deny、agent DeniedTools 或策略完整性检查。
-- [ ] direct 组 exe 无 grant 返回授权要求；`-h` 正常。
-- [ ] grant 重放、参数篡改、exe 替换、policy 篡改、过期凭据均 fail-closed。
+- [ ] direct 组 exe 无会话凭据返回授权要求；`-h` 正常。
+- [ ] 无效/伪造凭据、越域工具、未登记参数、deny 参数、损坏策略均 fail-closed；参数篡改经完整策略判定而非放行。
+- [ ] （阶段 2 加固）一次性 grant：参数摘要、exe 身份、策略哈希、nonce 与过期绑定，重放 fail-closed。
 - [ ] host ask 由父宿主 UI/队列处理，不因子进程丢失上下文而自动放行。
 - [ ] 首轮组目录、tree/find/help 与执行允许集合一致。
 - [ ] 真实双端进程测试覆盖主代理、只读子代理、写子代理、delegate、host。
@@ -393,7 +398,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 ### 负面与风险
 
 - direct exe 不再能离线任意执行工具，用户需经 `jcc tool call`；这是有意的安全权衡。
-- broker 增加本机 IPC 与一次性 grant 生命周期管理，需要处理父进程退出、崩溃与重试。
+- broker 增加本机 IPC 与会话凭据生命周期管理，需要处理父进程退出、崩溃与重试；一次性 grant 加固会进一步增加状态。
 - 存量 slash 自由文本参数与 local 动态键需要迁移，否则分析器会红灯。
 - 工具构建、信任目录与 jcc 构建必须保持顺序；增量开发需明确失效策略。
 - 授权网关不是 OS 沙箱，不能宣称阻止已获授权 shell 的所有副作用。

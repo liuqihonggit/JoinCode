@@ -164,8 +164,15 @@ internal static partial class MediaCommands {
         var name = Required(o, "name", "reproduce_from_logic");
         var pattern = Required(o, "pattern", "reproduce_from_logic");
         var context = Required(o, "context", "reproduce_from_logic");
+        var parameters = Get(o, "parameters", "");
+        var steps = Get(o, "steps", "");
+        var prompt = new StringBuilder()
+            .Append($"模式「{name}」: {pattern}\n目标上下文: {context}\n");
+        if (parameters.Length > 0) prompt.Append($"参数化描述: {parameters}\n");
+        if (steps.Length > 0) prompt.Append($"参考步骤: {steps}\n");
+        prompt.Append("请生成具体操作步骤 JSON。");
         var reply = await MediaLlm.AskTextAsync("You translate high-level UI logic into concrete steps. Return JSON array of {kind,x,y,text}.",
-            $"模式「{name}」: {pattern}\n目标上下文: {context}\n请生成具体操作步骤 JSON。", ct).ConfigureAwait(false);
+            prompt.ToString(), ct).ConfigureAwait(false);
         Console.Out.WriteLine(reply);
         return 0;
     }

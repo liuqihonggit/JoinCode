@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - domain: generators
-            csprojs: modules/generators/aot_safety_tests/AotSafety.Tests.csproj modules/generators/fsm_generator_tests/Fsm.Generator.Tests.csproj
+            csprojs: modules/generators/aot_safety_tests/AotSafety.Tests.csproj modules/generators/fsm_generator_tests/Fsm.Generator.Tests.csproj modules/generators/cli_permission_analyzer_tests/CliPermission.Analyzer.Tests.csproj
           - domain: collections
             csprojs: modules/collections/structura_tests/Structura.Tests.csproj
           - domain: async_primitives

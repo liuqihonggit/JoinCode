@@ -1,0 +1,142 @@
+# tools 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.tools
+policy_version: 1
+executables:
+  - jcc-tool-tools.exe
+
+tools:
+  test_tool:
+    effect: allow
+    parameters:
+      arg:
+        effect: allow
+  skill_simplify:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      simplify_type:
+        effect: allow
+  skill_verify:
+    effect: allow
+    parameters:
+      path:
+        effect: allow
+      verify_type:
+        effect: allow
+      test_filter:
+        effect: allow
+  skill_debug:
+    effect: allow
+    parameters:
+      path:
+        effect: allow
+      error_message:
+        effect: allow
+      debug_type:
+        effect: allow
+  skill_batch:
+    effect: allow
+    parameters:
+      pattern:
+        effect: allow
+      operation:
+        effect: allow
+      search:
+        effect: allow
+      replace:
+        effect: allow
+      recursive:
+        effect: allow
+  skill_stuck:
+    effect: allow
+    parameters:
+      current_approach:
+        effect: allow
+      obstacle:
+        effect: allow
+      goal:
+        effect: allow
+  tool_create:
+    effect: allow
+    parameters:
+      toolName:
+        effect: allow
+      description:
+        effect: allow
+      executionType:
+        effect: allow
+      command:
+        effect: allow
+      parametersJson:
+        effect: allow
+      argsTemplate:
+        effect: allow
+      groupName:
+        effect: allow
+  tool_list_templates:
+    effect: allow
+    parameters: []
+  tool_show_template:
+    effect: allow
+    parameters:
+      templateId:
+        effect: allow
+  skill_search:
+    effect: allow
+    parameters:
+      keyword:
+        effect: allow
+      tags:
+        effect: allow
+      category:
+        effect: allow
+      max_results:
+        effect: allow
+  skill_recommend:
+    effect: allow
+    parameters:
+      context:
+        effect: allow
+      max_results:
+        effect: allow
+  discover_skills:
+    effect: allow
+    parameters:
+      context:
+        effect: allow
+      max_results:
+        effect: allow
+  skill:
+    effect: allow
+    parameters:
+      skill:
+        effect: allow
+      args:
+        effect: allow
+  skill_execute:
+    effect: allow
+    parameters:
+      skill_name:
+        effect: allow
+      JsonElement:
+        effect: allow
+  skill_list:
+    effect: allow
+    parameters: []
+  tool_score:
+    effect: allow
+    parameters:
+      toolName:
+        effect: allow
+  tool_hypergraph:
+    effect: allow
+    parameters: []
+  tool_score_reset:
+    effect: allow
+    parameters:
+      toolName:
+        effect: allow

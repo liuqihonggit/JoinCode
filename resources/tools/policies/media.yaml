@@ -1,0 +1,498 @@
+# media 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.media
+policy_version: 1
+executables:
+  - jcc-tool-media.exe
+
+tools:
+  right_click_menu:
+    effect: allow
+    parameters:
+      targetX:
+        effect: allow
+      targetY:
+        effect: allow
+      menuItemX:
+        effect: allow
+      menuItemY:
+        effect: allow
+      menuRenderDelayMs:
+        effect: allow
+  drag_with_hover:
+    effect: allow
+    parameters:
+      fromX:
+        effect: allow
+      fromY:
+        effect: allow
+      toX:
+        effect: allow
+      toY:
+        effect: allow
+      hoverMs:
+        effect: allow
+      popupItemX:
+        effect: allow
+      popupItemY:
+        effect: allow
+  multi_click:
+    effect: allow
+    parameters:
+      coordinates:
+        effect: allow
+      stepDelayMs:
+        effect: allow
+  mouse_click:
+    effect: allow
+    parameters:
+      x:
+        effect: allow
+      y:
+        effect: allow
+      action:
+        effect: allow
+  mouse_move:
+    effect: allow
+    parameters:
+      x:
+        effect: allow
+      y:
+        effect: allow
+  mouse_drag:
+    effect: allow
+    parameters:
+      fromX:
+        effect: allow
+      fromY:
+        effect: allow
+      toX:
+        effect: allow
+      toY:
+        effect: allow
+      hoverMs:
+        effect: allow
+  key_press:
+    effect: allow
+    parameters:
+      virtualKey:
+        effect: allow
+      modifiers:
+        effect: allow
+  type_text:
+    effect: allow
+    parameters:
+      text:
+        effect: allow
+  show_desktop_overlay:
+    effect: allow
+    parameters:
+      x:
+        effect: allow
+      y:
+        effect: allow
+      width:
+        effect: allow
+      height:
+        effect: allow
+      durationMs:
+        effect: allow
+      color:
+        effect: allow
+  show_desktop_pulse:
+    effect: allow
+    parameters:
+      centerX:
+        effect: allow
+      centerY:
+        effect: allow
+      maxRadius:
+        effect: allow
+      minRadius:
+        effect: allow
+      durationMs:
+        effect: allow
+      frameMs:
+        effect: allow
+      color:
+        effect: allow
+  look_at_cursor:
+    effect: allow
+    parameters:
+      depth:
+        effect: allow
+      minPixels:
+        effect: deny  # exe 本地实现未提供该能力
+      showAnimation:
+        effect: deny  # exe 本地实现未提供该能力
+      animationDurationMs:
+        effect: deny  # exe 本地实现未提供该能力
+      baseColor:
+        effect: deny  # exe 本地实现未提供该能力
+  desktop_click:
+    effect: allow
+    parameters:
+      sceneId:
+        effect: allow
+      x:
+        effect: allow
+      y:
+        effect: allow
+  desktop_detect:
+    effect: allow
+    parameters:
+      sceneId:
+        effect: allow
+  desktop_look:
+    effect: allow
+    parameters:
+      sceneId:
+        effect: allow
+  desktop_scene_menu:
+    effect: allow
+    parameters: []
+  desktop_scene_status:
+    effect: allow
+    parameters:
+      sceneId:
+        effect: allow
+  desktop_zoom:
+    effect: allow
+    parameters:
+      sceneId:
+        effect: allow
+      quadrant:
+        effect: allow
+      back:
+        effect: allow
+  get_environment_state:
+    effect: allow
+    parameters: []
+  wait_for_idle:
+    effect: allow
+    parameters:
+      timeoutSeconds:
+        effect: allow
+  undo_last_action:
+    effect: allow
+    parameters: []
+  get_operation_history:
+    effect: allow
+    parameters:
+      count:
+        effect: allow
+  start_recording:
+    effect: allow
+    parameters:
+      macroName:
+        effect: allow
+  stop_recording:
+    effect: allow
+    parameters:
+      savePath:
+        effect: allow
+  play_macro:
+    effect: allow
+    parameters:
+      filePath:
+        effect: allow
+      speed:
+        effect: allow
+  list_macros:
+    effect: allow
+    parameters:
+      directory:
+        effect: allow
+  start_observation:
+    effect: allow
+    parameters:
+      sessionName:
+        effect: allow
+  learn_from_observation:
+    effect: allow
+    parameters: []
+  optimize_steps:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+      pattern:
+        effect: allow
+      parameters:
+        effect: allow
+      steps:
+        effect: allow
+  reproduce_from_logic:
+    effect: allow
+    parameters:
+      name:
+        effect: allow
+      pattern:
+        effect: allow
+      context:
+        effect: allow
+      parameters:
+        effect: allow
+      steps:
+        effect: allow
+  list_processes:
+    effect: allow
+    parameters:
+      nameFilter:
+        effect: allow
+      maxCount:
+        effect: allow
+  kill_process:
+    effect: allow
+    parameters:
+      pid:
+        effect: allow
+      name:
+        effect: allow
+      force:
+        effect: allow
+  start_process:
+    effect: allow
+    parameters:
+      fileName:
+        effect: allow
+      arguments:
+        effect: allow
+      workingDir:
+        effect: allow
+  detect_ui_elements:
+    effect: allow
+    parameters:
+      base64Screenshot:
+        effect: allow
+  find_element:
+    effect: allow
+    parameters:
+      description:
+        effect: allow
+      base64Screenshot:
+        effect: allow
+  list_windows:
+    effect: allow
+    parameters: []
+  focus_window:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+  move_window:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      x:
+        effect: allow
+      y:
+        effect: allow
+      width:
+        effect: allow
+      height:
+        effect: allow
+  close_window:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+  screenshot:
+    effect: allow
+    parameters:
+      scope:
+        effect: allow
+      title:
+        effect: allow
+      x:
+        effect: allow
+      y:
+        effect: allow
+      width:
+        effect: allow
+      height:
+        effect: allow
+  voice_start_recording:
+    effect: allow
+    parameters: []
+  voice_stop_recording:
+    effect: allow
+    parameters: []
+  voice_transcribe:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      language:
+        effect: allow
+  voice_status:
+    effect: allow
+    parameters: []
+  vcr_record:
+    effect: allow
+    parameters:
+      cassette_name:
+        effect: allow
+      cassette_directory:
+        effect: allow
+  vcr_playback:
+    effect: allow
+    parameters:
+      cassette_name:
+        effect: allow
+      cassette_directory:
+        effect: allow
+  vcr_status:
+    effect: allow
+    parameters: []
+  image_describe:
+    effect: allow
+    parameters:
+      imageBase64:
+        effect: allow
+      maxLabels:
+        effect: allow
+  image_drill_down:
+    effect: allow
+    parameters:
+      imageBase64:
+        effect: allow
+      label:
+        effect: allow
+      currentDepth:
+        effect: allow
+      maxDepth:
+        effect: allow
+      tokenBudget:
+        effect: allow
+  measure_length:
+    effect: allow
+    parameters:
+      x1:
+        effect: allow
+      y1:
+        effect: allow
+      x2:
+        effect: allow
+      y2:
+        effect: allow
+  measure_depth:
+    effect: allow
+    parameters:
+      imageBase64:
+        effect: allow
+      x:
+        effect: allow
+      y:
+        effect: allow
+      width:
+        effect: allow
+      height:
+        effect: allow
+  measure_ratio:
+    effect: allow
+    parameters:
+      width:
+        effect: allow
+      height:
+        effect: allow
+  quadtree_to_screen_rects:
+    effect: allow
+    parameters:
+      imageWidth:
+        effect: allow
+      imageHeight:
+        effect: allow
+      depth:
+        effect: allow
+      originScreenX:
+        effect: allow
+      originScreenY:
+        effect: allow
+      paintsJson:
+        effect: allow
+  quadtree_build:
+    effect: allow
+    parameters:
+      imageBase64:
+        effect: allow
+      depth:
+        effect: allow
+  quadtree_zoom:
+    effect: allow
+    parameters:
+      imageBase64:
+        effect: allow
+      cellCode:
+        effect: allow
+      sourceDepth:
+        effect: allow
+      targetDepth:
+        effect: allow
+  quadtree_paint:
+    effect: allow
+    parameters:
+      imageWidth:
+        effect: allow
+      imageHeight:
+        effect: allow
+      depth:
+        effect: allow
+      paintsJson:
+        effect: allow
+  quadtree_render:
+    effect: allow
+    parameters:
+      imageBase64:
+        effect: allow
+      imageWidth:
+        effect: allow
+      imageHeight:
+        effect: allow
+      depth:
+        effect: allow
+      paintsJson:
+        effect: allow
+  quadtree_neighbor:
+    effect: allow
+    parameters:
+      cellCode:
+        effect: allow
+      direction:
+        effect: allow
+      imageWidth:
+        effect: allow
+      imageHeight:
+        effect: allow
+      depth:
+        effect: allow
+  screen_indicate:
+    effect: allow
+    parameters:
+      imageBase64:
+        effect: allow
+      cellCode:
+        effect: allow
+      imageWidth:
+        effect: allow
+      imageHeight:
+        effect: allow
+      depth:
+        effect: allow
+  temporal_aggregate:
+    effect: allow
+    parameters:
+      framesJson:
+        effect: allow
+      analysisPrompt:
+        effect: allow
+  temporal_stable_contour:
+    effect: allow
+    parameters:
+      framesJson:
+        effect: allow
+      threshold:
+        effect: allow

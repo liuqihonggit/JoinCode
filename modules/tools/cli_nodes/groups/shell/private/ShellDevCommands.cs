@@ -131,6 +131,7 @@ internal static partial class ShellCommands {
         }
         var code = Required(o, "code", "repl");
         var language = Get(o, "language", "csharp").ToLowerInvariant();
+        var timeoutMs = Math.Clamp(GetInt(o, "timeout_seconds", 30), 1, 3600) * 1000;
         var tempDir = Path.Combine(Path.GetTempPath(), "jcc_repl_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         try {
@@ -142,7 +143,7 @@ internal static partial class ShellCommands {
             var scriptPath = Path.Combine(tempDir, file);
             await File.WriteAllTextAsync(scriptPath, code, ct).ConfigureAwait(false);
             var argList = new List<string>(args) { scriptPath };
-            var (exit, stdout, stderr) = await RunProcessCaptureAsync(exe, argList.ToArray(), tempDir, 60000, ct).ConfigureAwait(false);
+            var (exit, stdout, stderr) = await RunProcessCaptureAsync(exe, argList.ToArray(), tempDir, timeoutMs, ct).ConfigureAwait(false);
             if (stdout.Trim().Length > 0) Console.Out.Write(stdout);
             if (stderr.Trim().Length > 0) Console.Error.Write(stderr);
             return exit;

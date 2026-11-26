@@ -77,6 +77,14 @@ $groups = Get-ChildItem -Path $groupsRoot -Directory |
     Where-Object { Test-Path (Join-Path $_.FullName ("jcc_tool_" + $_.Name + ".csproj")) } |
     Sort-Object Name
 
+# 嵌入权限策略的分组（ADR 0168）：直接运行 exe 必须被中央鉴权拒绝（126 / Auth.Missing），
+# 成功路径只在 jcc 宿主里成立 —— 抽样对这类组验的是 fail-closed 而不是旧的成功路径。
+$policyGroups = @{}
+foreach ($group in $groups) {
+    $csprojPath = Join-Path $group.FullName ("jcc_tool_" + $group.Name + ".csproj")
+    if ((Get-Content -Path $csprojPath -Raw) -match 'policy\.yaml') { $policyGroups[$group.Name] = $true }
+}
+
 # 工具 id 归一化：slash 组的 node.yaml 登记名与 exe 自报名在前导斜杠上不一致（/version vs version），
 # 与 CliNodeRunner.CanonicalToolId 同口径处理，否则集合比对会对 slash 组假报漂移。
 function Normalize-ToolId([string]$id) { if ($id) { $id.TrimStart('/') } else { $id } }
@@ -298,6 +306,15 @@ if ($Sample) {
 
         $probe = Invoke-Probe -Exe $exe -Arguments $spec.Args
         $sampleRuns++
+        if ($policyGroups.ContainsKey($spec.Group)) {
+            # 该组已嵌入策略：直接调用必须由中央鉴权拦截，成功路径只能经 jcc tool call 验证。
+            if ($probe.Code -ne 126 -or $probe.Output -notmatch 'Auth\.Missing') {
+                $problems += "[$($spec.Group)] 抽样 '$($spec.Args[0])' 应被中央鉴权拒绝（126/Auth.Missing），实际退出码 $($probe.Code)"
+                $probe.Output -split "`r?`n" | Select-Object -First 3 |
+                    ForEach-Object { Write-Output "    $_" }
+            }
+            continue
+        }
         if ($probe.Code -ne $spec.Expect) {
             $problems += "[$($spec.Group)] 抽样 '$($spec.Args[0])' 退出码 $($probe.Code)，预期 $($spec.Expect)"
             $probe.Output -split "`r?`n" | Select-Object -First 3 |

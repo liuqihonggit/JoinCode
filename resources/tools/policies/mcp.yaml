@@ -1,0 +1,173 @@
+# mcp 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.mcp
+policy_version: 1
+executables:
+  - jcc-tool-mcp.exe
+
+tools:
+  auth_get_status:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+  auth_refresh:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+  auth_logout:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+  mcp_auth_apikey:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+      api_key:
+        effect: allow
+      header_name:
+        effect: allow
+  mcp_auth_bearer:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+      token:
+        effect: allow
+  mcp_auth_basic:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+      username:
+        effect: allow
+      password:
+        effect: allow
+  mcp_auth_oauth2:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+      client_id:
+        effect: allow
+      client_secret:
+        effect: allow
+      token_url:
+        effect: allow
+      scopes:
+        effect: allow
+  mcp_auth_refresh:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+  mcp_auth_status:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+  mcp_auth_remove:
+    effect: allow
+    parameters:
+      auth_name:
+        effect: allow
+  mcp_connect:
+    effect: allow
+    parameters:
+      connection_name:
+        effect: allow
+      endpoint:
+        effect: allow
+      transport_type:
+        effect: allow
+      use_oauth:
+        effect: allow
+      auth_name:
+        effect: allow
+  mcp_disconnect:
+    effect: allow
+    parameters:
+      connection_name:
+        effect: allow
+  mcp_disable_server:
+    effect: allow
+    parameters:
+      connection_name:
+        effect: allow
+  mcp_enable_server:
+    effect: allow
+    parameters:
+      connection_name:
+        effect: allow
+  mcp_list_tools:
+    effect: allow
+    parameters:
+      connection_name:
+        effect: allow
+  mcp_call_tool:
+    effect: allow
+    parameters:
+      connection_name:
+        effect: allow
+      tool_name:
+        effect: allow
+      arguments_json:
+        effect: allow
+  list_mcp_resources:
+    effect: allow
+    parameters:
+      connection_name:
+        effect: allow
+  read_mcp_resource:
+    effect: allow
+    parameters:
+      connection_name:
+        effect: allow
+      resource_uri:
+        effect: allow
+  mcp_list_prompts:
+    effect: allow
+    parameters:
+      connection_name:
+        effect: allow
+  mcp_remote_list_resources:
+    effect: allow
+    parameters:
+      client_id:
+        effect: allow
+  mcp_remote_read_resource:
+    effect: allow
+    parameters:
+      uri:
+        effect: allow
+      client_id:
+        effect: allow
+  mcp_remote_list_prompts:
+    effect: allow
+    parameters:
+      client_id:
+        effect: allow
+  mcp_get_prompt:
+    effect: allow
+    parameters:
+      prompt_name:
+        effect: allow
+      arguments:
+        effect: allow
+      client_id:
+        effect: allow
+  mcp_list_clients:
+    effect: allow
+    parameters: []
+  monitor:
+    effect: allow
+    parameters:
+      monitor_type:
+        effect: allow
+      client_id:
+        effect: allow

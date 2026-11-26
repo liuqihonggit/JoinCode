@@ -50,8 +50,8 @@ internal static partial class CodeCommands {
 
     private static Task<int> LspWorkspaceSymbolAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var query = Required(o, "query", "lsp_workspace_symbol");
-        var workspace = Nullable(o, "workspace_path");
-        var serverName = Nullable(o, "server_name");
+        var workspace = Nullable(o, "workspacePath");
+        var serverName = Nullable(o, "serverName");
         var root = ResolveWorkspace(workspace ?? Directory.GetCurrentDirectory());
         return RunWithServerByNameAsync(serverName, root, async (conn, languageId, token) => {
             var result = await conn.RequestAsync("workspace/symbol", new JsonObject { ["query"] = query }, token).ConfigureAwait(false);
@@ -97,7 +97,7 @@ internal static partial class CodeCommands {
     private static async Task<int> RunWithServerAsync(IReadOnlyDictionary<string, string> o, string filePath, Func<LspConnection, string, CancellationToken, Task<int>> body, CancellationToken ct) {
         var entry = LspConfig.ForFile(filePath)
             ?? throw new InvalidOperationException($"没有为 '{Path.GetExtension(filePath)}' 配置可用的 LSP 服务器（配置: {LspConfig.ConfigPath}）。在配置里加一条 command/fileExtensions 后重试。");
-        var root = ResolveWorkspace(ResolveWorkspaceHint(o) ?? Path.GetDirectoryName(filePath) ?? Directory.GetCurrentDirectory());
+        var root = ResolveWorkspace(Path.GetDirectoryName(filePath) ?? Directory.GetCurrentDirectory());
         return await RunAsync(entry, root, body, ct).ConfigureAwait(false);
     }
 
@@ -282,7 +282,6 @@ internal static partial class CodeCommands {
         return full;
     }
 
-    private static string? ResolveWorkspaceHint(IReadOnlyDictionary<string, string> o) => Nullable(o, "workspace_path");
 
     /// <summary>向上找 .git 得工作区根；找不到就用起始目录 —— 同时作为 rootUri 与服务器进程 CWD。</summary>
     private static string ResolveWorkspace(string start) {

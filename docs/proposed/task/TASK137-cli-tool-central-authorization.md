@@ -1,7 +1,7 @@
 # TASK137 — CLI 工具集中鉴权与参数权限编译期门禁
 
-- 状态：**ADR 起草完成，等待用户批准；未开始实现**
-- 日期：2026-11-25
+- 状态：**实施中 — 13 组策略已全部内嵌并通过编译期对账；delegate/host 链与一次性 grant 待后续阶段**
+- 日期：2026-11-25（2026-11-26 更新实施证据）
 - 上游决策：[ADR 0168](../adr/0168-cli-tool-central-authorization-and-parameter-policy.md)
 - 关联：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)、[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)
 
@@ -41,22 +41,43 @@
 
 ### 阶段 1：file 组垂直切片
 
-- [ ] 定义权限 YAML schema、AOT 解析器和策略 DTO。
-- [ ] file 组内嵌 `policy.yaml`，jcc 内嵌可信构建目录。
-- [ ] 实现 jcc 授权 broker、跨进程授权上下文与一次性执行 grant。
-- [ ] `CliToolCommand` 在 local/delegate/host 分叉前接入 broker。
-- [ ] `CliNodeRunner` 在 local/delegate 执行前 redeem grant；`-h` 保持免授权。
-- [ ] 接入 `CliPermissionAnalyzer`，覆盖 file local handler 的参数读取。
-- [ ] 红测试：漏登记、多登记、别名、动态参数键、直接 exe、重放 grant、篡改策略。
-- [ ] 真机：主代理、Explore、Plan、Bypass、host ask 五条路径。
+- [x] 定义权限 YAML schema、AOT 解析器和策略 DTO。
+  - `CliToolPolicy.cs` / `CliToolPolicyLoader.cs`；契约测试 12/12。
+- [x] file 组内嵌 `policy.yaml`。
+  - `resources/tools/policies/file.yaml` + `jcc_tool_file.csproj` 的 `EmbeddedResource`/`AdditionalFiles`。
+  - 可信构建目录（policy 哈希目录）未实现，见阶段 5。
+- [x] 实现 jcc 授权 broker 与跨进程授权上下文。
+  - `CliAuthorizationBroker.cs`：本机命名管道 + CurrentUserOnly + 随机 token。
+  - **偏离 ADR 原文**：当前签发的是「作用域会话 token」，不是一次性 grant；broker 每次调用都用实际参数重新判定。
+    重放等同于同一 agent 在自己工具域内再次调用，不越权；一次性 grant（绑定参数摘要/nonce/策略哈希）留作阶段 2 加固。
+- [x] `CliToolCommand` 在 local/delegate 分叉前接入 broker。
+  - `LaunchAsync` 注入 `JCC_CLI_AUTH_PIPE/TOKEN`；无继承会话时启动进程内全量 broker（手工 `jcc tool call` 路径）。
+- [x] `CliNodeRunner` 在 local/delegate 执行前校验授权；`-h`/`--list-local` 免授权。
+  - `ExitAuthorizationRequired = 126`；`Auth.Missing`/`Policy.*` 均带正确写法诱导。
+  - 迁移门禁：exe 未嵌入策略时按 `Policy.NotEnforced` 保持旧行为，避免其余 12 组被误伤。
+- [x] 接入 `CliPermissionAnalyzer`，覆盖 file local handler 的参数读取。
+  - `JCC13001/13002/13004/13008`；帮助里有、handler 未读的参数用 `deny` 墓碑登记（`read.pages`）。
+- [x] 红测试：漏登记、多登记、别名、动态参数键、直接 exe、伪造 token。
+  - 分析器 13/13；CLI 契约层 119/119（含 13 份策略全量解析）；shell 环境注入 3/3；Hands.Shell 全量 563/563。
+- [x] 真机：主代理路径。
+  - `jcc tool call file read --file_path agents.md` → 0。
+  - `--pages 1` → 126 `Policy.Deny`；`--bogus x` → 126 `Policy.Parameter`。
+  - 直接 `jcc-tool-file.exe read` → 126 `Auth.Missing`；无策略组 `jcc-tool-search.exe glob` → 0（旧行为保持）。
+- [ ] 真机：Explore / Plan / Bypass / host ask 四条路径（需要真实子代理会话，留待阶段 4 联调）。
 
 ### 阶段 2：全量 local / delegate
 
-- [ ] 每组一份规范策略源；同一策略可嵌入组 exe 与 delegate exe。
-- [ ] 分析器接入所有组 exe 与 delegate exe。
-- [ ] 完成 local handler 注册表到方法体的参数闭包分析。
-- [ ] 未知参数在授权前拒绝，不能进入 handler 才报错。
-- [ ] GitHub → jcc-gh 委托链的授权、兑现与审计闭环。
+- [x] 每组一份规范策略源：`resources/tools/policies/<group>.yaml` 共 13 份，由
+  `Generate-CliToolPolicies.py` 从 help.txt 生成骨架，人工收紧 deny/能力。
+- [x] 分析器接入所有 13 个组 exe（`AdditionalFiles` + Analyzer ProjectReference）。
+- [x] 完成 local handler 参数闭包分析：helper 链多层转发、嵌套调用、`GetValueOrDefault`、
+  slash 组带引号工具 ID、行尾注释、拒绝墓碑均已覆盖（分析器 13/13）。
+- [x] 未知参数在授权前拒绝：broker `Policy.Parameter`（真机 `--bogus` → 126）。
+- [ ] delegate exe（jcc-gh）自身内嵌策略与 GitHub → jcc-gh 委托链的授权/审计闭环。
+- [ ] 一次性 grant（参数摘要/nonce/策略哈希）加固。
+- 实施中发现并修复的契约漂移：media/system 的 camelCase help 参数被 handler 按 snake_case 读取、
+  多个"帮助里有、handler 不读"的参数、`task_update`/`todo_update` 的 foreach 动态键、
+  `remote_trigger` 本地实现与声明契约不符。
 
 ### 阶段 3：host / slash / base / launcher
 
@@ -68,8 +89,10 @@
 
 ### 阶段 4：subagent 工具域与发现同源
 
-- [ ] 修复调用方 AllowedTools 覆盖角色定义的问题，改为交集。
-- [ ] 明确“输入空集合 = 未指定”与“解析后空集合 = 拒绝全部”的边界。
+- [x] 修复调用方 AllowedTools 覆盖角色定义的问题，改为交集。
+  - `ContextSetupMiddleware.MergeAllowedTools`；6 个定向测试 + 既有 24 个 ContextSetup 测试全绿。
+- [x] 明确“输入空集合 = 未指定”与“解析后空集合 = 拒绝全部”的边界。
+  - `ToolDomainConstants.NoToolsPermitted` 哨兵：交集为空时写入不可能存在的工具名，避免空列表被过滤层解释为“不限制”。
 - [ ] `PromptToolGroupScope` 携带有效 CLI 工具域。
 - [ ] 首轮组目录、`tree` / `find` / `help`、执行门禁消费同一有效域。
 - [ ] 禁止参数从 agent 可见帮助中隐藏；ask 参数保留可见性并标注需确认。
@@ -86,16 +109,17 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---|---|---|---|
-| 权限 YAML schema + AOT 解析器 | 各工具组 exe、delegate exe、jcc base/launcher | ❌ | ❌ 未开始 |
+| 权限 YAML schema + AOT 解析器 | 13 个组 exe | ✅ `CliToolPolicyLoader`；13 份策略 | ✅ 全部组 exe 编译并通过 `Verify-ToolNodes.ps1 -Sample` |
 | 可信 exe / policy 哈希目录 | jcc 授权 broker | ❌ | ❌ 未开始 |
-| 跨进程授权上下文 | Bash / PowerShell 子进程环境 | ❌ | ❌ 未开始 |
-| 集中授权 broker | `CliToolCommand`、host 工具执行 | ❌ | ❌ 未开始 |
-| 一次性执行 grant + redeem | `CliNodeRunner` local / delegate | ❌ | ❌ 未开始 |
-| 参数权限硬规则 | jcc `CliToolAuthorizer` | ❌ | ❌ 未开始 |
-| Roslyn 参数对账分析器 | jcc、13 个组 exe、delegate exe | ❌ | ❌ 未开始 |
-| subagent 有效工具域 | `ContextSetupMiddleware`、`SubAgentContext` | ❌ | ❌ 未开始 |
+| 跨进程授权上下文 | Bash / PowerShell 子进程环境 | ✅ `SystemActuatorBase.AppendCliAuthorizationEnvironment`；3/3 测试 | ❌ 真机子代理 shell 待阶段 4 |
+| 集中授权 broker | `CliToolCommand` local/delegate 路径、host 路径待阶段 3 | ✅ 命名管道 + 作用域 token；9/9 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝 |
+| 一次性执行 grant + redeem | `CliNodeRunner` local / delegate | ❌ 当前为作用域会话 token（ADR 偏离，待阶段 2 加固） | ❌ |
+| 参数权限硬规则 | broker `CliToolPolicyEvaluator` | ✅ 未知参数/deny 参数/工具域/拒绝集 | ✅ `--pages`→126 `Policy.Deny`；`--bogus`→126 `Policy.Parameter` |
+| 迁移门禁（无策略 exe 旧行为） | `CliToolAuthorizationClient.AuthorizeCoreAsync` | ✅ `Policy.NotEnforced`；3/3 门禁测试 | ✅ 各组直跑统一 126；delegate/host 无策略 exe 仍按旧行为 |
+| Roslyn 参数对账分析器 | 13 个组 csproj | ✅ JCC13001/13002/13004/13008；13/13 测试 | ✅ 13 组编译零诊断；119/119 契约测试 |
+| subagent 有效工具域 | `ContextSetupMiddleware`、`SubAgentContext` | ✅ 交集 + 空交集哨兵；6/6 测试 | ❌ 真实子代理会话待阶段 4 |
 | 发现与执行同源 | `ToolsSection`、`CliToolSearch`、`CliToolHelp` | ❌ | ❌ 未开始 |
-| 权限审计与诱导错误 | broker、CLI stderr、JSONL 审计 | ❌ | ❌ 未开始 |
+| 权限审计与诱导错误 | broker、CLI stderr、JSONL 审计 | ⚠️ 诱导错误已完成（四要素）；JSONL 审计未开始 | ✅ 真机 stderr 含原因/层/正确写法 |
 
 ## 非目标
 

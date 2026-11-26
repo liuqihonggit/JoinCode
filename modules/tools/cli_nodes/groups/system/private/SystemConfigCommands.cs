@@ -27,12 +27,14 @@ internal static partial class SystemCommands {
     // ==================== 错误诊断/修复（确定性规则） ====================
 
     private static Task<int> DiagnoseErrorAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
-        var tool = Get(o, "failed_tool_name", "unknown");
-        var error = Required(o, "error_message", "diagnose_error");
+        var tool = Get(o, "failedToolName", "unknown");
+        var error = Required(o, "errorMessage", "diagnose_error");
+        var workingDirectory = Get(o, "workingDirectory", "");
         var sb = new StringBuilder();
         sb.AppendLine($"## 工具 '{tool}' 执行失败诊断");
         sb.AppendLine();
         sb.AppendLine($"**错误信息**: {error}");
+        if (workingDirectory.Length > 0) sb.AppendLine($"**工作目录**: {workingDirectory}");
         sb.AppendLine();
         sb.AppendLine("### 常见原因分析");
         if (Has(error, "permission", "denied", "权限")) sb.AppendLine("- **权限不足**: 检查文件/目录权限（chmod/icacls）");
@@ -46,9 +48,9 @@ internal static partial class SystemCommands {
     }
 
     private static Task<int> FixShellErrorAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
-        var cmd = Get(o, "failed_command", "");
-        var exit = Get(o, "exit_code", "");
-        var err = Get(o, "error_output", "");
+        var cmd = Get(o, "failedCommand", "");
+        var exit = Get(o, "exitCode", "");
+        var err = Get(o, "errorOutput", "");
         var sb = new StringBuilder();
         sb.AppendLine("## Shell 命令失败修复建议");
         sb.AppendLine();
@@ -66,10 +68,12 @@ internal static partial class SystemCommands {
     }
 
     private static Task<int> FixFileErrorAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
-        var path = Required(o, "file_path", "fix_file_error");
+        var path = Required(o, "filePath", "fix_file_error");
+        var errorMessage = Required(o, "errorMessage", "fix_file_error");
         var sb = new StringBuilder();
         sb.AppendLine("## 文件错误修复建议");
         sb.AppendLine($"路径: {path}");
+        sb.AppendLine($"错误: {errorMessage}");
         sb.AppendLine($"存在: {(File.Exists(path) ? "是" : "否")}");
         var dir = Path.GetDirectoryName(Path.GetFullPath(path));
         sb.AppendLine($"父目录存在: {(Directory.Exists(dir) ? "是" : "否")}");
@@ -81,8 +85,11 @@ internal static partial class SystemCommands {
     }
 
     private static async Task<int> FixMergeConflictAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
-        var path = Get(o, "file_path", ".");
-        var (exit, stdout, _) = await RunProcCaptureAsync("git", ["branch", "--show-current"], Directory.Exists(path) ? path : Directory.GetCurrentDirectory(), ct).ConfigureAwait(false);
+        var source = Required(o, "source_worktree_path", "fix_merge_conflict");
+        var target = Required(o, "target_worktree_path", "fix_merge_conflict");
+        var errorMessage = Required(o, "error_message", "fix_merge_conflict");
+        var path = Directory.Exists(source) ? source : Directory.GetCurrentDirectory();
+        var (exit, stdout, _) = await RunProcCaptureAsync("git", ["branch", "--show-current"], path, ct).ConfigureAwait(false);
         var conflicts = Directory.Exists(path)
             ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Where(f => {
                 try { return File.ReadAllText(f).Contains("<<<<<<<", StringComparison.Ordinal); } catch { return false; }
@@ -90,6 +97,8 @@ internal static partial class SystemCommands {
             : [];
         var sb = new StringBuilder();
         sb.AppendLine("## 合并冲突诊断");
+        sb.AppendLine($"源: {source}  目标: {target}");
+        sb.AppendLine($"错误: {errorMessage}");
         sb.AppendLine($"分支: {(exit == 0 ? stdout.Trim() : "未知")}");
         sb.AppendLine($"检测到冲突标记的文件: {conflicts.Count}");
         foreach (var f in conflicts) sb.AppendLine($"  - {f}");
@@ -256,7 +265,7 @@ internal static partial class SystemCommands {
 
     private static Task<int> PermissionCheckToolAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var tool = Required(o, "tool_name", "permission_check_tool");
-        var agent = Get(o, "agent_id", "default");
+        var agent = Get(o, "agent_name", "default");
         var rule = LoadRules().FirstOrDefault(r => r.AgentPattern == "*" || agent.Contains(r.AgentPattern.TrimStart('*'), StringComparison.OrdinalIgnoreCase));
         var denied = rule?.Denied.Contains(tool, StringComparer.OrdinalIgnoreCase) ?? false;
         var allowed = rule is null || (!denied && (rule.Allowed.Length == 0 || rule.Allowed.Contains(tool, StringComparer.OrdinalIgnoreCase)));
@@ -265,11 +274,12 @@ internal static partial class SystemCommands {
     }
 
     private static Task<int> PermissionCheckPathAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
+        var agent = Required(o, "agent_name", "permission_check_path");
         var path = Required(o, "path", "permission_check_path");
         var full = Path.GetFullPath(path);
         var deniedFragments = new[] { "..", "\\windows\\system32", "/etc/shadow" };
         var denied = deniedFragments.Any(f => full.Contains(f, StringComparison.OrdinalIgnoreCase));
-        Console.Out.WriteLine($"路径 '{full}': {(denied ? "DENIED (敏感路径)" : "ALLOWED")}");
+        Console.Out.WriteLine($"路径 '{full}' (agent={agent}): {(denied ? "DENIED (敏感路径)" : "ALLOWED")}");
         return Task.FromResult(0);
     }
 
@@ -286,16 +296,21 @@ internal static partial class SystemCommands {
 
     private static Task<int> ModelSearchAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var query = Get(o, "query", "");
+        var maxResults = Math.Clamp(GetInt(o, "max_results", 20), 1, 200);
         if (!File.Exists(Path.Combine(Jcc, "settings.json"))) { Console.Out.WriteLine("无模型配置"); return Task.FromResult(0); }
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(Jcc, "settings.json")).TrimStart('\uFEFF'));
         var sb = new StringBuilder();
         sb.AppendLine("可用模型:");
         if (doc.RootElement.TryGetProperty("vendor", out var vendors) && vendors.ValueKind == JsonValueKind.Object) {
+            var emitted = 0;
             foreach (var v in vendors.EnumerateObject()) {
                 var model = v.Value.TryGetProperty("model", out var m) ? m.GetString() : "";
                 var endpoint = v.Value.TryGetProperty("endpoint", out var e) ? e.GetString() : "";
-                if (query.Length == 0 || v.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || (model ?? "").Contains(query, StringComparison.OrdinalIgnoreCase))
-                    sb.AppendLine($"  {v.Name}: {model} ({endpoint})");
+                if (query.Length > 0
+                    && !v.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    && !(model ?? "").Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+                sb.AppendLine($"  {v.Name}: {model} ({endpoint})");
+                if (++emitted >= maxResults) break;
             }
         }
         Console.Out.Write(sb.ToString());
@@ -314,30 +329,81 @@ internal static partial class SystemCommands {
     private static Task<int> PushNotificationAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var title = Required(o, "title", "push_notification");
         var message = Get(o, "message", "");
+        var level = Get(o, "level", "info");
+        var persistent = Get(o, "persistent", "false");
         // Windows toast 走 PowerShell（BCL Process），失败则优雅降级为文本
         try {
             var ps = $"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('{message.Replace("'", "''")}', '{title.Replace("'", "''")}')";
             var psi = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true };
             psi.ArgumentList.Add("-NoProfile"); psi.ArgumentList.Add("-Command"); psi.ArgumentList.Add(ps);
             using var p = Process.Start(psi);
-            Console.Out.WriteLine($"通知已发送: {title}");
+            Console.Out.WriteLine($"通知已发送 [{level}{(persistent.Equals("true", StringComparison.OrdinalIgnoreCase) ? "/persistent" : "")}]: {title}");
         } catch (Exception ex) { Console.Out.WriteLine($"通知发送失败（已降级为文本）: {title} - {message} ({ex.Message})"); }
         return Task.FromResult(0);
     }
 
+    private static string TriggerStorePath => Path.Combine(Jcc, "remote_triggers.json");
+
+    private static JsonObject LoadTriggerStore() {
+        if (!File.Exists(TriggerStorePath)) return new JsonObject();
+        try { return JsonNode.Parse(File.ReadAllText(TriggerStorePath)) as JsonObject ?? new JsonObject(); }
+        catch (JsonException) { return new JsonObject(); }
+    }
+
     private static Task<int> RemoteTriggerAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
-        var url = Required(o, "url", "remote_trigger");
-        var method = Get(o, "method", "POST").ToUpperInvariant();
+        var action = Get(o, "action", "list").Trim().ToLowerInvariant();
+        var triggerId = Get(o, "trigger_id", "");
+        var store = LoadTriggerStore();
+        switch (action) {
+            case "list":
+                Console.Out.WriteLine(store.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                return Task.FromResult(0);
+            case "get":
+                if (!store.TryGetPropertyValue(triggerId, out var entry)) {
+                    throw new ArgumentException($"触发器 '{triggerId}' 不存在。正确写法: 先 remote_trigger --action list 查看，或 --action create --trigger_id <id> --body <json> 创建。");
+                }
+                Console.Out.WriteLine(entry?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? "{}");
+                return Task.FromResult(0);
+            case "create":
+            case "update":
+                if (triggerId.Length == 0) throw new ArgumentException($"remote_trigger --action {action} 需要 --trigger_id。正确写法: --action {action} --trigger_id <id> --body <json>");
+                store[triggerId] = ParseBody(Get(o, "body", ""));
+                Directory.CreateDirectory(Jcc);
+                File.WriteAllText(TriggerStorePath, store.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                Console.Out.WriteLine($"触发器 '{triggerId}' 已{(action == "create" ? "创建" : "更新")}");
+                return Task.FromResult(0);
+            case "run":
+                if (!store.TryGetPropertyValue(triggerId, out var target)) {
+                    throw new ArgumentException($"触发器 '{triggerId}' 不存在。正确写法: 先 remote_trigger --action list 查看。");
+                }
+                var url = target?["url"]?.GetValue<string>();
+                if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException($"触发器 '{triggerId}' 未配置 url 字段；在 --body 中提供 {{\"url\":\"...\"}}。");
+                return RunTriggerRequestAsync(url, target?["method"]?.GetValue<string>() ?? "POST", ct);
+            default:
+                throw new ArgumentException($"remote_trigger 的 --action 只能是 list/get/create/update/run，收到 '{action}'。");
+        }
+    }
+
+    private static JsonNode ParseBody(string raw) {
+        if (string.IsNullOrWhiteSpace(raw)) return new JsonObject();
+        try { return JsonNode.Parse(raw) ?? new JsonObject(); }
+        catch (JsonException ex) { throw new ArgumentException($"remote_trigger 的 --body 必须是合法 JSON: {ex.Message}。正确写法: --body '{{\"url\":\"https://...\"}}'"); }
+    }
+
+    private static async Task<int> RunTriggerRequestAsync(string url, string method, CancellationToken ct) {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        using var req = new HttpRequestMessage(new HttpMethod(method), url);
+        using var req = new HttpRequestMessage(new HttpMethod(method.ToUpperInvariant()), url);
         var token = Environment.GetEnvironmentVariable("JCC_REMOTE_TRIGGER_TOKEN");
         if (!string.IsNullOrEmpty(token)) req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + token);
         try {
-            using var resp = http.Send(req, ct);
-            var body = resp.Content.ReadAsStringAsync(ct).GetAwaiter().GetResult();  // style-allow: sync-block — 同步命令契约: 系统配置命令同步读取 HTTP 响应体
+            using var resp = await http.SendAsync(req, ct).ConfigureAwait(false);
+            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             Console.Out.WriteLine($"触发成功 ({(int)resp.StatusCode}): {Truncate(body, 500)}");
-        } catch (Exception ex) { Console.Error.WriteLine($"remote_trigger 失败: {ex.Message}"); return Task.FromResult(2); }
-        return Task.FromResult(0);
+            return 0;
+        } catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) {
+            Console.Error.WriteLine($"remote_trigger 失败: {ex.Message}");
+            return 2;
+        }
     }
 
     [DllImport("user32.dll")] private static extern bool FlashWindowEx(ref FlashInfo pwfi);
@@ -358,7 +424,8 @@ internal static partial class SystemCommands {
             MoveWindow(hwnd, x, y, w, h, true);
             Thread.Sleep(40);
         }
-        Console.Out.WriteLine("窗口抖动完成");
+        var reason = Get(o, "reason", "");
+        Console.Out.WriteLine(reason.Length > 0 ? $"窗口抖动完成（原因: {reason}）" : "窗口抖动完成");
         return Task.FromResult(0);
     }
 
@@ -373,7 +440,10 @@ internal static partial class SystemCommands {
 
     private static Task<int> SendUserMessageAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var msg = Required(o, "message", "send_user_message");
-        Console.Out.WriteLine("Message delivered to user: " + msg);
+        var attachments = Get(o, "attachments", "");
+        var status = Get(o, "status", "normal");
+        Console.Out.WriteLine($"Message delivered to user [{status}]: {msg}");
+        if (attachments.Length > 0) Console.Out.WriteLine("attachments: " + attachments);
         return Task.FromResult(0);
     }
 

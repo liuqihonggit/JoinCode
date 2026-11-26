@@ -1,8 +1,8 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；真实子代理（explore/plan）在 bypass 模式下仍被 CLI 域拒绝；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启；slash 结构化 schema、base/launcher 参数策略与 one-time grant 待后续
+- 状态：**accepted（2026-11-26 验收通过；后续加固项：slash 结构化 schema、base/launcher 参数策略、one-time grant）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；真实子代理 explore/plan 在 bypass 模式下仍被 CLI 域拒绝，code 变体获得更宽工具树（7 vs 5）；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启
 - 日期：2026-11-25（2026-11-26 更新实施证据）
-- 决策者：待用户批准
+- 决策者：用户（2026-11-25 要求先出 ADR；2026-11-26 授权自主实施）
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
 - 关联：[ADR 0162](0162-task-scoped-permission-overlay.md)、[ADR 0163](0163-ai-permission-judge-and-autonomous-mode.md)、[TASK137](../task/TASK137-cli-tool-central-authorization.md)
 - 影响域：`apps.cli`、`tools.cli_nodes`、`guard.permission`、`mcp_tool_dispatch`、`llm.agents.*`、`cognition.prompts`、`cognition.hands_shell`、`generators`

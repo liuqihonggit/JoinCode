@@ -1,6 +1,6 @@
 # TASK137 — CLI 工具集中鉴权与参数权限编译期门禁
 
-- 状态：**实施中 — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束（slash 直调含参数白名单）；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；slash 结构化 schema 与 base/launcher 待后续阶段**
+- 状态：**已完成（2026-11-26 验收通过）— 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束（slash 直调含参数白名单）；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；真实子代理 explore/plan 拒绝与 code 宽域均经 E2E 验证；后续加固项：slash 结构化 schema、base/launcher 参数策略、one-time grant**
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 上游决策：[ADR 0168](../adr/0168-cli-tool-central-authorization-and-parameter-policy.md)
 - 关联：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)、[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)

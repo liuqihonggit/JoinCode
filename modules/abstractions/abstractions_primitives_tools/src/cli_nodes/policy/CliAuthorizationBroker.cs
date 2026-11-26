@@ -126,8 +126,7 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
     private readonly string _pipeName;
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _acceptLoop;
-    private readonly Dictionary<string, CliAuthorizationScope> _sessions = new(StringComparer.Ordinal);
-    private readonly object _sessionGate = new();
+    private readonly ConcurrentDictionary<string, CliAuthorizationScope> _sessions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, LoadedCliToolPolicy> _policyCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly bool _enforcePolicyTrust;
 
@@ -140,9 +139,7 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
     public CliAuthorizationSession CreateSession(CliAuthorizationScope scope) {
         ArgumentNullException.ThrowIfNull(scope);
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        lock (_sessionGate) {
-            _sessions.Add(token, scope);
-        }
+        _sessions[token] = scope;
         return new CliAuthorizationSession(_pipeName, token);
     }
 
@@ -325,13 +322,11 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
     private CliAuthorizationScope? ResolveSession(string candidateToken) {
         if (string.IsNullOrEmpty(candidateToken)) return null;
         var candidateBytes = Encoding.UTF8.GetBytes(candidateToken);
-        lock (_sessionGate) {
-            foreach (var pair in _sessions) {
-                var expectedBytes = Encoding.UTF8.GetBytes(pair.Key);
-                if (candidateBytes.Length == expectedBytes.Length
-                    && CryptographicOperations.FixedTimeEquals(candidateBytes, expectedBytes)) {
-                    return pair.Value;
-                }
+        foreach (var pair in _sessions) {
+            var expectedBytes = Encoding.UTF8.GetBytes(pair.Key);
+            if (candidateBytes.Length == expectedBytes.Length
+                && CryptographicOperations.FixedTimeEquals(candidateBytes, expectedBytes)) {
+                return pair.Value;
             }
         }
         return null;

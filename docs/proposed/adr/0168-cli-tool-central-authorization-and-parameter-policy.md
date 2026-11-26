@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host/slash_call 四入口已接入作用域判定，delegate 实现（jcc-gh）自证并 fail-closed；tree/find/help 经 ScopeSnapshot 与执行同源；slash 参数结构化、首轮组目录裁剪与 one-time grant 待后续
+- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host/slash_call 四入口已接入作用域判定，delegate 实现（jcc-gh）自证并 fail-closed；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；slash 参数结构化、base/launcher 与 one-time grant 待后续
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -354,7 +354,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 3. **host/slash/base/launcher**：父宿主执行、结构化 slash 参数、全局与元命令参数。
    - host 段已完成：`ScopeOnly` 协议 + `McpCliCommand` 门禁，真机受限/放行两条路径双向验证；slash/base/launcher 待办。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
-   - tree/find/help 段已完成：`ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录（`PromptToolGroupScope`）仍只按 profile 裁剪。
+   - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
 
 每阶段独立编译、测试、提交；跨域契约变更执行 `Build-AllDomains.ps1`。
@@ -388,7 +388,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] （阶段 2 加固）一次性 grant：参数摘要、exe 身份、策略哈希、nonce 与过期绑定，重放 fail-closed。
 - [ ] host ask 由父宿主 UI/队列处理，不因子进程丢失上下文而自动放行。
 - [ ] 首轮组目录、tree/find/help 与执行允许集合一致。
-  - tree/find/help 已一致（受限 scope 真机验证）；首轮组目录仍按 profile 裁剪，agent 工具域待接入。
+  - tree/find/help 已真机一致；首轮组目录已按 `tool_ids` 裁剪并有单测（Prompts 232/232），真实子代理会话验收待阶段 4 联调。
 - [ ] 真实双端进程测试覆盖主代理、只读子代理、写子代理、delegate、host。
   - host 段已覆盖：受限 scope 下 `jcc mcp_call` 与 `jcc tool call <组> <host工具>` 均 `Agent.AllowedTools` 拒绝；放行 scope 两条路径正常执行；伪造凭据 `Auth.Transport` 拒绝。真实子代理会话待阶段 4。
 - [ ] 跨域契约变更后 `Build-AllDomains.ps1` 全仓编译通过。

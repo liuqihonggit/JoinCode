@@ -58,7 +58,8 @@ internal static class NodeYamlParser {
                 Blurb = blurb,
                 ToolCount = ReadInt(map, "tools", source, id),
                 LocalCount = ReadInt(map, "local", source, id),
-                DelegateCount = ReadInt(map, "delegate", source, id)
+                DelegateCount = ReadInt(map, "delegate", source, id),
+                ToolIds = ReadStringArray(map, "tool_ids")
             };
         }).ToArray();
 

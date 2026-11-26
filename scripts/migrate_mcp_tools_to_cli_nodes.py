@@ -665,6 +665,12 @@ def render_prompt_index(out_root: Path) -> tuple[str, list[str], list[str]]:
         if not blurb:
             missing.append(gid)
             blurb = ""
+        tool_ids = [
+            m.group(1).strip().strip('"').strip("'")
+            for m in re.finditer(r"^  - id:\s*(.+)$", text, re.M)
+        ]
+        tool_id_list = ", ".join('"' + item.replace(chr(92), chr(92) * 2).replace(chr(34), chr(92) + chr(34)) + '"'
+                                for item in tool_ids)
         blocks.extend([
             f"  - id: {gid}",
             f"    exe: {exe.removesuffix('.exe')}",
@@ -672,6 +678,7 @@ def render_prompt_index(out_root: Path) -> tuple[str, list[str], list[str]]:
             f"    local: {len(re.findall(r'^    mode: local$', text, re.M))}",
             f"    delegate: {len(re.findall(r'^    mode: delegate$', text, re.M))}",
             f"    blurb: \"{blurb.replace(chr(34), chr(92) + chr(34))}\"",
+            f"    tool_ids: [{tool_id_list}]",
         ])
         seen.append(gid)
 

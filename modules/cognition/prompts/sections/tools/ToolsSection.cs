@@ -85,14 +85,30 @@ public static class ToolsSection {
 
         var enabled = PromptToolGroupScope.Enabled;
         var keep = enabled is null ? null : new HashSet<string>(enabled, StringComparer.Ordinal);
+        var matcher = new CliToolScopeMatcher(PromptToolGroupScope.Domain);
+        var restricted = matcher.HasRestriction;
+
         var groups = index.Groups
             .Where(group => keep is null || keep.Contains(group.Id))
+            .Where(group => VisibleCount(group) > 0)
             .OrderBy(group => group.Id, StringComparer.Ordinal)
             .ToArray();
 
         if (groups.Length == 0) {
-            // 「全被裁」与「索引缺失」是两件事：前者是配置意愿，后者是打包问题，提示词里不能混成一句。
-            items.Add("当前 profile 未启用任何独立工具组 —— 只用首轮 tools 清单里的工具，不要假设其它命令存在。");
+            // 「全被裁」与「索引缺失」是两件事：前者是配置/授权意愿，后者是打包问题，提示词里不能混成一句。
+            items.Add(restricted
+                ? "当前 agent 的工具域内没有独立 CLI 工具组 —— 只用首轮 tools 清单里的工具；越域调用会被集中鉴权拒绝。"
+                : "当前 profile 未启用任何独立工具组 —— 只用首轮 tools 清单里的工具，不要假设其它命令存在。");
+            return;
+        }
+
+        if (restricted) {
+            var visibleCount = groups.Sum(VisibleCount);
+            var restrictedHeader = $"其余能力按当前 agent 工具域裁剪后，分装在 {groups.Length} 个独立 exe 里（对当前 agent 可见 {visibleCount} 个工具）。"
+                + "未列出的组或工具对当前 agent 不可执行 —— 先按定位挑组，再用 `<exe> -h` 按需读，不要预先整段读：";
+            var restrictedLines = groups
+                .Select(group => $"   - {group.Id}（{group.Exe}，可见 {VisibleCount(group)} 个）{group.Blurb}");
+            items.Add(restrictedHeader + Environment.NewLine + string.Join(Environment.NewLine, restrictedLines));
             return;
         }
 
@@ -104,6 +120,9 @@ public static class ToolsSection {
             .Select(group => $"   - {group.Id}（{group.Exe}，{group.ToolCount} 个）{group.Blurb}");
 
         items.Add(header + Environment.NewLine + string.Join(Environment.NewLine, lines));
+
+        int VisibleCount(CliGroupEntry group) =>
+            group.ToolIds.Count == 0 ? group.ToolCount : matcher.CountVisible(group.ToolIds);
     }
 
     /// <summary>

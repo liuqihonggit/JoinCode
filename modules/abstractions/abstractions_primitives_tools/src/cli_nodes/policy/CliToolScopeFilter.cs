@@ -13,6 +13,48 @@ public sealed record CliToolScopeSnapshot {
 }
 
 /// <summary>
+/// 工具域匹配器 — 与 broker <c>EvaluateScopeOnly</c> 同一归一化口径（去前导 /、去下划线、小写）。
+/// <para>供 tree/find/help 与首轮组目录共用，避免各处各写一套「算不算允许」。</para>
+/// </summary>
+public sealed class CliToolScopeMatcher {
+    private readonly HashSet<string> _allowed;
+    private readonly HashSet<string> _denied;
+
+    /// <summary>从快照构造；null 或空规则都视为未收紧。</summary>
+    /// <param name="snapshot">工具域快照，null 表示未进入授权会话。</param>
+    public CliToolScopeMatcher(CliToolScopeSnapshot? snapshot) {
+        _allowed = (snapshot?.AllowedTools ?? []).Select(Normalize).ToHashSet(StringComparer.Ordinal);
+        _denied = (snapshot?.DeniedTools ?? []).Select(Normalize).ToHashSet(StringComparer.Ordinal);
+        HasRestriction = _allowed.Count > 0 || _denied.Count > 0;
+    }
+
+    /// <summary>是否存在任何收紧规则；false 时 <see cref="IsVisible"/> 恒为 true。</summary>
+    public bool HasRestriction { get; }
+
+    /// <summary>判断工具是否对当前 agent 可见。</summary>
+    /// <param name="toolId">工具 ID。</param>
+    /// <param name="aliases">可选别名，按等价可调用处理。</param>
+    /// <returns>可见为 true。</returns>
+    public bool IsVisible(string toolId, IReadOnlyList<string>? aliases = null) {
+        if (!HasRestriction) return true;
+        if (_denied.Contains("*") || _denied.Contains(Normalize(toolId))) return false;
+        if (aliases is not null && aliases.Any(alias => _denied.Contains(Normalize(alias)))) return false;
+        if (_allowed.Count == 0) return true;
+        return _allowed.Contains(Normalize(toolId))
+            || (aliases is not null && aliases.Any(alias => _allowed.Contains(Normalize(alias))));
+    }
+
+    /// <summary>统计一组工具中可见的数量。</summary>
+    /// <param name="toolIds">工具 ID 集合。</param>
+    /// <returns>可见数。</returns>
+    public int CountVisible(IReadOnlyList<string> toolIds) =>
+        HasRestriction ? toolIds.Count(id => IsVisible(id)) : toolIds.Count;
+
+    private static string Normalize(string name) =>
+        name.Trim().TrimStart('/').Replace("_", "", StringComparison.Ordinal).ToLowerInvariant();
+}
+
+/// <summary>
 /// 按工具域快照裁剪 CLI 节点目录，使 tree/find/help 与执行门禁消费同一有效域。
 /// </summary>
 public static class CliToolScopeFilter {
@@ -26,35 +68,18 @@ public static class CliToolScopeFilter {
         ArgumentNullException.ThrowIfNull(nodes);
         if (snapshot is null) return nodes;
 
-        var allowed = snapshot.AllowedTools.Select(Normalize).ToHashSet(StringComparer.Ordinal);
-        var denied = snapshot.DeniedTools.Select(Normalize).ToHashSet(StringComparer.Ordinal);
+        var matcher = new CliToolScopeMatcher(snapshot);
+        if (!matcher.HasRestriction) return nodes;
 
         return nodes
             .Select(node => node.HasToolEntries
                 ? node with {
-                    Tools = node.Tools.Where(entry => IsVisible(entry.Id, entry.Aliases, allowed, denied)).ToArray()
+                    Tools = node.Tools.Where(entry => matcher.IsVisible(entry.Id, entry.Aliases)).ToArray()
                 }
                 : node)
             .Where(node => !node.HasToolEntries
-                ? IsVisible(node.Id, [], allowed, denied)
+                ? matcher.IsVisible(node.Id)
                 : node.Tools.Length > 0)
             .ToArray();
     }
-
-    private static bool IsVisible(
-        string id,
-        IReadOnlyList<string> aliases,
-        HashSet<string> allowed,
-        HashSet<string> denied) {
-        if (denied.Contains("*")
-            || denied.Contains(Normalize(id))
-            || aliases.Any(alias => denied.Contains(Normalize(alias)))) {
-            return false;
-        }
-        if (allowed.Count == 0) return true;
-        return allowed.Contains(Normalize(id)) || aliases.Any(alias => allowed.Contains(Normalize(alias)));
-    }
-
-    private static string Normalize(string name) =>
-        name.Trim().TrimStart('/').Replace("_", "", StringComparison.Ordinal).ToLowerInvariant();
 }

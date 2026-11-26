@@ -391,12 +391,14 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
   - `[CliOption]`（jcc 启动参数）覆盖暂缓：agent shell 嵌套启动已被 `Host.Launcher` 整体拒绝，启动参数不再是子代理绕过面；未来放开嵌套时再补 launcher 策略与分析器。
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
   - 运行时已拒绝未登记 slash 参数（`Policy.Parameter`）且参数必须是 JSON 对象/key=value；`Verify-SlashCommandPolicies.py` 已做源码声明 ↔ help/node ↔ slash.yaml 双向对账（99 命令 / 101 参数，CI 接入），无参命令显式 `parameters: []`。
-- [ ] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
-- [ ] Bypass 不能越过 CLI hard deny、agent DeniedTools 或策略完整性检查。
-  - 策略完整性已由信任目录覆盖（未知策略/哈希不符/exe 不符拒绝）；Bypass 模式与真实子代理会话待阶段 4 联调。
+- [x] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
+  - `ContextSetupMiddleware.MergeAllowedTools` 交集测试（6 个定向测试）；broker 侧 `Broker_ReadOnlyScope_DeniesWriteOverPipe` 与 `Gate_SubAgentScopeEnvironment_IntersectsToolDomain` 证明只读 scope 对 write 返回 `Agent.AllowedTools`。角色实际 AllowedTools 定义见 `AgentRoleProfileRegistry`（search/explore 不含 write/edit）。
+- [x] Bypass 不能越过 CLI hard deny、agent DeniedTools 或策略完整性检查。
+  - CLI 判定链不读取 `PermissionMode`（见 `CliAuthorizationScope.Evaluate`），Bypass 无法改变结果；`DeniedTools` 命中返回 `Agent.DeniedTools`（`CliToolAuthorizationTests`）；策略完整性由信任目录覆盖（未知策略/哈希不符/exe 不符拒绝）。Bypass 真实会话联调仍归入真实子代理验收项。
 - [x] direct 组 exe 无会话凭据返回授权要求；`-h` 正常。
   - delegate exe 已覆盖：`jcc-gh` 直跑 126 `Auth.Missing`，`-h`/`--version` 不受限；组 exe 直跑行为不变。
-- [ ] 无效/伪造凭据、越域工具、未登记参数、deny 参数、损坏策略均 fail-closed；参数篡改经完整策略判定而非放行。
+- [x] 无效/伪造凭据、越域工具、未登记参数、deny 参数、损坏策略均 fail-closed；参数篡改经完整策略判定而非放行。
+  - 测试覆盖：`Broker_RejectsForgedToken`、`UnknownTool_IsDenied`、`UnknownParameter_IsDeniedBeforeHandlerRuns`、`Agent.DeniedTools` 用例、`Parse_UnknownEffect_RejectsInsteadOfDefaultingToAllow`、`Parse_UnknownCapability_RejectsWithToolParameterAndSource`、信任目录哈希不符/未知策略拒绝；真机 `--bogus` → 126 `Policy.Parameter`。
 - [ ] （阶段 2 加固）一次性 grant：参数摘要、exe 身份、策略哈希、nonce 与过期绑定，重放 fail-closed。
   - 当前会话令牌模型（每次调用重新判策略 + 审计）为已记录偏差；launcher 守卫关闭了「子代理另起 jcc 会话」的绕道，一次性 grant 留作后续加固。
 - [ ] host ask 由父宿主 UI/队列处理，不因子进程丢失上下文而自动放行。

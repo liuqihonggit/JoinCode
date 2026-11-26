@@ -120,6 +120,48 @@ public static class CliToolPolicyEvaluator {
         return CliAuthorizationDecision.Allow("Policy.Allow");
     }
 
+    /// <summary>
+    /// 只按 agent 作用域判定 host 工具 — 宿主工具没有组内嵌策略，但仍不能超出工具域。
+    /// <para>宿主工具名（MCP 名）与角色 AllowedTools（协议名）大小写/下划线风格不一致，
+    /// 比较时统一去掉下划线并忽略大小写；上游的"空交集哨兵"（不可能存在的工具名）自然命中越域拒绝。</para>
+    /// </summary>
+    /// <param name="scope">调用方 agent/session 作用域。</param>
+    /// <param name="toolName">协议工具名。</param>
+    /// <returns>集中授权判定。</returns>
+    public static CliAuthorizationDecision EvaluateScopeOnly(CliAuthorizationScope scope, string toolName) {
+        ArgumentNullException.ThrowIfNull(scope);
+        if (string.IsNullOrWhiteSpace(toolName)) {
+            return CliAuthorizationDecision.Deny(
+                "Policy.Tool",
+                "宿主任意工具授权缺少工具名；调用方必须传入 canonical 工具名。");
+        }
+
+        var target = NormalizeToolName(toolName);
+        var deniedHit = scope.DeniedTools.FirstOrDefault(name =>
+            string.Equals(name.Trim(), "*", StringComparison.Ordinal)
+            || string.Equals(NormalizeToolName(name), target, StringComparison.Ordinal));
+        if (deniedHit is not null) {
+            return CliAuthorizationDecision.Deny(
+                "Agent.DeniedTools",
+                $"工具 '{toolName}' 被当前 agent 禁止（命中 '{deniedHit}'）；请改用职责范围内的工具。");
+        }
+
+        // 白名单为空 = 未收紧；非空且没有命中 = 越域。空交集哨兵（一个不可能存在的工具名）
+        // 自然走这条拒绝分支，不需要在本层认识哨兵常量。
+        if (scope.AllowedTools.Count > 0
+            && !scope.AllowedTools.Any(name =>
+                string.Equals(NormalizeToolName(name), target, StringComparison.Ordinal))) {
+            return CliAuthorizationDecision.Deny(
+                "Agent.AllowedTools",
+                $"工具 '{toolName}' 不在当前 agent 的工具域中；只读/检索代理不能执行写操作，请交由具备该职责的代理。");
+        }
+
+        return CliAuthorizationDecision.Allow("Host.Allow");
+    }
+
+    private static string NormalizeToolName(string name) =>
+        name.Trim().TrimStart('/').Replace("_", "", StringComparison.Ordinal).ToLowerInvariant();
+
     private static CliAuthorizationDecision? EvaluateEffect(
         CliPolicyEffect effect,
         string kind,

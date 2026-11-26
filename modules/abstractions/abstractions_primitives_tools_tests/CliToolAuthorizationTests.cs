@@ -106,6 +106,39 @@ public sealed class CliToolAuthorizationTests {
         Assert.Contains("missing_tool", decision.Reason, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ScopeOnly_UnderscoreAndCaseInsensitive_MatchesRoleToolNames() {
+        var decision = CliToolPolicyEvaluator.EvaluateScopeOnly(Scope(["TodoWrite"], []), "todo_write");
+
+        Assert.True(decision.Allowed, decision.Reason);
+        Assert.Equal("Host.Allow", decision.Layer);
+    }
+
+    [Fact]
+    public void ScopeOnly_RestrictedAgent_DeniesToolOutsideDomain() {
+        var decision = CliToolPolicyEvaluator.EvaluateScopeOnly(Scope(["Read", "Grep"], []), "todo_write");
+
+        Assert.False(decision.Allowed);
+        Assert.Equal("Agent.AllowedTools", decision.Layer);
+    }
+
+    [Fact]
+    public void ScopeOnly_DeniedWinsOverAllowed() {
+        var decision = CliToolPolicyEvaluator.EvaluateScopeOnly(Scope(["TaskStop"], ["TaskStop"]), "task_stop");
+
+        Assert.False(decision.Allowed);
+        Assert.Equal("Agent.DeniedTools", decision.Layer);
+    }
+
+    [Fact]
+    public void ScopeOnly_Sentinel_DeniesEverything() {
+        // 与 ContextSetupMiddleware 的哨兵同一字面量：它是不可能存在的工具名，任何工具都命中不了。
+        var decision = CliToolPolicyEvaluator.EvaluateScopeOnly(Scope(["__no_tools_permitted__"], []), "read");
+
+        Assert.False(decision.Allowed);
+        Assert.Equal("Agent.AllowedTools", decision.Layer);
+    }
+
     private static CliAuthorizationDecision Evaluate(
         CliAuthorizationScope scope,
         string toolId,

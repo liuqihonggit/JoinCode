@@ -41,6 +41,16 @@ public sealed class McpCliCommand {
     private static async Task<int> ExecuteAgainstRegistryAsync(
         string toolName, Dictionary<string, JsonElement> argDict, bool json,
         string? vendor, string? model, CancellationToken ct) {
+        // agent shell 里执行 jcc mcp_call / jcc tool call host 工具时，新进程会丢 AsyncLocal；
+        // broker 会话凭据是唯一能证明「这次调用属于哪个工具域」的载体，必须先判定再执行。
+        var authorization = await CliHostToolAuthorization.AuthorizeAsync(toolName, ct).ConfigureAwait(false);
+        if (!authorization.Allowed) {
+            return OutputError(
+                $"[CLI-AUTH] denied | tool: {toolName} | layer: {authorization.Layer} | reason: {authorization.Reason}"
+                + " | 正确写法: 在职责范围内调用，或改用 jcc tool call <分组> <工具>",
+                json);
+        }
+
         return await WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             if (!await registry.ContainsToolAsync(toolName, ct).ConfigureAwait(false)) {

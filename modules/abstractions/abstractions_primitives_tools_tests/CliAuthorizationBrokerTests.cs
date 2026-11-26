@@ -124,6 +124,22 @@ public sealed class CliAuthorizationBrokerTests {
     }
 
     [Fact]
+    public async Task Broker_ScopeOnlyRequest_EnforcesHostToolDomain() {
+        await using var broker = new CliAuthorizationBroker();
+        var session = broker.CreateSession(CreateScope(["todo_write"], []));
+
+        var allowed = await CliToolAuthorizationClient.AuthorizeHostToolAsync(
+            session.PipeName, session.Token, "TodoWrite", CancellationToken.None);
+        var denied = await CliToolAuthorizationClient.AuthorizeHostToolAsync(
+            session.PipeName, session.Token, "todo_read", CancellationToken.None);
+
+        Assert.True(allowed.Allowed, allowed.Reason);
+        Assert.Equal("Host.Allow", allowed.Layer);
+        Assert.False(denied.Allowed);
+        Assert.Equal("Agent.AllowedTools", denied.Layer);
+    }
+
+    [Fact]
     public async Task Gate_SubAgentScopeEnvironment_IntersectsToolDomain() {
         var env = CliAuthorizationBrokerRuntime.EnsureEnvironment(
             agentId: "agent-sub-" + Guid.NewGuid().ToString("N"),

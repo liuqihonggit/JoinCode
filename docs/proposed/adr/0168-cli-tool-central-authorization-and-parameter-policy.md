@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；作用域会话 token 已替代一次性 grant 作为第一阶段实现，一次性 grant 加固待确认
+- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host 三路径已接入作用域判定（host 用 `ScopeOnly`）；一次性 grant 加固待确认
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -104,6 +104,7 @@ shell 环境清洗器必须显式保留授权凭据变量，同时禁止把 brok
 - 会话凭据绑定 agent/session 与有效工具域；判定输入是 canonical tool + 规范化参数 + 目标 exe 身份。
 - 凭据通过环境传递，不放在命令行参数中；每次执行都重新判定，不复用上一次的允许结果。
 - direct 运行组 exe 执行工具时，如果没有有效会话凭据，返回授权要求与 `jcc tool call` 正确用法；`-h` 和 `--list-local` 不需要凭据。
+- host 工具没有组内嵌策略，授权走 `CliHostToolAuthorization` → broker `ScopeOnly`（只看 AllowedTools/DeniedTools 与 token 作用域）；接入点在 `McpCliCommand.ExecuteAgainstRegistryAsync`，覆盖 `jcc mcp_call` 与 `jcc tool call <组> <host工具>` 两条入口；未注入凭据（人工直跑）按 `Host.Manual` 放行。
 - 因此 ADR 0157 的“独立 exe”仍表示物理进程隔离，但不再表示“可绕过 jcc 直接执行”。这是本 ADR 对 0157 安全边界的明确收窄。
 
 ### 3. 权限 YAML 的单一来源与嵌入方式
@@ -350,6 +351,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 1. **file 垂直切片**：策略 schema、嵌入、broker、作用域会话凭据、local 执行、分析器、真实子代理拒绝/放行。
 2. **local/delegate 全量**：13 组策略与 delegate 链，参数闭包分析、未知参数拒绝。
 3. **host/slash/base/launcher**：父宿主执行、结构化 slash 参数、全局与元命令参数。
+   - host 段已完成：`ScopeOnly` 协议 + `McpCliCommand` 门禁，真机受限/放行两条路径双向验证；slash/base/launcher 待办。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
 
@@ -384,6 +386,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] host ask 由父宿主 UI/队列处理，不因子进程丢失上下文而自动放行。
 - [ ] 首轮组目录、tree/find/help 与执行允许集合一致。
 - [ ] 真实双端进程测试覆盖主代理、只读子代理、写子代理、delegate、host。
+  - host 段已覆盖：受限 scope 下 `jcc mcp_call` 与 `jcc tool call <组> <host工具>` 均 `Agent.AllowedTools` 拒绝；放行 scope 两条路径正常执行；伪造凭据 `Auth.Transport` 拒绝。真实子代理会话待阶段 4。
 - [ ] 跨域契约变更后 `Build-AllDomains.ps1` 全仓编译通过。
 
 ## 后果

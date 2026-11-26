@@ -34,6 +34,12 @@ internal sealed record CliAuthorizationRequest {
 
     /// <summary>已规范化的工具参数。</summary>
     public required Dictionary<string, string> Arguments { get; init; }
+
+    /// <summary>
+    /// 只按 agent 作用域判定（host 工具路径）— 宿主工具没有组内嵌策略，
+    /// 但仍必须受 AllowedTools/DeniedTools 约束，否则子代理可用 mcp_call 绕过工具域。
+    /// </summary>
+    public bool ScopeOnly { get; init; }
 }
 
 /// <summary>broker 授权响应。</summary>
@@ -137,6 +143,10 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
                 "CLI 授权 token 无效或已过期；通过 jcc tool call 重新发起，不要手工拼接环境变量。");
         }
 
+        if (request.ScopeOnly) {
+            return CliToolPolicyEvaluator.EvaluateScopeOnly(scope, request.ToolId);
+        }
+
         CliToolPolicyManifest policy;
         try {
             var cacheKey = request.PolicyImagePath + "|" + request.ExecutableName;
@@ -196,7 +206,8 @@ internal static class CliToolAuthorizationClient {
         string policyImagePath,
         string executableName,
         IReadOnlyDictionary<string, string> arguments,
-        CancellationToken cancellationToken) {
+        CancellationToken cancellationToken,
+        bool scopeOnly = false) {
         try {
             await using var pipe = new NamedPipeClientStream(
                 ".",
@@ -213,7 +224,8 @@ internal static class CliToolAuthorizationClient {
                 ToolId = toolId,
                 PolicyImagePath = policyImagePath,
                 ExecutableName = executableName,
-                Arguments = new Dictionary<string, string>(arguments, StringComparer.Ordinal)
+                Arguments = new Dictionary<string, string>(arguments, StringComparer.Ordinal),
+                ScopeOnly = scopeOnly
             };
             var line = JsonSerializer.Serialize(request, CliNodeJsonContext.Default.CliAuthorizationRequest);
             await writer.WriteLineAsync(line).ConfigureAwait(false);
@@ -312,6 +324,24 @@ internal static class CliToolAuthorizationClient {
             cancellationToken);
     }
 
+    public static Task<CliAuthorizationDecision> AuthorizeHostToolAsync(
+        string pipeName,
+        string token,
+        string toolName,
+        CancellationToken cancellationToken) {
+        var imagePath = ResolveEntryImagePath() ?? Environment.ProcessPath ?? "jcc";
+        var executableName = Path.GetFileName(Environment.ProcessPath ?? imagePath);
+        return AuthorizeAsync(
+            new CliAuthorizationSession(pipeName, token),
+            groupId: "host",
+            toolId: toolName,
+            policyImagePath: imagePath,
+            executableName: executableName,
+            arguments: new Dictionary<string, string>(StringComparer.Ordinal),
+            cancellationToken,
+            scopeOnly: true);
+    }
+
     /// <summary>
     /// 解析承载内嵌策略的镜像：常规构建取同目录程序集 DLL；AOT 单文件回退到宿主 exe。
     /// <para>不使用 Assembly.Location —— 单文件发布下它恒为空且触发 IL3000。</para>
@@ -323,6 +353,29 @@ internal static class CliToolAuthorizationClient {
             if (File.Exists(candidate)) return candidate;
         }
         return Environment.ProcessPath;
+    }
+}
+
+/// <summary>
+/// 宿主任意工具执行的集中授权入口 — <c>jcc mcp_call</c> / <c>jcc tool call</c> 的 host 路径共用。
+/// <para>没有授权会话（用户直接在终端调用）时放行，由宿主既有权限管线处理；
+/// 有会话（agent shell 内）时只允许当前 agent 工具域内的工具，封住 mcp_call 绕过。</para>
+/// </summary>
+public static class CliHostToolAuthorization {
+    /// <summary>宿主任意工具执行的集中授权入口。</summary>
+    /// <param name="toolName">协议工具名。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>授权判定。</returns>
+    public static Task<CliAuthorizationDecision> AuthorizeAsync(
+        string toolName,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+        var pipeName = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.PipeVariable);
+        var token = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.TokenVariable);
+        if (string.IsNullOrWhiteSpace(pipeName) || string.IsNullOrWhiteSpace(token)) {
+            return Task.FromResult(CliAuthorizationDecision.Allow("Host.Manual"));
+        }
+        return CliToolAuthorizationClient.AuthorizeHostToolAsync(pipeName, token, toolName, cancellationToken);
     }
 }
 

@@ -1,6 +1,6 @@
 # TASK137 — CLI 工具集中鉴权与参数权限编译期门禁
 
-- 状态：**实施中 — 13 组策略已全部内嵌并通过编译期对账；delegate/host 链与一次性 grant 待后续阶段**
+- 状态：**实施中 — 13 组策略已全部内嵌并通过编译期对账；local/delegate/host 三路径已受 broker 约束；slash/base/launcher 与一次性 grant 待后续阶段**
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 上游决策：[ADR 0168](../adr/0168-cli-tool-central-authorization-and-parameter-policy.md)
 - 关联：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)、[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)
@@ -81,7 +81,10 @@
 
 ### 阶段 3：host / slash / base / launcher
 
-- [ ] host 工具由父宿主 broker 授权并在原任务上下文执行。
+- [x] host 工具由父宿主 broker 授权并在原任务上下文执行。
+  - `CliHostToolAuthorization`（公共门面）→ `CliToolAuthorizationClient.AuthorizeHostToolAsync` → broker `ScopeOnly` 判定；无注入环境时 `Host.Manual` 放行。
+  - 接入点：`McpCliCommand.ExecuteAgainstRegistryAsync` 启动宿主前；`jcc tool call <组> <host工具>` 转发同样经此路径。
+  - 真机双端：受限 scope（AllowedTools 不含 `ctx_inspect`）`jcc mcp_call ctx_inspect` → 1 `Agent.AllowedTools`；分组转发同样拒绝；放行 scope 两条路径均 0；伪造 pid/token → `Auth.Transport`。
 - [ ] slash 命令全部具备可分析的 `[ChatCommandArg]` 或显式空参数声明。
 - [ ] base 工具与 jcc launcher 参数纳入各自内嵌策略。
 - [ ] `[CliOption]` 的长短别名、否定形式、环境变量映射全部覆盖。
@@ -112,7 +115,7 @@
 | 权限 YAML schema + AOT 解析器 | 13 个组 exe | ✅ `CliToolPolicyLoader`；13 份策略 | ✅ 全部组 exe 编译并通过 `Verify-ToolNodes.ps1 -Sample` |
 | 可信 exe / policy 哈希目录 | jcc 授权 broker | ❌ | ❌ 未开始 |
 | 跨进程授权上下文 | Bash / PowerShell 子进程环境 | ✅ `SystemActuatorBase.AppendCliAuthorizationEnvironment`；3/3 测试 | ❌ 真机子代理 shell 待阶段 4 |
-| 集中授权 broker | `CliToolCommand` local/delegate 路径、host 路径待阶段 3 | ✅ 命名管道 + 作用域 token；9/9 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝 |
+| 集中授权 broker | `CliToolCommand` local/delegate 路径、`McpCliCommand` host 路径、`CliHostToolAuthorization` | ✅ 命名管道 + 作用域 token + `ScopeOnly` 判定；124/124 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝；host 工具两条路径受限/放行真机双向验证 |
 | 一次性执行 grant + redeem | `CliNodeRunner` local / delegate | ❌ 当前为作用域会话 token（ADR 偏离，待阶段 2 加固） | ❌ |
 | 参数权限硬规则 | broker `CliToolPolicyEvaluator` | ✅ 未知参数/deny 参数/工具域/拒绝集 | ✅ `--pages`→126 `Policy.Deny`；`--bogus`→126 `Policy.Parameter` |
 | 迁移门禁（无策略 exe 旧行为） | `CliToolAuthorizationClient.AuthorizeCoreAsync` | ✅ `Policy.NotEnforced`；3/3 门禁测试 | ✅ 各组直跑统一 126；delegate/host 无策略 exe 仍按旧行为 |

@@ -412,7 +412,9 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] 真实双端进程测试覆盖主代理、只读子代理、写子代理、delegate、host。
   - host 段已覆盖：受限 scope 下 `jcc mcp_call` 与 `jcc tool call <组> <host工具>` 均 `Agent.AllowedTools` 拒绝；放行 scope 两条路径正常执行；伪造凭据 `Auth.Transport` 拒绝。
   - 只读子代理已覆盖：E2E `ReadOnlySubAgent_CliHostToolOutsideScope_IsDeniedByBroker` 用真实 MockServer + 真实子代理 + Bash 启动 jcc，验证域外 host 工具 `Agent.AllowedTools` 拒绝与只读工具树（3 组/5 工具）。
-  - 链路级：`ShellCliAuthorizationEnvironmentTests.GetEnvironmentOverrides_InjectedScope_RestrictsBrokerToolDomain` 用真实 actuator 注入环境再经真实 broker 判定（放行/越域各一条）；写子代理（code 变体）真机放行路径仍待补。
+  - 链路级：`ShellCliAuthorizationEnvironmentTests.GetEnvironmentOverrides_InjectedScope_RestrictsBrokerToolDomain` 用真实 actuator 注入环境再经真实 broker 判定（放行/越域各一条）。
+  - 写子代理已覆盖发现侧：E2E `WriteSubAgent_ToolTree_ShowsWiderScopeThanReadOnly`（executor:code）工具树 3 组/7 工具（file 组 3 个写能力工具），只读代理为 3 组/5 工具（file 组 1 个）——授权域按角色/变体裁剪。
+  - 写工具实际执行放行由 broker 单测与 host/slash 真机 probe 覆盖（`TodoWrite` 放行、`file write` 策略 allow）。
 - [x] 跨域契约变更后 `Build-AllDomains.ps1` 全仓编译通过。
   - launcher 守卫（Tools 常量 + apps.cli 消费）改动后全仓 16 域 + native_tui/native_gui 一次通过。
   - 子代理类型解析修复（模型域新增文件 + Agent 工具消费）后再次全仓编译一次通过。

@@ -144,7 +144,7 @@
 | 权限 YAML schema + AOT 解析器 | 13 个组 exe | ✅ `CliToolPolicyLoader`；13 份策略 | ✅ 全部组 exe 编译并通过 `Verify-ToolNodes.ps1 -Sample` |
 | 可信 exe / policy 哈希目录 | jcc 授权 broker（`enforcePolicyTrust`）、`Verify-ToolNodes.ps1` | ✅ `policy_trust.yaml` 生成 + `CliToolPolicyTrustCatalog` 校验 id/哈希/exe；运行时 broker 强制 | ✅ 4 个信任测试（未知策略/哈希不符/exe 不符拒绝，正式策略放行）；声明门禁校验 13 份哈希新鲜度；真机 probe 无 `Policy.Trust` 拒绝 |
 | 跨进程授权上下文 | Bash / PowerShell 子进程环境 | ✅ `SystemActuatorBase.AppendCliAuthorizationEnvironment`；3/3 测试 | ✅ 真机子代理 shell：E2E explore/plan 中 `PIPE` 注入、`tool tree` 只读裁剪为 3 组/5 工具 |
-| 子代理类型 → 角色/变体解析 | Agent 工具 `AgentToolHandlers.Create`、`AgentDefinitionProvider` | ✅ `AgentSubagentTypeResolver`（12 个单测），Agent 工具据此构造 `SubAgentContext` | ✅ E2E 真机 explore/plan 只读域生效并对域外工具返回 `Agent.AllowedTools` |
+| 子代理类型 → 角色/变体解析 | Agent 工具 `AgentToolHandlers.Create`、`AgentDefinitionProvider` | ✅ `AgentSubagentTypeResolver`（12 个单测），Agent 工具据此构造 `SubAgentContext` | ✅ E2E 真机 explore/plan 只读域生效并对域外工具返回 `Agent.AllowedTools`；code 变体工具树 7 个工具（只读 5 个） |
 | 集中授权 broker | `CliToolCommand` local/delegate 路径、`McpCliCommand`/`SlashCallExecutor` host 路径、`CliHostToolAuthorization` | ✅ 命名管道 + 作用域 token + `ScopeOnly` 判定；139/139 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝；host/slash 受限与放行真机双向验证 |
 | delegate 自证 | `jcc-gh` 内嵌 github 策略 + `CliGroupToolAuthorization` | ✅ `GhSubCommand` 执行前判定；jcc gh 人工会话注入；Gh 800/800 测试 | ✅ 直跑 126 `Auth.Missing`；受限 126 `Agent.AllowedTools`；`jcc gh`/`jcc tool call github` 人工 0、受限 126 |
 | slash 直调门禁 | `SlashCallExecutor` + jcc 内嵌 `slash.yaml` | ✅ 作用域 + 参数白名单（canonical 命令名 + 扁平参数） | ✅ 受限/放行 scope、未知参数 `Policy.Parameter`、声明参数实际执行 |
@@ -153,7 +153,7 @@
 | 迁移门禁（无策略 exe 旧行为） | `CliToolAuthorizationClient.AuthorizeCoreAsync` | ✅ `Policy.NotEnforced`；3/3 门禁测试 | ✅ 各组直跑统一 126；delegate/host 无策略 exe 仍按旧行为 |
 | Roslyn 参数对账分析器 | 13 个组 csproj + `Verify-ToolNodes.ps1` 声明门禁 | ✅ JCC13001/13002/13004/13008；13/13 测试；策略/节点/分析器接线仓库门禁 | ✅ 13 组编译零诊断；119/119 契约测试；`-DeclarationsOnly` 通过 |
 | subagent 有效工具域 | `ContextSetupMiddleware`、`SubAgentContext` | ✅ 交集 + 空交集哨兵；6/6 测试 | ✅ E2E 真实子代理 explore/plan `tool tree` 裁剪 3 组/5 工具，域外 `subagent_control` 返回 `Agent.AllowedTools`（bypass 模式不可穿透） |
-| 发现与执行同源 | `ToolsSection`、`CliToolCommand` tree/find/help、`CliToolScopeFilter` | ✅ `ScopeSnapshot` + 首轮组目录裁剪（`tool_ids`）；8 个过滤测试 + 3 个提示词测试 + broker 快照测试 | ✅ 受限 tree/help/find 真机裁剪，无会话全量；E2E 真实子代理首轮提示词按 3 组裁剪 |
+| 发现与执行同源 | `ToolsSection`、`CliToolCommand` tree/find/help、`CliToolScopeFilter` | ✅ `ScopeSnapshot` + 首轮组目录裁剪（`tool_ids`）；8 个过滤测试 + 3 个提示词测试 + broker 快照测试 | ✅ 受限 tree/help/find 真机裁剪，无会话全量；E2E 真实子代理首轮提示词按 3 组裁剪，code/只读变体工具树 7 vs 5 个工具 |
 | 权限审计与诱导错误 | broker `WriteAudit`（`JCC_CLI_AUDIT_LOG`）+ CLI stderr | ✅ JSONL 字段含 agent/session/参数名/摘要/策略版本/层；策略哈希归入信任目录 | ✅ 真机 12 条审计（host 与 github 路径）；单测断言放行/拒绝记录 |
 
 ## 非目标

@@ -71,6 +71,38 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
         Assert.Contains("subagent_control", output);
     }
 
+    /// <summary>
+    /// 写子代理（executor:code）经同一 broker 获得更宽 CLI 域 — 工具树必须比只读代理多出写工具，
+    /// 证明授权按角色/变体裁剪而不是一刀切。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public async Task WriteSubAgent_ToolTree_ShowsWiderScopeThanReadOnly() {
+        var fs = IO.FileSystem.FileSystemFactory.Create();
+        var jccPath = ResolveJccPath(fs);
+        var logName = $"cli_auth_write_e2e_{Guid.NewGuid():N}.log";
+        var outputPath = Path.Combine(AppContext.BaseDirectory, logName);
+        var localJcc = $"./{Path.GetFileName(jccPath)}";
+        var relativeOutput = $"./{logName}";
+        var bashCommand =
+            $"{localJcc} tool tree > \"{relativeOutput}\" 2>&1; " +
+            $"echo \"PIPE=${{JCC_CLI_AUTH_PIPE:-none}}\" >> \"{relativeOutput}\"";
+        var toolCallArguments = "{\"name\":\"e2e-cli-write\",\"subagent_type\":\"executor:code\",\"description\":\"检查CLI授权\",\"prompt\":\"读取并写入探针文件\"}";
+
+        await RunScenarioAsync(toolCallArguments, BuildBashMockConfig(toolCallArguments, bashCommand)).ConfigureAwait(true);
+
+        Assert.True(fs.FileExists(outputPath), $"Bash 未生成输出文件: {outputPath}");
+        var output = await fs.ReadAllText(outputPath).ConfigureAwait(true);
+        _output.WriteLine($"[CLI-AUTH-WRITE-DIAG] {output}");
+        Assert.DoesNotContain("PIPE=none", output);
+        var markerIndex = output.IndexOf("个工具", StringComparison.Ordinal);
+        Assert.True(markerIndex > 0, "工具树缺少工具计数行");
+        var slashIndex = output.LastIndexOf(" / ", markerIndex, StringComparison.Ordinal);
+        var countText = output[(slashIndex + 3)..markerIndex];
+        Assert.True(int.TryParse(countText, out var toolCount), $"未能解析工具数: {countText}");
+        Assert.True(toolCount > 5, $"code 变体工具域应比只读代理（5 个）宽，实际 {toolCount}");
+    }
+
     private static string ResolveJccPath(JoinCode.Abstractions.Interfaces.IFileSystem fs) {
         var exeName = OperatingSystem.IsWindows() ? "jcc.exe" : "jcc";
         var local = Path.Combine(AppContext.BaseDirectory, exeName);

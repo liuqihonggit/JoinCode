@@ -13,6 +13,9 @@ public static class CliAuthorizationEnvironment {
 
     /// <summary>可选审计落盘路径（JSONL）；未设置时不写审计。审计失败不影响授权判定。</summary>
     public const string AuditLogVariable = "JCC_CLI_AUDIT_LOG";
+
+    /// <summary>显式允许 agent shell 嵌套启动新的 jcc 会话（默认拒绝，防止绕过父 broker 工具域）。</summary>
+    public const string AllowNestedLaunchVariable = "JCC_ALLOW_NESTED_LAUNCH";
 }
 
 /// <summary>broker 签发给一次 shell/工具链的管道位置与令牌。</summary>

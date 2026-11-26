@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；JSONL 审计可选开启；slash 结构化 schema、base/launcher 与 one-time grant 待后续
+- 状态：**proposed（实施中）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启；slash 结构化 schema、base/launcher 参数策略与 one-time grant 待后续
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -358,6 +358,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
    - delegate 段已完成：`github.yaml` 同时内嵌 jcc-gh，delegate 侧自证 + 直跑 fail-closed；人工 `jcc gh` 由 jcc 进程签发全量会话。
 3. **host/slash/base/launcher**：父宿主执行、结构化 slash 参数、全局与元命令参数。
    - host 段已完成；slash 段已完成直调参数白名单（jcc 内嵌 slash.yaml，扁平参数走组策略），`[ChatCommandArg]` 结构化 schema 覆盖待办。
+   - launcher 绕过已封：agent shell 中存在 `JCC_CLI_AUTH_PIPE` 时，TUI / `-p` 启动返回 126 `Host.Launcher`，`JCC_ALLOW_NESTED_LAUNCH=1` 显式放开；base 工具与 jcc 启动参数白名单仍待办。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
    - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。

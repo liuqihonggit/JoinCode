@@ -93,6 +93,8 @@
   - 真机：`compact level=2` 拒绝、`compact instructions=…` 实际执行压缩、`version` 放行。
   - 仍待：74/99 命令已有 `[ChatCommandArg]`，其余命令的结构化 schema 对账。
 - [ ] base 工具与 jcc launcher 参数纳入各自内嵌策略。
+  - launcher 绕过已封：agent shell（存在 `JCC_CLI_AUTH_PIPE`）里 TUI / `-p` 启动返回 126 `Host.Launcher`；`JCC_ALLOW_NESTED_LAUNCH=1` 显式放开；子命令路由不受影响。
+  - still 待办：base 工具仍走宿主权限管线（未单独建策略），jcc 启动参数白名单未做。
 - [ ] `[CliOption]` 的长短别名、否定形式、环境变量映射全部覆盖。
 - [ ] MCP 方法参数、必填项、默认值、枚举与别名完成对账。
 

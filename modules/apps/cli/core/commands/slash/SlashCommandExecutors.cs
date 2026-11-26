@@ -76,6 +76,14 @@ internal static class SlashCallExecutor {
 
             var resumeSessionId = FlatSubCommandRouter.GetOptionValue(args, "--resume") ?? FlatSubCommandRouter.GetOptionValue(args, "-r");
 
+            // 结构化 schema 校验：授权层只管参数名白名单，required/enum/type 的真相在 [ChatCommandArg]。
+            var schemaError = SlashCommandArgValidator.Validate(
+                canonicalName, argsJson, new GeneratedSlashCommandSchemaCatalog().GetSchema(canonicalName));
+            if (schemaError is not null) {
+                TerminalHelper.WriteError(schemaError);
+                return 1;
+            }
+
             var context = new ChatCommandContext {
                 Arguments = argsJson,
                 CancellationToken = ct,

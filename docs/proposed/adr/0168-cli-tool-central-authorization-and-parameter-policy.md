@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**accepted（2026-11-26 验收通过；后续加固项：slash 结构化 schema）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；真实子代理 explore/plan 在 bypass 模式下仍被 CLI 域拒绝，code 变体获得更宽工具树（7 vs 5）；放行判定签发一次性 grant（绑定参数/ exe/策略哈希/令牌，重放 fail-closed）；agent 会话内启动器 `--exe/--dir/--resume` 由内嵌 base 策略拒绝（126 `Base.AgentForbidden`）；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启
+- 状态：**accepted（2026-11-26 验收通过；无遗留加固项）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单与结构化 schema 校验（required/enum/type）；首轮组目录与 tree/find/help 同源；真实子代理 explore/plan 在 bypass 模式下仍被 CLI 域拒绝，code 变体获得更宽工具树（7 vs 5）；放行判定签发一次性 grant（绑定参数/ exe/策略哈希/令牌，重放 fail-closed）；agent 会话内启动器 `--exe/--dir/--resume` 由内嵌 base 策略拒绝（126 `Base.AgentForbidden`）；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：用户（2026-11-25 要求先出 ADR；2026-11-26 授权自主实施）
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -363,6 +363,8 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
    - launcher 绕过已封：agent shell 中存在 `JCC_CLI_AUTH_PIPE` 时，TUI / `-p` 启动返回 126 `Host.Launcher`，`JCC_ALLOW_NESTED_LAUNCH=1` 显式放开。
    - base/launcher 参数策略已落地：`resources/tools/base_policy.yaml`（内嵌 jcc）约束 agent 会话内的启动器选项 — `tool call` 的 `exe/dir`、`tool tree/find/help` 的 `dir`、`slash_call` 的 `resume` 一律 deny（`Base.AgentForbidden`/126），手工终端无会话时 `Base.Manual` 放行；`CliLauncherPolicyCatalog` 为策略与消费代码唯一登记表，并有双向对账测试（清单↔YAML）。
    - 真机验收：假会话 + `JCC_ALLOW_NESTED_LAUNCH=1` 直跑 `jcc tool call file read --exe` → 126 `Base.AgentForbidden`；`jcc tool tree --dir` → 126；`jcc slash_call --resume` → 拒绝；手动终端同命令不被拦。E2E `NestedLauncher_ExeOverride_DeniedByBasePolicy` 用真实子代理 + broker 验证（工具树仍可用，`--exe` 被拒）。
+   - slash 结构化 schema 已落地：真相仍是 `[ChatCommandArg]` → `GeneratedSlashCommandSchemaCatalog`（help.txt 新鲜度对账已覆盖类型/必填/枚举列）；`slash_call` 在执行前按 schema 校验 required/enum/type（`SlashCommandArgValidator`，`Slash.Schema` 层），非法参数返回带正确写法的单行错误。策略 YAML 继续只管参数名白名单（两套真相不重复登记）。
+   - 真机验收：`jcc slash_call generate '{}'` → 缺必填 `--description`；`agents {"action":"delete"}` → 枚举拒绝；`ultraplan {"steps":"many"}` → 类型拒绝；`agents action=list` → 正常执行（exit 0）。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
    - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
@@ -395,6 +397,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
   - `[CliOption]` 的别名/环境变量逐项覆盖仍暂缓：启动器选项集已由 base 策略登记表约束，别名级对账留待 slash 结构化 schema 一并处理。
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
   - 运行时已拒绝未登记 slash 参数（`Policy.Parameter`）且参数必须是 JSON 对象/key=value；`Verify-SlashCommandPolicies.py` 已做源码声明 ↔ help/node ↔ slash.yaml 双向对账（99 命令 / 101 参数，CI 接入），无参命令显式 `parameters: []`。
+  - 结构化校验已接入：`slash_call` 执行前按 `[ChatCommandArg]` 生成的 schema 拒绝缺必填/枚举越界/类型不符；17 条 Host.Tests 覆盖（含真实生成目录的 generate/ultraplan 声明抽查），真机 probe 四项通过。
 - [x] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
   - `ContextSetupMiddleware.MergeAllowedTools` 交集测试（6 个定向测试）；broker 侧 `Broker_ReadOnlyScope_DeniesWriteOverPipe` 与 `Gate_SubAgentScopeEnvironment_IntersectsToolDomain` 证明只读 scope 对 write 返回 `Agent.AllowedTools`。
   - 真实会话：E2E `ReadOnlySubAgent_CliHostToolOutsideScope_IsDeniedByBroker`（explore/plan）中，子代理 Bash 启动 jcc，`tool tree` 仅 3 组/5 个只读工具，域外 host 工具被 `Agent.AllowedTools` 拒绝。

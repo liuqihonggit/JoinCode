@@ -1,6 +1,6 @@
 # TASK137 — CLI 工具集中鉴权与参数权限编译期门禁
 
-- 状态：**已完成（2026-11-26 验收通过）— 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束（slash 直调含参数白名单）；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；真实子代理 explore/plan 拒绝与 code 宽域均经 E2E 验证；放行判定签发一次性 grant 并默认立即兑换（重放 fail-closed）；agent 会话内启动器 exe/dir/resume 由内嵌 base 策略拒绝；后续加固项：slash 结构化 schema**
+- 状态：**已完成（2026-11-27 验收通过，无遗留加固项）— 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束（slash 直调含参数白名单与结构化 schema 校验）；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；真实子代理 explore/plan 拒绝与 code 宽域均经 E2E 验证；放行判定签发一次性 grant 并默认立即兑换（重放 fail-closed）；agent 会话内启动器 exe/dir/resume 由内嵌 base 策略拒绝**
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 上游决策：[ADR 0168](../adr/0168-cli-tool-central-authorization-and-parameter-policy.md)
 - 关联：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)、[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)
@@ -150,6 +150,7 @@
 | slash 直调门禁 | `SlashCallExecutor` + jcc 内嵌 `slash.yaml` | ✅ 作用域 + 参数白名单（canonical 命令名 + 扁平参数） | ✅ 受限/放行 scope、未知参数 `Policy.Parameter`、声明参数实际执行 |
 | 一次性执行 grant + redeem | `CliToolAuthorizationClient`（local/delegate/host 共用）、broker | ✅ 放行签发 30 秒 grant：绑定令牌摘要/group/tool/exe/参数摘要/策略哈希；执行前默认自动兑换，`TryRemove` 先摘除后校验 | ✅ 5 条测试：重放 `Grant.Unknown`、改参/跨会话 `Grant.Mismatch`（grant 已消耗）、过期 `Grant.Expired`、scope-only 兑换；兑换失败即拒绝（fail-closed） |
 | base/launcher 参数策略 | `resources/tools/base_policy.yaml`（内嵌 jcc）、`CliLauncherPolicyCatalog`、`CliBaseToolAuthorization`、`CliToolCommand`/`SlashCallExecutor` | ✅ agent 会话内 `tool call` 的 exe/dir、`tool tree/find/help` 的 dir、`slash_call` 的 resume 硬拒绝；手工终端 Base.Manual 放行；catalog 与 YAML 双向对账测试 | ✅ 真机：假会话 `--exe`/`--dir` → 126 `Base.AgentForbidden`，`--resume` 拒绝，手动同命令放行；E2E `NestedLauncher_ExeOverride_DeniedByBasePolicy` 真实子代理 + broker 验证（tree 可用、--exe 126） |
+| slash 结构化参数校验 | `[ChatCommandArg]` → `GeneratedSlashCommandSchemaCatalog`；`SlashCommandArgValidator`；`SlashCallExecutor` | ✅ `slash_call` 执行前校验 required/enum/type（string 兼容 key=value、number/boolean 支持文本形式）；schema 缺失降级放行；策略 YAML 仅管参数名 | ✅ Host.Tests 17/17（含 generate Required、ultraplan number/boolean 真实目录抽查）；真机：缺必填/枚举/类型三类拒绝 + `agents action=list` 正常执行 |
 | 参数权限硬规则 | broker `CliToolPolicyEvaluator` | ✅ 未知参数/deny 参数/工具域/拒绝集 | ✅ `--pages`→126 `Policy.Deny`；`--bogus`→126 `Policy.Parameter` |
 | 迁移门禁（无策略 exe 旧行为） | `CliToolAuthorizationClient.AuthorizeCoreAsync` | ✅ `Policy.NotEnforced`；3/3 门禁测试 | ✅ 各组直跑统一 126；delegate/host 无策略 exe 仍按旧行为 |
 | Roslyn 参数对账分析器 | 13 个组 csproj + `Verify-ToolNodes.ps1` 声明门禁 | ✅ JCC13001/13002/13004/13008；13/13 测试；策略/节点/分析器接线仓库门禁 | ✅ 13 组编译零诊断；119/119 契约测试；`-DeclarationsOnly` 通过 |

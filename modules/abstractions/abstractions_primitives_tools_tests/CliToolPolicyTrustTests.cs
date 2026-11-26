@@ -6,7 +6,7 @@ namespace CliNodes.Tests;
 public sealed class CliToolPolicyTrustTests {
     [Fact]
     public void TrustCatalog_ShippedPolicyHashMatchesEmbeddedCopy() {
-        var hash = HashEmbeddedPolicy("CliNodes.Tests.policy.file.yaml");
+        var hash = HashEmbeddedPolicy("CliNodes.Tests.allpolicies.file.policy.yaml");
 
         Assert.Null(CliToolPolicyTrustCatalog.Default.Verify("cli.file", hash, "jcc-tool-file.exe"));
         Assert.NotNull(CliToolPolicyTrustCatalog.Default.Verify("cli.file", new string('0', 64), "jcc-tool-file.exe"));
@@ -21,7 +21,7 @@ public sealed class CliToolPolicyTrustTests {
             "jcc-tool-file.exe");
 
         Assert.Equal("cli.file", loaded.Manifest.PolicyId);
-        Assert.Equal(HashEmbeddedPolicy("CliNodes.Tests.policy.file.yaml"), loaded.Sha256Hex);
+        Assert.Equal(HashEmbeddedPolicy("CliNodes.Tests.allpolicies.file.policy.yaml"), loaded.Sha256Hex);
         Assert.Null(CliToolPolicyTrustCatalog.Default.Verify(
             loaded.Manifest.PolicyId, loaded.Sha256Hex, "jcc-tool-file.exe"));
     }

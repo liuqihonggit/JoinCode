@@ -189,7 +189,7 @@ public sealed class CliToolPolicyTests {
 
     [Fact]
     public void FilePolicy_CoversEveryDeclaredTool() {
-        var policy = CliToolPolicyLoader.Parse(ReadResource("CliNodes.Tests.policy.file.yaml"), "file.yaml");
+        var policy = CliToolPolicyLoader.Parse(ReadResource("CliNodes.Tests.allpolicies.file.policy.yaml"), "file.yaml");
         var node = NodeManifestLoader.LoadNodeFromText(
             ReadResource("CliNodes.Tests.node.file.yaml"), "file/node.yaml");
 
@@ -203,7 +203,7 @@ public sealed class CliToolPolicyTests {
 
     [Fact]
     public void FilePolicy_DeclaresWorkingDirReadByApplyPatchHandler() {
-        var policy = CliToolPolicyLoader.Parse(ReadResource("CliNodes.Tests.policy.file.yaml"), "file.yaml");
+        var policy = CliToolPolicyLoader.Parse(ReadResource("CliNodes.Tests.allpolicies.file.policy.yaml"), "file.yaml");
 
         var applyPatch = Assert.Single(policy.Tools, tool => tool.ToolId == "apply_patch");
 

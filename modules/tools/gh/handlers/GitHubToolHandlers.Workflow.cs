@@ -10,7 +10,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhWorkflowList, "列出仓库 Workflow", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhWorkflowListAsync(
         [McpToolParameter("all=true 包含已禁用 workflow(默认 false)", Required = false)] bool? all = null,
-        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
+        [McpToolParameter(WellKnownParam.Limit, DefaultValue = "50")] int? limit = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {

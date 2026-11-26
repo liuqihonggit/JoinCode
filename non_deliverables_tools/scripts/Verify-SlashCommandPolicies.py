@@ -60,11 +60,9 @@ def parse_policy(path: Path) -> tuple[dict[str, list[str]], list[str]]:
             continue
         if current is None:
             continue
-        if stripped == "parameters: []":
-            in_parameters = False
-            continue
-        if stripped == "parameters:":
-            in_parameters = True
+        # 参数块标记固定在 4 空格；参数名在 6 空格，名字可以正好叫 parameters。
+        if line.startswith("    ") and not line.startswith("      ") and stripped in ("parameters:", "parameters: []"):
+            in_parameters = stripped == "parameters:"
             continue
         if in_parameters and line.startswith("      ") and stripped.endswith(":"):
             tools[current].append(unquote(stripped[:-1]))

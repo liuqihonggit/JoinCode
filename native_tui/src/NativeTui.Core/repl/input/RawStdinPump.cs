@@ -30,7 +30,9 @@ public sealed class RawStdinPump : IInputPump, IDisposable
         new BoundedChannelOptions(CommandCapacity) { SingleReader = true, SingleWriter = false, FullMode = BoundedChannelFullMode.Wait });
     private readonly CancellationTokenSource _cts = new();
     private readonly Decoder _utf8Decoder = Encoding.UTF8.GetDecoder();
-    private readonly char[] _charBuffer = new char[2048];
+
+    /// <summary>解码目标容量 — 使用编码器最大字符数，覆盖跨块代理对产出多于当前块字节数的情况。</summary>
+    private readonly char[] _charBuffer = new char[Encoding.UTF8.GetMaxCharCount(ReadBlockSize)];
     private readonly StringBuilder _pending = new();
     private readonly Thread _reader;
     private readonly TerminalQuerier? _querier;
@@ -47,6 +49,12 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     /// querier 可选注入 — 终端查询响应前置分流（探测回复路由给等待方，非键事件不入键流）。
     /// clock 可选注入 — 前缀滞留计时源（默认 Environment.TickCount64；测试注入手动时钟消除真实时间竞态）。</summary>
     public RawStdinPump(TerminalQuerier? querier = null, Func<long>? clock = null)
+        : this(querier, clock, startReader: true)
+    {
+    }
+
+    /// <summary>测试构造 — 可禁用 stdin 读线程，避免测试注入与宿主输入并发共用解码器。</summary>
+    internal RawStdinPump(TerminalQuerier? querier, Func<long>? clock, bool startReader)
     {
         _querier = querier;
         _clock = clock ?? (static () => Environment.TickCount64);
@@ -55,7 +63,11 @@ public sealed class RawStdinPump : IInputPump, IDisposable
             IsBackground = true,
             Name = "raw-stdin-pump",
         };
-        _reader.Start();
+        if (startReader)
+        {
+            _reader.Start();
+        }
+
         _ = Task.Run(ProcessCommandsAsync);
     }
 
@@ -108,6 +120,19 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     /// <summary>命令邮箱中尚未被 Actor 消费的命令数（Dispose 竞态测试的同步观测面）。</summary>
     internal int PendingCommandCount => _commands.Reader.Count;
 
+    /// <summary>解码一个 stdin 字节块并投递解析 Actor；读取与字节回归测试共用同一容量边界。</summary>
+    private void DecodeBytes(ReadOnlySpan<byte> bytes, TaskCompletionSource? completion)
+    {
+        var charCount = _utf8Decoder.GetChars(bytes, _charBuffer, flush: false);
+        if (charCount == 0)
+        {
+            completion?.TrySetResult();
+            return;
+        }
+
+        Post(new PumpCommand(new string(_charBuffer, 0, charCount), Pump: true, Completion: completion));
+    }
+
     /// <summary>
     /// 读循环（后台线程）— stdin 块读 → UTF-8 解码 → 投递解析 Actor（满时阻塞背压）。
     /// 流 EOF（Read 返 0 — stdin 重定向/管道输入结束）或取消时静默退出：通道不关闭
@@ -128,13 +153,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
                     break;
                 }
 
-                var charCount = _utf8Decoder.GetChars(bytes, 0, read, _charBuffer, 0, flush: false);
-                if (charCount == 0)
-                {
-                    continue;
-                }
-
-                Post(new PumpCommand(new string(_charBuffer, 0, charCount), Pump: true, Completion: null));
+                DecodeBytes(bytes.AsSpan(0, read), completion: null);
             }
         }
         catch (Exception ex) when (ex is IOException or ObjectDisposedException or OperationCanceledException or ChannelClosedException)
@@ -275,6 +294,14 @@ public sealed class RawStdinPump : IInputPump, IDisposable
         // 滞留计时维护：仍有残留且 ESC 开头 = 不完整前缀滞留（首次打点；新数据到达由
         // Feed/ReadLoop append 前置重置）；无残留或已消耗 = 解析推进，滞留清零
         _prefixStuckSince = rest.Length > 0 && rest[0] == '\u001b' ? _prefixStuckSince ?? _clock() : null;
+    }
+
+    /// <summary>测试注入面 — 绕过 stdin Read，经生产 UTF-8 解码路径喂原始字节并同步冲刷。</summary>
+    internal void FeedBytesForTest(byte[] bytes)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        DecodeBytes(bytes, completion);
+        completion.Task.GetAwaiter().GetResult();  // style-allow: sync-block — stdin 泵同步契约: 原始输入线程同步写命令并等待完成
     }
 
     /// <summary>

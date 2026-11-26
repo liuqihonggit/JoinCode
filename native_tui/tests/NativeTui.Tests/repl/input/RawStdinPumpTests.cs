@@ -1,10 +1,10 @@
 namespace NativeTui.Tests.Repl;
 
 /// <summary>
-/// RawStdinPump 全链测试（DSG042 P2）— FeedForTest 注入绕过 stdin Read，验证
-/// 解析→通道→Drain 全链：单键/VT 序列（方向键修饰组合 ReadKey 通道不可得的形态）/
-/// bracketed paste 整块（重组状态机天然不需要）/ 不完整前缀跨块攒齐 / 孤立 ESC 超时产出 /
-/// 键序保序 / 空排空返回 false。真实 stdin 阻塞行为由宿主 exe 手动验收（ADR 0080）。
+/// RawStdinPump 全链测试（DSG042 P2）— FeedForTest 注入字符、FeedBytesForTest 注入原始字节，
+/// 分别验证 UTF-8 解码后的解析→通道→Drain 全链与解码容量边界：单键/VT 序列（方向键修饰组合
+/// ReadKey 通道不可得的形态）/ bracketed paste 整块（重组状态机天然不需要）/ 不完整前缀跨块攒齐 /
+/// 孤立 ESC 超时产出 / 键序保序 / 空排空返回 false。真实 stdin 阻塞行为由宿主 exe 手动验收（ADR 0080）。
 /// </summary>
 public sealed class RawStdinPumpTests
 {
@@ -18,9 +18,10 @@ public sealed class RawStdinPumpTests
         public void Advance(long ms) => Volatile.Write(ref _now, Now + ms);
     }
 
-    /// <summary>构造即启动读线程（IsBackground — stdin Read 阻塞由进程退出回收；测试不依赖它）。
+    /// <summary>构造解析 Actor 但禁用 stdin 读线程 — 测试输入完全可控，避免宿主输入串入。
     /// 默认注入冻结时钟（0）— 前缀滞留策略只由测试显式推进的 <see cref="ManualClock"/> 触发。</summary>
-    private static RawStdinPump CreatePump(ManualClock? clock = null) => new(clock: () => clock?.Now ?? 0);
+    private static RawStdinPump CreatePump(ManualClock? clock = null) =>
+        new(querier: null, clock: () => clock?.Now ?? 0, startReader: false);
 
     /// <summary>注入并排空全部产出键（Drain 非阻塞 — feed 后立即收）。</summary>
     private static List<KeyPress> FeedAndDrain(RawStdinPump pump, string text)
@@ -219,6 +220,61 @@ public sealed class RawStdinPumpTests
         Assert.False(pump.Drain(_ => { }));
     }
 
+    [Theory]
+    [InlineData(2049)]
+    [InlineData(4096)]
+    public void ByteFeed_AsciiBeyondOldDecodeCapacity_DeliversAllKeys(int expectedCount)
+    {
+        // ASCII 每字节产一 UTF-16 char；覆盖旧容量越界点与完整读取块。
+        using var pump = CreatePump();
+        pump.FeedBytesForTest(Encoding.UTF8.GetBytes(new string('a', expectedCount)));
+
+        var keys = new List<KeyPress>();
+        var timeoutAt = Environment.TickCount64 + 2000;
+        while (keys.Count < expectedCount)
+        {
+            Assert.True(Environment.TickCount64 < timeoutAt,
+                $"ASCII 解码边界收集超时：已收 {keys.Count}/{expectedCount}，pending 残留 {pump.PendingCount}");
+            pump.Drain(keys.Add);
+        }
+
+        Assert.Equal(expectedCount, keys.Count);
+        Assert.All(keys, key => Assert.Equal("a", key.Input));
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    [Fact]
+    public void ByteFeed_SplitUtf8SurrogateThenFullAsciiBlock_DecodesWithoutOverflow()
+    {
+        // 上块保留四字节字符的前 3 字节；本块首字节产出代理对，其余 4095 字节为 ASCII，共 4097 个 UTF-16 单元。
+        using var pump = CreatePump();
+        var emoji = Encoding.UTF8.GetBytes("😀");
+        pump.FeedBytesForTest(emoji[..3]);
+
+        var block = new byte[4096];
+        block[0] = emoji[3];
+        block.AsSpan(1).Fill((byte)'a');
+        pump.FeedBytesForTest(block);
+
+        var keys = new List<KeyPress>();
+        var timeoutAt = Environment.TickCount64 + 2000;
+        while (keys.Count < 4096)
+        {
+            Assert.True(Environment.TickCount64 < timeoutAt,
+                $"跨块 UTF-8 解码收集超时：已收 {keys.Count}/4096，pending 残留 {pump.PendingCount}");
+            pump.Drain(keys.Add);
+        }
+
+        Assert.Equal(4096, keys.Count);
+        Assert.Equal("😀", keys[0].Input);
+        for (var i = 1; i < keys.Count; i++)
+        {
+            Assert.Equal("a", keys[i].Input);
+        }
+
+        Assert.Equal(0, pump.PendingCount);
+    }
+
     [Fact]
     public void Feed_ManyKeys_BoundedChannel_StillDelivers()
     {
@@ -287,7 +343,7 @@ public sealed class RawStdinPumpTests
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var pump = new RawStdinPump(clock: () =>
+        using var pump = new RawStdinPump(querier: null, startReader: false, clock: () =>
         {
             entered.TrySetResult();
             release.Task.GetAwaiter().GetResult();
@@ -322,7 +378,7 @@ public sealed class RawStdinPumpTests
     public async Task TerminalReply_RoutesToQuerier_NotIntoKeyStream()
     {
         using var querier = new TerminalQuerier(new StringWriter());
-        using var pump = new RawStdinPump(querier, clock: static () => 0);
+        using var pump = new RawStdinPump(querier, startReader: false, clock: static () => 0);
         var query = querier.QueryAsync("\u001b[c", TerminalResponseKind.Da1, TimeSpan.FromSeconds(5));
 
         var keys = FeedAndDrain(pump, "\u001b[?62;1c" + "a");
@@ -342,7 +398,7 @@ public sealed class RawStdinPumpTests
     {
         using var querier = new TerminalQuerier(new StringWriter());
         var clock = new ManualClock();
-        using var pump = new RawStdinPump(querier, clock: () => clock.Now);
+        using var pump = new RawStdinPump(querier, startReader: false, clock: () => clock.Now);
         var query = querier.QueryAsync("\u001b]10;?\u0007", TerminalResponseKind.Osc, TimeSpan.FromSeconds(5));
 
         Assert.Empty(FeedAndDrain(pump, "\u001b]10;rgb:"));
@@ -362,7 +418,7 @@ public sealed class RawStdinPumpTests
     {
         using var querier = new TerminalQuerier(new StringWriter());
         var clock = new ManualClock();
-        using var pump = new RawStdinPump(querier, clock: () => clock.Now);
+        using var pump = new RawStdinPump(querier, startReader: false, clock: () => clock.Now);
         Assert.Empty(FeedAndDrain(pump, "\u001b[?2026"));
         Assert.True(pump.PendingCount > 0);
 
@@ -378,7 +434,7 @@ public sealed class RawStdinPumpTests
     {
         using var querier = new TerminalQuerier(new StringWriter());
         var clock = new ManualClock();
-        using var pump = new RawStdinPump(querier, clock: () => clock.Now);
+        using var pump = new RawStdinPump(querier, startReader: false, clock: () => clock.Now);
         Assert.Empty(FeedAndDrain(pump, "\u001b]10;rgb:"));
 
         clock.Advance(51);

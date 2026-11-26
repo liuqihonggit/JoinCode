@@ -570,17 +570,24 @@ public static class KeyPressParser
             i++;
         }
 
-        if (i == rest.Length)
+        var finalIndex = i;
+        while (finalIndex < rest.Length && rest[finalIndex] is >= '\u0020' and <= '\u003f')
         {
-            // 参数区未闭合（final 未到）— 不完整前缀，等待更多输入
+            finalIndex++;
+        }
+
+        if (finalIndex == rest.Length)
+        {
+            // 参数/intermediate 区未闭合（final 未到）— 不完整前缀，等待更多输入
             key = NamedUnknown();
             return false;
         }
 
-        var final = rest[i];
-        // M/m 终点整体含 final 吞（非法形态也不留 final 泄漏成文本）；其余终点吞到扫描位（现状契约）
-        var consumed = 3 + i + (final is 'M' or 'm' ? 1 : 0);
-        key = final is 'M' or 'm' && semicolons == 2
+        var final = rest[finalIndex];
+        // 合法 CSI final 属于序列整体吞掉；控制字符不消费，保留其后的 ESC 供下一轮恢复解析。
+        var consumeFinal = final is >= '\u0040' and <= '\u007e';
+        var consumed = 3 + finalIndex + (consumeFinal ? 1 : 0);
+        key = finalIndex == i && final is 'M' or 'm' && semicolons == 2
             ? DecodeSgrParams(rest[..i], final)
             : NamedUnknown();
         buffer = buffer[consumed..];

@@ -399,6 +399,20 @@ public sealed class KeyPressParserTests
         Assert.Equal("a", keys[1].Input);
     }
 
+    /// <summary>ECMA-48 CSI final 必须为 0x40-0x7E；非法控制字节不属于序列，保留后续 ESC 恢复解析。</summary>
+    [Theory]
+    [InlineData("\u001b[38;2;1;2;3 ")]
+    [InlineData("\u001b[38;2;1;2;3")]
+    [InlineData("\u001b[?1;2")]
+    public void Csi_InvalidFinalControl_DoesNotConsumeRecoveryEscape(string malformed)
+    {
+        var keys = ParseAll(malformed + "\u001b[A");
+
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
+        Assert.Equal(KeyKind.UpArrow, keys[1].Kind);
+    }
+
     [Fact]
     public void OverflowingModifierParam_DoesNotThrow()
     {

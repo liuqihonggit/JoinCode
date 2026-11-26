@@ -103,4 +103,24 @@ public sealed class TerminalResponseParserTests
     {
         Assert.Null(TerminalResponseParser.TryParse(chunk, out _));
     }
+
+    /// <summary>普通 CSI 在分类为回复前不得收集参数或构造原始串 — 热路径零分配回归。</summary>
+    [Fact]
+    public void NonReplyCsi_RepeatedParse_DoesNotAllocate()
+    {
+        var input = "\u001b[1;5D".AsSpan();
+        for (var i = 0; i < 1_000; i++)
+        {
+            Assert.Null(TerminalResponseParser.TryParse(input, out _));
+        }
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 10_000; i++)
+        {
+            Assert.Null(TerminalResponseParser.TryParse(input, out _));
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(allocated < 1_024, $"普通 CSI 重复解析产生 {allocated} 字节分配");
+    }
 }

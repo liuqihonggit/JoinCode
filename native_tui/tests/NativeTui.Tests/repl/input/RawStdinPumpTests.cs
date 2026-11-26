@@ -102,6 +102,50 @@ public sealed class RawStdinPumpTests
         Assert.Equal("hello", key.Input);
     }
 
+    /// <summary>终止标记从 ESC 到 ~ 的每个跨块边界都必须保留重叠扫描，不能漏掉或吞入正文。</summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    public void PasteBlock_TerminatorSplitAtEveryBoundary_Accumulates(int firstLength)
+    {
+        using var pump = CreatePump();
+        const string terminator = "\u001b[201~";
+        Assert.Empty(FeedAndDrain(pump, "\u001b[200~hello" + terminator[..firstLength]));
+
+        var keys = FeedAndDrain(pump, terminator[firstLength..] + "z");
+
+        var paste = Assert.Single(keys, key => key.Kind == KeyKind.Paste);
+        Assert.Equal("hello", paste.Input);
+        Assert.Equal("z", Assert.Single(keys, key => key.Kind == KeyKind.Char).Input);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    /// <summary>大粘贴跨数十个 feed 且超过初始 pending 缓冲后，正文与后续普通键仍严格保序。</summary>
+    [Fact]
+    public void PasteBlock_ManyChunksBeyondInitialBufferCapacity_PreservesContentAndFollowingKey()
+    {
+        using var pump = CreatePump();
+        const int chunkCount = 32;
+        const int chunkLength = 1_024;
+        var chunk = new string('a', chunkLength);
+        Assert.Empty(FeedAndDrain(pump, "\u001b[200~"));
+        for (var i = 0; i < chunkCount; i++)
+        {
+            Assert.Empty(FeedAndDrain(pump, chunk));
+        }
+
+        var keys = FeedAndDrain(pump, "\u001b[201~z");
+
+        var paste = Assert.Single(keys, key => key.Kind == KeyKind.Paste);
+        Assert.Equal(chunkCount * chunkLength, paste.Input.Length);
+        Assert.All(paste.Input, ch => Assert.Equal('a', ch));
+        Assert.Equal("z", Assert.Single(keys, key => key.Kind == KeyKind.Char).Input);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
     [Fact]
     public void IncompleteEscapePrefix_AccumulatesAcrossFeeds()
     {
@@ -272,6 +316,35 @@ public sealed class RawStdinPumpTests
             Assert.Equal("a", keys[i].Input);
         }
 
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    /// <summary>已消费前缀把残留数据推到缓冲尾部时，追加新块必须压缩头部空洞且不丢残留键。</summary>
+    [Fact]
+    public void ConsumedPrefix_TailCapacityPressure_CompactsWithoutLosingPendingInput()
+    {
+        using var pump = CreatePump();
+        const int prefixLength = 4_096;
+        const int suffixLength = 4_096;
+        pump.FeedForTest(new string('a', prefixLength) + "\u001b[");
+        Assert.True(pump.PendingCount > 0);
+
+        // 首轮解析填满键通道后保留 3,842 字符；追加量超过剩余尾部容量，但不需要再次扩容。
+        pump.FeedForTest("D" + new string('b', suffixLength));
+        var keys = new List<KeyPress>();
+        var expectedCount = prefixLength + 1 + suffixLength;
+        var timeoutAt = Environment.TickCount64 + 2_000;
+        while (keys.Count < expectedCount)
+        {
+            Assert.True(Environment.TickCount64 < timeoutAt,
+                $"压缩回归收集超时：已收 {keys.Count}/{expectedCount}，pending={pump.PendingCount}");
+            pump.Drain(keys.Add);
+        }
+
+        Assert.Equal(expectedCount, keys.Count);
+        Assert.All(keys[..prefixLength], key => Assert.Equal("a", key.Input));
+        Assert.Equal(KeyKind.LeftArrow, keys[prefixLength].Kind);
+        Assert.All(keys[(prefixLength + 1)..], key => Assert.Equal("b", key.Input));
         Assert.Equal(0, pump.PendingCount);
     }
 

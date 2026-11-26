@@ -64,8 +64,11 @@
   - `jcc tool call file read --file_path agents.md` → 0。
   - `--pages 1` → 126 `Policy.Deny`；`--bogus x` → 126 `Policy.Parameter`。
   - 直接 `jcc-tool-file.exe read` → 126 `Auth.Missing`；无策略组 `jcc-tool-search.exe glob` → 0（旧行为保持）。
-- [ ] 真机：Explore / Plan / Bypass / host ask 四条路径（需要真实子代理会话，留待阶段 4 联调）。
-  - 已补链路级验证：`ShellCliAuthorizationEnvironmentTests.GetEnvironmentOverrides_InjectedScope_RestrictsBrokerToolDomain` 用真实 actuator 生成环境 → 真实 broker 管道判定，`TodoWrite` 放行、`TodoRead` 返回 `Agent.AllowedTools`；LLM 驱动的完整代理会话仍待联调。
+- [x] 真机：Explore / Plan / Bypass 三条路径（真实子代理会话）。
+  - E2E `ReadOnlySubAgent_CliHostToolOutsideScope_IsDeniedByBroker`（explore/plan 两组）：真实 MockServer + 真实子代理执行 + 子代理 Bash 启动本仓 jcc → `jcc tool tree` 只剩 3 组/5 个只读工具，`jcc tool call agent subagent_control` 返回 `[CLI-AUTH] denied | layer: Agent.AllowedTools`；会话设置 `JCC_PERMISSION_MODE=bypass` 仍被拒，证明 Bypass 不能越过 CLI 硬策略。
+  - 实施中发现并修复：Agent 工具从未把 `subagent_type` 解析为 Role/Variant，导致子代理以「空工具域 = 不限制」运行。新增 `AgentSubagentTypeResolver` 统一解析，Agent 工具据此构造 `SubAgentContext`。
+  - 链路级：`ShellCliAuthorizationEnvironmentTests.GetEnvironmentOverrides_InjectedScope_RestrictsBrokerToolDomain` 用真实 actuator 生成环境 → 真实 broker 管道判定。
+- [ ] 真机：host ask 路径（需要 ask 策略与宿主确认 UI/队列，当前策略无 ask 条目）。
 
 ### 阶段 2：全量 local / delegate
 
@@ -139,8 +142,9 @@
 |---|---|---|---|
 | 权限 YAML schema + AOT 解析器 | 13 个组 exe | ✅ `CliToolPolicyLoader`；13 份策略 | ✅ 全部组 exe 编译并通过 `Verify-ToolNodes.ps1 -Sample` |
 | 可信 exe / policy 哈希目录 | jcc 授权 broker（`enforcePolicyTrust`）、`Verify-ToolNodes.ps1` | ✅ `policy_trust.yaml` 生成 + `CliToolPolicyTrustCatalog` 校验 id/哈希/exe；运行时 broker 强制 | ✅ 4 个信任测试（未知策略/哈希不符/exe 不符拒绝，正式策略放行）；声明门禁校验 13 份哈希新鲜度；真机 probe 无 `Policy.Trust` 拒绝 |
-| 跨进程授权上下文 | Bash / PowerShell 子进程环境 | ✅ `SystemActuatorBase.AppendCliAuthorizationEnvironment`；3/3 测试 | ❌ 真机子代理 shell 待阶段 4 |
-| 集中授权 broker | `CliToolCommand` local/delegate 路径、`McpCliCommand`/`SlashCallExecutor` host 路径、`CliHostToolAuthorization` | ✅ 命名管道 + 作用域 token + `ScopeOnly` 判定；124/124 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝；host/slash 受限与放行真机双向验证 |
+| 跨进程授权上下文 | Bash / PowerShell 子进程环境 | ✅ `SystemActuatorBase.AppendCliAuthorizationEnvironment`；3/3 测试 | ✅ 真机子代理 shell：E2E explore/plan 中 `PIPE` 注入、`tool tree` 只读裁剪为 3 组/5 工具 |
+| 子代理类型 → 角色/变体解析 | Agent 工具 `AgentToolHandlers.Create`、`AgentDefinitionProvider` | ✅ `AgentSubagentTypeResolver`（12 个单测），Agent 工具据此构造 `SubAgentContext` | ✅ E2E 真机 explore/plan 只读域生效并对域外工具返回 `Agent.AllowedTools` |
+| 集中授权 broker | `CliToolCommand` local/delegate 路径、`McpCliCommand`/`SlashCallExecutor` host 路径、`CliHostToolAuthorization` | ✅ 命名管道 + 作用域 token + `ScopeOnly` 判定；139/139 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝；host/slash 受限与放行真机双向验证 |
 | delegate 自证 | `jcc-gh` 内嵌 github 策略 + `CliGroupToolAuthorization` | ✅ `GhSubCommand` 执行前判定；jcc gh 人工会话注入；Gh 800/800 测试 | ✅ 直跑 126 `Auth.Missing`；受限 126 `Agent.AllowedTools`；`jcc gh`/`jcc tool call github` 人工 0、受限 126 |
 | slash 直调门禁 | `SlashCallExecutor` + jcc 内嵌 `slash.yaml` | ✅ 作用域 + 参数白名单（canonical 命令名 + 扁平参数） | ✅ 受限/放行 scope、未知参数 `Policy.Parameter`、声明参数实际执行 |
 | 一次性执行 grant + redeem | `CliNodeRunner` local / delegate | ❌ 当前为作用域会话 token（ADR 偏离，待阶段 2 加固） | ❌ |

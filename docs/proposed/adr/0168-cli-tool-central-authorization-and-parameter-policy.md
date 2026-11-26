@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启；slash 结构化 schema、base/launcher 参数策略与 one-time grant 待后续
+- 状态：**proposed（实施中）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；真实子代理（explore/plan）在 bypass 模式下仍被 CLI 域拒绝；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启；slash 结构化 schema、base/launcher 参数策略与 one-time grant 待后续
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -365,6 +365,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
    - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
    - 审计段已完成：`JCC_CLI_AUDIT_LOG` JSONL + 真机 12 条；覆盖门禁已并入 `Verify-ToolNodes.ps1 -DeclarationsOnly`（策略/节点/分析器接线/委托内嵌/哈希新鲜度）；信任目录已落地（id+策略哈希+exe 名）。
+   - 真实子代理段已落地：E2E 覆盖 explore/plan 只读域 + bypass 模式，并修复 `subagent_type` 未解析为 Role/Variant 导致子代理空工具域（不限制）的缺陷。
 
 每阶段独立编译、测试、提交；跨域契约变更执行 `Build-AllDomains.ps1`。
 
@@ -392,9 +393,12 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
   - 运行时已拒绝未登记 slash 参数（`Policy.Parameter`）且参数必须是 JSON 对象/key=value；`Verify-SlashCommandPolicies.py` 已做源码声明 ↔ help/node ↔ slash.yaml 双向对账（99 命令 / 101 参数，CI 接入），无参命令显式 `parameters: []`。
 - [x] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
-  - `ContextSetupMiddleware.MergeAllowedTools` 交集测试（6 个定向测试）；broker 侧 `Broker_ReadOnlyScope_DeniesWriteOverPipe` 与 `Gate_SubAgentScopeEnvironment_IntersectsToolDomain` 证明只读 scope 对 write 返回 `Agent.AllowedTools`。角色实际 AllowedTools 定义见 `AgentRoleProfileRegistry`（search/explore 不含 write/edit）。
+  - `ContextSetupMiddleware.MergeAllowedTools` 交集测试（6 个定向测试）；broker 侧 `Broker_ReadOnlyScope_DeniesWriteOverPipe` 与 `Gate_SubAgentScopeEnvironment_IntersectsToolDomain` 证明只读 scope 对 write 返回 `Agent.AllowedTools`。
+  - 真实会话：E2E `ReadOnlySubAgent_CliHostToolOutsideScope_IsDeniedByBroker`（explore/plan）中，子代理 Bash 启动 jcc，`tool tree` 仅 3 组/5 个只读工具，域外 host 工具被 `Agent.AllowedTools` 拒绝。
+  - 实施中发现并修复：Agent 工具此前未把 `subagent_type` 解析为 Role/Variant，子代理以空工具域（不限制）运行；新增 `AgentSubagentTypeResolver` 统一解析并用于 `SubAgentContext` 构造。
 - [x] Bypass 不能越过 CLI hard deny、agent DeniedTools 或策略完整性检查。
-  - CLI 判定链不读取 `PermissionMode`（见 `CliAuthorizationScope.Evaluate`），Bypass 无法改变结果；`DeniedTools` 命中返回 `Agent.DeniedTools`（`CliToolAuthorizationTests`）；策略完整性由信任目录覆盖（未知策略/哈希不符/exe 不符拒绝）。Bypass 真实会话联调仍归入真实子代理验收项。
+  - CLI 判定链不读取 `PermissionMode`（见 `CliAuthorizationScope.Evaluate`），Bypass 无法改变结果；`DeniedTools` 命中返回 `Agent.DeniedTools`（`CliToolAuthorizationTests`）；策略完整性由信任目录覆盖。
+  - 真实会话：上述 E2E 以 `JCC_PERMISSION_MODE=bypass` 运行，域外工具仍被 `Agent.AllowedTools` 拒绝。
 - [x] direct 组 exe 无会话凭据返回授权要求；`-h` 正常。
   - delegate exe 已覆盖：`jcc-gh` 直跑 126 `Auth.Missing`，`-h`/`--version` 不受限；组 exe 直跑行为不变。
 - [x] 无效/伪造凭据、越域工具、未登记参数、deny 参数、损坏策略均 fail-closed；参数篡改经完整策略判定而非放行。
@@ -407,7 +411,8 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
   - tree/find/help 已真机一致；首轮组目录已按 `tool_ids` 裁剪并有单测（Prompts 232/232），真实子代理会话验收待阶段 4 联调。
 - [ ] 真实双端进程测试覆盖主代理、只读子代理、写子代理、delegate、host。
   - host 段已覆盖：受限 scope 下 `jcc mcp_call` 与 `jcc tool call <组> <host工具>` 均 `Agent.AllowedTools` 拒绝；放行 scope 两条路径正常执行；伪造凭据 `Auth.Transport` 拒绝。
-  - 链路级：`ShellCliAuthorizationEnvironmentTests.GetEnvironmentOverrides_InjectedScope_RestrictsBrokerToolDomain` 用真实 actuator 注入环境再经真实 broker 判定（放行/越域各一条）；LLM 驱动的真实子代理会话仍待阶段 4。
+  - 只读子代理已覆盖：E2E `ReadOnlySubAgent_CliHostToolOutsideScope_IsDeniedByBroker` 用真实 MockServer + 真实子代理 + Bash 启动 jcc，验证域外 host 工具 `Agent.AllowedTools` 拒绝与只读工具树（3 组/5 工具）。
+  - 链路级：`ShellCliAuthorizationEnvironmentTests.GetEnvironmentOverrides_InjectedScope_RestrictsBrokerToolDomain` 用真实 actuator 注入环境再经真实 broker 判定（放行/越域各一条）；写子代理（code 变体）真机放行路径仍待补。
 - [x] 跨域契约变更后 `Build-AllDomains.ps1` 全仓编译通过。
   - launcher 守卫（Tools 常量 + apps.cli 消费）改动后全仓 16 域 + native_tui/native_gui 一次通过。
 

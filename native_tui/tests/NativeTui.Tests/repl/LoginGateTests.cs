@@ -90,6 +90,78 @@ public sealed class LoginGateTests
         Assert.Equal(["你好"], engine.Submits);
     }
 
+    /// <summary>未登录 /exit — 客户端本地退出命令必须可用，不被登录门吞掉（TASK106）。
+    /// 基准 commands.ts meetsAvailabilityRequirement：无 availability 的命令 universal，/exit 直接退出。</summary>
+    [Fact]
+    public void NotLoggedIn_ExitCommand_Exits()
+    {
+        var (shell, engine) = CreateShell();
+        ApplyLoginState(shell, engine, loggedIn: false);
+        TypeText(shell, "/exit");
+
+        shell.Submit();
+
+        Assert.False(shell.IsRunning);
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("未登录"));
+    }
+
+    /// <summary>未登录 /quit — 同 /exit，退出别名同样不受登录门拦截（TASK106）。</summary>
+    [Fact]
+    public void NotLoggedIn_QuitCommand_Exits()
+    {
+        var (shell, engine) = CreateShell();
+        ApplyLoginState(shell, engine, loggedIn: false);
+        TypeText(shell, "/quit");
+
+        shell.Submit();
+
+        Assert.False(shell.IsRunning);
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("未登录"));
+    }
+
+    /// <summary>未登录 /login 必须透传到引擎（TASK106 — footer 明写"运行 /login"，
+    /// 若被登录门吞掉则形成"叫你登录却登不了"的死锁；宿主 LoginCommand 全权处理交互
+    /// （CommandDialogCoordinator 提供密码框），成功后 RefreshSessionInfo 开门）。</summary>
+    [Fact]
+    public void NotLoggedIn_LoginCommand_ForwardedToEngine()
+    {
+        var (shell, engine) = CreateShell();
+        ApplyLoginState(shell, engine, loggedIn: false);
+        TypeText(shell, "/login");
+
+        shell.Submit();
+
+        Assert.Equal(["/login"], engine.Submits);
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("未登录"));
+    }
+
+    /// <summary>未登录带参 /login provider --oauth 同样透传（参数原样送宿主解析）。</summary>
+    [Fact]
+    public void NotLoggedIn_LoginWithArgs_ForwardedVerbatim()
+    {
+        var (shell, engine) = CreateShell();
+        ApplyLoginState(shell, engine, loggedIn: false);
+        TypeText(shell, "/login openai --oauth");
+
+        shell.Submit();
+
+        Assert.Equal(["/login openai --oauth"], engine.Submits);
+    }
+
+    /// <summary>未登录普通提示词仍被拦（零回归 — 登录门对非命令文本照旧）。</summary>
+    [Fact]
+    public void NotLoggedIn_PlainText_StillGated()
+    {
+        var (shell, engine) = CreateShell();
+        ApplyLoginState(shell, engine, loggedIn: false);
+        TypeText(shell, "写段代码");
+
+        shell.Submit();
+
+        Assert.True(shell.IsRunning);
+        Assert.Contains(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("未登录"));
+    }
+
     /// <summary>逐字符输入文本（HandleKey 真实按键链）。</summary>
     private static void TypeText(ReplShell shell, string text) {
         foreach (var ch in text)

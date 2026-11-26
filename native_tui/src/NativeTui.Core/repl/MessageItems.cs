@@ -80,9 +80,10 @@ public sealed class AssistantMessageItem(string text, int thinkingDurationMs = 0
         }
     }
 
-    /// <summary>内容高度 = margin 1 + 正文 1 + 思考摘要行（有思考且未脱敏）+ CoT 行数（展开态，含截断守卫）。</summary>
+    /// <summary>内容高度 = margin 1 + 正文折行行数（含多行命令输出与超宽软折）+ 思考摘要行（有思考且未脱敏）+ CoT 行数（展开态，含截断守卫）。</summary>
     public int MeasureHeight(int width) =>
-        2
+        1
+        + Math.Max(1, MessageRenderer.WrapAssistantLines(text, width).Count)
         + (thinkingDurationMs > 0 && !thinkingRedacted ? 1 : 0)
         + (IsThinkingExpanded ? CountThinkingLines() : 0);
 
@@ -99,7 +100,8 @@ public sealed class AssistantMessageItem(string text, int thinkingDurationMs = 0
             row += lines;
         }
 
-        MessageRenderer.RenderAssistant(screen, frame with { Y = row, Height = 1 }, theme, text);
+        var textLines = MessageRenderer.WrapAssistantLines(text, frame.Width);
+        MessageRenderer.RenderAssistant(screen, frame with { Y = row, Height = textLines.Count }, theme, textLines);
     }
 
     /// <summary>CoT 展开行数（含超限截断行）。</summary>
@@ -240,6 +242,10 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// <summary>错误块行缓存（TASK069-M5 — 归一后的错误内容按行拆分；错误形态唯一显示数据源）。</summary>
     private readonly string[] _errorLines;
 
+    /// <summary>摘要渲染行（TASK107 — resultText 常为多行输出，摘要只渲染首个非空行；
+    /// 多行内容由 rawOutput 折叠块承载。原文仍完整保留在 <see cref="Summary"/>）。</summary>
+    private readonly string _summaryLine;
+
     /// <summary>纯摘要形态（旧调用兼容 — 排队反馈/未登录提示等无输出场景）。</summary>
     public ToolResultItem(string text) : this(text, null, null, 0)
     {
@@ -274,6 +280,9 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         _lineNumbers = patch is { Length: > 0 } ? patch.Select(DiffGutter.AssignLineNumbers).ToArray() : [];
         _syntaxSpans = HighlightPatchLines(patch, codeHighlighter, summary);
         _errorLines = isError ? SplitErrorLines(ErrorText) : [];
+        // TASK108 P13 — 引擎错误摘要常是 `Error: {ToolErrorJson}`（数据面给模型解析的结构），
+        // 展示层只取 message（原文完整保留在 Summary，搜索/导出不受影响）
+        _summaryLine = FirstNonEmptyLine(ToolErrorJsonText.Humanize(summary));
     }
 
     /// <summary>结果摘要（首行 ⎿ 正文；空串不占行）。</summary>
@@ -289,8 +298,15 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// 统计行取代引擎摘要成为结果首行（基准 FileEditToolUpdatedMessage 只显示增删统计）。</summary>
     public DiffStats? Stats { get; }
 
-    /// <summary>结果首行文本（有统计用统计文案，否则引擎摘要）— 渲染/导出/搜索共用同一份。</summary>
-    public string DisplaySummary => Stats is { IsEmpty: false } stats ? stats.ToText() : Summary;
+    /// <summary>结果首行文本（有统计用统计文案，否则引擎摘要首行）— 渲染/导出/搜索共用同一份。
+    /// TASK108 P13 — 展示面返回已归一的首行（错误 JSON 取 message），<see cref="Summary"/> 仍保留原文。</summary>
+    public string DisplaySummary => Stats is { IsEmpty: false } stats ? stats.ToText() : _summaryLine;
+
+    /// <summary>摘要渲染行（TASK107 — 首个非空行；transcript 投影与主屏渲染共用同一份）。</summary>
+    public string SummaryLine => _summaryLine;
+
+    /// <summary>摘要是否占一行（diff 统计优先；否则取首个非空行非空 — TASK107 多行摘要单行化）。</summary>
+    private bool HasSummaryRow => Stats is { IsEmpty: false } || _summaryLine.Length > 0;
 
     /// <summary>原始终端输出全量（null = 无输出块；展开态消费完整数据 — ctrl+o）。</summary>
     public string? RawOutput { get; }
@@ -305,8 +321,8 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     public bool IsError { get; }
 
     /// <summary>错误块全文（归一后带 `Error: ` 前缀 — 原始输出优先，摘要仅单行兜底；
-    /// 渲染与 transcript 投影共用同一份内容）。</summary>
-    public string ErrorText => ToolErrorText.Normalize(RawOutput ?? Summary);
+    /// 渲染与 transcript 投影共用同一份内容；TASK108 P13 再经 JSON 展示归一）。</summary>
+    public string ErrorText => ToolErrorJsonText.Humanize(ToolErrorText.Normalize(RawOutput ?? Summary));
 
     /// <summary>错误块渲染行数 — 展开态全量；折叠态 MaxErrorRenderLines 上限。</summary>
     private int RenderedErrorRows => IsExpanded
@@ -334,14 +350,36 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// <summary>补丁折叠提示行（折叠态预览外还有行才出 — 展开态提示行消失）。</summary>
     private bool ShowsPatchHint => !IsExpanded && TotalPatchRows > ToolFoldingPolicy.MaxWritePreviewLines;
 
-    /// <summary>输出可见行数 — 无输出 0；空白输出 1（"(No output)" 占位）；展开态全量；折叠态按 HiddenLines 换算。</summary>
-    private int VisibleOutputRowCount => RawOutput is null
-        ? 0
-        : _outputLines.Length == 0
-            ? 1
-            : IsExpanded
+    /// <summary>输出可见行数 — 无输出 0；空白输出 1（"(No output)" 占位）；展开态全量；折叠态按 HiddenLines 换算；
+    /// 与摘要行重复的首行（TASK107 — 引擎 summary 取自结果文本前 200 字符）不重复渲染。</summary>
+    private int VisibleOutputRowCount
+    {
+        get
+        {
+            if (RawOutput is null)
+            {
+                return 0;
+            }
+
+            if (_outputLines.Length == 0)
+            {
+                return 1;
+            }
+
+            var visible = IsExpanded
                 ? _outputLines.Length
                 : ToolFoldingPolicy.VisibleOutputLines(_outputLines.Length, HiddenLines, PreviewLimit);
+            return Math.Max(0, visible - DuplicatedOutputRows);
+        }
+    }
+
+    /// <summary>输出块首部需要跳过的行数（与摘要行文本相同则跳 1 行 — 避免 ⎿ 行与输出块首行重复上屏）。</summary>
+    private int DuplicatedOutputRows =>
+        _summaryLine.Length > 0
+        && _outputLines.Length > 0
+        && string.Equals(_outputLines[0].TrimEnd('\r', ' '), _summaryLine, StringComparison.Ordinal)
+            ? 1
+            : 0;
 
     /// <summary>输出折叠提示行（差 1 行特例不出提示 — terminal.ts L44-54）。</summary>
     private bool ShowsOutputHint =>
@@ -354,7 +392,7 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
             + RenderedErrorRows + (ShowsErrorHint ? 1 : 0)
             + RenderedPatchRows + (ShowsPatchHint ? 1 : 0)
         : 1
-            + (DisplaySummary.Length > 0 ? 1 : 0)
+            + (HasSummaryRow ? 1 : 0)
             + RenderedPatchRows + (ShowsPatchHint ? 1 : 0)
             + VisibleOutputRowCount + (ShowsOutputHint ? 1 : 0);
 
@@ -393,7 +431,8 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         return row;
     }
 
-    /// <summary>summary 行渲染（空摘要跳过不占行；有 diff 统计时统计行取代引擎摘要）。</summary>
+    /// <summary>summary 行渲染（空摘要跳过不占行；有 diff 统计时统计行取代引擎摘要；
+    /// 多行摘要只渲染首个非空行 — 换行在单次 WriteText 里会被零宽规则吞掉导致整段粘连）。</summary>
     private int RenderSummaryRow(Screen screen, Rect frame, Theme theme, int row)
     {
         if (Stats is { IsEmpty: false } stats)
@@ -402,12 +441,12 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
             return row + 1;
         }
 
-        if (Summary.Length == 0)
+        if (_summaryLine.Length == 0)
         {
             return row;
         }
 
-        MessageRenderer.RenderToolResult(screen, RowFrame(frame, row), theme, Summary);
+        MessageRenderer.RenderToolResult(screen, RowFrame(frame, row), theme, _summaryLine);
         return row + 1;
     }
 
@@ -487,12 +526,12 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
             return row + 1;
         }
 
-        var visible = IsExpanded
-            ? _outputLines.Length
-            : ToolFoldingPolicy.VisibleOutputLines(_outputLines.Length, HiddenLines, PreviewLimit);
-        for (var i = 0; i < visible; i++)
+        var start = DuplicatedOutputRows;
+        var visible = VisibleOutputRowCount;
+        for (var offset = 0; offset < visible; offset++)
         {
-            if (i == 0 && Summary.Length == 0)
+            var i = start + offset;
+            if (offset == 0 && start == 0 && _summaryLine.Length == 0)
             {
                 MessageRenderer.RenderToolResult(screen, RowFrame(frame, row), theme, _outputLines[0].TrimEnd('\r'));
             }
@@ -516,6 +555,22 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// <summary>拆分错误块行 — 已归一文本按 \n 切分（空内容保留裸前缀单行 — 基准同形）。</summary>
     private static string[] SplitErrorLines(string normalized) =>
         normalized.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+
+    /// <summary>取首个非空行（TASK107 — 摘要渲染行；全空白返回空串）。
+    /// 摘要语义是「结果首行」，多行 resultText 直接写屏会因 \n 零宽被跳过而整段粘连。</summary>
+    private static string FirstNonEmptyLine(string text)
+    {
+        foreach (var raw in text.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length > 0)
+            {
+                return line;
+            }
+        }
+
+        return string.Empty;
+    }
 
     /// <summary>拆分输出行 — null 空数组；尾部空白修剪（基准 renderTruncatedContent trimEnd）后空为无输出占位；\r 行尾清理。</summary>
     private static string[] SplitRawOutput(string? rawOutput)
@@ -643,20 +698,35 @@ public sealed class SystemNoticeItem(string text) : IScrollItem, ITextMatchable
     public bool ContainsText(string query) => Text.Contains(query, StringComparison.OrdinalIgnoreCase);
 }
 
-/// <summary>启动诊断行项 — 纯文本 dim 渲染（引擎启动中/[diag] 等）。
-/// 纳入 TUI 渲染内容使应用内选区覆盖（无需 Shift 选择）。</summary>
-public sealed class StartupLineItem(string text) : IScrollItem
+/// <summary>启动行语义（TASK108 P12 — 状态与诊断分色：正常启动进度不该画成错误红）。</summary>
+public enum StartupLineKind
 {
-    /// <summary>诊断行文本。</summary>
+    /// <summary>启动进度（`引擎启动中…`）— dim 弱化，首拍 session_info 后撤除。</summary>
+    Status,
+
+    /// <summary>诊断信息（`[diag] …`，仅 JCC_DEBUGLOG=1）— Warning 黄，与正常状态区分。</summary>
+    Diagnostic,
+}
+
+/// <summary>启动行项 — 纳入 TUI 渲染内容使应用内选区覆盖（无需 Shift 选择）。
+/// 按 <see cref="StartupLineKind"/> 分色：Status dim / Diagnostic Warning。</summary>
+public sealed class StartupLineItem(string text, StartupLineKind kind = StartupLineKind.Status) : IScrollItem
+{
+    /// <summary>启动行文本。</summary>
     public string Text { get; } = text;
+
+    /// <summary>行语义（决定配色）。</summary>
+    public StartupLineKind Kind { get; } = kind;
 
     /// <summary>单行高度。</summary>
     public int MeasureHeight(int width) => 1;
 
-    /// <summary>dim 样式渲染纯文本行（淡红色警告色）。</summary>
+    /// <summary>按语义分色渲染单行（Status=dim，Diagnostic=Warning）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
-        var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        var style = Kind == StartupLineKind.Diagnostic
+            ? screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Warning })
+            : screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         screen.WriteText(frame.Y, frame.X, Text, style, frame.Right);
     }
 }

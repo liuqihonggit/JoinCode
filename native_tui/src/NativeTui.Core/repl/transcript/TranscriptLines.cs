@@ -38,17 +38,94 @@ public static class TranscriptLines
             CollapsedToolGroupItem collapsed => CollapsedGroupLines(collapsed),
             CondensedToolProgressItem condensed => CondensedLines(condensed),
             // TASK079 — 注入上下文折叠项：展开态投影全文（系统提示词+工具清单），塌缩态投影摘要行
+            // TASK107 P10 — Summary/Render 自带 "📎 " 前缀，此处不得再补（否则 "📎 📎 首次注入…"）；
+            // 展开态正文是裸系统提示词，前缀仍需补。
             PromptContextItem prompt => prompt.Expanded && prompt.ExpandedContent is { } content
                 ? PrefixedLines("📎 ", content)
-                : PrefixedLines("📎 ", prompt.Summary),
+                : [prompt.Summary],
             _ => [],
         };
     }
 
+    /// <summary>
+    /// 按显示宽度折行（TASK106 真机缺陷 — transcript 页是绝对定位写入，右缘即裁，没有终端软折行：
+    /// 长段落必须自己折，否则详情页整段被切在右边界，读不到句尾）。
+    /// 宽度按 <see cref="RuneWidth"/> 计（CJK 双宽）；ASCII 尽量在空白处断（回落硬断）；
+    /// 折出的小段不带前导空白（空白不落行首）。width &lt;= 0 或本行不超宽时原样返回。
+    /// </summary>
+    public static IEnumerable<string> Wrap(string line, int width)
+    {
+        if (width <= 0 || RuneWidth.OfText(line) <= width)
+        {
+            return [line];
+        }
+
+        var runes = line.EnumerateRunes().ToList();
+        var result = new List<string>();
+        var start = 0;
+        while (start < runes.Count)
+        {
+            var used = 0;
+            var cursor = start;
+            var lastBreak = -1;
+            while (cursor < runes.Count)
+            {
+                var runeWidth = RuneWidth.Of(runes[cursor]);
+                if (used + runeWidth > width)
+                {
+                    break;
+                }
+
+                used += runeWidth;
+                if (cursor + 1 < runes.Count && IsBreakBoundary(runes[cursor], runes[cursor + 1]))
+                {
+                    lastBreak = cursor + 1;
+                }
+
+                cursor++;
+            }
+
+            if (cursor >= runes.Count)
+            {
+                result.Add(Slice(runes, start, runes.Count).TrimEnd());
+                break;
+            }
+
+            // 优先在分词边界断（英文单词不被腰斩）；整段无边界（超长 token）才硬断
+            var end = lastBreak > start ? lastBreak : cursor;
+            result.Add(Slice(runes, start, end).TrimEnd());
+            start = end;
+            while (start < runes.Count && runes[start].Value == ' ')
+            {
+                start++;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>是否允许在 next 之前断行 — 只要两侧不都是 ASCII 字母数字（同一个英文单词）就可以断；
+    /// CJK/空白/标点天然是断点（中文没有空格分词）。</summary>
+    private static bool IsBreakBoundary(Rune current, Rune next) =>
+        !(IsWordChar(current) && IsWordChar(next));
+
+    private static bool IsWordChar(Rune rune) =>
+        rune.Value < 128 && (char.IsLetterOrDigit((char)rune.Value) || rune.Value is '_' or '-');
+
+    private static string Slice(List<Rune> runes, int start, int end)
+    {
+        var builder = new StringBuilder(end - start);
+        for (var i = start; i < end; i++)
+        {
+            builder.Append(runes[i].ToString());
+        }
+
+        return builder.ToString();
+    }
+
     /// <summary>带前缀的文本行（\n 分行 — 首行带前缀，续行原样）。</summary>
     private static IEnumerable<string> PrefixedLines(string prefix, string text)
-    {
-        if (text.Length == 0)
+    {        if (text.Length == 0)
         {
             yield return prefix.TrimEnd();
             yield break;
@@ -75,15 +152,24 @@ public static class TranscriptLines
         }
 
         var lines = thinkingContent.Split('\n');
-        return lines.Length > MaxThinkingLines
+        var capped = lines.Length > MaxThinkingLines
             ? lines[..MaxThinkingLines].Append($"… 思考内容超 {MaxThinkingLines} 行已截断")
             : lines;
+        // TASK107 — 每行加 ∴ 前缀：详情页里 CoT 与正文同为裸文本，无前缀时读不出边界
+        return capped.Select(line => $"{Figures.ThereforeSign} {line}");
     }
 
-    /// <summary>Markdown 块模型 → 行（块间空行 — 阅读形态还原）。</summary>
+    /// <summary>Markdown 块模型 → 行（块间空行 — 阅读形态还原）。
+    /// TASK107 P7/P8 — 详情页曾自带一套"块拍平"投影（表格按 `a | b` 源形态、嵌套列表拼进父项、
+    /// 分隔行 `|---|---|` 直接上屏），与主屏 box 边框/缩进形态不一致。改为复用
+    /// <see cref="MarkdownLayout"/>（主屏同一套布局器），保证两处渲染同源；
+    /// 宽度取无界值：折行交给 <see cref="Wrap"/>（详情页有真实宽度时统一折）。</summary>
     private static IEnumerable<string> MarkdownLines(MarkdownDocument document)
     {
-        var blocks = document.Blocks.SelectMany(BlockToLines).Where(static line => line.Length > 0).ToList();
+        var blocks = MarkdownLayout.Layout(document, UnboundedLayoutWidth)
+            .Select(static segments => string.Concat(segments.Select(static segment => segment.Text)))
+            .Where(static line => line.Length > 0)
+            .ToList();
         // 圆点行占位（对齐主屏 ● col0 形态 — 空文档也保底 1 行）
         var firstLine = blocks.Count > 0 ? blocks[0] : string.Empty;
         yield return $"{Figures.MessageBullet} {firstLine}";
@@ -93,47 +179,23 @@ public static class TranscriptLines
         }
     }
 
-    /// <summary>单块 → 行（段落/标题一行；代码多行；引用/列表/表格展开）。</summary>
-    private static IEnumerable<string> BlockToLines(MarkdownBlock block) => block switch
-    {
-        MarkdownParagraph paragraph => [SegmentsText(paragraph.Segments)],
-        MarkdownHeading heading => [SegmentsText(heading.Segments)],
-        MarkdownCode code => SplitLines(code.Text),
-        MarkdownQuote quote => quote.Children.SelectMany(BlockToLines),
-        MarkdownList list => list.Items.Select((item, index) =>
-            $"{ListMarker(list, index)}{ItemText(item)}"),
-        MarkdownTable table => TableLines(table),
-        MarkdownRule => ["---"],
-        _ => [],
-    };
+    /// <summary>详情页布局宽度（无界 — 段落不在布局层折行，折行由 <see cref="Wrap"/> 按真实宽度统一处理）。</summary>
+    private const int UnboundedLayoutWidth = int.MaxValue;
 
-    /// <summary>行内段拼接（样式丢弃 — 纯文本面）。</summary>
-    private static string SegmentsText(IReadOnlyList<MarkdownSegment> segments) =>
-        string.Join(string.Empty, segments.Select(static segment => segment.Text));
-
-    /// <summary>列表项标记（有序 `N. ` / 无序 `- `）。</summary>
-    private static string ListMarker(MarkdownList list, int index) =>
-        list.Ordered ? $"{list.Start + index}. " : "- ";
-
-    /// <summary>列表项拍平（项内子块空格拼接 — 通常单段落）。</summary>
-    private static string ItemText(MarkdownListItem item) =>
-        string.Join(' ', item.Children.Select(BlockToLines).Select(static lines => string.Join(' ', lines)));
-
-    /// <summary>表格 → 行（表头 + 数据行，单元格间 " | " — 源形态还原）。</summary>
-    private static IEnumerable<string> TableLines(MarkdownTable table) =>
-        new[] { RowText(table.Headers) }.Concat(table.Rows.Select(static row => RowText(row)));
-
-    /// <summary>单表格行拼接。</summary>
-    private static string RowText(IReadOnlyList<IReadOnlyList<MarkdownSegment>> cells) =>
-        string.Join(" | ", cells.Select(SegmentsText));
-
-    /// <summary>工具调用行 — `● Name args` 标题行 + 参数续行（2 空格缩进近似渲染对齐）。</summary>
+    /// <summary>工具调用行 — `● Name(args)` 标题行 + 参数续行（对齐主屏
+    /// <see cref="MessageRenderer.RenderToolCall"/> 形态：单行闭括号、多行末行闭括号）。
+    /// TASK107 P11 — 详情页曾省略包裹括号（"● Bash echo hi"），与主屏 "● Bash(echo hi)" 不一致。</summary>
     private static IEnumerable<string> ToolCallLines(ToolCallItem toolCall)
     {
-        yield return $"{Figures.MessageBullet} {toolCall.DisplayToolName} {FirstLine(toolCall.DisplayArgs)}";
-        foreach (var continuation in RestLines(toolCall.DisplayArgs))
+        var lines = toolCall.DisplayArgs.Split('\n');
+        var first = lines[0].TrimEnd('\r');
+        yield return lines.Length == 1
+            ? $"{Figures.MessageBullet} {toolCall.DisplayToolName}({first})"
+            : $"{Figures.MessageBullet} {toolCall.DisplayToolName}({first}";
+        for (var i = 1; i < lines.Length; i++)
         {
-            yield return $"  {continuation}";
+            var text = lines[i].TrimEnd('\r');
+            yield return i == lines.Length - 1 ? $"  {text})" : $"  {text}";
         }
     }
 
@@ -156,9 +218,12 @@ public static class TranscriptLines
             yield break;
         }
 
-        if (result.DisplaySummary.Length > 0)
+        // TASK107 — 摘要取首个非空行（多行 resultText 直接拼 "\n" 会在详情页挤成一行；
+        // 全文由下方 RawOutput 承载，摘要只做定位锚）。diff 统计行优先（与主屏一致）。
+        var summaryLine = result.Stats is { IsEmpty: false } ? result.DisplaySummary : result.SummaryLine;
+        if (summaryLine.Length > 0)
         {
-            yield return $"{ToolResultIndent}{result.DisplaySummary}";
+            yield return $"{ToolResultIndent}{summaryLine}";
         }
 
         foreach (var line in PatchLines(result.Patch))
@@ -168,7 +233,20 @@ public static class TranscriptLines
 
         if (result.RawOutput is { Length: > 0 } rawOutput)
         {
-            foreach (var line in IndentedLines(rawOutput.TrimEnd()))
+            var output = rawOutput.TrimEnd();
+            // TASK107 — 输出首行与摘要行同源（引擎 summary = 结果文本前 200 字符），
+            // 详情页再画一次就是同一句连续出现两遍；首行已由摘要行承载，此处跳过。
+            var newlineIndex = output.IndexOf('\n', StringComparison.Ordinal);
+            if (summaryLine.Length > 0
+                && newlineIndex > 0
+                && output[..newlineIndex].TrimEnd(' ', '\r').Equals(summaryLine, StringComparison.Ordinal))
+            {
+                output = output[(newlineIndex + 1)..];
+            }
+
+            // TASK107 P9 — 摘要行已带 "  ⎿  " 前缀；输出块此时整体作为续行缩进，
+            // 否则详情页出现连续两行 "⎿"（摘要 + 输出首行各一次，读起来像两条结果）。
+            foreach (var line in IndentedLines(output, firstWithPrefix: summaryLine.Length == 0))
             {
                 yield return line;
             }
@@ -196,26 +274,35 @@ public static class TranscriptLines
         }
     }
 
-    /// <summary>patch hunks → 行（header + +/-/空格 前缀 diff 行 — 源形态还原）。</summary>
+    /// <summary>patch hunks → 行（4 缩进 hunk 头 + 行号 gutter + 标记 + 正文 — 与主屏
+    /// <see cref="MessageRenderer.RenderDiffLine"/> 同源列格式；TASK108 P16 — 此前详情页只有
+    /// +/- 前缀没有行号，改文件后无法按行定位）。</summary>
     private static IEnumerable<string> PatchLines(DiffHunk[]? patch)
     {
-        foreach (var hunk in patch ?? [])
+        var hunks = patch ?? [];
+        var gutterDigits = hunks.Length > 0 ? DiffGutter.GutterDigits(hunks) : 0;
+        foreach (var hunk in hunks)
         {
-            yield return hunk.Header;
-            foreach (var line in hunk.Lines)
+            yield return $"    {hunk.Header}";
+            var lineNumbers = DiffGutter.AssignLineNumbers(hunk);
+            for (var index = 0; index < hunk.Lines.Length; index++)
             {
-                yield return line.Kind switch
+                var line = hunk.Lines[index];
+                var marker = line.Kind switch
                 {
-                    DiffLineKind.Added => $"+{line.Content}",
-                    DiffLineKind.Removed => $"-{line.Content}",
-                    _ => $" {line.Content}",
+                    DiffLineKind.Added => "+",
+                    DiffLineKind.Removed => "-",
+                    _ => " ",
                 };
+                var gutter = MessageRenderer.GutterText(lineNumbers[index], gutterDigits);
+                yield return $"    {gutter}{marker}{line.Content}";
             }
         }
     }
 
-    /// <summary>流式/输出正文行 — 首行 ⎿ 前缀 + 续行缩进（对齐 StreamingTextItem 形态）。</summary>
-    private static IEnumerable<string> IndentedLines(string text)
+    /// <summary>流式/输出正文行 — 首行 ⎿ 前缀 + 续行缩进（对齐 StreamingTextItem 形态）。
+    /// firstWithPrefix = false 时首行也走续行缩进（上层已画过 ⎿ 摘要行）。</summary>
+    private static IEnumerable<string> IndentedLines(string text, bool firstWithPrefix = true)
     {
         if (text.Length == 0)
         {
@@ -225,7 +312,9 @@ public static class TranscriptLines
         var lines = text.Split('\n');
         for (var i = 0; i < lines.Length; i++)
         {
-            yield return i == 0 ? $"{ToolResultIndent}{lines[i]}" : $"{StreamingContinuation}{lines[i]}";
+            yield return i == 0 && firstWithPrefix
+                ? $"{ToolResultIndent}{lines[i]}"
+                : $"{StreamingContinuation}{lines[i]}";
         }
     }
 
@@ -278,8 +367,4 @@ public static class TranscriptLines
             yield return line;
         }
     }
-
-    /// <summary>\n 分行（空文本单空行）。</summary>
-    private static string[] SplitLines(string text) =>
-        text.Length == 0 ? [string.Empty] : text.Split('\n');
 }

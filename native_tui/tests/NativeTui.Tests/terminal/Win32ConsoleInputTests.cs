@@ -97,25 +97,26 @@ public class Win32ConsoleInputTests
         Assert.Equal(MouseKind.Release, mouse.Kind);
     }
 
-    /// <summary>滚轮上 — EventFlags=MOUSE_WHEELED(0x0008)，ButtonState 高字节非零。</summary>
+    /// <summary>滚轮上 — EventFlags=MOUSE_WHEELED(0x0008)，dwButtonState 高 16 位 = +120（TASK109：
+    /// 方向是**有符号** delta，不是"高字节非零"）。</summary>
     [Fact]
     public void MakeMouseEvent_WheelUp()
     {
         Win32ConsoleInput.InputRecord record = default;
         record.EventType = 2;
-        record.ButtonState = 0xFF000000;
+        record.ButtonState = 120u << 16;
         record.EventFlags = 0x0008;
         var mouse = Win32ConsoleInput.MakeMouseEvent(record);
         Assert.Equal(MouseKind.WheelUp, mouse.Kind);
     }
 
-    /// <summary>滚轮下 — EventFlags=MOUSE_WHEELED，ButtonState 高字节为零。</summary>
+    /// <summary>滚轮下 — EventFlags=MOUSE_WHEELED，dwButtonState 高 16 位 = -120（0xFF88）。</summary>
     [Fact]
     public void MakeMouseEvent_WheelDown()
     {
         Win32ConsoleInput.InputRecord record = default;
         record.EventType = 2;
-        record.ButtonState = 0x00FF0000;
+        record.ButtonState = unchecked((uint)(-120 << 16));
         record.EventFlags = 0x0008;
         var mouse = Win32ConsoleInput.MakeMouseEvent(record);
         Assert.Equal(MouseKind.WheelDown, mouse.Kind);

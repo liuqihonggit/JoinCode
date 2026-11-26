@@ -157,7 +157,8 @@ public sealed class PermissionRequestItemFormTests
         new PermissionRequestItem(BeginCoordinator("Bash", "run tests")).Render(screen, new Rect(0, 0, 48, 13), Theme.Dark);
 
         Assert.Equal(" Tool use", RowText.Of(screen, 2, 0, 9));
-        Assert.Equal("   Bash(run tests)", RowText.Of(screen, 4, 0, 18));
+        // TASK107 — 工具行只显示工具名，描述只由下一行承载（旧版括号内重复一次整句）
+        Assert.Equal("   Bash", RowText.Of(screen, 4, 0, 7));
         Assert.Equal("   run tests", RowText.Of(screen, 5, 0, 12));
         Assert.Equal(" Do you want to proceed?", RowText.Of(screen, 7, 0, 24));
         Assert.Equal("❯ 1. Yes", RowText.Of(screen, 8, 0, 8));

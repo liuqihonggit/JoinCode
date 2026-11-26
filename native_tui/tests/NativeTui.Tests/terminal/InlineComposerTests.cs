@@ -81,6 +81,8 @@ public sealed class InlineComposerTests
     /// reflow 后物理光标不可知，相对 CUU 落点失同步 → reset 场景必须绝对锚）。</summary>
     private const string AbsoluteAnchor = "\x1b[2J\x1b[3J\x1b[H";
 
+    /// <summary>视口重画锚定（TASK109 — 清视口 + 归位，保留 scrollback）。</summary>
+    private const string ViewportAnchor = "\x1b[2J\x1b[H";
     /// <summary>变更落在 scrollback 区（不可达）→ fullReset 绝对锚定 + 整帧重绘
     /// （对齐基准 log-update.ts:221-248 scrollback change → fullResetSequence + renderFrame 0..height）。</summary>
     [Fact]
@@ -154,11 +156,11 @@ public sealed class InlineComposerTests
         Assert.Equal(new CursorPos(1, 0), nextCursor);
     }
 
-    /// <summary>收缩清除超出视口可达范围（被清首行在 scrollback 区 — CUU 被终端钳制在视口顶，
-    /// 从视口顶清行会错擦可见区并引发多余滚屏，后续帧物理失同步）→ 必须走 fullReset 绝对锚定
-    /// （对齐基准 log-update.ts:259-271 shrink 守卫：linesToClear &gt; viewport.height → fullReset）。</summary>
+    /// <summary>收缩到视口内（被清首行在 scrollback 区 — CUU 被终端钳制在视口顶，从视口顶清行会
+    /// 错擦可见区并引发多余滚屏）→ 必须重锚定重画。TASK109 起走「清视口 + 整帧重画」，
+    /// **不清 scrollback**（旧行为 fullReset 会把用户终端历史一起抹掉，而收缩本身不破坏历史）。</summary>
     [Fact]
-    public void ShrinkBeyondViewport_TriggersFullReset()
+    public void ShrinkBeyondViewport_RepaintsViewportWithoutDroppingScrollback()
     {
         using var prev = new Screen(cols: 10, rows: 30);
         using var next = new Screen(cols: 10, rows: 5);
@@ -171,8 +173,41 @@ public sealed class InlineComposerTests
         // prev 30 行 / viewport 10 → 20 行在 scrollback；收缩到 5 行 → 被清 25 行 > 视口 10
         var output = Compose(prev, next, viewportRows: 10, prevCursor: new(0, 29), frameEnd: new(0, 4), out _);
 
-        Assert.StartsWith(AbsoluteAnchor, output);
+        Assert.StartsWith(ViewportAnchor, output);
+        Assert.DoesNotContain("\x1b[3J", output);
         Assert.Contains("keep0", output);
         Assert.Contains("keep4", output);
+    }
+
+    /// <summary>收缩重画后终端 scrollback 仍在（真画出画布断言 — 2J 只清视口，历史行保留可回看）。</summary>
+    [Fact]
+    public void ShrinkBeyondViewport_KeepsScrollbackRowsInVirtualTerminal()
+    {
+        var terminal = new VirtualTerminal(cols: 12, rows: 10);
+        using var tall = new Screen(cols: 12, rows: 30);
+        for (var row = 0; row < 30; row++)
+        {
+            tall.WriteText(row, 0, $"L{row:00}");
+        }
+
+        terminal.Feed(Compose(null, tall, viewportRows: 10, prevCursor: new(0, 0), frameEnd: new(0, 29), out var cursor));
+        var bufferBefore = terminal.BufferHeight;
+        var beforeText = string.Join(" | ", terminal.AllLines());
+        Assert.True(bufferBefore >= 30, $"前置：首帧画满 30 行（实际 {bufferBefore}）");
+
+        using var shortScreen = new Screen(cols: 12, rows: 9);
+        for (var row = 0; row < 9; row++)
+        {
+            shortScreen.WriteText(row, 0, $"N{row}");
+        }
+
+        terminal.Feed(Compose(tall, shortScreen, viewportRows: 10, prevCursor: cursor, frameEnd: new(0, 8), out _));
+
+        var viewport = terminal.Viewport();
+        Assert.Equal("N0", viewport[0]);
+        Assert.Equal("N8", viewport[8]);
+        Assert.True(terminal.FindAnywhere("L00") >= 0,
+            $"scrollback 顶部行必须保留（3J 会把它清掉）— 首帧后: {beforeText} — 之后: {string.Join(" | ", terminal.AllLines())}");
+        Assert.True(terminal.BufferHeight >= bufferBefore, "缓冲不得因收缩变短");
     }
 }

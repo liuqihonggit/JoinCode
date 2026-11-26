@@ -26,7 +26,8 @@ public sealed class RedactedThinkingRenderTests
         var lines = TranscriptLines.Project(item).ToList();
 
         Assert.DoesNotContain("✻ Thinking…", lines);
-        Assert.Contains("real cot", lines);
+        // TASK107 — CoT 行带 ∴ 前缀（详情页与正文区分）
+        Assert.Contains(lines, line => line.EndsWith("real cot", StringComparison.Ordinal));
     }
 
     /// <summary>默认视图：脱敏思考不渲染 "∴ 思考" 摘要行（对齐基准默认 return null），高度不增。</summary>

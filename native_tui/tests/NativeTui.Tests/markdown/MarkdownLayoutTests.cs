@@ -160,8 +160,10 @@ public sealed class MarkdownLayoutTests
     }
 
     [Fact]
-    public void Layout_TableRendersPipeRowsWithSeparator()
+    public void Layout_TableRendersBoxBorders()
     {
+        // TASK107 — 表格改 box 边框（对齐基准 MarkdownTable.tsx renderBorderLine：
+        // ┌─┬─┐ / │ │ / ├─┼─┤ / 行间 ├─┼─┤ / └─┴─┘），不再把 GFM 源码的 "| --- |" 直接上屏。
         // 1 行数据（a | bbbbbbb）；列宽 = max(显示宽, 3)：col0 = max("Name"=4, "a"=1) = 4；col1 = max("Value"=5, "bbbbbbb"=7) = 7
         // 表头恒居中（TASK069-M4 — 基准 Headers always centered），数据列无标记 = 左对齐
         var doc = new MarkdownDocument([new MarkdownTable(
@@ -172,9 +174,11 @@ public sealed class MarkdownLayoutTests
 
         Assert.Equal(
         [
-            "| Name |  Value  |",
-            "|------|---------|",
-            "| a    | bbbbbbb |",
+            "┌──────┬─────────┐",
+            "│ Name │  Value  │",
+            "├──────┼─────────┤",
+            "│ a    │ bbbbbbb │",
+            "└──────┴─────────┘",
         ], lines.Select(PlainText));
     }
 
@@ -191,9 +195,35 @@ public sealed class MarkdownLayoutTests
 
         Assert.Equal(
         [
-            "|  L  |  C  |  R  |",
-            "|-----|-----|-----|",
-            "| x   |  y  |   z |",
+            "┌─────┬─────┬─────┐",
+            "│  L  │  C  │  R  │",
+            "├─────┼─────┼─────┤",
+            "│ x   │  y  │   z │",
+            "└─────┴─────┴─────┘",
+        ], lines.Select(PlainText));
+    }
+
+    [Fact]
+    public void Layout_TableMultipleRows_SeparatesRowsWithMiddleBorder()
+    {
+        var doc = new MarkdownDocument([new MarkdownTable(
+            [Cell(Seg("k")), Cell(Seg("v"))],
+            [
+                [Cell(Seg("a")), Cell(Seg("1"))],
+                [Cell(Seg("b")), Cell(Seg("2"))],
+            ])]);
+
+        var lines = MarkdownLayout.Layout(doc, width: 80);
+
+        Assert.Equal(
+        [
+            "┌─────┬─────┐",
+            "│  k  │  v  │",
+            "├─────┼─────┤",
+            "│ a   │ 1   │",
+            "├─────┼─────┤",
+            "│ b   │ 2   │",
+            "└─────┴─────┘",
         ], lines.Select(PlainText));
     }
 

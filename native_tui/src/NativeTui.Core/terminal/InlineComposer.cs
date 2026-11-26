@@ -49,9 +49,20 @@ public sealed class InlineComposer
             cursor = new CursorPos(0, cursor.Row);
             RenderSlice(builder, next, 0, next.Rows, ref cursor);
         }
-        else if (prev.Cols != next.Cols
-            || HasScrollbackChange(prev, next, Math.Max(0, prev.Rows - viewportRows))
-            || IsShrinkBeyondViewport(prev, next, viewportRows))
+        else if (prev.Cols != next.Cols)
+        {
+            FullReset(builder, next, ref cursor);
+        }
+        else if (IsShrinkBeyondViewport(prev, next, viewportRows))
+        {
+            // TASK109 — 帧高收缩到视口内（inline 浏览态进入、消息收缩）：只清视口后整帧重画，
+            // **不清 scrollback**。原路径走 FullReset 会把用户终端历史（EraseSavedLines）一并抹掉，
+            // 而收缩本身不破坏历史 —— 只是被清首行不可达，重锚定到视口顶即可。
+            // 必须先于 HasScrollbackChange 判定：重锚定会整帧重画，scrollback 区的差异无关紧要，
+            // 否则"窗口顶部行与原全量帧不同"会把这里误判成不可达改写而回退 fullReset。
+            RepaintViewport(builder, next, viewportRows, ref cursor);
+        }
+        else if (HasScrollbackChange(prev, next, ScrollbackRows(prev.Rows, viewportRows)))
         {
             FullReset(builder, next, ref cursor);
         }
@@ -80,6 +91,16 @@ public sealed class InlineComposer
         nextCursor = frameEndCursor;
         return builder.ToString();
     }
+
+    /// <summary>
+    /// 帧占用的物理行中落进 scrollback 的行数 —— 帧占 <paramref name="frameRows"/> + 1 物理行：
+    /// 每行收尾的 CRLF 会多产出一行空行承载光标（<see cref="RenderSlice"/> 语义），
+    /// 故恰好填满视口时（frameRows == viewportRows）顶行已被这条尾随换行顶进 scrollback。
+    /// 旧式 <c>frameRows - viewportRows</c> 少算这一行，会让"顶行不可达"的收缩/改写漏判 →
+    /// 相对 CUU 被终端钳制在视口顶，写错行 → 残影。
+    /// </summary>
+    private static int ScrollbackRows(int frameRows, int viewportRows) =>
+        Math.Max(0, frameRows + 1 - viewportRows);
 
     /// <summary>变更是否落在 scrollback 区（行 y &lt; scrollbackRows 且有 cell 差）— 不可达必须 fullReset。</summary>
     private static bool HasScrollbackChange(Screen prev, Screen next, int scrollbackRows)
@@ -110,11 +131,12 @@ public sealed class InlineComposer
         return union;
     }
 
-    /// <summary>收缩清除是否超出视口可达范围（被清首行落入 scrollback 区 — CUU 被终端钳制在视口顶，
+    /// <summary>收缩清除是否越界（被清首行已落进 scrollback 区 — CUU 被终端钳制在视口顶，
     /// 从视口顶清行会错擦可见区并引发多余滚屏，后续帧物理失同步）→ 必须 fullReset
-    /// （对齐基准 log-update.ts:259-271 shrink 守卫：linesToClear &gt; viewport.height → fullReset）。</summary>
+    /// （对齐基准 log-update.ts:259-271 shrink 守卫：linesToClear &gt; viewport.height → fullReset）。
+    /// 可达下界是 scrollback 深度（含尾随空行 — 见 <see cref="ScrollbackRows"/>）。</summary>
     private static bool IsShrinkBeyondViewport(Screen prev, Screen next, int viewportRows) =>
-        next.Rows < prev.Rows && prev.Rows - next.Rows > viewportRows;
+        next.Rows < prev.Rows && next.Rows < ScrollbackRows(prev.Rows, viewportRows);
 
     /// <summary>fullReset：2J+3J+光标归位 绝对锚定（对齐基准 clearTerminal.ts:59-69 — 终端
     /// resize 时 conhost reflow 重排缓冲区，物理光标落点由 reflow 决定，相对 CUU 从旧内容坐标
@@ -124,6 +146,27 @@ public sealed class InlineComposer
     {
         builder.Append(Csi.EraseScreen());
         builder.Append(Csi.EraseSavedLines());
+        builder.Append(Csi.CursorPosition(1, 1));
+        cursor = new CursorPos(0, 0);
+        RenderSlice(builder, next, 0, next.Rows, ref cursor);
+    }
+
+    /// <summary>
+    /// 视口重画（TASK109）：清视口（ED 2 — 保留 scrollback）+ 光标归位 + 从视口顶整帧重画。
+    /// 用于帧高收缩到视口内的场景（inline 浏览态进入）：被清的行已在 scrollback 不可达，
+    /// 相对 CUU 会被终端钳制在视口顶，故必须重锚定；但历史本身无需丢弃 —— 与
+    /// <see cref="FullReset"/> 的差别就是不发 ED 3。
+    /// 帧高 ≥ 视口时不能用本路径：整帧重画的尾随 CRLF 会在视口底滚屏，首行被顶掉。
+    /// </summary>
+    private void RepaintViewport(StringBuilder builder, Screen next, int viewportRows, ref CursorPos cursor)
+    {
+        if (next.Rows >= viewportRows)
+        {
+            FullReset(builder, next, ref cursor);
+            return;
+        }
+
+        builder.Append(Csi.EraseScreen());
         builder.Append(Csi.CursorPosition(1, 1));
         cursor = new CursorPos(0, 0);
         RenderSlice(builder, next, 0, next.Rows, ref cursor);

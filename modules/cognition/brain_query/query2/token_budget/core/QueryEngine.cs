@@ -393,15 +393,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                             gateStep.IsAppeal, gateStep.Fuse?.ForcedChoice.ToValue() ?? "-");
                     }
 
-                    context.PublishOutput(new QueryStreamChunk {
-                        Type = AgentStreamChunkType.ToolCallEnd,
-                        ToolName = toolCall.ToolName,
-                        ToolCallId = toolCall.ToolCallId,
-                        ToolResult = toolResult,
-                        ToolResultText = ExtractToolResultText(toolResult),
-                        IsToolError = toolResult.IsError,
-                        ToolCallNumber = callNumber
-                    });
+                    context.PublishOutput(BuildToolCallEndChunk(toolCall.ToolName, toolCall.ToolCallId, toolResult, callNumber));
 
                     // 将工具结果添加到对话历史（assistant 文本与工具调用同轮保留，对齐 chat 循环）
                     await AddToolResultToHistory(context, toolCall, toolResult, iterationResult.Content).ConfigureAwait(false);
@@ -956,6 +948,22 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             };
         }
     }
+
+    /// <summary>
+    /// 工具调用结束事件构造（TASK108 Q7）— 结构化补丁必须随事件下发：
+    /// 此前内联构造漏了 <see cref="ToolResult.StructuredPatch"/>，Edit/Write 的 diff 预览在 TUI 永远为空
+    /// （FileToolHandlers 填了 patch，但事件不带，下游 <c>ProjectPatch</c> 全链路拿不到）。
+    /// </summary>
+    internal static QueryStreamChunk BuildToolCallEndChunk(string toolName, string? toolCallId, ToolResult toolResult, int callNumber) => new() {
+        Type = AgentStreamChunkType.ToolCallEnd,
+        ToolName = toolName,
+        ToolCallId = toolCallId,
+        ToolResult = toolResult,
+        ToolResultText = ExtractToolResultText(toolResult),
+        IsToolError = toolResult.IsError,
+        StructuredPatch = toolResult.StructuredPatch,
+        ToolCallNumber = callNumber,
+    };
 
     /// <summary>
     /// 从 ToolResult 提取纯文本结果 — 错误结果加 "Error: " 前缀，跳过图片等多模态内容

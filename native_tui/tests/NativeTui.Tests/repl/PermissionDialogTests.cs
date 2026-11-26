@@ -146,12 +146,10 @@ public sealed class PermissionDialogTests
 
         var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        // row4 = "   Bash(run tests)"：3 空格 + bold Bash + 默认 (run tests)
+        // TASK107 — row4 = "   Bash"（bold 工具名，不再把 description 塞进括号；描述独占 row5）
         Assert.Equal(new Rune('B'), screen[4, 3].Value);
         Assert.Equal(bold, screen[4, 3].StyleId);
-        Assert.Equal(new Rune('('), screen[4, 7].Value);
-        Assert.Equal(0, screen[4, 7].StyleId);
-        Assert.Equal("   Bash(run tests)", RowText.Of(screen, 4, 0, 18));
+        Assert.Equal("   Bash", RowText.Of(screen, 4, 0, 7));
 
         // row5 = "   run tests" dim
         Assert.Equal(new Rune('r'), screen[5, 3].Value);

@@ -38,7 +38,44 @@ public static class TerminalCapabilities
         "VTE_VERSION",
         "ConEmuANSI",
         "ConEmuPID",
+        "CI",
     ];
+
+    /// <summary>
+    /// 当前进程环境的 Unicode 字形能力（每会话判定一次 — 宿主启动置 <see cref="Figures.AsciiFallback"/>）：
+    /// env 探测 OR Win32 宿主类名探测（Win10 默认终端=WT 时直接路径启动不注入 WT_SESSION — 与 OSC 8 同兜底）。
+    /// </summary>
+    /// <returns>支持 true（保留 ❯ 等 Unicode 字形）；不支持 false（降级为 ASCII 等价字形）。</returns>
+    public static bool IsUnicodeSupported() =>
+        IsUnicodeSupported(EnvironmentSnapshot(), OperatingSystem.IsWindows())
+        || TerminalHostDetector.IsWindowsTerminalHosting();
+
+    /// <summary>
+    /// Unicode 字形能力探测纯函数（env + 平台注入可测，键大小写不敏感）— 判定序逐条对齐基准
+    /// npm figures 库 isUnicodeSupported()：① 非 Windows → TERM != "linux"（Linux 内核控制台无完整字形）；
+    /// ② Windows → WT_SESSION 非空（Windows Terminal）/ TERM_PROGRAM ∈ {vscode, vscode-insiders} /
+    /// TERM = xterm-256color / CI 非空 之任一 → true；③ 其余 Windows legacy console（conhost）→ false（降级 —
+    /// 缺字形会渲染成空心方块）。降级映射见 <see cref="Figures.PointerFor"/>。
+    /// </summary>
+    /// <param name="env">环境变量快照（键→值，值 null 视为未设置）。</param>
+    /// <param name="isWindows">是否 Windows（注入可测 — 免跨平台分支不可覆盖）。</param>
+    /// <returns>是否支持 Unicode 字形。</returns>
+    public static bool IsUnicodeSupported(IReadOnlyDictionary<string, string?> env, bool isWindows)
+    {
+        var vars = Normalize(env);
+
+        if (!isWindows)
+        {
+            return vars.GetValueOrDefault("TERM") != "linux";
+        }
+
+        var termProgram = vars.GetValueOrDefault("TERM_PROGRAM");
+        return IsSet(vars, "WT_SESSION")
+            || termProgram is "vscode" or "vscode-insiders"
+            || vars.GetValueOrDefault("TERM") == "xterm-256color"
+            || IsSet(vars, "CI");
+    }
+
 
     /// <summary>当前进程环境的 DEC 2026 支持探测（每会话一次 — 构造 FrameComposer 时消费）。</summary>
     /// <returns>支持 true（帧输出 BSU/ESU 原子包裹）；不支持 false（裸差分直出）。</returns>

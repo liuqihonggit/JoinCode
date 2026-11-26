@@ -84,6 +84,25 @@ public sealed class MarkdigProjectorTests
     }
 
     [Fact]
+    public void Project_QuoteSoftBreak_KeepsNewlineSegment()
+    {
+        // TASK107 — 引用块两行在 Markdig 里是一个 paragraph + LineBreakInline；
+        // 旧实现丢弃换行 → 布局层拼成一行。现在投影成 "\n" 段，布局层强制断行。
+        var quote = Assert.IsType<MarkdownQuote>(FirstBlock("> 第一行\n> 第二行"));
+
+        var paragraph = Assert.IsType<MarkdownParagraph>(Assert.Single(quote.Children));
+        Assert.Equal("第一行\n第二行", string.Concat(paragraph.Segments.Select(segment => segment.Text)));
+    }
+
+    [Fact]
+    public void Project_ParagraphSoftBreak_KeepsNewlineSegment()
+    {
+        var segments = InlineOf(FirstBlock("第一行\n第二行"));
+
+        Assert.Equal("第一行\n第二行", string.Concat(segments.Select(segment => segment.Text)));
+    }
+
+    [Fact]
     public void Project_UnorderedListItems()
     {
         var list = Assert.IsType<MarkdownList>(FirstBlock("- first\n- second"));

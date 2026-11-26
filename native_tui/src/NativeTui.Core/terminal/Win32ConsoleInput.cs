@@ -77,15 +77,21 @@ public sealed class Win32ConsoleInput : IDisposable
         const uint rightDown = 0x0004;
         const uint doubleClick = 0x0002;
         const uint mouseWheeled = 0x0008;
+        const uint mouseHwheeled = 0x0004;
         const uint shiftPressed = 0x0010;
         const uint ctrlPressed = 0x000C; // LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED
         const uint altPressed = 0x0003;  // LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED
 
         var kind = record.EventFlags switch
         {
-            var f when (f & mouseWheeled) != 0 => (record.ButtonState & 0xFF000000) != 0
+            // TASK109 P19 — 滚轮方向 = dwButtonState 高 16 位**有符号** delta（+120 上滚 / -120 下滚）；
+            // 修复前用 (ButtonState & 0xFF000000) 判方向，正负完全颠倒且漏判无高位的情况
+            var f when (f & mouseWheeled) != 0 => (short)(record.ButtonState >> 16) > 0
                 ? NativeTui.Core.Repl.MouseKind.WheelUp
                 : NativeTui.Core.Repl.MouseKind.WheelDown,
+            var f when (f & mouseHwheeled) != 0 => (short)(record.ButtonState >> 16) > 0
+                ? NativeTui.Core.Repl.MouseKind.WheelRight
+                : NativeTui.Core.Repl.MouseKind.WheelLeft,
             var f when (f & doubleClick) != 0 => NativeTui.Core.Repl.MouseKind.Press,
             _ => (record.ButtonState & (leftDown | rightDown)) != 0
                 ? NativeTui.Core.Repl.MouseKind.Press

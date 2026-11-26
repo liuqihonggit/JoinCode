@@ -65,6 +65,7 @@
   - `--pages 1` → 126 `Policy.Deny`；`--bogus x` → 126 `Policy.Parameter`。
   - 直接 `jcc-tool-file.exe read` → 126 `Auth.Missing`；无策略组 `jcc-tool-search.exe glob` → 0（旧行为保持）。
 - [ ] 真机：Explore / Plan / Bypass / host ask 四条路径（需要真实子代理会话，留待阶段 4 联调）。
+  - 已补链路级验证：`ShellCliAuthorizationEnvironmentTests.GetEnvironmentOverrides_InjectedScope_RestrictsBrokerToolDomain` 用真实 actuator 生成环境 → 真实 broker 管道判定，`TodoWrite` 放行、`TodoRead` 返回 `Agent.AllowedTools`；LLM 驱动的完整代理会话仍待联调。
 
 ### 阶段 2：全量 local / delegate
 

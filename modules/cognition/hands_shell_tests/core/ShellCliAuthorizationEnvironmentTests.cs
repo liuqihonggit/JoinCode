@@ -60,6 +60,29 @@ public sealed class ShellCliAuthorizationEnvironmentTests {
         firstToken.Should().NotBe(secondToken);
     }
 
+    [Fact]
+    public async Task GetEnvironmentOverrides_InjectedScope_RestrictsBrokerToolDomain() {
+        var context = CreateContext("agent-tool-domain", ["todo_write"]);
+        await using var actuator = new CmdSystemActuator(new PhysicalFileSystem());
+
+        using (context.EnterScope()) {
+            var env = await actuator.GetEnvironmentOverridesAsync("echo hi");
+            var pipe = env[CliAuthorizationEnvironment.PipeVariable];
+            var token = env[CliAuthorizationEnvironment.TokenVariable];
+
+            using var processEnv = EnvVarScope
+                .Set(CliAuthorizationEnvironment.PipeVariable, pipe)
+                .Add(CliAuthorizationEnvironment.TokenVariable, token);
+
+            var allowed = await CliHostToolAuthorization.AuthorizeAsync("TodoWrite", CancellationToken.None);
+            var denied = await CliHostToolAuthorization.AuthorizeAsync("TodoRead", CancellationToken.None);
+
+            allowed.Allowed.Should().BeTrue(allowed.Reason);
+            denied.Allowed.Should().BeFalse();
+            denied.Layer.Should().Be("Agent.AllowedTools");
+        }
+    }
+
     private static SubAgentContext CreateContext(string agentId, string[] allowedTools) => new() {
         AgentId = agentId,
         Role = AgentRole.Executor,

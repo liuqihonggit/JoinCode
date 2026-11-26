@@ -32,6 +32,8 @@
 
 ADR 0157 已明确记录 local bash/powershell 绕过宿主 Shell 中间件栈的风险（`0157-tool-exposure-data-driven-node-cli.md:265`）。本 ADR 不掩盖该边界，而是为 CLI 工具调用增加独立于工具实现进程的集中授权面。
 
+**launcher 守卫的已知边界**：守卫按 `JCC_CLI_AUTH_PIPE` 判定「当前位于 agent shell」。拥有任意 shell 的代理可以显式清除该环境变量后再启动 jcc，从而拿到一个新的手工会话；这属于「agent 可执行任意命令」的固有权能，无法在 jcc 进程内彻底关闭。守卫拦截的是正常继承（子进程自动携带凭据）与误用，不是对抗已具备任意命令执行且有意规避的代理；真正的强制隔离需要 OS 级沙箱/容器，超出本 ADR 范围。
+
 ## 目标与非目标
 
 ### 目标

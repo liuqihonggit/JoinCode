@@ -35,9 +35,10 @@
 
 ### 阶段 0：批准 ADR
 
-- [ ] 用户批准集中 broker、direct exe 需执行授权、硬权限不被 Bypass 推翻、参数分析器覆盖边界。
+- [x] 用户批准集中 broker、direct exe 需执行授权、硬权限不被 Bypass 推翻、参数分析器覆盖边界。
+  - 2026-11-26 用户指令「开始任务」并授权自主推进（不逐项检查）。
 - [ ] ADR 状态从 proposed 转为 accepted。
-- [ ] 本任务状态从“等待批准”转为“实施中”。
+- [x] 本任务状态从“等待批准”转为“实施中”。
 
 ### 阶段 1：file 组垂直切片
 
@@ -124,9 +125,12 @@
   - broker `WriteAudit`：`JCC_CLI_AUDIT_LOG` 指定路径时逐判定追加 JSONL（旁路失败不改判定）。
   - 字段：timestamp、agent/session、permissionMode、group、tool、executable、policy id/version、参数名、参数 SHA-256 摘要、allowed、layer、reason；策略哈希待信任目录，grant redeem 在会话 token 模型下不适用。
   - 单测断言放行/拒绝两条记录与摘要差异；真机 probe 落 12 条（host 路径 PolicyId 为空、github 路径 `cli.github`）。
-- [ ] 跨域契约变更后运行 `Build-AllDomains.ps1` 全仓编译。
-- [ ] main agent 运行受影响单元测试、分析器 fixture、真实双端进程测试。
-- [ ] ADR 补实现证据与手动 exe 验收记录。
+- [x] 跨域契约变更后运行 `Build-AllDomains.ps1` 全仓编译。
+  - launcher 守卫落地后全仓 16 域 + native_tui/native_gui 一次通过（solution/native_tui/native_gui 全 True）。
+- [x] main agent 运行受影响单元测试、分析器 fixture、真实双端进程测试。
+  - Tools 139/139、Analyzer 13/13 绿；真机 probe 覆盖 host/delegate/slash/tree/launcher；斜杠对账门禁 99 命令/101 参数通过。
+- [x] ADR 补实现证据与手动 exe 验收记录。
+  - ADR 0168 验收段逐条附证据/决策；本任务四列验收表与阶段条目记录真机 probe、审计 JSONL、斜杠对账与全仓编译结果。
 
 ## 四列验收表
 

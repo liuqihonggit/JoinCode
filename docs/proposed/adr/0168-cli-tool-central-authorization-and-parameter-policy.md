@@ -386,6 +386,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] 删除任一参数权限条目，所有者项目编译红灯；补回后绿灯。
 - [ ] 增加未知参数/工具/能力，分析器编译红灯。
 - [ ] 短别名、长别名、否定开关、环境变量参数均通过同一 canonical 权限。
+  - `[CliOption]`（jcc 启动参数）覆盖暂缓：agent shell 嵌套启动已被 `Host.Launcher` 整体拒绝，启动参数不再是子代理绕过面；未来放开嵌套时再补 launcher 策略与分析器。
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
   - 运行时已拒绝未登记 slash 参数（`Policy.Parameter`）且参数必须是 JSON 对象/key=value；`Verify-SlashCommandPolicies.py` 已做源码声明 ↔ help/node ↔ slash.yaml 双向对账（99 命令 / 101 参数，CI 接入），无参命令显式 `parameters: []`。
 - [ ] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
@@ -395,12 +396,15 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
   - delegate exe 已覆盖：`jcc-gh` 直跑 126 `Auth.Missing`，`-h`/`--version` 不受限；组 exe 直跑行为不变。
 - [ ] 无效/伪造凭据、越域工具、未登记参数、deny 参数、损坏策略均 fail-closed；参数篡改经完整策略判定而非放行。
 - [ ] （阶段 2 加固）一次性 grant：参数摘要、exe 身份、策略哈希、nonce 与过期绑定，重放 fail-closed。
+  - 当前会话令牌模型（每次调用重新判策略 + 审计）为已记录偏差；launcher 守卫关闭了「子代理另起 jcc 会话」的绕道，一次性 grant 留作后续加固。
 - [ ] host ask 由父宿主 UI/队列处理，不因子进程丢失上下文而自动放行。
+  - 当前无确认 UI 的 CLI 入口遇到 `effect: ask` 统一返回 `Policy.Ask` 拒绝并提示回宿主交互会话，不会静默放行（见 `CliAuthorizationScope.EvaluateEffect`）。
 - [ ] 首轮组目录、tree/find/help 与执行允许集合一致。
   - tree/find/help 已真机一致；首轮组目录已按 `tool_ids` 裁剪并有单测（Prompts 232/232），真实子代理会话验收待阶段 4 联调。
 - [ ] 真实双端进程测试覆盖主代理、只读子代理、写子代理、delegate、host。
   - host 段已覆盖：受限 scope 下 `jcc mcp_call` 与 `jcc tool call <组> <host工具>` 均 `Agent.AllowedTools` 拒绝；放行 scope 两条路径正常执行；伪造凭据 `Auth.Transport` 拒绝。真实子代理会话待阶段 4。
-- [ ] 跨域契约变更后 `Build-AllDomains.ps1` 全仓编译通过。
+- [x] 跨域契约变更后 `Build-AllDomains.ps1` 全仓编译通过。
+  - launcher 守卫（Tools 常量 + apps.cli 消费）改动后全仓 16 域 + native_tui/native_gui 一次通过。
 
 ## 后果
 

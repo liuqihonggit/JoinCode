@@ -96,7 +96,9 @@
   - launcher 绕过已封：agent shell（存在 `JCC_CLI_AUTH_PIPE`）里 TUI / `-p` 启动返回 126 `Host.Launcher`；`JCC_ALLOW_NESTED_LAUNCH=1` 显式放开；子命令路由不受影响。
   - still 待办：base 工具仍走宿主权限管线（未单独建策略），jcc 启动参数白名单未做。
 - [ ] `[CliOption]` 的长短别名、否定形式、环境变量映射全部覆盖。
+  - 暂缓（有意决策）：嵌套启动已被 `Host.Launcher` 整体拒绝，jcc 启动参数不再是子代理可利用的绕过面；只有未来放开 `JCC_ALLOW_NESTED_LAUNCH` 时才需要 `launcher.yaml` + 启动参数分析器。
 - [ ] MCP 方法参数、必填项、默认值、枚举与别名完成对账。
+  - CLI 执行侧参数由 local handler 实际读取，已由 JCC13001/13002 双向对账；MCP schema 的必填/默认/枚举属于宿主工具契约，由 MCP schema 生成侧负责，不进入 CLI 策略面。
 
 ### 阶段 4：subagent 工具域与发现同源
 
@@ -110,7 +112,8 @@
 - [x] `jcc tool tree` / `find` / `help` 与执行门禁消费同一有效域。
   - broker 新增 `ScopeSnapshot` 只读请求；`CliHostToolAuthorization.GetScopeAsync` + `CliToolScopeFilter` 按 AllowedTools/DeniedTools 裁剪节点与工具，空组自动消失。
   - 真机：受限 scope `read/edit` → tree 仅 file 组 2 个工具、git help 拒绝；`gh_auth_status` scope → github 组仅 1 个工具；无会话 → 13 组 635 个工具全量。
-- [ ] 禁止参数从 agent 可见帮助中隐藏；ask 参数保留可见性并标注需确认。
+- [x] 禁止参数从 agent 可见帮助中隐藏；ask 参数保留可见性并标注需确认。
+  - `jcc tool help` 只按工具域裁剪整组，不删参数；组 exe `-h` 与 slash 帮助是静态全量参数表。`effect: ask` 在无确认 UI 的 CLI 入口统一转 `Policy.Ask` 拒绝并提示回宿主交互会话重试（当前策略无 ask 条目）。
 
 ### 阶段 5：全仓收敛与验收
 

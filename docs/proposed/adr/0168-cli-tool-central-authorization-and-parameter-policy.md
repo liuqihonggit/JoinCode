@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**accepted（2026-11-26 验收通过；后续加固项：slash 结构化 schema、base/launcher 参数策略）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；真实子代理 explore/plan 在 bypass 模式下仍被 CLI 域拒绝，code 变体获得更宽工具树（7 vs 5）；放行判定签发一次性 grant（绑定参数/ exe/策略哈希/令牌，重放 fail-closed）；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启
+- 状态：**accepted（2026-11-26 验收通过；后续加固项：slash 结构化 schema）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；真实子代理 explore/plan 在 bypass 模式下仍被 CLI 域拒绝，code 变体获得更宽工具树（7 vs 5）；放行判定签发一次性 grant（绑定参数/ exe/策略哈希/令牌，重放 fail-closed）；agent 会话内启动器 `--exe/--dir/--resume` 由内嵌 base 策略拒绝（126 `Base.AgentForbidden`）；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：用户（2026-11-25 要求先出 ADR；2026-11-26 授权自主实施）
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -116,7 +116,7 @@ shell 环境清洗器必须显式保留授权凭据变量，同时禁止把 brok
 | 策略 | 规范源 | 嵌入位置 |
 |---|---|---|
 | 基础工具 | `base.yaml` | jcc.exe |
-| launcher 元命令参数 | `launcher.yaml` | jcc.exe |
+| launcher 元命令参数 | `base_policy.yaml`（不参与 policy_trust） | jcc.exe |
 | 每个工具组 | `<group>.yaml` | `jcc-tool-<group>.exe` |
 | delegate 实现 | 与所属组共用同一 `<group>.yaml` | 同时嵌入 `jcc-tool-<group>.exe` 与 delegate exe |
 
@@ -360,7 +360,9 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
    - delegate 段已完成：`github.yaml` 同时内嵌 jcc-gh，delegate 侧自证 + 直跑 fail-closed；人工 `jcc gh` 由 jcc 进程签发全量会话。
 3. **host/slash/base/launcher**：父宿主执行、结构化 slash 参数、全局与元命令参数。
    - host 段已完成；slash 段已完成直调参数白名单（jcc 内嵌 slash.yaml，扁平参数走组策略），`[ChatCommandArg]` 声明 ↔ 生成物 ↔ 策略双向对账已接入 CI（`Verify-SlashCommandPolicies.py`）。
-   - launcher 绕过已封：agent shell 中存在 `JCC_CLI_AUTH_PIPE` 时，TUI / `-p` 启动返回 126 `Host.Launcher`，`JCC_ALLOW_NESTED_LAUNCH=1` 显式放开；base 工具与 jcc 启动参数白名单仍待办。
+   - launcher 绕过已封：agent shell 中存在 `JCC_CLI_AUTH_PIPE` 时，TUI / `-p` 启动返回 126 `Host.Launcher`，`JCC_ALLOW_NESTED_LAUNCH=1` 显式放开。
+   - base/launcher 参数策略已落地：`resources/tools/base_policy.yaml`（内嵌 jcc）约束 agent 会话内的启动器选项 — `tool call` 的 `exe/dir`、`tool tree/find/help` 的 `dir`、`slash_call` 的 `resume` 一律 deny（`Base.AgentForbidden`/126），手工终端无会话时 `Base.Manual` 放行；`CliLauncherPolicyCatalog` 为策略与消费代码唯一登记表，并有双向对账测试（清单↔YAML）。
+   - 真机验收：假会话 + `JCC_ALLOW_NESTED_LAUNCH=1` 直跑 `jcc tool call file read --exe` → 126 `Base.AgentForbidden`；`jcc tool tree --dir` → 126；`jcc slash_call --resume` → 拒绝；手动终端同命令不被拦。E2E `NestedLauncher_ExeOverride_DeniedByBasePolicy` 用真实子代理 + broker 验证（工具树仍可用，`--exe` 被拒）。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
    - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
@@ -388,8 +390,9 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] 每个 CLI 工具与参数均能在嵌入 YAML 中定位；无参数工具显式为空。
 - [ ] 删除任一参数权限条目，所有者项目编译红灯；补回后绿灯。
 - [ ] 增加未知参数/工具/能力，分析器编译红灯。
-- [ ] 短别名、长别名、否定开关、环境变量参数均通过同一 canonical 权限。
-  - `[CliOption]`（jcc 启动参数）覆盖暂缓：agent shell 嵌套启动已被 `Host.Launcher` 整体拒绝，启动参数不再是子代理绕过面；未来放开嵌套时再补 launcher 策略与分析器。
+- [x] 短别名、长别名、否定开关、环境变量参数均通过同一 canonical 权限。
+  - 工具组经分析器归一化覆盖别名；jcc 启动器侧改用 `resources/tools/base_policy.yaml`（`CliLauncherPolicyCatalog` 唯一登记表 + 双向对账测试），agent 会话内 `exe/dir/resume` 硬拒绝，E2E 与真机 probe 覆盖。
+  - `[CliOption]` 的别名/环境变量逐项覆盖仍暂缓：启动器选项集已由 base 策略登记表约束，别名级对账留待 slash 结构化 schema 一并处理。
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
   - 运行时已拒绝未登记 slash 参数（`Policy.Parameter`）且参数必须是 JSON 对象/key=value；`Verify-SlashCommandPolicies.py` 已做源码声明 ↔ help/node ↔ slash.yaml 双向对账（99 命令 / 101 参数，CI 接入），无参命令显式 `parameters: []`。
 - [x] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。

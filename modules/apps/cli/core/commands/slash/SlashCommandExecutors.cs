@@ -22,6 +22,20 @@ internal static class SlashCallExecutor {
 
         cmdName = cmdName.TrimStart('/');
 
+        // --resume 会让斜杠命令跨会话执行；agent 会话内必须先过 base 策略（手工终端 Base.Manual 放行）。
+        if (FlatSubCommandRouter.GetOptionValue(args, "--resume") is not null
+            || FlatSubCommandRouter.GetOptionValue(args, "-r") is not null) {
+            var resumeDecision = CliBaseToolAuthorization.Authorize(
+                CliLauncherPolicyCatalog.SlashCall, CliLauncherPolicyCatalog.Resume);
+            if (!resumeDecision.Allowed) {
+                TerminalHelper.WriteError("[CLI-AUTH] denied");
+                TerminalHelper.WriteError($"launcher: jcc slash_call --resume");
+                TerminalHelper.WriteError($"layer: {resumeDecision.Layer}");
+                TerminalHelper.WriteError($"reason: {resumeDecision.Reason}");
+                return 1;
+            }
+        }
+
         var argsJson = await ResolveArgsJsonAsync(args, ct).ConfigureAwait(false);
         if (argsJson is null)
             return 1;

@@ -167,25 +167,41 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
     }
 
     private async Task AcceptLoopAsync() {
-        while (!_cts.IsCancellationRequested) {
-            try {
-                await using var server = new NamedPipeServerStream(
-                    _pipeName,
-                    PipeDirection.InOut,
-                    maxNumberOfServerInstances: 1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-                await server.WaitForConnectionAsync(_cts.Token).ConfigureAwait(false);
-                await HandleConnectionAsync(server, _cts.Token).ConfigureAwait(false);
-            } catch (OperationCanceledException) {
-                return;
-            } catch (IOException) {
-                // 管道被调用方提前关闭：下一条连接继续服务，不能让 broker 整体退出。
-            } catch (UnauthorizedAccessException) {
-                // CurrentUserOnly 拒绝其他用户：不泄露内部细节，继续等待合法连接。
+        NamedPipeServerStream? pending = null;
+        try {
+            while (!_cts.IsCancellationRequested) {
+                try {
+                    pending ??= CreateServer();
+                    await pending.WaitForConnectionAsync(_cts.Token).ConfigureAwait(false);
+                    var current = pending;
+                    // 先预建下一条监听实例再处理当前连接：auto-redeem 会立即发起第二次连接，
+                    // 若等处理完才重建，存在「旧实例销毁、新实例未就绪」窗口 → Connection reset。
+                    pending = CreateServer();
+                    await HandleConnectionAsync(current, _cts.Token).ConfigureAwait(false);
+                    await current.DisposeAsync().ConfigureAwait(false);
+                } catch (OperationCanceledException) {
+                    return;
+                } catch (IOException) {
+                    // 管道被调用方提前关闭：销毁后重建下一条，不能让 broker 整体退出。
+                    if (pending is not null) {
+                        await pending.DisposeAsync().ConfigureAwait(false);
+                        pending = null;
+                    }
+                } catch (UnauthorizedAccessException) {
+                    // CurrentUserOnly 拒绝其他用户：不泄露内部细节，继续等待合法连接。
+                }
             }
+        } finally {
+            if (pending is not null) await pending.DisposeAsync().ConfigureAwait(false);
         }
     }
+
+    private NamedPipeServerStream CreateServer() => new(
+        _pipeName,
+        PipeDirection.InOut,
+        maxNumberOfServerInstances: NamedPipeServerStream.MaxAllowedServerInstances,
+        PipeTransmissionMode.Byte,
+        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
 
     private async Task HandleConnectionAsync(NamedPipeServerStream server, CancellationToken ct) {
         using var reader = new StreamReader(server, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false, leaveOpen: true);
@@ -708,7 +724,7 @@ internal static class CliToolAuthorizationClient {
     /// 解析承载内嵌策略的镜像：常规构建取同目录程序集 DLL；AOT 单文件回退到宿主 exe。
     /// <para>不使用 Assembly.Location —— 单文件发布下它恒为空且触发 IL3000。</para>
     /// </summary>
-    private static string? ResolveEntryImagePath() {
+    internal static string? ResolveEntryImagePath() {
         var assemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
         if (!string.IsNullOrWhiteSpace(assemblyName)) {
             var candidate = Path.Combine(AppContext.BaseDirectory, assemblyName + ".dll");
@@ -858,7 +874,13 @@ internal static class CliToolPolicyResourceReader {
     public static CliToolPolicyManifest LoadFromExecutable(string path, string? expectedExecutableName = null) =>
         LoadWithHashFromExecutable(path, expectedExecutableName).Manifest;
 
-    public static LoadedCliToolPolicy LoadWithHashFromExecutable(string path, string? expectedExecutableName = null) {
+    /// <param name="path">目标镜像路径。</param>
+    /// <param name="expectedExecutableName">期望的策略 executables 成员；为空则不校验。</param>
+    /// <param name="expectedPolicyId">期望的 policy_id；jcc 同时内嵌 slash/base 策略时必须指定。</param>
+    public static LoadedCliToolPolicy LoadWithHashFromExecutable(
+        string path,
+        string? expectedExecutableName = null,
+        string? expectedPolicyId = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         using var stream = File.OpenRead(path);
         using var peReader = new System.Reflection.PortableExecutable.PEReader(stream);
@@ -890,6 +912,10 @@ internal static class CliToolPolicyResourceReader {
             }
             var bytes = reader.ReadBytes(size);
             var policy = CliToolPolicyLoader.Parse(Encoding.UTF8.GetString(bytes), $"{path}!{name}");
+            if (expectedPolicyId is not null
+                && !string.Equals(policy.PolicyId, expectedPolicyId, StringComparison.Ordinal)) {
+                continue;
+            }
             var loaded = new LoadedCliToolPolicy(policy, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
             firstPolicy ??= loaded;
             if (string.IsNullOrWhiteSpace(expectedExecutableName)
@@ -902,6 +928,10 @@ internal static class CliToolPolicyResourceReader {
         if (firstPolicy is not null) {
             throw new InvalidOperationException(
                 $"可执行文件 '{path}' 的内嵌策略均不适用于 '{expectedExecutableName}'；检查 policy.yaml 的 executables 字段");
+        }
+        if (expectedPolicyId is not null) {
+            throw new InvalidOperationException(
+                $"可执行文件 '{path}' 未嵌入 policy_id='{expectedPolicyId}' 的策略资源");
         }
         throw new InvalidOperationException($"可执行文件 '{path}' 未嵌入 '*{PolicyResourceMarker}*.yaml' 权限策略");
     }

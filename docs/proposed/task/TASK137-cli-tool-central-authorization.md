@@ -111,7 +111,10 @@
 ### 阶段 5：全仓收敛与验收
 
 - [ ] 仓库门禁验证每个策略工具恰好由一个参数声明所有者分析器覆盖。
-- [ ] 审计包含 agent/session、exe、tool、规范化参数摘要、策略版本/哈希、拒绝层。
+- [x] 审计包含 agent/session、exe、tool、规范化参数摘要、策略版本/哈希、拒绝层。
+  - broker `WriteAudit`：`JCC_CLI_AUDIT_LOG` 指定路径时逐判定追加 JSONL（旁路失败不改判定）。
+  - 字段：timestamp、agent/session、permissionMode、group、tool、executable、policy id/version、参数名、参数 SHA-256 摘要、allowed、layer、reason；策略哈希待信任目录，grant redeem 在会话 token 模型下不适用。
+  - 单测断言放行/拒绝两条记录与摘要差异；真机 probe 落 12 条（host 路径 PolicyId 为空、github 路径 `cli.github`）。
 - [ ] 跨域契约变更后运行 `Build-AllDomains.ps1` 全仓编译。
 - [ ] main agent 运行受影响单元测试、分析器 fixture、真实双端进程测试。
 - [ ] ADR 补实现证据与手动 exe 验收记录。
@@ -132,7 +135,7 @@
 | Roslyn 参数对账分析器 | 13 个组 csproj | ✅ JCC13001/13002/13004/13008；13/13 测试 | ✅ 13 组编译零诊断；119/119 契约测试 |
 | subagent 有效工具域 | `ContextSetupMiddleware`、`SubAgentContext` | ✅ 交集 + 空交集哨兵；6/6 测试 | ❌ 真实子代理会话待阶段 4 |
 | 发现与执行同源 | `ToolsSection`、`CliToolCommand` tree/find/help、`CliToolScopeFilter` | ✅ `ScopeSnapshot` + 首轮组目录裁剪（`tool_ids`）；8 个过滤测试 + 3 个提示词测试 + broker 快照测试 | ✅ 受限 tree/help/find 真机裁剪，无会话全量；首轮提示词单测覆盖，真实子代理会话待阶段 4 联调 |
-| 权限审计与诱导错误 | broker、CLI stderr、JSONL 审计 | ⚠️ 诱导错误已完成（四要素）；JSONL 审计未开始 | ✅ 真机 stderr 含原因/层/正确写法 |
+| 权限审计与诱导错误 | broker `WriteAudit`（`JCC_CLI_AUDIT_LOG`）+ CLI stderr | ✅ JSONL 字段含 agent/session/参数名/摘要/策略版本/层；策略哈希归入信任目录 | ✅ 真机 12 条审计（host 与 github 路径）；单测断言放行/拒绝记录 |
 
 ## 非目标
 

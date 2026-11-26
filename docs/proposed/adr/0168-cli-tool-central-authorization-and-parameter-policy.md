@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host/slash_call 四入口已接入作用域判定，delegate 实现（jcc-gh）自证并 fail-closed；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；slash 参数结构化、base/launcher 与 one-time grant 待后续
+- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host/slash_call 四入口受作用域判定；首轮组目录与 tree/find/help 同源；JSONL 审计可选开启；slash 参数结构化、base/launcher、信任目录与 one-time grant 待后续
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -293,6 +293,9 @@ local handler 当前通过 `Required(o, "file_path")`、`GetInt(o, "offset")`、
 - 有效权限模式；
 - allow/ask/deny、触发层、规则 ID、grant 是否 redeem。
 
+实现说明：broker 在 `JCC_CLI_AUDIT_LOG` 指定路径逐判定追加 JSONL（旁路写失败不改变判定）；
+参数只记录名称与 SHA-256 摘要；策略哈希归入信任目录阶段，grant redeem 在会话 token 模型下不适用。
+
 拒绝错误必须满足：
 
 1. 为什么拒绝；
@@ -356,6 +359,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
    - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
+   - 审计段已完成：`JCC_CLI_AUDIT_LOG` JSONL + 真机 12 条；覆盖门禁与信任目录待办。
 
 每阶段独立编译、测试、提交；跨域契约变更执行 `Build-AllDomains.ps1`。
 

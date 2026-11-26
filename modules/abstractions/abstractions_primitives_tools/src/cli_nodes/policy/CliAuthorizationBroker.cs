@@ -10,6 +10,9 @@ public static class CliAuthorizationEnvironment {
 
     /// <summary>本次 shell/工具调用的随机会话令牌。</summary>
     public const string TokenVariable = "JCC_CLI_AUTH_TOKEN";
+
+    /// <summary>可选审计落盘路径（JSONL）；未设置时不写审计。审计失败不影响授权判定。</summary>
+    public const string AuditLogVariable = "JCC_CLI_AUDIT_LOG";
 }
 
 /// <summary>broker 签发给一次 shell/工具链的管道位置与令牌。</summary>
@@ -61,6 +64,55 @@ internal sealed record CliAuthorizationResponse {
 
     /// <summary>作用域拒绝工具（仅 <see cref="CliAuthorizationRequest.ScopeSnapshot"/> 填充）。</summary>
     public string[]? DeniedTools { get; init; }
+}
+
+/// <summary>
+/// CLI 授权审计条目 — 每次工具执行判定写一行 JSONL（ADR 0168 阶段 5）。
+/// <para>参数只存摘要，避免把文件内容 / token 等敏感值落盘。审计由
+/// <see cref="CliAuthorizationEnvironment.AuditLogVariable"/> 显式开启。</para>
+/// </summary>
+internal sealed record CliAuthorizationAuditEntry {
+    /// <summary>UTC 时间戳（ISO 8601）。</summary>
+    public required string Timestamp { get; init; }
+
+    /// <summary>来源 agent；token 无效时为空。</summary>
+    public string? AgentId { get; init; }
+
+    /// <summary>来源会话。</summary>
+    public string? SessionId { get; init; }
+
+    /// <summary>权限模式快照。</summary>
+    public string? PermissionMode { get; init; }
+
+    /// <summary>工具组 ID。</summary>
+    public required string GroupId { get; init; }
+
+    /// <summary>工具 ID。</summary>
+    public required string ToolId { get; init; }
+
+    /// <summary>执行镜像文件名。</summary>
+    public required string ExecutableName { get; init; }
+
+    /// <summary>命中的策略 ID；scope-only / 加载失败时为空。</summary>
+    public string? PolicyId { get; init; }
+
+    /// <summary>命中的策略版本。</summary>
+    public int? PolicyVersion { get; init; }
+
+    /// <summary>规范化参数摘要（SHA-256 十六进制）；无参数时为空。</summary>
+    public string? ArgumentDigest { get; init; }
+
+    /// <summary>参数名清单（不含值，避免敏感内容落盘）；无参数时为空。</summary>
+    public string[]? ParameterNames { get; init; }
+
+    /// <summary>是否放行。</summary>
+    public required bool Allowed { get; init; }
+
+    /// <summary>判定层。</summary>
+    public required string Layer { get; init; }
+
+    /// <summary>判定原因。</summary>
+    public required string Reason { get; init; }
 }
 
 /// <summary>
@@ -126,11 +178,15 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
                 response = ToResponse(CliAuthorizationDecision.Deny("Protocol", "授权请求为空；调用方必须发送单行 JSON。"));
             } else {
                 var request = JsonSerializer.Deserialize(line, CliNodeJsonContext.Default.CliAuthorizationRequest);
-                response = request is null
-                    ? ToResponse(CliAuthorizationDecision.Deny("Protocol", "授权请求 JSON 为空；检查调用方序列化 DTO。"))
-                    : request.ScopeSnapshot
-                        ? Snapshot(request)
-                        : ToResponse(Evaluate(request));
+                if (request is null) {
+                    response = ToResponse(CliAuthorizationDecision.Deny("Protocol", "授权请求 JSON 为空；检查调用方序列化 DTO。"));
+                } else if (request.ScopeSnapshot) {
+                    response = Snapshot(request);
+                } else {
+                    var evaluation = Evaluate(request);
+                    response = ToResponse(evaluation.Decision);
+                    WriteAudit(request, evaluation, response);
+                }
             }
         } catch (JsonException ex) {
             response = ToResponse(CliAuthorizationDecision.Deny(
@@ -163,16 +219,18 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
         };
     }
 
-    private CliAuthorizationDecision Evaluate(CliAuthorizationRequest request) {
+    private sealed record Evaluation(CliAuthorizationDecision Decision, CliToolPolicyManifest? Policy = null);
+
+    private Evaluation Evaluate(CliAuthorizationRequest request) {
         var scope = ResolveSession(request.Token);
         if (scope is null) {
-            return CliAuthorizationDecision.Deny(
+            return new Evaluation(CliAuthorizationDecision.Deny(
                 "Auth.Token",
-                "CLI 授权 token 无效或已过期；通过 jcc tool call 重新发起，不要手工拼接环境变量。");
+                "CLI 授权 token 无效或已过期；通过 jcc tool call 重新发起，不要手工拼接环境变量。"));
         }
 
         if (request.ScopeOnly) {
-            return CliToolPolicyEvaluator.EvaluateScopeOnly(scope, request.ToolId);
+            return new Evaluation(CliToolPolicyEvaluator.EvaluateScopeOnly(scope, request.ToolId));
         }
 
         CliToolPolicyManifest policy;
@@ -183,18 +241,59 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
                 : LoadAndCachePolicy(cacheKey, request.PolicyImagePath, request.ExecutableName);
         } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
                                          or InvalidOperationException or BadImageFormatException) {
-            return CliAuthorizationDecision.Deny(
+            return new Evaluation(CliAuthorizationDecision.Deny(
                 "Policy.Load",
-                $"无法读取目标 exe 的内嵌权限策略：{ex.Message}；重新编译工具组并检查 policy.yaml 是否嵌入。");
+                $"无法读取目标 exe 的内嵌权限策略：{ex.Message}；重新编译工具组并检查 policy.yaml 是否嵌入。"));
         }
 
-        return CliToolPolicyEvaluator.Evaluate(
+        var decision = CliToolPolicyEvaluator.Evaluate(
             policy,
             scope,
             request.GroupId,
             request.ExecutableName,
             request.ToolId,
             request.Arguments);
+        return new Evaluation(decision, policy);
+    }
+
+    /// <summary>写一行审计；未配置路径或写盘失败都不改变授权判定（审计是旁路，不是门禁）。</summary>
+    private void WriteAudit(CliAuthorizationRequest request, Evaluation evaluation, CliAuthorizationResponse response) {
+        var path = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.AuditLogVariable);
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        var scope = ResolveSession(request.Token);
+        var entry = new CliAuthorizationAuditEntry {
+            Timestamp = DateTimeOffset.UtcNow.ToString("O"),
+            AgentId = scope?.AgentId,
+            SessionId = scope?.SessionId,
+            PermissionMode = scope?.PermissionMode,
+            GroupId = request.GroupId,
+            ToolId = request.ToolId,
+            ExecutableName = request.ExecutableName,
+            PolicyId = evaluation.Policy?.PolicyId,
+            PolicyVersion = evaluation.Policy?.PolicyVersion,
+            ArgumentDigest = DigestArguments(request.Arguments),
+            ParameterNames = request.Arguments.Count == 0
+                ? null
+                : request.Arguments.Keys.Order(StringComparer.Ordinal).ToArray(),
+            Allowed = response.Allowed,
+            Layer = response.Layer,
+            Reason = response.Reason
+        };
+        try {
+            var line = JsonSerializer.Serialize(entry, CliNodeJsonContext.Default.CliAuthorizationAuditEntry);
+            File.AppendAllText(path, line + Environment.NewLine);
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
+            Debug.WriteLine($"[CLI-AUDIT] 审计写入失败（不影响判定）: {ex.Message}");
+        }
+    }
+
+    private static string? DigestArguments(Dictionary<string, string> arguments) {
+        if (arguments.Count == 0) return null;
+        var canonical = string.Join('\n', arguments
+            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .Select(pair => pair.Key + "=" + pair.Value));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
     private CliToolPolicyManifest LoadAndCachePolicy(string cacheKey, string path, string executableName) {

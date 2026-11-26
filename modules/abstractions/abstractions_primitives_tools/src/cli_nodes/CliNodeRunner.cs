@@ -810,4 +810,5 @@ public static class CliNodeRunner {
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(CliAuthorizationRequest))]
 [JsonSerializable(typeof(CliAuthorizationResponse))]
+[JsonSerializable(typeof(CliAuthorizationAuditEntry))]
 internal partial class CliNodeJsonContext : JsonSerializerContext { }

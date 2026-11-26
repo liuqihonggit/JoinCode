@@ -152,6 +152,57 @@ public sealed class CliAuthorizationBrokerTests {
     }
 
     [Fact]
+    public async Task Broker_AuditLog_WritesAllowedAndDeniedEntriesWithDigest() {
+        var path = Path.Combine(Path.GetTempPath(), $"jcc-audit-{Guid.NewGuid():N}.jsonl");
+        var previous = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.AuditLogVariable);
+        Environment.SetEnvironmentVariable(CliAuthorizationEnvironment.AuditLogVariable, path);
+        try {
+            await using var broker = new CliAuthorizationBroker();
+            var session = broker.CreateSession(CreateScope(["read"], []));
+
+            var allow = await CliToolAuthorizationClient.AuthorizeAsync(
+                session, "file", "read",
+                typeof(CliAuthorizationBrokerTests).Assembly.Location,
+                "JoinCode.CliNodes.Tests.dll",
+                new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt" },
+                CancellationToken.None);
+            var deny = await CliToolAuthorizationClient.AuthorizeAsync(
+                session, "file", "write",
+                typeof(CliAuthorizationBrokerTests).Assembly.Location,
+                "JoinCode.CliNodes.Tests.dll",
+                new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt", ["content"] = "x" },
+                CancellationToken.None);
+
+            Assert.True(allow.Allowed, allow.Reason);
+            Assert.False(deny.Allowed);
+
+            var lines = (await FileSystemFactory.Create().ReadAllText(path))
+                .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+            Assert.Equal(2, lines.Length);
+            var allowedEntry = System.Text.Json.JsonSerializer.Deserialize(
+                lines[0], CliNodeJsonContext.Default.CliAuthorizationAuditEntry);
+            var deniedEntry = System.Text.Json.JsonSerializer.Deserialize(
+                lines[1], CliNodeJsonContext.Default.CliAuthorizationAuditEntry);
+            Assert.NotNull(allowedEntry);
+            Assert.NotNull(deniedEntry);
+
+            Assert.True(allowedEntry.Allowed);
+            Assert.Equal("agent-test", allowedEntry.AgentId);
+            Assert.Equal("session-test", allowedEntry.SessionId);
+            Assert.Equal("cli.auth_test", allowedEntry.PolicyId);
+            Assert.False(string.IsNullOrEmpty(allowedEntry.ArgumentDigest));
+            Assert.Equal(["file_path"], allowedEntry.ParameterNames ?? []);
+
+            Assert.False(deniedEntry.Allowed);
+            Assert.Equal("Agent.AllowedTools", deniedEntry.Layer);
+            Assert.NotEqual(allowedEntry.ArgumentDigest, deniedEntry.ArgumentDigest);
+            Assert.Equal(["content", "file_path"], deniedEntry.ParameterNames ?? []);
+        } finally {
+            Environment.SetEnvironmentVariable(CliAuthorizationEnvironment.AuditLogVariable, previous);
+        }
+    }
+
+    [Fact]
     public async Task Gate_SubAgentScopeEnvironment_IntersectsToolDomain() {
         var env = CliAuthorizationBrokerRuntime.EnsureEnvironment(
             agentId: "agent-sub-" + Guid.NewGuid().ToString("N"),

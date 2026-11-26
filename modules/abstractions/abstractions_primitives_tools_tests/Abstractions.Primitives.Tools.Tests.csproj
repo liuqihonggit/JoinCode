@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions_primitives_tools/Abstractions.Primitives.Tools.csproj" />
+    <!-- 审计落盘断言读文件必须走 IFileSystem（JCC9001），由工厂按环境选择实现。 -->
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

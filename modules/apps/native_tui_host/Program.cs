@@ -271,12 +271,13 @@ public static class Program {
         Console.OutputEncoding = Encoding.UTF8;
         using var raw = (Environment.GetEnvironmentVariable("JCC_FORCE_TTY") == "1" ? (IDisposable?)null : new RawConsoleMode());
         // TASK077 — 启动诊断行保存（纫入 TUI 渲染 — 应用内选区覆盖，不写 Console.Error 避免 scrollback 重复）
-        var startupLines = new List<string>();
-        void WriteStartupLine(string line)
+        // TASK108 P12 — 携带语义：状态行 dim、诊断行 Warning（首帧「引擎启动中…」不再画成错误红）
+        var startupLines = new List<(string Text, StartupLineKind Kind)>();
+        void WriteStartupLine(string line, StartupLineKind kind = StartupLineKind.Status)
         {
             foreach (var part in line.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
             {
-                startupLines.Add(part);
+                startupLines.Add((part, kind));
             }
         }
 
@@ -289,9 +290,9 @@ public static class Program {
         // 与开关状态（AGENTS.md 开关优先 + 助记符），供用户贴报问题一眼看清终端环境
         if (JccFeatureFlags.DebugLogEnabled)
         {
-            WriteStartupLine(HyperlinkEmitter.FormatDiagnostic());
-            WriteStartupLine($"[diag] 字形: Unicode={!Figures.AsciiFallback} 提示符={Figures.Pointer}");
-            WriteStartupLine($"[diag] 开关: MouseTracking={JccFeatureFlags.MouseTrackingEnabled} Hover={JccFeatureFlags.HoverHighlightEnabled} ClickExpand={JccFeatureFlags.ClickExpandEnabled} (JCC_NO_MOUSE_TRACKING={Environment.GetEnvironmentVariable("JCC_NO_MOUSE_TRACKING") ?? "(未设置)"})");
+            WriteStartupLine(HyperlinkEmitter.FormatDiagnostic(), StartupLineKind.Diagnostic);
+            WriteStartupLine($"[diag] 字形: Unicode={!Figures.AsciiFallback} 提示符={Figures.Pointer}", StartupLineKind.Diagnostic);
+            WriteStartupLine($"[diag] 开关: MouseTracking={JccFeatureFlags.MouseTrackingEnabled} Hover={JccFeatureFlags.HoverHighlightEnabled} ClickExpand={JccFeatureFlags.ClickExpandEnabled} (JCC_NO_MOUSE_TRACKING={Environment.GetEnvironmentVariable("JCC_NO_MOUSE_TRACKING") ?? "(未设置)"})", StartupLineKind.Diagnostic);
         }
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
@@ -386,10 +387,10 @@ public static class Program {
             shellTimeoutSeconds: 120,
             workspaceRoot: Environment.CurrentDirectory);
 
-        // TASK077 — 启动诊断行注入
-        foreach (var line in startupLines)
+        // TASK077 — 启动行注入（TASK108 P12 — 语义分色随行携带）
+        foreach (var (line, kind) in startupLines)
         {
-            shell.AddStartupLine(line);
+            shell.AddStartupLine(line, kind);
         }
 
         // earlyInput 回灌 — 引擎组装窗口期捕获的按键回填输入框

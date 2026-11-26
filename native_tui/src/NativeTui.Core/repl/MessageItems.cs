@@ -280,7 +280,9 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         _lineNumbers = patch is { Length: > 0 } ? patch.Select(DiffGutter.AssignLineNumbers).ToArray() : [];
         _syntaxSpans = HighlightPatchLines(patch, codeHighlighter, summary);
         _errorLines = isError ? SplitErrorLines(ErrorText) : [];
-        _summaryLine = FirstNonEmptyLine(summary);
+        // TASK108 P13 — 引擎错误摘要常是 `Error: {ToolErrorJson}`（数据面给模型解析的结构），
+        // 展示层只取 message（原文完整保留在 Summary，搜索/导出不受影响）
+        _summaryLine = FirstNonEmptyLine(ToolErrorJsonText.Humanize(summary));
     }
 
     /// <summary>结果摘要（首行 ⎿ 正文；空串不占行）。</summary>
@@ -296,8 +298,9 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// 统计行取代引擎摘要成为结果首行（基准 FileEditToolUpdatedMessage 只显示增删统计）。</summary>
     public DiffStats? Stats { get; }
 
-    /// <summary>结果首行文本（有统计用统计文案，否则引擎摘要）— 渲染/导出/搜索共用同一份。</summary>
-    public string DisplaySummary => Stats is { IsEmpty: false } stats ? stats.ToText() : Summary;
+    /// <summary>结果首行文本（有统计用统计文案，否则引擎摘要首行）— 渲染/导出/搜索共用同一份。
+    /// TASK108 P13 — 展示面返回已归一的首行（错误 JSON 取 message），<see cref="Summary"/> 仍保留原文。</summary>
+    public string DisplaySummary => Stats is { IsEmpty: false } stats ? stats.ToText() : _summaryLine;
 
     /// <summary>摘要渲染行（TASK107 — 首个非空行；transcript 投影与主屏渲染共用同一份）。</summary>
     public string SummaryLine => _summaryLine;
@@ -318,8 +321,8 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     public bool IsError { get; }
 
     /// <summary>错误块全文（归一后带 `Error: ` 前缀 — 原始输出优先，摘要仅单行兜底；
-    /// 渲染与 transcript 投影共用同一份内容）。</summary>
-    public string ErrorText => ToolErrorText.Normalize(RawOutput ?? Summary);
+    /// 渲染与 transcript 投影共用同一份内容；TASK108 P13 再经 JSON 展示归一）。</summary>
+    public string ErrorText => ToolErrorJsonText.Humanize(ToolErrorText.Normalize(RawOutput ?? Summary));
 
     /// <summary>错误块渲染行数 — 展开态全量；折叠态 MaxErrorRenderLines 上限。</summary>
     private int RenderedErrorRows => IsExpanded
@@ -695,20 +698,35 @@ public sealed class SystemNoticeItem(string text) : IScrollItem, ITextMatchable
     public bool ContainsText(string query) => Text.Contains(query, StringComparison.OrdinalIgnoreCase);
 }
 
-/// <summary>启动诊断行项 — 纯文本 dim 渲染（引擎启动中/[diag] 等）。
-/// 纳入 TUI 渲染内容使应用内选区覆盖（无需 Shift 选择）。</summary>
-public sealed class StartupLineItem(string text) : IScrollItem
+/// <summary>启动行语义（TASK108 P12 — 状态与诊断分色：正常启动进度不该画成错误红）。</summary>
+public enum StartupLineKind
 {
-    /// <summary>诊断行文本。</summary>
+    /// <summary>启动进度（`引擎启动中…`）— dim 弱化，首拍 session_info 后撤除。</summary>
+    Status,
+
+    /// <summary>诊断信息（`[diag] …`，仅 JCC_DEBUGLOG=1）— Warning 黄，与正常状态区分。</summary>
+    Diagnostic,
+}
+
+/// <summary>启动行项 — 纳入 TUI 渲染内容使应用内选区覆盖（无需 Shift 选择）。
+/// 按 <see cref="StartupLineKind"/> 分色：Status dim / Diagnostic Warning。</summary>
+public sealed class StartupLineItem(string text, StartupLineKind kind = StartupLineKind.Status) : IScrollItem
+{
+    /// <summary>启动行文本。</summary>
     public string Text { get; } = text;
+
+    /// <summary>行语义（决定配色）。</summary>
+    public StartupLineKind Kind { get; } = kind;
 
     /// <summary>单行高度。</summary>
     public int MeasureHeight(int width) => 1;
 
-    /// <summary>dim 样式渲染纯文本行（淡红色警告色）。</summary>
+    /// <summary>按语义分色渲染单行（Status=dim，Diagnostic=Warning）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
-        var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        var style = Kind == StartupLineKind.Diagnostic
+            ? screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Warning })
+            : screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         screen.WriteText(frame.Y, frame.X, Text, style, frame.Right);
     }
 }

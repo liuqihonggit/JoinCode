@@ -593,16 +593,18 @@ public sealed class ReplShell
     /// <summary>种子消息（Demo 模拟模式示例内容；真实引擎为空）。</summary>
     private readonly IReadOnlyList<IScrollItem> _seedMessages;
 
-    /// <summary>启动诊断行（TASK077 — DEC 1049 备用屏不保存 scrollback，退出后重输出恢复历史）。
-    /// 宿主在构造后、Run 前调用 <see cref="AddStartupLine"/> 添加。</summary>
-    private readonly List<string> _startupLines = [];
+    /// <summary>启动行（TASK077 — DEC 1049 备用屏不保存 scrollback，退出后重输出恢复历史）。
+    /// 宿主在构造后、Run 前调用 <see cref="AddStartupLine"/> 添加（TASK108 P12 — 带语义分色）。</summary>
+    private readonly List<(string Text, StartupLineKind Kind)> _startupLines = [];
 
     /// <summary>引擎装配期提示行文本（宿主启动时经 <see cref="AddStartupLine"/> 注入；
     /// 首拍 session_info 到达后由 <see cref="TryRetireStartupLine"/> 撤除 — 单一文本源，避免宿主与外壳各写一份）。</summary>
     public const string EngineStartingLine = "引擎启动中…";
 
-    /// <summary>添加启动诊断行（宿主在 Run 前调用 — 退出备用屏后重输出到 scrollback 恢复历史）。</summary>
-    public void AddStartupLine(string line) => _startupLines.Add(line);
+    /// <summary>添加启动行（宿主在 Run 前调用 — 退出备用屏后重输出到 scrollback 恢复历史）。
+    /// 默认 <see cref="StartupLineKind.Status"/>（dim）；诊断行显式传 Diagnostic。</summary>
+    public void AddStartupLine(string line, StartupLineKind kind = StartupLineKind.Status) =>
+        _startupLines.Add((line, kind));
 
     /// <summary>
     /// 撤除启动诊断行（引擎就绪后收掉"引擎启动中…"）— 帧高收缩 1 行，走 InlineComposer 收缩路径
@@ -1063,9 +1065,9 @@ public sealed class ReplShell
         // TASK079 用户反馈 — 种子 effort 通知移除：8s 到期清除触发 footer 重绘，把上滚的
         // 终端视口拽回底部（偶发刷新源）；effort 状态由 footer 段持久展示，瞬态通知纯冗余
         // TASK077 — 启动诊断行纫入 TUI 渲染（应用内选区覆盖，无需 Shift 选择）
-        foreach (var line in _startupLines)
+        foreach (var (line, kind) in _startupLines)
         {
-            _view.Messages.Add(new StartupLineItem(line));
+            _view.Messages.Add(new StartupLineItem(line, kind));
         }
         _view.Messages.Add(_banner);
         // TASK078 — PromptContextItem 改为每次注入时动态创建（SubmitCore 中用户消息前插入），不再 SeedContent 静态创建

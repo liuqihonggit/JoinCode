@@ -1,0 +1,64 @@
+# jcc 启动器（base 元命令）参数策略 — ADR 0168
+#
+# 与分组策略不同，本文件只约束「agent 会话内」的 jcc 元命令选项：
+# 用户手工终端调用没有 broker 会话，不受此文件限制（Base.Manual 放行）。
+#
+# 危险选项：--exe / --dir 会改变工具解析与执行目标（可指向无内嵌策略的 exe，
+# 从而跳过集中鉴权）；--resume 会让斜杠命令跨会话执行。agent 会话内一律拒绝。
+#
+# 本文件内嵌进 jcc（LogicalName=JoinCode.CliNodes.Groups.base.policy.yaml），
+# 不进 policy_trust.yaml：jcc 自身完整性由二进制承担，broker 从不评估本策略。
+schema_version: 1
+policy_id: cli.base
+policy_version: 1
+executables:
+  - jcc.exe
+
+tools:
+  tool_call:
+    effect: allow
+    parameters:
+      exe:
+        effect: deny
+      dir:
+        effect: deny
+      timeout:
+        effect: allow
+
+  tool_tree:
+    effect: allow
+    parameters:
+      dir:
+        effect: deny
+
+  tool_find:
+    effect: allow
+    parameters:
+      dir:
+        effect: deny
+
+  tool_help:
+    effect: allow
+    parameters:
+      dir:
+        effect: deny
+
+  slash_call:
+    effect: allow
+    parameters:
+      resume:
+        effect: deny
+
+  mcp_call:
+    effect: allow
+    parameters:
+      args_file:
+        effect: allow
+      args_stdin:
+        effect: allow
+      json:
+        effect: allow
+      vendor:
+        effect: allow
+      model:
+        effect: allow

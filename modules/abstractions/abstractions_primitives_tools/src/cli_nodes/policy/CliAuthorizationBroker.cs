@@ -708,7 +708,7 @@ internal static class CliToolAuthorizationClient {
     /// 解析承载内嵌策略的镜像：常规构建取同目录程序集 DLL；AOT 单文件回退到宿主 exe。
     /// <para>不使用 Assembly.Location —— 单文件发布下它恒为空且触发 IL3000。</para>
     /// </summary>
-    private static string? ResolveEntryImagePath() {
+    internal static string? ResolveEntryImagePath() {
         var assemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
         if (!string.IsNullOrWhiteSpace(assemblyName)) {
             var candidate = Path.Combine(AppContext.BaseDirectory, assemblyName + ".dll");
@@ -858,7 +858,13 @@ internal static class CliToolPolicyResourceReader {
     public static CliToolPolicyManifest LoadFromExecutable(string path, string? expectedExecutableName = null) =>
         LoadWithHashFromExecutable(path, expectedExecutableName).Manifest;
 
-    public static LoadedCliToolPolicy LoadWithHashFromExecutable(string path, string? expectedExecutableName = null) {
+    /// <param name="path">目标镜像路径。</param>
+    /// <param name="expectedExecutableName">期望的策略 executables 成员；为空则不校验。</param>
+    /// <param name="expectedPolicyId">期望的 policy_id；jcc 同时内嵌 slash/base 策略时必须指定。</param>
+    public static LoadedCliToolPolicy LoadWithHashFromExecutable(
+        string path,
+        string? expectedExecutableName = null,
+        string? expectedPolicyId = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         using var stream = File.OpenRead(path);
         using var peReader = new System.Reflection.PortableExecutable.PEReader(stream);
@@ -890,6 +896,10 @@ internal static class CliToolPolicyResourceReader {
             }
             var bytes = reader.ReadBytes(size);
             var policy = CliToolPolicyLoader.Parse(Encoding.UTF8.GetString(bytes), $"{path}!{name}");
+            if (expectedPolicyId is not null
+                && !string.Equals(policy.PolicyId, expectedPolicyId, StringComparison.Ordinal)) {
+                continue;
+            }
             var loaded = new LoadedCliToolPolicy(policy, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
             firstPolicy ??= loaded;
             if (string.IsNullOrWhiteSpace(expectedExecutableName)
@@ -902,6 +912,10 @@ internal static class CliToolPolicyResourceReader {
         if (firstPolicy is not null) {
             throw new InvalidOperationException(
                 $"可执行文件 '{path}' 的内嵌策略均不适用于 '{expectedExecutableName}'；检查 policy.yaml 的 executables 字段");
+        }
+        if (expectedPolicyId is not null) {
+            throw new InvalidOperationException(
+                $"可执行文件 '{path}' 未嵌入 policy_id='{expectedPolicyId}' 的策略资源");
         }
         throw new InvalidOperationException($"可执行文件 '{path}' 未嵌入 '*{PolicyResourceMarker}*.yaml' 权限策略");
     }

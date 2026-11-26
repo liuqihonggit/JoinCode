@@ -17,6 +17,7 @@
   <ItemGroup>
     <!-- 全量策略源都过一遍严格解析：单个 exe 只在自己被调用时才加载策略，CI 不会自然覆盖 github 这类不常跑的组。 -->
     <EmbeddedResource Include="$(RepoRoot)resources/tools/policies/*.yaml" LogicalName="CliNodes.Tests.allpolicies.%(Filename).policy.yaml" />
+    <EmbeddedResource Include="$(RepoRoot)resources/tools/base_policy.yaml" LogicalName="CliNodes.Tests.base.policy.yaml" />
     <EmbeddedResource Include="$(RepoRoot)modules/tools/cli_nodes/groups/file/node.yaml" LogicalName="CliNodes.Tests.node.file.yaml" />
     <EmbeddedResource Include="test_auth_policy.yaml" LogicalName="CliNodes.Tests.policy.auth.yaml" />
   </ItemGroup>

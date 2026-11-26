@@ -32,6 +32,8 @@ internal static class CliToolCommand {
     }
 
     private static async Task<int> RunTreeAsync(string[] args, CancellationToken ct) {
+        if (TryDenyLauncherOption(CliLauncherPolicyCatalog.ToolTree, CliLauncherPolicyCatalog.Dir, HasOption(args, "--dir"), out var dirDenied))
+            return dirDenied;
         var dir = ResolveToolsDir(args);
         var all = NodeManifestLoader.LoadNodesFromDirectory(dir);
         var enabled = FilterByProfile(all, out var disabled);
@@ -59,6 +61,8 @@ internal static class CliToolCommand {
             Console.Error.WriteLine("正确写法: jcc tool find pr check --dir <工具目录>");
             return 2;
         }
+        if (TryDenyLauncherOption(CliLauncherPolicyCatalog.ToolFind, CliLauncherPolicyCatalog.Dir, HasOption(args, "--dir"), out var dirDenied))
+            return dirDenied;
         var dir = ResolveToolsDir(args);
         var enabled = FilterByProfile(NodeManifestLoader.LoadNodesFromDirectory(dir), out var disabled);
         var scope = await CliHostToolAuthorization.GetScopeAsync(ct).ConfigureAwait(false);
@@ -83,6 +87,8 @@ internal static class CliToolCommand {
     private static async Task<int> RunHelpAsync(string[] args, CancellationToken ct) {
         var id = args.Length > 2 ? args[2] : null;
         if (string.IsNullOrWhiteSpace(id)) return WriteUsage();
+        if (TryDenyLauncherOption(CliLauncherPolicyCatalog.ToolHelp, CliLauncherPolicyCatalog.Dir, HasOption(args, "--dir"), out var dirDenied))
+            return dirDenied;
         var all = NodeManifestLoader.LoadNodesFromDirectory(ResolveToolsDir(args));
         var enabled = FilterByProfile(all, out _);
         var scope = await CliHostToolAuthorization.GetScopeAsync(ct).ConfigureAwait(false);
@@ -164,6 +170,15 @@ internal static class CliToolCommand {
     private static async Task<int> RunCallAsync(string[] args, CancellationToken ct) {
         var call = ParseCallArguments(args);
         if (call.Names.Count == 0) return WriteCallUsage();
+
+        // 启动器自有选项先过 base 策略：agent 会话内 --exe/--dir 可指向无策略 exe 或伪造 node.yaml，
+        // 从而跳过集中鉴权；必须在任何解析/启动之前拒绝。
+        if (TryDenyLauncherOption(CliLauncherPolicyCatalog.ToolCall, CliLauncherPolicyCatalog.Exe, call.ExplicitExe is not null, out var exeDenied))
+            return exeDenied;
+        if (TryDenyLauncherOption(CliLauncherPolicyCatalog.ToolCall, CliLauncherPolicyCatalog.Dir, call.ToolsDir is not null, out var dirDenied))
+            return dirDenied;
+        if (TryDenyLauncherOption(CliLauncherPolicyCatalog.ToolCall, CliLauncherPolicyCatalog.Timeout, true, out var timeoutDenied))
+            return timeoutDenied;
 
         var nodes = NodeManifestLoader.LoadNodesFromDirectory(call.ToolsDir ?? ResolveToolsDir(args));
         var target = TryResolveTarget(call, nodes, out var failureExitCode);
@@ -259,6 +274,31 @@ internal static class CliToolCommand {
 
     /// <summary>已确认的执行目标：分组 ID 与规范化后的工具 ID（别名已换成规范 ID）。</summary>
     private sealed record CallTarget(string Group, string Tool);
+
+    /// <summary>命令行是否显式出现某选项（只用于 base 策略门禁；不解析取值）。</summary>
+    private static bool HasOption(string[] args, string option) =>
+        Array.IndexOf(args, option) >= 0;
+
+    /// <summary>
+    /// 启动器选项过 base 策略：agent 会话内 deny/未登记 → 打印诱导错误并返回 126；
+    /// 手工终端（无 broker 会话）由策略层直接放行（Base.Manual）。
+    /// </summary>
+    private static bool TryDenyLauncherOption(
+        string metaCommand,
+        string parameter,
+        bool present,
+        out int exitCode) {
+        exitCode = 0;
+        if (!present) return false;
+        var decision = CliBaseToolAuthorization.Authorize(metaCommand, parameter);
+        if (decision.Allowed) return false;
+        Console.Error.WriteLine("[CLI-AUTH] denied");
+        Console.Error.WriteLine($"launcher: jcc {metaCommand.Replace('_', ' ')} --{parameter}");
+        Console.Error.WriteLine($"layer: {decision.Layer}");
+        Console.Error.WriteLine($"reason: {decision.Reason}");
+        exitCode = CliNodeRunner.ExitAuthorizationRequired;
+        return true;
+    }
 
     /// <summary>
     /// 解析 call 参数。名称只取开头的连续 token，遇到第一个 executor 自有选项或已知名称之外的 token 即停，

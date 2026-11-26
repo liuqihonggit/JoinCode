@@ -167,25 +167,41 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
     }
 
     private async Task AcceptLoopAsync() {
-        while (!_cts.IsCancellationRequested) {
-            try {
-                await using var server = new NamedPipeServerStream(
-                    _pipeName,
-                    PipeDirection.InOut,
-                    maxNumberOfServerInstances: 1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-                await server.WaitForConnectionAsync(_cts.Token).ConfigureAwait(false);
-                await HandleConnectionAsync(server, _cts.Token).ConfigureAwait(false);
-            } catch (OperationCanceledException) {
-                return;
-            } catch (IOException) {
-                // 管道被调用方提前关闭：下一条连接继续服务，不能让 broker 整体退出。
-            } catch (UnauthorizedAccessException) {
-                // CurrentUserOnly 拒绝其他用户：不泄露内部细节，继续等待合法连接。
+        NamedPipeServerStream? pending = null;
+        try {
+            while (!_cts.IsCancellationRequested) {
+                try {
+                    pending ??= CreateServer();
+                    await pending.WaitForConnectionAsync(_cts.Token).ConfigureAwait(false);
+                    var current = pending;
+                    // 先预建下一条监听实例再处理当前连接：auto-redeem 会立即发起第二次连接，
+                    // 若等处理完才重建，存在「旧实例销毁、新实例未就绪」窗口 → Connection reset。
+                    pending = CreateServer();
+                    await HandleConnectionAsync(current, _cts.Token).ConfigureAwait(false);
+                    await current.DisposeAsync().ConfigureAwait(false);
+                } catch (OperationCanceledException) {
+                    return;
+                } catch (IOException) {
+                    // 管道被调用方提前关闭：销毁后重建下一条，不能让 broker 整体退出。
+                    if (pending is not null) {
+                        await pending.DisposeAsync().ConfigureAwait(false);
+                        pending = null;
+                    }
+                } catch (UnauthorizedAccessException) {
+                    // CurrentUserOnly 拒绝其他用户：不泄露内部细节，继续等待合法连接。
+                }
             }
+        } finally {
+            if (pending is not null) await pending.DisposeAsync().ConfigureAwait(false);
         }
     }
+
+    private NamedPipeServerStream CreateServer() => new(
+        _pipeName,
+        PipeDirection.InOut,
+        maxNumberOfServerInstances: NamedPipeServerStream.MaxAllowedServerInstances,
+        PipeTransmissionMode.Byte,
+        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
 
     private async Task HandleConnectionAsync(NamedPipeServerStream server, CancellationToken ct) {
         using var reader = new StreamReader(server, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: false, leaveOpen: true);

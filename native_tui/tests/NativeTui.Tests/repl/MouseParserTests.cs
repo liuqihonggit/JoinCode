@@ -162,6 +162,9 @@ public sealed class MouseParserTests
     [InlineData("\x1b[<0;10Mabc")]   // 分号数≠2 — final 'M' 一并吞掉不泄漏
     [InlineData("\x1b[<0;;5Mabc")]   // 空段 — 非法吞 Unknown
     [InlineData("\x1b[<0;0;5Mabc")]  // col=0 畸形（SGR 坐标 1-based 最小 1）
+    [InlineData("\x1b[<0;10;5Xabc")] // 非法 final 仍属于 CSI，禁止把 X 泄漏成普通字符
+    [InlineData("\x1b[<0;10;5 Mabc")] // 非法 intermediate 与 final 同属 CSI
+    [InlineData("\x1b[<0;10;5:1Mabc")] // 非法子参数与 final 同属 CSI
     public void MalformedSequence_SwallowedAsUnknownThenTextParses(string chunk)
     {
         var keys = ParseAll(chunk);

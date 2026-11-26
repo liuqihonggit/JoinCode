@@ -1,0 +1,60 @@
+# 由 Generate-CliToolPolicies.py 从 resources/tools/policies/*.yaml 生成 —— 不要手改
+#
+# jcc broker 用它校验目标 exe 内嵌策略的 id 与内容哈希（ADR 0168 信任目录）。
+# 重新生成: python non_deliverables_tools/scripts/Generate-CliToolPolicies.py --trust-only
+version: 1
+policies:
+  - id: cli.agent
+    hash: c7118adbc43f64cde033dfddef5df85848e721678253b006472c468496ffb4ba
+    executables:
+      - jcc-tool-agent.exe
+  - id: cli.code
+    hash: 2a1a26f53bcfa4a8204e60dd8da35b973c7cf03de2801518e3ee0538e57d8932
+    executables:
+      - jcc-tool-code.exe
+  - id: cli.file
+    hash: ad0a97bea1d8507a21129dbcc875f480c8668eb23039c43c9987f341f349664c
+    executables:
+      - jcc-tool-file.exe
+  - id: cli.git
+    hash: 12a90cdf8a6a9297e318429aba5574a7c6cac76c912a3b525d242063e5f222eb
+    executables:
+      - jcc-tool-git.exe
+  - id: cli.github
+    hash: 7387e4a41988c7d244074755e1487dc333dadf316a6ada30a47c14b4efa5f3a7
+    executables:
+      - jcc-tool-github.exe
+      - jcc-gh.exe
+  - id: cli.mcp
+    hash: e4ddd3a805333cee5580f9fa3ef5e7febad10db7125a64de6198508e43671b2d
+    executables:
+      - jcc-tool-mcp.exe
+  - id: cli.media
+    hash: 8449b40a0929e0b83c5394061fbccaecfe2df27af710d00577096eac6d1897e1
+    executables:
+      - jcc-tool-media.exe
+  - id: cli.search
+    hash: 6db4d5956e8d3d119b7c25362d4eba244ec8540844ad6e1d0e9631aef79fdb09
+    executables:
+      - jcc-tool-search.exe
+  - id: cli.shell
+    hash: 798b1ac16d728e3a6e1927eb8aad400ce1118f416da1f64d028fe9c0cacf7d97
+    executables:
+      - jcc-tool-shell.exe
+  - id: cli.slash
+    hash: a709c86c141aa615250636222dc35bdb95432d6a1158cb5986ba6d1dac7d6f17
+    executables:
+      - jcc-tool-slash.exe
+      - jcc.exe
+  - id: cli.system
+    hash: 151e4957e88a3dd5e676b2a187ef62f46cf16ee16a0ae7df896238caaf81854c
+    executables:
+      - jcc-tool-system.exe
+  - id: cli.tools
+    hash: 0056aa053ecf32378cc61e8ef2fa4c9c1d3d6e1ed9cdc9533b6430a179f9866a
+    executables:
+      - jcc-tool-tools.exe
+  - id: cli.web
+    hash: 76e8910bf10f9226cf8a0a8f75ce2905d9d1f902913a56cedbadb71c9e0f2363
+    executables:
+      - jcc-tool-web.exe

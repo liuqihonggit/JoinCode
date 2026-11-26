@@ -1,0 +1,55 @@
+# web 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.web
+policy_version: 1
+executables:
+  - jcc-tool-web.exe
+
+tools:
+  download_file:
+    effect: allow
+    parameters:
+      url:
+        effect: allow
+      file_path:
+        effect: allow
+      max_threads:
+        effect: allow
+      resume:
+        effect: allow
+  web_browser:
+    effect: allow
+    parameters:
+      target:
+        effect: allow
+      action:
+        effect: allow
+      wait_ms:
+        effect: allow
+      url:
+        effect: allow
+  web_fetch:
+    effect: allow
+    parameters:
+      url:
+        effect: allow
+      prompt:
+        effect: allow
+  web_to_markdown:
+    effect: allow
+    parameters:
+      url:
+        effect: allow
+      max_length:
+        effect: allow
+  web_search:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      allowed_domains:
+        effect: allow
+      blocked_domains:
+        effect: allow

@@ -1,0 +1,215 @@
+# shell 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.shell
+policy_version: 1
+executables:
+  - jcc-tool-shell.exe
+
+tools:
+  execute_csharp_code:
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+      timeout_ms:
+        effect: allow
+      allow_external_libs:
+        effect: deny  # 独立 exe 未实现该能力
+  evaluate_expression:
+    effect: allow
+    parameters:
+      expression:
+        effect: allow
+      variables:
+        effect: deny  # 独立 exe 未实现该能力
+  test_code_snippet:
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+      test_input:
+        effect: allow
+      expected_output:
+        effect: allow
+  build_output:
+    effect: allow
+    parameters:
+      build_id:
+        effect: allow
+      start_line:
+        effect: allow
+      end_line:
+        effect: allow
+  build_queue_status:
+    effect: allow
+    parameters: []
+  build_cancel:
+    effect: allow
+    parameters:
+      build_id:
+        effect: allow
+  powershell:
+    effect: allow
+    parameters:
+      command:
+        effect: allow
+      description:
+        effect: allow
+      timeout:
+        effect: allow
+      working_directory:
+        effect: allow
+      run_in_background:
+        effect: deny  # 独立 exe 未实现该能力；需要时走宿主执行
+      auto_background:
+        effect: deny  # 独立 exe 未实现该能力；需要时走宿主执行
+      dangerously_disable_sandbox:
+        effect: deny  # 独立 exe 未实现该能力；需要时走宿主执行
+  powershell_script:
+    effect: allow
+    parameters:
+      script_path:
+        effect: allow
+      arguments:
+        effect: allow
+      no_profile:
+        effect: allow
+      execution_policy:
+        effect: allow
+      timeout:
+        effect: allow
+      working_directory:
+        effect: allow
+  powershell_version:
+    effect: allow
+    parameters: []
+  powershell_execution_policy:
+    effect: allow
+    parameters:
+      scope:
+        effect: allow
+  powershell_set_execution_policy:
+    effect: allow
+    parameters:
+      policy:
+        effect: allow
+      scope:
+        effect: allow
+      force:
+        effect: allow
+  bash:
+    effect: allow
+    parameters:
+      command:
+        effect: allow
+      description:
+        effect: allow
+      timeout:
+        effect: allow
+      working_directory:
+        effect: allow
+      run_in_background:
+        effect: deny  # 独立 exe 未实现该能力；需要时走宿主执行
+      auto_background:
+        effect: deny  # 独立 exe 未实现该能力；需要时走宿主执行
+      dangerously_disable_sandbox:
+        effect: deny  # 独立 exe 未实现该能力；需要时走宿主执行
+      confirmed_command:
+        effect: deny  # 独立 exe 未实现该能力；需要时走宿主执行
+      argv_hash:
+        effect: deny  # 独立 exe 未实现该能力；需要时走宿主执行
+  shell_background_get:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+  shell_background_list:
+    effect: allow
+    parameters: []
+  shell_background_output:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+  shell_background_cancel:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+  shell_background_kill_all:
+    effect: allow
+    parameters: []
+  mcp_ai_workflow_workflow_execute:
+    effect: allow
+    parameters:
+      task:
+        effect: allow
+  repl:
+    effect: allow
+    parameters:
+      language:
+        effect: allow
+      code:
+        effect: allow
+      timeout_seconds:
+        effect: allow
+      action:
+        effect: allow
+  terminal_capture:
+    effect: allow
+    parameters:
+      capture_type:
+        effect: allow
+      max_lines:
+        effect: allow
+  sandbox_enter:
+    effect: allow
+    parameters:
+      sandboxType:
+        effect: allow
+      restrictFileSystem:
+        effect: allow
+      restrictNetwork:
+        effect: allow
+      sandboxRoot:
+        effect: allow
+      memoryLimitMb:
+        effect: allow
+      cpuLimitPercent:
+        effect: allow
+      allowFallback:
+        effect: allow
+  sandbox_exit:
+    effect: allow
+    parameters: []
+  sandbox_switch:
+    effect: allow
+    parameters:
+      sandboxType:
+        effect: allow
+  sandbox_status:
+    effect: allow
+    parameters: []
+  sandbox_exec:
+    effect: allow
+    parameters:
+      command:
+        effect: allow
+      timeout:
+        effect: allow
+      customTimeoutSeconds:
+        effect: allow
+  sandbox_exec_continue:
+    effect: allow
+    parameters:
+      executionId:
+        effect: allow
+      action:
+        effect: allow
+  mcp_ai_workflow_plan_create_and_execute:
+    effect: allow
+    parameters:
+      prompt:
+        effect: allow

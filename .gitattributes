@@ -33,6 +33,11 @@
 *.json   text eol=crlf
 *.md        text eol=crlf
 
+# 策略 YAML 的 SHA-256 被信任目录锚定（ADR 0168）：检出换行必须全平台一致，
+# 否则 Windows 跑者把 LF 转成 CRLF 后哈希全变，门禁误报策略被篡改。
+/resources/tools/policies/*.yaml text eol=lf
+/resources/tools/policy_trust.yaml text eol=lf
+
 *.sln        text eol=crlf
 *.slnx        text eol=crlf
 *.csproj     text eol=crlf

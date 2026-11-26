@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - domain: generators
-            csprojs: modules/generators/aot_safety_tests/AotSafety.Tests.csproj modules/generators/fsm_generator_tests/Fsm.Generator.Tests.csproj
+            csprojs: modules/generators/aot_safety_tests/AotSafety.Tests.csproj modules/generators/fsm_generator_tests/Fsm.Generator.Tests.csproj modules/generators/cli_permission_analyzer_tests/CliPermission.Analyzer.Tests.csproj
           - domain: collections
             csprojs: modules/collections/structura_tests/Structura.Tests.csproj
           - domain: async_primitives
@@ -223,6 +223,12 @@ jobs:
       - name: Verify tool group ids across yaml / declaration / profile
         shell: pwsh
         run: python non_deliverables_tools/scripts/Verify-ToolGroupNodes.py --live=artifacts/bin/JoinCode/Debug/net10.0
+      # 斜杠命令「有参无权 / 有权无参」对账：help.txt/node.yaml 必须与 [ChatCommandArg] 一致，
+      # slash.yaml 参数集必须与声明双向相等。缺这一步的后果是「源码加了参数、策略没登记 →
+      # 运行期 Policy.Parameter 拒绝」，或策略保留幽灵参数放行未声明能力。
+      - name: Verify slash command args against embedded policy
+        shell: pwsh
+        run: python non_deliverables_tools/scripts/Verify-SlashCommandPolicies.py
       - name: Verify GUI session boots with the declared order
         shell: pwsh
         run: |

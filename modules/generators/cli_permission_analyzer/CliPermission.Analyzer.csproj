@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>generator</ProjectType>
+    <Description>CLI 参数权限对账分析器 — 源码参数与嵌入策略 YAML 双向校验（ADR 0168）</Description>
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisVersion)" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.CliPermission.Analyzer.Tests" />
+  </ItemGroup>
+
+</Project>

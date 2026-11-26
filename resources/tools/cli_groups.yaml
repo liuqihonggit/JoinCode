@@ -11,75 +11,88 @@ groups:
     local: 29
     delegate: 0
     blurb: "plan 模式与步骤编排、子代理控制、worktree 管理"
+    tool_ids: ["get_plan_status", "add_plan_step", "approve_plan_step", "reject_plan_step", "execute_plan_steps", "modify_plan_step", "remove_plan_step", "get_plan_history", "subagent_control", "plan_agent", "explore_agent", "verification_agent", "general_agent", "guide_agent", "list_agents", "team_create", "team_delete", "team_get", "team_list", "team_add_member", "team_remove_member", "team_send_message", "team_send_direct_message", "team_broadcast", "team_get_messages", "worktree_create", "worktree_remove", "worktree_list", "worktree_status", "worktree_cleanup", "worktree_find_git", "worktree_list_all", "worktree_merge", "task_output", "task_stop", "task_stop_batch", "task_list_running", "verify_plan_execution", "cron_create", "cron_list", "cron_delete", "cron_validate", "complete_step", "task_create", "task_list", "task_update", "task_get", "task_set_dependency", "task_remove_dependency", "task_get_dependencies", "task_can_execute", "todo_write", "todo_list", "todo_update"]
   - id: code
     exe: jcc-tool-code
     tools: 32
     local: 32
     delegate: 0
     blurb: "notebook 单元格读写/移动/执行、AI 代码工作流"
+    tool_ids: ["notebook_add_cell", "notebook_delete_cell", "notebook_edit_cell", "notebook_move_cell", "notebook_change_cell_type", "notebook_clear_outputs", "notebook_get_cell", "notebook_edit", "notebook_create", "notebook_read", "mcp_ai_workflow_workflow_generate_code", "mcp_ai_workflow_workflow_analyze_code", "recall_list", "recall_read", "recall_search", "analyze_csharp_code", "find_bugs", "optimize_code", "security_audit", "generate_csharp_code", "generate_unit_test", "generate_api_controller", "lsp_goto_definition", "lsp_find_references", "lsp_hover", "lsp_completion", "lsp_document_symbols", "lsp_workspace_symbol", "lsp_goto_implementation", "lsp_prepare_call_hierarchy", "lsp_incoming_calls", "lsp_outgoing_calls"]
   - id: file
     exe: jcc-tool-file
     tools: 13
     local: 13
     delegate: 0
     blurb: "读写删文件、行级与正则编辑、apply_patch、目录列举、发送文件给用户"
+    tool_ids: ["file_delete", "edit", "file_edit_regex", "file_insert_lines", "file_delete_lines", "file_batch_edit", "directory_list", "apply_patch", "read", "file_snip_lines", "file_snip_preview", "write", "send_user_file"]
   - id: git
     exe: jcc-tool-git
     tools: 10
     local: 10
     delegate: 0
     blurb: "status/add/commit/push/pull/log/diff/branch/clone/submodule"
+    tool_ids: ["git_status", "git_add", "git_commit", "git_push", "git_pull", "git_log", "git_diff", "git_branch", "git_clone", "git_submodule_update"]
   - id: github
     exe: jcc-tool-github
     tools: 173
     local: 0
     delegate: 173
     blurb: "PR、issue、review、workflow 等 GitHub 全量操作与 REST 直调"
+    tool_ids: ["subscribe_pr", "gh_api", "gh_auth_status", "gh_auth_login", "gh_auth_token", "gh_auth_refresh", "gh_auth_logout", "gh_auth_setup_git", "gh_config_list", "gh_config_get", "gh_config_set", "gh_branch_sync_protection", "gh_branch_audit_protection", "gh_branch_list", "gh_branch_view", "gh_branch_create", "gh_branch_delete", "gh_branch_rename", "gh_gist_list", "gh_gist_view", "gh_gist_create", "gh_gist_delete", "gh_gist_edit", "gh_gist_rename", "gh_gist_clone", "gh_issue_list", "gh_issue_view", "gh_issue_create", "gh_issue_close", "gh_issue_comment", "gh_issue_reopen", "gh_issue_edit", "gh_issue_delete", "gh_issue_lock", "gh_issue_unlock", "gh_issue_status", "gh_issue_develop", "gh_issue_pin", "gh_issue_unpin", "gh_issue_transfer", "gh_label_list", "gh_label_view", "gh_label_create", "gh_label_delete", "gh_label_edit", "gh_label_clone", "gh_milestone_list", "gh_milestone_view", "gh_notification_list", "gh_team_list", "gh_collaborator_list", "gh_org_list", "gh_org_view", "gh_ssh_key_list", "gh_ssh_key_add", "gh_ssh_key_delete", "gh_ssh_key_view", "gh_gpg_key_list", "gh_gpg_key_add", "gh_gpg_key_delete", "gh_gpg_key_view", "gh_browse", "gh_cache_list", "gh_cache_delete", "gh_cache_clear_log", "gh_ruleset_list", "gh_ruleset_view", "gh_ruleset_check", "gh_status", "gh_codespace_list", "gh_codespace_create", "gh_codespace_delete", "gh_codespace_code", "gh_codespace_ssh", "gh_discussion_list", "gh_discussion_view", "gh_discussion_create", "gh_discussion_edit", "gh_discussion_comment", "gh_project_list", "gh_project_view", "gh_project_create", "gh_project_delete", "gh_project_edit", "gh_project_close", "gh_alias_list", "gh_alias_set", "gh_alias_delete", "gh_extension_list", "gh_extension_install", "gh_extension_upgrade", "gh_extension_remove", "gh_licenses", "gh_pr_view", "gh_pr_list", "gh_pr_diff", "gh_pr_checks", "gh_pr_wait", "gh_pr_merge", "gh_pr_checkout", "gh_pr_close", "gh_pr_reopen", "gh_pr_create", "gh_pr_comment", "gh_pr_edit", "gh_pr_review", "gh_pr_lock", "gh_pr_unlock", "gh_pr_status", "gh_pr_ready", "gh_pr_revert", "gh_pr_update_branch", "gh_release_list", "gh_release_view", "gh_release_create", "gh_release_download", "gh_release_upload", "gh_release_delete", "gh_release_delete_asset", "gh_release_edit", "gh_release_verify", "gh_release_verify_asset", "gh_repo_view", "gh_repo_clone", "gh_repo_create", "gh_repo_fork", "gh_repo_list", "gh_repo_edit", "gh_repo_delete", "gh_repo_archive", "gh_repo_unarchive", "gh_repo_rename", "gh_repo_sync", "gh_repo_set_default", "gh_repo_set_default_branch", "gh_repo_autolink_list", "gh_repo_autolink_view", "gh_repo_autolink_create", "gh_repo_autolink_delete", "gh_repo_deploy_key_list", "gh_repo_deploy_key_add", "gh_repo_deploy_key_delete", "gh_repo_gitignore_list", "gh_repo_gitignore_view", "gh_repo_license_list", "gh_repo_license_view", "gh_run_list", "gh_run_view", "gh_run_rerun", "gh_run_cancel", "gh_run_wait", "gh_run_download", "gh_run_delete", "gh_run_watch", "gh_ci_alerts", "gh_search_repos", "gh_search_issues", "gh_search_prs", "gh_search_code", "gh_search_commits", "gh_search_users", "gh_secret_list", "gh_secret_set", "gh_secret_delete", "gh_variable_list", "gh_variable_get", "gh_variable_set", "gh_variable_delete", "gh_workflow_list", "gh_workflow_view", "gh_workflow_run", "gh_workflow_enable", "gh_workflow_disable"]
   - id: mcp
     exe: jcc-tool-mcp
     tools: 25
     local: 7
     delegate: 0
     blurb: "MCP 连接与认证状态、配置读写、工具列举"
+    tool_ids: ["auth_get_status", "auth_refresh", "auth_logout", "mcp_auth_apikey", "mcp_auth_bearer", "mcp_auth_basic", "mcp_auth_oauth2", "mcp_auth_refresh", "mcp_auth_status", "mcp_auth_remove", "mcp_connect", "mcp_disconnect", "mcp_disable_server", "mcp_enable_server", "mcp_list_tools", "mcp_call_tool", "list_mcp_resources", "read_mcp_resource", "mcp_list_prompts", "mcp_remote_list_resources", "mcp_remote_read_resource", "mcp_remote_list_prompts", "mcp_get_prompt", "mcp_list_clients", "monitor"]
   - id: media
     exe: jcc-tool-media
     tools: 60
     local: 60
     delegate: 0
     blurb: "鼠标键盘与桌面自动化、截图、图像处理"
+    tool_ids: ["right_click_menu", "drag_with_hover", "multi_click", "mouse_click", "mouse_move", "mouse_drag", "key_press", "type_text", "show_desktop_overlay", "show_desktop_pulse", "look_at_cursor", "desktop_click", "desktop_detect", "desktop_look", "desktop_scene_menu", "desktop_scene_status", "desktop_zoom", "get_environment_state", "wait_for_idle", "undo_last_action", "get_operation_history", "start_recording", "stop_recording", "play_macro", "list_macros", "start_observation", "learn_from_observation", "optimize_steps", "reproduce_from_logic", "list_processes", "kill_process", "start_process", "detect_ui_elements", "find_element", "list_windows", "focus_window", "move_window", "close_window", "screenshot", "voice_start_recording", "voice_stop_recording", "voice_transcribe", "voice_status", "vcr_record", "vcr_playback", "vcr_status", "image_describe", "image_drill_down", "measure_length", "measure_depth", "measure_ratio", "quadtree_to_screen_rects", "quadtree_build", "quadtree_zoom", "quadtree_paint", "quadtree_render", "quadtree_neighbor", "screen_indicate", "temporal_aggregate", "temporal_stable_contour"]
   - id: search
     exe: jcc-tool-search
     tools: 47
     local: 14
     delegate: 0
     blurb: "glob、grep、全文与符号搜索、代码库索引查询"
+    tool_ids: ["glob", "grep", "search_code", "search_text", "search_files", "search_codebase", "code_search", "symbol_search", "search_symbol", "search_comprehensive", "search_definition", "search_references", "search_callers", "search_callees", "search_call_chain", "search_impact_scope", "search_inheritors", "search_dependencies", "search_affected_files", "create_index", "update_index", "search_stats", "search_explore", "search_semantic", "search_project_deps", "search_project_dependents", "search_affected_projects", "search_project_nugets", "search_nuget_projects", "search_all_projects", "search_document", "graph_detect_communities", "graph_get_hub_nodes", "graph_detect_dead_code", "search_subgraph", "graph_analyze_change_impact", "graph_save", "graph_load", "graph_export_dot", "graph_export_html", "graph_export_wiki", "search_graph", "search_path", "search_explain", "graph_register", "graph_unregister", "graph_repos"]
   - id: shell
     exe: jcc-tool-shell
     tools: 27
     local: 11
     delegate: 0
     blurb: "bash、powershell、C# 代码沙箱、构建队列"
+    tool_ids: ["execute_csharp_code", "evaluate_expression", "test_code_snippet", "build_output", "build_queue_status", "build_cancel", "powershell", "powershell_script", "powershell_version", "powershell_execution_policy", "powershell_set_execution_policy", "bash", "shell_background_get", "shell_background_list", "shell_background_output", "shell_background_cancel", "shell_background_kill_all", "mcp_ai_workflow_workflow_execute", "mcp_ai_workflow_plan_create_and_execute", "repl", "terminal_capture", "sandbox_enter", "sandbox_exit", "sandbox_switch", "sandbox_status", "sandbox_exec", "sandbox_exec_continue"]
   - id: slash
     exe: jcc-tool-slash
     tools: 99
     local: 5
     delegate: 0
     blurb: "斜杠命令（会话、代理、配置、助手模式）"
+    tool_ids: ["??", "add-dir", "advisor", "agents", "analyze", "assistant", "branch", "bridge", "bridge-kick", "brief", "btw", "buddy", "chrome", "clear", "code-index", "color", "commit", "compact", "config", "context", "copy", "cost", "debuglog", "desktop", "diag", "diff", "doctor", "effort", "env", "execute", "exit", "export", "extra-usage", "falv", "fast", "feedback", "files", "fork", "generate", "goal", "heapdump", "help", "history", "hooks", "ide", "init", "insights", "install", "install-github-app", "login", "logout", "mcp", "memory", "mobile", "model", "oauth-refresh", "peers", "permissions", "plan", "plugin", "privacy-settings", "proactive", "profile", "quit", "rate-limit-options", "release-notes", "rename", "reset-config", "resume", "review", "rewind", "sampling", "sandbox-toggle", "security-review", "session", "share", "simple", "skills", "stats", "status", "statusline", "stickers", "summary", "switch", "tag", "tasks", "theme", "thinkback", "tools", "trust", "ultraplan", "upgrade", "usage", "vendor", "version", "vim", "voice", "workflows", "worktree"]
   - id: system
     exe: jcc-tool-system
     tools: 72
     local: 22
     delegate: 0
     blurb: "配置读写、代理消息与生命周期、诊断、cron 与遥测"
+    tool_ids: ["config_get", "config_set", "config_list", "agent", "agent_send_message", "forward_user_input", "agent_list", "agent_status", "agent_stop", "agent_running", "agent_get_messages", "diagnose_error", "fix_shell_error", "fix_file_error", "fix_merge_conflict", "resume_timed_out_task", "continue_long_running_task", "stop_long_running_task", "permission_add_rule", "permission_remove_rule", "permission_list_rules", "permission_check_tool", "permission_check_path", "permission_get_agent_rule", "permission_clear_rules", "policy_check", "policy_list", "model_search", "tool_search", "mcp_ai_workflow_workflow_chat", "mcp_ai_workflow_workflow_clear_history", "mcp_ai_workflow_workflow_get_history", "push_notification", "remote_trigger", "shake_window", "flash_taskbar", "get_process_info", "analytics_report", "analytics_tools", "analytics_events", "analytics_export", "analytics_clear", "brief_mode", "brief_status", "send_user_message", "ctx_inspect", "snip", "sleep", "sleep_until", "list_peers", "ask_user_question", "confirm_action", "agent_system_stats", "agent_list_stats", "agent_stats", "agent_history", "agent_running_stats", "agent_execution_detail", "agent_clear_history", "memory_daily_log_append", "memory_daily_log_get", "memory_search_history", "memory_team_sync", "memory_team_status", "memory_scan", "memory_age", "memory_cleanup", "memory_health", "memory_add_team_path", "memory_list_team_paths", "memory_remove_team_path", "memory_scan_team"]
   - id: tools
     exe: jcc-tool-tools
     tools: 18
     local: 9
     delegate: 0
     blurb: "技能搜索与加载、工具创建、代码简评与验证"
+    tool_ids: ["test_tool", "skill_simplify", "skill_verify", "skill_debug", "skill_batch", "skill_stuck", "tool_create", "tool_list_templates", "tool_show_template", "skill_search", "skill_recommend", "discover_skills", "skill", "skill_execute", "skill_list", "tool_score", "tool_hypergraph", "tool_score_reset"]
   - id: web
     exe: jcc-tool-web
     tools: 5
     local: 3
     delegate: 0
     blurb: "网页抓取与转 Markdown、文件下载、浏览器、网页搜索"
+    tool_ids: ["download_file", "web_browser", "web_fetch", "web_to_markdown", "web_search"]

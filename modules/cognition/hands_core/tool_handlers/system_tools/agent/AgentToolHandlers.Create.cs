@@ -16,10 +16,14 @@ public sealed partial class AgentToolHandlers {
         if (options.DryRun == true)
             return await CreateDryRunAgentAsync(options, cancellationToken).ConfigureAwait(false);
 
+        // subagent_type 是唯一入口：不解析就会以 Executor+null 变体启动，工具域退化为空（不限制）。
+        var identity = AgentSubagentTypeResolver.Resolve(options.SubagentType);
         var context = new AgentToolContext {
             Description = options.Description,
             Prompt = options.Prompt,
             SubagentType = options.SubagentType,
+            SubagentRole = identity.Role,
+            SubagentVariant = identity.Variant,
             Model = options.Model,
             Name = options.Name,
             RunInBackground = options.RunInBackground,

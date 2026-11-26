@@ -588,28 +588,12 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     }
 
     /// <summary>
-    /// 从字符串解析角色和变体 — 支持 "coordinator"、"executor:code"、"code"（简写）等格式
+    /// 从字符串解析角色和变体 — 支持 "coordinator"、"executor:code"、"code"（简写）等格式。
+    /// <para>解析规则与 Agent 工具共用 <see cref="AgentSubagentTypeResolver"/> 唯一数据源。</para>
     /// </summary>
     private static (AgentRole Role, ExecutorVariant? Variant) ParseRoleAndVariant(string name) {
-        if (name.Contains(':')) {
-            var parts = name.Split(':', 2);
-            var roleStr = parts[0].Trim();
-            var variantStr = parts[1].Trim();
-
-            var role = AgentRoleExtensions.FromValue(roleStr);
-            var variant = ExecutorVariantExtensions.FromValue(variantStr);
-            return (role ?? AgentRole.Executor, variant);
-        }
-
-        var existingVariant = ExecutorVariantExtensions.FromValue(name);
-        if (existingVariant.HasValue)
-            return (AgentRole.Executor, existingVariant.Value);
-
-        var existingRole = AgentRoleExtensions.FromValue(name);
-        if (existingRole.HasValue)
-            return (existingRole.Value, null);
-
-        return (AgentRole.Executor, null);
+        var identity = AgentSubagentTypeResolver.Resolve(name);
+        return (identity.Role, identity.Variant);
     }
 
     private void OnPluginAgentLoaderChanged(object? sender, EventArgs e) => ClearCache();

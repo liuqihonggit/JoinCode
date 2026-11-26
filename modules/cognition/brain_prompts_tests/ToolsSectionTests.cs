@@ -80,6 +80,43 @@ public sealed class ToolsSectionTests {
     }
 
     [Fact]
+    public void GetContent_RestrictedDomain_ListsOnlyGroupsWithVisibleTools() {
+        using var scope = PromptToolGroupScope.Enter(null, new CliToolScopeSnapshot { AllowedTools = ["read"] });
+
+        var content = ToolsSection.GetContent();
+
+        content.Should().NotBeNull();
+        content.Should().Contain("jcc-tool-file", "read 属于 file 组");
+        content.Should().NotContain("jcc-tool-git", "git 组没有授权工具，不能出现在首轮目录");
+        content.Should().Contain("按当前 agent 工具域裁剪");
+    }
+
+    [Fact]
+    public void GetContent_EmptyDomainIntersection_HidesAllGroups() {
+        using var scope = PromptToolGroupScope.Enter(null, new CliToolScopeSnapshot {
+            AllowedTools = ["__no_tools_permitted__"]
+        });
+
+        var content = ToolsSection.GetContent();
+
+        content.Should().NotBeNull();
+        content.Should().Contain("工具域内没有独立 CLI 工具组");
+        content.Should().NotContain("jcc-tool-file");
+    }
+
+    [Fact]
+    public void GetContent_DenyOnly_KeepsOtherGroupsVisible() {
+        using var scope = PromptToolGroupScope.Enter(null, new CliToolScopeSnapshot { DeniedTools = ["commit"] });
+
+        var content = ToolsSection.GetContent();
+
+        content.Should().NotBeNull();
+        content.Should().Contain("jcc-tool-file");
+        content.Should().Contain("jcc-tool-git", "只禁 commit 时 git 组其它工具仍可用");
+        content.Should().Contain("按当前 agent 工具域裁剪");
+    }
+
+    [Fact]
     public void GetContent_RetiresTwoPhaseToolGroupsProtocol() {
         var content = ToolsSection.GetContent();
 

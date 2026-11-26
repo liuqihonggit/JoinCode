@@ -5,6 +5,8 @@
   <Project Path="aot_safety_tests/AotSafety.Tests.csproj" />
   <Project Path="app_module_generator/AppModule.Generator.csproj" />
   <Project Path="cli_option_generator/CliOption.Generator.csproj" />
+  <Project Path="cli_permission_analyzer/CliPermission.Analyzer.csproj" />
+  <Project Path="cli_permission_analyzer_tests/CliPermission.Analyzer.Tests.csproj" />
   <Project Path="code_fixes/CodeFixes.csproj" />
   <Project Path="danger_command_generator/DangerCommand.Generator.csproj" />
   <Project Path="enum_metadata_generator/EnumMetadata.Generator.csproj" />

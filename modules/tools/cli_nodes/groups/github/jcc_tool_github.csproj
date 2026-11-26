@@ -12,6 +12,11 @@
 
   <ItemGroup>
     <EmbeddedResource Include="help.txt" LogicalName="JoinCode.CliNodes.Groups.github.help.txt" />
+    <EmbeddedResource Include="$(RepoRoot)resources/tools/policies/github.yaml" LogicalName="JoinCode.CliNodes.Groups.github.policy.yaml" />
+    <AdditionalFiles Include="$(RepoRoot)resources/tools/policies/github.yaml" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/cli_permission_analyzer/CliPermission.Analyzer.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!--

@@ -83,13 +83,13 @@ internal static class SearchCommands {
             Root = ResolveDirectory(o.GetValueOrDefault("path")),
             Glob = Nullable(o, "glob"),
             OutputMode = o.GetValueOrDefault("output_mode", "files_with_matches").Trim().ToLowerInvariant(),
-            IgnoreCase = GetBool(o, "case_insensitive", false) || GetBool(o, "-i", false),
+            IgnoreCase = GetBool(o, "case_insensitive", false),
             Multiline = GetBool(o, "multiline", false),
-            FileType = Nullable(o, "file_type") ?? Nullable(o, "type"),
-            Before = GetIntOrNull(o, "before", "-B"),
-            After = GetIntOrNull(o, "after", "-A"),
-            Context = GetIntOrNull(o, "context", "-C"),
-            LineNumbers = GetBool(o, "line_numbers", GetBool(o, "-n", true)),
+            FileType = Nullable(o, "file_type"),
+            Before = GetIntOrNull(o, "before"),
+            After = GetIntOrNull(o, "after"),
+            Context = GetIntOrNull(o, "context"),
+            LineNumbers = GetBool(o, "line_numbers", true),
             HeadLimit = GetIntOrNull(o, "head_limit") ?? DefaultHeadLimit,
             Offset = GetIntOrNull(o, "offset") ?? 0
         };
@@ -527,13 +527,10 @@ internal static class SearchCommands {
     private static string? Nullable(IReadOnlyDictionary<string, string> o, string key) =>
         o.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value : null;
 
-    private static int? GetIntOrNull(IReadOnlyDictionary<string, string> o, params string[] keys) {
-        foreach (var key in keys) {
-            if (!o.TryGetValue(key, out var raw) || string.IsNullOrWhiteSpace(raw)) continue;
-            if (int.TryParse(raw, out var value)) return value;
-            throw new ArgumentException($"参数 --{key} 需要整数，当前值 '{raw}'。");
-        }
-        return null;
+    private static int? GetIntOrNull(IReadOnlyDictionary<string, string> o, string key) {
+        if (!o.TryGetValue(key, out var raw) || string.IsNullOrWhiteSpace(raw)) return null;
+        if (int.TryParse(raw, out var value)) return value;
+        throw new ArgumentException($"参数 --{key} 需要整数，当前值 '{raw}'。");
     }
 
     private static bool GetBool(IReadOnlyDictionary<string, string> o, string key, bool fallback) {

@@ -40,10 +40,96 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
     }
 
     /// <summary>
+    /// 只读子代理（Explore/Plan）通过真实 shell 启动 jcc 调用域外 host 工具 —
+    /// 授权必须由父 broker 以 Agent.AllowedTools 拒绝，而非放行或退化成 Auth.Missing。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Theory]
+    [InlineData("executor:explore")]
+    [InlineData("executor:plan")]
+    public async Task ReadOnlySubAgent_CliHostToolOutsideScope_IsDeniedByBroker(string subagentType) {
+        var fs = IO.FileSystem.FileSystemFactory.Create();
+        var jccPath = ResolveJccPath(fs);
+        var logName = $"cli_auth_e2e_{Guid.NewGuid():N}.log";
+        var outputPath = Path.Combine(AppContext.BaseDirectory, logName);
+        var localJcc = $"./{Path.GetFileName(jccPath)}";
+        var relativeOutput = $"./{logName}";
+        var bashCommand =
+            $"{localJcc} tool tree > \"{relativeOutput}\" 2>&1; " +
+            $"{localJcc} tool call agent subagent_control >> \"{relativeOutput}\" 2>&1; " +
+            $"echo \"EXIT=$?\" >> \"{relativeOutput}\"; echo \"PIPE=${{JCC_CLI_AUTH_PIPE:-none}}\" >> \"{relativeOutput}\"";
+        var toolCallArguments = $"{{\"name\":\"e2e-cli-auth\",\"subagent_type\":\"{subagentType}\",\"description\":\"检查CLI授权\",\"prompt\":\"只读探索，不修改文件\"}}";
+
+        await RunScenarioAsync(toolCallArguments, BuildBashMockConfig(toolCallArguments, bashCommand)).ConfigureAwait(true);
+
+        Assert.True(fs.FileExists(outputPath), $"Bash 未生成输出文件: {outputPath}");
+        var output = await fs.ReadAllText(outputPath).ConfigureAwait(true);
+        _output.WriteLine($"[CLI-AUTH-DIAG] {output}");
+        Assert.DoesNotContain("PIPE=none", output);
+        Assert.Contains("[CLI-AUTH] denied", output);
+        Assert.Contains("Agent.AllowedTools", output);
+        Assert.Contains("subagent_control", output);
+    }
+
+    /// <summary>
+    /// 写子代理（executor:code）经同一 broker 获得更宽 CLI 域 — 工具树必须比只读代理多出写工具，
+    /// 证明授权按角色/变体裁剪而不是一刀切。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public async Task WriteSubAgent_ToolTree_ShowsWiderScopeThanReadOnly() {
+        var fs = IO.FileSystem.FileSystemFactory.Create();
+        var jccPath = ResolveJccPath(fs);
+        var logName = $"cli_auth_write_e2e_{Guid.NewGuid():N}.log";
+        var outputPath = Path.Combine(AppContext.BaseDirectory, logName);
+        var localJcc = $"./{Path.GetFileName(jccPath)}";
+        var relativeOutput = $"./{logName}";
+        var bashCommand =
+            $"{localJcc} tool tree > \"{relativeOutput}\" 2>&1; " +
+            $"echo \"PIPE=${{JCC_CLI_AUTH_PIPE:-none}}\" >> \"{relativeOutput}\"";
+        var toolCallArguments = "{\"name\":\"e2e-cli-write\",\"subagent_type\":\"executor:code\",\"description\":\"检查CLI授权\",\"prompt\":\"读取并写入探针文件\"}";
+
+        await RunScenarioAsync(toolCallArguments, BuildBashMockConfig(toolCallArguments, bashCommand)).ConfigureAwait(true);
+
+        Assert.True(fs.FileExists(outputPath), $"Bash 未生成输出文件: {outputPath}");
+        var output = await fs.ReadAllText(outputPath).ConfigureAwait(true);
+        _output.WriteLine($"[CLI-AUTH-WRITE-DIAG] {output}");
+        Assert.DoesNotContain("PIPE=none", output);
+        var markerIndex = output.IndexOf("个工具", StringComparison.Ordinal);
+        Assert.True(markerIndex > 0, "工具树缺少工具计数行");
+        var slashIndex = output.LastIndexOf(" / ", markerIndex, StringComparison.Ordinal);
+        var countText = output[(slashIndex + 3)..markerIndex];
+        Assert.True(int.TryParse(countText, out var toolCount), $"未能解析工具数: {countText}");
+        Assert.True(toolCount > 5, $"code 变体工具域应比只读代理（5 个）宽，实际 {toolCount}");
+    }
+
+    private static string ResolveJccPath(JoinCode.Abstractions.Interfaces.IFileSystem fs) {
+        var exeName = OperatingSystem.IsWindows() ? "jcc.exe" : "jcc";
+        var local = Path.Combine(AppContext.BaseDirectory, exeName);
+        if (fs.FileExists(local)) return local;
+
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null) {
+            var candidateRoot = Path.Combine(dir, "artifacts", "bin", "JoinCode");
+            if (fs.DirectoryExists(candidateRoot)) {
+                var found = fs.GetFiles(candidateRoot, exeName, SearchOption.AllDirectories)
+                    .OrderByDescending(path => path.Contains("Debug"))
+                    .FirstOrDefault();
+                if (found is not null) return found;
+            }
+            dir = Path.GetDirectoryName(dir.TrimEnd(Path.DirectorySeparatorChar));
+        }
+        throw new FileNotFoundException($"jcc exe 未找到（测试输出目录与 artifacts/bin/JoinCode 均缺失 {exeName}）");
+    }
+
+    /// <summary>
     /// 共享实弹管线（对齐 SubAgentEventStreamE2ETests 先例）：写脚本配置 → 启动真实 MockServer →
     /// 创建引擎会话 + 主代理 + SessionController（RecordingSubagentConsumer）→ 提交回合收全部子代理回调。
     /// </summary>
-    private async Task<RecordingSubagentConsumer> RunMainAgentScenarioAsync(string toolCallArguments) {
+    private async Task<RecordingSubagentConsumer> RunMainAgentScenarioAsync(string toolCallArguments)
+        => await RunScenarioAsync(toolCallArguments, BuildMockConfig(toolCallArguments)).ConfigureAwait(true);
+
+    private async Task<RecordingSubagentConsumer> RunScenarioAsync(string toolCallArguments, string mockConfig) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         var ct = cts.Token;
@@ -51,7 +137,7 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
         var configDir = fs.CombinePath(Path.GetTempPath(), $"jcc_subagent_mainpath_e2e_{Guid.NewGuid():N}");
         fs.CreateDirectory(configDir);
         var configPath = fs.CombinePath(configDir, "mockserver.json");
-        await fs.WriteAllText(configPath, BuildMockConfig(toolCallArguments));
+        await fs.WriteAllText(configPath, mockConfig);
 
         using var mockServer = StartMockServer(fs, configPath, _output, out var readyTask);
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -161,6 +247,47 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
         sb.AppendLine(",");
         AppendTextTurn(sb, "子代理已完成 README 检查。");
 
+        sb.AppendLine();
+        sb.AppendLine("  ]");
+        sb.AppendLine("}");
+        return sb.ToString();
+    }
+
+    /// <summary>脚本轮次：① 主对话 Agent 调用 ② 子代理 Bash 调用 ③ 子代理收尾 ④ 主对话收尾。</summary>
+    private static string BuildBashMockConfig(string toolCallArguments, string bashCommand) {
+        var bashArguments = "{\"command\":\"" + EscapeJsonString(bashCommand) + "\"}";
+        var sb = new StringBuilder();
+        sb.AppendLine("{");
+        sb.AppendLine("  \"port\": 0,");
+        sb.AppendLine("  \"default_response\": \"(script exhausted)\",");
+        sb.AppendLine("  \"scripted_turns\": [");
+        sb.AppendLine("    {");
+        sb.AppendLine("      \"thinking_content\": null,");
+        sb.AppendLine("      \"tool_calls\": [");
+        sb.AppendLine("        {");
+        sb.Append("          \"tool_name\": \"").Append(AgentToolNameEnumConstants.Agent).AppendLine("\",");
+        sb.Append("          \"arguments\": \"").Append(EscapeJsonString(toolCallArguments)).AppendLine("\",");
+        sb.AppendLine("        }");
+        sb.AppendLine("      ],");
+        sb.AppendLine("      \"text_response\": null,");
+        sb.AppendLine("      \"follow_up_text\": null,");
+        sb.AppendLine("      \"http_status_code\": null");
+        sb.AppendLine("    },");
+        sb.AppendLine("    {");
+        sb.AppendLine("      \"thinking_content\": null,");
+        sb.AppendLine("      \"tool_calls\": [");
+        sb.AppendLine("        {");
+        sb.Append("          \"tool_name\": \"").Append(ShellToolNameEnumConstants.Bash).AppendLine("\",");
+        sb.Append("          \"arguments\": \"").Append(EscapeJsonString(bashArguments)).AppendLine("\",");
+        sb.AppendLine("        }");
+        sb.AppendLine("      ],");
+        sb.AppendLine("      \"text_response\": null,");
+        sb.AppendLine("      \"follow_up_text\": null,");
+        sb.AppendLine("      \"http_status_code\": null");
+        sb.AppendLine("    },");
+        AppendTextTurn(sb, "CLI 授权检查完成。");
+        sb.AppendLine(",");
+        AppendTextTurn(sb, "子代理已完成 CLI 授权检查。");
         sb.AppendLine();
         sb.AppendLine("  ]");
         sb.AppendLine("}");

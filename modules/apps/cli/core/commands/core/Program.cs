@@ -109,6 +109,21 @@ class Program {
             // --dump-profile: 诊断命令 — 输出后直接退出
             if (options.DumpProfile is not null) return DumpProfileInfo(options.DumpProfile);
 
+            // 阶段 3 launcher：agent shell 里启动新的 jcc 会话会自建全量权限 broker，
+            // 绕过父 agent 的工具域。子命令（tool/mcp_call/slash_call/gh…）在路由层已返回，
+            // 这里只剩 TUI / -p 两种启动形态，默认拒绝；JCC_ALLOW_NESTED_LAUNCH=1 可显式放开。
+            var authorizationPipe = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.PipeVariable);
+            var nestedLaunchOverride = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.AllowNestedLaunchVariable);
+            if (!string.IsNullOrWhiteSpace(authorizationPipe) && string.IsNullOrWhiteSpace(nestedLaunchOverride)) {
+                const string reason = "当前 agent shell 不允许启动新的 jcc 会话（新进程不受父 broker 的工具域约束）";
+                const string next = "改用 jcc tool call / jcc mcp_call / jcc slash_call，或交由具备对应职责的代理执行";
+                if (options.IsStructuredOutputMode)
+                    WriteStructuredErrorToStdout(CliErrorCatalog.ConflictPermissionDenied($"{reason}；{next}"), options.IsNdjsonMode);
+                else
+                    App.ErrorConsole.Warning($"[CLI-AUTH] denied | launcher: jcc | layer: Host.Launcher | reason: {reason} | 正确写法: {next}");
+                return CliNodeRunner.ExitAuthorizationRequired;
+            }
+
 
             // 早期超时计时器已完成使命（子命令路由已过），主路径计时器接管 — 避免双重超时输出
             earlyAwaitTimer?.Dispose();

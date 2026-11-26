@@ -149,8 +149,24 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator 
         string command, CancellationToken cancellationToken = default) {
         var env = CreateBaseEnvironment();
         AppendExtraEnvironmentVariables(env, command);
+        AppendCliAuthorizationEnvironment(env);
         Logger?.LogDebug("{Kind}: injected {Count} environment overrides", Kind, env.Count);
         return Task.FromResult<IReadOnlyDictionary<string, string>>(env);
+    }
+
+    /// <summary>
+    /// 注入当前 agent 的 CLI 授权 broker 会话 — AsyncLocal 不能跨进程，令牌是唯一可验证载体。
+    /// </summary>
+    private static void AppendCliAuthorizationEnvironment(Dictionary<string, string> env) {
+        var scope = SubAgentContext.Current;
+        var authorization = CliAuthorizationBrokerRuntime.EnsureEnvironment(
+            scope?.AgentId ?? "main",
+            scope?.SessionId ?? "main",
+            scope?.AllowedTools ?? [],
+            scope?.DeniedTools ?? [],
+            scope?.PermissionMode);
+        foreach (var pair in authorization)
+            env[pair.Key] = pair.Value;
     }
 
     #endregion

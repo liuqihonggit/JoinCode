@@ -92,6 +92,9 @@ public static class CliNodeRunner {
     /// <summary>需要宿主但宿主不可用。</summary>
     public const int ExitHostUnavailable = 3;
 
+    /// <summary>缺少集中授权或授权被拒绝（GNU 126：找到命令但不可执行）。</summary>
+    public const int ExitAuthorizationRequired = 126;
+
     private const string HelpMarker = "  {0} — ";
     private const string ToolListHeader = "工具列表";
 
@@ -155,10 +158,30 @@ public static class CliNodeRunner {
         var toolId = canonical.Length > 0 ? canonical : requested;
 
         var options = ParseOptions(args.AsSpan(1));
-        var handler = definition.Resolve(toolId);
-        if (handler is not null) return await RunLocalAsync(definition, toolId, handler, NormalizeOptionNames(options, help, toolId), ct).ConfigureAwait(false);
+        var normalized = NormalizeOptionNames(options, help, toolId);
+        var authorization = await CliToolAuthorizationClient.AuthorizeCurrentProcessAsync(
+            definition.GroupId, toolId, normalized, ct).ConfigureAwait(false);
+        if (!authorization.Allowed) {
+            WriteAuthorizedFailure(definition, toolId, authorization);
+            return ExitAuthorizationRequired;
+        }
 
-        return await ForwardAsync(definition, toolId, NormalizeOptionNames(options, help, toolId), ct).ConfigureAwait(false);
+        var handler = definition.Resolve(toolId);
+        if (handler is not null) return await RunLocalAsync(definition, toolId, handler, normalized, ct).ConfigureAwait(false);
+
+        return await ForwardAsync(definition, toolId, normalized, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>集中授权拒绝的统一错误 —— 原因、触发工具、拦截层、正确写法四项必须齐全。</summary>
+    private static void WriteAuthorizedFailure(
+        CliNodeDefinition definition,
+        string toolId,
+        CliAuthorizationDecision decision) {
+        WriteError("[CLI-AUTH] denied");
+        WriteError($"tool: {definition.GroupId}/{toolId}");
+        WriteError($"layer: {decision.Layer}");
+        WriteError($"reason: {decision.Reason}");
+        WriteError($"正确写法: jcc tool call {definition.GroupId} {toolId} --参数 值");
     }
 
     /// <summary>
@@ -783,6 +806,9 @@ public static class CliNodeRunner {
     }
 }
 
-/// <summary>转发宿主时的参数序列化上下文 —— 源生成避免 AOT 下的反射序列化。</summary>
+/// <summary>转发宿主与 CLI 授权传输的序列化上下文 —— 源生成避免 AOT 下的反射序列化。</summary>
 [JsonSerializable(typeof(Dictionary<string, string>))]
+[JsonSerializable(typeof(CliAuthorizationRequest))]
+[JsonSerializable(typeof(CliAuthorizationResponse))]
+[JsonSerializable(typeof(CliAuthorizationAuditEntry))]
 internal partial class CliNodeJsonContext : JsonSerializerContext { }

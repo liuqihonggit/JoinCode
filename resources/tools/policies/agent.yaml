@@ -1,0 +1,408 @@
+# agent 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.agent
+policy_version: 1
+executables:
+  - jcc-tool-agent.exe
+
+tools:
+  get_plan_status:
+    effect: allow
+    parameters: []
+  add_plan_step:
+    effect: allow
+    parameters:
+      description:
+        effect: allow
+      tool_name:
+        effect: allow
+      JsonElement:
+        effect: allow
+  approve_plan_step:
+    effect: allow
+    parameters:
+      step_index:
+        effect: allow
+  reject_plan_step:
+    effect: allow
+    parameters:
+      step_index:
+        effect: allow
+      reason:
+        effect: allow
+  execute_plan_steps:
+    effect: allow
+    parameters: []
+  modify_plan_step:
+    effect: allow
+    parameters:
+      step_index:
+        effect: allow
+      new_description:
+        effect: allow
+      new_tool_name:
+        effect: allow
+      JsonElement:
+        effect: allow
+  remove_plan_step:
+    effect: allow
+    parameters:
+      step_index:
+        effect: allow
+  get_plan_history:
+    effect: allow
+    parameters:
+      limit:
+        effect: allow
+  subagent_control:
+    effect: allow
+    parameters:
+      action:
+        effect: allow
+      id:
+        effect: allow
+      prompt:
+        effect: allow
+  plan_agent:
+    effect: allow
+    parameters:
+      goal:
+        effect: allow
+      context:
+        effect: allow
+      constraints:
+        effect: allow
+  explore_agent:
+    effect: allow
+    parameters:
+      target_path:
+        effect: allow
+      focus_area:
+        effect: allow
+      depth:
+        effect: allow
+  verification_agent:
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+      language:
+        effect: allow
+      aspect:
+        effect: allow
+  general_agent:
+    effect: allow
+    parameters:
+      task:
+        effect: allow
+      input:
+        effect: allow
+  guide_agent:
+    effect: allow
+    parameters:
+      question:
+        effect: allow
+      feature:
+        effect: allow
+  list_agents:
+    effect: allow
+    parameters: []
+  team_create:
+    effect: allow
+    parameters:
+      team_name:
+        effect: allow
+      description:
+        effect: allow
+      initial_members:
+        effect: allow
+  team_delete:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+  team_get:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+  team_list:
+    effect: allow
+    parameters: []
+  team_add_member:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+      agent_id:
+        effect: allow
+  team_remove_member:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+      agent_id:
+        effect: allow
+  team_send_message:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+      sender_id:
+        effect: allow
+      content:
+        effect: allow
+      message_type:
+        effect: allow
+  team_send_direct_message:
+    effect: allow
+    parameters:
+      target_agent_id:
+        effect: allow
+      sender_id:
+        effect: allow
+      content:
+        effect: allow
+      message_type:
+        effect: allow
+  team_broadcast:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+      sender_id:
+        effect: allow
+      content:
+        effect: allow
+      message_type:
+        effect: allow
+  team_get_messages:
+    effect: allow
+    parameters:
+      team_id:
+        effect: allow
+      limit:
+        effect: allow
+  worktree_create:
+    effect: allow
+    parameters:
+      agent_id:
+        effect: allow
+      git_root:
+        effect: allow
+      base_branch:
+        effect: allow
+  worktree_remove:
+    effect: allow
+    parameters:
+      agent_id:
+        effect: allow
+      force:
+        effect: allow
+  worktree_list:
+    effect: allow
+    parameters: []
+  worktree_status:
+    effect: allow
+    parameters:
+      agent_id:
+        effect: allow
+  worktree_cleanup:
+    effect: allow
+    parameters:
+      stale_hours:
+        effect: allow
+      confirm:
+        effect: allow
+  worktree_find_git:
+    effect: allow
+    parameters:
+      start_path:
+        effect: allow
+  worktree_list_all:
+    effect: allow
+    parameters:
+      git_root:
+        effect: allow
+  worktree_merge:
+    effect: allow
+    parameters:
+      source_worktree_path:
+        effect: allow
+      target_worktree_path:
+        effect: allow
+      strategy:
+        effect: allow
+  task_output:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+      output_type:
+        effect: deny  # CLI 本地实现只返回合并输出；分类型读取未落地
+      max_lines:
+        effect: allow
+  task_stop:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+      shell_id:
+        effect: allow
+  task_stop_batch:
+    effect: allow
+    parameters:
+      task_ids:
+        effect: allow
+  task_list_running:
+    effect: allow
+    parameters:
+      type:
+        effect: allow
+  verify_plan_execution:
+    effect: allow
+    parameters:
+      plan_prompt:
+        effect: allow
+      criteria:
+        effect: allow
+  cron_create:
+    effect: allow
+    parameters:
+      cron:
+        effect: allow
+      prompt:
+        effect: allow
+      recurring:
+        effect: allow
+      durable:
+        effect: allow
+  cron_list:
+    effect: allow
+    parameters: []
+  cron_delete:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+  cron_validate:
+    effect: allow
+    parameters:
+      cron:
+        effect: allow
+  complete_step:
+    effect: allow
+    parameters:
+      step:
+        effect: allow
+      result:
+        effect: allow
+      evidence:
+        effect: allow
+      notes:
+        effect: allow
+  task_create:
+    effect: allow
+    parameters:
+      title:
+        effect: allow
+      description:
+        effect: allow
+      assignee:
+        effect: allow
+      due_date:
+        effect: allow
+      priority:
+        effect: allow
+      tags:
+        effect: allow
+  task_list:
+    effect: allow
+    parameters:
+      status:
+        effect: allow
+      assignee:
+        effect: allow
+      priority:
+        effect: allow
+      limit:
+        effect: allow
+      offset:
+        effect: allow
+  task_update:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+      title:
+        effect: allow
+      description:
+        effect: allow
+      status:
+        effect: allow
+      assignee:
+        effect: allow
+      due_date:
+        effect: allow
+      priority:
+        effect: allow
+      tags:
+        effect: allow
+  task_get:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+  task_set_dependency:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+      depends_on_task_id:
+        effect: allow
+      dependency_type:
+        effect: deny  # 依赖模型只存 ID 列表；类型未落地
+  task_remove_dependency:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+      depends_on_task_id:
+        effect: allow
+  task_get_dependencies:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+  task_can_execute:
+    effect: allow
+    parameters:
+      task_id:
+        effect: allow
+  todo_write:
+    effect: allow
+    parameters:
+      todos:
+        effect: allow
+  todo_list:
+    effect: allow
+    parameters:
+      status:
+        effect: allow
+      priority:
+        effect: allow
+      include_completed:
+        effect: allow
+  todo_update:
+    effect: allow
+    parameters:
+      todo_id:
+        effect: allow
+      content:
+        effect: allow
+      status:
+        effect: allow
+      priority:
+        effect: allow

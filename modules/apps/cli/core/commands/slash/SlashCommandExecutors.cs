@@ -39,6 +39,27 @@ internal static class SlashCallExecutor {
                 return 1;
             }
 
+            // agent shell 内可绕过分组 exe 直接调 jcc slash_call；宿主按同一 slash 策略
+            // 同时判定工具域与参数白名单，否则斜杠命令成为子代理扩大权限的后门。
+            var canonicalName = command.Name.TrimStart('/');
+            var authorizationArguments = BuildAuthorizationArguments(argsJson);
+            if (authorizationArguments is null) {
+                TerminalHelper.WriteError("斜杠命令参数必须是 JSON 对象或 key=value 形式（由 jcc slash_call 的参数格式层拦截）。");
+                TerminalHelper.WriteError("正确写法: jcc slash_call compact level=2 或 jcc slash_call compact '{\"level\":2}'");
+                return 1;
+            }
+
+            var pipeName = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.PipeVariable);
+            var authorization = string.IsNullOrWhiteSpace(pipeName)
+                ? CliAuthorizationDecision.Allow("Host.Manual")
+                : await CliGroupToolAuthorization.AuthorizeAsync("slash", canonicalName, authorizationArguments, ct).ConfigureAwait(false);
+            if (!authorization.Allowed) {
+                TerminalHelper.WriteError(
+                    $"[CLI-AUTH] denied | command: /{cmdName} | layer: {authorization.Layer} | reason: {authorization.Reason}"
+                    + " | 正确写法: 只调用当前职责范围内的斜杠命令与已声明参数，或改用 jcc tool call slash <命令>");
+                return 1;
+            }
+
             var resumeSessionId = FlatSubCommandRouter.GetOptionValue(args, "--resume") ?? FlatSubCommandRouter.GetOptionValue(args, "-r");
 
             var context = new ChatCommandContext {
@@ -51,6 +72,31 @@ internal static class SlashCallExecutor {
             await command.ExecuteAsync(context).ConfigureAwait(false);
             return 0;
         }, ct: ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 把已解析的参数 JSON 转成授权判定用的扁平字典 — 只取顶层参数名与值摘要，
+    /// 供 slash 策略的参数白名单判定；非对象 JSON 返回 null（无法证明参数已登记）。
+    /// </summary>
+    private static Dictionary<string, string>? BuildAuthorizationArguments(string argsJson) {
+        if (string.IsNullOrWhiteSpace(argsJson)) {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+        try {
+            using var document = JsonDocument.Parse(argsJson);
+            if (document.RootElement.ValueKind is not JsonValueKind.Object) {
+                return null;
+            }
+            var arguments = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var property in document.RootElement.EnumerateObject()) {
+                arguments[property.Name] = property.Value.ValueKind is JsonValueKind.String
+                    ? property.Value.GetString() ?? ""
+                    : property.Value.GetRawText();
+            }
+            return arguments;
+        } catch (JsonException) {
+            return null;
+        }
     }
 
     /// <summary>

@@ -13,6 +13,8 @@
 | [AotSafety.Tests](aot_safety_tests/AotSafety.Tests.csproj) | 测试 |
 | [AppModule.Generator](app_module_generator/AppModule.Generator.csproj) | 源码生成器 |
 | [CliOption.Generator](cli_option_generator/CliOption.Generator.csproj) | 源码生成器 |
+| [CliPermission.Analyzer.Tests](cli_permission_analyzer_tests/CliPermission.Analyzer.Tests.csproj) | 测试 |
+| [CliPermission.Analyzer](cli_permission_analyzer/CliPermission.Analyzer.csproj) |  |
 | [CodeFixes](code_fixes/CodeFixes.csproj) |  |
 | [DangerCommand.Generator](danger_command_generator/DangerCommand.Generator.csproj) | 源码生成器 |
 | [EnumMetadata.Generator](enum_metadata_generator/EnumMetadata.Generator.csproj) | 源码生成器 |

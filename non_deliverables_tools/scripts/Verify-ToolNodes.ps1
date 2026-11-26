@@ -77,9 +77,44 @@ $groups = Get-ChildItem -Path $groupsRoot -Directory |
     Where-Object { Test-Path (Join-Path $_.FullName ("jcc_tool_" + $_.Name + ".csproj")) } |
     Sort-Object Name
 
+# 嵌入权限策略的分组（ADR 0168）：直接运行 exe 必须被中央鉴权拒绝（126 / Auth.Missing），
+# 成功路径只在 jcc 宿主里成立 —— 抽样对这类组验的是 fail-closed 而不是旧的成功路径。
+$policyGroups = @{}
+foreach ($group in $groups) {
+    $csprojPath = Join-Path $group.FullName ("jcc_tool_" + $group.Name + ".csproj")
+    if ((Get-Content -Path $csprojPath -Raw) -match 'policy\.yaml') { $policyGroups[$group.Name] = $true }
+}
+
+# 策略信任目录（ADR 0168）：jcc 只认这里锚定的 policy id + 内容哈希。
+$trustPath = Join-Path $repoRoot "resources/tools/policy_trust.yaml"
+$trustEntries = @{}
+if (-not (Test-Path $trustPath)) {
+    $problems += "策略信任目录缺失: $trustPath（用 Generate-CliToolPolicies.py --trust-only 生成）"
+} else {
+    $trustText = Get-Content -Path $trustPath -Raw -Encoding UTF8
+    foreach ($m in [regex]::Matches($trustText, '(?ms)^  - id:\s*(\S+)\s*$(.*?)(?=^  - id:|\z)')) {
+        $trustId = $m.Groups[1].Value
+        $body = $m.Groups[2].Value
+        $hashMatch = [regex]::Match($body, '(?m)^\s+hash:\s*(\S+)')
+        $execSection = [regex]::Match($body, '(?ms)^\s+executables:\s*$(.*)')
+        $execs = @()
+        if ($execSection.Success) {
+            $execs = @([regex]::Matches($execSection.Groups[1].Value, '(?m)^\s+-\s*(\S+)') |
+                ForEach-Object { $_.Groups[1].Value })
+        }
+        $trustEntries[$trustId] = [pscustomobject]@{
+            Hash = if ($hashMatch.Success) { $hashMatch.Groups[1].Value.ToLowerInvariant() } else { "" }
+            Execs = $execs
+        }
+    }
+}
+
 # 工具 id 归一化：slash 组的 node.yaml 登记名与 exe 自报名在前导斜杠上不一致（/version vs version），
 # 与 CliNodeRunner.CanonicalToolId 同口径处理，否则集合比对会对 slash 组假报漂移。
 function Normalize-ToolId([string]$id) { if ($id) { $id.TrimStart('/') } else { $id } }
+
+# 策略与 node.yaml 的工具 ID 可能带引号（slash 组的 "??"）或前导斜杠；对账前统一剥掉。
+function Normalize-PolicyToolId([string]$id) { if ($id) { $id.Trim().Trim('"').Trim("'").TrimStart('/') } else { $id } }
 
 if (-not $groups) {
     Write-Host "找不到任何分组工程: $groupsRoot" -ForegroundColor Red
@@ -97,10 +132,20 @@ $groupMapPath = Join-Path $repoRoot "resources/tools/group_map.yaml"
 $groupMapText = Get-Content -Path $groupMapPath -Raw
 
 $delegatedInMap = @{}
+$delegateExes = @{}
+$delegateProjects = @{}
 $delegateSection = [regex]::Match($groupMapText, '(?ms)^delegates:\s*$(.*?)(?=^\S)')
 if ($delegateSection.Success) {
-    foreach ($m in [regex]::Matches($delegateSection.Groups[1].Value, '(?m)^  ([A-Za-z0-9_]+):\s*$')) {
-        $delegatedInMap[$m.Groups[1].Value] = $true
+    $currentDelegate = $null
+    foreach ($line in ($delegateSection.Groups[1].Value -split "`r?`n")) {
+        if ($line -match '^  ([A-Za-z0-9_]+):\s*$') {
+            $currentDelegate = $Matches[1]
+            $delegatedInMap[$currentDelegate] = $true
+            continue
+        }
+        if (-not $currentDelegate) { continue }
+        if ($line -match '^\s+exe:\s*(\S+)') { $delegateExes[$currentDelegate] = $Matches[1] }
+        elseif ($line -match '^\s+project:\s*(\S+)') { $delegateProjects[$currentDelegate] = $Matches[1] }
     }
 } else {
     $problems += "group_map.yaml 里找不到 delegates 段（github 组的委托登记靠它）"
@@ -163,6 +208,80 @@ foreach ($group in $groups) {
             "[$name] node.yaml 有 $declaredDelegate 条 delegate，但 group_map.yaml 的 delegates 段没登记该组"
         } else {
             "[$name] group_map.yaml 的 delegates 段登记了该组，但 node.yaml 里没有 mode: delegate"
+        }
+    }
+
+    # ── 权限策略对账（ADR 0168）────────────────────────────────────
+    # 策略是执行期的硬边界：工具/参数在 node.yaml 有、策略没有，分析器会在编译期炸；
+    # 但「策略多出一个工具」或「exe 未内嵌策略」不会有自然信号 —— 必须在这里拦。
+    $policyPath = Join-Path $repoRoot ("resources/tools/policies/" + $name + ".yaml")
+    if (-not (Test-Path $policyPath)) {
+        $problems += "[$name] 缺少权限策略 $policyPath（分析器 JCC13008 也会因缺策略失败）"
+    } else {
+        $policyText = Get-Content -Path $policyPath -Raw -Encoding UTF8
+        $policyId = [regex]::Match($policyText, '(?m)^policy_id:\s*(\S+)').Groups[1].Value
+        if ($policyId -ne "cli.$name") {
+            $problems += "[$name] 策略 policy_id='$policyId'，应为 cli.$name"
+        }
+
+        $execSection = [regex]::Match($policyText, '(?ms)^executables:\s*$(.*?)(?=^\S)')
+        $policyExecs = @()
+        if ($execSection.Success) {
+            $policyExecs = @([regex]::Matches($execSection.Groups[1].Value, '(?m)^\s+-\s*(\S+)') |
+                ForEach-Object { $_.Groups[1].Value })
+        }
+        if ($policyExecs -notcontains "jcc-tool-$name.exe") {
+            $problems += "[$name] 策略 executables 未声明 jcc-tool-$name.exe（broker 会拒绝该 exe 的策略）"
+        }
+        if ($delegateExes.ContainsKey($name)) {
+            $delegateExeName = $delegateExes[$name] + ".exe"
+            if ($policyExecs -notcontains $delegateExeName) {
+                $problems += "[$name] 委托 exe $delegateExeName 未出现在策略 executables（直跑 delegate 无法自证）"
+            }
+            $delegateProject = $delegateProjects[$name]
+            $delegateProjPath = if ($delegateProject) { Join-Path $repoRoot ("modules/tools/" + $delegateProject + "/" + $delegateProject + ".csproj") } else { "" }
+            if (-not $delegateProjPath -or -not (Test-Path $delegateProjPath)) {
+                $problems += "[$name] group_map.yaml 未登记有效的委托工程（project 字段），无法验证策略内嵌"
+            } elseif ((Get-Content -Path $delegateProjPath -Raw) -notmatch 'policies[^>]*\.yaml') {
+                $problems += "[$name] 委托工程 $delegateProjPath 未内嵌 policy.yaml（直跑 delegate 会保持旧放行行为）"
+            }
+        }
+
+        $policyToolIds = @([regex]::Matches($policyText, '(?m)^  (\S+):\s*$') |
+            ForEach-Object { Normalize-PolicyToolId $_.Groups[1].Value })
+        $nodeToolSet = @($toolIds | ForEach-Object { Normalize-PolicyToolId $_ } | Sort-Object -Unique)
+        $policyToolSet = @($policyToolIds | Sort-Object -Unique)
+        $onlyInNode = @($nodeToolSet | Where-Object { $policyToolSet -notcontains $_ })
+        $onlyInPolicy = @($policyToolSet | Where-Object { $nodeToolSet -notcontains $_ })
+        if ($onlyInNode.Count -gt 0) {
+            $problems += "[$name] 有工具缺权限条目: $($onlyInNode -join ', ')（编译期 JCC13008/13002 也应拦截）"
+        }
+        if ($onlyInPolicy.Count -gt 0) {
+            $problems += "[$name] 策略登记了 node.yaml 不存在的工具: $($onlyInPolicy -join ', ')"
+        }
+
+        $trust = $trustEntries["cli.$name"]
+        if (-not $trust) {
+            $problems += "[$name] 信任目录缺少 cli.$name（broker 会拒绝该组全部策略）"
+        } else {
+            $actualHash = (Get-FileHash -LiteralPath $policyPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actualHash -ne $trust.Hash) {
+                $problems += "[$name] 策略内容与信任目录不一致：文件 $actualHash，目录 $($trust.Hash) —— 运行 Generate-CliToolPolicies.py --trust-only"
+            }
+            if ($trust.Execs -notcontains "jcc-tool-$name.exe") {
+                $problems += "[$name] 信任目录 executables 未包含 jcc-tool-$name.exe"
+            }
+            if ($delegateExes.ContainsKey($name) -and ($trust.Execs -notcontains ($delegateExes[$name] + ".exe"))) {
+                $problems += "[$name] 信任目录 executables 未包含委托 exe $($delegateExes[$name]).exe"
+            }
+        }
+
+        $csprojText = Get-Content -Path (Join-Path $group.FullName ("jcc_tool_" + $name + ".csproj")) -Raw
+        if ($csprojText -notmatch 'CliPermission\.Analyzer\.csproj') {
+            $problems += "[$name] csproj 未引用 CliPermission.Analyzer（参数闭包分析器未接入）"
+        }
+        if ($csprojText -notmatch 'AdditionalFiles[^>]*\.yaml') {
+            $problems += "[$name] csproj 未把 policy.yaml 声明为 AdditionalFiles（分析器读不到策略）"
         }
     }
 
@@ -268,6 +387,14 @@ foreach ($group in $groups) {
     }
 }
 
+# 信任目录里的策略 ID 必须对应真实分组，避免改名后残留旧哈希继续被信任。
+foreach ($trustId in $trustEntries.Keys) {
+    $trustGroup = $trustId -replace '^cli\.', ''
+    if ($dirNames -notcontains $trustGroup) {
+        $problems += "[$trustId] 信任目录登记了不存在的分组策略（重新生成 policy_trust.yaml）"
+    }
+}
+
 # ── 可选抽样：只用无副作用工具 ──────────────────────────────────────
 # code 组整组都是 notebook 系列，仓库里没有 .ipynb，所以先在临时目录建一个再读回来：
 # 这样验到的是成功路径（写-读闭环），而不是只验「拿 .md 当 notebook 会报错」。
@@ -298,6 +425,15 @@ if ($Sample) {
 
         $probe = Invoke-Probe -Exe $exe -Arguments $spec.Args
         $sampleRuns++
+        if ($policyGroups.ContainsKey($spec.Group)) {
+            # 该组已嵌入策略：直接调用必须由中央鉴权拦截，成功路径只能经 jcc tool call 验证。
+            if ($probe.Code -ne 126 -or $probe.Output -notmatch 'Auth\.Missing') {
+                $problems += "[$($spec.Group)] 抽样 '$($spec.Args[0])' 应被中央鉴权拒绝（126/Auth.Missing），实际退出码 $($probe.Code)"
+                $probe.Output -split "`r?`n" | Select-Object -First 3 |
+                    ForEach-Object { Write-Output "    $_" }
+            }
+            continue
+        }
         if ($probe.Code -ne $spec.Expect) {
             $problems += "[$($spec.Group)] 抽样 '$($spec.Args[0])' 退出码 $($probe.Code)，预期 $($spec.Expect)"
             $probe.Output -split "`r?`n" | Select-Object -First 3 |

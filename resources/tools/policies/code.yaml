@@ -1,0 +1,264 @@
+# code 组工具参数权限 — ADR 0168（由 Generate-CliToolPolicies.py 从 help.txt 生成）
+#
+# 参数白名单是硬边界：调用方只能传这里登记的参数；收紧危险能力时按需补 effect: deny/ask。
+schema_version: 1
+policy_id: cli.code
+policy_version: 1
+executables:
+  - jcc-tool-code.exe
+
+tools:
+  notebook_add_cell:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      cell_type:
+        effect: allow
+      content:
+        effect: allow
+      index:
+        effect: allow
+  notebook_delete_cell:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      index:
+        effect: allow
+  notebook_edit_cell:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      index:
+        effect: allow
+      content:
+        effect: allow
+  notebook_move_cell:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      from_index:
+        effect: allow
+      to_index:
+        effect: allow
+  notebook_change_cell_type:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      index:
+        effect: allow
+      new_type:
+        effect: allow
+  notebook_clear_outputs:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+  notebook_get_cell:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      index:
+        effect: allow
+  notebook_edit:
+    effect: allow
+    parameters:
+      notebook_path:
+        effect: allow
+      new_source:
+        effect: allow
+      cell_id:
+        effect: allow
+      cell_type:
+        effect: allow
+      edit_mode:
+        effect: allow
+  notebook_create:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      kernel_name:
+        effect: allow
+      language:
+        effect: allow
+  notebook_read:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      show_content:
+        effect: allow
+  recall_list:
+    effect: allow
+    parameters: []
+  recall_read:
+    effect: allow
+    parameters:
+      fold_id:
+        effect: allow
+  recall_search:
+    effect: allow
+    parameters:
+      keyword:
+        effect: allow
+  analyze_csharp_code:
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+      focus:
+        effect: allow
+  find_bugs:
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+      severity:
+        effect: allow
+  optimize_code:
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+      target:
+        effect: allow
+  security_audit:
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+      audit_type:
+        effect: allow
+  generate_csharp_code:
+    effect: allow
+    parameters:
+      description:
+        effect: allow
+      context:
+        effect: allow
+      framework_version:
+        effect: allow
+  generate_unit_test:
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+      test_framework:
+        effect: allow
+      test_count:
+        effect: allow
+  generate_api_controller:
+    effect: allow
+    parameters:
+      description:
+        effect: allow
+      model_definition:
+        effect: allow
+      include_crud:
+        effect: allow
+      include_auth:
+        effect: allow
+  lsp_goto_definition:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      line:
+        effect: allow
+      character:
+        effect: allow
+  lsp_find_references:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      line:
+        effect: allow
+      character:
+        effect: allow
+  lsp_hover:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      line:
+        effect: allow
+      character:
+        effect: allow
+  lsp_completion:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      line:
+        effect: allow
+      character:
+        effect: allow
+  lsp_document_symbols:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+  lsp_workspace_symbol:
+    effect: allow
+    parameters:
+      query:
+        effect: allow
+      workspacePath:
+        effect: allow
+      serverName:
+        effect: allow
+  lsp_goto_implementation:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      line:
+        effect: allow
+      character:
+        effect: allow
+  lsp_prepare_call_hierarchy:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      line:
+        effect: allow
+      character:
+        effect: allow
+  lsp_incoming_calls:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      line:
+        effect: allow
+      character:
+        effect: allow
+  lsp_outgoing_calls:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+      line:
+        effect: allow
+      character:
+        effect: allow
+  mcp_ai_workflow_workflow_generate_code:
+    effect: allow
+    parameters:
+      requirement:
+        effect: allow
+  mcp_ai_workflow_workflow_analyze_code:
+    effect: allow
+    parameters:
+      code:
+        effect: allow
+      analysisType:
+        effect: allow

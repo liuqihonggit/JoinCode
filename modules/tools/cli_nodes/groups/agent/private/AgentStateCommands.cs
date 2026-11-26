@@ -51,7 +51,7 @@ internal static partial class AgentCommands {
             ["priority"] = Get(o, "priority", "medium"),
             ["assignee"] = Get(o, "assignee", ""),
             ["dueDate"] = Get(o, "due_date", ""),
-            ["tags"] = new JsonArray(),
+            ["tags"] = ParseTags(Get(o, "tags", "")),
             ["dependencies"] = new JsonArray(), ["blockedBy"] = new JsonArray(),
             ["createdAt"] = DateTimeOffset.UtcNow.ToString("O")
         };
@@ -71,10 +71,26 @@ internal static partial class AgentCommands {
         return id;
     }
 
+    private static JsonArray ParseTags(string tags) {
+        var array = new JsonArray();
+        foreach (var tag in tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            array.Add((JsonNode)JsonValue.Create(tag));
+        return array;
+    }
+
     private static Task<int> TaskListAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var status = Get(o, "status", "");
         var assignee = Get(o, "assignee", "");
-        var tasks = AllTasks().Where(t => (status.Length == 0 || S(t, "status") == status) && (assignee.Length == 0 || S(t, "assignee") == assignee)).ToList();
+        var priority = Get(o, "priority", "");
+        var limit = Math.Clamp(GetInt(o, "limit", 20), 1, 10000);
+        var offset = Math.Max(GetInt(o, "offset", 0), 0);
+        var tasks = AllTasks()
+            .Where(t => (status.Length == 0 || S(t, "status") == status)
+                && (assignee.Length == 0 || S(t, "assignee") == assignee)
+                && (priority.Length == 0 || S(t, "priority") == priority))
+            .Skip(offset)
+            .Take(limit)
+            .ToList();
         var sb = new StringBuilder();
         sb.AppendLine($"共 {tasks.Count} 个任务:");
         foreach (var t in tasks) sb.AppendLine($"  [{S(t, "id")}] {S(t, "status")} {S(t, "priority")} - {S(t, "title")}");
@@ -94,15 +110,23 @@ internal static partial class AgentCommands {
         var id = Required(o, "task_id", "task_update");
         var t = LoadTask(id);
         if (t is null) { Console.Out.WriteLine($"任务不存在: {id}"); return Task.FromResult(0); }
-        foreach (var key in new[] { "title", "description", "status", "assignee", "due_date", "priority" }) {
-            var v = Get(o, key, "");
-            if (v.Length == 0) continue;
-            var field = key == "due_date" ? "dueDate" : key;
-            t[field] = v;
-        }
+        ApplyTaskField(o, t, "title");
+        ApplyTaskField(o, t, "description");
+        ApplyTaskField(o, t, "status");
+        ApplyTaskField(o, t, "assignee");
+        ApplyTaskField(o, t, "due_date");
+        ApplyTaskField(o, t, "priority");
+        var tags = Get(o, "tags", "");
+        if (tags.Length > 0) t["tags"] = ParseTags(tags);
         SaveTask(t);
         Console.Out.WriteLine($"任务已更新: {id}");
         return Task.FromResult(0);
+    }
+
+    private static void ApplyTaskField(IReadOnlyDictionary<string, string> o, JsonObject task, string key) {
+        var value = Get(o, key, "");
+        if (value.Length == 0) return;
+        task[key == "due_date" ? "dueDate" : key] = value;
     }
 
     private static Task<int> TaskOutputAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
@@ -210,8 +234,13 @@ internal static partial class AgentCommands {
     private static Task<int> TodoListAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var arr = LoadTodos();
         var status = Get(o, "status", "");
+        var priority = Get(o, "priority", "");
+        var includeCompleted = Get(o, "include_completed", "false").Equals("true", StringComparison.OrdinalIgnoreCase);
         var items = arr.Where(n => n is JsonObject).Select(n => (JsonObject)n)
-            .Where(t => status.Length == 0 || S(t, "status") == status).ToList();
+            .Where(t => (status.Length == 0 || S(t, "status") == status)
+                && (priority.Length == 0 || S(t, "priority") == priority)
+                && (includeCompleted || status == "completed" || S(t, "status") != "completed"))
+            .ToList();
         var sb = new StringBuilder();
         sb.AppendLine($"Total: {items.Count}  Pending: {items.Count(t => S(t, "status") != "completed")}  Completed: {items.Count(t => S(t, "status") == "completed")}");
         foreach (var t in items) {
@@ -229,15 +258,19 @@ internal static partial class AgentCommands {
         foreach (var n in arr) {
             if (n is not JsonObject t || S(t, "id") != id) continue;
             found = true;
-            foreach (var key in new[] { "content", "status", "priority" }) {
-                var v = Get(o, key, "");
-                if (v.Length > 0) t[key] = v;
-            }
+            ApplyTodoField(o, t, "content");
+            ApplyTodoField(o, t, "status");
+            ApplyTodoField(o, t, "priority");
         }
         if (!found) { Console.Out.WriteLine($"待办项不存在: {id}"); return Task.FromResult(0); }
         SaveTodos(arr);
         Console.Out.WriteLine($"待办项已更新: {id}");
         return Task.FromResult(0);
+    }
+
+    private static void ApplyTodoField(IReadOnlyDictionary<string, string> o, JsonObject todo, string key) {
+        var value = Get(o, key, "");
+        if (value.Length > 0) todo[key] = value;
     }
 
     // ==================== plan 状态机（7） ====================
@@ -280,26 +313,35 @@ internal static partial class AgentCommands {
         var desc = Required(o, "description", "add_plan_step");
         var st = LoadPlanState();
         var steps = PlanSteps(st);
-        var step = new JsonObject { ["Description"] = desc, ["ToolName"] = Get(o, "tool_name", ""), ["Status"] = "pending", ["Index"] = steps.Count };
+        var step = new JsonObject {
+            ["Description"] = desc,
+            ["ToolName"] = Get(o, "tool_name", ""),
+            ["ToolParameters"] = ParseToolParameters(Get(o, "JsonElement", "")),
+            ["Status"] = "pending",
+            ["Index"] = steps.Count
+        };
         steps.Add((JsonNode)step);
         SavePlanState(st);
         Console.Out.WriteLine($"步骤已添加\n当前步骤数: {steps.Count}\n  [{steps.Count}] {desc}");
         return Task.FromResult(0);
     }
 
-    private static Task<int> PlanStepActionAsync(IReadOnlyDictionary<string, string> o, string action, string tool) {
+    private static Task<int> PlanStepActionAsync(IReadOnlyDictionary<string, string> o, string action, string tool, string reason) {
         var idxText = Required(o, "step_index", tool);
         if (!int.TryParse(idxText, out var idx) || idx < 1) { Console.Error.WriteLine($"{tool} 的 --step_index 必须为正整数"); return Task.FromResult(2); }
         var st = LoadPlanState();
         var steps = PlanSteps(st);
         if (idx > steps.Count) { Console.Out.WriteLine($"步骤 {idx} 不存在（共 {steps.Count} 步）"); return Task.FromResult(0); }
-        if (steps[idx - 1] is JsonObject p) p["Status"] = action switch { "approve" => "approved", "reject" => "rejected", _ => "pending" };
+        if (steps[idx - 1] is JsonObject p) {
+            p["Status"] = action switch { "approve" => "approved", "reject" => "rejected", _ => "pending" };
+            if (action == "reject") p["Reason"] = reason;
+        }
         SavePlanState(st);
         Console.Out.WriteLine($"步骤 {idx} 已{(action == "approve" ? "批准" : action == "reject" ? "拒绝" : "修改")}");
         return Task.FromResult(0);
     }
-    private static Task<int> ApprovePlanStepAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) => PlanStepActionAsync(o, "approve", "approve_plan_step");
-    private static Task<int> RejectPlanStepAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) => PlanStepActionAsync(o, "reject", "reject_plan_step");
+    private static Task<int> ApprovePlanStepAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) => PlanStepActionAsync(o, "approve", "approve_plan_step", "");
+    private static Task<int> RejectPlanStepAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) => PlanStepActionAsync(o, "reject", "reject_plan_step", Get(o, "reason", ""));
 
     private static Task<int> ModifyPlanStepAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var idxText = Required(o, "step_index", "modify_plan_step");
@@ -310,6 +352,8 @@ internal static partial class AgentCommands {
         if (steps[idx - 1] is JsonObject p) {
             var nd = Get(o, "new_description", ""); if (nd.Length > 0) p["Description"] = nd;
             var nt = Get(o, "new_tool_name", ""); if (nt.Length > 0) p["ToolName"] = nt;
+            var rawParameters = Get(o, "JsonElement", "");
+            if (rawParameters.Length > 0) p["ToolParameters"] = ParseToolParameters(rawParameters);
         }
         SavePlanState(st);
         Console.Out.WriteLine($"步骤 {idx} 已修改");
@@ -365,13 +409,23 @@ internal static partial class AgentCommands {
     private static Task<int> CompleteStepAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var step = Required(o, "step", "complete_step");
         var result = Get(o, "result", "");
+        var evidence = Get(o, "evidence", "");
         var notes = Get(o, "notes", "");
         var sb = new StringBuilder();
         sb.AppendLine($"✓ 步骤已完成: {step}");
         if (result.Length > 0) sb.AppendLine($"结果: {result}");
+        if (evidence.Length > 0) sb.AppendLine($"证据: {evidence}");
         if (notes.Length > 0) sb.AppendLine($"备注: {notes}");
         Console.Out.Write(sb.ToString());
         return Task.FromResult(0);
+    }
+
+    private static JsonNode? ParseToolParameters(string raw) {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        try { return JsonNode.Parse(raw); }
+        catch (JsonException ex) {
+            throw new ArgumentException($"工具参数必须是合法 JSON: {ex.Message}。正确写法: --JsonElement '{{\"key\":\"value\"}}'");
+        }
     }
 
     // ==================== 辅助 ====================

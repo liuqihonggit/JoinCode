@@ -46,6 +46,16 @@ public sealed class CliGroupIndexTests {
     }
 
     [Fact]
+    public void LoadDefault_EveryGroupCarriesToolIdsMatchingCount() {
+        var index = CliGroupIndex.LoadDefault();
+
+        Assert.All(index.Groups, group => {
+            Assert.Equal(group.ToolCount, group.ToolIds.Count);
+            Assert.Equal(group.ToolIds.Count, group.ToolIds.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        });
+    }
+
+    [Fact]
     public void LoadDefault_IsolatedShareIsAtLeastHalfOfAllTools() {
         var index = CliGroupIndex.LoadDefault();
 

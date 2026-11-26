@@ -1,0 +1,160 @@
+# file 组工具参数权限 — ADR 0168
+#
+# 这里只记录权限，不重复 node.yaml 的类型/必填/说明。
+# 每个 canonical 参数都必须出现；别名由分析器归一到 canonical 名。
+schema_version: 1
+policy_id: cli.file
+policy_version: 1
+executables:
+  - jcc-tool-file.exe
+
+tools:
+  read:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_read]
+      offset:
+        effect: allow
+      limit:
+        effect: allow
+      # 帮助里保留该参数（来自宿主 MCP schema），本地 exe 不实现 PDF 分页；
+      # 用 deny 立墓碑，后续集中授权在进入 handler 前拒绝，避免静默忽略。
+      pages:
+        effect: deny
+
+  write:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_write]
+      content:
+        effect: allow
+        capabilities: [workspace_write]
+
+  file_delete:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [filesystem_delete]
+
+  edit:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_write]
+      old_string:
+        effect: allow
+      new_string:
+        effect: allow
+        capabilities: [workspace_write]
+      replace_all:
+        effect: allow
+
+  file_edit_regex:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_write]
+      pattern:
+        effect: allow
+      replacement:
+        effect: allow
+        capabilities: [workspace_write]
+      replace_all:
+        effect: allow
+
+  file_insert_lines:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_write]
+      after_line:
+        effect: allow
+      new_content:
+        effect: allow
+        capabilities: [workspace_write]
+
+  file_delete_lines:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_write]
+      start_line:
+        effect: allow
+      end_line:
+        effect: allow
+
+  file_batch_edit:
+    effect: allow
+    parameters:
+      old_string:
+        effect: allow
+      new_string:
+        effect: allow
+        capabilities: [workspace_write]
+      file_paths:
+        effect: allow
+        capabilities: [workspace_write]
+      replace_all:
+        effect: allow
+
+  directory_list:
+    effect: allow
+    parameters:
+      directory_path:
+        effect: allow
+        capabilities: [workspace_read]
+      recursive:
+        effect: allow
+
+  apply_patch:
+    effect: allow
+    parameters:
+      patch:
+        effect: allow
+        capabilities: [workspace_write]
+      dry_run:
+        effect: allow
+      working_dir:
+        effect: allow
+
+  file_snip_lines:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_read]
+      start_line:
+        effect: allow
+      line_count:
+        effect: allow
+
+  file_snip_preview:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_read]
+      max_preview_lines:
+        effect: allow
+
+  send_user_file:
+    effect: allow
+    parameters:
+      file_path:
+        effect: allow
+        capabilities: [workspace_read]
+      description:
+        effect: allow
+      preview:
+        effect: allow
+      generate_link:
+        effect: allow

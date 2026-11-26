@@ -19,10 +19,10 @@ internal static partial class AgentCommands {
     private static string? Opt(IReadOnlyDictionary<string, string> o, string key) =>
         o.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value : null;
 
-    private static async Task<string> RequireGitRootAsync(IReadOnlyDictionary<string, string> o, string tool, CancellationToken ct) {
-        var start = Opt(o, "git_root") ?? Directory.GetCurrentDirectory();
+    private static async Task<string> RequireGitRootAsync(string? gitRoot, string tool, CancellationToken ct) {
+        var start = string.IsNullOrWhiteSpace(gitRoot) ? Directory.GetCurrentDirectory() : gitRoot;
         var root = await ResolveMainRootAsync(start, ct).ConfigureAwait(false);
-        return root ?? throw new ArgumentException($"{tool}: 在 '{start}' 及其上级都找不到 git 仓库。传入 --git_root 指向仓库根，或先在仓库内执行。");
+        return root ?? throw new ArgumentException($"{tool}: 在 '{start}' 及其上级都找不到 git 仓库。先在仓库内执行，或改用 worktree_create --git_root 指定仓库根。");
     }
 
     /// <summary>
@@ -45,7 +45,7 @@ internal static partial class AgentCommands {
 
     private static async Task<int> WorktreeCreateAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var agentId = Required(o, "agent_id", "worktree_create");
-        var gitRoot = await RequireGitRootAsync(o, "worktree_create", ct).ConfigureAwait(false);
+        var gitRoot = await RequireGitRootAsync(Opt(o, "git_root"), "worktree_create", ct).ConfigureAwait(false);
         var path = WorktreePathFor(gitRoot, agentId);
         var branch = BranchFor(agentId);
         var baseRef = Opt(o, "base_branch") ?? "HEAD";
@@ -82,7 +82,7 @@ internal static partial class AgentCommands {
     // ==================== worktree_list ====================
 
     private static async Task<int> WorktreeListAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
-        var gitRoot = await RequireGitRootAsync(o, "worktree_list", ct).ConfigureAwait(false);
+        var gitRoot = await RequireGitRootAsync(null, "worktree_list", ct).ConfigureAwait(false);
         var worktrees = await ListWorktreesAsync(gitRoot, ct).ConfigureAwait(false);
         var managed = worktrees.Where(w => IsManagedPath(gitRoot, w.Path)).ToList();
 
@@ -115,7 +115,7 @@ internal static partial class AgentCommands {
 
     private static async Task<int> WorktreeStatusAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var agentId = Required(o, "agent_id", "worktree_status");
-        var gitRoot = await RequireGitRootAsync(o, "worktree_status", ct).ConfigureAwait(false);
+        var gitRoot = await RequireGitRootAsync(null, "worktree_status", ct).ConfigureAwait(false);
         var path = WorktreePathFor(gitRoot, agentId);
         if (!Directory.Exists(path)) {
             Console.Error.WriteLine($"没有 agent '{agentId}' 的 worktree: {path}");
@@ -154,7 +154,7 @@ internal static partial class AgentCommands {
     private static async Task<int> WorktreeRemoveAsync(IReadOnlyDictionary<string, string> o, CancellationToken ct) {
         var agentId = Required(o, "agent_id", "worktree_remove");
         var force = Get(o, "force", "false").Equals("true", StringComparison.OrdinalIgnoreCase);
-        var gitRoot = await RequireGitRootAsync(o, "worktree_remove", ct).ConfigureAwait(false);
+        var gitRoot = await RequireGitRootAsync(null, "worktree_remove", ct).ConfigureAwait(false);
         var path = WorktreePathFor(gitRoot, agentId);
         if (!Directory.Exists(path)) {
             Console.Error.WriteLine($"没有 agent '{agentId}' 的 worktree: {path}");
@@ -195,7 +195,7 @@ internal static partial class AgentCommands {
         var staleHours = GetInt(o, "stale_hours", 24);
         if (staleHours <= 0) throw new ArgumentException($"stale_hours 必须为正数，当前 {staleHours.ToString(CultureInfo.InvariantCulture)}");
 
-        var gitRoot = await RequireGitRootAsync(o, "worktree_cleanup", ct).ConfigureAwait(false);
+        var gitRoot = await RequireGitRootAsync(null, "worktree_cleanup", ct).ConfigureAwait(false);
         var directory = WorktreesDir(gitRoot);
         if (!Directory.Exists(directory)) {
             Console.Out.WriteLine("没有 jcc worktree 目录，无需清理");

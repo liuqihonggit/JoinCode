@@ -87,6 +87,20 @@ internal static class GhSubCommand {
 
     private static async Task<int> InvokeAndOutputAsync(
         string toolName, Dictionary<string, string> bound, bool json, bool noCache, CancellationToken ct) {
+        // delegate exe 可被 agent shell 直接执行，绕过 jcc-tool-github 的组策略；
+        // 镜像已内嵌 github 策略，缺会话即 fail-closed（人工调度请走 jcc gh，由父进程签发会话）。
+        var authorization = await CliGroupToolAuthorization
+            .AuthorizeAsync("github", toolName, bound, ct)
+            .ConfigureAwait(false);
+        if (!authorization.Allowed) {
+            var guidance = authorization.Reason.Contains("正确写法", StringComparison.Ordinal)
+                ? ""
+                : " | 正确写法: 通过 jcc gh 或 jcc tool call github <工具> 调用";
+            TerminalHelper.WriteError(
+                $"[CLI-AUTH] denied | tool: {toolName} | layer: {authorization.Layer} | reason: {authorization.Reason}{guidance}");
+            return 126;
+        }
+
         var tracker = new GhTimingTracker { CacheDisabled = noCache };
         var prevTimer = GhTimingTracker.CurrentTimer.Value;
         GhTimingTracker.CurrentTimer.Value = tracker;

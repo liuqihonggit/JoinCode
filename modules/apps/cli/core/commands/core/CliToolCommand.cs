@@ -20,10 +20,10 @@ internal static class CliToolCommand {
         ct.ThrowIfCancellationRequested();
         var action = args.Length > 1 ? args[1] : "tree";
         switch (action) {
-            case "tree": return RunTree(args);
-            case "find": return RunFind(args);
+            case "tree": return await RunTreeAsync(args, ct).ConfigureAwait(false);
+            case "find": return await RunFindAsync(args, ct).ConfigureAwait(false);
             case "base": return RunBase();
-            case "help": return RunHelp(args);
+            case "help": return await RunHelpAsync(args, ct).ConfigureAwait(false);
             case "call": return await RunCallAsync(args, ct).ConfigureAwait(false);
             case "-h":
             case "--help": return WriteUsage();
@@ -31,23 +31,28 @@ internal static class CliToolCommand {
         }
     }
 
-    private static int RunTree(string[] args) {
+    private static async Task<int> RunTreeAsync(string[] args, CancellationToken ct) {
         var dir = ResolveToolsDir(args);
         var all = NodeManifestLoader.LoadNodesFromDirectory(dir);
-        var nodes = FilterByProfile(all, out var disabled);
+        var enabled = FilterByProfile(all, out var disabled);
+        var scope = await CliHostToolAuthorization.GetScopeAsync(ct).ConfigureAwait(false);
+        var nodes = CliToolScopeFilter.Apply(enabled, scope);
         Console.Out.WriteLine($"CLI 工具节点目录: {dir}");
         if (all.Count == 0) {
             Console.Out.WriteLine("  (未发现 node.yaml — 用 --dir 指定工具目录，或设置 JCC_CLI_TOOLS_DIR)");
-        } else if (nodes.Count == 0) {
+        } else if (enabled.Count == 0) {
             Console.Out.WriteLine("  (当前 profile 未启用任何工具组 —— 检查 profile 的 tool-groups 消费点)");
+        } else if (nodes.Count == 0) {
+            Console.Out.WriteLine("  (当前 agent 的工具域内没有可发现的 CLI 工具 —— 未授权工具不会出现在目录里)");
         } else {
             Console.Out.WriteLine(CliToolSearch.RenderTree(nodes));
         }
+        if (scope is not null) WriteScopeTrimSummary();
         WriteProfileTrimSummary(disabled);
         return 0;
     }
 
-    private static int RunFind(string[] args) {
+    private static async Task<int> RunFindAsync(string[] args, CancellationToken ct) {
         var query = ExtractQuery(args);
         if (string.IsNullOrWhiteSpace(query)) {
             Console.Error.WriteLine("缺少查询关键词（由 jcc tool find 的参数触发，CliToolCommand 参数校验层拦截）。");
@@ -55,11 +60,14 @@ internal static class CliToolCommand {
             return 2;
         }
         var dir = ResolveToolsDir(args);
-        var nodes = FilterByProfile(NodeManifestLoader.LoadNodesFromDirectory(dir), out var disabled);
+        var enabled = FilterByProfile(NodeManifestLoader.LoadNodesFromDirectory(dir), out var disabled);
+        var scope = await CliHostToolAuthorization.GetScopeAsync(ct).ConfigureAwait(false);
+        var nodes = CliToolScopeFilter.Apply(enabled, scope);
         var matches = CliToolSearch.Find(nodes, query);
         Console.Out.WriteLine($"查询: {query}  |  目录: {dir}");
         Console.Out.WriteLine(CliToolSearch.RenderResults(matches, query));
-        // 搜不到时最容易误判成「工具不存在」—— 被 profile 裁掉的组必须先说清楚，否则会去改代码找不存在的 bug。
+        // 搜不到时最容易误判成「工具不存在」—— 被 profile / 工具域裁掉的组必须先说清楚。
+        if (scope is not null) WriteScopeTrimSummary();
         WriteProfileTrimSummary(disabled);
         return 0;
     }
@@ -72,14 +80,18 @@ internal static class CliToolCommand {
         return 0;
     }
 
-    private static int RunHelp(string[] args) {
+    private static async Task<int> RunHelpAsync(string[] args, CancellationToken ct) {
         var id = args.Length > 2 ? args[2] : null;
         if (string.IsNullOrWhiteSpace(id)) return WriteUsage();
         var all = NodeManifestLoader.LoadNodesFromDirectory(ResolveToolsDir(args));
-        var node = FilterByProfile(all, out _)
+        var enabled = FilterByProfile(all, out _);
+        var scope = await CliHostToolAuthorization.GetScopeAsync(ct).ConfigureAwait(false);
+        var node = CliToolScopeFilter.Apply(enabled, scope)
             .FirstOrDefault(candidate => string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase));
         if (node is null) {
-            // 未启用 ≠ 未知：前者改 profile，后者查拼写。混成一句话会让人去改代码。
+            // 未授权 ≠ 未启用 ≠ 未知：三种情况给三种说法，否则用户会去改错地方。
+            if (enabled.Any(candidate => string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase)))
+                return WriteGroupOutsideScope(id);
             if (all.Any(candidate => string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase)))
                 return WriteGroupDisabled(id);
             Console.Error.WriteLine($"未找到节点 '{id}'（由 jcc tool help 的参数触发，CliToolCommand 节点查找层拦截）。");
@@ -87,7 +99,19 @@ internal static class CliToolCommand {
             return 1;
         }
         Console.Out.WriteLine(CliToolHelp.Render(node));
+        if (scope is not null) WriteScopeTrimSummary();
         return 0;
+    }
+
+    /// <summary>工具域裁剪提示 — 让调用方把「搜不到/看不到」正确归因到未授权，而不是断言工具不存在。</summary>
+    private static void WriteScopeTrimSummary() {
+        Console.Out.WriteLine("  (已按当前 agent 工具域裁剪：未授权工具不会出现在目录里，执行时同样会被拒绝)");
+    }
+
+    private static int WriteGroupOutsideScope(string id) {
+        Console.Error.WriteLine($"分组 '{id}' 的工具不在当前 agent 的工具域内（由 jcc tool help 的工具域裁剪层拦截）。");
+        Console.Error.WriteLine("正确写法: 调用当前职责范围内的工具；需要该能力时交由具备对应职责的子代理执行。");
+        return 1;
     }
 
     /// <summary>
@@ -165,7 +189,29 @@ internal static class CliToolCommand {
         var exe = call.ExplicitExe ?? ResolveGroupExe(target.Group);
         if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe)) return WriteExeMissing(target.Group, exe);
 
-        return await LaunchAsync(exe, target, call, ct).ConfigureAwait(false);
+        return await LaunchAsync(exe, target, call, ResolveAuthorizationEnvironment(), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 解析本次子进程的授权环境：agent shell 已注入则沿用它；手工调用则在当前 jcc 进程启动 broker。
+    /// <para>分组 exe 只接受 broker 会话，直接运行无法构造有效令牌。</para>
+    /// </summary>
+    private static IReadOnlyDictionary<string, string> ResolveAuthorizationEnvironment() {
+        var pipe = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.PipeVariable);
+        var token = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.TokenVariable);
+        if (!string.IsNullOrWhiteSpace(pipe) && !string.IsNullOrWhiteSpace(token)) {
+            return new Dictionary<string, string>(StringComparer.Ordinal) {
+                [CliAuthorizationEnvironment.PipeVariable] = pipe,
+                [CliAuthorizationEnvironment.TokenVariable] = token
+            };
+        }
+
+        return CliAuthorizationBrokerRuntime.EnsureEnvironment(
+            agentId: "jcc-manual",
+            sessionId: "jcc-tool-call",
+            allowedTools: [],
+            deniedTools: [],
+            permissionMode: null);
     }
 
     /// <summary>
@@ -397,13 +443,20 @@ internal static class CliToolCommand {
     /// 上层 agent 只能等整轮超时。超时按 GNU timeout 惯例返回 124，并杀掉整棵进程树
     /// （工具 exe 常自己再起子进程，只杀父进程会留下孤儿）。</para>
     /// </summary>
-    private static async Task<int> LaunchAsync(string exe, CallTarget target, CallArguments call, CancellationToken ct) {
+    private static async Task<int> LaunchAsync(
+        string exe,
+        CallTarget target,
+        CallArguments call,
+        IReadOnlyDictionary<string, string> authorizationEnvironment,
+        CancellationToken ct) {
         var psi = new ProcessStartInfo(exe) {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        foreach (var pair in authorizationEnvironment)
+            psi.Environment[pair.Key] = pair.Value;
         // ArgumentList 逐参数传递，不手工拼命令行字符串 — 避免空格/引号/特殊字符转义问题。
         psi.ArgumentList.Add(target.Tool);
         foreach (var arg in call.PassThrough)

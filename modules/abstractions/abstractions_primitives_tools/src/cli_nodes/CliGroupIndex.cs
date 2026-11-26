@@ -26,6 +26,12 @@ public sealed record CliGroupEntry {
 
     /// <summary>不经过宿主的工具数 = local + delegate。</summary>
     public int IsolatedCount => LocalCount + DelegateCount;
+
+    /// <summary>
+    /// 组内工具 ID 清单 — 首轮提示词按 agent 工具域裁剪分组时使用。
+    /// <para>由生成器从 node.yaml 现算，禁止手写；为空表示索引未携带（视为整组可见）。</para>
+    /// </summary>
+    public IReadOnlyList<string> ToolIds { get; init; } = [];
 }
 
 /// <summary>

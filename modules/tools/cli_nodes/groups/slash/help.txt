@@ -282,9 +282,9 @@ jcc-tool-slash — 斜杠命令节点（99 个命令）
     --mode                     string    可选   初始化模式: quick=快速模式  取值: quick
 
   /permissions — 管理权限规则和工作区目录
-    用法: /permissions [list|add|remove|clear|workspace] [args]
+    用法: /permissions [list|add|remove|clear|workspace|pending] [args]
     别名: /perm
-    --action                   string    可选   权限操作  取值: list/add/remove/clear/workspace  默认=list
+    --action                   string    可选   权限操作  取值: list/add/remove/clear/workspace/pending  默认=list
     --args                     string    可选   操作特定参数,如 add 的权限规则
 
   /profile — 查看或切换运行时 Profile

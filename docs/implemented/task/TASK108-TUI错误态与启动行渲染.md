@@ -167,6 +167,38 @@ patch 透传 / 无 patch 为 null / 错误文本仍带 `Error: ` 前缀（摘要
   基准靠"本批工具总数"一次性判定（架构差异，需延迟决策），不改。
 - **spinner 动词英文**、`Added 2 lines, removed 1 line` 英文：对齐基准文案，不改。
 
+## 第三批：`/help` 面板（P18，仅记录未修）
+
+真机 `/help` 真值（80+ 命令）：
+
+```
+❯ /help
+
+● [其他]
+
+  其他
+
+    /fork [name]             创建当前对话的分支
+    /compact [自定义摘要指令]       压缩对话上下文以节省 Token，可选自定义摘要指令
+    /privacy-settings [show|telemetry on|off|…] 管理隐私设置
+    /falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both
+|default]]
+  | /falv --budget | /falv --cone | /falv --conflict | /falv --reset 结构化推理引擎（假定→验证→事实）
+```
+
+三处问题：
+
+| 编号 | 现象 | 根因 | 判定 |
+| --- | --- | --- | --- |
+| P18a | 分组标题重复（`● [其他]` + `  其他`） | `HelpCommand` 在 `TabPanel` 内容里又打印一次分类名（tab 栏已显示） | 可修（composition 层，单行） |
+| P18b | 只有「其他」一个分组，80+ 命令一锅粥 | `CategorizedRegistry.GetCategorizedEntries` 用 `_categories` 字典查分类，注册链未传 category → 全落 `_defaultCategory` | 需查注册链（`[ChatCommand(Category=…)]` 是否被解析），影响 CLI/TUI 共用面 |
+| P18c | 说明列不对齐、长 usage 腰斩 | `$"  {cmd.Usage,-24} {cmd.Description}"` 固定 24 列宽；`/falv` 这类超长 usage 直接撑破并硬折 | 可修（按组内最长 usage 计算列宽 + 超长换行缩进） |
+
+`?` 触发的快捷键面板（`HelpPanel`，11 行固定清单）是另一套实现，形态正常（dim 单列，位于输入框上方）。
+
+> 本批未改代码：P18a/P18c 属 `modules/composition/slash/ai/info/HelpCommand.cs`（CLI+TUI 共用输出），
+> P18b 需先确认 `ChatCommandRegistry` 注册时 category 的传递路径，改动面超出「渲染链路」范围，留待用户拍板。
+
 ## 门禁与总验收
 
 **真机（修复后）**

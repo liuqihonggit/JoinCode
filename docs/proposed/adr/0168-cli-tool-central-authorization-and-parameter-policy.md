@@ -408,13 +408,14 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] host ask 由父宿主 UI/队列处理，不因子进程丢失上下文而自动放行。
   - 当前无确认 UI 的 CLI 入口遇到 `effect: ask` 统一返回 `Policy.Ask` 拒绝并提示回宿主交互会话，不会静默放行（见 `CliAuthorizationScope.EvaluateEffect`）。
 - [ ] 首轮组目录、tree/find/help 与执行允许集合一致。
-  - tree/find/help 已真机一致；首轮组目录已按 `tool_ids` 裁剪并有单测（Prompts 232/232），真实子代理会话验收待阶段 4 联调。
+  - tree/find/help 已真机一致；首轮组目录已按 `tool_ids` 裁剪并有单测（Prompts 232/232），E2E 真实子代理首轮按 3 组裁剪，与 tree 输出一致。
 - [ ] 真实双端进程测试覆盖主代理、只读子代理、写子代理、delegate、host。
   - host 段已覆盖：受限 scope 下 `jcc mcp_call` 与 `jcc tool call <组> <host工具>` 均 `Agent.AllowedTools` 拒绝；放行 scope 两条路径正常执行；伪造凭据 `Auth.Transport` 拒绝。
   - 只读子代理已覆盖：E2E `ReadOnlySubAgent_CliHostToolOutsideScope_IsDeniedByBroker` 用真实 MockServer + 真实子代理 + Bash 启动 jcc，验证域外 host 工具 `Agent.AllowedTools` 拒绝与只读工具树（3 组/5 工具）。
   - 链路级：`ShellCliAuthorizationEnvironmentTests.GetEnvironmentOverrides_InjectedScope_RestrictsBrokerToolDomain` 用真实 actuator 注入环境再经真实 broker 判定（放行/越域各一条）；写子代理（code 变体）真机放行路径仍待补。
 - [x] 跨域契约变更后 `Build-AllDomains.ps1` 全仓编译通过。
   - launcher 守卫（Tools 常量 + apps.cli 消费）改动后全仓 16 域 + native_tui/native_gui 一次通过。
+  - 子代理类型解析修复（模型域新增文件 + Agent 工具消费）后再次全仓编译一次通过。
 
 ## 后果
 

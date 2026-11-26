@@ -131,6 +131,7 @@
   - 单测断言放行/拒绝两条记录与摘要差异；真机 probe 落 12 条（host 路径 PolicyId 为空、github 路径 `cli.github`）。
 - [x] 跨域契约变更后运行 `Build-AllDomains.ps1` 全仓编译。
   - launcher 守卫落地后全仓 16 域 + native_tui/native_gui 一次通过（solution/native_tui/native_gui 全 True）。
+  - 子代理类型解析修复（新增模型域文件 + Agent 工具消费）后再次全仓编译一次通过。
 - [x] main agent 运行受影响单元测试、分析器 fixture、真实双端进程测试。
   - Tools 139/139、Analyzer 13/13 绿；真机 probe 覆盖 host/delegate/slash/tree/launcher；斜杠对账门禁 99 命令/101 参数通过。
 - [x] ADR 补实现证据与手动 exe 验收记录。
@@ -151,8 +152,8 @@
 | 参数权限硬规则 | broker `CliToolPolicyEvaluator` | ✅ 未知参数/deny 参数/工具域/拒绝集 | ✅ `--pages`→126 `Policy.Deny`；`--bogus`→126 `Policy.Parameter` |
 | 迁移门禁（无策略 exe 旧行为） | `CliToolAuthorizationClient.AuthorizeCoreAsync` | ✅ `Policy.NotEnforced`；3/3 门禁测试 | ✅ 各组直跑统一 126；delegate/host 无策略 exe 仍按旧行为 |
 | Roslyn 参数对账分析器 | 13 个组 csproj + `Verify-ToolNodes.ps1` 声明门禁 | ✅ JCC13001/13002/13004/13008；13/13 测试；策略/节点/分析器接线仓库门禁 | ✅ 13 组编译零诊断；119/119 契约测试；`-DeclarationsOnly` 通过 |
-| subagent 有效工具域 | `ContextSetupMiddleware`、`SubAgentContext` | ✅ 交集 + 空交集哨兵；6/6 测试 | ❌ 真实子代理会话待阶段 4 |
-| 发现与执行同源 | `ToolsSection`、`CliToolCommand` tree/find/help、`CliToolScopeFilter` | ✅ `ScopeSnapshot` + 首轮组目录裁剪（`tool_ids`）；8 个过滤测试 + 3 个提示词测试 + broker 快照测试 | ✅ 受限 tree/help/find 真机裁剪，无会话全量；首轮提示词单测覆盖，真实子代理会话待阶段 4 联调 |
+| subagent 有效工具域 | `ContextSetupMiddleware`、`SubAgentContext` | ✅ 交集 + 空交集哨兵；6/6 测试 | ✅ E2E 真实子代理 explore/plan `tool tree` 裁剪 3 组/5 工具，域外 `subagent_control` 返回 `Agent.AllowedTools`（bypass 模式不可穿透） |
+| 发现与执行同源 | `ToolsSection`、`CliToolCommand` tree/find/help、`CliToolScopeFilter` | ✅ `ScopeSnapshot` + 首轮组目录裁剪（`tool_ids`）；8 个过滤测试 + 3 个提示词测试 + broker 快照测试 | ✅ 受限 tree/help/find 真机裁剪，无会话全量；E2E 真实子代理首轮提示词按 3 组裁剪 |
 | 权限审计与诱导错误 | broker `WriteAudit`（`JCC_CLI_AUDIT_LOG`）+ CLI stderr | ✅ JSONL 字段含 agent/session/参数名/摘要/策略版本/层；策略哈希归入信任目录 | ✅ 真机 12 条审计（host 与 github 路径）；单测断言放行/拒绝记录 |
 
 ## 非目标

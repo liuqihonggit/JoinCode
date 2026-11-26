@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**accepted（2026-11-26 验收通过；后续加固项：slash 结构化 schema、base/launcher 参数策略、one-time grant）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；真实子代理 explore/plan 在 bypass 模式下仍被 CLI 域拒绝，code 变体获得更宽工具树（7 vs 5）；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启
+- 状态：**accepted（2026-11-26 验收通过；后续加固项：slash 结构化 schema、base/launcher 参数策略）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；真实子代理 explore/plan 在 bypass 模式下仍被 CLI 域拒绝，code 变体获得更宽工具树（7 vs 5）；放行判定签发一次性 grant（绑定参数/ exe/策略哈希/令牌，重放 fail-closed）；agent shell 嵌套启动 jcc 被 launcher 守卫拦截（126 `Host.Launcher`）；JSONL 审计可选开启
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：用户（2026-11-25 要求先出 ADR；2026-11-26 授权自主实施）
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -403,8 +403,9 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
   - delegate exe 已覆盖：`jcc-gh` 直跑 126 `Auth.Missing`，`-h`/`--version` 不受限；组 exe 直跑行为不变。
 - [x] 无效/伪造凭据、越域工具、未登记参数、deny 参数、损坏策略均 fail-closed；参数篡改经完整策略判定而非放行。
   - 测试覆盖：`Broker_RejectsForgedToken`、`UnknownTool_IsDenied`、`UnknownParameter_IsDeniedBeforeHandlerRuns`、`Agent.DeniedTools` 用例、`Parse_UnknownEffect_RejectsInsteadOfDefaultingToAllow`、`Parse_UnknownCapability_RejectsWithToolParameterAndSource`、信任目录哈希不符/未知策略拒绝；真机 `--bogus` → 126 `Policy.Parameter`。
-- [ ] （阶段 2 加固）一次性 grant：参数摘要、exe 身份、策略哈希、nonce 与过期绑定，重放 fail-closed。
-  - 当前会话令牌模型（每次调用重新判策略 + 审计）为已记录偏差；launcher 守卫关闭了「子代理另起 jcc 会话」的绕道，一次性 grant 留作后续加固。
+- [x] （阶段 2 加固）一次性 grant：参数摘要、exe 身份、策略哈希、nonce 与过期绑定，重放 fail-closed。
+  - broker 在放行时签发 30 秒一次性 grant，绑定令牌摘要、group/tool、exe、参数摘要与策略哈希；执行前由客户端兑换（默认自动兑换，`redeemGrant:false` 仅供测试）；`TryRemove` 先摘除后校验，重放/跨会话/改参/换 exe/策略漂移全部拒绝并记审计。
+  - 5 条新测试覆盖：单次兑换与重放、改参消耗、跨会话、过期（可拨动时钟）、scope-only 宿主路径；自动兑换失败即按拒绝返回。
 - [ ] host ask 由父宿主 UI/队列处理，不因子进程丢失上下文而自动放行。
   - 当前无确认 UI 的 CLI 入口遇到 `effect: ask` 统一返回 `Policy.Ask` 拒绝并提示回宿主交互会话，不会静默放行（见 `CliAuthorizationScope.EvaluateEffect`）。
 - [ ] 首轮组目录、tree/find/help 与执行允许集合一致。

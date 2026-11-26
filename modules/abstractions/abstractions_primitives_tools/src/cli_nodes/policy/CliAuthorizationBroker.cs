@@ -49,6 +49,14 @@ internal sealed record CliAuthorizationRequest {
 
     /// <summary>读取当前 token 的工具域快照（供 tree/find/help 发现裁剪）；不执行任何工具。</summary>
     public bool ScopeSnapshot { get; init; }
+
+    /// <summary>
+    /// 兑换此前签发的单次 grant（执行前必须兑换）；与 <see cref="GrantId"/> 配合使用。
+    /// </summary>
+    public bool Redeem { get; init; }
+
+    /// <summary>待兑换的 grant 标识（仅 <see cref="Redeem"/> 为 true 时携带）。</summary>
+    public string? GrantId { get; init; }
 }
 
 /// <summary>broker 授权响应。</summary>
@@ -67,6 +75,9 @@ internal sealed record CliAuthorizationResponse {
 
     /// <summary>作用域拒绝工具（仅 <see cref="CliAuthorizationRequest.ScopeSnapshot"/> 填充）。</summary>
     public string[]? DeniedTools { get; init; }
+
+    /// <summary>放行时签发的一次性 grant（执行前必须兑换；重放 fail-closed）。</summary>
+    public string? GrantId { get; init; }
 }
 
 /// <summary>
@@ -123,15 +134,21 @@ internal sealed record CliAuthorizationAuditEntry {
 /// <para>工具 exe 只发请求；角色工具域、策略 effect、参数白名单全在这里判定。</para>
 /// </summary>
 internal sealed class CliAuthorizationBroker : IAsyncDisposable {
+    /// <summary>一次性 grant 的存活窗口 — 授权与执行之间只隔一次往返，30 秒足够且限制重放面。</summary>
+    internal static readonly TimeSpan GrantLifetime = TimeSpan.FromSeconds(30);
+
     private readonly string _pipeName;
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _acceptLoop;
     private readonly ConcurrentDictionary<string, CliAuthorizationScope> _sessions = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, GrantRecord> _grants = new(StringComparer.Ordinal);
     private readonly Dictionary<string, LoadedCliToolPolicy> _policyCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly bool _enforcePolicyTrust;
+    private readonly TimeProvider _timeProvider;
 
-    public CliAuthorizationBroker(bool enforcePolicyTrust = false) {
+    public CliAuthorizationBroker(bool enforcePolicyTrust = false, TimeProvider? timeProvider = null) {
         _enforcePolicyTrust = enforcePolicyTrust;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _pipeName = "jcc-cli-auth-" + Guid.NewGuid().ToString("N");
         _acceptLoop = Task.Run(AcceptLoopAsync);
     }
@@ -184,9 +201,16 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
                     response = ToResponse(CliAuthorizationDecision.Deny("Protocol", "授权请求 JSON 为空；检查调用方序列化 DTO。"));
                 } else if (request.ScopeSnapshot) {
                     response = Snapshot(request);
+                } else if (request.Redeem) {
+                    var redemption = EvaluateRedemption(request);
+                    response = ToResponse(redemption.Decision);
+                    if (!response.Allowed) WriteAudit(request, redemption, response);
                 } else {
                     var evaluation = Evaluate(request);
                     response = ToResponse(evaluation.Decision);
+                    if (response.Allowed) {
+                        response = response with { GrantId = IssueGrant(request, evaluation) };
+                    }
                     WriteAudit(request, evaluation, response);
                 }
             }
@@ -221,7 +245,21 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
         };
     }
 
-    private sealed record Evaluation(CliAuthorizationDecision Decision, CliToolPolicyManifest? Policy = null);
+    private sealed record Evaluation(
+        CliAuthorizationDecision Decision,
+        CliToolPolicyManifest? Policy = null,
+        string? PolicySha256Hex = null);
+
+    /// <summary>一次性 grant 的绑定内容 — 兑换时必须逐项相等，任一项不符即拒绝。</summary>
+    private sealed record GrantRecord {
+        public required string TokenDigest { get; init; }
+        public required string GroupId { get; init; }
+        public required string ToolId { get; init; }
+        public required string ExecutableName { get; init; }
+        public required string ArgumentDigest { get; init; }
+        public string? PolicySha256Hex { get; init; }
+        public required DateTimeOffset ExpiresAt { get; init; }
+    }
 
     private Evaluation Evaluate(CliAuthorizationRequest request) {
         var scope = ResolveSession(request.Token);
@@ -270,7 +308,103 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
             request.ExecutableName,
             request.ToolId,
             request.Arguments);
-        return new Evaluation(decision, loaded.Manifest);
+        return new Evaluation(decision, loaded.Manifest, loaded.Sha256Hex);
+    }
+
+    /// <summary>
+    /// 签发一次性 grant — 绑定参数摘要、exe 身份、令牌摘要与策略哈希；兑换即失效。
+    /// </summary>
+    private string IssueGrant(CliAuthorizationRequest request, Evaluation evaluation) {
+        PruneExpiredGrants();
+        var grantId = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+        _grants[grantId] = new GrantRecord {
+            TokenDigest = DigestToken(request.Token),
+            GroupId = request.GroupId,
+            ToolId = request.ToolId,
+            ExecutableName = request.ExecutableName,
+            ArgumentDigest = DigestArguments(request.Arguments) ?? "",
+            PolicySha256Hex = evaluation.PolicySha256Hex,
+            ExpiresAt = _timeProvider.GetUtcNow() + GrantLifetime
+        };
+        return grantId;
+    }
+
+    /// <summary>
+    /// 兑换 grant — 先摘除再校验（重放/绑定不符都会消耗 grant），任一步不符立即 fail-closed。
+    /// </summary>
+    private Evaluation EvaluateRedemption(CliAuthorizationRequest request) {
+        var scope = ResolveSession(request.Token);
+        if (scope is null) {
+            return new Evaluation(CliAuthorizationDecision.Deny(
+                "Auth.Token",
+                "CLI 授权 token 无效或已过期；通过 jcc tool call 重新发起，不要手工拼接环境变量。"));
+        }
+        if (string.IsNullOrWhiteSpace(request.GrantId)
+            || !_grants.TryRemove(request.GrantId, out var grant)) {
+            return new Evaluation(CliAuthorizationDecision.Deny(
+                "Grant.Unknown",
+                "grant 不存在或已被使用；每次执行都必须重新申请授权，禁止重放旧凭据。"));
+        }
+        if (_timeProvider.GetUtcNow() > grant.ExpiresAt) {
+            return new Evaluation(CliAuthorizationDecision.Deny(
+                "Grant.Expired",
+                $"grant 已过期（有效期 {GrantLifetime.TotalSeconds:0} 秒）；重新发起授权。"));
+        }
+        if (!FixedTimeEquals(grant.TokenDigest, DigestToken(request.Token))) {
+            return new Evaluation(CliAuthorizationDecision.Deny(
+                "Grant.Mismatch",
+                "grant 不属于当前会话；跨会话复用凭据已拒绝。"));
+        }
+        if (!string.Equals(grant.GroupId, request.GroupId, StringComparison.Ordinal)
+            || !string.Equals(grant.ToolId, request.ToolId, StringComparison.Ordinal)
+            || !string.Equals(grant.ExecutableName, request.ExecutableName, StringComparison.OrdinalIgnoreCase)) {
+            return new Evaluation(CliAuthorizationDecision.Deny(
+                "Grant.Mismatch",
+                "grant 绑定的工具或 exe 与本次调用不一致；重新发起授权。"));
+        }
+        if (!string.Equals(grant.ArgumentDigest, DigestArguments(request.Arguments) ?? "", StringComparison.Ordinal)) {
+            return new Evaluation(CliAuthorizationDecision.Deny(
+                "Grant.Mismatch",
+                "grant 绑定的参数与本次调用不一致；授权后不得改参，重新发起授权。"));
+        }
+        if (grant.PolicySha256Hex is not null) {
+            string actualHash;
+            try {
+                var cacheKey = request.PolicyImagePath + "|" + request.ExecutableName;
+                var loaded = _policyCache.TryGetValue(cacheKey, out var cached)
+                    ? cached
+                    : LoadAndCachePolicy(cacheKey, request.PolicyImagePath, request.ExecutableName);
+                actualHash = loaded.Sha256Hex;
+            } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                             or InvalidOperationException or BadImageFormatException) {
+                return new Evaluation(CliAuthorizationDecision.Deny(
+                    "Grant.Policy",
+                    $"兑换时无法复核策略哈希：{ex.Message}；重新编译工具组后再执行。"));
+            }
+            if (!FixedTimeEquals(grant.PolicySha256Hex, actualHash)) {
+                return new Evaluation(CliAuthorizationDecision.Deny(
+                    "Grant.Policy",
+                    "策略内容在授权与执行之间发生变化；grant 已作废，重新发起授权。"));
+            }
+        }
+        return new Evaluation(CliAuthorizationDecision.Allow("Grant.Redeemed"));
+    }
+
+    private void PruneExpiredGrants() {
+        var now = _timeProvider.GetUtcNow();
+        foreach (var pair in _grants) {
+            if (now > pair.Value.ExpiresAt) _grants.TryRemove(pair.Key, out _);
+        }
+    }
+
+    private static string DigestToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    private static bool FixedTimeEquals(string expectedHex, string actualHex) {
+        var expected = Encoding.UTF8.GetBytes(expectedHex);
+        var actual = Encoding.UTF8.GetBytes(actualHex);
+        return expected.Length == actual.Length
+            && CryptographicOperations.FixedTimeEquals(expected, actual);
     }
 
     /// <summary>写一行审计；未配置路径或写盘失败都不改变授权判定（审计是旁路，不是门禁）。</summary>
@@ -341,8 +475,35 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
 
 /// <summary>工具 exe / jcc 启动器使用的 broker 客户端。</summary>
 internal static class CliToolAuthorizationClient {
+    /// <summary>
+    /// 申请授权并默认立即兑换一次性 grant — 兑换失败按拒绝处理（fail-closed）。
+    /// <paramref name="redeemGrant"/> 仅供测试/诊断跳过兑换，执行路径不得关闭。
+    /// </summary>
     public static async Task<CliAuthorizationDecision> AuthorizeAsync(
         CliAuthorizationSession session,
+        string groupId,
+        string toolId,
+        string policyImagePath,
+        string executableName,
+        IReadOnlyDictionary<string, string> arguments,
+        CancellationToken cancellationToken,
+        bool scopeOnly = false,
+        bool redeemGrant = true) {
+        var decision = await RequestDecisionAsync(
+            session, groupId, toolId, policyImagePath, executableName, arguments,
+            cancellationToken, scopeOnly).ConfigureAwait(false);
+        if (!decision.Allowed || !redeemGrant || decision.GrantId is null) return decision;
+        var redeemed = await RedeemGrantAsync(
+            session, decision.GrantId, groupId, toolId, policyImagePath, executableName,
+            arguments, cancellationToken, scopeOnly).ConfigureAwait(false);
+        // 兑换成功不改变放行层（Host.Allow/Policy.Allow 仍是对外语义），只清掉 grant。
+        return redeemed.Allowed ? decision with { GrantId = null } : redeemed;
+    }
+
+    /// <summary>兑换一次 grant；单次有效，重放或绑定不符一律拒绝。</summary>
+    public static async Task<CliAuthorizationDecision> RedeemGrantAsync(
+        CliAuthorizationSession session,
+        string grantId,
         string groupId,
         string toolId,
         string policyImagePath,
@@ -357,17 +518,45 @@ internal static class CliToolAuthorizationClient {
             PolicyImagePath = policyImagePath,
             ExecutableName = executableName,
             Arguments = new Dictionary<string, string>(arguments, StringComparer.Ordinal),
+            ScopeOnly = scopeOnly,
+            Redeem = true,
+            GrantId = grantId
+        };
+        var reply = await SendAsync(session, request, cancellationToken).ConfigureAwait(false);
+        return ToDecision(reply);
+    }
+
+    private static async Task<CliAuthorizationDecision> RequestDecisionAsync(
+        CliAuthorizationSession session,
+        string groupId,
+        string toolId,
+        string policyImagePath,
+        string executableName,
+        IReadOnlyDictionary<string, string> arguments,
+        CancellationToken cancellationToken,
+        bool scopeOnly) {
+        var request = new CliAuthorizationRequest {
+            Token = session.Token,
+            GroupId = groupId,
+            ToolId = toolId,
+            PolicyImagePath = policyImagePath,
+            ExecutableName = executableName,
+            Arguments = new Dictionary<string, string>(arguments, StringComparer.Ordinal),
             ScopeOnly = scopeOnly
         };
         var reply = await SendAsync(session, request, cancellationToken).ConfigureAwait(false);
-        return reply.Response is null
+        return ToDecision(reply);
+    }
+
+    private static CliAuthorizationDecision ToDecision(BrokerReply reply) =>
+        reply.Response is null
             ? CliAuthorizationDecision.Deny("Auth.Transport", reply.Error ?? "CLI 授权 broker 未返回响应。")
             : new CliAuthorizationDecision {
                 Allowed = reply.Response.Allowed,
                 Reason = reply.Response.Reason,
-                Layer = reply.Response.Layer
+                Layer = reply.Response.Layer,
+                GrantId = reply.Response.GrantId
             };
-    }
 
     /// <summary>读取当前会话的工具域快照；transport 失败返回 null（发现裁剪是尽力而为，执行判定仍 fail-closed）。</summary>
     public static async Task<CliToolScopeSnapshot?> GetScopeSnapshotAsync(

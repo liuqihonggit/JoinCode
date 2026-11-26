@@ -217,7 +217,7 @@ public sealed class CliAuthorizationBrokerTests {
             "file", "read",
             new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt" },
             typeof(CliAuthorizationBrokerTests).Assembly.Location,
-            "JoinCode.CliNodes.Tests.dll",
+            "jcc-tool-file.exe",
             pipe, token, CancellationToken.None);
 
         var writeDecision = await CliToolAuthorizationClient.AuthorizeCoreAsync(
@@ -227,7 +227,7 @@ public sealed class CliAuthorizationBrokerTests {
                 ["content"] = "x"
             },
             typeof(CliAuthorizationBrokerTests).Assembly.Location,
-            "JoinCode.CliNodes.Tests.dll",
+            "jcc-tool-file.exe",
             pipe, token, CancellationToken.None);
 
         Assert.True(readDecision.Allowed, readDecision.Reason);

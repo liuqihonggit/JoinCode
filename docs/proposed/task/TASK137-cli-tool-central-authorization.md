@@ -1,6 +1,6 @@
 # TASK137 — CLI 工具集中鉴权与参数权限编译期门禁
 
-- 状态：**实施中 — 13 组策略已内嵌；local/delegate/host/slash_call 四入口受 broker 约束；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；slash 参数结构化与 base/launcher 待后续阶段**
+- 状态：**实施中 — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；slash 参数结构化与 base/launcher 待后续阶段**
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 上游决策：[ADR 0168](../adr/0168-cli-tool-central-authorization-and-parameter-policy.md)
 - 关联：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)、[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)
@@ -45,7 +45,7 @@
   - `CliToolPolicy.cs` / `CliToolPolicyLoader.cs`；契约测试 12/12。
 - [x] file 组内嵌 `policy.yaml`。
   - `resources/tools/policies/file.yaml` + `jcc_tool_file.csproj` 的 `EmbeddedResource`/`AdditionalFiles`。
-  - 可信构建目录（policy 哈希目录）未实现，见阶段 5。
+  - 可信构建目录已落地：`policy_trust.yaml` 由生成器产出，broker 在运行时 broker 上启用哈希校验（见阶段 5）。
 - [x] 实现 jcc 授权 broker 与跨进程授权上下文。
   - `CliAuthorizationBroker.cs`：本机命名管道 + CurrentUserOnly + 随机 token。
   - **偏离 ADR 原文**：当前签发的是「作用域会话 token」，不是一次性 grant；broker 每次调用都用实际参数重新判定。
@@ -126,7 +126,7 @@
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---|---|---|---|
 | 权限 YAML schema + AOT 解析器 | 13 个组 exe | ✅ `CliToolPolicyLoader`；13 份策略 | ✅ 全部组 exe 编译并通过 `Verify-ToolNodes.ps1 -Sample` |
-| 可信 exe / policy 哈希目录 | jcc 授权 broker | ❌ | ❌ 未开始 |
+| 可信 exe / policy 哈希目录 | jcc 授权 broker（`enforcePolicyTrust`）、`Verify-ToolNodes.ps1` | ✅ `policy_trust.yaml` 生成 + `CliToolPolicyTrustCatalog` 校验 id/哈希/exe；运行时 broker 强制 | ✅ 4 个信任测试（未知策略/哈希不符/exe 不符拒绝，正式策略放行）；声明门禁校验 13 份哈希新鲜度；真机 probe 无 `Policy.Trust` 拒绝 |
 | 跨进程授权上下文 | Bash / PowerShell 子进程环境 | ✅ `SystemActuatorBase.AppendCliAuthorizationEnvironment`；3/3 测试 | ❌ 真机子代理 shell 待阶段 4 |
 | 集中授权 broker | `CliToolCommand` local/delegate 路径、`McpCliCommand`/`SlashCallExecutor` host 路径、`CliHostToolAuthorization` | ✅ 命名管道 + 作用域 token + `ScopeOnly` 判定；124/124 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝；host/slash 受限与放行真机双向验证 |
 | delegate 自证 | `jcc-gh` 内嵌 github 策略 + `CliGroupToolAuthorization` | ✅ `GhSubCommand` 执行前判定；jcc gh 人工会话注入；Gh 800/800 测试 | ✅ 直跑 126 `Auth.Missing`；受限 126 `Agent.AllowedTools`；`jcc gh`/`jcc tool call github` 人工 0、受限 126 |

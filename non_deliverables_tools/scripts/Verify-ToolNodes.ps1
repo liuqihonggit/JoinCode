@@ -85,6 +85,30 @@ foreach ($group in $groups) {
     if ((Get-Content -Path $csprojPath -Raw) -match 'policy\.yaml') { $policyGroups[$group.Name] = $true }
 }
 
+# 策略信任目录（ADR 0168）：jcc 只认这里锚定的 policy id + 内容哈希。
+$trustPath = Join-Path $repoRoot "resources/tools/policy_trust.yaml"
+$trustEntries = @{}
+if (-not (Test-Path $trustPath)) {
+    $problems += "策略信任目录缺失: $trustPath（用 Generate-CliToolPolicies.py --trust-only 生成）"
+} else {
+    $trustText = Get-Content -Path $trustPath -Raw -Encoding UTF8
+    foreach ($m in [regex]::Matches($trustText, '(?ms)^  - id:\s*(\S+)\s*$(.*?)(?=^  - id:|\z)')) {
+        $trustId = $m.Groups[1].Value
+        $body = $m.Groups[2].Value
+        $hashMatch = [regex]::Match($body, '(?m)^\s+hash:\s*(\S+)')
+        $execSection = [regex]::Match($body, '(?ms)^\s+executables:\s*$(.*)')
+        $execs = @()
+        if ($execSection.Success) {
+            $execs = @([regex]::Matches($execSection.Groups[1].Value, '(?m)^\s+-\s*(\S+)') |
+                ForEach-Object { $_.Groups[1].Value })
+        }
+        $trustEntries[$trustId] = [pscustomobject]@{
+            Hash = if ($hashMatch.Success) { $hashMatch.Groups[1].Value.ToLowerInvariant() } else { "" }
+            Execs = $execs
+        }
+    }
+}
+
 # 工具 id 归一化：slash 组的 node.yaml 登记名与 exe 自报名在前导斜杠上不一致（/version vs version），
 # 与 CliNodeRunner.CanonicalToolId 同口径处理，否则集合比对会对 slash 组假报漂移。
 function Normalize-ToolId([string]$id) { if ($id) { $id.TrimStart('/') } else { $id } }
@@ -236,6 +260,22 @@ foreach ($group in $groups) {
             $problems += "[$name] 策略登记了 node.yaml 不存在的工具: $($onlyInPolicy -join ', ')"
         }
 
+        $trust = $trustEntries["cli.$name"]
+        if (-not $trust) {
+            $problems += "[$name] 信任目录缺少 cli.$name（broker 会拒绝该组全部策略）"
+        } else {
+            $actualHash = (Get-FileHash -LiteralPath $policyPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actualHash -ne $trust.Hash) {
+                $problems += "[$name] 策略内容与信任目录不一致：文件 $actualHash，目录 $($trust.Hash) —— 运行 Generate-CliToolPolicies.py --trust-only"
+            }
+            if ($trust.Execs -notcontains "jcc-tool-$name.exe") {
+                $problems += "[$name] 信任目录 executables 未包含 jcc-tool-$name.exe"
+            }
+            if ($delegateExes.ContainsKey($name) -and ($trust.Execs -notcontains ($delegateExes[$name] + ".exe"))) {
+                $problems += "[$name] 信任目录 executables 未包含委托 exe $($delegateExes[$name]).exe"
+            }
+        }
+
         $csprojText = Get-Content -Path (Join-Path $group.FullName ("jcc_tool_" + $name + ".csproj")) -Raw
         if ($csprojText -notmatch 'CliPermission\.Analyzer\.csproj') {
             $problems += "[$name] csproj 未引用 CliPermission.Analyzer（参数闭包分析器未接入）"
@@ -344,6 +384,14 @@ foreach ($group in $groups) {
         Isolated = $reportedLocal + $declaredDelegate
         Target   = $reportedDelegate
         HelpKB   = [math]::Round($helpBytes / 1KB, 1)
+    }
+}
+
+# 信任目录里的策略 ID 必须对应真实分组，避免改名后残留旧哈希继续被信任。
+foreach ($trustId in $trustEntries.Keys) {
+    $trustGroup = $trustId -replace '^cli\.', ''
+    if ($dirNames -notcontains $trustGroup) {
+        $problems += "[$trustId] 信任目录登记了不存在的分组策略（重新生成 policy_trust.yaml）"
     }
 }
 

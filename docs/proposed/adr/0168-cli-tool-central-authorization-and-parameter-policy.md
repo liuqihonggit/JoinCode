@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host/slash_call 四入口受作用域判定；首轮组目录与 tree/find/help 同源；JSONL 审计可选开启；slash 参数结构化、base/launcher、信任目录与 one-time grant 待后续
+- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受作用域判定；首轮组目录与 tree/find/help 同源；JSONL 审计可选开启；slash 参数结构化、base/launcher 与 one-time grant 待后续
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -131,6 +131,8 @@ shell 环境清洗器必须显式保留授权凭据变量，同时禁止把 brok
 - schema version。
 
 agent 调用只允许注册 exe。`--exe`、`JCC_TOOL_EXE_DIR` 或 PATH 解析出的文件必须与目录身份一致；不得用“目标 exe 自报的 policy”作为授权真相。策略或 exe 哈希不匹配时 fail-closed。工具构建必须先于信任目录与 jcc 发布构建，目录生成物是派生数据，不是第二份权限源。
+
+实现进度：`policy_trust.yaml` 由 `Generate-CliToolPolicies.py` 生成（policy id + 策略 SHA-256 + executables），`CliToolPolicyTrustCatalog` 在 jcc 运行时 broker（`enforcePolicyTrust`）校验三项；发布 exe SHA-256、所有者项目/分析器覆盖字段与 schema version 留待发布签名阶段。
 
 ### 4. 参数权限模型
 
@@ -359,7 +361,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
    - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
-   - 审计段已完成：`JCC_CLI_AUDIT_LOG` JSONL + 真机 12 条；覆盖门禁已并入 `Verify-ToolNodes.ps1 -DeclarationsOnly`（策略/节点/分析器接线/委托内嵌）；策略哈希与信任目录待办。
+   - 审计段已完成：`JCC_CLI_AUDIT_LOG` JSONL + 真机 12 条；覆盖门禁已并入 `Verify-ToolNodes.ps1 -DeclarationsOnly`（策略/节点/分析器接线/委托内嵌/哈希新鲜度）；信任目录已落地（id+策略哈希+exe 名）。
 
 每阶段独立编译、测试、提交；跨域契约变更执行 `Build-AllDomains.ps1`。
 
@@ -386,6 +388,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
 - [ ] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
 - [ ] Bypass 不能越过 CLI hard deny、agent DeniedTools 或策略完整性检查。
+  - 策略完整性已由信任目录覆盖（未知策略/哈希不符/exe 不符拒绝）；Bypass 模式与真实子代理会话待阶段 4 联调。
 - [x] direct 组 exe 无会话凭据返回授权要求；`-h` 正常。
   - delegate exe 已覆盖：`jcc-gh` 直跑 126 `Auth.Missing`，`-h`/`--version` 不受限；组 exe 直跑行为不变。
 - [ ] 无效/伪造凭据、越域工具、未登记参数、deny 参数、损坏策略均 fail-closed；参数篡改经完整策略判定而非放行。

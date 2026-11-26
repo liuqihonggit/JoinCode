@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -23,6 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 GROUPS_ROOT = ROOT / "modules/tools/cli_nodes/groups"
 POLICY_ROOT = ROOT / "resources/tools/policies"
+TRUST_PATH = ROOT / "resources/tools/policy_trust.yaml"
 
 LIST_LINE = re.compile(r"^  (\S+)\s{2,}\S")
 DETAIL_LINE = re.compile(r"^  (\S+) — ")
@@ -101,11 +103,52 @@ def render(group: str, exe: str, tools: list[str], params: dict[str, list[str]])
     return "\n".join(lines) + "\n"
 
 
+def write_trust_catalog() -> int:
+    """生成策略信任目录 — jcc 只认这里锚定的 policy id + 内容哈希（ADR 0168）。
+
+    信任目录必须与策略文件同一提交：宿主内嵌它，broker 加载目标 exe 的策略后
+    比对哈希；改策略不刷新目录会被启动期/执行期拒绝，而不是静默放行。
+    """
+    entries: list[tuple[str, str, list[str]]] = []
+    for policy_path in sorted(POLICY_ROOT.glob("*.yaml")):
+        raw = policy_path.read_bytes()
+        policy_id = re.search(rb"(?m)^policy_id:\s*(\S+)", raw)
+        if not policy_id:
+            print(f"[trust-skip] {policy_path.name}: 缺少 policy_id")
+            continue
+        exec_section = re.search(rb"(?ms)^executables:\s*$(.*?)(?=^\S)", raw)
+        executables = re.findall(rb"(?m)^\s+-\s*(\S+)", exec_section.group(1)) if exec_section else []
+        entries.append((
+            policy_id.group(1).decode(),
+            hashlib.sha256(raw).hexdigest(),
+            [item.decode() for item in executables],
+        ))
+
+    lines = [
+        "# 由 Generate-CliToolPolicies.py 从 resources/tools/policies/*.yaml 生成 —— 不要手改",
+        "#",
+        "# jcc broker 用它校验目标 exe 内嵌策略的 id 与内容哈希（ADR 0168 信任目录）。",
+        "# 重新生成: python non_deliverables_tools/scripts/Generate-CliToolPolicies.py --trust-only",
+        "version: 1",
+        "policies:",
+    ]
+    for policy_id, digest, executables in entries:
+        lines.append(f"  - id: {policy_id}")
+        lines.append(f"    hash: {digest}")
+        lines.append("    executables:")
+        for exe in executables:
+            lines.append(f"      - {exe}")
+    TRUST_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    print(f"[trust] {TRUST_PATH.relative_to(ROOT)} policies={len(entries)}")
+    return len(entries)
+
+
 def main(argv: list[str]) -> int:
     force = "--force" in argv
+    trust_only = "--trust-only" in argv
     requested = [arg for arg in argv if not arg.startswith("--")]
-    groups = requested or sorted(
-        path.parent.name for path in GROUPS_ROOT.glob("*/help.txt"))
+    groups = [] if trust_only else (requested or sorted(
+        path.parent.name for path in GROUPS_ROOT.glob("*/help.txt")))
 
     POLICY_ROOT.mkdir(parents=True, exist_ok=True)
     written = 0
@@ -137,6 +180,7 @@ def main(argv: list[str]) -> int:
         print(f"[write] {target.relative_to(ROOT)} tools={len(tools)}")
 
     print(f"完成: 生成 {written} 份，跳过 {skipped} 份")
+    write_trust_catalog()
     return 0
 
 

@@ -125,9 +125,11 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
     private readonly Task _acceptLoop;
     private readonly Dictionary<string, CliAuthorizationScope> _sessions = new(StringComparer.Ordinal);
     private readonly object _sessionGate = new();
-    private readonly Dictionary<string, CliToolPolicyManifest> _policyCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, LoadedCliToolPolicy> _policyCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly bool _enforcePolicyTrust;
 
-    public CliAuthorizationBroker() {
+    public CliAuthorizationBroker(bool enforcePolicyTrust = false) {
+        _enforcePolicyTrust = enforcePolicyTrust;
         _pipeName = "jcc-cli-auth-" + Guid.NewGuid().ToString("N");
         _acceptLoop = Task.Run(AcceptLoopAsync);
     }
@@ -233,10 +235,10 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
             return new Evaluation(CliToolPolicyEvaluator.EvaluateScopeOnly(scope, request.ToolId));
         }
 
-        CliToolPolicyManifest policy;
+        LoadedCliToolPolicy loaded;
         try {
             var cacheKey = request.PolicyImagePath + "|" + request.ExecutableName;
-            policy = _policyCache.TryGetValue(cacheKey, out var cached)
+            loaded = _policyCache.TryGetValue(cacheKey, out var cached)
                 ? cached
                 : LoadAndCachePolicy(cacheKey, request.PolicyImagePath, request.ExecutableName);
         } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
@@ -246,14 +248,29 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
                 $"无法读取目标 exe 的内嵌权限策略：{ex.Message}；重新编译工具组并检查 policy.yaml 是否嵌入。"));
         }
 
+        if (_enforcePolicyTrust) {
+            string? trustError;
+            try {
+                trustError = CliToolPolicyTrustCatalog.Default.Verify(
+                    loaded.Manifest.PolicyId, loaded.Sha256Hex, request.ExecutableName);
+            } catch (Exception ex) when (ex is IOException or InvalidOperationException or YamlException) {
+                trustError = $"信任目录不可用：{ex.Message}";
+            }
+            if (trustError is not null) {
+                return new Evaluation(CliAuthorizationDecision.Deny(
+                    "Policy.Trust",
+                    $"{trustError}；重新编译工具组并运行 Generate-CliToolPolicies.py 刷新 policy_trust.yaml。"));
+            }
+        }
+
         var decision = CliToolPolicyEvaluator.Evaluate(
-            policy,
+            loaded.Manifest,
             scope,
             request.GroupId,
             request.ExecutableName,
             request.ToolId,
             request.Arguments);
-        return new Evaluation(decision, policy);
+        return new Evaluation(decision, loaded.Manifest);
     }
 
     /// <summary>写一行审计；未配置路径或写盘失败都不改变授权判定（审计是旁路，不是门禁）。</summary>
@@ -296,10 +313,10 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
-    private CliToolPolicyManifest LoadAndCachePolicy(string cacheKey, string path, string executableName) {
-        var policy = CliToolPolicyResourceReader.LoadFromExecutable(path, executableName);
-        _policyCache[cacheKey] = policy;
-        return policy;
+    private LoadedCliToolPolicy LoadAndCachePolicy(string cacheKey, string path, string executableName) {
+        var loaded = CliToolPolicyResourceReader.LoadWithHashFromExecutable(path, executableName);
+        _policyCache[cacheKey] = loaded;
+        return loaded;
     }
 
     private CliAuthorizationScope? ResolveSession(string candidateToken) {
@@ -583,7 +600,8 @@ public static class CliGroupToolAuthorization {
 }
 
 /// <summary>jcc 宿主侧的 broker 单例与 shell 环境注入。</summary>
-public static class CliAuthorizationBrokerRuntime {    private static readonly Lazy<CliAuthorizationBroker> Broker = new(() => new CliAuthorizationBroker());
+public static class CliAuthorizationBrokerRuntime {
+    private static readonly Lazy<CliAuthorizationBroker> Broker = new(() => new CliAuthorizationBroker(enforcePolicyTrust: true));
     private static readonly ConcurrentDictionary<string, CliAuthorizationSession> Sessions = new(StringComparer.Ordinal);
 
     /// <summary>
@@ -620,6 +638,9 @@ public static class CliAuthorizationBrokerRuntime {    private static readonly L
     }
 }
 
+/// <summary>内嵌策略及其原始 YAML 的 SHA-256（信任目录比对用）。</summary>
+internal sealed record LoadedCliToolPolicy(CliToolPolicyManifest Manifest, string Sha256Hex);
+
 /// <summary>从目标 exe 的 PE manifest resource 只读提取内嵌 policy.yaml。</summary>
 internal static class CliToolPolicyResourceReader {
     private const string PolicyResourceMarker = ".policy.";
@@ -647,7 +668,10 @@ internal static class CliToolPolicyResourceReader {
         return false;
     }
 
-    public static CliToolPolicyManifest LoadFromExecutable(string path, string? expectedExecutableName = null) {
+    public static CliToolPolicyManifest LoadFromExecutable(string path, string? expectedExecutableName = null) =>
+        LoadWithHashFromExecutable(path, expectedExecutableName).Manifest;
+
+    public static LoadedCliToolPolicy LoadWithHashFromExecutable(string path, string? expectedExecutableName = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         using var stream = File.OpenRead(path);
         using var peReader = new System.Reflection.PortableExecutable.PEReader(stream);
@@ -661,7 +685,7 @@ internal static class CliToolPolicyResourceReader {
             throw new InvalidOperationException($"可执行文件 '{path}' 没有 CLI 资源目录");
         }
 
-        CliToolPolicyManifest? firstPolicy = null;
+        LoadedCliToolPolicy? firstPolicy = null;
         foreach (var handle in metadata.ManifestResources) {
             var resource = metadata.GetManifestResource(handle);
             var name = metadata.GetString(resource.Name);
@@ -677,13 +701,14 @@ internal static class CliToolPolicyResourceReader {
             if (size < 0 || size > reader.RemainingBytes) {
                 throw new InvalidOperationException($"策略资源 '{name}' 长度越界");
             }
-            var yaml = Encoding.UTF8.GetString(reader.ReadBytes(size));
-            var policy = CliToolPolicyLoader.Parse(yaml, $"{path}!{name}");
-            firstPolicy ??= policy;
+            var bytes = reader.ReadBytes(size);
+            var policy = CliToolPolicyLoader.Parse(Encoding.UTF8.GetString(bytes), $"{path}!{name}");
+            var loaded = new LoadedCliToolPolicy(policy, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
+            firstPolicy ??= loaded;
             if (string.IsNullOrWhiteSpace(expectedExecutableName)
                 || policy.Executables.Any(candidate =>
                     string.Equals(candidate, expectedExecutableName, StringComparison.OrdinalIgnoreCase))) {
-                return policy;
+                return loaded;
             }
         }
 

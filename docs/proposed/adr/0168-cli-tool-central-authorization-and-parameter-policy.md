@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host 三路径已接入作用域判定（host 用 `ScopeOnly`）；一次性 grant 加固待确认
+- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host/slash_call 四入口已接入作用域判定，delegate 实现（jcc-gh）自证并 fail-closed；slash 参数结构化与 one-time grant 待后续
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -93,8 +93,8 @@ shell 环境清洗器必须显式保留授权凭据变量，同时禁止把 brok
 | 模式 | 授权与执行流程 |
 |---|---|
 | local | `jcc tool call` → 父 broker 会话凭据注入环境 → 启动组 exe → 组 exe 携带实际工具/参数请求判定 → 调用 local handler |
-| delegate | 组 exe 向同一 broker 判定后启动 delegate exe；子进程继承同一会话凭据，delegate 路径同样受作用域约束 |
-| host | broker 在父宿主的原任务上下文授权，并通过现有 `PermissionAwareToolExecutor` / slash 执行链执行；不再由失去 AsyncLocal 的子进程重复决策 |
+| delegate | 组 exe 向同一 broker 判定后启动 delegate exe；delegate 侧再按自身内嵌策略自证（`CliGroupToolAuthorization`），子进程继承同一会话凭据，两层都不放行越域调用 |
+| host | broker 在父宿主的原任务上下文授权，并通过现有 `PermissionAwareToolExecutor` / slash 执行链执行；`jcc mcp_call`、`jcc tool call <组> <host工具>`、`jcc slash_call` 共用 `ScopeOnly` 判定 |
 | help / tree / find | 不请求执行判定；按当前可见工具域返回元数据 |
 
 关键约束：
@@ -350,6 +350,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 
 1. **file 垂直切片**：策略 schema、嵌入、broker、作用域会话凭据、local 执行、分析器、真实子代理拒绝/放行。
 2. **local/delegate 全量**：13 组策略与 delegate 链，参数闭包分析、未知参数拒绝。
+   - delegate 段已完成：`github.yaml` 同时内嵌 jcc-gh，delegate 侧自证 + 直跑 fail-closed；人工 `jcc gh` 由 jcc 进程签发全量会话。
 3. **host/slash/base/launcher**：父宿主执行、结构化 slash 参数、全局与元命令参数。
    - host 段已完成：`ScopeOnly` 协议 + `McpCliCommand` 门禁，真机受限/放行两条路径双向验证；slash/base/launcher 待办。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
@@ -380,7 +381,8 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
 - [ ] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
 - [ ] Bypass 不能越过 CLI hard deny、agent DeniedTools 或策略完整性检查。
-- [ ] direct 组 exe 无会话凭据返回授权要求；`-h` 正常。
+- [x] direct 组 exe 无会话凭据返回授权要求；`-h` 正常。
+  - delegate exe 已覆盖：`jcc-gh` 直跑 126 `Auth.Missing`，`-h`/`--version` 不受限；组 exe 直跑行为不变。
 - [ ] 无效/伪造凭据、越域工具、未登记参数、deny 参数、损坏策略均 fail-closed；参数篡改经完整策略判定而非放行。
 - [ ] （阶段 2 加固）一次性 grant：参数摘要、exe 身份、策略哈希、nonce 与过期绑定，重放 fail-closed。
 - [ ] host ask 由父宿主 UI/队列处理，不因子进程丢失上下文而自动放行。

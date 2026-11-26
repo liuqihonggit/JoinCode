@@ -6,6 +6,7 @@ policy_id: cli.github
 policy_version: 1
 executables:
   - jcc-tool-github.exe
+  - jcc-gh.exe
 
 tools:
   subscribe_pr:

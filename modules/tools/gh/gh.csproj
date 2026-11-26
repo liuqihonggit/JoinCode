@@ -25,6 +25,13 @@
     <ProjectReference Include="$(RepoRoot)modules/tools/github_client/GitHubClient.csproj" />
   </ItemGroup>
 
+  <!-- delegate 自身自证：直跑 jcc-gh 必须受同一份 github 策略约束（ADR 0168）。 -->
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_primitives_tools/Abstractions.Primitives.Tools.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Tools" Version="$(JccComponentPackageVersion)" />
+    <EmbeddedResource Include="$(RepoRoot)resources/tools/policies/github.yaml" LogicalName="JoinCode.CliNodes.Groups.github.policy.yaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="NaCl.Core" Version="2.2.0" />
   </ItemGroup>

@@ -1,6 +1,6 @@
 # TASK137 — CLI 工具集中鉴权与参数权限编译期门禁
 
-- 状态：**实施中 — 13 组策略已全部内嵌并通过编译期对账；local/delegate/host 三路径已受 broker 约束；slash/base/launcher 与一次性 grant 待后续阶段**
+- 状态：**实施中 — 13 组策略已内嵌；local/delegate/host/slash_call 四入口受 broker 约束；slash 参数结构化与 base/launcher 待后续阶段**
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 上游决策：[ADR 0168](../adr/0168-cli-tool-central-authorization-and-parameter-policy.md)
 - 关联：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)、[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)
@@ -73,7 +73,10 @@
 - [x] 完成 local handler 参数闭包分析：helper 链多层转发、嵌套调用、`GetValueOrDefault`、
   slash 组带引号工具 ID、行尾注释、拒绝墓碑均已覆盖（分析器 13/13）。
 - [x] 未知参数在授权前拒绝：broker `Policy.Parameter`（真机 `--bogus` → 126）。
-- [ ] delegate exe（jcc-gh）自身内嵌策略与 GitHub → jcc-gh 委托链的授权/审计闭环。
+- [x] delegate exe（jcc-gh）自身内嵌策略与 GitHub → jcc-gh 委托链的授权/审计闭环。
+  - `jcc-gh` 嵌入 `resources/tools/policies/github.yaml`（executables 增加 `jcc-gh.exe`）；`GhSubCommand.InvokeAndOutputAsync` 调 `CliGroupToolAuthorization` 自证，直跑无会话 126 `Auth.Missing`。
+  - `jcc gh` 包装器在无继承会话时由 jcc 进程自建全量会话注入，人工路径不回归。
+  - 真机：`jcc-gh auth status` 直跑 126；受限 scope 126 `Agent.AllowedTools`；放行 scope 0；`jcc gh` / `jcc tool call github` 人工 0、受限 126。
 - [ ] 一次性 grant（参数摘要/nonce/策略哈希）加固。
 - 实施中发现并修复的契约漂移：media/system 的 camelCase help 参数被 handler 按 snake_case 读取、
   多个"帮助里有、handler 不读"的参数、`task_update`/`todo_update` 的 foreach 动态键、
@@ -86,6 +89,7 @@
   - 接入点：`McpCliCommand.ExecuteAgainstRegistryAsync` 启动宿主前；`jcc tool call <组> <host工具>` 转发同样经此路径。
   - 真机双端：受限 scope（AllowedTools 不含 `ctx_inspect`）`jcc mcp_call ctx_inspect` → 1 `Agent.AllowedTools`；分组转发同样拒绝；放行 scope 两条路径均 0；伪造 pid/token → `Auth.Transport`。
 - [ ] slash 命令全部具备可分析的 `[ChatCommandArg]` 或显式空参数声明。
+  - 部分完成：`jcc slash_call` 已加作用域门禁（`CliHostToolAuthorization` + canonical 命令名），封住子代理绕过分组 exe 直接执行斜杠命令；参数级结构化对账仍待办。
 - [ ] base 工具与 jcc launcher 参数纳入各自内嵌策略。
 - [ ] `[CliOption]` 的长短别名、否定形式、环境变量映射全部覆盖。
 - [ ] MCP 方法参数、必填项、默认值、枚举与别名完成对账。
@@ -115,7 +119,9 @@
 | 权限 YAML schema + AOT 解析器 | 13 个组 exe | ✅ `CliToolPolicyLoader`；13 份策略 | ✅ 全部组 exe 编译并通过 `Verify-ToolNodes.ps1 -Sample` |
 | 可信 exe / policy 哈希目录 | jcc 授权 broker | ❌ | ❌ 未开始 |
 | 跨进程授权上下文 | Bash / PowerShell 子进程环境 | ✅ `SystemActuatorBase.AppendCliAuthorizationEnvironment`；3/3 测试 | ❌ 真机子代理 shell 待阶段 4 |
-| 集中授权 broker | `CliToolCommand` local/delegate 路径、`McpCliCommand` host 路径、`CliHostToolAuthorization` | ✅ 命名管道 + 作用域 token + `ScopeOnly` 判定；124/124 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝；host 工具两条路径受限/放行真机双向验证 |
+| 集中授权 broker | `CliToolCommand` local/delegate 路径、`McpCliCommand`/`SlashCallExecutor` host 路径、`CliHostToolAuthorization` | ✅ 命名管道 + 作用域 token + `ScopeOnly` 判定；124/124 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝；host/slash 受限与放行真机双向验证 |
+| delegate 自证 | `jcc-gh` 内嵌 github 策略 + `CliGroupToolAuthorization` | ✅ `GhSubCommand` 执行前判定；jcc gh 人工会话注入；Gh 800/800 测试 | ✅ 直跑 126 `Auth.Missing`；受限 126 `Agent.AllowedTools`；`jcc gh`/`jcc tool call github` 人工 0、受限 126 |
+| slash 直调门禁 | `SlashCallExecutor` | ✅ canonical 命令名 + `ScopeOnly` | ✅ 受限 scope `/compact` 拒绝，放行 scope `/version` 0，人工直调 0 |
 | 一次性执行 grant + redeem | `CliNodeRunner` local / delegate | ❌ 当前为作用域会话 token（ADR 偏离，待阶段 2 加固） | ❌ |
 | 参数权限硬规则 | broker `CliToolPolicyEvaluator` | ✅ 未知参数/deny 参数/工具域/拒绝集 | ✅ `--pages`→126 `Policy.Deny`；`--bogus`→126 `Policy.Parameter` |
 | 迁移门禁（无策略 exe 旧行为） | `CliToolAuthorizationClient.AuthorizeCoreAsync` | ✅ `Policy.NotEnforced`；3/3 门禁测试 | ✅ 各组直跑统一 126；delegate/host 无策略 exe 仍按旧行为 |

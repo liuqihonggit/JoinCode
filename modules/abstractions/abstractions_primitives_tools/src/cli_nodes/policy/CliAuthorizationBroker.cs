@@ -379,9 +379,36 @@ public static class CliHostToolAuthorization {
     }
 }
 
+/// <summary>
+/// 分组 exe 与 delegate 实现的自证入口 — 读取当前进程环境里的 broker 会话，按所属组策略判定。
+/// <para>delegate exe（如 jcc-gh）不走 <c>CliNodeRunner</c>，必须自己调用本入口；
+/// 镜像已内嵌策略但缺会话时 fail-closed，避免被 agent shell 直接执行绕过工具域。</para>
+/// </summary>
+public static class CliGroupToolAuthorization {
+    /// <summary>按当前进程会话与内嵌策略判定一次分组工具调用。</summary>
+    /// <param name="groupId">工具组 ID。</param>
+    /// <param name="toolId">工具 ID。</param>
+    /// <param name="arguments">已绑定的规范参数。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>授权判定。</returns>
+    public static Task<CliAuthorizationDecision> AuthorizeAsync(
+        string groupId,
+        string toolId,
+        IReadOnlyDictionary<string, string> arguments,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(groupId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolId);
+        ArgumentNullException.ThrowIfNull(arguments);
+        return CliToolAuthorizationClient.AuthorizeCurrentProcessAsync(
+            groupId,
+            toolId,
+            arguments,
+            cancellationToken);
+    }
+}
+
 /// <summary>jcc 宿主侧的 broker 单例与 shell 环境注入。</summary>
-public static class CliAuthorizationBrokerRuntime {
-    private static readonly Lazy<CliAuthorizationBroker> Broker = new(() => new CliAuthorizationBroker());
+public static class CliAuthorizationBrokerRuntime {    private static readonly Lazy<CliAuthorizationBroker> Broker = new(() => new CliAuthorizationBroker());
     private static readonly ConcurrentDictionary<string, CliAuthorizationSession> Sessions = new(StringComparer.Ordinal);
 
     /// <summary>

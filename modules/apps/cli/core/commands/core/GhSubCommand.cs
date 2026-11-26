@@ -18,6 +18,13 @@ internal static class GhSubCommand {
         for (var i = 1; i < args.Length; i++)
             psi.ArgumentList.Add(args[i]);
 
+        // jcc-gh 已内嵌 github 策略并 fail-closed；人工 jcc gh 没有 agent 会话时需要 jcc 自建全量会话。
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.PipeVariable))) {
+            var manual = CliAuthorizationBrokerRuntime.EnsureEnvironment(
+                "jcc-cli-gh", "jcc-gh", [], [], "manual");
+            foreach (var pair in manual) psi.Environment[pair.Key] = pair.Value;
+        }
+
         return await StdinForwarder.RunAsync(psi, ct).ConfigureAwait(false);
     }
 }

@@ -39,6 +39,17 @@ internal static class SlashCallExecutor {
                 return 1;
             }
 
+            // agent shell 内可绕过分组 exe 直接调 jcc slash_call；宿主必须按同一 agent 工具域拦截，
+            // 否则斜杠命令成为子代理扩大权限的后门。
+            var canonicalName = command.Name.TrimStart('/');
+            var authorization = await CliHostToolAuthorization.AuthorizeAsync(canonicalName, ct).ConfigureAwait(false);
+            if (!authorization.Allowed) {
+                TerminalHelper.WriteError(
+                    $"[CLI-AUTH] denied | command: /{cmdName} | layer: {authorization.Layer} | reason: {authorization.Reason}"
+                    + " | 正确写法: 只调用当前 agent 职责范围内的斜杠命令，或改用 jcc tool call <分组> <工具>");
+                return 1;
+            }
+
             var resumeSessionId = FlatSubCommandRouter.GetOptionValue(args, "--resume") ?? FlatSubCommandRouter.GetOptionValue(args, "-r");
 
             var context = new ChatCommandContext {

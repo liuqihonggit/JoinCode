@@ -588,7 +588,8 @@ public sealed record SdkHookSystemMessage : SdkMessageBase {
 }
 
 /// <summary>本地命令输出消息 — 对齐基准侧 system/local_command_output 事件</summary>
-public sealed record SdkLocalCommandOutputMessage : SdkMessageBase {    /// <summary>消息类型</summary>
+public sealed record SdkLocalCommandOutputMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
     public string Type => "system";
     /// <summary>消息子类型</summary>
     public string Subtype => "local_command_output";

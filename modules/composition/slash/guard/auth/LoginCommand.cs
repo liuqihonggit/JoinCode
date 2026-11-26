@@ -27,8 +27,24 @@ public sealed class LoginCommand : ChatCommandBase {
         var definition = ResolveProviderDefinition(context, providerName);
         if (definition is null) {
             var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
+            var workflowConfig = context.GetCommandServices().WorkflowConfig;
+
+            // Hub 模式下注册表按设计为空（ProviderDefinitionRegistry.CreateEmpty），
+            // 凭据由服务端管理：报"不支持的提供商 + 空列表"会误导用户去改本机配置。
+            if (string.Equals(workflowConfig?.Provider?.Vendor, "hub", StringComparison.OrdinalIgnoreCase)) {
+                TerminalHelper.WriteLine($"{TerminalColors.Muted}Hub 模式下登录由服务端管理，请在 Hub 端配置凭据{AnsiStyleEnumConstants.Reset}");
+                return ChatCommandResult.Continue();
+            }
+
+            var providers = registry?.GetRegisteredProviders() ?? [];
+            if (providers.Length == 0) {
+                TerminalHelper.WriteLine($"{TerminalColors.Error}未配置任何 AI 服务供应商{AnsiStyleEnumConstants.Reset}");
+                TerminalHelper.WriteLine($"请在 {AppDataConstants.Paths.SettingsFilePath} 的 vendor 节点添加配置后重试");
+                return ChatCommandResult.Continue();
+            }
+
             TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的提供商: {providerName}{AnsiStyleEnumConstants.Reset}");
-            TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", registry?.GetRegisteredProviders() ?? [])}");
+            TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", providers)}");
             return ChatCommandResult.Continue();
         }
 

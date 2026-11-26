@@ -233,13 +233,48 @@ public static class MarkdownLayout
         var widths = Enumerable.Range(0, columnCount)
             .Select(column => Math.Max(3, CellDisplayWidth(table, column)))
             .ToArray();
+        var aligns = table.Aligns ?? [];
 
-        lines.Add(TableRow(prefix, table.Headers, widths, isHeader: true, table.Aligns ?? []));
-        lines.Add(new List<MarkdownSegment>(prefix) { new(TableSeparator(widths), MarkdownStyle.None) });
-        foreach (var row in table.Rows)
+        // TASK107 — box 边框（对齐基准 MarkdownTable.tsx：top/header/middle/rows/bottom，
+        // 行间也画 middle），不再把 GFM 源码的 "| --- |" 分隔行直接上屏。
+        lines.Add(TableBorder(prefix, widths, '┌', '┬', '┐'));
+        lines.Add(TableRow(prefix, table.Headers, widths, isHeader: true, aligns));
+        if (table.Rows.Count == 0)
         {
-            lines.Add(TableRow(prefix, row, widths, isHeader: false, table.Aligns ?? []));
+            lines.Add(TableBorder(prefix, widths, '└', '┴', '┘'));
+            return;
         }
+
+        lines.Add(TableBorder(prefix, widths, '├', '┼', '┤'));
+        for (var index = 0; index < table.Rows.Count; index++)
+        {
+            lines.Add(TableRow(prefix, table.Rows[index], widths, isHeader: false, aligns));
+            if (index < table.Rows.Count - 1)
+            {
+                lines.Add(TableBorder(prefix, widths, '├', '┼', '┤'));
+            }
+        }
+
+        lines.Add(TableBorder(prefix, widths, '└', '┴', '┘'));
+    }
+
+    /// <summary>表格横边框行 — "┌" + "─"×(列宽+2) + 交叉 + … + 右端（基准 renderBorderLine 同形）。</summary>
+    private static List<MarkdownSegment> TableBorder(
+        IReadOnlyList<MarkdownSegment> prefix,
+        int[] widths,
+        char left,
+        char cross,
+        char right)
+    {
+        var builder = new System.Text.StringBuilder();
+        builder.Append(left);
+        for (var column = 0; column < widths.Length; column++)
+        {
+            builder.Append('─', widths[column] + 2);
+            builder.Append(column == widths.Length - 1 ? right : cross);
+        }
+
+        return [.. prefix, new MarkdownSegment(builder.ToString(), MarkdownStyle.None)];
     }
 
     /// <summary>表格行 — "| " + 左补空格 + 单元格段 + 右补空格 + 行尾。
@@ -268,7 +303,7 @@ public static class MarkdownLayout
             };
             var rightPadding = padding - leftPadding;
 
-            line.Add(new MarkdownSegment("| ", MarkdownStyle.None));
+            line.Add(new MarkdownSegment("│ ", MarkdownStyle.None));
             if (leftPadding > 0)
             {
                 line.Add(new MarkdownSegment(new string(' ', leftPadding), MarkdownStyle.None));
@@ -280,15 +315,12 @@ public static class MarkdownLayout
                 line.Add(new MarkdownSegment(new string(' ', rightPadding), MarkdownStyle.None));
             }
 
-            line.Add(new MarkdownSegment(column == widths.Length - 1 ? " |" : " ", MarkdownStyle.None));
+            line.Add(new MarkdownSegment(" ", MarkdownStyle.None));
         }
 
+        line.Add(new MarkdownSegment("│", MarkdownStyle.None));
         return line;
     }
-
-    /// <summary>表格分隔行 "|------|---------|"（每列 w+2 个 dash）。</summary>
-    private static string TableSeparator(int[] widths) =>
-        string.Concat(widths.Select(width => $"|{new string('-', width + 2)}")) + "|";
 
     /// <summary>列显示宽 = 表头与所有数据行该列的最大显示宽。</summary>
     private static int CellDisplayWidth(MarkdownTable table, int column) =>
@@ -363,6 +395,14 @@ public static class MarkdownLayout
                 continue;
             }
 
+            // 段内硬换行（\n）：结束当前行（FlushLine 对空行幂等 — 首尾换行不产生空行）。
+            // 缺此分支时 \n 作为零宽字符并入同一 token，布局层从不换行 → 写屏被跳过 → 两行粘连。
+            if (token.Text is "\n")
+            {
+                FlushLine();
+                continue;
+            }
+
             if (token.Text[0] == ' ')
             {
                 pendingSpace += token.Text.Length;
@@ -427,6 +467,24 @@ public static class MarkdownLayout
             var run = new System.Text.StringBuilder();
             foreach (var rune in segment.Text.EnumerateRunes())
             {
+                // 段内换行（软换行）— \r 丢弃、\n 产出硬换行标记（WrapSegments 消费）
+                if (rune.Value == '\r')
+                {
+                    continue;
+                }
+
+                if (rune.Value == '\n')
+                {
+                    if (run.Length > 0)
+                    {
+                        yield return (run.ToString(), segment.Style, segment.Url);
+                        run.Clear();
+                    }
+
+                    yield return ("\n", segment.Style, segment.Url);
+                    continue;
+                }
+
                 if (rune.Value == ' ')
                 {
                     if (run.Length > 0)

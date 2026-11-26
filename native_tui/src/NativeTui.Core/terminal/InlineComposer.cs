@@ -50,7 +50,7 @@ public sealed class InlineComposer
             RenderSlice(builder, next, 0, next.Rows, ref cursor);
         }
         else if (prev.Cols != next.Cols
-            || HasScrollbackChange(prev, next, Math.Max(0, prev.Rows - viewportRows))
+            || HasScrollbackChange(prev, next, ScrollbackRows(prev.Rows, viewportRows))
             || IsShrinkBeyondViewport(prev, next, viewportRows))
         {
             FullReset(builder, next, ref cursor);
@@ -81,6 +81,16 @@ public sealed class InlineComposer
         return builder.ToString();
     }
 
+    /// <summary>
+    /// 帧占用的物理行中落进 scrollback 的行数 —— 帧占 <paramref name="frameRows"/> + 1 物理行：
+    /// 每行收尾的 CRLF 会多产出一行空行承载光标（<see cref="RenderSlice"/> 语义），
+    /// 故恰好填满视口时（frameRows == viewportRows）顶行已被这条尾随换行顶进 scrollback。
+    /// 旧式 <c>frameRows - viewportRows</c> 少算这一行，会让"顶行不可达"的收缩/改写漏判 →
+    /// 相对 CUU 被终端钳制在视口顶，写错行 → 残影。
+    /// </summary>
+    private static int ScrollbackRows(int frameRows, int viewportRows) =>
+        Math.Max(0, frameRows + 1 - viewportRows);
+
     /// <summary>变更是否落在 scrollback 区（行 y &lt; scrollbackRows 且有 cell 差）— 不可达必须 fullReset。</summary>
     private static bool HasScrollbackChange(Screen prev, Screen next, int scrollbackRows)
     {
@@ -110,11 +120,12 @@ public sealed class InlineComposer
         return union;
     }
 
-    /// <summary>收缩清除是否超出视口可达范围（被清首行落入 scrollback 区 — CUU 被终端钳制在视口顶，
+    /// <summary>收缩清除是否越界（被清首行已落进 scrollback 区 — CUU 被终端钳制在视口顶，
     /// 从视口顶清行会错擦可见区并引发多余滚屏，后续帧物理失同步）→ 必须 fullReset
-    /// （对齐基准 log-update.ts:259-271 shrink 守卫：linesToClear &gt; viewport.height → fullReset）。</summary>
+    /// （对齐基准 log-update.ts:259-271 shrink 守卫：linesToClear &gt; viewport.height → fullReset）。
+    /// 可达下界是 scrollback 深度（含尾随空行 — 见 <see cref="ScrollbackRows"/>）。</summary>
     private static bool IsShrinkBeyondViewport(Screen prev, Screen next, int viewportRows) =>
-        next.Rows < prev.Rows && prev.Rows - next.Rows > viewportRows;
+        next.Rows < prev.Rows && next.Rows < ScrollbackRows(prev.Rows, viewportRows);
 
     /// <summary>fullReset：2J+3J+光标归位 绝对锚定（对齐基准 clearTerminal.ts:59-69 — 终端
     /// resize 时 conhost reflow 重排缓冲区，物理光标落点由 reflow 决定，相对 CUU 从旧内容坐标

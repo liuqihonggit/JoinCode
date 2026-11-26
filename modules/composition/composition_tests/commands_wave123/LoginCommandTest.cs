@@ -84,6 +84,44 @@ public sealed class LoginCommandTest {
         readPasswordCalled.Should().BeFalse("未知 provider 不应进入密钥输入环节");
     }
 
+    /// <summary>
+    /// Hub 模式下注册表按设计为空（ProviderDefinitionRegistry.CreateEmpty），
+    /// /login 不该报"不支持的提供商 + 空列表"，而应给出可执行指引（真实环境观察）。
+    /// </summary>
+    [Fact]
+    public async Task Execute_HubMode_ShowsClearGuidanceInsteadOfEmptySupportedList() {
+        var registry = CreateRegistry(_ => null);
+        var services = CommandTestHarness.CreateServices(
+            configureDi: di => di.AddSingleton(registry.Object),
+            workflowConfig: new WorkflowConfig { Provider = new ProviderConfig { Vendor = "hub" } });
+        var context = CommandTestHarness.CreateContext(services, arguments: "");
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(
+            () => new LoginCommand().ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain("Hub 模式");
+        output.Should().NotContain("不支持的提供商");
+        output.Should().NotContain("支持的提供商:");
+    }
+
+    /// <summary>
+    /// 非 Hub 但 vendor 配置为空时也不该输出空列表尾巴（"支持的提供商: "）。
+    /// </summary>
+    [Fact]
+    public async Task Execute_NoProviderConfigured_ShowsConfigGuidance() {
+        var registry = CreateRegistry(_ => null);
+        var services = CommandTestHarness.CreateServices(
+            configureDi: di => di.AddSingleton(registry.Object));
+        var context = CommandTestHarness.CreateContext(services, arguments: "");
+
+        var (_, output) = await CommandTestHarness.CaptureOutputAsync(
+            () => new LoginCommand().ExecuteAsync(context));
+
+        output.Should().Contain("settings.json");
+        output.Should().NotContain("支持的提供商: ");
+    }
+
     [Fact]
     public async Task Execute_EmptyArgs_ResolvesDefaultOpenAiProvider() {
         string? resolved = null;

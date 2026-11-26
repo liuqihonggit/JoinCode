@@ -117,6 +117,20 @@ public sealed class ReplShellSuggestionsTests
         Assert.Equal(string.Empty, shell.Input.Text);
     }
 
+    /// <summary>TASK106 真机缺陷 — 接受建议提交后补全状态必须失效。
+    /// 现实表现：/login 提交后输入框仍显示该命令与描述（建议面板残留），再按一次 Enter 走
+    /// 「接受建议并执行」分支，把同一条命令又发一遍（真机出现两条 Hub 提示）。</summary>
+    [Fact]
+    public void Enter_AcceptSuggestion_DeactivatesSuggester_NoRepeatSubmit()
+    {
+        var (shell, engine) = CreateShell();
+        Type(shell, "/he");
+        Press(shell, ConsoleKey.Enter);
+        Assert.False(shell.Suggester?.IsActive);
+        Press(shell, ConsoleKey.Enter);
+        Assert.Equal(["/help"], engine.Submits);
+    }
+
     /// <summary>Esc 仅关建议：输入保留，不退出 REPL。</summary>
     [Fact]
     public void Escape_DismissesSuggestionsKeepsInput()

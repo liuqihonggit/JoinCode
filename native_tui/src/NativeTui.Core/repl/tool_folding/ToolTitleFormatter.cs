@@ -37,14 +37,27 @@ public static class ToolTitleFormatter
 
     /// <summary>
     /// 派生工具标题行主参数摘要 — 未知工具名降级返回 Args 原文（防御引擎新增工具名不崩）。
+    /// TASK107 — 工具名按大小写不敏感匹配：不同 provider / mock 传槽位 id（<c>bash</c>）而非
+    /// 运行时名（<c>Bash</c>），严格匹配会降级成整段 JSON 上屏。
     /// </summary>
-    public static string Format(string toolName, string args) => toolName switch
+    public static string Format(string toolName, string args)
     {
-        BashTool => FormatCommand(args),
-        ReadTool or EditTool or WriteTool => FormatPath(args),
-        GrepTool or GlobTool => FormatSearch(args),
-        _ => args,
-    };
+        if (Matches(toolName, BashTool))
+        {
+            return FormatCommand(args);
+        }
+
+        if (Matches(toolName, ReadTool) || Matches(toolName, EditTool) || Matches(toolName, WriteTool))
+        {
+            return FormatPath(args);
+        }
+
+        return Matches(toolName, GrepTool) || Matches(toolName, GlobTool) ? FormatSearch(args) : args;
+    }
+
+    /// <summary>工具名等价判定（大小写不敏感 — 槽位 id 与运行时名互认）。</summary>
+    private static bool Matches(string toolName, string canonical) =>
+        string.Equals(toolName, canonical, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 派生 Edit 操作显示名 — Args 的 old_string 为空 = Create，否则 Update
@@ -59,7 +72,17 @@ public static class ToolTitleFormatter
     /// 唯一数据源：ToolCallItem 标题行与 spinner lastToolInfo（TASK066 F4）共用，消双源漂移。
     /// </summary>
     public static string DisplayToolName(string toolName, string args) =>
-        toolName is EditTool ? DeriveEditLabel(args) : toolName;
+        Matches(toolName, EditTool) ? DeriveEditLabel(args) : CanonicalName(toolName);
+
+    /// <summary>归一到运行时显示名（TASK107 — 槽位 id <c>bash</c> → <c>Bash</c>；未知工具原样返回）。
+    /// 基准 userFacingName 恒为运行时名，标题行与权限对话框共用。</summary>
+    public static string CanonicalName(string toolName) =>
+        Matches(toolName, BashTool) ? BashTool
+        : Matches(toolName, ReadTool) ? ReadTool
+        : Matches(toolName, WriteTool) ? WriteTool
+        : Matches(toolName, GrepTool) ? GrepTool
+        : Matches(toolName, GlobTool) ? GlobTool
+        : toolName;
 
     /// <summary>
     /// spinner lastToolInfo 行文本 — 基准 AgentTool/UI.tsx:858 `${userFacingToolName}: ${summary}`

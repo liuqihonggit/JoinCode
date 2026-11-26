@@ -121,6 +121,26 @@ public sealed class TranscriptController
         _onVerboseChanged(true);
     }
 
+    /// <summary>按新宽度重折冻结行（TASK106 — 窗口变窄时快照行仍是旧宽，重折保证不被右缘裁掉）。
+    /// 只重排已有行（不重拍 provider — 保持「进入时冻结」语义，不把后续消息拉进来）；
+    /// 折行只会让行数变多，滚动偏移按新上界夹紧。</summary>
+    public void Rewrap(int width)
+    {
+        if (!IsActive || Snapshot is not { } snapshot || width <= 0)
+        {
+            return;
+        }
+
+        var wrapped = new List<string>(snapshot.Lines.Count);
+        foreach (var line in snapshot.Lines)
+        {
+            wrapped.AddRange(TranscriptLines.Wrap(line, width));
+        }
+
+        Snapshot = new TranscriptSnapshot(wrapped, snapshot.StreamingLength);
+        ScrollOffset = Math.Clamp(ScrollOffset, 0, MaxScrollOffset);
+    }
+
     /// <summary>退出 — 丢弃快照（恢复 live）、重置搜索（匹配绑定冻结行号，快照丢弃后必须清空防止错位）、复位滚动与时长、通知 verbose 关。</summary>
     private void ExitTranscript()
     {

@@ -280,14 +280,19 @@ public static class Program {
             }
         }
 
-        WriteStartupLine("引擎启动中…");
-        // S12 OSC8 最小集成 — 会话级探测一次（stderr 诊断旁路 — 对齐 DrainDiagnostics 写 stderr 先例）：
-        // 探测结果缓存于日志供链接渲染深链路批次消费（本批仅探测 + 说明，见未决问题）
-        // 诊断行附带环境快照（TERM_PROGRAM/LC_TERMINAL/WT_SESSION/TERM/KITTY_WINDOW_ID）—
-        // 用户贴报问题时 AI 一眼看清终端环境，无需另跑命令排查
-        WriteStartupLine(HyperlinkEmitter.FormatDiagnostic());
-        // 开关状态诊断（AGENTS.md 开关优先 + 助记符 — 启动 banner 列出当前开关状态）
-        WriteStartupLine($"[diag] 开关: MouseTracking={JccFeatureFlags.MouseTrackingEnabled} Hover={JccFeatureFlags.HoverHighlightEnabled} ClickExpand={JccFeatureFlags.ClickExpandEnabled} (JCC_NO_MOUSE_TRACKING={Environment.GetEnvironmentVariable("JCC_NO_MOUSE_TRACKING") ?? "(未设置)"})");
+        WriteStartupLine(ReplShell.EngineStartingLine);
+        // 字形能力探测 —— legacy console（无 WT 托管、无 vscode/xterm-256color/CI 信号）缺 ❯ 等字形，
+        // 按基准 figures 库语义降级为 ASCII 等价字形（默认 Unicode；判定纯函数见 TerminalCapabilities）
+        Figures.AsciiFallback = !TerminalCapabilities.IsUnicodeSupported();
+        // S12 OSC8 最小集成 + 开关状态诊断 —— 默认静默（首屏对齐基准 Claude Code 干净启动页），
+        // JCC_DEBUGLOG=1 / -d 时输出：环境快照（TERM_PROGRAM/LC_TERMINAL/WT_SESSION/TERM/KITTY_WINDOW_ID）
+        // 与开关状态（AGENTS.md 开关优先 + 助记符），供用户贴报问题一眼看清终端环境
+        if (JccFeatureFlags.DebugLogEnabled)
+        {
+            WriteStartupLine(HyperlinkEmitter.FormatDiagnostic());
+            WriteStartupLine($"[diag] 字形: Unicode={!Figures.AsciiFallback} 提示符={Figures.Pointer}");
+            WriteStartupLine($"[diag] 开关: MouseTracking={JccFeatureFlags.MouseTrackingEnabled} Hover={JccFeatureFlags.HoverHighlightEnabled} ClickExpand={JccFeatureFlags.ClickExpandEnabled} (JCC_NO_MOUSE_TRACKING={Environment.GetEnvironmentVariable("JCC_NO_MOUSE_TRACKING") ?? "(未设置)"})");
+        }
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 

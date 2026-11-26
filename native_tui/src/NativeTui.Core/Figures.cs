@@ -24,8 +24,23 @@ public static class Figures
     /// <summary>spinner 相关 ✻。</summary>
     public const string TeardropAsterisk = "✻";
 
-    /// <summary>输入提示符 ❯（基准 figures 库 pointer）。</summary>
-    public const string Pointer = "❯";
+    /// <summary>输入提示符（Unicode）：基准 figures 库 pointer。</summary>
+    private const string UnicodePointer = "❯";
+
+    /// <summary>输入提示符降级值（基准 figures 库 fallback 表 pointer → '>'）。</summary>
+    private const string AsciiPointer = ">";
+
+    /// <summary>ASCII 降级开关（宿主启动按 <see cref="Terminal.TerminalCapabilities.IsUnicodeSupported"/> 置位；
+    /// 默认 false = Unicode —— 测试与 Windows Terminal 行为零变化）。</summary>
+    public static bool AsciiFallback { get; set; }
+
+    /// <summary>输入提示符 ❯ — legacy console（无 Unicode 字形能力）降级为 '>'（基准 figures 库 pointer 语义）。</summary>
+    public static string Pointer => PointerFor(AsciiFallback);
+
+    /// <summary>提示符降级映射纯函数（可测 — 不依赖进程级开关）。</summary>
+    /// <param name="asciiFallback">true = 降级 ASCII。</param>
+    /// <returns>Unicode ❯ 或 ASCII '>'。</returns>
+    public static string PointerFor(bool asciiFallback) => asciiFallback ? AsciiPointer : UnicodePointer;
 
     /// <summary>工具结果缩进前缀（基准 MessageResponse.tsx：2 空格 + ⎿ + 2 空格，dim 色）。</summary>
     public const string ToolResultIndent = "  ⎿  ";

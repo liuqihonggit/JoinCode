@@ -115,6 +115,36 @@ public sealed class ReplShellResizeTests
         Assert.Contains("\x1b[2J", output.ToString());
     }
 
+    /// <summary>
+    /// 宽→窄→宽 resize 防护门禁：宽度变化必须按新 cols 重建并触发 FullReset（2J+3J），
+    /// 当前帧的输入框边框与历史区同用一个 Screen（同宽）——防止"边框短、历史长"及旧帧残影回归。
+    /// </summary>
+    [Fact]
+    public void Resize_WideNarrowWide_FullResetAndSameFrameWidth()
+    {
+        var engine = new FakeReplEngine();
+        var output = new StringWriter();
+        var size = new FakeTerminalSizeSource(100, 24);
+        var shell = new ReplShell(engine, new BannerItem("1.0.0", "m", "b", "/tmp"), output, sizeSource: size);
+        shell.SeedContent();
+        shell.RenderAndFlush();
+
+        size.Cols = 50;
+        shell.RenderAndFlush();
+        output.GetStringBuilder().Clear();
+        size.Cols = 120;
+        shell.RenderAndFlush();
+
+        var emitted = output.ToString();
+        Assert.True(emitted.Contains("\x1b[2J", StringComparison.Ordinal),
+            "跨尺寸必须 FullReset，不然旧帧残影留在 scrollback");
+        var screen = shell.FrontBuffer!;
+        Assert.Equal(120, screen.Cols);
+        Assert.True(Enumerable.Range(0, screen.Rows).Any(row =>
+            RowText.Of(screen, row, 0, screen.Cols) == new string('─', screen.Cols)),
+            "输入框边框必须按当前帧 cols 满宽绘制");
+    }
+
     /// <summary>视口模式 — cols/rows 均取自尺寸源，任一变化触发重建。</summary>
     [Fact]
     public void EnsureScreens_Viewport_RowsFromSize_RebuildsOnChange()

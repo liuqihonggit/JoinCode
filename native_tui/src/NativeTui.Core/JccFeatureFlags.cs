@@ -30,6 +30,11 @@ public static class JccFeatureFlags
     /// JCC_NO_CLICK_EXPAND 设置时禁用。默认启用。</summary>
     public static bool ClickExpandEnabled => !IsFlagSet("JCC_NO_CLICK_EXPAND");
 
+    /// <summary>调试日志启用（JCC_DEBUGLOG=1 或 CLI -d/--debuglog）。
+    /// 消费方：启动诊断行（终端环境快照 / 开关状态）—— 默认静默，避免工程噪声占用户首屏。</summary>
+    public static bool DebugLogEnabled => IsFlagSet("JCC_DEBUGLOG");
+
+
     private static bool IsFlagSet(string envVar)
     {
         var value = Environment.GetEnvironmentVariable(envVar);

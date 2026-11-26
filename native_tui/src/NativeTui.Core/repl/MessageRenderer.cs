@@ -68,12 +68,41 @@ public static class MessageRenderer
         return screen.Styles.GetOrAdd(new TextStyle { Foreground = foreground, Background = background });
     }
 
-    /// <summary>渲染助手文本消息：● + 空格（minWidth 2）+ 正文，全部 text 色。</summary>
-    public static void RenderAssistant(Screen screen, Rect frame, Theme theme, string text)
+    /// <summary>助手正文起始列（"● " 前缀占 2 个显示列 — 续行同列对齐）。</summary>
+    internal const int AssistantContentIndent = 2;
+
+    /// <summary>按显示宽度折行助手正文（\r\n / \r 归一 → 逐行软折）。
+    /// Screen.WriteText 以 frame.Right 为界直接丢弃超宽部分（终端软折行在绝对定位网格下不生效），
+    /// 不折行会让长句在右缘被截断、句子读不到结尾；测量与渲染必须用同一份折行结果，
+    /// 否则高度与实际行数不一致 → 后续消息被压叠。断行策略复用 transcript 详情页（Wrap：
+    /// CJK 逐字断、英文单词不腰斩、超长 token 才硬断）。</summary>
+    internal static IReadOnlyList<string> WrapAssistantLines(string text, int width)
+    {
+        var available = Math.Max(1, width - AssistantContentIndent);
+        var source = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').Split('\n');
+        var lines = new List<string>(source.Length);
+        foreach (var line in source)
+        {
+            lines.AddRange(TranscriptLines.Wrap(line, available));
+        }
+
+        return lines.Count > 0 ? lines : [string.Empty];
+    }
+
+    /// <summary>渲染助手文本消息：● + 空格（minWidth 2）+ 正文，全部 text 色。
+    /// 正文含换行或超宽时逐行渲染（续行与首行正文列对齐）。</summary>
+    public static void RenderAssistant(Screen screen, Rect frame, Theme theme, string text) =>
+        RenderAssistant(screen, frame, theme, WrapAssistantLines(text, frame.Width));
+
+    /// <summary>渲染已折行的助手正文（测量端算好的行直接消费 — 一帧只折一次）。</summary>
+    internal static void RenderAssistant(Screen screen, Rect frame, Theme theme, IReadOnlyList<string> lines)
     {
         var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Text });
         screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", style, frame.Right);
-        screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
+        for (var i = 0; i < lines.Count && frame.Y + i < screen.Rows; i++)
+        {
+            screen.WriteText(frame.Y + i, frame.X + AssistantContentIndent, lines[i], style, frame.Right);
+        }
     }
 
     /// <summary>
@@ -438,12 +467,11 @@ public static class MessageRenderer
     }
 
     /// <summary>渲染权限工具行 — 3 空格缩进（外 1 + 内 2 paddingX 累计）+ bold 工具名 + 默认样式 (描述参数)。</summary>
-    public static void RenderPermissionToolLine(Screen screen, Rect frame, Theme theme, string toolName, string description)
+    public static void RenderPermissionToolLine(Screen screen, Rect frame, Theme theme, string toolName)
     {
         var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
         screen.WriteText(frame.Y, frame.X, "   ", 0, frame.Right);
-        var col = screen.WriteText(frame.Y, frame.X + 3, toolName, bold, frame.Right);
-        screen.WriteText(frame.Y, col, $"({description})", 0, frame.Right);
+        screen.WriteText(frame.Y, frame.X + 3, toolName, bold, frame.Right);
     }
 
     /// <summary>渲染权限描述行 — 3 空格缩进整行 dim。</summary>

@@ -98,7 +98,13 @@ public sealed class PermissionRequestItem(PermissionCoordinator coordinator) : I
         Row(screen, frame, theme, row++, MessageRenderer.RenderPermissionBorder);
         MessageRenderer.RenderPermissionTitle(screen, RowFrame(frame, row++), theme, form.Title);
         row++;
-        MessageRenderer.RenderPermissionToolLine(screen, RowFrame(frame, row++), theme, request.ToolName, request.Description);
+        // TASK107 — 工具行只显示（规范化后的）工具名：旧版把 description 塞进括号、
+        // 紧接着描述行又整句重画，屏幕上同一句话出现两次。描述只由描述行承载。
+        MessageRenderer.RenderPermissionToolLine(
+            screen,
+            RowFrame(frame, row++),
+            theme,
+            ToolTitleFormatter.CanonicalName(request.ToolName));
         if (!string.IsNullOrEmpty(request.Description))
         {
             MessageRenderer.RenderPermissionDescription(screen, RowFrame(frame, row++), theme, request.Description);

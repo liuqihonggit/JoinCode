@@ -181,6 +181,26 @@ public sealed class MouseWiringTests
         Assert.False(harness.Selection.HasSelection);
     }
 
+    /// <summary>TASK106 真机缺陷 — 键入即清选区：Release 后高亮保留（留观），但一旦开始打字必须让位，
+    /// 否则高亮压住输入框边框，看起来像"边框断了一截/渲染残留"。</summary>
+    [Fact]
+    public void Typing_ClearsSelectionHighlight()
+    {
+        var harness = Harness.Create(seeds: [new AssistantMessageItem("typing 清选区测试")]);
+        harness.Shell.RenderAndFlush();
+        var (row, col) = LocateWord(harness.Shell.FrontBuffer!, "typing");
+
+        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.Press, MouseButton.Left, col, row));
+        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.Drag, MouseButton.Left, col + 5, row));
+        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.Release, MouseButton.Left, col + 5, row));
+        Assert.True(harness.Selection.HasSelection);
+
+        harness.Shell.HandleRawKeyPress(new KeyPress(KeyKind.Char, "x"));
+
+        Assert.False(harness.Selection.HasSelection);
+        Assert.Equal("x", harness.Shell.Input.Text);
+    }
+
     /// <summary>无选区 Release 不复制 — 单击（无拖动）focus 为 null → hasSelection=false
     ///（基准 useCopyOnSelect.ts:53-56 !has 重置不触发）。</summary>
     [Fact]

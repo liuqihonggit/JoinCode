@@ -190,4 +190,35 @@ public sealed class ToolTitleFormatterTests
 
         Assert.Equal("● Read(src/main.rs)", RowText.Of(screen, 1, 0, 19));
     }
+
+    [Fact]
+    public void Bash_LowercaseName_StillExtractsCommand()
+    {
+        // 工具名大小写不敏感（TASK107）— 真机 mock/部分 provider 传 "bash"（槽位 id），
+        // 旧实现对不上 "Bash" → 降级原文，标题行显示整段 JSON。
+        var result = ToolTitleFormatter.Format("bash", """{"command":"echo hi","description":"演示"}""");
+
+        Assert.Equal("echo hi", result);
+    }
+
+    [Fact]
+    public void Read_LowercaseName_StillExtractsPath()
+    {
+        Assert.Equal("src/main.rs", ToolTitleFormatter.Format("read", """{"file_path":"src/main.rs"}"""));
+    }
+
+    [Fact]
+    public void DisplayToolName_LowercaseEdit_DerivesCreate()
+    {
+        // Edit 显示名派生同样大小写不敏感 — old_string 空 = Create
+        Assert.Equal("Create", ToolTitleFormatter.DisplayToolName("edit", """{"file_path":"a.cs","old_string":""}"""));
+        Assert.Equal("Update", ToolTitleFormatter.DisplayToolName("edit", """{"file_path":"a.cs","old_string":"x"}"""));
+    }
+
+    [Fact]
+    public void FormatToolInfo_LowercaseBash_UsesDerivedSummary()
+    {
+        // 显示名归一到运行时名（bash → Bash），摘要从 JSON command 派生
+        Assert.Equal("Bash: echo hi", ToolTitleFormatter.FormatToolInfo("bash", """{"command":"echo hi"}"""));
+    }
 }

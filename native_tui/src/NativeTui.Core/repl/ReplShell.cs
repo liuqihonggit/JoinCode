@@ -597,8 +597,52 @@ public sealed class ReplShell
     /// 宿主在构造后、Run 前调用 <see cref="AddStartupLine"/> 添加。</summary>
     private readonly List<string> _startupLines = [];
 
+    /// <summary>引擎装配期提示行文本（宿主启动时经 <see cref="AddStartupLine"/> 注入；
+    /// 首拍 session_info 到达后由 <see cref="TryRetireStartupLine"/> 撤除 — 单一文本源，避免宿主与外壳各写一份）。</summary>
+    public const string EngineStartingLine = "引擎启动中…";
+
     /// <summary>添加启动诊断行（宿主在 Run 前调用 — 退出备用屏后重输出到 scrollback 恢复历史）。</summary>
     public void AddStartupLine(string line) => _startupLines.Add(line);
+
+    /// <summary>
+    /// 撤除启动诊断行（引擎就绪后收掉"引擎启动中…"）— 帧高收缩 1 行，走 InlineComposer 收缩路径
+    ///（内容整体上移 + 擦掉底部腾空行）。
+    /// <para>**仅在整帧仍装得进终端（留 1 行余量）时撤除**：inline 每行收尾的 CRLF 会多占一行
+    /// （光标落点），内容高 + 1 &gt; 终端行数时顶部行早已被顶进 scrollback，物理不可变 ——
+    /// 强改会让 InlineComposer 判定"变更落在 scrollback 区"走 fullReset（2J+3J），
+    /// 把用户 scrollback 全清掉。多留一行提示比毁掉历史划算，故此处直接放弃（返回 false）。</para>
+    /// </summary>
+    /// <param name="text">启动行原文（通常 <see cref="EngineStartingLine"/>）。</param>
+    /// <returns>已撤除 true；未找到或帧已高于终端 false。</returns>
+    internal bool TryRetireStartupLine(string text)
+    {
+        var index = -1;
+        for (var i = 0; i < _view.Messages.Count; i++)
+        {
+            if (_view.Messages.Items[i] is StartupLineItem item && item.Text == text)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < 0)
+        {
+            return false;
+        }
+
+        var (cols, terminalRows) = _sizeSource.Current;
+        // 帧实际占 内容高 + 1 物理行：inline 每行收尾的 CRLF 会多产出一行空行（光标落点），
+        // 故"整帧仍在视口内"要求 内容高 + 1 <= 终端行数。恰好填满时顶行已被这条尾随换行顶进
+        // scrollback（真机同此），此时撤除会试图改写不可达行 → 行号错位残影。
+        if (_view.MeasureContentHeight(cols) + 1 > terminalRows)
+        {
+            return false;
+        }
+
+        _view.Messages.RemoveAt(index);
+        return true;
+    }
 
     /// <summary>inline（主屏 log-update）渲染模式 — 默认；false = 视口全屏 diff（旧模式）。</summary>
     private readonly bool _inline;
@@ -612,6 +656,9 @@ public sealed class ReplShell
 
     /// <summary>上次渲染拍观察到的终端视口行数（inline 高度变化检测 — reflow 后强制 fullReset）。</summary>
     private int _lastViewportRows;
+
+    /// <summary>transcript 冻结行当前折行宽度（0 = 本会话未折过 — 首帧或宽度变化时重折）。</summary>
+    private int _transcriptWrapCols;
 
     /// <summary>busy 中引擎死亡的缓冲拍计数（B-2 — 一拍等待残余终态事件，防挂死上限）。</summary>
     private int _engineDeadBusyTicks;
@@ -1064,6 +1111,13 @@ public sealed class ReplShell
             }
 
             _driver.Apply(bridgeEvent);
+            // 引擎就绪（首拍 session_info）后收掉"引擎启动中…" —— 帧高收缩 1 行走差分收缩路径；
+            // 帧已高于终端（顶部行滚入 scrollback）时保留，避免 fullReset 清掉用户历史（见 TryRetireStartupLine）
+            if (bridgeEvent is BridgeEvent.SessionInfo)
+            {
+                TryRetireStartupLine(EngineStartingLine);
+            }
+
             // 事件驱动唤醒 — 流式 token/工具事件到达即置位，节拍等待提前结束（渲染低延迟）
             _inputWakePending = true;
         }
@@ -1487,6 +1541,14 @@ public sealed class ReplShell
     /// 共用 textBefore/建议刷新链（paste 后文本变化同样刷新 @ 文件补全）。</summary>
     internal void HandleRawKeyPress(KeyPress key)
     {
+        // TASK106 — 键入即清选区：Release 后选区高亮按基准保留（copySelectionNoClear「留观」），
+        // 但用户一开始打字，高亮仍压在输入框边框/文字上会被当成渲染残留（真机：拖拽后边框像断了一截）。
+        // Mouse 事件不清 — Press 重锚选区、Release 触发复制都在鼠标链路里。
+        if (key.Kind != KeyKind.Mouse && _selection.HasSelection)
+        {
+            _selection.Clear();
+        }
+
         _modeReasserter.MarkInputReceived(Environment.TickCount64);
         var textBefore = _input.Text;
         HandleKeyPress(key);
@@ -3393,7 +3455,16 @@ public sealed class ReplShell
 
         lines.AddRange(ProjectBackgroundQueries());
 
-        return new TranscriptSnapshot(lines, streamingLength);
+        // TASK106 — transcript 页绝对定位写入（右缘即裁，无终端软折行）：按当前宽度预折，
+        // 否则系统提示词这种整段长文在详情页被切成断句（真机所见）。宽度取尺寸源，夹 20 下限。
+        var width = Math.Max(20, _sizeSource.Current.Cols);
+        var wrapped = new List<string>(lines.Count);
+        foreach (var line in lines)
+        {
+            wrapped.AddRange(TranscriptLines.Wrap(line, width));
+        }
+
+        return new TranscriptSnapshot(wrapped, streamingLength);
     }
 
     /// <summary>后台查询内容补入 transcript（ADR 0165 阶段 1b）— 没被切回的后台查询，事件只躺在
@@ -3446,8 +3517,15 @@ public sealed class ReplShell
             return;
         }
 
-        var rows = _sizeSource.Current.Rows;
+        var (cols, rows) = _sizeSource.Current;
         _transcript.ViewportHeight = Math.Max(1, rows - TranscriptRenderer.FooterRows);
+        // TASK106 — 宽度变化重折冻结行（进入时已按当时宽度折过；窗口再变窄必须重折，否则长行又被右缘裁）
+        if (_transcriptWrapCols != cols)
+        {
+            _transcriptWrapCols = cols;
+            _transcript.Rewrap(Math.Max(20, cols));
+        }
+
         _view.Transcript = new TranscriptScreenData(
             _transcript.Snapshot?.Lines ?? [],
             _transcript.ScrollOffset,
@@ -4236,6 +4314,8 @@ public sealed class ReplShell
                 _history.Add(_input.Text);
                 _history.Reset();
                 _input.Clear();
+                // TASK106 — 双击 Esc 清空同样要撤销补全（否则面板残留，Enter 又会重发刚清掉的命令）
+                UpdateSuggestions();
                 _lastEscapeMs = 0;
             }
             else
@@ -4410,6 +4490,10 @@ public sealed class ReplShell
         // DSG045 — 粘贴登记快照随折叠文本入史（历史翻回恢复登记 → 再提交展开回原文）
         var pastedSnapshot = _input.PastedSnapshot;
         _input.Clear();
+        // TASK106 — 清空后必须重算补全：Enter 接受建议的路径是「先 UpdateSuggestions 生成面板 → 再 Submit」，
+        // 输入虽已清，补全状态仍停在上一条命令（面板残留 = 输入框看着没清空）；下一次 Enter 会再走
+        // 「接受建议并执行」分支，把同一条命令重复提交（真机 /login 连按两次出现两条 Hub 提示）。
+        UpdateSuggestions();
         // TASK064 P3 — 捕获并清空暂存单槽（提交即消费：主流程结束后统一回填，空文本早退不消费）
         var stashed = _stashedInput;
         _stashedInput = string.Empty;
@@ -4486,7 +4570,26 @@ public sealed class ReplShell
             }
         }
 
-        if (!LoginGateOpen)
+        // TASK106 — /exit /quit 是纯客户端退出命令（基准 commands.ts meetsAvailabilityRequirement：
+        // 无 availability 的命令 universal，与登录状态无关；exit.tsx 直接 gracefulShutdown）。
+        // 必须在登录门之前拦截：未登录态恰恰是用户最想退出的时刻（footer 就写着"运行 /login"），
+        // 若放任其落入登录门，命令被吞 + 打"未登录"消息，形成"退不出去"的死锁。
+        // 委托现成 RequestExit()（M8-5/TASK065 退出链），不造新机制；精确匹配 + 空格边界防 /exitfoo 误触发。
+        if (IsLocalExitCommand(text, out var exitReason))
+        {
+            AddMessage(new UserMessageItem(text));
+            AddAttachmentItems(attachments);
+            RequestExit(exitReason);
+            return;
+        }
+
+        // TASK106 — /login 是 auth 类命令，宿主 LoginCommand 用 CommandDialogCoordinator 弹密码框完成登录，
+        // 成功后 EngineSession.RefreshSessionInfo() 发 LoggedIn=true 才会打开登录门。
+        // 若在此处被登录门吞掉，footer 明写"运行 /login"却永远登不了 = 死锁。故放行透传给引擎，
+        // 由宿主命令自己处理（宿主侧无 auth 门槛）。精确名 + 空白边界，防 /loginfoo 误放行。
+        var loginRequested = IsLoginCommand(text);
+
+        if (!LoginGateOpen && !loginRequested)
         {
             AddMessage(new UserMessageItem(text));
             AddAttachmentItems(attachments);
@@ -4722,6 +4825,28 @@ public sealed class ReplShell
     /// <summary>/export 拦截命令前缀（S12 四域接线 — 同 /theme 拦截形态：
     /// ReplShell 层本地拦截挂载导出对话框，命令清单静态表不感知）。</summary>
     private const string ExportCommandPrefix = "/export";
+
+    /// <summary>TASK106 — 判定纯客户端退出命令（/exit /quit），供 SubmitCore 在登录门之前本地拦截。
+    /// 精确名 + 后续空白边界：/exit、/exit&nbsp;arg 命中；/exitfoo 不命中（不当退出）。
+    /// 不用 _suggester.IsKnownCommand：退出是本地机制，不依赖引擎命令目录的可达性（未登录时尤其如此）。</summary>
+    private static bool IsLocalExitCommand(string text, out string reason)
+    {
+        if (MatchesSlashCommand(text, "/exit")) { reason = "exit"; return true; }
+        if (MatchesSlashCommand(text, "/quit")) { reason = "quit"; return true; }
+        reason = string.Empty;
+        return false;
+    }
+
+    /// <summary>TASK106 — 未登录时放行 /login 透传（宿主 LoginCommand + TUI 密码对话框闭环）。
+    /// 与退出命令共用"精确名 + 空白边界"口径（/login、/login openai --oauth 命中；/loginfoo 不命中）。</summary>
+    private static bool IsLoginCommand(string text) => MatchesSlashCommand(text, "/login");
+
+    /// <summary>斜杠命令精确名匹配：整串相等，或前缀后紧跟空白（带参形式）；防 /exitfoo 等误命中。</summary>
+    private static bool MatchesSlashCommand(string value, string prefix)
+        => value == prefix
+           || (value.Length > prefix.Length
+               && value.StartsWith(prefix, StringComparison.Ordinal)
+               && char.IsWhiteSpace(value[prefix.Length]));
 
     /// <summary>导出命令处理（S12）— "/export"：消息快照（SubmitCore 拦截分支已拍平 —
     /// 先于命令上屏，命令自身不进导出文本；string 不可变 = 防御拷贝，挂载后滚动区变化
@@ -5276,6 +5401,8 @@ public sealed class ReplShell
 
         _stashedInput = text;
         _input.Clear();
+        // TASK106 — 清空输入即补全失效（同上：残留面板会让下一次 Enter 重发已清空的命令）
+        UpdateSuggestions();
         PostInfo("已暂存（提交后自动恢复）");
     }
 
@@ -5286,6 +5413,8 @@ public sealed class ReplShell
         if (stashed.Length > 0)
         {
             FillInput(stashed, cursorToStart: false);
+            // 回填是程序化填充（跳过键尾刷新）— 补全需与回填文本对齐，否则建议停在提交前的旧命令上
+            UpdateSuggestions();
         }
     }
 

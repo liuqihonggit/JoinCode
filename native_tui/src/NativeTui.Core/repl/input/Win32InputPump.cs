@@ -16,6 +16,8 @@ public sealed class Win32InputPump : IInputPump, IDisposable
     private const uint EnableMouseInput = 0x0010;
     private const uint EnableWindowInput = 0x0008;
     private const uint EnableExtendedFlags = 0x0080;
+    /// <summary>QuickEdit（原生选区）— 鼠标追踪时必须清掉，否则客户区内拖拽被 conhost 选区吃掉。</summary>
+    private const uint EnableQuickEditMode = 0x0040;
     private const uint ShiftPressed = 0x0010;
     private const uint LeftCtrlPressed = 0x0008;
     private const uint RightCtrlPressed = 0x0004;
@@ -35,7 +37,21 @@ public sealed class Win32InputPump : IInputPump, IDisposable
     {
         _handle = GetStdHandle(StdInputHandle);
         GetConsoleMode(_handle, out _originalMode);
-        SetConsoleMode(_handle, _originalMode | EnableMouseInput | EnableWindowInput | EnableExtendedFlags);
+        SetConsoleMode(_handle, ComputeInputMode(_originalMode, JccFeatureFlags.MouseTrackingEnabled));
+    }
+
+    /// <summary>目标 console mode（纯函数 — 可单测）：
+    /// 鼠标追踪开启时必须清 ENABLE_QUICK_EDIT_MODE（0x0040）。QuickEdit 开着时客户区内一次拖拽就被
+    /// conhost 当作选区：应用收不到 MOUSE_EVENT（点击/hover 全失效），且选区期间控制台输出被阻塞 —
+    /// 真机表现为 resize 拖拽后整屏黑、按键才恢复，旧帧被终端裁切还会造出"输入框与历史不同宽"的错觉。
+    /// ENABLE_EXTENDED_FLAGS（0x0080）必须同时置位，否则清 QuickEdit 不生效（Win32 文档要求）。
+    /// 关闭鼠标追踪（JCC_NO_MOUSE_TRACKING）时保留 QuickEdit、也不接管鼠标输入 — 交还终端原生选区/复制。</summary>
+    internal static uint ComputeInputMode(uint originalMode, bool mouseTracking)
+    {
+        var mode = originalMode | EnableWindowInput | EnableExtendedFlags;
+        return mouseTracking
+            ? (mode | EnableMouseInput) & ~EnableQuickEditMode
+            : mode;
     }
 
     /// <summary>非阻塞检查 — 输入缓冲区是否有待处理事件。</summary>

@@ -167,7 +167,10 @@ public static class MarkdigProjector
                 segments.Add(new MarkdownSegment(autolink.Url, MarkdownStyle.Link, autolink.Url));
                 break;
             case LineBreakInline:
-                // 硬换行首版丢弃（对齐青蛙TUI GUI 先例；Core 段落模型无段内断行概念，后续按需扩展）
+                // TASK107 — 段内换行投影为 "\n" 段（MarkdownLayout 已支持段内硬换行）。
+                // 旧版直接丢弃：`> 第一行\n> 第二行` 两行被拼成 "引用块第一行引用块第二行"；
+                // 基准 marked 的软换行同样保留换行（formatToken 的 br/EOL 语义）。
+                segments.Add(new MarkdownSegment("\n", inherited));
                 break;
             case ContainerInline nested:
                 ProjectInlinesInto(nested, inherited, segments);

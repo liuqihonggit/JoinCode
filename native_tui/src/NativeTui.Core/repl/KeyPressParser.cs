@@ -32,13 +32,30 @@ public static class KeyPressParser
     /// 不完整粘贴产出已有部分内容 Paste 事件（终止标记丢失释放通道 — 基准 emit pasteBuffer）。</summary>
     public static bool TryParseNext(ref ReadOnlySpan<char> buffer, out KeyPress key, bool force)
     {
-        if (TryParseNormal(ref buffer, out key))
+        var pasteSearchOffset = 0;
+        return TryParseNext(ref buffer, ref pasteSearchOffset, out key, force);
+    }
+
+    /// <summary>跨 feed 解析入口；pasteSearchOffset 保存上次未命中的扫描位置，避免重扫整段粘贴正文。</summary>
+    internal static bool TryParseNext(
+        ref ReadOnlySpan<char> buffer,
+        ref int pasteSearchOffset,
+        out KeyPress key,
+        bool force = false)
+    {
+        if (!buffer.StartsWith(PasteStart))
+        {
+            pasteSearchOffset = 0;
+        }
+
+        if (TryParseNormal(ref buffer, ref pasteSearchOffset, out key))
         {
             return true;
         }
 
         if (force && buffer.Length > 0 && buffer[0] == '\u001b')
         {
+            pasteSearchOffset = 0;
             if (buffer.StartsWith(PasteStart))
             {
                 key = new KeyPress(KeyKind.Paste, buffer[PasteStart.Length..].ToString());
@@ -61,7 +78,10 @@ public static class KeyPressParser
         return false;
     }
 
-    private static bool TryParseNormal(ref ReadOnlySpan<char> buffer, out KeyPress key)
+    private static bool TryParseNormal(
+        ref ReadOnlySpan<char> buffer,
+        ref int pasteSearchOffset,
+        out KeyPress key)
     {
         if (buffer.IsEmpty)
         {
@@ -71,7 +91,7 @@ public static class KeyPressParser
 
         if (buffer.StartsWith(PasteStart))
         {
-            return ParseBracketedPaste(ref buffer, out key);
+            return ParseBracketedPaste(ref buffer, ref pasteSearchOffset, out key);
         }
 
         var first = buffer[0];
@@ -150,18 +170,26 @@ public static class KeyPressParser
     }
 
     /// <summary>bracketed paste 块：\x1b[200~ 内容 \x1b[201~ — 整块消费产出 Paste 事件；终止标记缺失返回 false 不消耗（跨 chunk 攒齐）。</summary>
-    private static bool ParseBracketedPaste(ref ReadOnlySpan<char> buffer, out KeyPress key)
+    private static bool ParseBracketedPaste(
+        ref ReadOnlySpan<char> buffer,
+        ref int pasteSearchOffset,
+        out KeyPress key)
     {
         var content = buffer[PasteStart.Length..];
-        var endOffset = content.IndexOf(PasteEnd);
-        if (endOffset < 0)
+        var searchStart = Math.Min(pasteSearchOffset, content.Length);
+        var relativeEnd = content[searchStart..].IndexOf(PasteEnd);
+        if (relativeEnd < 0)
         {
+            // 保留终止标记最长前缀，下一块只需扫描新增区域与这 5 个重叠字符。
+            pasteSearchOffset = Math.Max(0, content.Length - PasteEnd.Length + 1);
             key = NamedUnknown();
             return false;
         }
 
+        var endOffset = searchStart + relativeEnd;
         key = new KeyPress(KeyKind.Paste, content[..endOffset].ToString());
         buffer = content[(endOffset + PasteEnd.Length)..];
+        pasteSearchOffset = 0;
         return true;
     }
 
@@ -303,7 +331,9 @@ public static class KeyPressParser
         }
 
         key = ParseTwoSegmentForm(rest, scan, final) ?? NamedUnknown();
-        buffer = buffer[(2 + scan + 1)..];
+        // 非法 final（控制字节等）不属于 CSI；保留它，使后续 ESC 能从正确边界恢复。
+        var consumed = 2 + scan + (final is >= '\u0040' and <= '\u007e' ? 1 : 0);
+        buffer = buffer[consumed..];
         return true;
     }
 

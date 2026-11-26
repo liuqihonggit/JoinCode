@@ -33,13 +33,19 @@ public sealed class RawStdinPump : IInputPump, IDisposable
 
     /// <summary>解码目标容量 — 使用编码器最大字符数，覆盖跨块代理对产出多于当前块字节数的情况。</summary>
     private readonly char[] _charBuffer = new char[Encoding.UTF8.GetMaxCharCount(ReadBlockSize)];
-    private readonly StringBuilder _pending = new();
+    private char[] _pendingBuffer = new char[ReadBlockSize];
     private readonly Thread _reader;
     private readonly TerminalQuerier? _querier;
     private readonly Func<long> _clock;
 
+    /// <summary>pending 数据起点（解析 Actor 独占 — 消费只推进起点，不反复前移整段正文）。</summary>
+    private int _pendingStart;
+
     /// <summary>pending 残留字符量快照（解析 Actor 写，探针/测试读 — 仅近似观测面）。</summary>
     private int _pendingCount;
+
+    /// <summary>不完整粘贴终止标记的增量扫描起点（解析 Actor 独占）。</summary>
+    private int _pasteSearchOffset;
 
     /// <summary>不完整 ESC 前缀滞留起点（解析 Actor 独占：null = 无滞留；新数据到达重置 —
     /// 可能凑齐序列；超过 <see cref="EscapeFlushPolicy"/> 阈值时强制 flush 释放通道）。</summary>
@@ -173,14 +179,14 @@ public sealed class RawStdinPump : IInputPump, IDisposable
                 {
                     if (command.Text is { Length: > 0 } text)
                     {
-                        _pending.Append(text);
+                        AppendPending(text);
                         _prefixStuckSince = null;
                     }
 
                     if (command.Pump)
                     {
                         PumpPendingToChannel();
-                        Volatile.Write(ref _pendingCount, _pending.Length);
+                        Volatile.Write(ref _pendingCount, _pendingCount);
                     }
 
                     command.Completion?.TrySetResult();
@@ -224,6 +230,58 @@ public sealed class RawStdinPump : IInputPump, IDisposable
         return !_keys.Reader.Completion.IsCompleted || _keys.Reader.Count > 0;
     }
 
+    /// <summary>当前未消费输入的零拷贝视图（解析 Actor 独占）。</summary>
+    private ReadOnlySpan<char> PendingSpan => _pendingBuffer.AsSpan(_pendingStart, _pendingCount);
+
+    /// <summary>追加解码块；容量不足时先利用头部空间或指数扩容，避免粘贴持续增长时反复拷贝。</summary>
+    private void AppendPending(string text)
+    {
+        EnsurePendingCapacity(text.Length);
+        text.CopyTo(0, _pendingBuffer, _pendingStart + _pendingCount, text.Length);
+        _pendingCount += text.Length;
+    }
+
+    /// <summary>确保尾部可容纳新增字符；优先压缩头部空洞，否则扩容后压缩一次。</summary>
+    private void EnsurePendingCapacity(int additional)
+    {
+        var required = _pendingCount + additional;
+        if (required <= _pendingBuffer.Length - _pendingStart)
+        {
+            return;
+        }
+
+        if (required > _pendingBuffer.Length)
+        {
+            Array.Resize(ref _pendingBuffer, Math.Max(required, _pendingBuffer.Length * 2));
+        }
+
+        CompactPending();
+    }
+
+    /// <summary>把残留字符压回缓冲起点，仅在头部空间不足或扩容后调用。</summary>
+    private void CompactPending()
+    {
+        if (_pendingStart == 0)
+        {
+            return;
+        }
+
+        Array.Copy(_pendingBuffer, _pendingStart, _pendingBuffer, 0, _pendingCount);
+        _pendingStart = 0;
+    }
+
+    /// <summary>推进消费起点；完全消费时复位，残留数据延迟到下次容量不足再压缩。</summary>
+    private void ConsumePending(int consumed)
+    {
+        _pendingStart += consumed;
+        _pendingCount -= consumed;
+        if (_pendingCount == 0)
+        {
+            _pendingStart = 0;
+            _pasteSearchOffset = 0;
+        }
+    }
+
     /// <summary>
     /// 攒齐前缀逐键解析非阻塞投递通道 — <see cref="KeyPressParser.TryParseNext"/> 契约：
     /// 不完整前缀（包括孤立 ESC）不消耗留在 pending 等下块；孤立 ESC 超过 50ms 后
@@ -233,12 +291,12 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     /// </summary>
     private void PumpPendingToChannel()
     {
-        if (_keys.Reader.Completion.IsCompleted || _pending.Length == 0)
+        if (_keys.Reader.Completion.IsCompleted || _pendingCount == 0)
         {
             return;
         }
 
-        var span = _pending.ToString().AsSpan();
+        var span = PendingSpan;
         var rest = span;
         while (true)
         {
@@ -257,13 +315,13 @@ public sealed class RawStdinPump : IInputPump, IDisposable
             }
 
             var before = rest;
-            if (!KeyPressParser.TryParseNext(ref rest, out var key))
+            if (!KeyPressParser.TryParseNext(ref rest, ref _pasteSearchOffset, out var key))
             {
                 // 超时强制 flush（基准 App.tsx:309-333 — 不完整前缀滞留超阈值时
                 // 强制产出释放通道：ESC 前缀 50ms / 粘贴 500ms）
                 if (_prefixStuckSince is { } since
                     && EscapeFlushPolicy.ShouldForceFlush(rest, _clock() - since)
-                    && KeyPressParser.TryParseNext(ref rest, out key, force: true))
+                    && KeyPressParser.TryParseNext(ref rest, ref _pasteSearchOffset, out key, force: true))
                 {
                     if (_keys.Writer.TryWrite(key))
                     {
@@ -288,7 +346,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
         var consumed = span.Length - rest.Length;
         if (consumed > 0)
         {
-            _pending.Remove(0, consumed);
+            ConsumePending(consumed);
         }
 
         // 滞留计时维护：仍有残留且 ESC 开头 = 不完整前缀滞留（首次打点；新数据到达由

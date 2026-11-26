@@ -57,9 +57,6 @@ public static class TerminalResponseParser
 
         var final = rest[scan];
         var parameters = rest[start..scan];
-        var numbers = CollectNumbers(parameters);
-        var raw = buffer[..(2 + scan + 1)].ToString();
-
         var kind = (prefix, final, hasDollar: parameters.Contains('$'), hasSemicolon: parameters.Contains(';')) switch
         {
             ('?', 'y', true, _) => TerminalResponseKind.Decrpm,
@@ -75,6 +72,8 @@ public static class TerminalResponseParser
             return null;
         }
 
+        var numbers = CollectNumbers(parameters);
+        var raw = buffer[..(2 + scan + 1)].ToString();
         consumed = 2 + scan + 1;
         return new TerminalResponse(kind.Value, raw, numbers, Payload: null);
     }

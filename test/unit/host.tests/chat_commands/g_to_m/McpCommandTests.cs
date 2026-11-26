@@ -5,6 +5,13 @@ namespace Host.Tests.ChatCommands;
 /// 覆盖:list/ls/add/create/new/remove/delete/rm/status/reconnect/enable/disable/未知子命令
 /// 验证目标:Step 9 重构后,所有 case 标签能被正确识别
 /// </summary>
+/// <remarks>
+/// McpCommand 经 TerminalHelper.WriteLine 写进程全局 Console.Out（ADD/REMOVE 的参数校验路径），
+/// 与其它 Console.SetOut 测试并行时会写进已被释放的 StringWriter（CI 偶发
+/// ObjectDisposedException: Cannot write to a closed TextWriter）—— 与 PluginCommandTests
+/// 同样加入 ConsoleOutput collection 串行执行。
+/// </remarks>
+[Collection("ConsoleOutput")]
 public sealed class McpCommandTests {
     [Fact]
     public void Name_Should_Be_mcp() {

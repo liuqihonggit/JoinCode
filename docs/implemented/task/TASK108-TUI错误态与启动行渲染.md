@@ -84,14 +84,90 @@ UI 侧 `ToolResultItem.DisplaySummary` / `ErrorText` 直接透传该文本，因
 | 新增 `repl/tool_folding/ToolErrorJsonText.cs` | `Humanize`：`Error: ` 前缀 + JSON object + 非空 `message` 三条件成立时取 message，`details` 折 `（k: v, …）`（上限 3 项）；否则原样 |
 | `repl/MessageItems.cs` `ToolResultItem` | `_summaryLine` 与 `ErrorText` 经 `Humanize`；`DisplaySummary` 改用归一后的 `_summaryLine`（`Summary`/`Text` 仍存原文，搜索导出不受影响） |
 
-## 门禁
+**第一批门禁**：新增 `repl/StartupLineRenderTests.cs`（3 项：状态行 dim 非 Error、文本不变、
+诊断行 Warning 非 Error）；新增 `repl/ToolErrorJsonRenderTests.cs`（9 项：message 提取、屏上无 JSON 语法、
+details 拼接、普通 JSON 输出不改写、`Error: ` 非 JSON 原样、畸形 JSON 回退、缺 message 回退、
+isError 路径归一、diff 统计优先不被覆盖）。
 
-- 新增 `repl/StartupLineRenderTests.cs`（3 项）：状态行 dim 非 Error、文本不变、诊断行 Warning 非 Error。
-- 新增 `repl/ToolErrorJsonRenderTests.cs`（9 项）：message 提取、屏上无 JSON 语法、details 拼接、
-  普通 JSON 输出不改写、`Error: ` 非 JSON 原样、畸形 JSON 回退、缺 message 回退、isError 路径归一、
-  diff 统计优先不被覆盖。
+## 第二批：diff 预览链路（P15/P16）
 
-## 验收
+### P15 工具 patch 从未下发到 TUI —— diff 预览全空
+
+**现象**（真机，mock 调 `edit` 改 `.xxx/scratch/diff-demo.txt`，文件确实被改）：
+
+```
+● Update(D:\project\w2\.xxx\scratch\diff-demo.txt)
+  ⎿  The file D:\project\w2\.xxx\scratch\diff-demo.txt has been updated successfully. (30 bytes, 7 lines)
+```
+
+没有统计行、没有 hunk、没有 +/- 行 —— 只有引擎摘要。基准应显示
+`Added 2 lines, removed 1 line` + hunk 头 + 带行号的增删行。
+
+**根因**（链路逐段核对）：
+
+| 环节 | 是否带 patch |
+| --- | --- |
+| `FileToolHandlers.Edit` → `ToolResult.StructuredPatch` | ✓ 有 |
+| `QueryEngine` 构造 `ToolCallEnd` 事件 | ✗ **漏了**（内联 `new QueryStreamChunk{…}` 只填 7 个字段） |
+| `AgentStreamChunkAdapter` → `ChatStreamEvent.ToolEnd` | ✓ 透传 `chunk.StructuredPatch` |
+| `SessionController.OnToolEnd` → `BridgeEventConsumer/InProcessEventConsumer.ProjectPatch` | ✓ |
+| `ReplBridgeDriver.ApplyToolResult` → `ToolResultItem(patch)` | ✓ |
+
+断点唯一且明确：`QueryEngine.cs` 内联构造漏字段，导致 Edit/Write 的 diff 预览在真机上**从未显示过**。
+
+**修复**：抽出 `QueryEngine.BuildToolCallEndChunk(toolName, toolCallId, toolResult, callNumber)`
+（`internal static`，便于单测），补 `StructuredPatch = toolResult.StructuredPatch`。
+
+**门禁**：新增 `brain_other_tests/query/core/QueryEngineToolEndChunkTests.cs`（3 项）——
+patch 透传 / 无 patch 为 null / 错误文本仍带 `Error: ` 前缀（摘要来源契约）。
+
+### P16 详情页 diff 丢行号
+
+**现象**（`ctrl+o` 真值，修复前）：
+
+```
+@@ -1,6 +1,7 @@
+ 第一行
+-第二行旧内容
++第二行新内容
+```
+
+主屏是 `     @@ … @@` + `  1  第一行`（4 缩进 + 行号 gutter），详情页只有裸 `+/-/空格` 标记 ——
+改文件后按 `ctrl+o` 看全文反而无法按行定位。
+
+**根因**：`TranscriptLines.PatchLines` 是独立的纯文本拍平实现，不经过 `DiffGutter`。
+
+**修复**：`PatchLines` 复用 `DiffGutter.GutterDigits/AssignLineNumbers` +
+`MessageRenderer.GutterText`（后者 private → internal），输出 `4 缩进 + gutter + marker + 正文`，
+与 `RenderDiffLine` 同一列格式（行号列单一真源）。
+
+**门禁**：`TranscriptVerboseRenderTests.ToolResult_PatchLines_CarryGutterLineNumbers`。
+
+**真机复验**（修复后详情页真值，与主屏逐字符一致）：
+
+```
+● Update(D:\project\w2\.xxx\scratch\diff-demo.txt)
+  ⎿  Added 2 lines, removed 1 line
+    @@ -1,6 +1,7 @@
+     1  第一行
+     2 -第二行旧内容
+     2 +第二行新内容
+     3 +新增的第三行
+     4  第三行
+     5  第四行
+     6  第五行
+     7
+```
+
+## 第二批观察项
+
+- **P17 小终端塌缩与逐条混排**（判定不改）：一轮 3 个 bash 时，`ShouldCondense(rows, count)` 用**进行中**计数判定，
+  前 2 条已落 `● Bash(...)`，第 3 条才触发塌缩 → 屏上 2 条 + `⎿ In progress… · 3 tool uses`。
+  计数是权威信息（用户可推断省略 1 条），而"塌缩时移除已落条目"会造成视觉跳变并丢失工具名；
+  基准靠"本批工具总数"一次性判定（架构差异，需延迟决策），不改。
+- **spinner 动词英文**、`Added 2 lines, removed 1 line` 英文：对齐基准文案，不改。
+
+## 门禁与总验收
 
 **真机（修复后）**
 
@@ -99,6 +175,15 @@ UI 侧 `ToolResultItem.DisplaySummary` / `ErrorText` 直接透传该文本，因
 - 工具拒绝（guard 拦截）真值：
   `⎿  Error: 危险操作已被阻止（未知命令 'exit' — 未在 catalog 中登记）。如确需执行请切换到 Ask 模式确认`
 - 用户拒绝（PD002）真值：`⎿  Error: 用户拒绝工具执行: bash`
+- Edit：主屏 `⎿ Added 2 lines, removed 1 line` + hunk + 行号增删行；
+  `ctrl+o` 详情页同形态（行号一致）。
 
-**门禁**：`native_tui.slnx` **3329 + 182 + 38 + 16 全绿**（NativeTui.Tests 3317 → 3329，+12）。
-`NativeTui.Host.csproj` / `JoinCode.csproj` 重编 **0 警告 0 错误**。
+**门禁**
+
+- `native_tui.slnx` **3330 + 182 + 38 + 16 全绿**（NativeTui.Tests 3317 → 3330，+13）。
+- `Brain.Other.Tests` **607 全绿**（含新增 3 项 patch 透传）。
+- `JoinCode.csproj` 带依赖重编 **0 警告 0 错误**。
+
+> 踩坑记录：带依赖重编 CLI 前必须确认无残留 `jcc` 进程占用 `artifacts/bin/JoinCode/**`，
+> 否则大面积 MSB3027/MSB3021（本次 222 个拷贝错误，杀进程后 6.5 秒通过）。
+> `jcchub` 一并清掉，jcc 启动会自动重拉。

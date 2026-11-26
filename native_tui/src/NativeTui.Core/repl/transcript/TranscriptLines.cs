@@ -274,20 +274,28 @@ public static class TranscriptLines
         }
     }
 
-    /// <summary>patch hunks → 行（header + +/-/空格 前缀 diff 行 — 源形态还原）。</summary>
+    /// <summary>patch hunks → 行（4 缩进 hunk 头 + 行号 gutter + 标记 + 正文 — 与主屏
+    /// <see cref="MessageRenderer.RenderDiffLine"/> 同源列格式；TASK108 P16 — 此前详情页只有
+    /// +/- 前缀没有行号，改文件后无法按行定位）。</summary>
     private static IEnumerable<string> PatchLines(DiffHunk[]? patch)
     {
-        foreach (var hunk in patch ?? [])
+        var hunks = patch ?? [];
+        var gutterDigits = hunks.Length > 0 ? DiffGutter.GutterDigits(hunks) : 0;
+        foreach (var hunk in hunks)
         {
-            yield return hunk.Header;
-            foreach (var line in hunk.Lines)
+            yield return $"    {hunk.Header}";
+            var lineNumbers = DiffGutter.AssignLineNumbers(hunk);
+            for (var index = 0; index < hunk.Lines.Length; index++)
             {
-                yield return line.Kind switch
+                var line = hunk.Lines[index];
+                var marker = line.Kind switch
                 {
-                    DiffLineKind.Added => $"+{line.Content}",
-                    DiffLineKind.Removed => $"-{line.Content}",
-                    _ => $" {line.Content}",
+                    DiffLineKind.Added => "+",
+                    DiffLineKind.Removed => "-",
+                    _ => " ",
                 };
+                var gutter = MessageRenderer.GutterText(lineNumbers[index], gutterDigits);
+                yield return $"    {gutter}{marker}{line.Content}";
             }
         }
     }

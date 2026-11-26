@@ -321,8 +321,9 @@ public static class MessageRenderer
     }
 
     /// <summary>gutter 列文本 — 有行号 ' ' + 右对齐 digits 位 + ' '；无行号但 digits&gt;0 空占位
-    ///（基准 wrap 续行 ' '.repeat(maxDigits+2) 对齐语义）；digits=0 空串（降级无 gutter）。</summary>
-    private static string GutterText(int? lineNumber, int gutterDigits) =>
+    ///（基准 wrap 续行 ' '.repeat(maxDigits+2) 对齐语义）；digits=0 空串（降级无 gutter）。
+    /// internal — transcript 纯文本投影（TASK108 P16）复用同一列格式，避免第二套对齐算法。</summary>
+    internal static string GutterText(int? lineNumber, int gutterDigits) =>
         gutterDigits <= 0
             ? string.Empty
             : lineNumber is { } number

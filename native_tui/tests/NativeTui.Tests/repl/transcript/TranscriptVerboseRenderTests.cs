@@ -168,6 +168,34 @@ public sealed class TranscriptVerboseRenderTests
         Assert.Equal("📎 首次注入 · 系统提示词 87432 字符", summary);
     }
 
+    [Fact]
+    public void ToolResult_PatchLines_CarryGutterLineNumbers()
+    {
+        // TASK108 P16 — 详情页 diff 曾丢行号（主屏有 gutter，详情页只有 +/- 前缀），
+        // 改文件后进 ctrl+o 无法定位到具体行。行号列与主屏共用 DiffGutter。
+        var patch = new[]
+        {
+            new DiffHunk
+            {
+                Header = "@@ -1,2 +1,2 @@",
+                Lines =
+                [
+                    new DiffLine { Kind = DiffLineKind.Context, Content = "第一行" },
+                    new DiffLine { Kind = DiffLineKind.Removed, Content = "旧" },
+                    new DiffLine { Kind = DiffLineKind.Added, Content = "新" },
+                ],
+            },
+        };
+        var item = new ToolResultItem("已更新", patch, null, hiddenLines: 0);
+
+        var lines = TranscriptLines.Project(item).ToArray();
+
+        Assert.Contains("    @@ -1,2 +1,2 @@", lines);
+        Assert.Contains("     1  第一行", lines);
+        Assert.Contains("     2 -旧", lines);
+        Assert.Contains("     2 +新", lines);
+    }
+
     /// <summary>单元格段序列（纯文本一段）。</summary>
     private static IReadOnlyList<MarkdownSegment> Cell(string text) => [new MarkdownSegment(text, MarkdownStyle.None)];
 }

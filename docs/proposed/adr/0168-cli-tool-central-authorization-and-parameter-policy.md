@@ -357,7 +357,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 2. **local/delegate 全量**：13 组策略与 delegate 链，参数闭包分析、未知参数拒绝。
    - delegate 段已完成：`github.yaml` 同时内嵌 jcc-gh，delegate 侧自证 + 直跑 fail-closed；人工 `jcc gh` 由 jcc 进程签发全量会话。
 3. **host/slash/base/launcher**：父宿主执行、结构化 slash 参数、全局与元命令参数。
-   - host 段已完成；slash 段已完成直调参数白名单（jcc 内嵌 slash.yaml，扁平参数走组策略），`[ChatCommandArg]` 结构化 schema 覆盖待办。
+   - host 段已完成；slash 段已完成直调参数白名单（jcc 内嵌 slash.yaml，扁平参数走组策略），`[ChatCommandArg]` 声明 ↔ 生成物 ↔ 策略双向对账已接入 CI（`Verify-SlashCommandPolicies.py`）。
    - launcher 绕过已封：agent shell 中存在 `JCC_CLI_AUTH_PIPE` 时，TUI / `-p` 启动返回 126 `Host.Launcher`，`JCC_ALLOW_NESTED_LAUNCH=1` 显式放开；base 工具与 jcc 启动参数白名单仍待办。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
    - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
@@ -387,7 +387,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] 增加未知参数/工具/能力，分析器编译红灯。
 - [ ] 短别名、长别名、否定开关、环境变量参数均通过同一 canonical 权限。
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
-  - 运行时已拒绝未登记 slash 参数（`Policy.Parameter`）且参数必须是 JSON 对象/key=value；编译期 schema 覆盖（99 命令的 `[ChatCommandArg]` 对账）待办。
+  - 运行时已拒绝未登记 slash 参数（`Policy.Parameter`）且参数必须是 JSON 对象/key=value；`Verify-SlashCommandPolicies.py` 已做源码声明 ↔ help/node ↔ slash.yaml 双向对账（99 命令 / 101 参数，CI 接入），无参命令显式 `parameters: []`。
 - [ ] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
 - [ ] Bypass 不能越过 CLI hard deny、agent DeniedTools 或策略完整性检查。
   - 策略完整性已由信任目录覆盖（未知策略/哈希不符/exe 不符拒绝）；Bypass 模式与真实子代理会话待阶段 4 联调。

@@ -88,10 +88,10 @@
   - `CliHostToolAuthorization`（公共门面）→ `CliToolAuthorizationClient.AuthorizeHostToolAsync` → broker `ScopeOnly` 判定；无注入环境时 `Host.Manual` 放行。
   - 接入点：`McpCliCommand.ExecuteAgainstRegistryAsync` 启动宿主前；`jcc tool call <组> <host工具>` 转发同样经此路径。
   - 真机双端：受限 scope（AllowedTools 不含 `ctx_inspect`）`jcc mcp_call ctx_inspect` → 1 `Agent.AllowedTools`；分组转发同样拒绝；放行 scope 两条路径均 0；伪造 pid/token → `Auth.Transport`。
-- [ ] slash 命令全部具备可分析的 `[ChatCommandArg]` 或显式空参数声明。
+- [x] slash 命令全部具备可分析的 `[ChatCommandArg]` 或显式空参数声明。
   - 已落地可执行部分：jcc 内嵌 `slash.yaml`（executables 增 `jcc.exe`），`jcc slash_call` 按 canonical 命令名 + 扁平参数走组策略；未知参数 1 `Policy.Parameter`，域外命令 `Agent.AllowedTools`，人工无会话仍放行。
   - 真机：`compact level=2` 拒绝、`compact instructions=…` 实际执行压缩、`version` 放行。
-  - 仍待：74/99 命令已有 `[ChatCommandArg]`，其余命令的结构化 schema 对账。
+  - 对账门禁：`Verify-SlashCommandPolicies.py`（CI 已接入）校验 help.txt/node.yaml 与源码一致、slash.yaml 工具与参数集与 `[ChatCommandArg]` 双向相等；99 命令 / 101 参数通过。无参命令以 `parameters: []` 显式空声明覆盖。生成器顺带修复枚举路径漂移与 csproj 丢失策略内嵌/分析器接线的问题。
 - [ ] base 工具与 jcc launcher 参数纳入各自内嵌策略。
   - launcher 绕过已封：agent shell（存在 `JCC_CLI_AUTH_PIPE`）里 TUI / `-p` 启动返回 126 `Host.Launcher`；`JCC_ALLOW_NESTED_LAUNCH=1` 显式放开；子命令路由不受影响。
   - still 待办：base 工具仍走宿主权限管线（未单独建策略），jcc 启动参数白名单未做。

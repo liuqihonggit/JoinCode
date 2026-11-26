@@ -17,7 +17,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = REPO_ROOT / "modules/tools/cli_nodes/groups/slash"
-ENUM_FILE = REPO_ROOT / "modules/abstractions/abstractions.primitives.utils/src/constants/cli_ansi/ChatCommandName.cs"
+ENUM_FILE = REPO_ROOT / "modules/abstractions/abstractions_primitives_utils/src/constants/cli_ansi/ChatCommandName.cs"
 
 CAMEL_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
@@ -128,7 +128,7 @@ def as_str(raw: str) -> str:
 def load_command_names() -> dict[str, str]:
     """枚举成员名 → EnumValue 真实命令名（如 RateLimitOptions → rate-limit-options）。"""
     if not ENUM_FILE.exists():
-        return {}
+        raise SystemExit(f"命令名枚举文件缺失: {ENUM_FILE.as_posix()}（路径漂移会让生成结果退化成类名 kebab，禁止静默继续）")
     text = ENUM_FILE.read_text(encoding="utf-8", errors="replace")
     mapping: dict[str, str] = {}
     for m in re.finditer(r'\[EnumValue\("([^"]+)"\)\]\s*(\w+)', text):
@@ -277,6 +277,11 @@ def render_csproj() -> str:
 
   <ItemGroup>
     <EmbeddedResource Include="help.txt" LogicalName="JoinCode.CliNodes.Groups.slash.help.txt" />
+    <EmbeddedResource Include="$(RepoRoot)resources/tools/policies/slash.yaml" LogicalName="JoinCode.CliNodes.Groups.slash.policy.yaml" />
+    <AdditionalFiles Include="$(RepoRoot)resources/tools/policies/slash.yaml" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/cli_permission_analyzer/CliPermission.Analyzer.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

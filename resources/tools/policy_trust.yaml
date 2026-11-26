@@ -42,9 +42,10 @@ policies:
     executables:
       - jcc-tool-shell.exe
   - id: cli.slash
-    hash: 7d66803fbed8462b119746739a63fc2522f9fb5f9bb282e54e54fa8d51ab4d53
+    hash: a709c86c141aa615250636222dc35bdb95432d6a1158cb5986ba6d1dac7d6f17
     executables:
       - jcc-tool-slash.exe
+      - jcc.exe
   - id: cli.system
     hash: 151e4957e88a3dd5e676b2a187ef62f46cf16ee16a0ae7df896238caaf81854c
     executables:

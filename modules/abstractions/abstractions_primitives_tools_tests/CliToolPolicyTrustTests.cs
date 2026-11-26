@@ -64,6 +64,32 @@ public sealed class CliToolPolicyTrustTests {
         Assert.True(decision.Allowed, decision.Reason);
     }
 
+    [Fact]
+    public async Task Broker_SlashPolicy_EnforcesParameterWhitelistForHostExecutable() {
+        await using var broker = new CliAuthorizationBroker(enforcePolicyTrust: true);
+        var session = broker.CreateSession(new CliAuthorizationScope {
+            AgentId = "agent-test",
+            SessionId = "session-test"
+        });
+
+        var allowed = await CliToolAuthorizationClient.AuthorizeAsync(
+            session, "slash", "compact",
+            typeof(CliToolPolicyTrustTests).Assembly.Location,
+            "jcc.exe",
+            new Dictionary<string, string> { ["instructions"] = "keep api notes" },
+            CancellationToken.None);
+        var denied = await CliToolAuthorizationClient.AuthorizeAsync(
+            session, "slash", "compact",
+            typeof(CliToolPolicyTrustTests).Assembly.Location,
+            "jcc.exe",
+            new Dictionary<string, string> { ["level"] = "2" },
+            CancellationToken.None);
+
+        Assert.True(allowed.Allowed, allowed.Reason);
+        Assert.False(denied.Allowed);
+        Assert.Equal("Policy.Parameter", denied.Layer);
+    }
+
     private static string HashEmbeddedPolicy(string resourceName) {
         using var stream = typeof(CliToolPolicyTrustTests).Assembly.GetManifestResourceStream(resourceName)
             ?? throw new InvalidOperationException($"测试资源不存在: {resourceName}");

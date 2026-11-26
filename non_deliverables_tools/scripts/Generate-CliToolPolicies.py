@@ -31,8 +31,8 @@ DETAIL_LINE = re.compile(r"^  (\S+) — ")
 PARAM_LINE = re.compile(r"^    --(\S+)\s")
 DETAIL_MARKER = "参数说明"
 
-# 组 exe 之外额外内嵌同一份策略的 delegate 实现（ADR 0168：直跑 delegate 同样 fail-closed）
-DELEGATE_EXES = {"github": ["jcc-gh.exe"]}
+# 组 exe 之外额外内嵌同一份策略的执行镜像：delegate 实现（jcc-gh）与宿主直调路径（jcc slash_call）。
+EXTRA_POLICY_EXES = {"github": ["jcc-gh.exe"], "slash": ["jcc.exe"]}
 
 
 def parse_help(help_text: str) -> tuple[list[str], dict[str, list[str]]]:
@@ -85,7 +85,7 @@ def render(group: str, exe: str, tools: list[str], params: dict[str, list[str]])
         "policy_version: 1",
         "executables:",
         f"  - {exe}",
-        *[f"  - {delegate}" for delegate in DELEGATE_EXES.get(group, [])],
+        *[f"  - {extra}" for extra in EXTRA_POLICY_EXES.get(group, [])],
         "",
         "tools:",
     ]

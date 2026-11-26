@@ -6,6 +6,7 @@ policy_id: cli.slash
 policy_version: 1
 executables:
   - jcc-tool-slash.exe
+  - jcc.exe
 
 tools:
   "/advisor":

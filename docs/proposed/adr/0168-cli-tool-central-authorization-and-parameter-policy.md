@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受作用域判定；首轮组目录与 tree/find/help 同源；JSONL 审计可选开启；slash 参数结构化、base/launcher 与 one-time grant 待后续
+- 状态：**proposed（实施中）** — 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束，slash 直调含参数白名单；首轮组目录与 tree/find/help 同源；JSONL 审计可选开启；slash 结构化 schema、base/launcher 与 one-time grant 待后续
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -357,7 +357,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 2. **local/delegate 全量**：13 组策略与 delegate 链，参数闭包分析、未知参数拒绝。
    - delegate 段已完成：`github.yaml` 同时内嵌 jcc-gh，delegate 侧自证 + 直跑 fail-closed；人工 `jcc gh` 由 jcc 进程签发全量会话。
 3. **host/slash/base/launcher**：父宿主执行、结构化 slash 参数、全局与元命令参数。
-   - host 段已完成：`ScopeOnly` 协议 + `McpCliCommand` 门禁，真机受限/放行两条路径双向验证；slash/base/launcher 待办。
+   - host 段已完成；slash 段已完成直调参数白名单（jcc 内嵌 slash.yaml，扁平参数走组策略），`[ChatCommandArg]` 结构化 schema 覆盖待办。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
    - 已完成：tree/find/help 用 `ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录经 `cli_groups.yaml.tool_ids` + `PromptToolGroupScope.Domain` 按 agent 域裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
@@ -386,6 +386,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] 增加未知参数/工具/能力，分析器编译红灯。
 - [ ] 短别名、长别名、否定开关、环境变量参数均通过同一 canonical 权限。
 - [ ] local 动态参数键与未结构化 slash 命令被编译拒绝。
+  - 运行时已拒绝未登记 slash 参数（`Policy.Parameter`）且参数必须是 JSON 对象/key=value；编译期 schema 覆盖（99 命令的 `[ChatCommandArg]` 对账）待办。
 - [ ] Explore/Plan 不能执行 write/edit；调用方尝试扩大角色工具集仍被拒绝。
 - [ ] Bypass 不能越过 CLI hard deny、agent DeniedTools 或策略完整性检查。
   - 策略完整性已由信任目录覆盖（未知策略/哈希不符/exe 不符拒绝）；Bypass 模式与真实子代理会话待阶段 4 联调。

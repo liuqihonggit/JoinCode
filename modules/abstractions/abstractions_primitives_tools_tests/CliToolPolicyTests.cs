@@ -224,9 +224,11 @@ public sealed class CliToolPolicyTests {
             var group = resourceName[(resourceName.IndexOf(marker, StringComparison.Ordinal) + marker.Length)..]
                 .Replace(".policy.yaml", "", StringComparison.Ordinal);
             Assert.Equal($"cli.{group}", policy.PolicyId);
-            var expectedExecutables = group == "github"
-                ? ["jcc-tool-github.exe", "jcc-gh.exe"]
-                : new[] { $"jcc-tool-{group}.exe" };
+            var expectedExecutables = group switch {
+                "github" => new[] { "jcc-tool-github.exe", "jcc-gh.exe" },
+                "slash" => new[] { "jcc-tool-slash.exe", "jcc.exe" },
+                _ => new[] { $"jcc-tool-{group}.exe" }
+            };
             Assert.Equal(expectedExecutables, policy.Executables);
             Assert.NotEmpty(policy.Tools);
         }

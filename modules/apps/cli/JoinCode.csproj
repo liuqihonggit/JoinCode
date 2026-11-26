@@ -10,8 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)modules/apps/engine/JoinCode.Engine.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/composition/composition/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/apps/engine/JoinCode.Engine.csproj" />    <ProjectReference Include="$(RepoRoot)modules/composition/composition/Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/storage/clock/Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/services/dream/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/services/browser/Browser.csproj" />
@@ -48,6 +47,11 @@
   </ItemGroup>
 
   <!-- === 原生 DLL 嵌入资源（Release/AOT 模式） === -->
+  <!-- slash 直调在宿主机内执行；内嵌策略让 jcc 自身也能按同一参数白名单自证（ADR 0168）。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(RepoRoot)resources/tools/policies/slash.yaml" LogicalName="JoinCode.CliNodes.Groups.slash.policy.yaml" />
+  </ItemGroup>
+
   <!-- NativeAOT 无法静态链接 C/C++ 原生库，嵌入为 EmbeddedResource，运行时由 NativeDllBootstrapper 释放 -->
   <!-- tree-sitter 只嵌入实际用到的语法：全量 30 个语法共 68 MB，其中 28 个从未被加载（61.7 MB 死重）。
        生产代码里 new Language(...) 的全部调用点只有两处：

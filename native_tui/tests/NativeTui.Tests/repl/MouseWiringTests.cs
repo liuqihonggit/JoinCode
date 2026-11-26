@@ -265,4 +265,51 @@ public sealed class MouseWiringTests
         harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.Release, MouseButton.Left, 8, 4));
         Assert.False(string.IsNullOrEmpty(Assert.Single(harness.Copies)));
     }
+
+    /// <summary>TASK109 P19 — inline 主屏滚轮不再 no-op：上滚进入浏览态（帧高 = 视口 − 1，
+    /// 消息区拿到真实滚动窗口），按键退出恢复全量帧。
+    /// 修复前：应用开着 DECSET ?1000h（终端把滚轮交给应用）+ ScrollIfViewport 在 inline 下 no-op
+    /// → 滚轮彻底失效。</summary>
+    [Fact]
+    public void WheelUp_InlineMode_EntersBrowseThenKeyExits()
+    {
+        var harness = Harness.Create(inline: true, seeds: TallSeeds(30));
+        harness.Shell.RenderAndFlush();
+        var fullRows = harness.Shell.BackBuffer!.Rows;
+        Assert.True(fullRows > 24, $"前置：inline 帧高 = 内容高（实际 {fullRows}）");
+
+        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.WheelUp, MouseButton.Left, 0, 0));
+        harness.Shell.RenderAndFlush(); // 帧高切换帧：maxScroll 在此结算，pending 位移在 Render 后施加
+        harness.Shell.RenderAndFlush(); // 呈现滚动结果
+
+        Assert.Equal(23, harness.Shell.BackBuffer!.Rows);
+        Assert.True(harness.Shell.View.Messages.ScrollTop > 0, "浏览态消息区应已上滚");
+
+        harness.Shell.HandleKey(new ConsoleKeyInfo('a', ConsoleKey.A, false, false, false));
+        harness.Shell.RenderAndFlush();
+
+        Assert.Equal(fullRows, harness.Shell.BackBuffer!.Rows);
+    }
+
+    /// <summary>TASK109 P19 — 浏览态下滚回底部自动退出（恢复全量帧；下一次渲染不再走视口帧）。</summary>
+    [Fact]
+    public void WheelDown_InlineMode_ReturnsToFullFrameAtBottom()
+    {
+        var harness = Harness.Create(inline: true, seeds: TallSeeds(30));
+        harness.Shell.RenderAndFlush();
+        var fullRows = harness.Shell.BackBuffer!.Rows;
+
+        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.WheelUp, MouseButton.Left, 0, 0));
+        harness.Shell.RenderAndFlush();
+        harness.Shell.RenderAndFlush();
+        Assert.Equal(23, harness.Shell.BackBuffer!.Rows);
+
+        for (var i = 0; i < 5; i++)
+        {
+            harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.WheelDown, MouseButton.Left, 0, 0));
+            harness.Shell.RenderAndFlush();
+        }
+
+        Assert.Equal(fullRows, harness.Shell.BackBuffer!.Rows);
+    }
 }

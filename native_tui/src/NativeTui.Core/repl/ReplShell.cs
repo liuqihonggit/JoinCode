@@ -656,6 +656,15 @@ public sealed class ReplShell
     /// <summary>强制全量重绘标记（S6 任务 8 — ctrl+l 清 Screen 下一帧全量重绘；消费后复位）。</summary>
     private bool _forceFullReset;
 
+    /// <summary>inline 主屏浏览态（TASK109 P19 — 滚轮进入，见 <see cref="EnterInlineBrowse"/>）：
+    /// 帧高从「内容高」切到「视口高 − 1」，消息区按 ScrollBox.ScrollTop 回看历史；
+    /// 任意按键 / 滚回底部 / 回合开始 → 退出，恢复全量帧（内容重新落回终端 scrollback）。</summary>
+    private bool _inlineBrowse;
+
+    /// <summary>进入浏览首帧待施加的滚轮位移（帧高切换当帧 ScrollBox 的 maxScroll 才结算 —
+    /// 在 Render 之后再施加，下一帧生效；连续滚动时直接走 ScrollBy 无此延迟）。</summary>
+    private int _inlineBrowsePendingWheel;
+
     /// <summary>上次渲染拍观察到的终端视口行数（inline 高度变化检测 — reflow 后强制 fullReset）。</summary>
     private int _lastViewportRows;
 
@@ -1613,6 +1622,10 @@ public sealed class ReplShell
             _sequenceFirstKey = null;
         }
 
+        // TASK109 P19 — inline 浏览态遇任意按键即退出（用户在浏览历史时开始操作输入 → 回到实时视图）；
+        // 键位语义不因浏览态改变（本拍照常分派，退出只影响帧高/滚动位置）
+        ExitInlineBrowse();
+
         if (_permission.IsPending)
         {
             HandlePermissionKey(key);
@@ -2068,10 +2081,10 @@ public sealed class ReplShell
                 _input.KillToLineEnd();
                 break;
             case "n":
-                ScrollIfViewport(3);
+                ScrollMain(3);
                 break;
             case "p":
-                ScrollIfViewport(-3);
+                ScrollMain(-3);
                 break;
             case "u":
                 _input.KillToLineStart();
@@ -2833,13 +2846,66 @@ public sealed class ReplShell
         _input.ReplaceAt(replaced, cursor + insertion.Length);
     }
 
-    /// <summary>视口模式滚动（inline 模式历史由终端滚轮原生回看，no-op）。</summary>
-    private void ScrollIfViewport(int rows)
+    /// <summary>主屏滚轮滚动（TASK109 P19 — inline 不再 no-op）。
+    /// 视口模式：直接滚消息区。inline 模式：历史本来就以「帧 = 内容全高」的方式存在，
+    /// 首帧高 > 视口时相对光标不可达，因此**上滚先进入浏览态**（<see cref="EnterInlineBrowse"/>：
+    /// 帧高切到视口，消息区获得真实滚动窗口），滚回底部自动退出恢复全量帧。
+    /// 非浏览态的下滚是 no-op —— 全量帧的底部就是实时视图（没有更下方的内容）。</summary>
+    private void ScrollMain(int rows)
     {
         if (!_inline)
         {
             _view.Messages.ScrollBy(rows);
+            return;
         }
+
+        if (!_inlineBrowse)
+        {
+            if (rows >= 0)
+            {
+                return;
+            }
+
+            EnterInlineBrowse();
+            _inlineBrowsePendingWheel += rows;
+            return;
+        }
+
+        _view.Messages.ScrollBy(rows);
+        if (_view.Messages.ScrollTop >= _view.Messages.MaxScroll)
+        {
+            ExitInlineBrowse();
+        }
+    }
+
+    /// <summary>进入 inline 浏览态（TASK109 P19）：帧高由「内容全高」切到「视口高 − 1」，
+    /// 消息区按 ScrollBox 滚动窗口渲染（输入框仍贴底可见可编辑）。
+    /// 不置 <see cref="_forceFullReset"/> —— 让 <see cref="InlineComposer"/> 走收缩路径
+    /// （清视口重画、保留终端 scrollback），整帧全量重置会把用户的历史一起抹掉。</summary>
+    private void EnterInlineBrowse()
+    {
+        if (_inlineBrowse)
+        {
+            return;
+        }
+
+        _inlineBrowse = true;
+        _view.Messages.ScrollToBottom();
+    }
+
+    /// <summary>退出 inline 浏览态：恢复全量帧（下一帧强制全量重置 —— 帧高从视口涨回内容高，
+    /// 增量追加会把浏览窗口的内容再次写进 scrollback 造成历史重复，必须清 scrollback 后整帧重绘）。</summary>
+    private void ExitInlineBrowse()
+    {
+        if (!_inlineBrowse)
+        {
+            return;
+        }
+
+        _inlineBrowse = false;
+        _inlineBrowsePendingWheel = 0;
+        _view.Messages.ScrollToBottom();
+        _forceFullReset = true;
     }
 
     /// <summary>鼠标事件路由（TASK066 C5+C6 连线 — HandleKeyPress 顶部拦截后的唯一分派面）：
@@ -2869,6 +2935,8 @@ public sealed class ReplShell
     private void HandleMouseEvent(MouseEvent evt)
     {
         // 模态互斥 — 挂起期间鼠标全吞（含滚轮；链序对齐 HandleKeyPress 的模态分派序）
+        // TASK109 P19 — help 面板例外：它只占 11 行却会压缩消息区，用户必须能滚轮翻看被挤掉的历史
+        var isWheel = evt.Kind is MouseKind.WheelUp or MouseKind.WheelDown;
         if (_permission.IsPending
             || _commandDialog.IsPending
             || _modelPicker.IsPending
@@ -2879,7 +2947,7 @@ public sealed class ReplShell
             || _view.BackgroundTasks.IsSelectionActive
             || _backgroundTaskDetailOpen
             || _promptPageOpen
-            || _helpOpen)
+            || (_helpOpen && !isWheel))
         {
             return;
         }
@@ -2956,11 +3024,11 @@ public sealed class ReplShell
                 // 步长 = 加速度 ramp（C5 P3 — 基准 computeWheelStep :255-265）；
                 // E 收尾 — 方向参数 false（翻转挂起/弹跳判定 — 基准 computeWheelStep :177-217）
                 _selection.Clear();
-                ScrollIfViewport(-_wheelSpeed.OnWheelEvent(down: false));
+                ScrollMain(-_wheelSpeed.OnWheelEvent(down: false));
                 return;
             case MouseKind.WheelDown:
                 _selection.Clear();
-                ScrollIfViewport(_wheelSpeed.OnWheelEvent(down: true));
+                ScrollMain(_wheelSpeed.OnWheelEvent(down: true));
                 return;
             case MouseKind.WheelLeft or MouseKind.WheelRight:
                 // 无横向滚动面 — no-op（w2 滚动区仅纵向；基准同样未消费横向滚轮）
@@ -3914,7 +3982,7 @@ public sealed class ReplShell
     {
         if (!_inline)
         {
-            ScrollIfViewport(direction * 3);
+            _view.Messages.ScrollBy(direction * 3);
             return;
         }
 
@@ -5011,6 +5079,13 @@ public sealed class ReplShell
             _cursor = new CursorPos(Col: 0, Row: 0);
         }
 
+        // TASK109 P19 — 回合开始即退出 inline 浏览态：流式输出会不断增长内容，
+        // 浏览窗口（固定视口帧）会把新内容顶走/错位，先回到实时视图再渲染
+        if (_inlineBrowse && _driver.IsBusy)
+        {
+            ExitInlineBrowse();
+        }
+
         SyncSuggestionState();
         SyncCursorHighlight();
         SyncTranscriptView();
@@ -5035,8 +5110,16 @@ public sealed class ReplShell
         _view.CursorCol = _input.CursorCol;
         // TASK066 F3 — 塌缩门控投影（视口模式屏高=终端 rows 才判 rows < 24；inline 不塌 —
         // 基准 isFullscreen 条件，见 ReplView.ViewportRender）
-        _view.ViewportRender = !_inline;
+        // TASK109 P19 — inline 浏览态帧高也等于视口，投影同步打开（否则塌缩/视口语义不一致）
+        _view.ViewportRender = !_inline || _inlineBrowse;
         _view.Render(back, _theme);
+        // TASK109 P19 — 进入浏览首帧的滚轮位移：帧高切换当帧 ScrollBox 才把 maxScroll 结算到新值，
+        // 故在 Render 之后再施加（本帧输出仍是底部视图，下一帧呈现滚动结果）
+        if (_inlineBrowsePendingWheel != 0)
+        {
+            _view.Messages.ScrollBy(_inlineBrowsePendingWheel);
+            _inlineBrowsePendingWheel = 0;
+        }
         ApplySelectionHighlight(back, _selection);
         if (_inline)
         {
@@ -5218,7 +5301,13 @@ public sealed class ReplShell
 
         _lastViewportRows = rows;
         var backRows = _inline
-            ? (_transcript.IsActive ? rows : Math.Max(8, _view.MeasureContentHeight(cols)))
+            ? (_transcript.IsActive
+                ? rows
+                : _inlineBrowse
+                    // TASK109 P19 — 浏览态帧高 = 视口高 − 1：整帧重画每行收尾的 CRLF 还占一行物理行，
+                    // 这样正好填满视口、不触发视口底滚屏（否则每次浏览输出都会把首行顶进 scrollback）
+                    ? Math.Max(8, rows - 1)
+                    : Math.Max(8, _view.MeasureContentHeight(cols)))
             : rows;
         if (_back is not null && cols == _back.Cols && backRows == _back.Rows)
         {

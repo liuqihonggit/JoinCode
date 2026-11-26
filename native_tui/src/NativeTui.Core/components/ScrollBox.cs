@@ -62,6 +62,10 @@ public sealed class ScrollBox
     /// <summary>当前滚动位置（上次渲染结算后的值）。</summary>
     public int ScrollTop { get; private set; }
 
+    /// <summary>上次渲染结算的最大滚动位置（内容高 − 视口高，≥ 0）— 消费方判定"是否已到底"
+    /// （TASK109 inline 浏览态：滚回底部即退出浏览恢复全量帧）。尚未渲染过时返回 0。</summary>
+    public int MaxScroll => Math.Max(0, _lastMaxScroll);
+
     /// <summary>视口外上下各预留渲染行数（TASK066 F6 — 0 = 精确视口 culling 既有语义，默认零破坏；
     /// &gt; 0 = 渲染窗口 [scrollTop-overscan, windowBottom+overscan) — 窗口内项 Render 照常调用
     ///（写入按帧 clip）、窗口外项跳过渲染高度保留。基准 useVirtualScroll.ts:24 = 80。</summary>

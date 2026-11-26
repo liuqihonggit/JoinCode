@@ -49,9 +49,20 @@ public sealed class InlineComposer
             cursor = new CursorPos(0, cursor.Row);
             RenderSlice(builder, next, 0, next.Rows, ref cursor);
         }
-        else if (prev.Cols != next.Cols
-            || HasScrollbackChange(prev, next, ScrollbackRows(prev.Rows, viewportRows))
-            || IsShrinkBeyondViewport(prev, next, viewportRows))
+        else if (prev.Cols != next.Cols)
+        {
+            FullReset(builder, next, ref cursor);
+        }
+        else if (IsShrinkBeyondViewport(prev, next, viewportRows))
+        {
+            // TASK109 — 帧高收缩到视口内（inline 浏览态进入、消息收缩）：只清视口后整帧重画，
+            // **不清 scrollback**。原路径走 FullReset 会把用户终端历史（EraseSavedLines）一并抹掉，
+            // 而收缩本身不破坏历史 —— 只是被清首行不可达，重锚定到视口顶即可。
+            // 必须先于 HasScrollbackChange 判定：重锚定会整帧重画，scrollback 区的差异无关紧要，
+            // 否则"窗口顶部行与原全量帧不同"会把这里误判成不可达改写而回退 fullReset。
+            RepaintViewport(builder, next, viewportRows, ref cursor);
+        }
+        else if (HasScrollbackChange(prev, next, ScrollbackRows(prev.Rows, viewportRows)))
         {
             FullReset(builder, next, ref cursor);
         }
@@ -135,6 +146,27 @@ public sealed class InlineComposer
     {
         builder.Append(Csi.EraseScreen());
         builder.Append(Csi.EraseSavedLines());
+        builder.Append(Csi.CursorPosition(1, 1));
+        cursor = new CursorPos(0, 0);
+        RenderSlice(builder, next, 0, next.Rows, ref cursor);
+    }
+
+    /// <summary>
+    /// 视口重画（TASK109）：清视口（ED 2 — 保留 scrollback）+ 光标归位 + 从视口顶整帧重画。
+    /// 用于帧高收缩到视口内的场景（inline 浏览态进入）：被清的行已在 scrollback 不可达，
+    /// 相对 CUU 会被终端钳制在视口顶，故必须重锚定；但历史本身无需丢弃 —— 与
+    /// <see cref="FullReset"/> 的差别就是不发 ED 3。
+    /// 帧高 ≥ 视口时不能用本路径：整帧重画的尾随 CRLF 会在视口底滚屏，首行被顶掉。
+    /// </summary>
+    private void RepaintViewport(StringBuilder builder, Screen next, int viewportRows, ref CursorPos cursor)
+    {
+        if (next.Rows >= viewportRows)
+        {
+            FullReset(builder, next, ref cursor);
+            return;
+        }
+
+        builder.Append(Csi.EraseScreen());
         builder.Append(Csi.CursorPosition(1, 1));
         cursor = new CursorPos(0, 0);
         RenderSlice(builder, next, 0, next.Rows, ref cursor);

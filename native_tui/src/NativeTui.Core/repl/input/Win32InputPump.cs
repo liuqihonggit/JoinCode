@@ -26,6 +26,7 @@ public sealed class Win32InputPump : IInputPump, IDisposable
     private const uint LeftButtonDown = 0x0002;
     private const uint RightButtonDown = 0x0004;
     private const uint MouseWheeled = 0x0008;
+    private const uint MouseHorizontalWheeled = 0x0004;
     private const uint DoubleClick = 0x0002;
 
     private readonly IntPtr _handle;
@@ -78,12 +79,8 @@ public sealed class Win32InputPump : IInputPump, IDisposable
                 var record = records[i];
                 if (record.EventType == EventTypeMouse)
                 {
-                    var mouse = DecodeMouse(record);
-                    if (mouse is not null)
-                    {
-                        dispatch(new KeyPress(KeyKind.Mouse, string.Empty, Mouse: mouse));
-                        dispatched = true;
-                    }
+                    dispatch(new KeyPress(KeyKind.Mouse, string.Empty, Mouse: DecodeMouse(record)));
+                    dispatched = true;
                 }
                 else if (record.EventType == EventTypeKey && record.KeyDown != 0)
                 {
@@ -112,39 +109,64 @@ public sealed class Win32InputPump : IInputPump, IDisposable
     }
 
     /// <summary>MOUSE_EVENT → MouseEvent（Press/Release/Wheel 分类，位置 0-based）。</summary>
-    private static NativeTui.Core.Repl.MouseEvent? DecodeMouse(InputRecord record)
+    private static NativeTui.Core.Repl.MouseEvent DecodeMouse(InputRecord record) =>
+        DecodeMouse(record.EventFlags, record.MouseX, record.MouseY, record.ButtonState, record.MouseControlKeyState);
+
+    /// <summary>鼠标记录解码（纯函数 — 可单测）。TASK109 P19：滚轮方向取 dwButtonState 的高位 word
+    /// 作为**有符号**增量（Win32 语义：+120 上滚 / -120 下滚）；<paramref name="controlKeyState"/> 为
+    /// dwControlKeyState（不是 dwEventFlags — 两者在记录里相差 4 字节）。</summary>
+    internal static MouseEvent DecodeMouse(uint eventFlags, int mouseX, int mouseY, uint buttonState, uint controlKeyState)
     {
-        var kind = record.EventFlags switch
+        var kind = eventFlags switch
         {
-            var f when (f & MouseWheeled) != 0 => (record.ButtonState & 0xFF000000) != 0
-                ? MouseKind.WheelUp
-                : MouseKind.WheelDown,
-            _ => (record.ButtonState & (LeftButtonDown | RightButtonDown)) != 0
+            var f when (f & MouseWheeled) != 0 => WheelDirection(buttonState),
+            var f when (f & MouseHorizontalWheeled) != 0 => HorizontalWheelDirection(buttonState),
+            var f when (f & DoubleClick) != 0 => MouseKind.Press,
+            _ => (buttonState & (LeftButtonDown | RightButtonDown)) != 0
                 ? MouseKind.Press
                 : MouseKind.Release,
         };
 
-        var button = (record.ButtonState & RightButtonDown) != 0
+        var button = (buttonState & RightButtonDown) != 0
             ? MouseButton.Right
             : MouseButton.Left;
 
-        return new MouseEvent(kind, button, record.MouseX, record.MouseY, false, false, false);
+        var shift = (controlKeyState & ShiftPressed) != 0;
+        var ctrl = (controlKeyState & (LeftCtrlPressed | RightCtrlPressed)) != 0;
+        var alt = (controlKeyState & (LeftAltPressed | RightAltPressed)) != 0;
+
+        return new MouseEvent(kind, button, mouseX, mouseY, shift, alt, ctrl);
     }
 
-    /// <summary>INPUT_RECORD — Win32 控制台输入记录（显式布局 union 覆盖）。</summary>
+    /// <summary>纵向滚轮方向 — 高 16 位有符号 delta：&gt; 0 上滚，&lt; 0 下滚（0 保守判下滚）。</summary>
+    private static MouseKind WheelDirection(uint buttonState) =>
+        (short)(buttonState >> 16) > 0 ? MouseKind.WheelUp : MouseKind.WheelDown;
+
+    /// <summary>横向滚轮方向 — 同为高 16 位有符号 delta：&gt; 0 右滚，&lt; 0 左滚。</summary>
+    private static MouseKind HorizontalWheelDirection(uint buttonState) =>
+        (short)(buttonState >> 16) > 0 ? MouseKind.WheelRight : MouseKind.WheelLeft;
+
+    /// <summary>INPUT_RECORD — Win32 控制台输入记录（显式布局 union 覆盖）。
+    /// TASK109 P19：鼠标字段偏移必须按 MOUSE_EVENT_RECORD 文档 —
+    /// dwMousePosition@4 / dwButtonState@8 / dwControlKeyState@<b>12</b> / dwEventFlags@<b>16</b>；
+    /// 修复前 EventFlags 误落在 12（读到的是 dwControlKeyState，恒 0）导致滚轮被当 Release。</summary>
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit, Size = 20)]
-    private struct InputRecord
+    internal struct InputRecord
     {
         [System.Runtime.InteropServices.FieldOffset(0)] public ushort EventType;
+        // KEY_EVENT union 成员（EventType == 1）
         [System.Runtime.InteropServices.FieldOffset(4)] public int KeyDown;
         [System.Runtime.InteropServices.FieldOffset(8)] public ushort RepeatCount;
         [System.Runtime.InteropServices.FieldOffset(10)] public ushort VirtualKeyCode;
+        [System.Runtime.InteropServices.FieldOffset(12)] public ushort VirtualScanCode;
         [System.Runtime.InteropServices.FieldOffset(14)] public char UnicodeChar;
         [System.Runtime.InteropServices.FieldOffset(16)] public uint ControlKeyState;
+        // MOUSE_EVENT union 成员（EventType == 2）
         [System.Runtime.InteropServices.FieldOffset(4)] public short MouseX;
         [System.Runtime.InteropServices.FieldOffset(6)] public short MouseY;
         [System.Runtime.InteropServices.FieldOffset(8)] public uint ButtonState;
-        [System.Runtime.InteropServices.FieldOffset(12)] public uint EventFlags;
+        [System.Runtime.InteropServices.FieldOffset(12)] public uint MouseControlKeyState;
+        [System.Runtime.InteropServices.FieldOffset(16)] public uint EventFlags;
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]

@@ -140,6 +140,18 @@ public sealed class CliAuthorizationBrokerTests {
     }
 
     [Fact]
+    public async Task Broker_ScopeSnapshot_ReturnsAllowedAndDeniedWithoutExecution() {
+        await using var broker = new CliAuthorizationBroker();
+        var session = broker.CreateSession(CreateScope(["read", "edit"], ["file_delete"]));
+
+        var snapshot = await CliToolAuthorizationClient.GetScopeSnapshotAsync(session, CancellationToken.None);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(["read", "edit"], snapshot.AllowedTools);
+        Assert.Equal(["file_delete"], snapshot.DeniedTools);
+    }
+
+    [Fact]
     public async Task Gate_SubAgentScopeEnvironment_IntersectsToolDomain() {
         var env = CliAuthorizationBrokerRuntime.EnsureEnvironment(
             agentId: "agent-sub-" + Guid.NewGuid().ToString("N"),

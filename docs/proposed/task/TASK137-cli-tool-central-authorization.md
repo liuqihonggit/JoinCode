@@ -1,6 +1,6 @@
 # TASK137 — CLI 工具集中鉴权与参数权限编译期门禁
 
-- 状态：**实施中 — 13 组策略已内嵌；local/delegate/host/slash_call 四入口受 broker 约束；slash 参数结构化与 base/launcher 待后续阶段**
+- 状态：**实施中 — 13 组策略已内嵌；local/delegate/host/slash_call 四入口受 broker 约束；tree/find/help 与执行同源；slash 参数结构化、首轮组目录裁剪与 base/launcher 待后续阶段**
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 上游决策：[ADR 0168](../adr/0168-cli-tool-central-authorization-and-parameter-policy.md)
 - 关联：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)、[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)
@@ -100,8 +100,10 @@
   - `ContextSetupMiddleware.MergeAllowedTools`；6 个定向测试 + 既有 24 个 ContextSetup 测试全绿。
 - [x] 明确“输入空集合 = 未指定”与“解析后空集合 = 拒绝全部”的边界。
   - `ToolDomainConstants.NoToolsPermitted` 哨兵：交集为空时写入不可能存在的工具名，避免空列表被过滤层解释为“不限制”。
-- [ ] `PromptToolGroupScope` 携带有效 CLI 工具域。
-- [ ] 首轮组目录、`tree` / `find` / `help`、执行门禁消费同一有效域。
+- [x] `jcc tool tree` / `find` / `help` 与执行门禁消费同一有效域。
+  - broker 新增 `ScopeSnapshot` 只读请求；`CliHostToolAuthorization.GetScopeAsync` + `CliToolScopeFilter` 按 AllowedTools/DeniedTools 裁剪节点与工具，空组自动消失。
+  - 真机：受限 scope `read/edit` → tree 仅 file 组 2 个工具、git help 拒绝；`gh_auth_status` scope → github 组仅 1 个工具；无会话 → 13 组 635 个工具全量。
+- [ ] 首轮组目录 `PromptToolGroupScope` 携带有效 CLI 工具域（当前仍只按 profile 裁剪）。
 - [ ] 禁止参数从 agent 可见帮助中隐藏；ask 参数保留可见性并标注需确认。
 
 ### 阶段 5：全仓收敛与验收
@@ -127,7 +129,7 @@
 | 迁移门禁（无策略 exe 旧行为） | `CliToolAuthorizationClient.AuthorizeCoreAsync` | ✅ `Policy.NotEnforced`；3/3 门禁测试 | ✅ 各组直跑统一 126；delegate/host 无策略 exe 仍按旧行为 |
 | Roslyn 参数对账分析器 | 13 个组 csproj | ✅ JCC13001/13002/13004/13008；13/13 测试 | ✅ 13 组编译零诊断；119/119 契约测试 |
 | subagent 有效工具域 | `ContextSetupMiddleware`、`SubAgentContext` | ✅ 交集 + 空交集哨兵；6/6 测试 | ❌ 真实子代理会话待阶段 4 |
-| 发现与执行同源 | `ToolsSection`、`CliToolSearch`、`CliToolHelp` | ❌ | ❌ 未开始 |
+| 发现与执行同源 | `CliToolCommand` tree/find/help、`CliToolScopeFilter` | ✅ `ScopeSnapshot` + 裁剪；8 个过滤测试 + broker 快照测试 | ✅ 受限 tree/help/find 真机裁剪，无会话全量 |
 | 权限审计与诱导错误 | broker、CLI stderr、JSONL 审计 | ⚠️ 诱导错误已完成（四要素）；JSONL 审计未开始 | ✅ 真机 stderr 含原因/层/正确写法 |
 
 ## 非目标

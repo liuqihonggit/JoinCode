@@ -40,6 +40,9 @@ internal sealed record CliAuthorizationRequest {
     /// 但仍必须受 AllowedTools/DeniedTools 约束，否则子代理可用 mcp_call 绕过工具域。
     /// </summary>
     public bool ScopeOnly { get; init; }
+
+    /// <summary>读取当前 token 的工具域快照（供 tree/find/help 发现裁剪）；不执行任何工具。</summary>
+    public bool ScopeSnapshot { get; init; }
 }
 
 /// <summary>broker 授权响应。</summary>
@@ -52,6 +55,12 @@ internal sealed record CliAuthorizationResponse {
 
     /// <summary>判定层。</summary>
     public required string Layer { get; init; }
+
+    /// <summary>作用域允许工具（仅 <see cref="CliAuthorizationRequest.ScopeSnapshot"/> 填充）。</summary>
+    public string[]? AllowedTools { get; init; }
+
+    /// <summary>作用域拒绝工具（仅 <see cref="CliAuthorizationRequest.ScopeSnapshot"/> 填充）。</summary>
+    public string[]? DeniedTools { get; init; }
 }
 
 /// <summary>
@@ -119,7 +128,9 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
                 var request = JsonSerializer.Deserialize(line, CliNodeJsonContext.Default.CliAuthorizationRequest);
                 response = request is null
                     ? ToResponse(CliAuthorizationDecision.Deny("Protocol", "授权请求 JSON 为空；检查调用方序列化 DTO。"))
-                    : ToResponse(Evaluate(request));
+                    : request.ScopeSnapshot
+                        ? Snapshot(request)
+                        : ToResponse(Evaluate(request));
             }
         } catch (JsonException ex) {
             response = ToResponse(CliAuthorizationDecision.Deny(
@@ -133,6 +144,23 @@ internal sealed class CliAuthorizationBroker : IAsyncDisposable {
 
         var json = JsonSerializer.Serialize(response, CliNodeJsonContext.Default.CliAuthorizationResponse);
         await writer.WriteLineAsync(json).ConfigureAwait(false);
+    }
+
+    private CliAuthorizationResponse Snapshot(CliAuthorizationRequest request) {
+        var scope = ResolveSession(request.Token);
+        if (scope is null) {
+            return ToResponse(CliAuthorizationDecision.Deny(
+                "Auth.Token",
+                "CLI 授权 token 无效或已过期；通过 jcc tool call 重新发起，不要手工拼接环境变量。"));
+        }
+
+        return new CliAuthorizationResponse {
+            Allowed = true,
+            Reason = "Scope.Snapshot",
+            Layer = "Host.Scope",
+            AllowedTools = [.. scope.AllowedTools],
+            DeniedTools = [.. scope.DeniedTools]
+        };
     }
 
     private CliAuthorizationDecision Evaluate(CliAuthorizationRequest request) {
@@ -208,6 +236,52 @@ internal static class CliToolAuthorizationClient {
         IReadOnlyDictionary<string, string> arguments,
         CancellationToken cancellationToken,
         bool scopeOnly = false) {
+        var request = new CliAuthorizationRequest {
+            Token = session.Token,
+            GroupId = groupId,
+            ToolId = toolId,
+            PolicyImagePath = policyImagePath,
+            ExecutableName = executableName,
+            Arguments = new Dictionary<string, string>(arguments, StringComparer.Ordinal),
+            ScopeOnly = scopeOnly
+        };
+        var reply = await SendAsync(session, request, cancellationToken).ConfigureAwait(false);
+        return reply.Response is null
+            ? CliAuthorizationDecision.Deny("Auth.Transport", reply.Error ?? "CLI 授权 broker 未返回响应。")
+            : new CliAuthorizationDecision {
+                Allowed = reply.Response.Allowed,
+                Reason = reply.Response.Reason,
+                Layer = reply.Response.Layer
+            };
+    }
+
+    /// <summary>读取当前会话的工具域快照；transport 失败返回 null（发现裁剪是尽力而为，执行判定仍 fail-closed）。</summary>
+    public static async Task<CliToolScopeSnapshot?> GetScopeSnapshotAsync(
+        CliAuthorizationSession session,
+        CancellationToken cancellationToken) {
+        var request = new CliAuthorizationRequest {
+            Token = session.Token,
+            GroupId = "scope",
+            ToolId = "",
+            PolicyImagePath = "",
+            ExecutableName = "",
+            Arguments = new Dictionary<string, string>(StringComparer.Ordinal),
+            ScopeSnapshot = true
+        };
+        var reply = await SendAsync(session, request, cancellationToken).ConfigureAwait(false);
+        if (reply.Response is not { Allowed: true }) return null;
+        return new CliToolScopeSnapshot {
+            AllowedTools = reply.Response.AllowedTools ?? [],
+            DeniedTools = reply.Response.DeniedTools ?? []
+        };
+    }
+
+    private sealed record BrokerReply(CliAuthorizationResponse? Response, string? Error);
+
+    private static async Task<BrokerReply> SendAsync(
+        CliAuthorizationSession session,
+        CliAuthorizationRequest request,
+        CancellationToken cancellationToken) {
         try {
             await using var pipe = new NamedPipeClientStream(
                 ".",
@@ -218,35 +292,20 @@ internal static class CliToolAuthorizationClient {
             using var reader = new StreamReader(pipe, new UTF8Encoding(false), leaveOpen: true);
             using var writer = new StreamWriter(pipe, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
 
-            var request = new CliAuthorizationRequest {
-                Token = session.Token,
-                GroupId = groupId,
-                ToolId = toolId,
-                PolicyImagePath = policyImagePath,
-                ExecutableName = executableName,
-                Arguments = new Dictionary<string, string>(arguments, StringComparer.Ordinal),
-                ScopeOnly = scopeOnly
-            };
             var line = JsonSerializer.Serialize(request, CliNodeJsonContext.Default.CliAuthorizationRequest);
             await writer.WriteLineAsync(line).ConfigureAwait(false);
 
             var responseLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(responseLine)) {
-                return CliAuthorizationDecision.Deny(
-                    "Auth.Transport",
+                return new BrokerReply(null,
                     "CLI 授权 broker 未返回响应；确认 jcc 宿主仍在运行，并改用 jcc tool call 重试。");
             }
             var response = JsonSerializer.Deserialize(responseLine, CliNodeJsonContext.Default.CliAuthorizationResponse);
             return response is null
-                ? CliAuthorizationDecision.Deny("Auth.Transport", "CLI 授权 broker 返回空响应；改用 jcc tool call 重试。")
-                : new CliAuthorizationDecision {
-                    Allowed = response.Allowed,
-                    Reason = response.Reason,
-                    Layer = response.Layer
-                };
+                ? new BrokerReply(null, "CLI 授权 broker 返回空响应；改用 jcc tool call 重试。")
+                : new BrokerReply(response, null);
         } catch (Exception ex) when (ex is IOException or TimeoutException or OperationCanceledException) {
-            return CliAuthorizationDecision.Deny(
-                "Auth.Transport",
+            return new BrokerReply(null,
                 $"无法连接 CLI 授权 broker：{ex.Message}；确认通过 jcc tool call 调用，或检查宿主进程是否已退出。");
         }
     }
@@ -376,6 +435,23 @@ public static class CliHostToolAuthorization {
             return Task.FromResult(CliAuthorizationDecision.Allow("Host.Manual"));
         }
         return CliToolAuthorizationClient.AuthorizeHostToolAsync(pipeName, token, toolName, cancellationToken);
+    }
+
+    /// <summary>
+    /// 读取当前 agent 的工具域快照 — tree/find/help 用它裁剪发现结果。
+    /// <para>没有会话或 broker 不可达时返回 null（不裁剪）：发现是只读辅助，执行门禁仍独立生效。</para>
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具域快照；无会话时 null。</returns>
+    public static Task<CliToolScopeSnapshot?> GetScopeAsync(CancellationToken cancellationToken = default) {
+        var pipeName = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.PipeVariable);
+        var token = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.TokenVariable);
+        if (string.IsNullOrWhiteSpace(pipeName) || string.IsNullOrWhiteSpace(token)) {
+            return Task.FromResult<CliToolScopeSnapshot?>(null);
+        }
+        return CliToolAuthorizationClient.GetScopeSnapshotAsync(
+            new CliAuthorizationSession(pipeName, token),
+            cancellationToken);
     }
 }
 

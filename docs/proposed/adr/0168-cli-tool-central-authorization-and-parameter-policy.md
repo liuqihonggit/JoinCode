@@ -1,6 +1,6 @@
 # 0168 — CLI 工具集中鉴权、嵌入参数策略与编译期对账
 
-- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host/slash_call 四入口已接入作用域判定，delegate 实现（jcc-gh）自证并 fail-closed；slash 参数结构化与 one-time grant 待后续
+- 状态：**proposed（实施中）** — 13 组策略、broker、分析器已落地；local/delegate/host/slash_call 四入口已接入作用域判定，delegate 实现（jcc-gh）自证并 fail-closed；tree/find/help 经 ScopeSnapshot 与执行同源；slash 参数结构化、首轮组目录裁剪与 one-time grant 待后续
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 决策者：待用户批准
 - 上游：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)
@@ -95,7 +95,7 @@ shell 环境清洗器必须显式保留授权凭据变量，同时禁止把 brok
 | local | `jcc tool call` → 父 broker 会话凭据注入环境 → 启动组 exe → 组 exe 携带实际工具/参数请求判定 → 调用 local handler |
 | delegate | 组 exe 向同一 broker 判定后启动 delegate exe；delegate 侧再按自身内嵌策略自证（`CliGroupToolAuthorization`），子进程继承同一会话凭据，两层都不放行越域调用 |
 | host | broker 在父宿主的原任务上下文授权，并通过现有 `PermissionAwareToolExecutor` / slash 执行链执行；`jcc mcp_call`、`jcc tool call <组> <host工具>`、`jcc slash_call` 共用 `ScopeOnly` 判定 |
-| help / tree / find | 不请求执行判定；按当前可见工具域返回元数据 |
+| help / tree / find | 不请求执行判定；有会话时经 `ScopeSnapshot` 读取工具域并裁剪节点/工具，无会话时返回全量 |
 
 关键约束：
 
@@ -354,6 +354,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 3. **host/slash/base/launcher**：父宿主执行、结构化 slash 参数、全局与元命令参数。
    - host 段已完成：`ScopeOnly` 协议 + `McpCliCommand` 门禁，真机受限/放行两条路径双向验证；slash/base/launcher 待办。
 4. **有效工具域与发现同源**：修复 AllowedTools 覆盖问题，统一 prompt/tree/find/help/execution。
+   - tree/find/help 段已完成：`ScopeSnapshot` + `CliToolScopeFilter`；首轮组目录（`PromptToolGroupScope`）仍只按 profile 裁剪。
 5. **全仓收敛**：覆盖门禁、审计、跨域全仓编译、真实双端进程验收。
 
 每阶段独立编译、测试、提交；跨域契约变更执行 `Build-AllDomains.ps1`。
@@ -387,6 +388,7 @@ next: 使用 jcc tool call file directory_list --directory_path <目录> 先确�
 - [ ] （阶段 2 加固）一次性 grant：参数摘要、exe 身份、策略哈希、nonce 与过期绑定，重放 fail-closed。
 - [ ] host ask 由父宿主 UI/队列处理，不因子进程丢失上下文而自动放行。
 - [ ] 首轮组目录、tree/find/help 与执行允许集合一致。
+  - tree/find/help 已一致（受限 scope 真机验证）；首轮组目录仍按 profile 裁剪，agent 工具域待接入。
 - [ ] 真实双端进程测试覆盖主代理、只读子代理、写子代理、delegate、host。
   - host 段已覆盖：受限 scope 下 `jcc mcp_call` 与 `jcc tool call <组> <host工具>` 均 `Agent.AllowedTools` 拒绝；放行 scope 两条路径正常执行；伪造凭据 `Auth.Transport` 拒绝。真实子代理会话待阶段 4。
 - [ ] 跨域契约变更后 `Build-AllDomains.ps1` 全仓编译通过。

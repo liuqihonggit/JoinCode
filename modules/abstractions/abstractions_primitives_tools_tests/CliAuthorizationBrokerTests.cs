@@ -152,6 +152,161 @@ public sealed class CliAuthorizationBrokerTests {
     }
 
     [Fact]
+    public async Task Broker_AllowedCall_IssuesSingleUseGrant_ReplayFailsClosed() {
+        await using var broker = new CliAuthorizationBroker();
+        var session = broker.CreateSession(CreateScope([], []));
+        var args = new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt" };
+
+        var authorize = await CliToolAuthorizationClient.AuthorizeAsync(
+            session, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            args,
+            CancellationToken.None,
+            redeemGrant: false);
+        var grantId = authorize.GrantId
+            ?? throw new InvalidOperationException("放行判定必须签发一次性 grant");
+
+        var redeem = await CliToolAuthorizationClient.RedeemGrantAsync(
+            session, grantId, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            args,
+            CancellationToken.None);
+        Assert.True(redeem.Allowed, redeem.Reason);
+        Assert.Equal("Grant.Redeemed", redeem.Layer);
+
+        var replay = await CliToolAuthorizationClient.RedeemGrantAsync(
+            session, grantId, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            args,
+            CancellationToken.None);
+        Assert.False(replay.Allowed);
+        Assert.Equal("Grant.Unknown", replay.Layer);
+
+        var transparent = await CliToolAuthorizationClient.AuthorizeAsync(
+            session, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            args,
+            CancellationToken.None);
+        Assert.True(transparent.Allowed, transparent.Reason);
+        Assert.Null(transparent.GrantId);
+    }
+
+    [Fact]
+    public async Task Broker_RedeemWithMutatedArguments_DeniedAndGrantConsumed() {
+        await using var broker = new CliAuthorizationBroker();
+        var session = broker.CreateSession(CreateScope([], []));
+
+        var authorize = await CliToolAuthorizationClient.AuthorizeAsync(
+            session, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt" },
+            CancellationToken.None,
+            redeemGrant: false);
+        var grantId = authorize.GrantId
+            ?? throw new InvalidOperationException("放行判定必须签发一次性 grant");
+
+        var mutated = await CliToolAuthorizationClient.RedeemGrantAsync(
+            session, grantId, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            new Dictionary<string, string> { ["file_path"] = "/tmp/b.txt" },
+            CancellationToken.None);
+        Assert.False(mutated.Allowed);
+        Assert.Equal("Grant.Mismatch", mutated.Layer);
+
+        var afterMismatch = await CliToolAuthorizationClient.RedeemGrantAsync(
+            session, grantId, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt" },
+            CancellationToken.None);
+        Assert.False(afterMismatch.Allowed);
+        Assert.Equal("Grant.Unknown", afterMismatch.Layer);
+    }
+
+    [Fact]
+    public async Task Broker_RedeemFromDifferentSession_Denied() {
+        await using var broker = new CliAuthorizationBroker();
+        var owner = broker.CreateSession(CreateScope([], []));
+        var other = broker.CreateSession(CreateScope([], []));
+
+        var authorize = await CliToolAuthorizationClient.AuthorizeAsync(
+            owner, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt" },
+            CancellationToken.None,
+            redeemGrant: false);
+        var grantId = authorize.GrantId
+            ?? throw new InvalidOperationException("放行判定必须签发一次性 grant");
+
+        var stolen = await CliToolAuthorizationClient.RedeemGrantAsync(
+            other, grantId, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt" },
+            CancellationToken.None);
+        Assert.False(stolen.Allowed);
+        Assert.Equal("Grant.Mismatch", stolen.Layer);
+        Assert.Contains("会话", stolen.Reason);
+    }
+
+    [Fact]
+    public async Task Broker_RedeemAfterGrantLifetime_Denied() {
+        var clock = new ManualTimeProvider(DateTimeOffset.Parse("2026-11-26T08:00:00Z"));
+        await using var broker = new CliAuthorizationBroker(timeProvider: clock);
+        var session = broker.CreateSession(CreateScope([], []));
+
+        var authorize = await CliToolAuthorizationClient.AuthorizeAsync(
+            session, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt" },
+            CancellationToken.None,
+            redeemGrant: false);
+        var grantId = authorize.GrantId
+            ?? throw new InvalidOperationException("放行判定必须签发一次性 grant");
+
+        clock.Advance(TimeSpan.FromSeconds(31));
+
+        var expired = await CliToolAuthorizationClient.RedeemGrantAsync(
+            session, grantId, "file", "read",
+            typeof(CliAuthorizationBrokerTests).Assembly.Location,
+            "JoinCode.CliNodes.Tests.dll",
+            new Dictionary<string, string> { ["file_path"] = "/tmp/a.txt" },
+            CancellationToken.None);
+        Assert.False(expired.Allowed);
+        Assert.Equal("Grant.Expired", expired.Layer);
+    }
+
+    [Fact]
+    public async Task Broker_ScopeOnlyGrant_BindsHostToolAndRedeems() {
+        await using var broker = new CliAuthorizationBroker();
+        var session = broker.CreateSession(CreateScope(["todo_write"], []));
+        var empty = new Dictionary<string, string>();
+
+        var authorize = await CliToolAuthorizationClient.AuthorizeAsync(
+            session, "host", "TodoWrite", "jcc", "jcc.exe", empty,
+            CancellationToken.None,
+            scopeOnly: true,
+            redeemGrant: false);
+        var grantId = authorize.GrantId
+            ?? throw new InvalidOperationException("scope-only 放行也必须签发 grant");
+
+        var redeem = await CliToolAuthorizationClient.RedeemGrantAsync(
+            session, grantId, "host", "TodoWrite", "jcc", "jcc.exe", empty,
+            CancellationToken.None,
+            scopeOnly: true);
+        Assert.True(redeem.Allowed, redeem.Reason);
+        Assert.Equal("Grant.Redeemed", redeem.Layer);
+    }
+
+    [Fact]
     public async Task Broker_AuditLog_WritesAllowedAndDeniedEntriesWithDigest() {
         var path = Path.Combine(Path.GetTempPath(), $"jcc-audit-{Guid.NewGuid():N}.jsonl");
         var previous = Environment.GetEnvironmentVariable(CliAuthorizationEnvironment.AuditLogVariable);
@@ -241,4 +396,13 @@ public sealed class CliAuthorizationBrokerTests {
         AllowedTools = allowed,
         DeniedTools = denied,
     };
+
+    /// <summary>可手动拨动的时钟 — grant 过期路径不能靠真实等待 30 秒。</summary>
+    private sealed class ManualTimeProvider(DateTimeOffset start) : TimeProvider {
+        private DateTimeOffset _now = start;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan delta) => _now += delta;
+    }
 }

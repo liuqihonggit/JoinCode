@@ -29,6 +29,12 @@ public sealed record CliAuthorizationDecision {
     /// <summary>触发判定的层，用于审计与错误诱导。</summary>
     public required string Layer { get; init; }
 
+    /// <summary>
+    /// broker 为本次允许签发的一次性 grant — 客户端的默认路径会立即兑换，
+    /// 兑换后置空；仅测试/诊断显式跳过兑换时可见。
+    /// </summary>
+    public string? GrantId { get; init; }
+
     /// <summary>构造允许结果。</summary>
     /// <param name="layer">允许层。</param>
     /// <returns>允许判定。</returns>

@@ -1,6 +1,6 @@
 # TASK137 — CLI 工具集中鉴权与参数权限编译期门禁
 
-- 状态：**已完成（2026-11-26 验收通过）— 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束（slash 直调含参数白名单）；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；真实子代理 explore/plan 拒绝与 code 宽域均经 E2E 验证；后续加固项：slash 结构化 schema、base/launcher 参数策略、one-time grant**
+- 状态：**已完成（2026-11-26 验收通过）— 13 组策略已内嵌并受信任目录哈希锚定；local/delegate/host/slash_call 四入口受 broker 约束（slash 直调含参数白名单）；首轮组目录与 tree/find/help 均按 agent 工具域裁剪；真实子代理 explore/plan 拒绝与 code 宽域均经 E2E 验证；放行判定签发一次性 grant 并默认立即兑换（重放 fail-closed）；后续加固项：slash 结构化 schema、base/launcher 参数策略**
 - 日期：2026-11-25（2026-11-26 更新实施证据）
 - 上游决策：[ADR 0168](../adr/0168-cli-tool-central-authorization-and-parameter-policy.md)
 - 关联：[ADR 0157](../../implemented/adr/cli_jcc/0157-tool-exposure-data-driven-node-cli.md)、[ADR 0162](../adr/0162-task-scoped-permission-overlay.md)、[ADR 0163](../adr/0163-ai-permission-judge-and-autonomous-mode.md)
@@ -148,7 +148,7 @@
 | 集中授权 broker | `CliToolCommand` local/delegate 路径、`McpCliCommand`/`SlashCallExecutor` host 路径、`CliHostToolAuthorization` | ✅ 命名管道 + 作用域 token + `ScopeOnly` 判定；139/139 测试 | ✅ `jcc tool call file read/write` 真机放行与拒绝；host/slash 受限与放行真机双向验证 |
 | delegate 自证 | `jcc-gh` 内嵌 github 策略 + `CliGroupToolAuthorization` | ✅ `GhSubCommand` 执行前判定；jcc gh 人工会话注入；Gh 800/800 测试 | ✅ 直跑 126 `Auth.Missing`；受限 126 `Agent.AllowedTools`；`jcc gh`/`jcc tool call github` 人工 0、受限 126 |
 | slash 直调门禁 | `SlashCallExecutor` + jcc 内嵌 `slash.yaml` | ✅ 作用域 + 参数白名单（canonical 命令名 + 扁平参数） | ✅ 受限/放行 scope、未知参数 `Policy.Parameter`、声明参数实际执行 |
-| 一次性执行 grant + redeem | `CliNodeRunner` local / delegate | ❌ 当前为作用域会话 token（ADR 偏离，待阶段 2 加固） | ❌ |
+| 一次性执行 grant + redeem | `CliToolAuthorizationClient`（local/delegate/host 共用）、broker | ✅ 放行签发 30 秒 grant：绑定令牌摘要/group/tool/exe/参数摘要/策略哈希；执行前默认自动兑换，`TryRemove` 先摘除后校验 | ✅ 5 条测试：重放 `Grant.Unknown`、改参/跨会话 `Grant.Mismatch`（grant 已消耗）、过期 `Grant.Expired`、scope-only 兑换；兑换失败即拒绝（fail-closed） |
 | 参数权限硬规则 | broker `CliToolPolicyEvaluator` | ✅ 未知参数/deny 参数/工具域/拒绝集 | ✅ `--pages`→126 `Policy.Deny`；`--bogus`→126 `Policy.Parameter` |
 | 迁移门禁（无策略 exe 旧行为） | `CliToolAuthorizationClient.AuthorizeCoreAsync` | ✅ `Policy.NotEnforced`；3/3 门禁测试 | ✅ 各组直跑统一 126；delegate/host 无策略 exe 仍按旧行为 |
 | Roslyn 参数对账分析器 | 13 个组 csproj + `Verify-ToolNodes.ps1` 声明门禁 | ✅ JCC13001/13002/13004/13008；13/13 测试；策略/节点/分析器接线仓库门禁 | ✅ 13 组编译零诊断；119/119 契约测试；`-DeclarationsOnly` 通过 |

@@ -163,3 +163,23 @@ StyleGate 回到 1821。
 
 **结论**：TASK137 §6.3 / TASK138 §6.4 关闭为"已覆盖/前提不成立"，不引入跨库 DTO 变更，
 也不触发全仓编译（无接口/共享 DTO 改动）。
+
+### D — 崩溃收编：真实文件系统验收 ✅（进程级 kill -9 仍记未做）
+
+** mock 文件系统 → 真实磁盘**：新增 `TranscriptCrashRecoveryRealFsTests` 2 条，
+用 `PhysicalFileSystem` + `Path.GetTempPath()` 隔离目录；写旁路后**不调用回合收尾/收编**，
+用新 `TranscriptService` 实例（等价进程重启）加载：
+
+1. `SidecarWrittenBeforeCrash_SurvivesRestart_AndIsAdoptedExactlyOnce` —
+   磁盘旁路内容可读 → 收编进主 transcript、`type=streaming-partial` → 删旁路 → 二次加载不重复。
+2. `MultipleQuerySidecars_AllSurviveCrash_AndAreAdoptedSeparately` — q-a / q-b 两条旁路互不覆盖，
+   重启后各自收编。
+
+两条均通过；连同既有 6 条 mock 单测，`TranscriptServiceStreamingTests` 覆盖的逻辑面闭合。
+
+**进程级 kill -9 未复现（如实记）**：用隔离 AppData + DeepSeek.MockServer 尝试让真实 `jcc -p`
+跑到落旁路再 kill -9，但 MockServer 对该请求返回 **1 个 chunk**（日志：`text stream (1 chunks)`），
+回复在 <0.5s 内一次性完成，旁路写完即被回合收尾清掉，轮询 50ms 未捕获到窗口。
+因此**没有**"真进程被 SIGKILL 后 sidecar 留存"的进程级证据；这里只把 mock 文件系统升级为真实磁盘，
+不把"丢弃实例"冒充 kill -9。CI 若要补进程级用例，需要可控的慢速流式 provider。
+TASK135 C2 保持 `[~]`，备注本轮进展。

@@ -73,6 +73,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator {
                     var argumentHint = GetNamedArgString(namedArgs, "ArgumentHint") ?? "";
                     var isHidden = GetNamedArg(namedArgs, "IsHidden").Value is bool hiddenVal && hiddenVal;
                     var isEnabled = GetNamedArg(namedArgs, "IsEnabled").Value is bool enabledVal ? enabledVal : true;
+                    var isAvailableWithoutLogin = GetNamedArg(namedArgs, "IsAvailableWithoutLogin").Value is bool availableVal && availableVal;
                     var aliases = new List<string>();
                     var aliasesValue = GetNamedArg(namedArgs, "Aliases");
                     if (!aliasesValue.IsNull && aliasesValue.Kind == TypedConstantKind.Array) {
@@ -100,6 +101,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator {
                         aliases.ToArray(),
                         isHidden,
                         isEnabled,
+                        isAvailableWithoutLogin,
                         argumentHint,
                         args.ToArray()));
                 }
@@ -227,7 +229,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator {
                 var aliases = string.Join(", ", cmd.Aliases.Select(a => $"\"{EscapeString(a)}\""));
                 var arguments = string.Join(", ", (cmd.Args.FirstOrDefault(a => a.Enum is { Length: > 0 })?.Enum ?? [])
                     .Select(v => $"\"{EscapeString(v)}\""));
-                sb.AppendLine($"                new SlashCommandMetadata {{ Name = \"/{EscapeString(cmd.Name)}\", Description = \"{EscapeString(cmd.Description)}\", Usage = \"{EscapeString(cmd.Usage)}\", Aliases = [{aliases}], ArgumentHint = \"{EscapeString(cmd.ArgumentHint)}\", Arguments = [{arguments}], IsHidden = {cmd.IsHidden.ToString().ToLowerInvariant()}, IsEnabled = {cmd.IsEnabled.ToString().ToLowerInvariant()}, Category = \"{EscapeString(catName)}\" }},");
+                sb.AppendLine($"                new SlashCommandMetadata {{ Name = \"/{EscapeString(cmd.Name)}\", Description = \"{EscapeString(cmd.Description)}\", Usage = \"{EscapeString(cmd.Usage)}\", Aliases = [{aliases}], ArgumentHint = \"{EscapeString(cmd.ArgumentHint)}\", Arguments = [{arguments}], IsHidden = {cmd.IsHidden.ToString().ToLowerInvariant()}, IsEnabled = {cmd.IsEnabled.ToString().ToLowerInvariant()}, IsAvailableWithoutLogin = {cmd.IsAvailableWithoutLogin.ToString().ToLowerInvariant()}, Category = \"{EscapeString(catName)}\" }},");
             }
             sb.AppendLine("            ],");
         }
@@ -361,6 +363,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator {
         public string[] Aliases { get; }
         public bool IsHidden { get; }
         public bool IsEnabled { get; }
+        public bool IsAvailableWithoutLogin { get; }
         public string ArgumentHint { get; }
         public ChatCommandArgInfo[] Args { get; }
 
@@ -374,6 +377,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator {
             string[]? aliases = null,
             bool isHidden = false,
             bool isEnabled = true,
+            bool isAvailableWithoutLogin = false,
             string argumentHint = "",
             ChatCommandArgInfo[]? args = null) {
             FullyQualifiedName = fullyQualifiedName;
@@ -385,6 +389,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator {
             Aliases = aliases ?? [];
             IsHidden = isHidden;
             IsEnabled = isEnabled;
+            IsAvailableWithoutLogin = isAvailableWithoutLogin;
             ArgumentHint = argumentHint;
             Args = args ?? [];
         }

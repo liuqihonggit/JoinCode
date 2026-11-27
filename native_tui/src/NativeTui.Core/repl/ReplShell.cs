@@ -4631,13 +4631,10 @@ public sealed class ReplShell
 
         // S10 接线 — 斜杠命令使用记账（提交即使用：TUI 无引擎侧执行成败回执通道，
         /// recently-used 分组语义 = 用户常用命令；命令名取首个空格前段）
-        if (text.StartsWith('/') && _suggester is not null)
+        var commandName = text.StartsWith('/') ? text.Split(' ', 2)[0][1..] : string.Empty;
+        if (commandName.Length > 0 && _suggester?.IsKnownCommand(commandName) == true)
         {
-            var commandName = text.Split(' ', 2)[0][1..];
-            if (_suggester.IsKnownCommand(commandName))
-            {
-                _commandUsage.RecordUse(commandName);
-            }
+            _commandUsage.RecordUse(commandName);
         }
 
         // TASK106 — /exit /quit 是纯客户端退出命令（基准 commands.ts meetsAvailabilityRequirement：
@@ -4658,8 +4655,9 @@ public sealed class ReplShell
         // 若在此处被登录门吞掉，footer 明写"运行 /login"却永远登不了 = 死锁。故放行透传给引擎，
         // 由宿主命令自己处理（宿主侧无 auth 门槛）。精确名 + 空白边界，防 /loginfoo 误放行。
         var loginRequested = IsLoginCommand(text);
+        var availableWithoutLogin = _suggester?.IsAvailableWithoutLogin(commandName) == true;
 
-        if (!LoginGateOpen && !loginRequested)
+        if (!LoginGateOpen && !loginRequested && !availableWithoutLogin)
         {
             AddMessage(new UserMessageItem(text));
             AddAttachmentItems(attachments);

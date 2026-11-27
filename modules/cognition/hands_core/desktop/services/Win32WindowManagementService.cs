@@ -52,6 +52,10 @@ public sealed partial class Win32WindowManagementService : ServiceEntity, IWindo
             return Task.FromResult(false);
         }
 
+        if (User32NativeMethods.IsIconic(hWnd)) {
+            User32NativeMethods.ShowWindow(hWnd, NativeConstants.SW_RESTORE);
+        }
+
         SendAltTap();
         var ok = User32NativeMethods.SetForegroundWindow(hWnd);
         if (!ok) {

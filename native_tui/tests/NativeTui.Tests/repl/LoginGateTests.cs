@@ -12,9 +12,9 @@ namespace NativeTui.Tests.Repl;
 public sealed class LoginGateTests
 {
     /// <summary>构造外壳（SeedContent 对齐 Run 首步）。</summary>
-    private static (ReplShell Shell, FakeReplEngine Engine) CreateShell() {
+    private static (ReplShell Shell, FakeReplEngine Engine) CreateShell(IReadOnlyList<CommandSuggestion>? commands = null) {
         var engine = new FakeReplEngine();
-        var shell = new ReplShell(engine, new BannerItem("0.0.0", "m", "b", "C:\\"), new StringWriter());
+        var shell = new ReplShell(engine, new BannerItem("0.0.0", "m", "b", "C:\\"), new StringWriter(), commands: commands);
         shell.SeedContent();
         return (shell, engine);
     }
@@ -146,6 +146,55 @@ public sealed class LoginGateTests
         shell.Submit();
 
         Assert.Equal(["/login openai --oauth"], engine.Submits);
+    }
+
+    /// <summary>未登录时本地诊断/会话命令必须透传，命令可用性由目录元数据声明。</summary>
+    [Theory]
+    [InlineData("/version")]
+    [InlineData("/help")]
+    [InlineData("/session")]
+    [InlineData("/resume")]
+    [InlineData("/sessions")]
+    [InlineData("/continue")]
+    public void NotLoggedIn_LocalCommand_ForwardedToEngine(string command)
+    {
+        CommandSuggestion[] commands =
+        [
+            new("version", "版本", [], IsHidden: false, IsAvailableWithoutLogin: true),
+            new("help", "帮助", ["?"], IsHidden: false, IsAvailableWithoutLogin: true),
+            new("session", "会话", ["sessions"], IsHidden: false, IsAvailableWithoutLogin: true),
+            new("resume", "恢复", ["continue"], IsHidden: false, IsAvailableWithoutLogin: true),
+            new("model", "模型", [], IsHidden: false),
+        ];
+        var (shell, engine) = CreateShell(commands);
+        ApplyLoginState(shell, engine, loggedIn: false);
+        TypeText(shell, command);
+
+        shell.Submit();
+
+        Assert.Equal([command], engine.Submits);
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("未登录"));
+    }
+
+    /// <summary>未登录时未声明免登录的斜杠命令仍被拦，不能被名称猜测放行。</summary>
+    [Theory]
+    [InlineData("/model")]
+    [InlineData("/versionfoo")]
+    public void NotLoggedIn_NonLocalSlashCommand_StillGated(string command)
+    {
+        CommandSuggestion[] commands =
+        [
+            new("version", "版本", [], IsHidden: false, IsAvailableWithoutLogin: true),
+            new("model", "模型", [], IsHidden: false),
+        ];
+        var (shell, engine) = CreateShell(commands);
+        ApplyLoginState(shell, engine, loggedIn: false);
+        TypeText(shell, command);
+
+        shell.Submit();
+
+        Assert.Empty(engine.Submits);
+        Assert.Contains(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("未登录"));
     }
 
     /// <summary>未登录普通提示词仍被拦（零回归 — 登录门对非命令文本照旧）。</summary>

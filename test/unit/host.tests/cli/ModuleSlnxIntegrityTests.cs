@@ -132,6 +132,43 @@ public sealed class ModuleSlnxIntegrityTests {
     }
 
     /// <summary>
+    /// CLI 单项目构建必须同时产出 Hub，且不得把 Hub 程序集变成 jcc 的编译依赖。
+    /// </summary>
+    [Fact]
+    public async Task CliProject_ShouldBuildHubWithoutAssemblyDependency() {
+        var fs = IO.FileSystem.FileSystemFactory.Create();
+        var projectPath = System.IO.Path.Combine(RepoRoot, "modules", "apps", "cli", "JoinCode.csproj");
+        var projectXml = await fs.ReadAllText(projectPath);
+        var document = System.Xml.Linq.XDocument.Parse(projectXml);
+        var hubReference = document.Descendants("ProjectReference")
+            .FirstOrDefault(element => ((string?)element.Attribute("Include"))
+                ?.Replace('\\', '/')
+                .EndsWith("modules/services/hub/Hub.csproj", StringComparison.OrdinalIgnoreCase) == true);
+
+        hubReference.Should().NotBeNull("CLI 构建必须产出 jcchub.exe，否则默认启动无法自动拉起 Hub");
+        ((string?)hubReference?.Attribute("ReferenceOutputAssembly")).Should().Be("false",
+            "Hub 只参与构建，不得成为 jcc 的程序集依赖");
+    }
+
+    /// <summary>
+    /// CLI 单项目构建产物必须包含可独立启动的 Hub 运行时，而不能只有 apphost。
+    /// </summary>
+    [Fact]
+    public void CliBuildOutput_ShouldContainCompleteHubRuntime() {
+        var outputDir = System.IO.Path.Combine(
+            RepoRoot, "artifacts", "bin", "JoinCode", "Debug", "net10.0");
+
+        File.Exists(System.IO.Path.Combine(outputDir, "jcchub.exe")).Should().BeTrue(
+            "CLI 构建应产出 Hub apphost");
+        File.Exists(System.IO.Path.Combine(outputDir, "jcchub.dll")).Should().BeTrue(
+            "Hub apphost 依赖同目录的 jcchub.dll，缺失时会在启动时立即退出");
+        File.Exists(System.IO.Path.Combine(outputDir, "jcchub.deps.json")).Should().BeTrue(
+            "Hub 需要 deps.json 解析程序集依赖");
+        File.Exists(System.IO.Path.Combine(outputDir, "jcchub.runtimeconfig.json")).Should().BeTrue(
+            "Hub 需要 runtimeconfig.json 选择 .NET 运行时");
+    }
+
+    /// <summary>
     /// BUG-5: 验证特定已修正的 module.slnx(generators)引用有效。
     /// generators/module.slnx 曾有 REMOVED: shared/shared.csproj 注释,移除后应无无效引用。
     /// </summary>

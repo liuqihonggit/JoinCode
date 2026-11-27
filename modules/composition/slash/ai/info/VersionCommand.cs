@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：版本号+运行时+架构+OS
 /// 架构差异：TS 有构建时间戳，C# 使用 Assembly 信息
 /// </summary>
-[ChatCommand(Name = ChatCommandNameEnumConstants.Version, Description = "显示版本信息", Usage = "/version", Category = ChatCommandCategory.Info)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Version, Description = "显示版本信息", Usage = "/version", Category = ChatCommandCategory.Info, IsAvailableWithoutLogin = true)]
 public sealed class VersionCommand : ChatCommandBase {
     /// <summary>
     /// 执行版本命令,输出 JoinCode 版本号、运行时、架构与操作系统信息

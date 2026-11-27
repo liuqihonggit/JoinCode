@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式会话选择器，C# 为命令行操作
 /// 待办：需要 SessionStore 服务实现会话持久化和恢复
 /// </summary>
-[ChatCommand(Name = ChatCommandNameEnumConstants.Session, Description = "管理历史会话", Usage = "/session [list|resume|delete] [id]", Category = ChatCommandCategory.Session, Aliases = ["sessions"], ArgumentHint = "[list|resume|delete]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Session, Description = "管理历史会话", Usage = "/session [list|resume|delete] [id]", Category = ChatCommandCategory.Session, Aliases = ["sessions"], ArgumentHint = "[list|resume|delete]", IsAvailableWithoutLogin = true)]
 [ChatCommandArg("action", Type = "string", Description = "会话操作", Enum = new[] { "list", "resume", "delete" })]
 [ChatCommandArg("id", Type = "string", Description = "会话 ID（resume/delete 时需要）")]
 public sealed class SessionCommand : ChatCommandBase {

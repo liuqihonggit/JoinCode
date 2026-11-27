@@ -68,6 +68,12 @@ public sealed class SlashSuggester
     /// 未知命令名不记账防污染 recently-used 分组）。</summary>
     public bool IsKnownCommand(string name) => _commands.Any(c => c.Name == name);
 
+    /// <summary>命令名或别名是否声明为无需登录即可执行。</summary>
+    public bool IsAvailableWithoutLogin(string name) => _commands.Any(command =>
+        command.IsAvailableWithoutLogin
+        && (command.Name.Equals(name, StringComparison.OrdinalIgnoreCase)
+            || command.Aliases.Any(alias => alias.Equals(name, StringComparison.OrdinalIgnoreCase))));
+
     /// <summary>当前参数模式命令名（非参数模式或无空格时 null）。</summary>
     private string? CurrentArgumentCommandName()
     {

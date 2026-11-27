@@ -53,6 +53,44 @@ public sealed class DesktopControlIntegrationTests {
         }
     }
 
+#if WINDOWS
+    /// <summary>最小化窗口激活验收：必须恢复窗口并进入前台。</summary>
+    [Fact]
+    public async Task FocusAsync_MinimizedWindow_RestoresAndActivates() {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive) {
+            env.Diagnostic.Should().Contain("非交互式桌面环境");
+            return;
+        }
+
+        await using var windows = new Win32WindowManagementService();
+        using var notepad = System.Diagnostics.Process.Start("notepad.exe");
+        try {
+            notepad.Should().NotBeNull();
+            await Task.Delay(2500);
+            notepad.Refresh();
+            var hwnd = notepad.MainWindowHandle;
+            hwnd.Should().NotBe(IntPtr.Zero, "应能获取记事本主窗口句柄");
+
+            User32NativeMethods.ShowWindow(hwnd, NativeConstants.SW_MINIMIZE);
+            await Task.Delay(500);
+            User32NativeMethods.IsIconic(hwnd).Should().BeTrue("测试前置条件应为最小化窗口");
+
+            var focused = await windows.FocusAsync(hwnd);
+            await Task.Delay(800);
+
+            focused.Should().BeTrue("最小化窗口也应能激活");
+            User32NativeMethods.IsIconic(hwnd).Should().BeFalse("激活后窗口必须离开最小化状态");
+            User32NativeMethods.GetForegroundWindow().Should().Be(hwnd, "恢复后前台应是记事本");
+        } finally {
+            if (notepad is { HasExited: false }) {
+                notepad.Kill();
+                notepad.WaitForExit(3000);
+            }
+        }
+    }
+#endif
+
     [Fact]
     public async Task ScreenCapture_FullScreen_ReturnsValidPng() {
         await using var capture = new GdiScreenCaptureService();

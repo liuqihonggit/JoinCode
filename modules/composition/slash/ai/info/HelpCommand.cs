@@ -3,7 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// /help 命令 - 显示所有可用命令帮助
 /// </summary>
-[ChatCommand(Name = ChatCommandNameEnumConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info, Aliases = ["?"], ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info, Aliases = ["?"], ExposeToMcp = true, IsAvailableWithoutLogin = true)]
 public sealed class HelpCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /help 命令 — 按分类分组展示所有可用命令的用法和描述,通过 TabPanel 提供分类切换

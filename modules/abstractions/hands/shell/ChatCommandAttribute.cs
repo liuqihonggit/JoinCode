@@ -32,6 +32,11 @@ public sealed class ChatCommandAttribute : Attribute {
     public bool IsEnabled { get; init; } = true;
 
     /// <summary>
+    /// 是否无需登录即可执行 — 仅用于本地诊断、帮助和会话管理等命令。
+    /// </summary>
+    public bool IsAvailableWithoutLogin { get; init; }
+
+    /// <summary>
     /// 命令分类 — 每个命令自己声明，源码生成器自动提取，无需中央映射表
     /// </summary>
     public ChatCommandCategory Category { get; init; } = ChatCommandCategory.Other;

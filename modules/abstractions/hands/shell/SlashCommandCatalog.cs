@@ -30,6 +30,9 @@ public sealed record SlashCommandMetadata {
     /// <summary>是否启用（禁用命令视为无权限，从候选面板过滤）</summary>
     public bool IsEnabled { get; init; } = true;
 
+    /// <summary>是否无需登录即可执行（本地诊断、帮助和会话管理等命令）</summary>
+    public bool IsAvailableWithoutLogin { get; init; }
+
     /// <summary>命令分类 — 由源码生成器从 [ChatCommand] 特性提取，供 slash_list 分组展示</summary>
     public string Category { get; init; } = "Other";
 }

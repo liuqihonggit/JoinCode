@@ -124,7 +124,8 @@ $ printf '{"type":"user",...}\n' | jcc --input-format stream-json --model nonexi
 2. **多模态输入**（图片/文件内容块）：只拼 `text` 块，其他块静默忽略。
 3. **`--sdk-url` / `--replay-user-messages` 的替代实现**：若将来要让子进程直连 ingress，
    应新增有真实消费方的选项，而不是把 TS 名字复活。
-4. **queryId 贯通 bridge websocket 协议面**（TASK137 §6.3）。
+4. **queryId 贯通 bridge websocket 协议面**（TASK137 §6.3）—— TASK142-C 已查证前提不成立
+   （bridge_serve 行协议早已带 queryId，`BridgeServerMessage` 与查询无关），无需改代码。
 
 ## 7. 教训
 

@@ -141,3 +141,25 @@ RESULT q-5f839d48… error_during_execution
 MockServer 需另配隔离 AppData），所以"在途 HTTP 真被 Cancel 打断"**未在进程级复现**；
 真机只证明控制行被识别、应答形状正确、回合循环继续。取消竞态由 4 条确定性单测兜底。
 不把单测冒充进程级证据。
+
+**差评大师发现 P1**：初版用 `Channel.CreateUnbounded` 触发 StyleGate S5（基线 1821→1822）。
+改为 `CreateBounded(256)`（`SingleReader/SingleWriter/FullMode.Wait`），既过门禁又给客户端加了背压。
+StyleGate 回到 1821。
+
+### C — queryId 贯通 bridge 协议面 ✅（前提不成立，不改代码）
+
+**反证过程**：`grep -rn "BridgeServerMessage"` 全仓只命中 IDE 类 bridge 服务端
+（`get_file` / `set_selection` / `execute_command` / `ping`），**没有查询概念** ——
+给它加 `queryId` 就是造第二个真相源，正是 TASK138 §7 的教训。
+
+真正的查询协议面是 `jcc bridge_serve` 的 stdio NDJSON 行协议（ADR 0141）：
+
+| 证据 | 内容 |
+|------|------|
+| `modules/apps/engine/bridge/BridgeProtocol.cs` | `BridgeRequest.QueryId` 与 `BridgeEvent.QueryId` 双端镜像，均 `WhenWritingNull` |
+| `test/unit/host.tests/bridge/BridgeQueryIdContractTests.cs` | 4 条：submit 序列化/反序列化/事件序列化/缺省不写字段（本轮实跑 4/4 绿） |
+| `BridgeServeLoop.cs` | `turn_started` / `turn_completed` / `turn_interrupted` / `error` 均带 QueryId |
+| 真机（本次） | 两条 submit → `turn_started q-c-1` / `turn_started q-c-2`，`quit` 后两条 `turn_interrupted` 同 id |
+
+**结论**：TASK137 §6.3 / TASK138 §6.4 关闭为"已覆盖/前提不成立"，不引入跨库 DTO 变更，
+也不触发全仓编译（无接口/共享 DTO 改动）。

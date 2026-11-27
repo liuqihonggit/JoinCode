@@ -77,6 +77,36 @@ public sealed class LoginGateTests
         Assert.Contains(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("未登录"));
     }
 
+    /// <summary>未登录提交 /exit — 门禁前本地拦截退出（TASK106：退出命令与登录状态无关，
+    /// 落进门禁会变成"提示运行 /login 却出不去"的死锁）。</summary>
+    [Fact]
+    public void NotLoggedInSubmit_ExitCommand_ExitsLocally()
+    {
+        var (shell, engine) = CreateShell();
+        ApplyLoginState(shell, engine, loggedIn: false);
+        TypeText(shell, "/exit");
+
+        shell.Submit();
+
+        Assert.False(shell.IsRunning);
+        Assert.Empty(engine.Submits);
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("未登录"));
+    }
+
+    /// <summary>未登录提交 /login — 门禁放行透传引擎命令回合（否则提示的恢复命令自身不可达）。</summary>
+    [Fact]
+    public void NotLoggedInSubmit_LoginCommand_ReachesEngine()
+    {
+        var (shell, engine) = CreateShell();
+        ApplyLoginState(shell, engine, loggedIn: false);
+        TypeText(shell, "/login");
+
+        shell.Submit();
+
+        Assert.Equal(["/login"], engine.Submits);
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("未登录"));
+    }
+
     /// <summary>已登录提交 — 正常直发（门禁不误拦闲态对话）。</summary>
     [Fact]
     public void LoggedInSubmit_SendsNormally()

@@ -105,6 +105,25 @@ public sealed class ToolRenderFoldingTests
     }
 
     [Fact]
+    public void DuplicatePrefixSummary_Suppressed_FirstOutputLineInlinesWithPrefix()
+    {
+        // Bash 多行结果 — 引擎摘要取结果前缀（200 字符 + ...），RawOutput 又是同一全文：
+        // 摘要行与首输出行重复。渲染层识别「摘要=原始输出前缀」后抑制摘要行，
+        // 首输出行与 ⎿ 同行（对齐基准 BashToolResultMessage：stdout 即 content，无独立摘要行）。
+        var raw = string.Join("\n", Enumerable.Range(0, 5).Select(i => new string((char)('a' + i), 60)));
+        var summary = raw[..200] + "...";
+        using var screen = new Screen(cols: 40, rows: 6);
+        var item = new ToolResultItem(summary, null, raw, hiddenLines: 2);
+
+        Assert.Equal(5, item.MeasureHeight(40));
+        Assert.Equal(string.Empty, item.DisplaySummary);
+        item.Render(screen, new Rect(0, 0, 40, 6), Theme.Dark);
+
+        Assert.Equal("  ⎿  " + new string('a', 20), RowText.Of(screen, 1, 0, 25).TrimEnd());
+        Assert.Equal("     " + new string('b', 20), RowText.Of(screen, 2, 0, 25).TrimEnd());
+    }
+
+    [Fact]
     public void Expanded_FullOutputWithoutHint()
     {
         // 展开态（ctrl+o）— RawOutput 全量渲染不出提示；SetExpanded 切换 + 高度增长

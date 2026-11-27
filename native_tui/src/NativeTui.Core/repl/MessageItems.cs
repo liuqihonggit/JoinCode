@@ -299,14 +299,31 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     public DiffStats? Stats { get; }
 
     /// <summary>结果首行文本（有统计用统计文案，否则引擎摘要首行）— 渲染/导出/搜索共用同一份。
-    /// TASK108 P13 — 展示面返回已归一的首行（错误 JSON 取 message），<see cref="Summary"/> 仍保留原文。</summary>
-    public string DisplaySummary => Stats is { IsEmpty: false } stats ? stats.ToText() : _summaryLine;
+    /// TASK108 P13 — 展示面返回已归一的首行（错误 JSON 取 message），<see cref="Summary"/> 仍保留原文。
+    /// 引擎摘要恰为 RawOutput 前缀时抑制为空：多行结果摘要与首输出行重复（Bash 摘要取结果前 200 字符），
+    /// 抑制后首输出行与 ⎿ 同行（对齐基准 BashToolResultMessage：stdout 即 content 无独立摘要行）。</summary>
+    public string DisplaySummary => Stats is { IsEmpty: false } stats
+        ? stats.ToText()
+        : SummaryRepeatsRawOutputPrefix ? string.Empty : _summaryLine;
 
     /// <summary>摘要渲染行（TASK107 — 首个非空行；transcript 投影与主屏渲染共用同一份）。</summary>
     public string SummaryLine => _summaryLine;
 
-    /// <summary>摘要是否占一行（diff 统计优先；否则取首个非空行非空 — TASK107 多行摘要单行化）。</summary>
-    private bool HasSummaryRow => Stats is { IsEmpty: false } || _summaryLine.Length > 0;
+    /// <summary>引擎摘要是否为 RawOutput 的前缀（截断摘要尾 "..." 先剥离再比较）。</summary>
+    private bool SummaryRepeatsRawOutputPrefix {
+        get {
+            if (RawOutput is not { Length: > 0 } raw || _summaryLine.Length == 0) {
+                return false;
+            }
+
+            var candidate = _summaryLine.EndsWith("...", StringComparison.Ordinal) ? _summaryLine[..^3] : _summaryLine;
+            return candidate.Length > 0 && raw.StartsWith(candidate, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>摘要是否占一行（diff 统计优先；否则取首个非空行非空且未被前缀重复抑制 —
+    /// TASK107 多行摘要单行化 + D 阶段摘要/首输出行去重）。</summary>
+    private bool HasSummaryRow => Stats is { IsEmpty: false } || DisplaySummary.Length > 0;
 
     /// <summary>原始终端输出全量（null = 无输出块；展开态消费完整数据 — ctrl+o）。</summary>
     public string? RawOutput { get; }
@@ -373,9 +390,12 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         }
     }
 
-    /// <summary>输出块首部需要跳过的行数（与摘要行文本相同则跳 1 行 — 避免 ⎿ 行与输出块首行重复上屏）。</summary>
+    /// <summary>输出块首部需要跳过的行数（与摘要行文本相同则跳 1 行 — 避免 ⎿ 行与输出块首行重复上屏）。
+    /// 摘要被抑制（<see cref="DisplaySummary"/> 空 = 摘要与原始输出前缀重复）时不跳：此时 ⎿ 行消失，
+    /// 首输出行必须与 ⎿ 前缀同行，跳过等于丢内容。</summary>
     private int DuplicatedOutputRows =>
-        _summaryLine.Length > 0
+        DisplaySummary.Length > 0
+        && _summaryLine.Length > 0
         && _outputLines.Length > 0
         && string.Equals(_outputLines[0].TrimEnd('\r', ' '), _summaryLine, StringComparison.Ordinal)
             ? 1
@@ -441,12 +461,12 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
             return row + 1;
         }
 
-        if (_summaryLine.Length == 0)
+        if (DisplaySummary.Length == 0)
         {
             return row;
         }
 
-        MessageRenderer.RenderToolResult(screen, RowFrame(frame, row), theme, _summaryLine);
+        MessageRenderer.RenderToolResult(screen, RowFrame(frame, row), theme, DisplaySummary);
         return row + 1;
     }
 
@@ -531,7 +551,7 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         for (var offset = 0; offset < visible; offset++)
         {
             var i = start + offset;
-            if (offset == 0 && start == 0 && _summaryLine.Length == 0)
+            if (offset == 0 && start == 0 && DisplaySummary.Length == 0)
             {
                 MessageRenderer.RenderToolResult(screen, RowFrame(frame, row), theme, _outputLines[0].TrimEnd('\r'));
             }

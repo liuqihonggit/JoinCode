@@ -17,7 +17,7 @@
 | T1 | TASK131 C1 回合级真机探针 | 用本地 OpenAI MockServer 伪造 vendor（无需真实 key），跑真实 `jcc -p` 回合，打通 `StopHookMiddleware → QueryStopHookManager → AutoDreamStopHook → AutoDreamTrigger`，观察 `[DREAM-AUTO]` 三态 | MockServer 收到 ≥1 次请求；jcc 回合成功；日志出现 `[DREAM-AUTO] fire` 或明确的 `skip: *` 门；无 key、无真实凭据 | ✅ 通过（探针暴露 3 个真实缺陷并修复） |
 | T2 | TASK130 A5 NDJSON/agentMode 旁白投影 | 把 `IEventConsumer.OnSystemNotice` 在 `--agent-mode` 下映射为 SDK `system` 事件，补齐 A5 最后缺口 | 单测锁定 JSON `type/subtype/content`；真机 `jcc -p --agent-mode` 输出该事件；交互模式 dim 行不回归 | ✅ 通过（`--format ndjson`；`system/hook_system_message`） |
 | T3 | B1 双终端矩阵（可自动部分） | 真实 WT / conhost 窗口，AI 驱动可自动键位采样；IME/鼠标/系统粘贴等不可自动项**如实记未测** | `TASK129 §3.4` 两窗判定卡回填；不可自动项明确标未测，不用探针冒充 | ⚠️ 部分完成（WT 53 事件 + 完整 `probe.txt`；conhost 83 事件但无可读 `probe.txt`；判定卡待人工） |
-| T4 | 批次收尾 | 台账回写、全仓编译、统一 PR、守 CI 到绿 | `Build-AllDomains` 全绿；PR 合并/或明确失败原因 | 待施工 |
+| T4 | 批次收尾 | 台账回写、全仓编译、统一 PR、守 CI 到绿 | `Build-AllDomains` 全绿；PR 合并/或明确失败原因 | ✅ 通过（PR #745 已合并 `2527c73d0`；CI run `45494027407` success） |
 
 ## 3. 决策与边界
 
@@ -86,4 +86,4 @@ T1（闭合外部条件阻塞项）→ T2（同域收口）→ T3（真实终端
 <!-- 决策: 批次只做 TASK130/131/135 剩余，不扩散到 TASK128 backlog/历史全系列 -->
 <!-- 原因: 用户质问“你是在做全系列修复吗”，并明确害怕 AI 忘记剩余任务而不是要扫全部历史 -->
 <!-- 替代方案: 从 TASK103 总账捞零散项（范围失控，已否定） -->
-<!-- 验证: T1/T2 已通过并推送；T3 部分完成（WT 完整、conhost 缺 probe.txt）；T4 收尾中 -->
+<!-- 验证: T1/T2/T4 已通过并合并；T3 部分完成（WT 完整、conhost 缺 probe.txt，判定卡待人工） -->

@@ -20,7 +20,7 @@
 - [x] 编译并部署卫星产物。
 - [x] 用真实 `jcc gh pr checks` / `jcc gh run view` 验收。
 - [x] 全量相关测试。
-- [ ] 提交、推送并创建 auto-merge PR。
+- [x] 提交、推送并创建 squash auto-merge PR；CI 守候记录见 PR 检查。
 
 ## 修复边界
 

@@ -61,6 +61,21 @@ public sealed class ToolRenderFoldingTests
         Assert.Equal(new Rune(' '), screen[6, 0].Value);
     }
 
+    /// <summary>
+    /// 原始输出含制表符时按 4 空格展开 — Read 工具输出制表缩进代码时，此前 '\t' 被 WriteText 零宽跳过，
+    /// 行号与正文粘连（真机 Windows Terminal 取证：`1public class Demo {`）。
+    /// </summary>
+    [Fact]
+    public void RawOutput_WithTabs_ExpandsToFourSpaces()
+    {
+        using var screen = new Screen(cols: 40, rows: 6);
+        var item = new ToolResultItem("Read(tabs.txt)", null, "1\tpublic class Demo {", hiddenLines: 0);
+
+        item.Render(screen, new Rect(0, 0, 40, 6), Theme.Dark);
+
+        Assert.Equal("     1    public class Demo {", RowText.Of(screen, 2, 0, 29));
+    }
+
     [Fact]
     public void BashOutput_ZeroHidden_ShowsAllLines()
     {

@@ -661,8 +661,8 @@ public sealed partial class InputBuffer
         return length;
     }
 
-    /// <summary>在光标处插入文本（粘贴/折叠引用统一入口）— 空文本无操作。</summary>
-    private void InsertText(string text)
+    /// <summary>在光标处插入文本（粘贴/折叠引用/完整代理对统一入口）— 空文本无操作。</summary>
+    public void InsertText(string text)
     {
         BeginEditText();
         if (text.Length == 0)

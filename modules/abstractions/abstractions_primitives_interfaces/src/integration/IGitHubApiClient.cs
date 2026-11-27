@@ -44,6 +44,7 @@ public sealed record GitHubApiResponse {
 public interface IGitHubApiClient {
     /// <summary>
     /// 通用 REST API 调用 — 返回原始 JSON 字符串
+    /// <para>传输失败返回 Success=false 且 StatusCode=0；调用方取消抛 OperationCanceledException</para>
     /// </summary>
     /// <param name="method">HTTP 方法（GET/POST/PATCH/PUT/DELETE）</param>
     /// <param name="path">API 路径（如 "repos/owner/repo/pulls/123"），不含 base URL</param>

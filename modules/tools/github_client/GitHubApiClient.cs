@@ -6,6 +6,7 @@ namespace IO.ProcessService;
 /// <para>Token: JCC_GITHUB_TOKEN → GITHUB_TOKEN → gh CLI 存储位置(Credential Manager/hosts.yml) → 抛 ConfigurationException</para>
 /// <para>Base URL: JCC_GITHUB_API_URL 默认 https://api.github.com（支持 Enterprise）</para>
 /// <para>Rate limit: 403 + X-RateLimit-Remaining:0 → Retry-After → 重试（最多 3 次）</para>
+/// <para>SendAsync 取消: 调用方取消继续抛出；HttpClient 自身超时映射为 StatusCode=0 的网络失败</para>
 /// <para>分页: Link header rel=next，paginate=true 时自动跟随合并 JSON 数组</para>
 /// </summary>
 [Register(typeof(IGitHubApiClient), ServiceLifetime.Singleton)]
@@ -84,7 +85,8 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
             HttpResponseMessage response;
             try {
                 response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
+            } catch (Exception ex) {
+                ct.ThrowIfCancellationRequested();
                 _logger?.LogError(ex, "GitHub API 请求失败: {Method} {Path}", method, path);
                 if (!routeSwitched && await TrySwitchToFallbackRouteAsync(ct).ConfigureAwait(false)) {
                     routeSwitched = true;
@@ -94,24 +96,24 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                     continue;
                 }
                 var friendlyError = await BuildNetworkErrorMessageAsync(ex, ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
                 return new GitHubApiResponse { Success = false, StatusCode = 0, Error = friendlyError };
             }
 
             using (response) {
                 lastStatusCode = (int)response.StatusCode;
+                var (responseBody, readFailure) = await ReadBodyOrFailureAsync(response, ct).ConfigureAwait(false);
+                if (readFailure is not null) return readFailure;
 
                 if (IsRateLimited(response)) {
                     var retryAfter = ParseRetryAfter(response);
                     if (retryAfter is null || retryAfter.Value > TimeSpan.FromMinutes(1)) {
-                        var bodyText = await ReadBodyAsync(response, ct).ConfigureAwait(false);
-                        return new GitHubApiResponse { Success = false, StatusCode = 429, Error = $"GitHub rate limit exceeded. {bodyText}" };
+                        return new GitHubApiResponse { Success = false, StatusCode = 429, Error = $"GitHub rate limit exceeded. {responseBody}" };
                     }
                     _logger?.LogWarning("GitHub rate limit 命中，{Delay}s 后重试", retryAfter.Value.TotalSeconds);
                     await Task.Delay(retryAfter.Value, ct).ConfigureAwait(false);
                     continue;
                 }
-
-                var responseBody = await ReadBodyAsync(response, ct).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode) {
                     if (Is5xxRetryable(lastStatusCode) && retry5xx < Max5xxRetries) {
@@ -809,6 +811,22 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var retryAfter = response.Headers.FirstOrDefault(h => string.Equals(h.Key, "Retry-After", StringComparison.OrdinalIgnoreCase)).Value?.FirstOrDefault();
         if (retryAfter is null || !int.TryParse(retryAfter, out var seconds)) return null;
         return TimeSpan.FromSeconds(seconds);
+    }
+
+    /// <summary>
+    /// 读取响应体并把传输层读取失败映射为 StatusCode=0 响应；调用方取消继续抛出
+    /// <para>ResponseHeadersRead 只覆盖响应头阶段，断连/截断可能发生在后续 body 读取</para>
+    /// </summary>
+    private async Task<(string Body, GitHubApiResponse? Failure)> ReadBodyOrFailureAsync(HttpResponseMessage response, CancellationToken ct) {
+        try {
+            return (await ReadBodyAsync(response, ct).ConfigureAwait(false), null);
+        } catch (Exception ex) {
+            ct.ThrowIfCancellationRequested();
+            _logger?.LogError(ex, "GitHub API 响应体读取失败: {Uri}", response.RequestMessage?.RequestUri);
+            var friendlyError = await BuildNetworkErrorMessageAsync(ex, ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            return (string.Empty, new GitHubApiResponse { Success = false, StatusCode = 0, Error = friendlyError });
+        }
     }
 
     /// <summary>

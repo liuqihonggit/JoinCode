@@ -222,19 +222,20 @@ public partial class GitHubToolHandlers {
     /// <para>AI 可能用 run list 的 NUM 列(如 752)而非 ID 列(如 37663049294),先尝试直接查询,
     /// 404 且为短数字时按 run_number 搜索。</para>
     /// </summary>
-    private async Task<string?> ResolveRunIdAsync(IGitHubApiClient client, string owner, string repoName, string runId, CancellationToken ct) {
+    private async Task<(string? RunId, string? ApiError)> ResolveRunIdAsync(IGitHubApiClient client, string owner, string repoName, string runId, CancellationToken ct) {
         // 先尝试直接用 run_id 查询
         var direct = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
-        if (direct.Success) return runId;
+        if (direct.Success) return (runId, null);
+        if (direct.StatusCode == 0) return (null, direct.Error);
 
         // 404 且 run_id 是短数字(看起来像 run number)时,按 run_number 搜索
-        if (direct.StatusCode != 404 || !IsLikelyRunNumber(runId)) return null;
+        if (direct.StatusCode != 404 || !IsLikelyRunNumber(runId)) return (null, null);
 
         var listResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs",
             query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
-        if (!listResult.Success) return null;
+        if (!listResult.Success) return (null, listResult.Error);
 
-        return FindRunIdByNumber(listResult.Body, runId, _logger);
+        return (FindRunIdByNumber(listResult.Body, runId, _logger), null);
     }
 
     /// <summary>
@@ -243,7 +244,9 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private async Task<(string? RunId, ToolResult? Error)> ResolveRunIdOrFailAsync(
         IGitHubApiClient client, string owner, string repoName, string runId, CancellationToken ct) {
-        var resolved = await ResolveRunIdAsync(client, owner, repoName, runId, ct).ConfigureAwait(false);
+        var (resolved, apiError) = await ResolveRunIdAsync(client, owner, repoName, runId, ct).ConfigureAwait(false);
+        if (apiError is not null)
+            return (null, Fail(apiError));
         if (resolved is null)
             return (null, Fail($"Run '{runId}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run ③ 仓库不存在或无权限。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列;不传 --repo 时自动从 git remote 推断"));
         return (resolved, null);
@@ -1035,31 +1038,52 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
-            var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
-            if (runIdError is not null) return runIdError;
-            return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId ?? throw new InvalidOperationException("[gh] run id 解析失败但无错误消息"), timeout_seconds, poll_interval_seconds, fail_fast == true, common?.WorkingDir, cancellationToken, onProgress).ConfigureAwait(false);
+            var timeout = TimeSpan.FromSeconds(Math.Clamp(timeout_seconds ?? 1800, 1, 7200));
+            var initialInterval = TimeSpan.FromSeconds(Math.Clamp(poll_interval_seconds ?? 5, 1, 60));
+            var startTime = Environment.TickCount64;
+            using var timeoutCts = new CancellationTokenSource(timeout);
+            using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            try {
+                var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, run_id, waitCts.Token).ConfigureAwait(false);
+                if (runIdError is not null) {
+                    if (waitCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                        return RunWaitPreflightTimeout(run_id, timeout);
+                    return runIdError;
+                }
+                var remaining = timeout - TimeSpan.FromMilliseconds(Environment.TickCount64 - startTime);
+                if (remaining <= TimeSpan.Zero)
+                    return RunWaitPreflightTimeout(run_id, timeout);
+                if (resolvedRunId is null) throw new InvalidOperationException("[gh] run id 解析失败但无错误消息");
+                return await GhRunWaitCoreAsync(client, owner, repoName, resolvedRunId, remaining, timeout, initialInterval, fail_fast == true, common?.WorkingDir, cancellationToken, onProgress).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+                return RunWaitPreflightTimeout(run_id, timeout);
+            }
         }).ConfigureAwait(false);
+
+    /// <summary>run_id 前置解析阶段的总超时结果，与轮询超时保持同一诱导语义。</summary>
+    private static ToolResult RunWaitPreflightTimeout(string runId, TimeSpan timeout) {
+        var message = $"Run {runId} 等待超时({timeout.TotalSeconds:F0}s),当前状态: unknown。用 gh_run_view {runId} 手动查看,或增大 timeout_seconds";
+        return Ok($"轮询次数: 0\n{message}", $"⚠ Run {runId} 超时");
+    }
 
     /// <summary>
     /// GhRunWait 核心逻辑 — 指数退避轮询直到 completed,失败时下载日志到磁盘
     /// <para>fail_fast=true:委托 GhRunWaitFailFastAsync 做 job 级别监控</para>
     /// </summary>
-    private async Task<ToolResult> GhRunWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+    private async Task<ToolResult> GhRunWaitCoreAsync(IGitHubApiClient client, string owner, string repoName, string runId, TimeSpan timeout, TimeSpan totalTimeout, TimeSpan initialInterval, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         var tracker = GhTimingTracker.CurrentTimer.Value;
         var prevCacheDisabled = tracker?.CacheDisabled ?? false;
         if (tracker is not null) tracker.CacheDisabled = true;
         try {
-            return await GhRunWaitCoreInnerAsync(client, owner, repoName, runId, timeoutSeconds, pollIntervalSeconds, failFast, workingDir, ct, onProgress).ConfigureAwait(false);
+            return await GhRunWaitCoreInnerAsync(client, owner, repoName, runId, timeout, totalTimeout, initialInterval, failFast, workingDir, ct, onProgress).ConfigureAwait(false);
         } finally {
             if (tracker is not null) tracker.CacheDisabled = prevCacheDisabled;
         }
     }
 
-    private async Task<ToolResult> GhRunWaitCoreInnerAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
-        var timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds ?? 1800, 1, 7200));
-        var initialInterval = TimeSpan.FromSeconds(Math.Clamp(pollIntervalSeconds ?? 5, 1, 60));
+    private async Task<ToolResult> GhRunWaitCoreInnerAsync(IGitHubApiClient client, string owner, string repoName, string runId, TimeSpan timeout, TimeSpan totalTimeout, TimeSpan initialInterval, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         if (failFast)
-            return await GhRunWaitFailFastAsync(client, owner, repoName, runId, timeout, initialInterval, workingDir, ct, onProgress).ConfigureAwait(false);
+            return await GhRunWaitFailFastAsync(client, owner, repoName, runId, timeout, totalTimeout, initialInterval, workingDir, ct, onProgress).ConfigureAwait(false);
         var waitResult = await GitHubRunPoller.WaitForRunCompletionAsync(
             client, owner, repoName, runId, timeout, initialInterval,
             onProgress, "gh_run_wait", ct).ConfigureAwait(false);
@@ -1067,8 +1091,9 @@ public partial class GitHubToolHandlers {
             return Fail(waitResult.Error ?? "轮询失败");
         if (waitResult.Outcome == RunWaitOutcome.Timeout)
             return Ok(
-                BuildRunWaitSummary(waitResult.Body ?? string.Empty, runId, waitResult.PollCount, waitResult.ElapsedMs),
-                $"⚠ Run {runId} 等待超时({timeout.TotalSeconds:F0}s),当前状态: {waitResult.Conclusion}。用 gh_run_view {runId} 手动查看,或增大 timeout_seconds");
+                BuildRunWaitSummary(waitResult.Body ?? string.Empty, runId, waitResult.PollCount, waitResult.ElapsedMs)
+                    + (string.IsNullOrWhiteSpace(waitResult.Error) ? string.Empty : $"\n最后错误: {waitResult.Error}"),
+                $"⚠ Run {runId} 等待超时({totalTimeout.TotalSeconds:F0}s),当前状态: {waitResult.Conclusion}。用 gh_run_view {runId} 手动查看,或增大 timeout_seconds");
         var conclusion = waitResult.Conclusion ?? "unknown";
         var summary = BuildRunWaitSummary(waitResult.Body ?? string.Empty, runId, waitResult.PollCount, waitResult.ElapsedMs);
         if (!IsFailedConclusion(conclusion))
@@ -1082,7 +1107,7 @@ public partial class GitHubToolHandlers {
     /// <para>不等整个 run completed,CI 运行中某 job 失败即触发返回</para>
     /// <para>并行查 run status + jobs,发现 conclusion=failure/cancelled/timed_out 的 job 立即终止轮询</para>
     /// </summary>
-    private async Task<ToolResult> GhRunWaitFailFastAsync(IGitHubApiClient client, string owner, string repoName, string runId, TimeSpan timeout, TimeSpan initialInterval, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
+    private async Task<ToolResult> GhRunWaitFailFastAsync(IGitHubApiClient client, string owner, string repoName, string runId, TimeSpan timeout, TimeSpan totalTimeout, TimeSpan initialInterval, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         var watchResult = await GitHubRunPoller.WatchRunJobsForFailureAsync(
             client, owner, repoName, runId, timeout, initialInterval,
             onProgress, "gh_run_wait_failfast", ct).ConfigureAwait(false);
@@ -1091,7 +1116,7 @@ public partial class GitHubToolHandlers {
             return Fail(watchResult.Error ?? "轮询失败");
         if (watchResult.Outcome == RunWaitOutcome.Timeout)
             return Ok(
-                $"⚠ Run {runId} 等待超时({timeout.TotalSeconds:F0}s)。{watchResult.Summary}\n轮询次数: {watchResult.PollCount}, 耗时: {watchResult.ElapsedMs / 1000}s\n用 gh_run_view {runId} 手动查看,或增大 timeout_seconds",
+                $"⚠ Run {runId} 等待超时({totalTimeout.TotalSeconds:F0}s)。{watchResult.Summary}\n轮询次数: {watchResult.PollCount}, 耗时: {watchResult.ElapsedMs / 1000}s\n用 gh_run_view {runId} 手动查看,或增大 timeout_seconds",
                 $"⚠ Run {runId} 超时");
 
         var failedJobIds = watchResult.FailedJobIds;

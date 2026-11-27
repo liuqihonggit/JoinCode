@@ -151,6 +151,49 @@ public sealed class ModuleSlnxIntegrityTests {
     }
 
     /// <summary>
+    /// CLI 构建必须产出并复制完整 jcc-gh 运行时，且不得把工具程序集变成 jcc 的编译依赖。
+    /// </summary>
+    [Fact]
+    public async Task CliProject_ShouldBuildAndCopyJccGhWithoutAssemblyDependency() {
+        var fs = IO.FileSystem.FileSystemFactory.Create();
+        var projectPath = System.IO.Path.Combine(RepoRoot, "modules", "apps", "cli", "JoinCode.csproj");
+        var projectXml = await fs.ReadAllText(projectPath);
+        var document = System.Xml.Linq.XDocument.Parse(projectXml);
+        var ghReference = document.Descendants("ProjectReference")
+            .SingleOrDefault(element => ((string?)element.Attribute("Include"))
+                ?.Replace('\\', '/')
+                .EndsWith("modules/tools/gh/gh.csproj", StringComparison.OrdinalIgnoreCase) == true);
+
+        ghReference.Should().NotBeNull("CLI 构建必须产出 jcc-gh.exe，否则 jcc gh 无法启动");
+        ((string?)ghReference?.Attribute("ReferenceOutputAssembly")).Should().Be("false",
+            "jcc-gh 只参与构建，不得成为 jcc 的程序集依赖");
+
+        var copyTarget = document.Descendants("Target")
+            .SingleOrDefault(element => (string?)element.Attribute("Name") == "CopyJccGhRuntimeFiles");
+        copyTarget.Should().NotBeNull("CLI 构建后必须复制完整 jcc-gh 运行时");
+        ((string?)copyTarget?.Attribute("AfterTargets")).Should().Be("Build");
+
+        var runtimeFiles = copyTarget?.Descendants("JccGhRuntimeFiles").SingleOrDefault();
+        ((string?)runtimeFiles?.Attribute("Include")).Should().Be("$(JccGhOutputDir)jcc-gh.*",
+            "jcc-gh 专用程序集与运行时配置文件必须复制");
+
+        var supportFiles = copyTarget?.Descendants("JccGhSupportFiles").SingleOrDefault();
+        ((string?)supportFiles?.Attribute("Include")).Should().Contain("*.dll",
+            "jcc-gh 依赖的共享程序集必须补齐");
+        ((string?)supportFiles?.Attribute("Exclude")).Should().Be("$(JccGhOutputDir)jcc-gh.*",
+            "专用文件由独立复制项处理，避免重复");
+
+        var copies = copyTarget?.Descendants("Copy").ToList();
+        copies.Should().HaveCount(2, "专用文件与共享依赖必须分开复制");
+        ((string?)copies?[0].Attribute("SourceFiles")).Should().Be("@(JccGhRuntimeFiles)");
+        ((string?)copies?[0].Attribute("DestinationFolder")).Should().Be("$(TargetDir)");
+        ((string?)copies?[1].Attribute("SourceFiles")).Should().Be("@(JccGhSupportFiles)");
+        ((string?)copies?[1].Attribute("DestinationFolder")).Should().Be("$(TargetDir)");
+        ((string?)copies?[1].Attribute("Condition")).Should().Contain("!Exists('$(TargetDir)%(Filename)%(Extension)')",
+            "共享依赖只能补缺，不能覆盖 jcc 自己的新版程序集");
+    }
+
+    /// <summary>
     /// CLI 构建目标必须递归复制完整 Hub 运行时，且单元测试不得依赖跨 job 的构建产物。
     /// </summary>
     [Fact]

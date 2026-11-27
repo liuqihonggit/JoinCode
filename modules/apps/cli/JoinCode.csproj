@@ -21,6 +21,8 @@
     <ProjectReference Include="$(RepoRoot)modules/apps/native_tui_host/NativeTui.Host.csproj" />
     <!-- 仅参与构建以产出 jcchub.exe；不引用 Hub 程序集，保持客户端进程隔离。 -->
     <ProjectReference Include="$(RepoRoot)modules/services/hub/Hub.csproj" ReferenceOutputAssembly="false" />
+    <!-- jcc-gh 是独立卫星 exe；只参与构建，不成为 jcc 的程序集依赖。 -->
+    <ProjectReference Include="$(RepoRoot)modules/tools/gh/gh.csproj" ReferenceOutputAssembly="false" />
 </ItemGroup>
 
   <ItemGroup>
@@ -124,6 +126,29 @@
     </ItemGroup>
     <Copy SourceFiles="@(HubRuntimeFiles)"
           DestinationFiles="@(HubRuntimeFiles-&gt;'$(TargetDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyJccGhRuntimeFiles" AfterTargets="Build">
+    <MSBuild Projects="$(RepoRoot)modules/tools/gh/gh.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="JccGhTargetPath" />
+    </MSBuild>
+    <PropertyGroup>
+      <JccGhOutputDir>@(JccGhTargetPath->'%(RootDir)%(Directory)')</JccGhOutputDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <JccGhRuntimeFiles Include="$(JccGhOutputDir)jcc-gh.*" />
+      <JccGhSupportFiles Include="$(JccGhOutputDir)*.dll;$(JccGhOutputDir)*.pdb;$(JccGhOutputDir)*.xml"
+                         Exclude="$(JccGhOutputDir)jcc-gh.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(JccGhRuntimeFiles)"
+          DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(JccGhSupportFiles)"
+          DestinationFolder="$(TargetDir)"
+          Condition="!Exists('$(TargetDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
 

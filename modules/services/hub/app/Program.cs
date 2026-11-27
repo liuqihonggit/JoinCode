@@ -25,12 +25,7 @@ internal static class Program {
 
         var fs = FileSystemFactory.Create();
         var settings = await ConfigLoader.LoadSettingsJsonAsync(fs).ConfigureAwait(false);
-
-        // 如果 settings.json 不存在或没有 vendor 配置，从嵌入资源加载默认供应商配置
-        if (settings is null || settings.Vendor.Count == 0) {
-            settings = LoadDefaultVendorsFromEmbeddedResource();
-            Console.WriteLine($"[jcchub] settings.json 无供应商配置，已从嵌入资源加载 {settings.Vendor.Count} 个默认供应商");
-        }
+        settings = ResolveSettings(settings);
 
         var providerRegistry = ProviderDefinitionRegistry.Create(
             new ModelConfigLoader(),
@@ -104,6 +99,18 @@ internal static class Program {
         Console.WriteLine("[jcchub] 服务器已停止");
 
         return 0;
+    }
+
+    /// <summary>
+    /// 规范化启动配置：缺失或未包含供应商时使用嵌入的默认供应商配置。
+    /// </summary>
+    internal static SettingsJson ResolveSettings(SettingsJson? settings) {
+        if (settings is null || settings.Vendor is not { Count: > 0 }) {
+            settings = LoadDefaultVendorsFromEmbeddedResource();
+            Console.WriteLine($"[jcchub] settings.json 无供应商配置，已从嵌入资源加载 {settings.Vendor.Count} 个默认供应商");
+        }
+
+        return settings;
     }
 
     /// <summary>

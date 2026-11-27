@@ -132,6 +132,51 @@ public sealed class ModuleSlnxIntegrityTests {
     }
 
     /// <summary>
+    /// CLI 单项目构建必须同时产出 Hub，且不得把 Hub 程序集变成 jcc 的编译依赖。
+    /// </summary>
+    [Fact]
+    public async Task CliProject_ShouldBuildHubWithoutAssemblyDependency() {
+        var fs = IO.FileSystem.FileSystemFactory.Create();
+        var projectPath = System.IO.Path.Combine(RepoRoot, "modules", "apps", "cli", "JoinCode.csproj");
+        var projectXml = await fs.ReadAllText(projectPath);
+        var document = System.Xml.Linq.XDocument.Parse(projectXml);
+        var hubReference = document.Descendants("ProjectReference")
+            .FirstOrDefault(element => ((string?)element.Attribute("Include"))
+                ?.Replace('\\', '/')
+                .EndsWith("modules/services/hub/Hub.csproj", StringComparison.OrdinalIgnoreCase) == true);
+
+        hubReference.Should().NotBeNull("CLI 构建必须产出 jcchub.exe，否则默认启动无法自动拉起 Hub");
+        ((string?)hubReference?.Attribute("ReferenceOutputAssembly")).Should().Be("false",
+            "Hub 只参与构建，不得成为 jcc 的程序集依赖");
+    }
+
+    /// <summary>
+    /// CLI 构建目标必须递归复制完整 Hub 运行时，且单元测试不得依赖跨 job 的构建产物。
+    /// </summary>
+    [Fact]
+    public async Task CliProject_ShouldCopyCompleteHubRuntimeAfterBuild() {
+        var fs = IO.FileSystem.FileSystemFactory.Create();
+        var projectPath = System.IO.Path.Combine(RepoRoot, "modules", "apps", "cli", "JoinCode.csproj");
+        var projectXml = await fs.ReadAllText(projectPath);
+        var document = System.Xml.Linq.XDocument.Parse(projectXml);
+        var copyTarget = document.Descendants("Target")
+            .SingleOrDefault(element => (string?)element.Attribute("Name") == "CopyHubRuntimeFiles");
+
+        copyTarget.Should().NotBeNull("CLI 构建后必须复制完整 Hub 运行时，而不能只有 apphost");
+        ((string?)copyTarget?.Attribute("AfterTargets")).Should().Be("Build");
+
+        var runtimeFiles = copyTarget?.Descendants("HubRuntimeFiles").SingleOrDefault();
+        ((string?)runtimeFiles?.Attribute("Include")).Should().Be("$(HubOutputDir)**/*",
+            "必须递归包含 Hub 输出目录中的程序集与运行时配置文件");
+
+        var copy = copyTarget?.Descendants("Copy").SingleOrDefault();
+        copy.Should().NotBeNull("复制目标缺失时无法补齐 Hub 运行时");
+        ((string?)copy?.Attribute("SourceFiles")).Should().Be("@(HubRuntimeFiles)");
+        ((string?)copy?.Attribute("DestinationFiles")).Should().Contain("$(TargetDir)");
+        ((string?)copy?.Attribute("SkipUnchangedFiles")).Should().Be("true");
+    }
+
+    /// <summary>
     /// BUG-5: 验证特定已修正的 module.slnx(generators)引用有效。
     /// generators/module.slnx 曾有 REMOVED: shared/shared.csproj 注释,移除后应无无效引用。
     /// </summary>

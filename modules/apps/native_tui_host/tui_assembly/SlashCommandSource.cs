@@ -46,6 +46,7 @@ public static class SlashCommandSource
             command.Aliases,
             command.IsHidden,
             ArgumentHint: command.ArgumentHint,
-            Arguments: command.Arguments);
+            Arguments: command.Arguments,
+            IsAvailableWithoutLogin: command.IsAvailableWithoutLogin);
     }
 }

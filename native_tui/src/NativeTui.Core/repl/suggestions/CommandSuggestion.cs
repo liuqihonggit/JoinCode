@@ -8,6 +8,7 @@ namespace NativeTui.Core.Repl;
 /// <param name="ArgumentHint">参数提示（命令后空格时显示的单条提示，如 "model-id"；无静态参数清单的命令用）。</param>
 /// <param name="Arguments">静态参数值清单（如 theme 的 dark/light/auto — 参数模式前缀过滤用；null 视为空）。</param>
 /// <param name="Source">命令来源（空查询分组视图分组用 — builtin/user/project/policy；默认内置，宿主接线时注入）。</param>
+/// <param name="IsAvailableWithoutLogin">是否无需登录即可执行（本地诊断/会话管理等命令）。</param>
 public sealed record CommandSuggestion(
     string Name,
     string Description,
@@ -15,7 +16,8 @@ public sealed record CommandSuggestion(
     bool IsHidden,
     string ArgumentHint = "",
     string[]? Arguments = null,
-    CommandSource Source = CommandSource.Builtin)
+    CommandSource Source = CommandSource.Builtin,
+    bool IsAvailableWithoutLogin = false)
 {
     /// <summary>静态参数值清单（null 安全化 — 空数组）。</summary>
     public string[] ArgumentValues => Arguments ?? [];

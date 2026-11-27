@@ -19,6 +19,8 @@
     <ProjectReference Include="$(RepoRoot)modules/persistence/kv_store/KvStore.csproj" />
     <!-- ADR 0149: jcc 默认 TUI 宿主,引用 NativeTui.Host(Library) 调 RunInteractiveAsync -->
     <ProjectReference Include="$(RepoRoot)modules/apps/native_tui_host/NativeTui.Host.csproj" />
+    <!-- 仅参与构建以产出 jcchub.exe；不引用 Hub 程序集，保持客户端进程隔离。 -->
+    <ProjectReference Include="$(RepoRoot)modules/services/hub/Hub.csproj" ReferenceOutputAssembly="false" />
 </ItemGroup>
 
   <ItemGroup>
@@ -107,4 +109,22 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions_configuration/Abstractions.Configuration.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
+
+  <Target Name="CopyHubRuntimeFiles" AfterTargets="Build">
+    <MSBuild Projects="$(RepoRoot)modules/services/hub/Hub.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="HubTargetPath" />
+    </MSBuild>
+    <PropertyGroup>
+      <HubOutputDir>@(HubTargetPath-&gt;'%(RootDir)%(Directory)')</HubOutputDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <HubRuntimeFiles Include="$(HubOutputDir)**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(HubRuntimeFiles)"
+          DestinationFiles="@(HubRuntimeFiles-&gt;'$(TargetDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

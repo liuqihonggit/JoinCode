@@ -14,7 +14,7 @@ public sealed class SlashCommandSourceTests
             {
                 ["General"] =
                 [
-                    new SlashCommandMetadata { Name = "/help", Description = "显示帮助", Aliases = ["h"], IsHidden = false },
+                    new SlashCommandMetadata { Name = "/help", Description = "显示帮助", Aliases = ["h"], IsHidden = false, IsAvailableWithoutLogin = true },
                     new SlashCommandMetadata { Name = "/secret", Description = "隐藏", IsHidden = true },
                     new SlashCommandMetadata { Name = "/disabled", Description = "禁用", IsEnabled = false },
                 ],
@@ -42,6 +42,8 @@ public sealed class SlashCommandSourceTests
         Assert.Equal("显示帮助", help.Description);
         Assert.Equal(["h"], help.Aliases);
         Assert.False(help.IsHidden);
+        Assert.True(help.IsAvailableWithoutLogin);
+        Assert.False(commands.Single(c => c.Name == "clear").IsAvailableWithoutLogin);
         Assert.True(commands.Single(c => c.Name == "secret").IsHidden);
     }
 
@@ -90,6 +92,17 @@ public sealed class SlashCommandSourceTests
         Assert.All(commands, c => Assert.NotNull(c.ArgumentHint));
         var generated = SlashCommandSource.Load(new ServiceCollection().BuildServiceProvider());
         Assert.Contains(generated, c => c.Name == "model" && c.ArgumentHint.Length > 0);
+    }
+
+    /// <summary>真实生成目录必须保留免登录元数据，默认命令仍要求登录。</summary>
+    [Fact]
+    public void Load_GeneratedCatalog_PreservesLoginAvailability()
+    {
+        var commands = SlashCommandSource.Load(new ServiceCollection().BuildServiceProvider());
+
+        Assert.All(new[] { "help", "version", "session", "resume" },
+            name => Assert.True(commands.Single(c => c.Name == name).IsAvailableWithoutLogin));
+        Assert.False(commands.Single(c => c.Name == "model").IsAvailableWithoutLogin);
     }
 
     /// <summary>DI 未注册目录：兜底直接实例化生成目录（真实生成器输出，非空）。</summary>

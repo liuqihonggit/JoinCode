@@ -5,7 +5,7 @@ namespace JoinCode.ChatCommands;
 /// /resume 命令 - 恢复会话
 /// 对齐 TS: src/commands/resume/resume.tsx
 /// </summary>
-[ChatCommand(Name = ChatCommandNameEnumConstants.Resume, Description = "恢复之前的会话", Usage = "/resume [session-id]", Aliases = ["continue"], ArgumentHint = "[conversation id or search term]", Category = ChatCommandCategory.Session)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Resume, Description = "恢复之前的会话", Usage = "/resume [session-id]", Aliases = ["continue"], ArgumentHint = "[conversation id or search term]", Category = ChatCommandCategory.Session, IsAvailableWithoutLogin = true)]
 [ChatCommandArg("session-id", Type = "string", Description = "会话 ID(UUID 精确匹配)或自定义标题搜索关键词,省略时进入交互式会话列表选择器")]
 public sealed class ResumeCommand : ChatCommandBase {
     private readonly IClockService _clock = SystemClockService.Instance;

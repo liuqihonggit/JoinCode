@@ -1939,11 +1939,13 @@ public sealed partial class GitHubToolHandlersTests {
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient {
     private readonly Queue<GitHubApiResponse> _responses = new();
+    private readonly Queue<Exception> _exceptions = new();
     public GitHubApiResponse NextResponse {
         get => _responses.Count > 0 ? _responses.Peek() : _default;
         set { _responses.Clear(); _responses.Enqueue(value); }
     }
     private readonly GitHubApiResponse _default = new() { Success = true, StatusCode = 200, Body = "[]" };
+    public Func<CancellationToken, Task<GitHubApiResponse>>? SendAsyncOverride { get; set; }
     public string? LastPath { get; private set; }
     public HttpMethod? LastMethod { get; private set; }
     /// <summary>调用序列诊断（refresh evict 测试用）：每次 SendAsync 追加 "method path body前40"</summary>
@@ -1951,6 +1953,10 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
     public string? LastBody { get; private set; }
     public IReadOnlyDictionary<string, string> LastQuery { get; private set; } = new Dictionary<string, string>();
     public void EnqueueResponse(GitHubApiResponse response) => _responses.Enqueue(response);
+
+    /// <summary>让下一次 SendAsync 抛出指定异常，用于复现传输层超时。</summary>
+    public void EnqueueException(Exception exception) => _exceptions.Enqueue(exception);
+
     public IEnumerable<string> NextLogLines { get; set; } = Array.Empty<string>();
 
     public Task<GitHubApiResponse> SendAsync(HttpMethod method, string path, string? body = null, IReadOnlyDictionary<string, string>? query = null, bool paginate = false, CancellationToken ct = default) {
@@ -1960,6 +1966,10 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
             $"{method} {path} <- {(_responses.Count > 0 ? _responses.Peek().Body[..Math.Min(40, _responses.Peek().Body.Length)] : "<empty>")}"));
         LastBody = body;
         LastQuery = query ?? new Dictionary<string, string>();
+        if (SendAsyncOverride is not null)
+            return SendAsyncOverride(ct);
+        if (_exceptions.Count > 0)
+            throw _exceptions.Dequeue();
         if (_responses.Count > 0)
             return Task.FromResult(_responses.Dequeue());
         // job 列表请求且无显式 mock: 返回含异常 job,让 ParallelJobLogFetcher 能下载日志

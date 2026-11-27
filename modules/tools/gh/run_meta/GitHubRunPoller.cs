@@ -5,6 +5,7 @@ namespace McpToolDispatch;
 /// <para>替代 LLM 的 sleep+轮询模式:工具内部阻塞等待,一次 LLM 往返拿到最终结果</para>
 /// <para>状态机: Polling → Completed/Timeout/Error(终态),Transition 为纯函数</para>
 /// <para>指数退避: 初始间隔 ×1.5 每次,上限 60s</para>
+/// <para>单次请求超时作为瞬态错误重试；总期限通过链接令牌取消在途请求</para>
 /// <para>公共引擎 PollUntilAsync 消除两个 wait 方法的重复,各方法只传 poll + progressMessage</para>
 /// </summary>
 internal static class GitHubRunPoller {
@@ -25,45 +26,86 @@ internal static class GitHubRunPoller {
     /// <param name="progressType">进度类型标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>(State, Value, Error, PollCount, ElapsedMs)</returns>
-    private static async Task<(PollState State, T Value, string? Error, int PollCount, long ElapsedMs)> PollUntilAsync<T>(
+    private static async Task<(PollState State, T? Value, string? Error, int PollCount, long ElapsedMs)> PollUntilAsync<T>(
         Func<CancellationToken, Task<(PollOutcomeKind Kind, T Value, string? Error)>> pollOnce,
-        Func<T, string> progressMessage,
+        Func<T?, string> progressMessage,
         TimeSpan timeout, TimeSpan initialInterval,
         ToolProgressCallback? onProgress, string progressType,
         CancellationToken ct) {
-        var deadline = DateTimeOffset.UtcNow + timeout;
+        using var timeoutCts = new CancellationTokenSource(timeout);
+        using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
         var interval = initialInterval;
         var pollCount = 0;
         var startTime = Environment.TickCount64;
+        T? value = default;
+        string? error = null;
 
         while (true) {
             ct.ThrowIfCancellationRequested();
-            pollCount++;
+            if (timeoutCts.IsCancellationRequested)
+                return (PollState.Timeout, value, error, pollCount, Environment.TickCount64 - startTime);
 
-            var (kind, value, error) = await pollOnce(ct).ConfigureAwait(false);
+            pollCount++;
+            PollOutcomeKind kind;
+            try {
+                var outcome = await pollOnce(waitCts.Token).ConfigureAwait(false);
+                kind = outcome.Kind;
+                error = outcome.Error;
+                if (outcome.Value is not null)
+                    value = outcome.Value;
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                kind = PollOutcomeKind.Continue;
+                error = "单次请求超时，等待重试";
+            } catch (Exception ex) when (!ct.IsCancellationRequested && (ex is IOException || ex is HttpRequestException)) {
+                kind = PollOutcomeKind.TransientError;
+                error = $"读取 GitHub API 响应失败: {ex.Message}";
+            }
+
             var elapsedMs = Environment.TickCount64 - startTime;
-            var state = Transition(kind, deadline);
+            var state = Transition(kind, timeoutCts.IsCancellationRequested);
 
             if (state is not PollState.Polling)
                 return (state, value, error, pollCount, elapsedMs);
 
-            ReportProgress(onProgress, progressType, progressMessage(value), pollCount, elapsedMs);
-            await Task.Delay(interval, ct).ConfigureAwait(false);
+            var message = progressMessage(value);
+            if (error is not null)
+                message += $"；{error.ReplaceLineEndings(" ")}";
+            ReportProgress(onProgress, progressType, message, pollCount, elapsedMs);
+
+            ct.ThrowIfCancellationRequested();
+            if (timeoutCts.IsCancellationRequested)
+                return (PollState.Timeout, value, error, pollCount, Environment.TickCount64 - startTime);
+            if (!await TryDelayAsync(interval, waitCts.Token, ct).ConfigureAwait(false))
+                return (PollState.Timeout, value, error, pollCount, Environment.TickCount64 - startTime);
             interval = ExponentialBackoff(interval);
         }
     }
 
     /// <summary>状态转换 — 纯函数,无 IO</summary>
-    private static PollState Transition(PollOutcomeKind kind, DateTimeOffset deadline) => kind switch {
+    private static PollState Transition(PollOutcomeKind kind, bool timedOut) => kind switch {
         PollOutcomeKind.Error => PollState.Error,
         PollOutcomeKind.Completed => PollState.Completed,
         PollOutcomeKind.FailFast => PollState.FastFailed,
-        _ => DateTimeOffset.UtcNow >= deadline ? PollState.Timeout : PollState.Polling
+        _ => timedOut ? PollState.Timeout : PollState.Polling
     };
+
+    /// <summary>无 HTTP 状态码代表传输层失败，等待场景按瞬态错误继续轮询。</summary>
+    private static PollOutcomeKind ClassifyApiFailure(GitHubApiResponse response)
+        => response.StatusCode == 0 ? PollOutcomeKind.TransientError : PollOutcomeKind.Error;
 
     /// <summary>指数退避 — 纯函数</summary>
     private static TimeSpan ExponentialBackoff(TimeSpan interval)
         => TimeSpan.FromTicks(Math.Min(interval.Ticks * 3 / 2, MaxPollInterval.Ticks));
+
+    /// <summary>等待退避间隔；总期限取消返回 false，调用方取消继续抛出。</summary>
+    private static async Task<bool> TryDelayAsync(TimeSpan interval, CancellationToken waitCt, CancellationToken callerCt) {
+        try {
+            await Task.Delay(interval, waitCt).ConfigureAwait(false);
+            return true;
+        } catch (OperationCanceledException) when (!callerCt.IsCancellationRequested) {
+            return false;
+        }
+    }
 
     private static void ReportProgress(
         ToolProgressCallback? onProgress, string progressType,
@@ -89,14 +131,15 @@ internal static class GitHubRunPoller {
         CancellationToken ct) {
         var (state, value, error, pollCount, elapsedMs) = await PollUntilAsync(
             ct => PollRunOnceAsync(apiClient, owner, repo, runId, ct),
-            v => $"Run {runId}: {v?.Status}",
+            v => $"Run {runId}: {v?.Status ?? "unknown"}",
             timeout, initialInterval, onProgress, progressType, ct).ConfigureAwait(false);
 
         if (state == PollState.Error) return RunWaitResult.FromError(error ?? "轮询失败", pollCount);
-        var data = value ?? throw new InvalidOperationException("[gh] 轮询完成但无数据");
+        if (state == PollState.Timeout)
+            return RunWaitResult.FromTimeout(value?.Status ?? "unknown", value?.Body ?? string.Empty, error, pollCount, elapsedMs);
+        if (value is null) throw new InvalidOperationException("[gh] 轮询完成但无数据");
         return state switch {
-            PollState.Completed => RunWaitResult.Completed(data.Conclusion ?? "unknown", data.Body, pollCount, elapsedMs),
-            PollState.Timeout => RunWaitResult.FromTimeout(data.Status, data.Body, pollCount, elapsedMs),
+            PollState.Completed => RunWaitResult.Completed(value.Conclusion ?? "unknown", value.Body, pollCount, elapsedMs),
             _ => RunWaitResult.FromError(error ?? "轮询失败", pollCount)
         };
     }
@@ -110,7 +153,7 @@ internal static class GitHubRunPoller {
         var result = await apiClient.SendAsync(
             HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
         if (!result.Success)
-            return (PollOutcomeKind.Error, default, result.Error);
+            return (ClassifyApiFailure(result), default, result.Error);
 
         var (status, conclusion, statusError) = ParseRunStatus(result.Body);
         if (statusError is not null) return (PollOutcomeKind.Error, default, statusError);
@@ -131,14 +174,15 @@ internal static class GitHubRunPoller {
         CancellationToken ct) {
         var (state, value, error, pollCount, elapsedMs) = await PollUntilAsync(
             ct => PollPrChecksOnceAsync(apiClient, owner, repo, headSha, ct),
-            v => $"PR #{prNumber}: {v?.Summary}",
+            v => $"PR #{prNumber}: {v?.Summary ?? "状态未知"}",
             timeout, initialInterval, onProgress, progressType, ct).ConfigureAwait(false);
 
         if (state == PollState.Error) return PrWaitResult.FromError(error ?? "轮询失败", pollCount);
-        var prData = value ?? throw new InvalidOperationException("[gh] 轮询完成但无数据");
+        if (state == PollState.Timeout)
+            return PrWaitResult.FromTimeout(value?.Summary ?? "状态未知", value?.Body ?? string.Empty, pollCount, elapsedMs);
+        if (value is null) throw new InvalidOperationException("[gh] 轮询完成但无数据");
         return state switch {
-            PollState.Completed => PrWaitResult.Completed(prData.Summary, prData.FailCount, prData.Body, pollCount, elapsedMs),
-            PollState.Timeout => PrWaitResult.FromTimeout(prData.Summary, prData.Body, pollCount, elapsedMs),
+            PollState.Completed => PrWaitResult.Completed(value.Summary, value.FailCount, value.Body, pollCount, elapsedMs),
             _ => PrWaitResult.FromError(error ?? "轮询失败", pollCount)
         };
     }
@@ -153,7 +197,7 @@ internal static class GitHubRunPoller {
             HttpMethod.Get, $"repos/{owner}/{repo}/commits/{headSha}/check-runs",
             query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
         if (!result.Success)
-            return (PollOutcomeKind.Error, default, result.Error);
+            return (ClassifyApiFailure(result), default, result.Error);
 
         var (allCompleted, summary, failCount) = ParseCheckRunsStatus(result.Body);
         var data = new PrPollData { Summary = summary, FailCount = failCount, Body = result.Body };
@@ -175,15 +219,16 @@ internal static class GitHubRunPoller {
         CancellationToken ct) {
         var (state, value, error, pollCount, elapsedMs) = await PollUntilAsync(
             ct => PollRunJobsOnceAsync(apiClient, owner, repo, runId, ct),
-            v => $"Run {runId}: {v?.Summary}",
+            v => $"Run {runId}: {v?.Summary ?? "状态未知"}",
             timeout, initialInterval, onProgress, progressType, ct).ConfigureAwait(false);
 
         if (state == PollState.Error) return JobWatchResult.FromError(error ?? "轮询失败", pollCount);
-        var jobData = value ?? throw new InvalidOperationException("[gh] 轮询完成但无数据");
+        if (state == PollState.Timeout)
+            return JobWatchResult.FromTimeout(value?.Summary ?? "状态未知", pollCount, elapsedMs);
+        if (value is null) throw new InvalidOperationException("[gh] 轮询完成但无数据");
         return state switch {
-            PollState.Completed => JobWatchResult.Completed(jobData.RunConclusion, jobData.FailedJobIds, jobData.Summary, pollCount, elapsedMs),
-            PollState.FastFailed => JobWatchResult.FailFast(jobData.RunConclusion, jobData.FailedJobIds, jobData.Summary, pollCount, elapsedMs),
-            PollState.Timeout => JobWatchResult.FromTimeout(jobData.Summary, pollCount, elapsedMs),
+            PollState.Completed => JobWatchResult.Completed(value.RunConclusion, value.FailedJobIds, value.Summary, pollCount, elapsedMs),
+            PollState.FastFailed => JobWatchResult.FailFast(value.RunConclusion, value.FailedJobIds, value.Summary, pollCount, elapsedMs),
             _ => JobWatchResult.FromError(error ?? "轮询失败", pollCount)
         };
     }
@@ -201,8 +246,8 @@ internal static class GitHubRunPoller {
         var runResult = await runTask.ConfigureAwait(false);
         var jobsResult = await jobsTask.ConfigureAwait(false);
 
-        if (!runResult.Success) return (PollOutcomeKind.Error, default, runResult.Error);
-        if (!jobsResult.Success) return (PollOutcomeKind.Error, default, jobsResult.Error);
+        if (!runResult.Success) return (ClassifyApiFailure(runResult), default, runResult.Error);
+        if (!jobsResult.Success) return (ClassifyApiFailure(jobsResult), default, jobsResult.Error);
 
         var (runStatus, runConclusion, statusError) = ParseRunStatus(runResult.Body);
         if (statusError is not null) return (PollOutcomeKind.Error, default, statusError);
@@ -306,6 +351,8 @@ internal enum PollOutcomeKind {
     Completed,
     /// <summary>未完成,继续轮询</summary>
     Continue,
+    /// <summary>传输层瞬态错误,继续轮询</summary>
+    TransientError,
     /// <summary>API 错误</summary>
     Error,
     /// <summary>fail-fast:发现失败,立即返回(不等 completed)</summary>
@@ -382,8 +429,8 @@ internal sealed record RunWaitResult {
     internal static RunWaitResult Completed(string conclusion, string body, int pollCount, long elapsedMs)
         => new() { Outcome = RunWaitOutcome.Completed, Conclusion = conclusion, Body = body, PollCount = pollCount, ElapsedMs = elapsedMs };
 
-    internal static RunWaitResult FromTimeout(string status, string body, int pollCount, long elapsedMs)
-        => new() { Outcome = RunWaitOutcome.Timeout, Conclusion = status, Body = body, PollCount = pollCount, ElapsedMs = elapsedMs };
+    internal static RunWaitResult FromTimeout(string status, string body, string? failure, int pollCount, long elapsedMs)
+        => new() { Outcome = RunWaitOutcome.Timeout, Conclusion = status, Body = body, Error = failure, PollCount = pollCount, ElapsedMs = elapsedMs };
 
     internal static RunWaitResult FromError(string error, int pollCount)
         => new() { Outcome = RunWaitOutcome.Error, Error = error, PollCount = pollCount };

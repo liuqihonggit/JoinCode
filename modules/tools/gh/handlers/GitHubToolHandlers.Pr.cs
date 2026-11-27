@@ -584,7 +584,7 @@ public partial class GitHubToolHandlers {
         if (failFast) {
             var runId = await ResolveRunIdFromHeadShaAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
             if (runId is null) return Fail($"PR #{number} 未找到对应的 Actions run(head_sha={headSha})");
-            return await GhRunWaitFailFastAsync(client, owner, repoName, runId, timeout, initialInterval, workingDir, ct, onProgress).ConfigureAwait(false);
+            return await GhRunWaitFailFastAsync(client, owner, repoName, runId, timeout, timeout, initialInterval, workingDir, ct, onProgress).ConfigureAwait(false);
         }
 
         var waitResult = await GitHubRunPoller.WaitForPrChecksCompletionAsync(

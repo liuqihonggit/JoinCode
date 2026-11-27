@@ -110,6 +110,52 @@ public sealed class GitHubApiClientTest : IDisposable {
         await act.Should().ThrowAsync<ConfigurationException>();
     }
 
+    /// <summary>HttpClient 自身超时不是调用方取消，应映射为可诊断的网络失败响应。</summary>
+    [Fact]
+    public async Task SendAsync_RequestTimeoutWithoutCallerCancellation_ReturnsNetworkFailure() {
+        _handler.SendException = new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout.");
+        await using var client = new GitHubApiClient(
+            new HttpClient(_handler) { BaseAddress = new Uri("http://127.0.0.1:1/") },
+            new InMemoryFileSystem(), ghTokenResolver: () => "test-token");
+
+        var result = await client.SendAsync(HttpMethod.Get, "repos/foo/bar");
+
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(0);
+        result.Error.Should().Contain("GitHub API");
+    }
+
+    /// <summary>响应头已返回但 body 读取中途断连，也应映射为网络失败而不是穿出进程。</summary>
+    [Fact]
+    public async Task SendAsync_ResponseBodyIOException_ReturnsNetworkFailure() {
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new StreamContent(new ThrowingReadStream())
+        };
+        await using var client = new GitHubApiClient(
+            new HttpClient(_handler) { BaseAddress = new Uri("http://127.0.0.1:1/") },
+            new InMemoryFileSystem(), ghTokenResolver: () => "test-token");
+
+        var result = await client.SendAsync(HttpMethod.Get, "repos/foo/bar");
+
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(0);
+        result.Error.Should().Contain("GitHub API");
+    }
+
+    /// <summary>调用方显式取消必须继续抛出，不能被转换为普通网络失败。</summary>
+    [Fact]
+    public async Task SendAsync_CallerCancellation_StillThrows() {
+        _handler.SendException = new TaskCanceledException("request canceled");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        await using var client = new GitHubApiClient(
+            new HttpClient(_handler) { BaseAddress = new Uri("http://127.0.0.1:1/") },
+            new InMemoryFileSystem(), ghTokenResolver: () => "test-token");
+        var act = async () => await client.SendAsync(HttpMethod.Get, "repos/foo/bar", ct: cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendAsync_FallsBackToGITHUB_TOKEN_WhenJCCMissing() {
@@ -683,9 +729,12 @@ public sealed class GitHubApiClientTest : IDisposable {
     private sealed class FakeHandler : HttpMessageHandler {
         public HttpRequestMessage? LastRequest;
         public HttpResponseMessage Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        public Exception? SendException { get; set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) {
             LastRequest = request;
+            if (SendException is not null)
+                throw SendException;
             return Task.FromResult(Response);
         }
 
@@ -694,6 +743,23 @@ public sealed class GitHubApiClientTest : IDisposable {
                 Response.Dispose();
             base.Dispose(disposing);
         }
+    }
+
+    /// <summary>模拟响应头返回后读取 body 时连接中断</summary>
+    private sealed class ThrowingReadStream : Stream {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new IOException("response body truncated");
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => throw new IOException("response body truncated");
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     /// <summary>包装流,记录实际读取的字节数,用于验证是否全量缓冲</summary>

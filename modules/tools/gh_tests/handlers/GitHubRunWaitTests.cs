@@ -12,6 +12,243 @@ public sealed class GitHubRunWaitTests {
     private void EnqueueResolveRunIdOk()
         => _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" });
 
+    /// <summary>单次 HTTP 超时只终止当前请求，轮询应按退避重试并最终返回完成状态。</summary>
+    [Fact]
+    public async Task RunWait_TransientRequestTimeout_RetriesAndCompletes() {
+        var api = new FakeGitHubApiClient();
+        api.EnqueueException(new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout."));
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"completed","conclusion":"success"}"""
+        });
+        var progress = new List<string>();
+
+        var result = await GitHubRunPoller.WaitForRunCompletionAsync(
+            api, "owner", "repo", "1", TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(1),
+            p => progress.Add(p.Message ?? string.Empty), "gh_run_wait", CancellationToken.None);
+
+        result.Outcome.Should().Be(RunWaitOutcome.Completed);
+        result.Conclusion.Should().Be("success");
+        result.PollCount.Should().Be(2);
+        progress.Should().Contain(message => message.Contains("请求超时", StringComparison.Ordinal));
+    }
+
+    /// <summary>客户端映射出的无状态码网络失败也应重试，而不是提前终止整个等待。</summary>
+    [Fact]
+    public async Task RunWait_TransientNetworkFailure_RetriesAndCompletes() {
+        var api = new FakeGitHubApiClient();
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = false, StatusCode = 0, Error = "GitHub API 连接失败"
+        });
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"completed","conclusion":"success"}"""
+        });
+        var progress = new List<string>();
+
+        var result = await GitHubRunPoller.WaitForRunCompletionAsync(
+            api, "owner", "repo", "1", TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(1),
+            p => progress.Add(p.Message ?? string.Empty), "gh_run_wait", CancellationToken.None);
+
+        result.Outcome.Should().Be(RunWaitOutcome.Completed);
+        result.Conclusion.Should().Be("success");
+        result.PollCount.Should().Be(2);
+        progress.Should().Contain(message => message.Contains("GitHub API 连接失败", StringComparison.Ordinal));
+    }
+
+    /// <summary>首次请求即超时且总期限到达时，应返回 Timeout 而不是因无轮询数据崩溃。</summary>
+    [Fact]
+    public async Task RunWait_FirstRequestTimeout_ReturnsTimeoutWithoutData() {
+        var api = new FakeGitHubApiClient();
+        api.SendAsyncOverride = _ => throw new TaskCanceledException("request timeout");
+
+        var result = await GitHubRunPoller.WaitForRunCompletionAsync(
+            api, "owner", "repo", "1", TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(1),
+            null, "gh_run_wait", CancellationToken.None);
+
+        result.Outcome.Should().Be(RunWaitOutcome.Timeout);
+        result.Conclusion.Should().Be("unknown");
+        result.Body.Should().BeEmpty();
+        result.PollCount.Should().BeGreaterThan(0);
+    }
+
+    /// <summary>总等待期限必须取消在途 HTTP 请求，不能等客户端自身 100 秒超时。</summary>
+    [Fact]
+    public async Task RunWait_OverallTimeout_CancelsInFlightRequest() {
+        var api = new FakeGitHubApiClient();
+        var responseSource = new TaskCompletionSource<GitHubApiResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestToken = CancellationToken.None;
+        api.SendAsyncOverride = ct => {
+            requestToken = ct;
+            return responseSource.Task.WaitAsync(ct);
+        };
+        var waitTask = GitHubRunPoller.WaitForRunCompletionAsync(
+            api, "owner", "repo", "1", TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(1),
+            null, "gh_run_wait", CancellationToken.None);
+
+        try {
+            var result = await waitTask.WaitAsync(TimeSpan.FromSeconds(3));
+            result.Outcome.Should().Be(RunWaitOutcome.Timeout);
+            result.Conclusion.Should().Be("unknown");
+            requestToken.IsCancellationRequested.Should().BeTrue();
+        } finally {
+            responseSource.TrySetResult(new GitHubApiResponse {
+                Success = true, StatusCode = 200,
+                Body = """{"status":"completed","conclusion":"success"}"""
+            });
+            await waitTask;
+        }
+    }
+
+    /// <summary>真实 handler 的 run_id 前置解析也必须受同一个总等待期限约束。</summary>
+    [Fact]
+    public async Task RunWait_OverallTimeout_CoversRunIdResolution() {
+        var api = new FakeGitHubApiClient();
+        var responseSource = new TaskCompletionSource<GitHubApiResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestToken = CancellationToken.None;
+        api.SendAsyncOverride = ct => {
+            requestToken = ct;
+            return responseSource.Task.WaitAsync(ct);
+        };
+        var handler = new GitHubToolHandlers(
+            new FakeDownloader(), new InMemoryFileSystem(), api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var waitTask = handler.GhRunWaitAsync(
+            run_id: "1", timeout_seconds: 1, poll_interval_seconds: 1,
+            common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        try {
+            var result = await waitTask.WaitAsync(TimeSpan.FromSeconds(3));
+            result.IsError.Should().BeFalse();
+            (result.GetFirstText() ?? string.Empty).Should().Contain("等待超时");
+            requestToken.IsCancellationRequested.Should().BeTrue();
+        } finally {
+            responseSource.TrySetResult(new GitHubApiResponse {
+                Success = true, StatusCode = 200,
+                Body = """{"status":"in_progress","conclusion":null}"""
+            });
+            await waitTask;
+        }
+    }
+
+    /// <summary>请求在途时调用方取消必须立即传播，且不能触发重试。</summary>
+    [Fact]
+    public async Task RunWait_InFlightCallerCancellation_PropagatesWithoutRetry() {
+        var api = new FakeGitHubApiClient();
+        var responseSource = new TaskCompletionSource<GitHubApiResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        api.SendAsyncOverride = ct => {
+            started.SetResult();
+            return responseSource.Task.WaitAsync(ct);
+        };
+        using var cts = new CancellationTokenSource();
+        var waitTask = GitHubRunPoller.WaitForRunCompletionAsync(
+            api, "owner", "repo", "1", TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(1),
+            null, "gh_run_wait", cts.Token);
+
+        try {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            cts.Cancel();
+            var act = async () => await waitTask;
+            await act.Should().ThrowAsync<OperationCanceledException>();
+            api.CallLog.Should().ContainSingle();
+        } finally {
+            responseSource.TrySetResult(new GitHubApiResponse {
+                Success = true, StatusCode = 200,
+                Body = """{"status":"completed","conclusion":"success"}"""
+            });
+            if (!cts.IsCancellationRequested)
+                await waitTask;
+        }
+    }
+
+    /// <summary>瞬态失败不能覆盖上一次成功状态，超时摘要应保留状态并带出最后错误。</summary>
+    [Fact]
+    public async Task RunWait_TransientFailure_RetainsLastStateOnTimeout() {
+        var api = new FakeGitHubApiClient();
+        var calls = 0;
+        api.SendAsyncOverride = _ => Task.FromResult(Interlocked.Increment(ref calls) == 1
+            ? new GitHubApiResponse {
+                Success = true, StatusCode = 200,
+                Body = """{"status":"in_progress","conclusion":null,"html_url":"https://example.invalid/run/1"}"""
+            }
+            : new GitHubApiResponse { Success = false, StatusCode = 0, Error = "connection reset" });
+
+        var result = await GitHubRunPoller.WaitForRunCompletionAsync(
+            api, "owner", "repo", "1", TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(1),
+            null, "gh_run_wait", CancellationToken.None);
+
+        result.Outcome.Should().Be(RunWaitOutcome.Timeout);
+        result.Conclusion.Should().Be("in_progress");
+        result.Body.Should().Contain("in_progress");
+        result.Error.Should().Contain("connection reset");
+    }
+
+    /// <summary>响应体读取阶段的 IO 失败与请求失败同属瞬态，应重试而不是穿出进程。</summary>
+    [Fact]
+    public async Task RunWait_ResponseBodyIOException_RetriesAndCompletes() {
+        var api = new FakeGitHubApiClient();
+        api.EnqueueException(new IOException("response body truncated"));
+        api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"completed","conclusion":"success"}"""
+        });
+        var progress = new List<string>();
+
+        var result = await GitHubRunPoller.WaitForRunCompletionAsync(
+            api, "owner", "repo", "1", TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(1),
+            p => progress.Add(p.Message ?? string.Empty), "gh_run_wait", CancellationToken.None);
+
+        result.Outcome.Should().Be(RunWaitOutcome.Completed);
+        result.PollCount.Should().Be(2);
+        progress.Should().Contain(message => message.Contains("读取 GitHub API 响应失败", StringComparison.Ordinal));
+    }
+
+    /// <summary>HTTP 401/404 等真实状态码必须保持终态，不能被传输失败重试策略掩盖。</summary>
+    [Fact]
+    public async Task RunWait_HttpStatusError_DoesNotRetry() {
+        var api = new FakeGitHubApiClient();
+        api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 401, Error = "Bad credentials" });
+
+        var result = await GitHubRunPoller.WaitForRunCompletionAsync(
+            api, "owner", "repo", "1", TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(1),
+            null, "gh_run_wait", CancellationToken.None);
+
+        result.Outcome.Should().Be(RunWaitOutcome.Error);
+        result.Error.Should().Be("Bad credentials");
+        result.PollCount.Should().Be(1);
+        api.CallLog.Should().ContainSingle();
+    }
+
+    /// <summary>run_id 前置解析遇到传输失败时应返回真实网络错误，不能误报 run 不存在。</summary>
+    [Fact]
+    public async Task RunWait_ResolveNetworkFailure_ReturnsNetworkError() {
+        var api = new FakeGitHubApiClient();
+        api.EnqueueResponse(new GitHubApiResponse { Success = false, StatusCode = 0, Error = "GitHub API 连接失败: DNS 解析失败" });
+        var handler = new GitHubToolHandlers(
+            new FakeDownloader(), new InMemoryFileSystem(), api, null, NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhRunWaitAsync(
+            run_id: "1", timeout_seconds: 5, poll_interval_seconds: 1,
+            common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeTrue();
+        var text = result.GetFirstText() ?? string.Empty;
+        text.Should().Contain("DNS 解析失败");
+        text.Should().NotContain("不存在");
+    }
+
+    /// <summary>调用方取消必须继续传播，不能被单次请求超时重试逻辑吞掉。</summary>
+    [Fact]
+    public async Task RunWait_CallerCancellation_Propagates() {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var act = async () => await GitHubRunPoller.WaitForRunCompletionAsync(
+            new FakeGitHubApiClient(), "owner", "repo", "1", TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(1),
+            null, "gh_run_wait", cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     [Fact]
     public async Task RunWait_AlreadyCompleted_ReturnsSuccess() {
         EnqueueResolveRunIdOk();

@@ -8,11 +8,11 @@
 
 | # | 项 | 验收判据 | 状态 |
 |---|----|----------|------|
-| A | bridge 子进程端到端验收 | 真实 `jcc` 子进程走 `SpawnAsync` → stdin NDJSON → stdout `result`；参数走 `BuildChildArguments`；有单测 + 真机证据 | ☐ |
-| B | SDK 控制协议（`control_request` / `interrupt`） | 先查基准原始规范定协议形状；红测试覆盖；真机 stdin 注入可打断在途查询 | ☐ |
-| C | queryId 贯通 bridge websocket 协议面 | `BridgeServerMessage` 带查询身份；跨库 DTO 改动走全仓编译；单测 + 真机 | ☐ |
-| D | 崩溃收编真进程 `kill -9` 用例 | 真进程写 streaming 旁路 → `kill -9` → 重启收编不丢已写行 | ☐ |
-| E | 统一 PR + CI | 四项全部完成后一次性 PR，守 CI 到绿，回填台账 | ☐ |
+| A | bridge 子进程端到端验收 | 真实 `jcc` 子进程走 `SpawnAsync` → stdin NDJSON → stdout `result`；参数走 `BuildChildArguments`；有单测 + 真机证据 | ✅ 见 §5.A |
+| B | SDK 控制协议（`control_request` / `interrupt`） | 先查基准原始规范定协议形状；红测试覆盖；真机 stdin 注入可打断在途查询 | ✅ 见 §5.B（进程级「真打断 HTTP」未复现，已记边界） |
+| C | queryId 贯通 bridge websocket 协议面 | `BridgeServerMessage` 带查询身份；跨库 DTO 改动走全仓编译；单测 + 真机 | ✅ 前提不成立，不改代码，见 §5.C |
+| D | 崩溃收编真进程 `kill -9` 用例 | 真进程写 streaming 旁路 → `kill -9` → 重启收编不丢已写行 | ✅ 升级为真实磁盘，进程级 `kill -9` 仍缺慢 provider，见 §5.D |
+| E | 统一 PR + CI | 四项全部完成后一次性 PR，守 CI 到绿，回填台账 | ✅ PR 见 §5.E |
 
 ## 2. 不做（范围边界）
 
@@ -183,3 +183,25 @@ StyleGate 回到 1821。
 因此**没有**"真进程被 SIGKILL 后 sidecar 留存"的进程级证据；这里只把 mock 文件系统升级为真实磁盘，
 不把"丢弃实例"冒充 kill -9。CI 若要补进程级用例，需要可控的慢速流式 provider。
 TASK135 C2 保持 `[~]`，备注本轮进展。
+
+### E — 统一 PR 与回归 ✅
+
+**PR**：<https://github.com/liuqihonggit/JoinCode/pull/761>（`w2` → `main`，四个提交：A `e97579b4c`、B `a06e3a403`、C `9f35b9f2e`、D `a003aad1c`）。
+
+回归（四提交叠加后实跑，串行）：
+
+| 项目 | 结果 |
+|------|------|
+| `Bridge.Tests` | 639 |
+| `Host.Tests` | 1433（+13） |
+| `Composition.Tests` | 1177 |
+| `Vault.Other.Tests` | 403（+2） |
+| `NativeTui.Tests` | 3367 |
+| `NativeTui.Host.Tests` | 183 |
+| `NativeGui.Core.Tests` | 423 |
+| `NativeGui.Host.Tests` | 50 |
+| StyleGate | 1821，退出 0 |
+
+**并行踩坑**：同时跑两个 `dotnet test` 会撞 `artifacts/obj/JoinCode.Engine/.../JoinCode.Engine.dll`
+的文件锁（`CS2012` / `MSB3101`，另一进程或 Defender 持有）。这是构建产物竞争，串行重跑即绿 ——
+与改动无关，但值得记住：**多项目回归必须串行**。

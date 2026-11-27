@@ -257,6 +257,7 @@ jcc-tool-github — github 工具分组（173 个工具）
 
   gh_branch_list — 列出仓库分支(支持 protected 过滤)
     --limit                      integer   可选   数量限制  默认=30
+    --protected                  boolean   可选   只列出受保护分支(true)/未保护(false)
     --repo                       string    可选   仓库(可选,默认当前仓库)
     --working_dir                string    可选   工作目录(可选)
     --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
@@ -332,6 +333,7 @@ jcc-tool-github — github 工具分组（173 个工具）
     --filename                   string    必填   文件名
     --content                    string    必填   文件内容
     --description                string    可选   描述(可选)
+    --public                     boolean   可选   public=true 公开(默认 false 私有)
 
   gh_gist_delete — 删除 Gist
     --gist_id                    string    必填   Gist ID
@@ -516,6 +518,7 @@ jcc-tool-github — github 工具分组（173 个工具）
   gh_issue_develop — 创建 Issue 开发分支(git checkout -b)
     --issue_number               string    必填   Issue 编号或 URL
     --name                       string    可选   分支名(可选,默认 issue-{number})
+    --base                       string    可选   基分支(可选,默认当前分支)
     --list                       boolean   可选   list=true 列出链接分支(需 GraphQL,暂未实现)
     --checkout                   boolean   可选   checkout=true 创建后切换(默认 true)
     --repo                       string    可选   仓库(可选,默认当前仓库)
@@ -773,6 +776,7 @@ jcc-tool-github — github 工具分组（173 个工具）
   gh_cache_list — 列出 Actions 缓存(支持 branch/ref/key 过滤)
     --limit                      integer   可选   数量限制  默认=30
     --branch                     string    可选   分支过滤(可选)
+    --ref                        string    可选   ref 过滤(可选)
     --key                        string    可选   key 过滤(可选,模糊匹配)
     --repo                       string    可选   仓库(可选,默认当前仓库)
     --working_dir                string    可选   工作目录(可选)
@@ -1011,6 +1015,7 @@ jcc-tool-github — github 工具分组（173 个工具）
     --author                     string    可选   作者过滤(可选)
     --label                      string    可选   标签过滤(可选,多个用逗号)
     --assignee                   string    可选   指派人过滤(可选)
+    --base                       string    可选   目标分支过滤(可选)
     --head                       string    可选   源分支过滤(可选)
     --draft                      boolean   可选   是否 draft PR(可选)
     --search                     string    可选   搜索查询(可选,GitHub search 语法)
@@ -1121,6 +1126,7 @@ jcc-tool-github — github 工具分组（173 个工具）
   gh_pr_create — 创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill/fill_first/dry_run/no_maintainer_edit + auto-merge)
     --title                      string    必填   PR 标题
     --head                       string    可选   源分支(head,可选,缺省时自动推断当前 git 分支)
+    --base                       string    可选   目标分支(base,默认 main)
     --body                       string    可选   PR 正文(可选,支持 markdown)
     --body_file                  string    可选   从文件读 body(可选,替代 body)
     --draft                      boolean   可选   是否 draft PR(可选,默认 false)
@@ -1165,6 +1171,7 @@ jcc-tool-github — github 工具分组（173 个工具）
     --title                      string    可选   新标题(可选)
     --body                       string    可选   新 body(可选)
     --body_file                  string    可选   从文件读 body(可选,替代 body)
+    --base                       string    可选   新 base 分支(可选)
     --label                      string    可选   标签(可选,多个用逗号,替换全部标签)
     --add_label                  string    可选   添加标签(可选,多个用逗号)
     --remove_label               string    可选   移除标签(可选,多个用逗号)
@@ -1979,6 +1986,7 @@ jcc-tool-github — github 工具分组（173 个工具）
 
   gh_workflow_view — 查看 Workflow 详情
     --workflow_id                string    必填   Workflow ID 或名称或文件名
+    --ref                        string    可选   ref=true 返回指定分支版本(可选)
     --yaml                       boolean   可选   yaml=true 返回 workflow yaml 内容
     --web                        boolean   可选   web=true 只返回浏览器 URL
     --repo                       string    可选   仓库(可选,默认当前仓库)
@@ -1991,6 +1999,7 @@ jcc-tool-github — github 工具分组（173 个工具）
 
   gh_workflow_run — 触发 Workflow 运行(workflow_dispatch)
     --workflow_id                string    必填   Workflow ID 或名称
+    --ref                        string    可选   运行分支或 tag(默认仓库默认分支)
     --inputs                     string    可选   输入参数 JSON(可选,如 {"key":"value"})
     --repo                       string    可选   仓库(可选,默认当前仓库)
     --working_dir                string    可选   工作目录(可选)

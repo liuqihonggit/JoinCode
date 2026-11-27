@@ -143,6 +143,8 @@ tools:
     parameters:
       limit:
         effect: allow
+      protected:
+        effect: allow
       repo:
         effect: allow
       working_dir:
@@ -285,6 +287,8 @@ tools:
       content:
         effect: allow
       description:
+        effect: allow
+      public:
         effect: allow
   gh_gist_delete:
     effect: allow
@@ -637,6 +641,8 @@ tools:
       issue_number:
         effect: allow
       name:
+        effect: allow
+      base:
         effect: allow
       list:
         effect: allow
@@ -1126,6 +1132,8 @@ tools:
         effect: allow
       branch:
         effect: allow
+      ref:
+        effect: allow
       key:
         effect: allow
       repo:
@@ -1566,6 +1574,8 @@ tools:
         effect: allow
       assignee:
         effect: allow
+      base:
+        effect: allow
       head:
         effect: allow
       draft:
@@ -1778,6 +1788,8 @@ tools:
         effect: allow
       head:
         effect: allow
+      base:
+        effect: allow
       body:
         effect: allow
       body_file:
@@ -1863,6 +1875,8 @@ tools:
       body:
         effect: allow
       body_file:
+        effect: allow
+      base:
         effect: allow
       label:
         effect: allow
@@ -3427,6 +3441,8 @@ tools:
     parameters:
       workflow_id:
         effect: allow
+      ref:
+        effect: allow
       yaml:
         effect: allow
       web:
@@ -3449,6 +3465,8 @@ tools:
     effect: allow
     parameters:
       workflow_id:
+        effect: allow
+      ref:
         effect: allow
       inputs:
         effect: allow

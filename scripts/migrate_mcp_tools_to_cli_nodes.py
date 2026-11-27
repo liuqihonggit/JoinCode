@@ -34,7 +34,7 @@ TOOL_RE = re.compile(
 )
 PARAM_RE = re.compile(
     r"\[McpToolParameter\(\s*(?:\"(?P<desc>(?:\\.|[^\"\\])*)\"|WellKnownParam\.(?P<well_known>[A-Za-z_][A-Za-z0-9_]*))\s*(?P<rest>(?:[^\[\]]|\[[^\[\]]*\])*)\)\]\s*"
-    r"(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>[A-Za-z_][A-Za-z0-9_]*)\s*"
+    r"(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>@?[A-Za-z_][A-Za-z0-9_]*)\s*"
     r"(?:=\s*(?P<default>[^,)\n]+))?",
     re.S,
 )
@@ -46,7 +46,7 @@ MCPTOOL_OPTIONS_RE = re.compile(r"\[McpToolOptions\]\s*(?P<type>[A-Za-z_][A-Za-z
 RECORD_RE = re.compile(r"(?:public|internal)\s+(?:sealed\s+|partial\s+)*record\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)")
 PROPERTY_PARAM_RE = re.compile(
     r"\[McpToolParameter\(\s*(?:\"(?P<desc>(?:\\.|[^\"\\])*)\"|WellKnownParam\.(?P<well_known>[A-Za-z_][A-Za-z0-9_]*))\s*(?P<rest>(?:[^\[\]]|\[[^\[\]]*\])*)\)\]\s*"
-    r"public\s+(?P<req>required\s+)?(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>[A-Za-z_][A-Za-z0-9_]*)\s*\{\s*get;",
+    r"public\s+(?P<req>required\s+)?(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>@?[A-Za-z_][A-Za-z0-9_]*)\s*\{\s*get;",
     re.S,
 )
 ALIASES_RE = re.compile(r"Aliases\s*=\s*\[(?P<items>[^\]]*)\]")
@@ -349,7 +349,7 @@ WELL_KNOWN_PARAMS = load_well_known_params()
 
 def parameter_from_match(match: re.Match[str], *, property_parameter: bool = False) -> dict[str, object]:
     rest = match.group("rest") or ""
-    name = match.group("pname")
+    name = match.group("pname").lstrip("@")
     if property_parameter:
         name = to_snake(name)
 

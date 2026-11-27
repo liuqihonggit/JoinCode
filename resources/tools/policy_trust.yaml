@@ -21,7 +21,7 @@ policies:
     executables:
       - jcc-tool-git.exe
   - id: cli.github
-    hash: a5aafc5d773e665045fd8cfe5681dbf549428789b27521f659b025960a19f073
+    hash: 35fb5b6a28003dc3959fb63a1e7b449c99ebac7fa776ecd7c9c65ee6f83403b9
     executables:
       - jcc-tool-github.exe
       - jcc-gh.exe

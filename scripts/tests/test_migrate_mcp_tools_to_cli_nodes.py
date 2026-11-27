@@ -120,6 +120,20 @@ public Task SampleAsync([McpToolOptions] SampleOptions options)
         self.assertIn("      pr_number:\n        effect: allow", section)
         self.assertIn("      repo:\n        effect: allow", section)
 
+        create_section = policy.split("  gh_pr_create:\n", 1)[1].split("\n  gh_", 1)[0]
+        self.assertIn("      base:\n        effect: allow", create_section)
+        self.assertIn("      head:\n        effect: allow", create_section)
+
+    def test_escaped_identifier_parameter_name_is_normalized(self) -> None:
+        tools = self.parse_source("""
+[McpTool("gh_pr_create", "create", "github")]
+public Task CreateAsync(
+    [McpToolParameter("目标分支", Required = false)] string? @base = null)
+""")
+
+        parameter = tools[0]["parameters"][0]
+        self.assertEqual("base", parameter["name"])
+
     def test_literal_parameter_description_still_parses(self) -> None:
         tools = self.parse_source("""
 [McpTool("sample", "sample", "system")]

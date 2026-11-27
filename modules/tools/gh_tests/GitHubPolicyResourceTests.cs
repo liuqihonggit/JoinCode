@@ -16,5 +16,10 @@ public sealed class GitHubPolicyResourceTests {
         Assert.Contains(checks.Parameters, parameter => parameter.Name == "repo");
         Assert.Contains(checks.Parameters, parameter => parameter.Name == "working_dir");
         Assert.Contains(checks.Parameters, parameter => parameter.Name == "limit");
+
+        var create = Assert.Single(manifest.Tools, tool => tool.ToolId == "gh_pr_create");
+        Assert.Contains(create.Parameters, parameter => parameter.Name == "title");
+        Assert.Contains(create.Parameters, parameter => parameter.Name == "head");
+        Assert.Contains(create.Parameters, parameter => parameter.Name == "base");
     }
 }

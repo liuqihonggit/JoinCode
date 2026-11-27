@@ -119,7 +119,7 @@ public static class MessageRenderer
         var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
         screen.WriteText(frame.Y, frame.X, $"{BulletChar(isActive, hasError, animTimeMs)} ", bullet, frame.Right);
         var col = screen.WriteText(frame.Y, frame.X + 2, toolName, bold, frame.Right);
-        var lines = args.Split('\n');
+        var lines = ExpandTabs(args).Split('\n');
         var firstSegment = lines[0].TrimEnd('\r');
         screen.WriteText(frame.Y, col, lines.Length == 1 ? $"({firstSegment})" : $"({firstSegment}", 0, frame.Right);
         for (var i = 1; i < lines.Length; i++)
@@ -161,17 +161,18 @@ public static class MessageRenderer
     public static void RenderToolErrorLine(Screen screen, Rect frame, Theme theme, string text, bool isFirst)
     {
         var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        var errorText = ExpandTabs(text);
         if (!isFirst)
         {
             var indent = new string(' ', Figures.ToolResultIndent.Length);
             screen.WriteText(frame.Y, frame.X, indent, 0, frame.Right);
-            screen.WriteText(frame.Y, frame.X + indent.Length, text, error, frame.Right);
+            screen.WriteText(frame.Y, frame.X + indent.Length, errorText, error, frame.Right);
             return;
         }
 
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         screen.WriteText(frame.Y, frame.X, Figures.ToolResultIndent, dim, frame.Right);
-        screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, text, error, frame.Right);
+        screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, errorText, error, frame.Right);
     }
 
     /// <summary>渲染错误块折叠提示（缩进同续行 + dim — 基准 `… +N lines (ctrl+o to see all)`）。</summary>
@@ -219,7 +220,7 @@ public static class MessageRenderer
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         var indent = $"{Figures.ToolResultIndent}  ";
         var row = frame.Y;
-        foreach (var line in content.Split('\n')) {
+        foreach (var line in ExpandTabs(content).Split('\n')) {
             var text = line.TrimEnd('\r');
             if (text.Length > 0) {
                 screen.WriteText(row, frame.X, indent, dim, frame.Right);
@@ -257,15 +258,16 @@ public static class MessageRenderer
     public static void RenderErrorLine(Screen screen, Rect frame, Theme theme, string text, bool isFirst)
     {
         var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        var errorText = ExpandTabs(text);
         if (!isFirst)
         {
             screen.WriteText(frame.Y, frame.X, "  ", 0, frame.Right);
-            screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
+            screen.WriteText(frame.Y, frame.X + 2, errorText, style, frame.Right);
             return;
         }
 
         screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", style, frame.Right);
-        screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
+        screen.WriteText(frame.Y, frame.X + 2, errorText, style, frame.Right);
     }
 
     /// <summary>渲染错误正文截断的展开引导（dim，2 列缩进 — 基准 CtrlOToExpand）。</summary>
@@ -308,17 +310,24 @@ public static class MessageRenderer
             _ => " ",
         };
         var gutter = GutterText(lineNumber, gutterDigits);
+        var content = ExpandTabs(line.Content);
 
         if (line.Kind is DiffLineKind.Added or DiffLineKind.Removed)
         {
-            RenderChangedDiffLine(screen, frame, theme, line, marker, gutter, syntaxSpans);
+            RenderChangedDiffLine(screen, frame, theme, line, marker, gutter, content, syntaxSpans);
             return;
         }
 
         // context 行：4 缩进 + gutter + 空格 marker + dim 正文（现形态 + gutter 列；基准 context 无背景 dimColor）
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        screen.WriteText(frame.Y, frame.X, $"    {gutter}{marker}{line.Content}", dim, frame.Right);
+        screen.WriteText(frame.Y, frame.X, $"    {gutter}{marker}{content}", dim, frame.Right);
     }
+
+    /// <summary>制表符展开 4 空格（对齐 PastedContentTracker.ExpandTabs 既有口径）。
+    /// 必要性：WriteText 把 '\t' 当零宽跳过，工具输出/补丁里的制表缩进会被整段吞掉 —
+    /// 真机取证表现为行号与正文粘连（`1public class Demo {`）。</summary>
+    internal static string ExpandTabs(string text) =>
+        text.IndexOf('\t') < 0 ? text : text.Replace("\t", "    ", StringComparison.Ordinal);
 
     /// <summary>gutter 列文本 — 有行号 ' ' + 右对齐 digits 位 + ' '；无行号但 digits&gt;0 空占位
     ///（基准 wrap 续行 ' '.repeat(maxDigits+2) 对齐语义）；digits=0 空串（降级无 gutter）。
@@ -331,7 +340,8 @@ public static class MessageRenderer
                 : new string(' ', gutterDigits + 2);
 
     /// <summary>added/removed 行渲染 — 满行背景 + gutter/marker decoration 前景 + 正文语法段切写。</summary>
-    private static void RenderChangedDiffLine(Screen screen, Rect frame, Theme theme, DiffLine line, string marker, string gutter, IReadOnlyList<HighlightSpan>? syntaxSpans)
+    private static void RenderChangedDiffLine(Screen screen, Rect frame, Theme theme, DiffLine line, string marker, string gutter,
+        string content, IReadOnlyList<HighlightSpan>? syntaxSpans)
     {
         var background = line.Kind == DiffLineKind.Added ? theme.DiffAdded : theme.DiffRemoved;
         var decoration = line.Kind == DiffLineKind.Added ? theme.DiffAddedWord : theme.DiffRemovedWord;
@@ -345,20 +355,21 @@ public static class MessageRenderer
         var col = screen.WriteText(frame.Y, frame.X, $"    {gutter}{marker}", gutterStyle, frame.Right);
 
         // 正文：无语法段 = 默认前景 + 行背景（基准 defaultStyle fg=theme.foreground）；
-        // 有语法段 = 段内 token RGB 前景 + 行背景，段间隙默认前景（背景恒保持 — applyBackground 语义）
+        // 有语法段 = 段内 token RGB 前景 + 行背景，段间隙默认前景（背景恒保持 — applyBackground 语义）。
+        // 含语法段时用未展开原文（spans 坐标基于原文 UTF-16 偏移，展开会错位）。
         var bodyStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Text, Background = background });
         if (syntaxSpans is null || syntaxSpans.Count == 0)
         {
-            screen.WriteText(frame.Y, col, line.Content, bodyStyle, frame.Right);
+            screen.WriteText(frame.Y, col, content, bodyStyle, frame.Right);
             return;
         }
 
-        var content = line.Content.AsSpan();
+        var raw = line.Content.AsSpan();
         var prevEnd = 0;
         foreach (var span in syntaxSpans)
         {
             var start = Math.Clamp(span.Start, 0, content.Length);
-            var end = Math.Clamp(span.Start + span.Length, start, content.Length);
+            var end = Math.Clamp(span.Start + span.Length, start, raw.Length);
             if (end <= start)
             {
                 continue;
@@ -366,17 +377,17 @@ public static class MessageRenderer
 
             if (start > prevEnd)
             {
-                col = screen.WriteText(frame.Y, col, content[prevEnd..start], bodyStyle, frame.Right);
+                col = screen.WriteText(frame.Y, col, raw[prevEnd..start], bodyStyle, frame.Right);
             }
 
             var syntaxStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = Color.FromRgb(span.R, span.G, span.B), Background = background });
-            col = screen.WriteText(frame.Y, col, content[start..end], syntaxStyle, frame.Right);
+            col = screen.WriteText(frame.Y, col, raw[start..end], syntaxStyle, frame.Right);
             prevEnd = end;
         }
 
-        if (prevEnd < content.Length)
+        if (prevEnd < raw.Length)
         {
-            screen.WriteText(frame.Y, col, content[prevEnd..], bodyStyle, frame.Right);
+            screen.WriteText(frame.Y, col, raw[prevEnd..], bodyStyle, frame.Right);
         }
     }
 
@@ -394,7 +405,7 @@ public static class MessageRenderer
     public static void RenderToolOutputLine(Screen screen, Rect frame, Theme theme, string line)
     {
         var indent = new string(' ', Figures.ToolResultIndent.Length);
-        screen.WriteText(frame.Y, frame.X, $"{indent}{line.TrimEnd('\r')}", 0, frame.Right);
+        screen.WriteText(frame.Y, frame.X, $"{indent}{ExpandTabs(line).TrimEnd('\r')}", 0, frame.Right);
     }
 
     /// <summary>

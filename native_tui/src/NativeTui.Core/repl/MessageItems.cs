@@ -574,7 +574,7 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
 
     /// <summary>拆分错误块行 — 已归一文本按 \n 切分（空内容保留裸前缀单行 — 基准同形）。</summary>
     private static string[] SplitErrorLines(string normalized) =>
-        normalized.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        MessageRenderer.ExpandTabs(normalized).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
 
     /// <summary>取首个非空行（TASK107 — 摘要渲染行；全空白返回空串）。
     /// 摘要语义是「结果首行」，多行 resultText 直接写屏会因 \n 零宽被跳过而整段粘连。</summary>
@@ -592,7 +592,8 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         return string.Empty;
     }
 
-    /// <summary>拆分输出行 — null 空数组；尾部空白修剪（基准 renderTruncatedContent trimEnd）后空为无输出占位；\r 行尾清理。</summary>
+    /// <summary>拆分输出行 — null 空数组；制表符先按 4 空格展开（'\t' 写屏零宽会被吞，缩进整段丢失）；
+    /// 尾部空白修剪（基准 renderTruncatedContent trimEnd）后空为无输出占位；\r 行尾清理。</summary>
     private static string[] SplitRawOutput(string? rawOutput)
     {
         if (rawOutput is null)
@@ -600,7 +601,7 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
             return [];
         }
 
-        var trimmed = rawOutput.TrimEnd();
+        var trimmed = MessageRenderer.ExpandTabs(rawOutput).TrimEnd();
         return trimmed.Length == 0 ? [] : trimmed.Split('\n');
     }
 
@@ -660,7 +661,7 @@ public sealed class DiffResultItem(string summary, DiffHunk[] patch, ICodeHighli
 public sealed class ErrorMessageItem(string text) : IScrollItem, ICursorNavigable, ITextMatchable
 {
     /// <summary>正文行缓存（截断后按 \n 拆分；构造期算好，渲染帧拍零重复处理）。</summary>
-    private readonly string[] _lines = Truncate(text).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+    private readonly string[] _lines = MessageRenderer.ExpandTabs(Truncate(text)).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
 
     /// <summary>错误正文全文（搜索/transcript 投影用 — 渲染按行截断）。</summary>
     public string Text { get; } = text;

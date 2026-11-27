@@ -31,6 +31,7 @@ public sealed class Win32InputPump : IInputPump, IDisposable
 
     private readonly IntPtr _handle;
     private readonly uint _originalMode;
+    private readonly SurrogatePairAccumulator _surrogates = new();
     private bool _disposed;
 
     /// <summary>注入 terminalQuerier 兼容（后续 CSI 查询路由）— 当前不使用。</summary>
@@ -84,6 +85,20 @@ public sealed class Win32InputPump : IInputPump, IDisposable
                 }
                 else if (record.EventType == EventTypeKey && record.KeyDown != 0)
                 {
+                    var unit = record.UnicodeChar;
+                    if (char.IsSurrogate(unit))
+                    {
+                        // 非 BMP 字符分两条记录到达 — 凑成代理对后一次性派发，孤立代理不入缓冲
+                        if (_surrogates.Feed(unit) is { } pair)
+                        {
+                            dispatch(new KeyPress(KeyKind.Char, pair));
+                            dispatched = true;
+                        }
+
+                        continue;
+                    }
+
+                    _surrogates.Reset();
                     var keyInfo = MakeKeyInfo(record);
                     if (ConsoleKeyAdapter.ToKeyPress(keyInfo) is { } key)
                     {

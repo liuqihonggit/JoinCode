@@ -1917,7 +1917,15 @@ public sealed class ReplShell
                 }
                 if (key.Input.Length == 1)
                 {
-                    _input.Insert(key.Input[0]);
+                    // 孤立代理码元（半个 emoji）不入缓冲 — 渲染/序列化会退化成 U+FFFD
+                    if (!char.IsSurrogate(key.Input[0]))
+                    {
+                        _input.Insert(key.Input[0]);
+                    }
+                }
+                else if (key.Input.Length == 2 && char.IsHighSurrogate(key.Input[0]) && char.IsLowSurrogate(key.Input[1]))
+                {
+                    _input.InsertText(key.Input);
                 }
 
                 break;

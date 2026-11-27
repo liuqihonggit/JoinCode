@@ -22,7 +22,7 @@ public enum WellKnownParam {
     Verbosity,
 
     [EnumValue("limit")]
-    [ParamMeta("数量限制(默认 30)", Required = false, DefaultValue = "30", TypeName = "int")]
+    [ParamMeta("数量限制", Required = false, DefaultValue = "30", TypeName = "int")]
     Limit,
 
     [EnumValue("json_fields")]

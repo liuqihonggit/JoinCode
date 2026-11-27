@@ -83,10 +83,13 @@ public sealed class CliToolPolicyTests {
 
     [Fact]
     public void Parse_MissingParameterEffect_Rejects() {
-        var yaml = ValidPolicy.Replace(
-            "      offset:\n        effect: allow",
-            "      offset:\n        capabilities: []",
-            StringComparison.Ordinal);
+        var yaml = ValidPolicy.Replace("""
+              offset:
+                effect: allow
+        """, """
+              offset:
+                capabilities: []
+        """, StringComparison.Ordinal);
 
         var error = Assert.Throws<InvalidOperationException>(() => CliToolPolicyLoader.Parse(yaml, "bad.yaml"));
 
@@ -96,10 +99,15 @@ public sealed class CliToolPolicyTests {
 
     [Fact]
     public void Parse_DuplicateParameter_Rejects() {
-        var yaml = ValidPolicy.Replace(
-            "      offset:\n        effect: allow",
-            "      offset:\n        effect: allow\n      offset:\n        effect: deny",
-            StringComparison.Ordinal);
+        var yaml = ValidPolicy.Replace("""
+              offset:
+                effect: allow
+        """, """
+              offset:
+                effect: allow
+              offset:
+                effect: deny
+        """, StringComparison.Ordinal);
 
         var error = Assert.Throws<InvalidOperationException>(() => CliToolPolicyLoader.Parse(yaml, "dup.yaml"));
 

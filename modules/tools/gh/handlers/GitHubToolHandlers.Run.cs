@@ -11,7 +11,7 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhRunList, "列出 Actions Run(支持状态/分支/事件/工作流/用户/commit/创建时间过滤)", "github", ConcurrencySafe = true)]
     [ToolAnchors("CI 列表", "run 列表", "workflow 运行", "Actions 历史")]
     public async Task<ToolResult> GhRunListAsync(
-        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
+        [McpToolParameter(WellKnownParam.Limit, DefaultValue = "20")] int? limit = null,
         [McpToolParameter("状态过滤(queued/in_progress/completed,可选)", Required = false)] string? status = null,
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
         [McpToolParameter("事件过滤(可选,如 push/pull_request/schedule)", Required = false)] string? event_type = null,

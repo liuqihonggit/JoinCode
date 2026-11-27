@@ -33,6 +33,16 @@ tools:
         effect: allow
       working_dir:
         effect: allow
+      repo:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_auth_status:
     effect: allow
     parameters: []
@@ -93,6 +103,20 @@ tools:
         effect: allow
       dry_run:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_branch_audit_protection:
     effect: allow
     parameters:
@@ -100,13 +124,59 @@ tools:
         effect: allow
       yml_path:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_branch_list:
     effect: allow
-    parameters: []
+    parameters:
+      limit:
+        effect: allow
+      protected:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_branch_view:
     effect: allow
     parameters:
       branch:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_branch_create:
     effect: allow
@@ -117,10 +187,38 @@ tools:
         effect: allow
       sha:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_branch_delete:
     effect: allow
     parameters:
       branch:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_branch_rename:
     effect: allow
@@ -129,13 +227,57 @@ tools:
         effect: allow
       new_name:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_gist_list:
     effect: allow
-    parameters: []
+    parameters:
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_gist_view:
     effect: allow
     parameters:
       gist_id:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_gist_create:
     effect: allow
@@ -145,6 +287,8 @@ tools:
       content:
         effect: allow
       description:
+        effect: allow
+      public:
         effect: allow
   gh_gist_delete:
     effect: allow
@@ -178,10 +322,14 @@ tools:
         effect: allow
       dir:
         effect: allow
+      working_dir:
+        effect: allow
   gh_issue_list:
     effect: allow
     parameters:
       state:
+        effect: allow
+      limit:
         effect: allow
       label:
         effect: allow
@@ -197,12 +345,42 @@ tools:
         effect: allow
       type:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_issue_view:
     effect: allow
     parameters:
+      issue_number:
+        effect: allow
       comments:
         effect: allow
       web:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_issue_create:
     effect: allow
@@ -231,28 +409,92 @@ tools:
         effect: allow
       type:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_issue_close:
     effect: allow
     parameters:
+      issue_number:
+        effect: allow
       comment:
         effect: allow
       reason:
         effect: allow
       duplicate_of:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_issue_comment:
     effect: allow
     parameters:
+      issue_number:
+        effect: allow
       body:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_issue_reopen:
     effect: allow
     parameters:
+      issue_number:
+        effect: allow
       comment:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_issue_edit:
     effect: allow
     parameters:
+      issue_number:
+        effect: allow
       title:
         effect: allow
       body:
@@ -301,55 +543,227 @@ tools:
         effect: allow
       remove_type:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_issue_delete:
     effect: allow
     parameters:
+      issue_number:
+        effect: allow
       yes:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_issue_lock:
     effect: allow
     parameters:
+      issue_number:
+        effect: allow
       reason:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_issue_unlock:
     effect: allow
-    parameters: []
+    parameters:
+      issue_number:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_issue_status:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_issue_develop:
     effect: allow
     parameters:
+      issue_number:
+        effect: allow
       name:
+        effect: allow
+      base:
         effect: allow
       list:
         effect: allow
       checkout:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_issue_pin:
     effect: allow
-    parameters: []
+    parameters:
+      issue_number:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_issue_unpin:
     effect: allow
-    parameters: []
+    parameters:
+      issue_number:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_issue_transfer:
     effect: allow
     parameters:
+      issue_number:
+        effect: allow
       destination_repo:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_label_list:
     effect: allow
     parameters:
+      limit:
+        effect: allow
       search:
         effect: allow
       sort:
         effect: allow
       order:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_label_view:
     effect: allow
     parameters:
       name:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_label_create:
     effect: allow
@@ -362,12 +776,40 @@ tools:
         effect: allow
       force:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_label_delete:
     effect: allow
     parameters:
       name:
         effect: allow
       yes:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_label_edit:
     effect: allow
@@ -380,6 +822,20 @@ tools:
         effect: allow
       description:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_label_clone:
     effect: allow
     parameters:
@@ -387,40 +843,176 @@ tools:
         effect: allow
       force:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_milestone_list:
     effect: allow
     parameters:
+      limit:
+        effect: allow
       state:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_milestone_view:
     effect: allow
     parameters:
       number:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_notification_list:
     effect: allow
     parameters:
+      limit:
+        effect: allow
       unread:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_team_list:
     effect: allow
     parameters:
       org:
         effect: allow
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_collaborator_list:
     effect: allow
-    parameters: []
+    parameters:
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_org_list:
     effect: allow
-    parameters: []
+    parameters:
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_org_view:
     effect: allow
     parameters:
       org:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_ssh_key_list:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_ssh_key_add:
     effect: allow
     parameters:
@@ -438,9 +1030,37 @@ tools:
     parameters:
       key_id:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_gpg_key_list:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_gpg_key_add:
     effect: allow
     parameters:
@@ -455,6 +1075,20 @@ tools:
     effect: allow
     parameters:
       key_id:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_browse:
     effect: allow
@@ -477,12 +1111,44 @@ tools:
         effect: allow
       no_browser:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_cache_list:
     effect: allow
     parameters:
+      limit:
+        effect: allow
       branch:
         effect: allow
+      ref:
+        effect: allow
       key:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_cache_delete:
     effect: allow
@@ -490,6 +1156,20 @@ tools:
       cache_id:
         effect: allow
       all:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_cache_clear_log:
     effect: allow
@@ -501,6 +1181,22 @@ tools:
     parameters:
       org:
         effect: allow
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_ruleset_view:
     effect: allow
     parameters:
@@ -508,10 +1204,38 @@ tools:
         effect: allow
       org:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_ruleset_check:
     effect: allow
     parameters:
       branch:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_status:
     effect: allow
@@ -520,9 +1244,39 @@ tools:
         effect: allow
       exclude:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_codespace_list:
     effect: allow
-    parameters: []
+    parameters:
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_codespace_create:
     effect: allow
     parameters:
@@ -553,11 +1307,41 @@ tools:
         effect: allow
   gh_discussion_list:
     effect: allow
-    parameters: []
+    parameters:
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_discussion_view:
     effect: allow
     parameters:
       number:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_discussion_create:
     effect: allow
@@ -568,6 +1352,20 @@ tools:
         effect: allow
       category:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_discussion_edit:
     effect: allow
     parameters:
@@ -577,6 +1375,20 @@ tools:
         effect: allow
       body:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_discussion_comment:
     effect: allow
     parameters:
@@ -584,10 +1396,40 @@ tools:
         effect: allow
       body:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_project_list:
     effect: allow
     parameters:
       owner:
+        effect: allow
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_project_view:
     effect: allow
@@ -595,6 +1437,20 @@ tools:
       number:
         effect: allow
       owner:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_project_create:
     effect: allow
@@ -665,20 +1521,52 @@ tools:
         effect: allow
   gh_licenses:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_view:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       comments:
         effect: allow
       web:
         effect: allow
       refresh:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_list:
     effect: allow
     parameters:
       state:
+        effect: allow
+      limit:
         effect: allow
       author:
         effect: allow
@@ -686,24 +1574,58 @@ tools:
         effect: allow
       assignee:
         effect: allow
+      base:
+        effect: allow
       head:
         effect: allow
       draft:
         effect: allow
       search:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_diff:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       name_only:
         effect: allow
       exclude:
         effect: allow
       patch:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_checks:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       required:
         effect: allow
       watch:
@@ -718,18 +1640,50 @@ tools:
         effect: allow
       all:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_wait:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       timeout_seconds:
         effect: allow
       poll_interval_seconds:
         effect: allow
       fail_fast:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_merge:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       merge_method:
         effect: allow
       auto_merge:
@@ -744,26 +1698,88 @@ tools:
         effect: allow
       delete_branch:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_checkout:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       branch:
         effect: allow
       force:
         effect: allow
       detach:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_close:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       comment:
         effect: allow
       delete_branch:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_reopen:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       comment:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_pr_create:
     effect: allow
@@ -771,6 +1787,8 @@ tools:
       title:
         effect: allow
       head:
+        effect: allow
+      base:
         effect: allow
       body:
         effect: allow
@@ -812,19 +1830,53 @@ tools:
         effect: allow
       wait_timeout:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_comment:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       body:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_pr_edit:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       title:
         effect: allow
       body:
         effect: allow
       body_file:
+        effect: allow
+      base:
         effect: allow
       label:
         effect: allow
@@ -856,25 +1908,101 @@ tools:
         effect: allow
       merge_method:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_review:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       action:
         effect: allow
       body:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_lock:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       reason:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_pr_unlock:
     effect: allow
-    parameters: []
+    parameters:
+      pr_number:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_status:
     effect: allow
     parameters:
       conflict_status:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_pr_ready:
     effect: allow
@@ -883,14 +2011,44 @@ tools:
         effect: allow
       undo:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_pr_revert:
     effect: allow
     parameters:
+      pr_number:
+        effect: allow
       title:
         effect: allow
       body:
         effect: allow
       draft:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_pr_update_branch:
     effect: allow
@@ -899,12 +2057,42 @@ tools:
         effect: allow
       rebase:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_release_list:
     effect: allow
     parameters:
+      limit:
+        effect: allow
       exclude_drafts:
         effect: allow
       exclude_prereleases:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_release_view:
     effect: allow
@@ -912,6 +2100,20 @@ tools:
       tag:
         effect: allow
       web:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_release_create:
     effect: allow
@@ -944,6 +2146,20 @@ tools:
         effect: allow
       verify_tag:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_release_download:
     effect: allow
     parameters:
@@ -961,6 +2177,20 @@ tools:
         effect: allow
       skip_existing:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_release_upload:
     effect: allow
     parameters:
@@ -969,6 +2199,20 @@ tools:
       files:
         effect: allow
       clobber:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_release_delete:
     effect: allow
@@ -979,12 +2223,40 @@ tools:
         effect: allow
       cleanup_tag:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_release_delete_asset:
     effect: allow
     parameters:
       tag:
         effect: allow
       asset_name:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_release_edit:
     effect: allow
@@ -1009,10 +2281,38 @@ tools:
         effect: allow
       make_latest:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_release_verify:
     effect: allow
     parameters:
       tag:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_release_verify_asset:
     effect: allow
@@ -1021,12 +2321,40 @@ tools:
         effect: allow
       tag:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_view:
     effect: allow
     parameters:
       branch:
         effect: allow
       web:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_repo_clone:
     effect: allow
@@ -1046,6 +2374,18 @@ tools:
       sparse:
         effect: allow
       upstream_remote_name:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_repo_create:
     effect: allow
@@ -1084,6 +2424,20 @@ tools:
         effect: allow
       web:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_fork:
     effect: allow
     parameters:
@@ -1099,9 +2453,23 @@ tools:
         effect: allow
       remote:
         effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_list:
     effect: allow
     parameters:
+      limit:
+        effect: allow
       language:
         effect: allow
       visibility:
@@ -1113,6 +2481,20 @@ tools:
       archived:
         effect: allow
       topic:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_repo_edit:
     effect: allow
@@ -1163,6 +2545,20 @@ tools:
         effect: allow
       accept_visibility_change_consequences:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_delete:
     effect: allow
     parameters:
@@ -1170,16 +2566,70 @@ tools:
         effect: allow
       yes:
         effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_archive:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_unarchive:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_rename:
     effect: allow
     parameters:
       new_name:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_repo_sync:
     effect: allow
@@ -1187,6 +2637,20 @@ tools:
       branch:
         effect: allow
       source:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_repo_set_default:
     effect: allow
@@ -1197,18 +2661,74 @@ tools:
         effect: allow
       unset:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_set_default_branch:
     effect: allow
     parameters:
       branch:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_autolink_list:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_autolink_view:
     effect: allow
     parameters:
       autolink_id:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_repo_autolink_create:
     effect: allow
@@ -1217,14 +2737,56 @@ tools:
         effect: allow
       url_template:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_autolink_delete:
     effect: allow
     parameters:
       autolink_id:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_deploy_key_list:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_deploy_key_add:
     effect: allow
     parameters:
@@ -1234,14 +2796,58 @@ tools:
         effect: allow
       read_only:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_deploy_key_delete:
     effect: allow
     parameters:
       key_id:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_gitignore_list:
     effect: allow
-    parameters: []
+    parameters:
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_gitignore_view:
     effect: allow
     parameters:
@@ -1249,7 +2855,23 @@ tools:
         effect: allow
   gh_repo_license_list:
     effect: allow
-    parameters: []
+    parameters:
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_repo_license_view:
     effect: allow
     parameters:
@@ -1258,6 +2880,8 @@ tools:
   gh_run_list:
     effect: allow
     parameters:
+      limit:
+        effect: allow
       status:
         effect: allow
       branch:
@@ -1274,6 +2898,20 @@ tools:
         effect: allow
       refresh:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_run_view:
     effect: allow
     parameters:
@@ -1286,6 +2924,8 @@ tools:
       log:
         effect: allow
       max_lines:
+        effect: allow
+      limit:
         effect: allow
       skip_lines:
         effect: allow
@@ -1311,55 +2951,177 @@ tools:
         effect: allow
       max_lines_per_job:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
   gh_run_rerun:
     effect: allow
     parameters:
+      run_id:
+        effect: allow
       failed_only:
         effect: allow
       debug:
         effect: allow
       job:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_run_cancel:
     effect: allow
-    parameters: []
+    parameters:
+      run_id:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_run_wait:
     effect: allow
     parameters:
+      run_id:
+        effect: allow
       timeout_seconds:
         effect: allow
       poll_interval_seconds:
         effect: allow
       fail_fast:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_run_download:
     effect: allow
     parameters:
+      run_id:
+        effect: allow
       dir:
         effect: allow
       name:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_run_delete:
     effect: allow
-    parameters: []
+    parameters:
+      run_id:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_run_watch:
     effect: allow
     parameters:
+      run_id:
+        effect: allow
       interval:
         effect: allow
       compact:
         effect: allow
       exit_status:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_ci_alerts:
     effect: allow
     parameters:
       mark_read:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_search_repos:
     effect: allow
     parameters:
       query:
+        effect: allow
+      limit:
         effect: allow
       sort:
         effect: allow
@@ -1371,28 +3133,76 @@ tools:
         effect: allow
       topic:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_search_issues:
     effect: allow
     parameters:
       query:
         effect: allow
+      limit:
+        effect: allow
       sort:
         effect: allow
       order:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_search_prs:
     effect: allow
     parameters:
       query:
         effect: allow
+      limit:
+        effect: allow
       sort:
         effect: allow
       order:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_search_code:
     effect: allow
     parameters:
       query:
+        effect: allow
+      limit:
         effect: allow
       sort:
         effect: allow
@@ -1406,27 +3216,87 @@ tools:
         effect: allow
       filename:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_search_commits:
     effect: allow
     parameters:
       query:
         effect: allow
+      limit:
+        effect: allow
       sort:
         effect: allow
       order:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_search_users:
     effect: allow
     parameters:
       query:
         effect: allow
+      limit:
+        effect: allow
       sort:
         effect: allow
       order:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_secret_list:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_secret_set:
     effect: allow
     parameters:
@@ -1436,18 +3306,74 @@ tools:
         effect: allow
       env:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_secret_delete:
     effect: allow
     parameters:
       name:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_variable_list:
     effect: allow
-    parameters: []
+    parameters:
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_variable_get:
     effect: allow
     parameters:
       name:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_variable_set:
     effect: allow
@@ -1456,39 +3382,143 @@ tools:
         effect: allow
       body:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_variable_delete:
     effect: allow
     parameters:
       name:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_workflow_list:
     effect: allow
     parameters:
       all:
         effect: allow
+      limit:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_workflow_view:
     effect: allow
     parameters:
       workflow_id:
         effect: allow
+      ref:
+        effect: allow
       yaml:
         effect: allow
       web:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_workflow_run:
     effect: allow
     parameters:
       workflow_id:
         effect: allow
+      ref:
+        effect: allow
       inputs:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow
   gh_workflow_enable:
     effect: allow
     parameters:
       workflow_id:
         effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
+        effect: allow
   gh_workflow_disable:
     effect: allow
     parameters:
       workflow_id:
+        effect: allow
+      repo:
+        effect: allow
+      working_dir:
+        effect: allow
+      verbosity:
+        effect: allow
+      json_fields:
+        effect: allow
+      jq:
+        effect: allow
+      skip_lines:
+        effect: allow
+      start_line:
         effect: allow

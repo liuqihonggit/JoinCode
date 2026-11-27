@@ -23,6 +23,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GROUP_MAP_PATH = REPO_ROOT / "resources/tools/group_map.yaml"
+WELL_KNOWN_PARAM_PATH = REPO_ROOT / "modules/abstractions/abstractions_primitives_utils/src/constants/params/WellKnownParam.cs"
 
 DISPATCH_RE = re.compile(r"\[McpToolDispatch\(ToolCategory\.(?P<cat>\w+)")
 TOOL_RE = re.compile(
@@ -32,8 +33,8 @@ TOOL_RE = re.compile(
     re.S,
 )
 PARAM_RE = re.compile(
-    r"\[McpToolParameter\(\s*\"(?P<desc>(?:\\.|[^\"\\])*)\"\s*(?P<rest>(?:[^\[\]]|\[[^\[\]]*\])*)\)\]\s*"
-    r"(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>[A-Za-z_][A-Za-z0-9_]*)\s*"
+    r"\[McpToolParameter\(\s*(?:\"(?P<desc>(?:\\.|[^\"\\])*)\"|WellKnownParam\.(?P<well_known>[A-Za-z_][A-Za-z0-9_]*))\s*(?P<rest>(?:[^\[\]]|\[[^\[\]]*\])*)\)\]\s*"
+    r"(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>@?[A-Za-z_][A-Za-z0-9_]*)\s*"
     r"(?:=\s*(?P<default>[^,)\n]+))?",
     re.S,
 )
@@ -44,8 +45,8 @@ CAMEL_RE = re.compile(r"(?<!^)(?=[A-Z])")
 MCPTOOL_OPTIONS_RE = re.compile(r"\[McpToolOptions\]\s*(?P<type>[A-Za-z_][A-Za-z0-9_.]*)")
 RECORD_RE = re.compile(r"(?:public|internal)\s+(?:sealed\s+|partial\s+)*record\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)")
 PROPERTY_PARAM_RE = re.compile(
-    r"\[McpToolParameter\(\s*\"(?P<desc>(?:\\.|[^\"\\])*)\"\s*(?P<rest>(?:[^\[\]]|\[[^\[\]]*\])*)\)\]\s*"
-    r"public\s+(?P<req>required\s+)?(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>[A-Za-z_][A-Za-z0-9_]*)\s*\{\s*get;",
+    r"\[McpToolParameter\(\s*(?:\"(?P<desc>(?:\\.|[^\"\\])*)\"|WellKnownParam\.(?P<well_known>[A-Za-z_][A-Za-z0-9_]*))\s*(?P<rest>(?:[^\[\]]|\[[^\[\]]*\])*)\)\]\s*"
+    r"public\s+(?P<req>required\s+)?(?P<type>[A-Za-z0-9_<>?\[\],. ]+?)\s+(?P<pname>@?[A-Za-z_][A-Za-z0-9_]*)\s*\{\s*get;",
     re.S,
 )
 ALIASES_RE = re.compile(r"Aliases\s*=\s*\[(?P<items>[^\]]*)\]")
@@ -55,7 +56,7 @@ def is_source_file(path: Path) -> bool:
     """生产源文件 — 测试项目里的 [McpTool] 桩（如 test_tool）不能进 CLI 目录。"""
     if ".g.cs" in path.name:
         return False
-    return not any(part.endswith(".tests") or part in {"test", "tests"} for part in path.parts)
+    return not any(part.endswith(".tests") or part.endswith("_tests") or part in {"test", "tests"} for part in path.parts)
 
 
 def load_group_map() -> tuple[dict[str, str], str]:
@@ -313,20 +314,8 @@ def collect_options_records(root: Path) -> dict[str, list[dict]]:
             block = extract_braced_block(text, record.end())
             if not block or "[McpToolParameter" not in block:
                 continue
-            params = []
-            for prop in PROPERTY_PARAM_RE.finditer(block):
-                rest = prop.group("rest") or ""
-                required = bool(prop.group("req")) or "Required = true" in rest
-                if "Required = false" in rest or "Required=false" in rest:
-                    required = False
-                params.append({
-                    "name": to_snake(prop.group("pname")),
-                    "type": normalize_type(prop.group("type")),
-                    "description": unescape_csharp(prop.group("desc").strip()),
-                    "required": required,
-                    "default": clean_default(_default_value(rest)),
-                    "aliases": extract_aliases(rest),
-                })
+            params = [parameter_from_match(prop, property_parameter=True)
+                      for prop in PROPERTY_PARAM_RE.finditer(block)]
             if params:
                 registry[record.group("name")] = params
     return registry
@@ -335,6 +324,66 @@ def collect_options_records(root: Path) -> dict[str, list[dict]]:
 def _default_value(rest: str) -> str | None:
     match = re.search(r"DefaultValue\s*=\s*\"(?P<value>(?:\\.|[^\"\\])*)\"", rest)
     return match.group("value") if match else None
+
+
+def load_well_known_params(path: Path = WELL_KNOWN_PARAM_PATH) -> dict[str, dict[str, object]]:
+    text = path.read_text(encoding="utf-8")
+    pattern = re.compile(
+        r"\[ParamMeta\(\"(?P<desc>(?:\\.|[^\"\\])*)\"(?P<rest>[^)]*)\)\]\s*"
+        r"(?P<member>[A-Za-z_][A-Za-z0-9_]*)\s*,",
+        re.S,
+    )
+    metadata: dict[str, dict[str, object]] = {}
+    for match in pattern.finditer(text):
+        rest = match.group("rest")
+        metadata[match.group("member")] = {
+            "description": unescape_csharp(match.group("desc")),
+            "required": "Required = false" not in rest and "Required=false" not in rest,
+            "default": clean_default(_default_value(rest)),
+        }
+    return metadata
+
+
+WELL_KNOWN_PARAMS = load_well_known_params()
+
+
+def parameter_from_match(match: re.Match[str], *, property_parameter: bool = False) -> dict[str, object]:
+    rest = match.group("rest") or ""
+    name = match.group("pname").lstrip("@")
+    if property_parameter:
+        name = to_snake(name)
+
+    well_known = match.group("well_known")
+    if well_known:
+        metadata = WELL_KNOWN_PARAMS[well_known]
+        required = metadata["required"]
+        if "Required = false" in rest or "Required=false" in rest:
+            required = False
+        elif "Required = true" in rest or "Required=true" in rest:
+            required = True
+        return {
+            "name": name,
+            "type": normalize_type(match.group("type")),
+            "description": metadata["description"],
+            "required": required,
+            "default": clean_default(_default_value(rest)) or metadata["default"],
+            "aliases": extract_aliases(rest),
+        }
+
+    if property_parameter:
+        required = bool(match.group("req")) or "Required = true" in rest
+        if "Required = false" in rest or "Required=false" in rest:
+            required = False
+    else:
+        required = "Required = false" not in rest and "Required=false" not in rest
+    return {
+        "name": name,
+        "type": normalize_type(match.group("type")),
+        "description": unescape_csharp(match.group("desc").strip()),
+        "required": required,
+        "default": clean_default(_default_value(rest) if property_parameter else match.group("default")),
+        "aliases": extract_aliases(rest),
+    }
 
 
 def extract_braced_block(text: str, start: int) -> str:
@@ -370,20 +419,12 @@ def parse_file(path: Path, group_map: dict[str, str], default_group: str,
         block_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         block = text[match.start():block_end]
         raw_name = match.group("name")
-        params = []
-        for p in PARAM_RE.finditer(block):
-            rest = p.group("rest") or ""
-            params.append({
-                "name": p.group("pname"),
-                "type": normalize_type(p.group("type")),
-                "description": unescape_csharp(p.group("desc").strip()),
-                "required": "Required = false" not in rest and "Required=false" not in rest,
-                "default": clean_default(p.group("default")),
-                "aliases": extract_aliases(rest),
-            })
+        params = [parameter_from_match(parameter) for parameter in PARAM_RE.finditer(block)]
         # 参数收在 [McpToolOptions] record 里的工具（grep / search_* 等），把 record 的属性并进来。
+        parameter_names = {parameter["name"] for parameter in params}
         for option in MCPTOOL_OPTIONS_RE.finditer(block):
-            params.extend((options_records or {}).get(option.group("type"), []))
+            params.extend(parameter for parameter in (options_records or {}).get(option.group("type"), [])
+                          if parameter["name"] not in parameter_names)
         tools.append({
             "raw_name": raw_name,
             "id": resolve_tool_id(raw_name, enums or ({}, {})),

@@ -195,6 +195,11 @@ jcc-tool-github — github 工具分组（173 个工具）
     --paginate                   boolean   可选   是否分页(默认 false,结果多时启用)
     --max_lines                  integer   可选   最大输出行数(默认 500,超出截断)
     --working_dir                string    可选   工作目录(可选,REST API 直调时忽略,保留兼容性)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_auth_status — 查看 GitHub Auth 状态
     (无参数)
@@ -231,39 +236,104 @@ jcc-tool-github — github 工具分组（173 个工具）
     --branch                     string    可选   分支名(默认 main)
     --yml_path                   string    可选   CI yml 路径(可选,默认自动从 ci.yml 解析所有 workflow)
     --dry_run                    boolean   可选   试跑模式(只显示差异不实际修改)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_branch_audit_protection — 审计分支保护: 对比 CI yml matrix 测试 job 与 required_status_checks, 报告差异(不修改)
     --branch                     string    可选   分支名(默认 main)
     --yml_path                   string    可选   CI yml 路径(默认 .github/workflows/ci-unit-tests.yml)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_branch_list — 列出仓库分支(支持 protected 过滤)
-    (无参数)
+    --limit                      integer   可选   数量限制  默认=30
+    --protected                  boolean   可选   只列出受保护分支(true)/未保护(false)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_branch_view — 查看分支详情
     --branch                     string    必填   分支名
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_branch_create — 创建分支(从指定 SHA 或源分支创建)
     --branch                     string    必填   新分支名
     --from                       string    可选   源分支名(默认仓库默认分支)
     --sha                        string    可选   源 commit SHA(优先于 from)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_branch_delete — 删除分支
     --branch                     string    必填   要删除的分支名
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_branch_rename — 重命名分支
     --branch                     string    必填   当前分支名
     --new_name                   string    必填   新分支名
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_gist_list — 列出当前用户的 Gist
-    (无参数)
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_gist_view — 查看 Gist 详情
     --gist_id                    string    必填   Gist ID
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_gist_create — 创建 Gist
     --filename                   string    必填   文件名
     --content                    string    必填   文件内容
     --description                string    可选   描述(可选)
+    --public                     boolean   可选   public=true 公开(默认 false 私有)
 
   gh_gist_delete — 删除 Gist
     --gist_id                    string    必填   Gist ID
@@ -282,9 +352,11 @@ jcc-tool-github — github 工具分组（173 个工具）
   gh_gist_clone — 克隆 Gist 到本地
     --gist_id                    string    必填   Gist ID
     --dir                        string    可选   目标目录(可选,默认用 Gist ID)
+    --working_dir                string    可选   工作目录(可选)
 
   gh_issue_list — 列出 Issue(支持状态/标签/指派人/作者/提及/里程碑/搜索/类型过滤)
     --state                      string    可选   状态(open/closed/all,默认 open)
+    --limit                      integer   可选   数量限制  默认=30
     --label                      string    可选   标签过滤(可选,多个用逗号)
     --assignee                   string    可选   指派人过滤(可选)
     --author                     string    可选   作者过滤(可选)
@@ -292,10 +364,25 @@ jcc-tool-github — github 工具分组（173 个工具）
     --milestone                  string    可选   里程碑过滤(可选,数字 ID 或 * 或 none)
     --search                     string    可选   搜索查询(可选,GitHub search 语法)
     --type                       string    可选   类型(issue/pr,默认 issue)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_view — 查看 Issue 详情
+    --issue_number               string    必填   Issue 编号或 URL
     --comments                   boolean   可选   comments=true 附带评论列表
     --web                        boolean   可选   web=true 只返回 Issue 浏览器 URL
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_create — 创建 Issue(支持标签/指派人/里程碑/attach/blocked_by/blocking/parent/type)
     --title                      string    必填   Issue 标题
@@ -310,19 +397,51 @@ jcc-tool-github — github 工具分组（173 个工具）
     --blocking                   string    可选   阻塞哪些 issue(可选,多个用逗号,暂未支持,需 GraphQL sub-issue API)
     --parent                     integer   可选   父 issue 编号(epic,可选,暂未支持,需 GraphQL sub-issue API)
     --type                       string    可选   issue 类型(可选,如 Bug/Task,暂未支持,需 GraphQL issue types API)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_close — 关闭 Issue(可附评论/原因/重复标记)
+    --issue_number               string    必填   Issue 编号或 URL
     --comment                    string    可选   关闭评论(可选)
     --reason                     string    可选   关闭原因(completed/not_planned,可选)
     --duplicate_of               integer   可选   重复的 Issue 编号(可选,设置后 reason 自动 not_planned)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_comment — 评论 Issue
+    --issue_number               string    必填   Issue 编号或 URL
     --body                       string    必填   评论内容
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_reopen — 重新打开 Issue(可附评论)
+    --issue_number               string    必填   Issue 编号或 URL
     --comment                    string    可选   重开评论(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_edit — 编辑 Issue(title/body/body_file/label/add_label/remove_label/assignee/add_assignee/remove_assignee/milestone/remove_milestone/add_project/remove_project/attach/add_sub_issue/remove_sub_issue/parent/remove_parent/add_blocked_by/remove_blocked_by/add_blocking/remove_blocking/type/remove_type)
+    --issue_number               string    必填   Issue 编号或 URL
     --title                      string    可选   新标题(可选)
     --body                       string    可选   新 body(可选)
     --body_file                  string    可选   从文件读 body(可选,替代 body)
@@ -347,84 +466,252 @@ jcc-tool-github — github 工具分组（173 个工具）
     --remove_blocking            string    可选   移除 blocking 关系(可选,多个用逗号)
     --type                       string    可选   设置 issue 类型(可选,按类型名)
     --remove_type                boolean   可选   移除 issue 类型(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_delete — 删除 Issue(需 yes 确认,用 GraphQL)
+    --issue_number               string    必填   Issue 编号或 URL
     --yes                        boolean   可选   是否跳过确认(默认 false)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_lock — 锁定 Issue(可选原因)
+    --issue_number               string    必填   Issue 编号或 URL
     --reason                     string    可选   锁定原因(off-topic/resolved/spam/too heated,可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_unlock — 解锁 Issue
-    (无参数)
+    --issue_number               string    必填   Issue 编号或 URL
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_status — 查看 Issue 状态(当前仓库 open issue)
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_develop — 创建 Issue 开发分支(git checkout -b)
+    --issue_number               string    必填   Issue 编号或 URL
     --name                       string    可选   分支名(可选,默认 issue-{number})
+    --base                       string    可选   基分支(可选,默认当前分支)
     --list                       boolean   可选   list=true 列出链接分支(需 GraphQL,暂未实现)
     --checkout                   boolean   可选   checkout=true 创建后切换(默认 true)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_pin — 固定 Issue(GraphQL pinIssue)
-    (无参数)
+    --issue_number               string    必填   Issue 编号或 URL
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_unpin — 取消固定 Issue(GraphQL unpinIssue)
-    (无参数)
+    --issue_number               string    必填   Issue 编号或 URL
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_issue_transfer — 转移 Issue 到另一个仓库(GraphQL transferIssue)
+    --issue_number               string    必填   Issue 编号或 URL
     --destination_repo           string    必填   目标仓库(owner/repo)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_label_list — 列出仓库标签(支持 search/sort/order)
+    --limit                      integer   可选   数量限制  默认=30
     --search                     string    可选   搜索标签名和描述(可选)
     --sort                       string    可选   排序(created/name,默认 created)
     --order                      string    可选   顺序(asc/desc,默认 asc)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_label_view — 查看标签详情
     --name                       string    必填   标签名
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_label_create — 创建标签(--force 更新已存在)
     --name                       string    必填   标签名
     --color                      string    可选   颜色(6 字符 hex,如 ff0000,可选)
     --description                string    可选   描述(可选)
     --force                      boolean   可选   force=true 已存在则更新(默认 false)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_label_delete — 删除标签(需 yes 确认)
     --name                       string    必填   标签名
     --yes                        boolean   可选   是否跳过确认(默认 false)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_label_edit — 编辑标签(颜色/描述/重命名)
     --name                       string    必填   标签名
     --new_name                   string    可选   新标签名(可选)
     --color                      string    可选   颜色(6 字符 hex,如 ff0000,可选)
     --description                string    可选   描述(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_label_clone — 克隆标签(从源仓库复制到目标仓库)
     --source_repo                string    必填   源仓库(owner/repo)
     --force                      boolean   可选   force=true 覆盖已存在标签(默认 false)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_milestone_list — 列出 Milestone(支持状态过滤)
+    --limit                      integer   可选   数量限制  默认=30
     --state                      string    可选   状态过滤(open/closed/all,默认 open)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_milestone_view — 查看 Milestone 详情
     --number                     string    必填   Milestone 编号
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_notification_list — 列出 GitHub 通知(支持未读过滤)
+    --limit                      integer   可选   数量限制  默认=30
     --unread                     boolean   可选   只列出未读(true)/全部(false,默认)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_team_list — 列出组织团队
     --org                        string    必填   组织名
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_collaborator_list — 列出仓库协作者(含权限)
-    (无参数)
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_org_list — 列出当前用户的组织
-    (无参数)
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_org_view — 查看组织详情
     --org                        string    必填   组织名(如 JoinCode)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_ssh_key_list — 列出 SSH Key
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_ssh_key_add — 添加 SSH Key
     --title                      string    必填   Key 标题
@@ -435,9 +722,22 @@ jcc-tool-github — github 工具分组（173 个工具）
 
   gh_ssh_key_view — 查看 SSH Key 详情
     --key_id                     integer   必填   Key ID
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_gpg_key_list — 列出 GPG Key
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_gpg_key_add — 添加 GPG Key
     --key                        string    必填   ASCII armored GPG key 内容
@@ -447,6 +747,13 @@ jcc-tool-github — github 工具分组（173 个工具）
 
   gh_gpg_key_view — 查看 GPG Key 详情
     --key_id                     integer   必填   Key ID
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_browse — 在浏览器中打开仓库/Issue/PR/commit(或只返回 URL)
     --target                     string    可选   Issue/PR 编号、文件路径或 commit SHA(可选)
@@ -458,34 +765,93 @@ jcc-tool-github — github 工具分组（173 个工具）
     --settings                   boolean   可选   打开 settings 页(可选)
     --blame                      boolean   可选   打开 blame 视图(可选)
     --no_browser                 boolean   可选   只返回 URL 不打开浏览器(默认 false)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_cache_list — 列出 Actions 缓存(支持 branch/ref/key 过滤)
+    --limit                      integer   可选   数量限制  默认=30
     --branch                     string    可选   分支过滤(可选)
+    --ref                        string    可选   ref 过滤(可选)
     --key                        string    可选   key 过滤(可选,模糊匹配)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_cache_delete — 删除 Actions 缓存(指定 ID 或 all=true 删全部)
     --cache_id                   string    可选   缓存 ID(可选,all=true 时忽略)
     --all                        boolean   可选   删除全部缓存(默认 false)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_cache_clear_log — 立即清理本地日志缓存(LSM-Tree,gh:前缀全部删除)
     --expired_only               boolean   可选   仅删过期(默认 false=删全部 gh: 前缀)
 
   gh_ruleset_list — 列出仓库/组织规则集
     --org                        string    可选   组织名(可选,列出组织级规则集)
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_ruleset_view — 查看规则集详情
     --ruleset_id                 string    必填   规则集 ID
     --org                        string    可选   组织名(可选,查看组织级规则集)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_ruleset_check — 检查分支适用的规则集
     --branch                     string    必填   分支名
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_status — 跨仓库状态(指派的 issue/PR、审查请求、提及)
     --org                        string    可选   组织名(可选,限定组织范围)
     --exclude                    string    可选   排除仓库(可选,逗号分隔 owner/repo)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_codespace_list — 列出 Codespace
-    (无参数)
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_codespace_create — 创建 Codespace(需指定仓库+分支)
     --repo                       string    必填   仓库名(owner/repo)
@@ -504,31 +870,81 @@ jcc-tool-github — github 工具分组（173 个工具）
     --codespace_name             string    可选   Codespace 名称(可选,默认最新)
 
   gh_discussion_list — 列出 Discussion(GraphQL)
-    (无参数)
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_discussion_view — 查看 Discussion 详情(GraphQL)
     --number                     integer   必填   Discussion 编号
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_discussion_create — 创建 Discussion(GraphQL,需分类)
     --title                      string    必填   标题
     --body                       string    必填   正文
     --category                   string    必填   分类名(如 General/Q&A/Ideas)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_discussion_edit — 编辑 Discussion(GraphQL)
     --number                     integer   必填   Discussion 编号
     --title                      string    可选   新标题(可选)
     --body                       string    可选   新正文(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_discussion_comment — 评论 Discussion(GraphQL)
     --number                     integer   必填   Discussion 编号
     --body                       string    必填   评论内容
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_project_list — 列出 Project(GraphQL v2)
     --owner                      string    可选   所有者(用户或组织,可选,默认当前用户)
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_project_view — 查看 Project 详情(GraphQL v2)
     --number                     integer   必填   Project 编号
     --owner                      string    可选   所有者(用户或组织,可选,默认当前用户)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_project_create — 创建 Project(GraphQL v2)
     --title                      string    必填   标题
@@ -572,28 +988,60 @@ jcc-tool-github — github 工具分组（173 个工具）
     --extension                  string    必填   扩展名
 
   gh_licenses — 查看可用开源许可证列表(API)
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_view — 查看 PR 详情(号/标题/状态/URL/body/变更统计)
+    --pr_number                  string    必填   PR 编号或 URL
     --comments                   boolean   可选   comments=true 附带评论列表
     --web                        boolean   可选   web=true 只返回 PR 浏览器 URL
     --refresh                    boolean   可选   强制刷新缓存(默认 false,绕过 detail 10min TTL 直拉最新 state — 已知误导案例: PR 已合并仍显示 open)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_list — 列出 PR(支持状态/数量/作者/标签/指派人/分支/draft/搜索过滤)
     --state                      string    可选   状态(open/closed/merged/all,默认 open)
+    --limit                      integer   可选   数量限制  默认=30
     --author                     string    可选   作者过滤(可选)
     --label                      string    可选   标签过滤(可选,多个用逗号)
     --assignee                   string    可选   指派人过滤(可选)
+    --base                       string    可选   目标分支过滤(可选)
     --head                       string    可选   源分支过滤(可选)
     --draft                      boolean   可选   是否 draft PR(可选)
     --search                     string    可选   搜索查询(可选,GitHub search 语法)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_diff — 查看 PR diff(patch 文本,支持 name-only/exclude 过滤)
+    --pr_number                  string    必填   PR 编号或 URL
     --name_only                  boolean   可选   只显示文件名(可选)
     --exclude                    string    可选   排除文件(可选,glob 模式,多个用逗号)
     --patch                      boolean   可选   patch 格式(可选,默认即 patch)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_checks — 查看 PR 的 CI 检查状态(支持 required 过滤/watch 轮询/fail-fast)
+    --pr_number                  string    必填   PR 编号或 URL
     --required                   boolean   可选   只显示 required checks(可选)
     --watch                      boolean   可选   watch 模式轮询直到完成(可选)
     --interval                   integer   可选   轮询间隔秒数(可选,默认 10)
@@ -601,13 +1049,29 @@ jcc-tool-github — github 工具分组（173 个工具）
     --limit                      integer   可选   最大显示 check 数量(可选,默认全部,pass 最多 5)
     --refresh                    boolean   可选   强制刷新缓存(默认 false,绕过 detail TTL 直拉最新 check-runs — 状态冻结/已 rerun 时用)
     --all                        boolean   可选   显示全部 check(含全部 pass,默认 false 时 pass 最多显示 5 个)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_wait — 等待 PR 所有 CI checks 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即拉日志返回)
+    --pr_number                  string    必填   PR 编号或 URL
     --timeout_seconds            integer   可选   超时秒数(默认 1800=30分钟)
     --poll_interval_seconds      integer   可选   初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)
     --fail_fast                  boolean   可选   fail_fast=true 轮询 jobs 级别,发现 job failure 立即拉日志返回(不等所有 checks 完成)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_merge — 合并 PR(支持 squash/merge/rebase + auto-merge + 自定义提交信息)
+    --pr_number                  string    必填   PR 编号或 URL
     --merge_method               string    可选   合并方式(squash/merge/rebase,默认 squash)
     --auto_merge                 boolean   可选   是否启用 auto-merge(CI 通过后自动合并)
     --disable_auto               boolean   可选   禁用 auto-merge(可选)
@@ -615,22 +1079,54 @@ jcc-tool-github — github 工具分组（173 个工具）
     --body                       string    可选   合并提交正文(可选)
     --admin                      boolean   可选   管理员强制合并(可选,绕过 required checks)
     --delete_branch              boolean   可选   合并后是否删除分支
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_checkout — 检出 PR 分支到本地(支持自定义分支名/强制/detached HEAD)
+    --pr_number                  string    必填   PR 编号或 URL
     --branch                     string    可选   本地分支名(可选,默认 pr-{number})
     --force                      boolean   可选   强制重置已有分支(可选)
     --detach                     boolean   可选   detached HEAD 检出(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_close — 关闭 PR(可附评论,可选删除分支)
+    --pr_number                  string    必填   PR 编号或 URL
     --comment                    string    可选   关闭评论(可选)
     --delete_branch              boolean   可选   关闭后是否删除分支
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_reopen — 重新打开 PR(可附评论)
+    --pr_number                  string    必填   PR 编号或 URL
     --comment                    string    可选   重开评论(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_create — 创建 PR(支持 assignee/label/reviewer/milestone/body_file/fill/fill_first/dry_run/no_maintainer_edit + auto-merge)
     --title                      string    必填   PR 标题
     --head                       string    可选   源分支(head,可选,缺省时自动推断当前 git 分支)
+    --base                       string    可选   目标分支(base,默认 main)
     --body                       string    可选   PR 正文(可选,支持 markdown)
     --body_file                  string    可选   从文件读 body(可选,替代 body)
     --draft                      boolean   可选   是否 draft PR(可选,默认 false)
@@ -651,14 +1147,31 @@ jcc-tool-github — github 工具分组（173 个工具）
     --wait                       boolean   可选   创建后自动等候 CI 完成(可选,等价 gh pr wait)
     --fail_fast                  boolean   可选   wait 模式下 fail-fast(可选,job 失败立即拉日志返回)
     --wait_timeout               integer   可选   wait 模式超时秒数(可选,默认 1800)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_comment — 评论 PR
+    --pr_number                  string    必填   PR 编号或 URL
     --body                       string    必填   评论内容
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_edit — 编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone/auto_merge/merge_method)
+    --pr_number                  string    必填   PR 编号或 URL
     --title                      string    可选   新标题(可选)
     --body                       string    可选   新 body(可选)
     --body_file                  string    可选   从文件读 body(可选,替代 body)
+    --base                       string    可选   新 base 分支(可选)
     --label                      string    可选   标签(可选,多个用逗号,替换全部标签)
     --add_label                  string    可选   添加标签(可选,多个用逗号)
     --remove_label               string    可选   移除标签(可选,多个用逗号)
@@ -674,40 +1187,114 @@ jcc-tool-github — github 工具分组（173 个工具）
     --attach                     string    可选   附加文件(可选,上传到 GitHub 附件)
     --auto_merge                 boolean   可选   是否启用 auto-merge(CI 通过后自动合并,可选)
     --merge_method               string    可选   auto-merge 合并方式(squash/merge/rebase,默认 squash,可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_review — 审查 PR(approve/request_changes/comment)
+    --pr_number                  string    必填   PR 编号或 URL
     --action                     string    必填   审查动作(approve/request_changes/comment)
     --body                       string    可选   审查评论(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_lock — 锁定 PR(可选原因)
+    --pr_number                  string    必填   PR 编号或 URL
     --reason                     string    可选   锁定原因(off-topic/resolved/spam/too heated,可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_unlock — 解锁 PR
-    (无参数)
+    --pr_number                  string    必填   PR 编号或 URL
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_status — 查看 PR 状态(当前仓库 open PR)
     --conflict_status            boolean   可选   显示合并冲突状态(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_ready — 标记 PR 为 ready for review(--undo 转为 draft)
     --pr_number                  string    可选   PR 编号或 URL(可选,默认当前分支 PR)
     --undo                       boolean   可选   undo=true 转为 draft(默认 false 标记 ready)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_revert — 回退 PR(git revert + 创建回退 PR)
+    --pr_number                  string    必填   PR 编号或 URL
     --title                      string    可选   回退 PR 标题(可选)
     --body                       string    可选   回退 PR body(可选)
     --draft                      boolean   可选   标记为 draft(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_pr_update_branch — 更新 PR 分支(merge/rebase)
     --pr_number                  string    可选   PR 编号或 URL(可选,默认当前分支 PR)
     --rebase                     boolean   可选   rebase=true 用 rebase 更新(默认 merge)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_list — 列出 Release(支持排除 draft/prerelease)
+    --limit                      integer   可选   数量限制  默认=30
     --exclude_drafts             boolean   可选   排除 draft release(可选)
     --exclude_prereleases        boolean   可选   排除 prerelease(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_view — 查看 Release 详情(含 asset 列表)
     --tag                        string    必填   Release tag 名称
     --web                        boolean   可选   web=true 只返回 Release 浏览器 URL
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_create — 创建 Release(支持 draft/prerelease/自动生成 notes/discussion_category/notes_from_tag/verify_tag)
     --tag                        string    必填   Release tag 名称
@@ -724,6 +1311,13 @@ jcc-tool-github — github 工具分组（173 个工具）
     --notes_from_tag             boolean   可选   使用 tag annotation 作为 notes(可选,git tag -n)
     --notes_start_tag            string    可选   自动生成 notes 的起始 tag(可选,等价 previous_tag_name)
     --verify_tag                 boolean   可选   验证 tag 的 GPG 签名(可选,git tag -v)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_download — 下载 Release asset(复用多线程分片+断点续传,支持 clobber/skip_existing)
     --tag                        string    必填   Release tag 名称
@@ -733,20 +1327,48 @@ jcc-tool-github — github 工具分组（173 个工具）
     --resume                     boolean   可选   是否启用断点续传(默认 true)
     --clobber                    boolean   可选   覆盖已存在文件(可选,默认 false,文件存在时报错)
     --skip_existing              boolean   可选   跳过已存在文件(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_upload — 上传 asset 到 Release(支持 clobber 覆盖)
     --tag                        string    必填   Release tag 名称
     --files                      string    必填   要上传的文件路径(多个用逗号分隔)
     --clobber                    boolean   可选   覆盖同名 asset(可选,默认 false)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_delete — 删除 Release(可选同时删除 git tag)
     --tag                        string    必填   Release tag 名称
     --yes                        boolean   可选   是否跳过确认(默认 true)
     --cleanup_tag                boolean   可选   同时删除 git tag(可选)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_delete_asset — 删除 Release asset
     --tag                        string    必填   Release tag 名称
     --asset_name                 string    必填   asset 名称(多个用逗号分隔)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_edit — 编辑 Release(tag/name/notes/draft/prerelease/target/latest)
     --tag                        string    必填   Release tag 名称
@@ -759,17 +1381,45 @@ jcc-tool-github — github 工具分组（173 个工具）
     --prerelease                 boolean   可选   是否预发布(可选)
     --target                     string    可选   目标 commit/branch(可选)
     --make_latest                string    可选   标记为 latest(可选,true/false/legacy)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_verify — 验证 Release 签名(获取 attestation 元数据)
     --tag                        string    可选   Release tag(可选,默认最新 release)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_release_verify_asset — 验证 Asset 文件签名(SHA256 + attestation)
     --file_path                  string    必填   Asset 文件路径
     --tag                        string    可选   Release tag(可选,默认最新 release)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_view — 查看仓库详情
     --branch                     string    可选   分支名(可选,web=true 时 URL 带分支)
     --web                        boolean   可选   web=true 只返回仓库浏览器 URL
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_clone — 克隆仓库(支持 depth/bare/single-branch/filter/sparse)
     --repo                       string    必填   仓库名(owner/repo 或 URL)
@@ -780,6 +1430,12 @@ jcc-tool-github — github 工具分组（173 个工具）
     --filter                     string    可选   部分克隆过滤器(可选,如 blob:none)
     --sparse                     boolean   可选   稀疏检出(默认 false)
     --upstream_remote_name       string    可选   上游 remote 名(可选,默认 origin)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_create — 创建仓库(public/private/internal,支持 template/clone/source/push/disable-issues/disable-wiki)
     --name                       string    必填   仓库名
@@ -799,6 +1455,13 @@ jcc-tool-github — github 工具分组（173 个工具）
     --disable_issues             boolean   可选   禁用 Issues(可选)
     --disable_wiki               boolean   可选   禁用 Wiki(可选)
     --web                        boolean   可选   web=true 只返回仓库浏览器 URL
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_fork — Fork 仓库(可选指定组织/fork-name/default-branch-only)
     --repo                       string    必填   仓库名(owner/repo)
@@ -807,14 +1470,28 @@ jcc-tool-github — github 工具分组（173 个工具）
     --fork_name                  string    可选   Fork 仓库名(可选,默认同原名)
     --default_branch_only        boolean   可选   只 fork 默认分支(可选)
     --remote                     string    可选   本地 remote 名(可选,clone=true 时添加)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_list — 列出自己可访问的仓库(支持语言/可见性/source/fork/archived/topic 过滤)
+    --limit                      integer   可选   数量限制  默认=30
     --language                   string    可选   语言过滤(可选)
     --visibility                 string    可选   可见性过滤(public/private/internal,可选)
     --source                     boolean   可选   只显示非 fork 仓库(可选)
     --fork                       boolean   可选   只显示 fork 仓库(可选)
     --archived                   boolean   可选   只显示已归档仓库(可选)
     --topic                      string    可选   按 topic 过滤(可选,逗号分隔)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_edit — 编辑仓库(description/homepage/visibility/default_branch/issues/wiki/projects/discussions/merge_methods/security/topics/template)
     --description                string    可选   描述(可选)
@@ -840,69 +1517,184 @@ jcc-tool-github — github 工具分组（173 个工具）
     --add_topic                  string    可选   添加 topic(可选,多个用逗号)
     --remove_topic               string    可选   移除 topic(可选,多个用逗号)
     --accept_visibility_change_consequences boolean   可选   接受可见性变更后果(可选,确认标志)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_delete — 删除仓库(需 yes 确认)
     --repo                       string    必填   仓库名(owner/repo)
     --yes                        boolean   可选   是否跳过确认(默认 false)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_archive — 归档仓库
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_unarchive — 取消归档仓库
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_rename — 重命名仓库
     --new_name                   string    必填   新仓库名
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_sync — 同步 Fork 仓库(从上游拉取更新)
     --branch                     string    可选   要同步的分支(可选,默认默认分支)
     --source                     string    可选   上游仓库(可选,仅兼容 gh CLI --source,始终同步 fork parent)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_set_default — 设置默认仓库(本地 git config,与官方 gh CLI 一致)
     --repository                 string    可选   仓库(owner/repo,空则从 origin remote 推断)
     --view                       boolean   可选   查看当前默认仓库
     --unset                      boolean   可选   取消默认仓库设置
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_set_default_branch — 设置默认分支(REST API PATCH default_branch)
     --branch                     string    必填   默认分支名(如 main/master)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_autolink_list — 列出仓库 Autolink 引用
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_autolink_view — 查看 Autolink 详情
     --autolink_id                integer   必填   Autolink ID
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_autolink_create — 创建 Autolink 引用
     --key_prefix                 string    必填   键前缀(如 TICKET-)
     --url_template               string    必填   URL 模板(含 <num> 占位符,如 https://example.com/TICKET-<num>)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_autolink_delete — 删除 Autolink 引用
     --autolink_id                integer   必填   Autolink ID
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_deploy_key_list — 列出仓库 Deploy Key
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_deploy_key_add — 添加 Deploy Key
     --title                      string    必填   Key 标题
     --key                        string    必填   SSH public key 内容
     --read_only                  boolean   可选   只读(可选,默认 false)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_deploy_key_delete — 删除 Deploy Key
     --key_id                     integer   必填   Key ID
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_gitignore_list — 列出可用 gitignore 模板
-    (无参数)
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_gitignore_view — 查看 gitignore 模板内容
     --name                       string    必填   模板名(如 Java,Python,Node)
 
   gh_repo_license_list — 列出常用 license
-    (无参数)
+    --limit                      integer   可选   数量限制  默认=30
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_repo_license_view — 查看 license 详情
     --key                        string    必填   license key(如 mit,apache-2.0,gpl-3.0)
 
   gh_run_list — 列出 Actions Run(支持状态/分支/事件/工作流/用户/commit/创建时间过滤)
+    --limit                      integer   可选   数量限制  默认=20
     --status                     string    可选   状态过滤(queued/in_progress/completed,可选)
     --branch                     string    可选   分支过滤(可选)
     --event_type                 string    可选   事件过滤(可选,如 push/pull_request/schedule)
@@ -911,6 +1703,13 @@ jcc-tool-github — github 工具分组（173 个工具）
     --commit                     string    可选   commit SHA 过滤(可选)
     --created                    string    可选   创建时间过滤(可选,如 >2026-01-01)
     --refresh                    boolean   可选   强制刷新缓存(兼容参数,run list 直接调 API 无缓存,传入即忽略)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_run_view — 查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,start_line 分页续读(1-indexed),refresh 强制刷新,web 返回 URL,attempt 指定重试次数)
     --run_id                     string    可选   Run ID(可选,与 pr 二选一;支持 run number 短数字自动解析)
@@ -918,6 +1717,7 @@ jcc-tool-github — github 工具分组（173 个工具）
     --job_id                     string    可选   Job ID(可选,支持逗号分隔多个并行下载,如 123 或 123,456)
     --log                        boolean   可选   是否拉取日志(默认 false,仅看详情)
     --max_lines                  integer   可选   最大日志行数(默认 200)
+    --limit                      integer   可选   数量限制  默认=30
     --skip_lines                 integer   可选   跳过前 N 行(用于续读截断日志,默认 0)
     --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1,用于行号定位跳转)
     --expand                     string    可选   按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤(最常用), failures=跨所有失败job批量提取测试名+错误+栈帧, step:Name=只拉指定步骤
@@ -930,112 +1730,303 @@ jcc-tool-github — github 工具分组（173 个工具）
     --around                     integer   可选   跳转到第 N 行附近查看(输出该行前后各 context 行,默认 context=10)
     --all                        boolean   可选   显示全部 job/check(含全部 success,默认 false 时 success 最多显示 5 个)
     --max_lines_per_job          integer   可选   每个失败 job 的最大日志行数(可选,--expand failed 时控制每个 job 日志量,默认 maxLines/失败job数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
 
   gh_run_rerun — 重跑 Actions Run(默认只重跑失败的 job,支持 debug 日志和指定 job)
+    --run_id                     string    必填   Run ID
     --failed_only                boolean   可选   是否只重跑失败的 job(默认 true)
     --debug                      boolean   可选   启用 debug 日志(可选)
     --job                        string    可选   指定重跑的 job ID(可选,逗号分隔多个,设置后只重跑这些 job)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_run_cancel — 取消 Actions Run
-    (无参数)
+    --run_id                     string    必填   Run ID
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_run_wait — 等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即返回)
+    --run_id                     string    必填   Run ID
     --timeout_seconds            integer   可选   超时秒数(默认 1800=30分钟)
     --poll_interval_seconds      integer   可选   初始轮询间隔秒数(默认 5,指数退避×1.5上限60s)
     --fail_fast                  boolean   可选   fail_fast=true 轮询 jobs 级别,发现 job failure 立即拉日志返回(不等 run completed)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_run_download — 下载 Run artifact(zip 文件,支持名称过滤)
+    --run_id                     string    必填   Run ID
     --dir                        string    必填   保存目录
     --name                       string    可选   artifact 名称过滤(可选,支持 * 通配,默认下载全部)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_run_delete — 删除 Actions Run
-    (无参数)
+    --run_id                     string    必填   Run ID
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_run_watch — 观察 Run 直到完成(轮询进度)
+    --run_id                     string    必填   Run ID
     --interval                   integer   可选   刷新间隔秒数(默认 3)
     --compact                    boolean   可选   compact=true 只显示相关/失败步骤
     --exit_status                boolean   可选   exit_status=true 失败时返回错误
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_ci_alerts — 查看后台 CI 监控告警(从 LSM 扫描 gh:ci_alert: 前缀,返回新失败 job 日志路径)
     --mark_read                  boolean   可选   清理已读告警(从 LSM 删除已返回的告警 key)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_search_repos — 搜索 GitHub 仓库
     --query                      string    可选   搜索查询(GitHub search 语法)
+    --limit                      integer   可选   数量限制  默认=30
     --sort                       string    可选   排序(stars/forks/updated,可选)
     --order                      string    可选   顺序(asc/desc,默认 desc)
     --language                   string    可选   按语言过滤(如 CSharp/Go/Python)
     --owner                      string    可选   按 owner 过滤
     --topic                      string    可选   按 topic 过滤
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_search_issues — 搜索 GitHub Issue
     --query                      string    可选   搜索查询(GitHub search 语法)
+    --limit                      integer   可选   数量限制  默认=30
     --sort                       string    可选   排序(created/updated/comments,可选)
     --order                      string    可选   顺序(asc/desc,默认 desc)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_search_prs — 搜索 GitHub PR
     --query                      string    可选   搜索查询(GitHub search 语法)
+    --limit                      integer   可选   数量限制  默认=30
     --sort                       string    可选   排序(created/updated/comments,可选)
     --order                      string    可选   顺序(asc/desc,默认 desc)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_search_code — 搜索 GitHub 代码
     --query                      string    必填   搜索查询(GitHub code search 语法,如 auto_merge repo:owner/repo)
+    --limit                      integer   可选   数量限制  默认=30
     --sort                       string    可选   排序(indexed,可选)
     --order                      string    可选   顺序(asc/desc,默认 desc)
     --language                   string    可选   按语言过滤(如 CSharp/Go/Python)
     --extension                  string    可选   按扩展名过滤(如 cs/go/py)
     --path                       string    可选   按路径过滤(如 src/handlers)
     --filename                   string    可选   按文件名过滤(如 README.md)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_search_commits — 搜索 GitHub 提交
     --query                      string    必填   搜索查询(GitHub commit search 语法,如 fix repo:owner/repo)
+    --limit                      integer   可选   数量限制  默认=30
     --sort                       string    可选   排序(author-date/committer-date,可选)
     --order                      string    可选   顺序(asc/desc,默认 desc)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_search_users — 搜索 GitHub 用户
     --query                      string    必填   搜索查询(GitHub user search 语法,如 type:user)
+    --limit                      integer   可选   数量限制  默认=30
     --sort                       string    可选   排序(followers/repositories/joined,可选)
     --order                      string    可选   顺序(asc/desc,默认 desc)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_secret_list — 列出仓库 Secret
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_secret_set — 设置 Secret(加密后 PUT API)
     --name                       string    必填   Secret 名称
     --body                       string    可选   Secret 值
     --env                        string    可选   环境名(可选,设置环境 Secret)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_secret_delete — 删除 Secret
     --name                       string    必填   Secret 名称
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_variable_list — 列出仓库 Variable
-    (无参数)
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_variable_get — 获取 Variable 值
     --name                       string    必填   Variable 名称
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_variable_set — 设置 Variable
     --name                       string    必填   Variable 名称
     --body                       string    必填   Variable 值
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_variable_delete — 删除 Variable
     --name                       string    必填   Variable 名称
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_workflow_list — 列出仓库 Workflow
     --all                        boolean   可选   all=true 包含已禁用 workflow(默认 false)
+    --limit                      integer   可选   数量限制  默认=50
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_workflow_view — 查看 Workflow 详情
     --workflow_id                string    必填   Workflow ID 或名称或文件名
+    --ref                        string    可选   ref=true 返回指定分支版本(可选)
     --yaml                       boolean   可选   yaml=true 返回 workflow yaml 内容
     --web                        boolean   可选   web=true 只返回浏览器 URL
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_workflow_run — 触发 Workflow 运行(workflow_dispatch)
     --workflow_id                string    必填   Workflow ID 或名称
+    --ref                        string    可选   运行分支或 tag(默认仓库默认分支)
     --inputs                     string    可选   输入参数 JSON(可选,如 {"key":"value"})
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_workflow_enable — 启用 Workflow
     --workflow_id                string    必填   Workflow ID 或名称
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
   gh_workflow_disable — 禁用 Workflow
     --workflow_id                string    必填   Workflow ID 或名称
+    --repo                       string    可选   仓库(可选,默认当前仓库)
+    --working_dir                string    可选   工作目录(可选)
+    --verbosity                  integer   可选   输出档位(0=gh风格简洁[默认] 1=精简JSON 2=完整JSON)
+    --json_fields                string    可选   JSON 字段过滤(可选,逗号分隔)
+    --jq                         string    可选   jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f=="v")/{k: .f}/| 管道)
+    --skip_lines                 integer   可选   跳过前 N 行(偏移量读取,用于截断续读)
+    --start_line                 integer   可选   从第 N 行开始(1-indexed,等价 skip_lines=N-1)
 
 描述来源: 现有 [McpTool] / [McpToolParameter] 特性，由本脚本在编译期提取。

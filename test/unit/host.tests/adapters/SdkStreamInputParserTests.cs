@@ -76,6 +76,41 @@ public sealed class SdkStreamInputParserTests {
     }
 
     /// <summary>
+    /// TASK142-B：控制请求的形状来自基准侧 controlSchemas.ts / structuredIO.ts：
+    /// <c>{"type":"control_request","request_id":"...","request":{"subtype":"interrupt"}}</c>。
+    /// 它不能被当成"非 user 消息"诊断掉，否则 SDK 客户端的 interrupt 永远打不断回合。
+    /// </summary>
+    [Fact]
+    public void ControlInterrupt_IsRecognizedAsControlLine() {
+        var parsed = SdkStreamInputParser.Interpret(
+            """{"type":"control_request","request_id":"req-1","request":{"subtype":"interrupt"}}""");
+
+        parsed.Text.Should().BeNull();
+        parsed.Diagnostic.Should().BeNull();
+        parsed.InterruptRequestId.Should().Be("req-1");
+    }
+
+    /// <summary>基准侧对 control_response / keep_alive 是静默忽略（本仓不发 control_request，无待处理请求）。</summary>
+    [Fact]
+    public void ControlResponseAndKeepAlive_AreSilentlyIgnored() {
+        SdkStreamInputParser.Interpret("""{"type":"control_response","response":{"subtype":"success","request_id":"r1"}}""")
+            .Should().Be(SdkStreamInputLine.Blank);
+        SdkStreamInputParser.Interpret("""{"type":"keep_alive"}""")
+            .Should().Be(SdkStreamInputLine.Blank);
+    }
+
+    /// <summary>未实现的控制子类型必须给出诱导式诊断，不能静默吞掉让客户端以为生效了。</summary>
+    [Fact]
+    public void UnsupportedControlSubtype_IsDiagnosedWithInductiveHint() {
+        var parsed = SdkStreamInputParser.Interpret(
+            """{"type":"control_request","request_id":"r2","request":{"subtype":"set_permission_mode","mode":"bypass"}}""");
+
+        parsed.Text.Should().BeNull();
+        parsed.InterruptRequestId.Should().BeNull();
+        parsed.Diagnostic.Should().Contain("interrupt");
+    }
+
+    /// <summary>
     /// TASK142-A：<c>--replay-user-messages</c> 此前只在 JccCliArg 声明、无 CLI 登记。
     /// 现在要有真实消费方（回显用户消息给 bridge 父进程派生标题），先锁参数面。
     /// </summary>

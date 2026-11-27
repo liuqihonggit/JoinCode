@@ -100,3 +100,44 @@ RESULT q-5f839d48… error_during_execution
 
 判读：回显行可被 `ExtractUserMessageText` 的嵌套数组分支识别；每回合一条 result；
 参数面、输出面、父进程消费面三段闭合。
+
+### B — SDK 控制协议（interrupt 子集）✅（进程级取消证据有限，见下）
+
+**原始素材**：`D:\project\claude-code-rust\claude-code-rev-main\src\entrypoints\sdk\controlSchemas.ts`
+（`SDKControlRequestSchema` / `SDKControlResponseSchema`）、`src\cli\print.ts::sendControlResponseSuccess`、
+`src\cli\structuredIO.ts::processLine`。**没有自造协议字段**。
+
+| 输入行 | 本仓行为 |
+|--------|----------|
+| `{"type":"control_request","request_id":"r","request":{"subtype":"interrupt"}}` | 取消当前回合 CTS + 回 `control_response{success,r,{}}` |
+| `{"type":"control_response",…}` / `{"type":"keep_alive"}` / `update_environment_variables` | 静默忽略（本仓不发 control_request，无待匹配应答） |
+| 其它 `control_request.subtype` | stderr 诊断：`当前仅支持 interrupt…请用 type=user 提交下一回合` |
+
+**并发结构**：stdin 读取改到独立 `Task`，控制行即时处理、用户行入 `Channel` 串行执行；
+回合 CTS 用不可变快照 + `Interlocked.CompareExchange` 交接（分析器 JCC4008 禁 `lock`），
+`Cancel()` 命中已释放 CTS 时记诊断后忽略。
+
+| 文件 | 改动 |
+|------|------|
+| `modules/apps/cli/core/output/SdkStreamControlMessage.cs`（新） | 控制请求/应答 DTO（JsonContext 注册） |
+| `modules/apps/cli/core/output/SdkStreamInputParser.cs` | `SdkStreamInputLine.Interrupt(requestId)` + 控制行分派 |
+| `modules/apps/cli/entry/runners/NonInteractiveModeRunner.cs` | 独立 stdin 生产者 + Channel 消费 + `TurnCancellation`（CAS）+ `WriteControlResponse` |
+| `test/unit/host.tests/adapters/SdkStreamInputParserTests.cs` | 3 条：interrupt 识别 / control_response+keep_alive 静默 / 未支持子类型诱导诊断 |
+| `test/unit/host.tests/adapters/StreamJsonInterruptTests.cs`（新） | 4 条 CAS 竞态：取消当前回合 / 旧回合收尾不摘新回合 / CTS 已释放不抛 / Dispose 幂等 |
+
+**红→绿**：新增测试先因 `InterruptRequestId` 不存在编译失败；实现后 17/17 绿。
+
+**真机**：管道注入 user 行 + 2 秒后 interrupt：
+
+```
+{"type":"system","subtype":"init",...}
+{"type":"control_response","response":{"subtype":"success","request_id":"req-interrupt-1","response":{}}}
+{"type":"result","subtype":"success",...,"query_id":"q-f731128…"}
+[RUN] stream-json turn start
+[RUN] control_response sent for req-interrupt-1
+```
+
+**证据边界（如实记）**：本地没有可控的慢 provider（自建延迟端点未被当前 vendor 路由命中，
+MockServer 需另配隔离 AppData），所以"在途 HTTP 真被 Cancel 打断"**未在进程级复现**；
+真机只证明控制行被识别、应答形状正确、回合循环继续。取消竞态由 4 条确定性单测兜底。
+不把单测冒充进程级证据。

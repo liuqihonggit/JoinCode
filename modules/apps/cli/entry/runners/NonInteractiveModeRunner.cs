@@ -105,19 +105,50 @@ internal static class NonInteractiveModeRunner {
         }
 
         using var stdin = new StreamReader(Console.OpenStandardInput(), System.Text.Encoding.UTF8);
+        using var turnCancellation = new TurnCancellation();
+        // 有界邮箱：SDK 客户端连发多条时背压到 stdin 读取，避免无限堆积（S5 门禁亦禁止 unbounded）。
+        var lines = System.Threading.Channels.Channel.CreateBounded<Cli.Output.SdkStreamInputLine>(
+            new System.Threading.Channels.BoundedChannelOptions(256) {
+                SingleReader = true,
+                SingleWriter = true,
+                FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait,
+            });
+
+        // TASK142-B：stdin 读取必须独立于回合执行 —— 否则 interrupt 要等当前回合跑完才被读到，
+        // "打断在途查询"就成了空话。控制行在生产端直接取消当前 CTS 并回 control_response；
+        // 用户行入 Channel，由消费端逐回合串行执行（SDK 的 batch 语义不在此引入并发）。
+        var readerTask = Task.Run(async () => {
+            try {
+                while (!ct.IsCancellationRequested) {
+                    var line = await stdin.ReadLineAsync(ct).ConfigureAwait(false);
+                    if (line is null)
+                        break;
+
+                    var parsed = Cli.Output.SdkStreamInputParser.Interpret(line);
+                    if (parsed.InterruptRequestId is { } requestId) {
+                        turnCancellation.CancelActive();
+                        WriteControlResponse(requestId);
+                        continue;
+                    }
+                    if (parsed.Diagnostic is { } diagnostic) {
+                        // 诊断走 stderr：stdout 是纯协议流
+                        Console.Error.WriteLine(diagnostic);
+                        continue;
+                    }
+                    if (parsed.Text is null)
+                        continue;
+                    await lines.Writer.WriteAsync(parsed, ct).ConfigureAwait(false);
+                }
+            } catch (OperationCanceledException) {
+                // 正常收尾
+            } finally {
+                lines.Writer.TryComplete();
+            }
+        }, ct);
+
         var sawSuccess = false;
         var lastExit = 0;
-        while (!ct.IsCancellationRequested) {
-            var line = await stdin.ReadLineAsync(ct).ConfigureAwait(false);
-            if (line is null)
-                break;
-
-            var parsed = Cli.Output.SdkStreamInputParser.Interpret(line);
-            if (parsed.Diagnostic is { } diagnostic) {
-                // 诊断走 stderr：stdout 是纯协议流
-                Console.Error.WriteLine(diagnostic);
-                continue;
-            }
+        await foreach (var parsed in lines.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
             if (parsed.Text is not { } text)
                 continue;
 
@@ -127,13 +158,25 @@ internal static class NonInteractiveModeRunner {
                 WriteReplayUserMessage(context, text);
 
             ResetTurnState(context, text);
+            using var turnCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            turnCancellation.SetActive(turnCts);
             Diag.WriteLine("[RUN] stream-json turn start");
-            await turnPipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
+            try {
+                await turnPipeline.ExecuteAsync(context, turnCts.Token).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (turnCts.IsCancellationRequested) {
+                context.StructuredError = new Cli.Output.CliStructuredError(
+                    "INTERRUPTED", "查询已被 SDK control_request/interrupt 取消",
+                    hint: "确认取消后可用 type=user 提交下一回合", retryable: true);
+                context.ExitCode = (int)ExitCode.GeneralError;
+            } finally {
+                turnCancellation.ClearActive(turnCts);
+            }
             WriteResultMessage(context);
             lastExit = context.ExitCode;
             sawSuccess |= context.ExitCode == 0;
         }
 
+        await readerTask.ConfigureAwait(false);
         await cleanupPipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
         Diag.WriteLine($"[RUN] stream-json loop done, sawSuccess={sawSuccess}, lastExit={lastExit}");
         return sawSuccess ? 0 : lastExit;
@@ -210,6 +253,65 @@ internal static class NonInteractiveModeRunner {
             hint: "请检查错误日志获取详细信息",
             retryable: false);
         ctx.ExitCode = (int)ExitCode.GeneralError;
+    }
+
+    /// <summary>
+    /// 回 control_response（TASK142-B）— 形状对齐基准侧 <c>sendControlResponseSuccess</c>：
+    /// <c>{"type":"control_response","response":{"subtype":"success","request_id":"…","response":{}}}</c>。
+    /// </summary>
+    /// <param name="requestId">原 control_request 的 request_id</param>
+    private static void WriteControlResponse(string requestId) {
+        var response = new Cli.Output.SdkStreamControlResponse {
+            Response = new Cli.Output.SdkStreamControlResponseBody { RequestId = requestId },
+        };
+        Console.WriteLine(RelaxedJsonSerializer.Serialize(response, Cli.Output.CliOutputJsonContext.Default));
+        Diag.WriteLine($"[RUN] control_response sent for {requestId}");
+    }
+
+    /// <summary>
+    /// 在途回合的取消句柄（TASK142-B）— 生产端（stdin 读循环）调 <see cref="CancelActive"/>，
+    /// 消费端（回合循环）在回合开始/结束时登记与清除；用锁保护引用交接，避免 CTS 被释放时的竞态。
+    /// </summary>
+    internal sealed class TurnCancellation : IDisposable {
+        /// <summary>不可变快照 — 一次 CAS 换整个句柄，锁内状态为零。</summary>
+        private sealed record ActiveTurn(CancellationTokenSource Cts);
+
+        private ActiveTurn? _active;
+        private int _disposed;
+
+        /// <summary>登记当前回合的 CTS。</summary>
+        /// <param name="cts">回合 CTS</param>
+        public void SetActive(CancellationTokenSource cts) {
+            if (Volatile.Read(ref _disposed) != 0) {
+                cts.Dispose();
+                return;
+            }
+            Interlocked.Exchange(ref _active, new ActiveTurn(cts));
+        }
+
+        /// <summary>回合结束，仅当仍是同一个 CTS 才清除（避免清掉下一回合）。</summary>
+        /// <param name="cts">回合 CTS</param>
+        public void ClearActive(CancellationTokenSource cts) {
+            var current = Volatile.Read(ref _active);
+            if (current is not null && ReferenceEquals(current.Cts, cts))
+                Interlocked.CompareExchange(ref _active, null, current);
+        }
+
+        /// <summary>取消当前回合；命中已收尾的 CTS 时记诊断后忽略。</summary>
+        public void CancelActive() {
+            try {
+                Volatile.Read(ref _active)?.Cts.Cancel();
+            } catch (ObjectDisposedException) {
+                Diag.WriteLine("[RUN] interrupt 命中已收尾的回合 CTS，忽略");
+            }
+        }
+
+        /// <summary>幂等释放仍登记的 CTS。</summary>
+        public void Dispose() {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+            Interlocked.Exchange(ref _active, null)?.Cts.Dispose();
+        }
     }
 
     /// <summary>从 Usage + TotalCostUsd 构造按模型分组的用量字典</summary>

@@ -14,11 +14,14 @@ from __future__ import annotations
 import os
 import pathlib
 import re
+import signal
 import subprocess
 import sys
+import tempfile
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 JCC = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else REPO / "artifacts/bin/JoinCode/Debug/net10.0/jcc.exe"
+COMMAND_TIMEOUT_SECONDS = 12
 
 
 def yaml_names(path: pathlib.Path) -> list[str]:
@@ -85,27 +88,37 @@ def is_subsequence(actual: list[str], expected: list[str]) -> bool:
 
 
 def run(args: list[str]) -> str:
-    """跑 jcc 子命令，最多 25 秒。
+    """跑 jcc 子命令，最多 12 秒；超时尽力连同子进程树一起终止。
 
-    超时不丢弃已产出的输出：`-p hi` 的真实耗时取决于 LLM 是否可达（本机无 key 时
-    会在 401 后重试），但 `[MODULE] ... start` 在启动阶段就打完了，所以拿到部分输出
-    仍能完成顺序比对。超时只意味着「这一截没跑完」，不该让门禁挂 4 分钟。
+    `-p hi` 的真实耗时取决于 LLM 是否可达，但 `[MODULE] ... start` 在启动阶段打完，
+    超时后仍用已产出输出比对顺序。Windows 上 jcc 会拉起 Hub，若用管道捕获输出，
+    Hub 继承管道后会让 communicate 等 EOF 到 job 超时；文件承载只等父进程句柄。
     """
     env = dict(os.environ)
     env["JCC_ALLOW_DIRECT_FALLBACK"] = "1"
-    try:
-        proc = subprocess.run([str(JCC), *args], capture_output=True, text=True,
-                              encoding="utf-8", errors="replace", env=env, timeout=25)
-    except subprocess.TimeoutExpired as ex:
-        partial = ""
-        for chunk in (ex.stdout, ex.stderr):
-            if isinstance(chunk, bytes):
-                partial += chunk.decode("utf-8", "replace")
-            elif chunk:
-                partial += chunk
-        print(f"  ! 子命令超时（jcc {' '.join(args)}，25s）—— 通常是 LLM 不可达仍在重试，不是顺序漂移", file=sys.stderr)
-        return partial
-    return (proc.stdout or "") + (proc.stderr or "")
+    with tempfile.TemporaryFile() as capture:
+        proc = subprocess.Popen(
+            [str(JCC), *args],
+            stdout=capture,
+            stderr=subprocess.STDOUT,
+            env=env,
+            start_new_session=os.name != "nt")
+        try:
+            proc.wait(timeout=COMMAND_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=5,
+                    check=False)
+            else:
+                os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()
+            print(f"  ! 子命令超时（jcc {' '.join(args)}，{COMMAND_TIMEOUT_SECONDS}s）—— 通常是 LLM 不可达仍在重试，不是顺序漂移", file=sys.stderr)
+        capture.seek(0)
+        return capture.read().decode("utf-8", "replace")
 
 
 def main() -> int:

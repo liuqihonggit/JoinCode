@@ -171,7 +171,7 @@ jobs:
   module-order:
     name: Module order (CLI + GUI)
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     env:
       PYTHONIOENCODING: utf-8
     steps:

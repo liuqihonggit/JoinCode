@@ -151,21 +151,29 @@ public sealed class ModuleSlnxIntegrityTests {
     }
 
     /// <summary>
-    /// CLI 单项目构建产物必须包含可独立启动的 Hub 运行时，而不能只有 apphost。
+    /// CLI 构建目标必须递归复制完整 Hub 运行时，且单元测试不得依赖跨 job 的构建产物。
     /// </summary>
     [Fact]
-    public void CliBuildOutput_ShouldContainCompleteHubRuntime() {
-        var outputDir = System.IO.Path.Combine(
-            RepoRoot, "artifacts", "bin", "JoinCode", "Debug", "net10.0");
+    public async Task CliProject_ShouldCopyCompleteHubRuntimeAfterBuild() {
+        var fs = IO.FileSystem.FileSystemFactory.Create();
+        var projectPath = System.IO.Path.Combine(RepoRoot, "modules", "apps", "cli", "JoinCode.csproj");
+        var projectXml = await fs.ReadAllText(projectPath);
+        var document = System.Xml.Linq.XDocument.Parse(projectXml);
+        var copyTarget = document.Descendants("Target")
+            .SingleOrDefault(element => (string?)element.Attribute("Name") == "CopyHubRuntimeFiles");
 
-        File.Exists(System.IO.Path.Combine(outputDir, "jcchub.exe")).Should().BeTrue(
-            "CLI 构建应产出 Hub apphost");
-        File.Exists(System.IO.Path.Combine(outputDir, "jcchub.dll")).Should().BeTrue(
-            "Hub apphost 依赖同目录的 jcchub.dll，缺失时会在启动时立即退出");
-        File.Exists(System.IO.Path.Combine(outputDir, "jcchub.deps.json")).Should().BeTrue(
-            "Hub 需要 deps.json 解析程序集依赖");
-        File.Exists(System.IO.Path.Combine(outputDir, "jcchub.runtimeconfig.json")).Should().BeTrue(
-            "Hub 需要 runtimeconfig.json 选择 .NET 运行时");
+        copyTarget.Should().NotBeNull("CLI 构建后必须复制完整 Hub 运行时，而不能只有 apphost");
+        ((string?)copyTarget?.Attribute("AfterTargets")).Should().Be("Build");
+
+        var runtimeFiles = copyTarget?.Descendants("HubRuntimeFiles").SingleOrDefault();
+        ((string?)runtimeFiles?.Attribute("Include")).Should().Be("$(HubOutputDir)**/*",
+            "必须递归包含 Hub 输出目录中的程序集与运行时配置文件");
+
+        var copy = copyTarget?.Descendants("Copy").SingleOrDefault();
+        copy.Should().NotBeNull("复制目标缺失时无法补齐 Hub 运行时");
+        ((string?)copy?.Attribute("SourceFiles")).Should().Be("@(HubRuntimeFiles)");
+        ((string?)copy?.Attribute("DestinationFiles")).Should().Contain("$(TargetDir)");
+        ((string?)copy?.Attribute("SkipUnchangedFiles")).Should().Be("true");
     }
 
     /// <summary>

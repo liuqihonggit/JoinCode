@@ -61,6 +61,9 @@
 | Hub.Tests 全量 | 40/40 | `.xxx/logs/hub-full-green-20261127.log` |
 | Integration.Desktop.Tests 全量 | 10/10 | `.xxx/logs/desktop-integration-full-green-20261127.log` |
 | Host.Tests 全量 | 1423/1423 | `.xxx/logs/host-full-green-20261127.log` |
+| PR CI 修复后 Host.Tests（CI 同过滤器） | 1419/1419 | `.xxx/logs/pr756-host-full-green-20261127.log` |
+| 显式模块顺序脚本真机复验 | 30 秒内完成；段落 49/68、模块 9/9 | `.xxx/logs/pr756-explicit-order-green2-20261127.log` |
+| Module order job 超时收紧 | 25 → 15 分钟；子命令 25 → 12 秒并消除管道 EOF 挂死 | `.github/workflows/ci-unit-tests.yml`、`non_deliverables_tools/scripts/Verify-ExplicitOrder.py` |
 | 受影响域回归合计 | 6197/6197，0 失败、0 跳过 | 同上六组日志 |
 
 ## 四列验收表

@@ -67,7 +67,7 @@ $ jcc --print --input-format stream-json
 | `--print` | **删** | 非交互已由 `--input-format stream-json` 隐含（`IsStreamJsonInputMode` → `IsNonInteractiveMode`），且 `-p` 缺提示词本来也进不了正轨 |
 | `--sdk-url` | **删** | 无消费方。本仓子进程事件走 stdout，由父进程（`BridgeSubprocessHandle`）转发到 ingress；会话令牌/ingress 走 env（`JCC_SESSION_ACCESS_TOKEN` + `JCC_POST_FOR_SESSION_INGRESS_V2`） |
 | `--session-id` | **删** | 语义不兼容：本仓 `--resume` 认的是**本地会话 ID**，bridge 的 `cse_*` 不是它。子进程自己开新会话并通过 `system/init` 的 `session_id` 上报 |
-| `--replay-user-messages` | **删** | 只影响「是否回显用户消息」；父进程读 stdout 时本就主动跳过 `source=replay`，无功能依赖 |
+| `--replay-user-messages` | **当时删，TASK142-A 恢复** | 当时本仓无消费方；但删掉后父进程 `OnFirstUserMessage`（会话标题派生）整条链断掉。TASK142-A 补上回显消费方并恢复此参数 |
 | `--debug-file` | **删** | 无消费方。子进程侧唯一支持的是 `--debuglog`（stderr 开关）；文件回溯由父进程把 stdout 全量落 `bridge-transcript-{id}.json` |
 
 ## 5. 验证

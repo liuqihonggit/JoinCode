@@ -101,6 +101,10 @@ public enum CliArg {
     [CliOption(JccCliArgEnumConstants.InputFormat, "", "输入格式（stream-json = stdin 逐行读 NDJSON 用户消息）", AcceptsValue = true, Category = "输出")]
     InputFormat,
 
+    /// <summary>回显用户消息到 stdout — bridge 父进程据此派生会话标题（对齐基准 --replay-user-messages）</summary>
+    [CliOption(JccCliArgEnumConstants.ReplayUserMessages, "", "回显用户消息到 stdout（bridge 会话标题派生用）", Category = "输出")]
+    ReplayUserMessages,
+
     /// <summary>试跑模式：只显示将要执行的操作，不实际执行</summary>
     [CliOption(JccCliArgEnumConstants.DryRun, "", "试跑模式：只显示将要执行的操作，不实际执行", Category = "权限", RiskLevel = "read", Example = "jcc --dry-run -p \"删除文件\"")]
     DryRun,

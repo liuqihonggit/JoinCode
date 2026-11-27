@@ -121,6 +121,11 @@ internal static class NonInteractiveModeRunner {
             if (parsed.Text is not { } text)
                 continue;
 
+            // TASK142-A：bridge 父进程靠 stdout 的 type=user 行派生会话标题（OnFirstUserMessage）。
+            // 回显必须是「真人消息」形状 —— 不能带 isReplay（基准侧 extractUserMessageText 会跳过它）。
+            if (context.Options.ReplayUserMessages)
+                WriteReplayUserMessage(context, text);
+
             ResetTurnState(context, text);
             Diag.WriteLine("[RUN] stream-json turn start");
             await turnPipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
@@ -132,6 +137,24 @@ internal static class NonInteractiveModeRunner {
         await cleanupPipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
         Diag.WriteLine($"[RUN] stream-json loop done, sawSuccess={sawSuccess}, lastExit={lastExit}");
         return sawSuccess ? 0 : lastExit;
+    }
+
+    /// <summary>
+    /// 回显一条真实用户消息到 stdout（TASK142-A，<c>--replay-user-messages</c>）。
+    /// <para>形状固定为 <c>type=user, message.role=user, message.content=[{type:"text",text:…}]</c>，
+    /// 不写 <c>isReplay</c> —— bridge 父进程的 <c>ExtractUserMessageText</c> 与基准侧一致，
+    /// 遇到 isReplay / isSynthetic / parent_tool_use_id 会判定为「不是真人输入」而跳过。</para>
+    /// </summary>
+    /// <param name="context">启动上下文（取 session_id）</param>
+    /// <param name="text">本回合用户文本</param>
+    private static void WriteReplayUserMessage(StartupContext context, string text) {
+        var echo = Cli.Output.SdkUserMessage.Create(
+            new Cli.Output.SdkMessageBody {
+                Role = "user",
+                Content = [new Cli.Output.SdkTextBlock { Text = text }],
+            },
+            context.SessionId);
+        Console.WriteLine(RelaxedJsonSerializer.Serialize(echo, Cli.Output.CliOutputJsonContext.Default));
     }
 
     /// <summary>回合间复位启动上下文（TASK138）— 每回合独立的输入、耗时、用量、错误与查询身份。</summary>

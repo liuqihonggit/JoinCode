@@ -194,6 +194,7 @@ public static class ApplicationBuilder {
             JsonOutput = result.Json,
             OutputFormat = NormalizeOutputFormat(result.OutputFormat, result.Format, result.InputFormat),
             InputFormat = result.InputFormat,
+            ReplayUserMessages = result.ReplayUserMessages,
             DryRun = result.DryRun,
             Yes = result.Yes,
             Force = result.Force,

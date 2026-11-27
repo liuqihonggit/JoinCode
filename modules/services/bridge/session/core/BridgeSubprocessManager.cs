@@ -240,52 +240,65 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase {
             var type = typeEl.GetString();
             if (!string.Equals(type, "user", StringComparison.OrdinalIgnoreCase)) return null;
 
+            // TASK142-A：与基准侧 sessionRunner.ts::extractUserMessageText 对齐 ——
+            // 工具结果包裹、合成消息、isReplay 回执都不是真人输入，不能拿去派生会话标题。
+            if (json.TryGetValue("parent_tool_use_id", out var parentToolUseId)
+                && parentToolUseId.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)) return null;
+            if (IsTrue(json, "synthetic") || IsTrue(json, "isSynthetic") || IsTrue(json, "isReplay")) return null;
+
             // 跳过 tool-result 消息 — 对齐 TS 端: message.role === 'tool-result'
             if (json.TryGetValue("role", out var roleEl) && roleEl.ValueKind == JsonValueKind.String) {
                 var role = roleEl.GetString();
                 if (string.Equals(role, "tool-result", StringComparison.OrdinalIgnoreCase)) return null;
             }
 
-            // 跳过 synthetic 消息 — 对齐 TS 端: message.synthetic === true
-            if (json.TryGetValue("synthetic", out var synthEl) && synthEl.ValueKind == JsonValueKind.True) return null;
-
-            // 跳过 replay 消息 — 对齐 TS 端: message.source === 'replay'
+            // 跳过 replay 消息 — 本仓既有形状: source === 'replay'
             if (json.TryGetValue("source", out var sourceEl) && sourceEl.ValueKind == JsonValueKind.String) {
                 var source = sourceEl.GetString();
                 if (string.Equals(source, "replay", StringComparison.OrdinalIgnoreCase)) return null;
             }
 
-            // 提取文本内容 — 对齐 TS 端: extractUserMessageText
-            if (json.TryGetValue("content", out var contentEl) && contentEl.ValueKind == JsonValueKind.String) {
-                var text = contentEl.GetString();
-                return string.IsNullOrWhiteSpace(text) ? null : text;
+            // 顶层 content（本仓旧形状）与 SDK 嵌套 message.content（TASK138 回显形状）共用同一提取器。
+            if (json.TryGetValue("content", out var contentEl)) {
+                var text = TextFromContent(contentEl);
+                if (text is not null) return text;
             }
 
-            if (json.TryGetValue("content", out var contentArrEl) && contentArrEl.ValueKind == JsonValueKind.Array) {
-                // content 是数组，提取第一个 text 类型的 block
-                foreach (var item in contentArrEl.EnumerateArray()) {
-                    if (item.TryGetProperty("type", out var blockTypeEl) &&
-                        blockTypeEl.ValueKind == JsonValueKind.String &&
-                        string.Equals(blockTypeEl.GetString(), "text", StringComparison.OrdinalIgnoreCase) &&
-                        item.TryGetProperty("text", out var textEl) && textEl.ValueKind == JsonValueKind.String) {
-                        var text = textEl.GetString();
-                        return string.IsNullOrWhiteSpace(text) ? null : text;
-                    }
-                }
-            }
-
-            // 兜底: 尝试 message.content（嵌套结构）
             if (json.TryGetValue("message", out var msgEl) && msgEl.ValueKind == JsonValueKind.Object) {
-                if (msgEl.TryGetProperty("content", out var msgContentEl) && msgContentEl.ValueKind == JsonValueKind.String) {
-                    var text = msgContentEl.GetString();
-                    return string.IsNullOrWhiteSpace(text) ? null : text;
-                }
+                if (msgEl.TryGetProperty("content", out var msgContentEl))
+                    return TextFromContent(msgContentEl);
             }
 
             return null;
         } catch {
             return null;
         }
+    }
+
+    /// <summary>bool 字段是否为 true（大小写不敏感，兼容 SDK 的 isSynthetic/isReplay 与本仓 synthetic）。</summary>
+    private static bool IsTrue(Dictionary<string, JsonElement> json, string key) =>
+        json.TryGetValue(key, out var element) && element.ValueKind == JsonValueKind.True;
+
+    /// <summary>
+    /// 从 content 元素提取首个 text 块的文本 — content 可以是字符串或内容块数组；
+    /// 数组里非 text 块（image/tool_use/…）跳过，全空返回 null。判据来自基准侧 extractUserMessageText。
+    /// </summary>
+    private static string? TextFromContent(JsonElement content) {
+        if (content.ValueKind == JsonValueKind.String) {
+            var text = content.GetString();
+            return string.IsNullOrWhiteSpace(text) ? null : text;
+        }
+        if (content.ValueKind != JsonValueKind.Array) return null;
+
+        foreach (var block in content.EnumerateArray()) {
+            if (block.ValueKind != JsonValueKind.Object) continue;
+            if (!block.TryGetProperty("type", out var typeEl) || typeEl.ValueKind != JsonValueKind.String) continue;
+            if (!string.Equals(typeEl.GetString(), "text", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!block.TryGetProperty("text", out var textEl) || textEl.ValueKind != JsonValueKind.String) continue;
+            var text = textEl.GetString();
+            if (!string.IsNullOrWhiteSpace(text)) return text;
+        }
+        return null;
     }
 
     /// <summary>
@@ -531,7 +544,9 @@ public sealed class BridgeSubprocessSpawner {
     /// <para>TASK138：**只拼本仓 <c>jcc</c> 真实解析的选项**。此前照 TS 端拼了 <c>--print</c> /
     /// <c>--sdk-url</c> / <c>--session-id</c> / <c>--replay-user-messages</c> / <c>--debug-file</c>，
     /// 这五个在 CLI 的 <c>CliArg</c> 里都没有登记，子进程第一个 token 就倒（<c>Unknown option</c>），
-    /// 也就是说该路径从未真实跑通过。逐项取舍见 <c>docs/proposed/task/TASK138-*.md</c> §4。</para>
+    /// 也就是说该路径从未真实跑通过。逐项取舍见 <c>docs/proposed/task/TASK138-*.md</c> §4。
+    /// TASK142-A：<c>--replay-user-messages</c> 已补上真实消费方（回显用户消息供父进程派生会话标题），
+    /// 因此恢复该参数；其余四个仍因无消费方/语义不兼容而保持不拼。</para>
     /// <para>公开可见是为让门禁单测（<c>BridgeChildArgumentsTests</c>）能对着 CLI 的 <c>CliArgParser</c>
     /// 逐个选项核对「拼出来的参数是否真能解析」，避免再次出现「拼了不存在的参数」。
     /// 注：本库不引用 CLI 程序集，所以这段契约只能靠那个单测保证，不能在此处 <c>cref</c>。</para>
@@ -555,6 +570,9 @@ public sealed class BridgeSubprocessSpawner {
         args.Add(StreamJson);
         args.Add(JccCliArg.OutputFormat.ToValue());
         args.Add(StreamJson);
+
+        // 回显用户消息 — 父进程据此派生会话标题（TASK142-A 补上真实消费方后恢复此参数）。
+        args.Add(JccCliArg.ReplayUserMessages.ToValue());
 
         // 调试日志：子进程侧唯一支持的形状是指向 stderr 的开关（无 --debug-file 消费方）。
         // 文件回溯由父进程负责：stdout 全量落 bridge-transcript-{id}.json。

@@ -74,4 +74,38 @@ public sealed class SdkStreamInputParserTests {
         options.IsNdjsonMode.Should().BeTrue("SDK 方言 stream-json 与 ndjson 同义");
         options.IsStructuredOutputMode.Should().BeTrue("否则事件会以人类可读文本污染协议流");
     }
+
+    /// <summary>
+    /// TASK142-A：<c>--replay-user-messages</c> 此前只在 JccCliArg 声明、无 CLI 登记。
+    /// 现在要有真实消费方（回显用户消息给 bridge 父进程派生标题），先锁参数面。
+    /// </summary>
+    [Fact]
+    public void ReplayUserMessages_IsRegisteredByCliParser() {
+        var parsed = CliArgParser.Parse([JccCliArgEnumConstants.ReplayUserMessages]);
+
+        parsed.Error.Should().BeNull();
+        parsed.ReplayUserMessages.Should().BeTrue();
+        ApplicationBuilder.ParseArgs([JccCliArgEnumConstants.ReplayUserMessages])
+            .ReplayUserMessages.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// TASK142-A：回显必须和基准侧 SDKUserMessage 同形（message.content 为 text 块数组），
+    /// 且不能带 isReplay —— 基准 extractUserMessageText 会跳过 isReplay，父进程拿不到第一条真人消息。
+    /// </summary>
+    [Fact]
+    public void ReplayEcho_UsesRealUserMessageShapeWithoutIsReplay() {
+        var echo = SdkUserMessage.Create(
+            new SdkMessageBody { Role = "user", Content = [new SdkTextBlock { Text = "你好" }] },
+            "session-1");
+        var json = RelaxedJsonSerializer.Serialize(echo, JoinCode.Cli.Output.CliOutputJsonContext.Default);
+
+        using var document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("type").GetString().Should().Be("user");
+        document.RootElement.GetProperty("message").GetProperty("role").GetString().Should().Be("user");
+        document.RootElement.GetProperty("message").GetProperty("content")[0]
+            .GetProperty("type").GetString().Should().Be("text");
+        document.RootElement.TryGetProperty("isReplay", out _).Should().BeFalse(
+            "isReplay=true 的回执会被父进程当成假消息跳过 —— 标题派生链会断");
+    }
 }

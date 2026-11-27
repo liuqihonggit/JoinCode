@@ -178,6 +178,12 @@ public record CommandLineOptions {
     public string? InputFormat { get; init; }
 
     /// <summary>
+    /// 回显用户消息到 stdout（TASK142-A）— 对齐基准 <c>--replay-user-messages</c>：
+    /// bridge 父进程从回显的 type=user 行派生会话标题；仅在流式输入模式下生效。
+    /// </summary>
+    public bool ReplayUserMessages { get; init; }
+
+    /// <summary>
     /// 是否启用 JSON 输出模式（综合 JsonOutput 和 OutputFormat 判断）
     /// </summary>
     public bool IsJsonMode => JsonOutput || string.Equals(OutputFormat, "json", StringComparison.OrdinalIgnoreCase);

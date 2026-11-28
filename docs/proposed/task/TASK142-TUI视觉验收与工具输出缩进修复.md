@@ -41,7 +41,8 @@
 | GlobalSearch（ctrl+shift+f） | ✅ 真实进程 | 同通道 `ESC[102;6u`：弹「全局搜索」；输入 `MessageRenderer` 后真实 rg 命中 `文件:行号 + 行文本`，列表 `… 还有 92 条+`，footer `↑↓ 导航 · enter 定位 · esc 关闭`（`G1-globalsearch.txt` / `G2-results.txt`） |
 | 工具卡鼠标点击展开 | ✅ 真实 WT | 物理鼠标点击折叠行后，`… +8 lines` 消失并展开全部 11 行（含 `Directory.Build.props`、表格 `| ExitCode | Success | Duration |`、json 块），`M10-click-sweep.txt` / `shot-M10-expanded.png` |
 | 选区拖拽高亮 + 复制 | ✅ 真实 WT（修复后） | `SendInput` 相对位移拖拽（按住左键 20 步）→ 选区反色可见（`shot-MD8-selection.png`），Release 即复制；整行选择剪贴板得到 `● 默认回复。`（`shot-MD10-cjkl2.png`）。修复前同操作复制结果为 `认 回 复 。`（宽字符占位空格 + 起点错位，缺陷 D） |
-| unread divider / message actions bar | ⚠️ 未覆盖 | 需构造「滚离底部 + 新消息到达」与光标导航态，本轮未取景 |
+| message actions bar（Shift+↑） | ✅ 真实 WT | Shift+↑ 进入光标导航：选中行整块反色，footer 出现 `c 复制 · ↑↓ 导航 · esc 返回`；按 `c` 后剪贴板得到 `hello`、footer 追加「已复制全文」、Esc 退回普通输入（`shot-NAV2.png`、`NAV3-copy.txt`、`NAV4-esc.txt`） |
+| unread divider（`── N 条新消息 ──`） | ⚠️ 当前 host 无入口 | 分界条件为 `ScrollBox.Sticky == false`（应用内滚离底部）。宿主固定 `inline: true`，inline 模式滚动交给终端原生 scrollback（应用不改变 sticky），因此 divider 只在视口/全屏模式出现，而该模式当前无宿主入口 |
 
 ## 三、缺陷与修复
 
@@ -110,7 +111,8 @@
 
 ## 六、遗留
 
-- 429/500 错误卡因内建重试（`SuggestedRetryCount=3`）不可稳定取景；如需验收重试动画/最终失败文案，需可控重试次数开关。
-- unread divider 与 message actions bar 尚未构造取景（需「滚离底部 + 新消息到达」与光标导航态）。
+- 429/500 错误卡仍不可稳定取景：脚本化 4 条 429 在本轮复核时 mock 端口未稳定监听，最终暴露的是连接拒绝错误卡（`E2-429.txt`：`● 查询执行失败: 由于目标计算机积极拒绝，无法连接。 (127.0.0.1:9911)`）。要验收重试动画/最终 429 文案，需先保证 mock 长驻并记录每次重试请求。
+- unread divider 无宿主入口（inline 固定，见矩阵），需引入视口/全屏宿主开关后才能真机取景。
+- hover 下划线未观察到：Move 事件已送达（前一轮 `JCC_MOUSE_DEBUG` 日志可见 `kind=Move`），但 📎 行截图（含放大裁切 `crop-U6.png`）与移开鼠标后无差异，待定位（可能落点行不准或 hover 投影未生效）。
 - CJK 选区的**词/行粒度**仍走文本投影（双击中文按「宽字符+占位」分段），字符粒度与整行复制已正确；如需中文分词级选择，需把 `WordBoundsAt` 一并升级为 cell 源。
 - 缺陷 B 若要产品化修复，需先决策是否切换 Windows 输入通道（见第三节方向）。

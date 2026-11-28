@@ -63,6 +63,22 @@ public sealed class ToolRenderThinkingTests
     }
 
     [Fact]
+    public void MarkdownMessageItem_ZeroDuration_ContentStillRendersThinkingRow()
+    {
+        // Markdown 任务同语义 — 时长仅记录，不能作为是否展示思考块的唯一判据
+        using var screen = new Screen(cols: 40, rows: 6);
+        var item = new MarkdownMessageItem(
+            new MarkdownDocument([new MarkdownParagraph([new MarkdownSegment("正文", MarkdownStyle.None)])]),
+            thinkingDurationMs: 0, thinkingContent: "CoT", messageId: 1);
+
+        Assert.Equal(3, item.MeasureHeight(40));
+        item.Render(screen, new Rect(0, 2, 40, 3), Theme.Dark);
+
+        Assert.Equal("∴ 思考 · ctrl+o 展开推理", screen.RowText(3).TrimEnd());
+        Assert.Contains("正文", screen.RowText(4));
+    }
+
+    [Fact]
     public void ExpandedCoT_ContentRowsKeepIndent()
     {
         // 展开 CoT — 内容行 ⎿+2 缩进 dim 逐行（既有形态不动），仅摘要行前缀改 ∴

@@ -14,6 +14,40 @@ public sealed class SelectionStateTests
     private static SelectionScreen ScreenOf(int cols, params string[] lines) =>
         new(row => row >= 0 && row < lines.Length ? lines[row].AsSpan() : ReadOnlySpan<char>.Empty, cols, lines.Length);
 
+    /// <summary>构造带 cell 级投影的屏幕（宽字符占 2 cell：首 cell 原字符、次 cell 返回 '\0'；
+    /// 与 ReplShell.FrontCellCharAt 约定一致 — 用于 CJK 提取回归）。</summary>
+    private static SelectionScreen CellScreenOf(int cols, params string[] lines)
+    {
+        var cells = new char[lines.Length][];
+        var texts = new string[lines.Length];
+        for (var row = 0; row < lines.Length; row++)
+        {
+            var rowCells = new List<char>(cols);
+            foreach (var ch in lines[row])
+            {
+                rowCells.Add(ch);
+                if (NativeTui.Core.Grid.RuneWidth.Of(new Rune(ch)) >= 2)
+                {
+                    rowCells.Add('\0');
+                }
+            }
+
+            while (rowCells.Count < cols)
+            {
+                rowCells.Add(' ');
+            }
+
+            cells[row] = rowCells.ToArray();
+            texts[row] = new string(rowCells.ToArray()).Replace('\0', ' ');
+        }
+
+        return new SelectionScreen(
+            row => row >= 0 && row < texts.Length ? texts[row].AsSpan() : ReadOnlySpan<char>.Empty,
+            cols,
+            lines.Length,
+            (row, col) => row >= 0 && row < cells.Length && col >= 0 && col < cells[row].Length ? cells[row][col] : '\0');
+    }
+
     /// <summary>构造左键 Press 事件。</summary>
     private static MouseEvent LeftPress(int col, int row, bool shift = false) =>
         new(MouseKind.Press, MouseButton.Left, col, row, shift, false, false);
@@ -25,6 +59,21 @@ public sealed class SelectionStateTests
     /// <summary>构造左键 Release 事件。</summary>
     private static MouseEvent LeftRelease(int col, int row) =>
         new(MouseKind.Release, MouseButton.Left, col, row, false, false, false);
+
+    /// <summary>回归：CJK 宽字符行整行提取必须无占位空格（修复前按「列号=字符索引」投影，
+    /// 每个宽字符后插一个空格 — 真机复制得到「默 认 回 复 。」）。</summary>
+    [Fact]
+    public void WideCharacters_ExtractWithoutPlaceholderSpaces()
+    {
+        var screen = CellScreenOf(16, "● 默认回复。");
+        var state = new SelectionState();
+
+        state.HandleMouse(LeftPress(0, 0), screen);
+        state.HandleMouse(LeftDrag(15, 0), screen);
+        state.HandleMouse(LeftRelease(15, 0), screen);
+
+        Assert.Equal("● 默认回复。", state.GetSelectedText(screen));
+    }
 
     /// <summary>单击+拖拽字符选区 — 跨行流式提取（首行起列裁剪 + 尾行止列 + '\n' join — selection.ts:784-788）。</summary>
     [Fact]

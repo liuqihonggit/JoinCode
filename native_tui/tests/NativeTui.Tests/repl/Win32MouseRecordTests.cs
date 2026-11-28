@@ -13,6 +13,7 @@ namespace NativeTui.Tests.Repl;
 public sealed class Win32MouseRecordTests
 {
     private const uint EventFlagsNone = 0x0000;
+    private const uint EventFlagsMoved = 0x0001;
     private const uint EventFlagsDoubleClick = 0x0002;
     private const uint EventFlagsHorizontalWheel = 0x0004;
     private const uint EventFlagsWheel = 0x0008;
@@ -110,6 +111,29 @@ public sealed class Win32MouseRecordTests
         Assert.True(evt.Shift);
         Assert.True(evt.Ctrl);
         Assert.True(evt.Meta);
+    }
+
+    /// <summary>回归：MOUSE_MOVED + 左键按下必须是 Drag（修复前一律落 Press 分支 —
+    /// 拖拽每步重锚，选区永远只有 anchor 没有 focus，真机拖拽无高亮不复制）。</summary>
+    [Fact]
+    public void MouseMoved_WithLeftButtonDown_IsDrag()
+    {
+        var evt = Win32InputPump.DecodeMouse(EventFlagsMoved, 5, 6, ButtonLeftDown, 0);
+
+        Assert.Equal(MouseKind.Drag, evt.Kind);
+        Assert.Equal(MouseButton.Left, evt.Button);
+        Assert.Equal(5, evt.Col);
+        Assert.Equal(6, evt.Row);
+    }
+
+    /// <summary>回归：MOUSE_MOVED 无按键必须是 Move（修复前落 Release 分支 —
+    /// hover 高亮依赖 Move 事件，真机 hover 永远不触发）。</summary>
+    [Fact]
+    public void MouseMoved_NoButton_IsMove()
+    {
+        var evt = Win32InputPump.DecodeMouse(EventFlagsMoved, 7, 8, 0, 0);
+
+        Assert.Equal(MouseKind.Move, evt.Kind);
     }
 
     /// <summary>回归：滚轮记录的 dwEventFlags=WHEELED 不得被当成修饰键（修复前 ControlKeyState 读的是该字段，

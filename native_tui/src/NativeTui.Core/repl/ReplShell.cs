@@ -3091,10 +3091,10 @@ public sealed class ReplShell
         return false;
     }
 
-    /// <summary>选区屏幕投影（TASK066 C6 — SelectionScreen.LineAt 从 _front 前缓冲逐 cell
-    /// 拼行文本，快照语义：每次交互传入当时的屏幕状态）：Blank cell 投影空格、SpacerTail
-    /// 占位空格（列号=索引约定 — 宽字符行内列号偏移为 SelectionScreen 已声明已知局限）、
-    /// 补充平面 scalar 投影空格（无法以单 char 表达）；_front 未就绪（null / _frontValid=false
+    /// <summary>选区屏幕投影（TASK066 C6 — SelectionScreen 从 _front 前缓冲逐 cell
+    /// 读，快照语义：每次交互传入当时的屏幕状态）：LineAt 供词/行粒度扫描（Blank 投影空格、
+    /// SpacerTail 投影空格），CellAt 供文本提取（按 cell 跳过宽字符占位 — CJK 复制不再插入
+    /// 空格，列号始终是 cell 网格坐标）；_front 未就绪（null / _frontValid=false
     /// 渲染前）返回空投影（尺寸 0 — 交互 no-op 化，防 NRE 防选中陈旧帧内容）。</summary>
     private SelectionScreen BuildSelectionScreen()
     {
@@ -3103,7 +3103,7 @@ public sealed class ReplShell
             return new SelectionScreen(static _ => ReadOnlySpan<char>.Empty, 0, 0);
         }
 
-        return new SelectionScreen(FrontLineAt, front.Cols, front.Rows);
+        return new SelectionScreen(FrontLineAt, front.Cols, front.Rows, FrontCellCharAt);
     }
 
     /// <summary>选区高亮叠加（TASK066 C6 补全 — SelectionState.Bounds 投影到 Screen cell 网格做反色）。
@@ -3155,6 +3155,25 @@ public sealed class ReplShell
         }
 
         return new string(chars);
+    }
+
+    /// <summary>前缓冲单 cell 字符（SelectionScreen.CellAt 约定）：宽字符 SpacerTail 与
+    /// 补充平面 scalar 返回 <c>'\0'</c>（提取时跳过）；Blank 返回空格；越界返回 <c>'\0'</c>。</summary>
+    private char FrontCellCharAt(int row, int col)
+    {
+        if (_front is not { } front || row < 0 || row >= front.Rows || col < 0 || col >= front.Cols)
+        {
+            return '\0';
+        }
+
+        var cell = front[row, col];
+        var scalar = cell.Value.Value;
+        if (cell.Width == CellWidth.SpacerTail || scalar > 0xFFFF)
+        {
+            return '\0';
+        }
+
+        return scalar == 0 ? ' ' : (char)scalar;
     }
 
     /// <summary>选中即复制（TASK066 C6 — Release 后选区固化即复制，基准 useCopyOnSelect.ts:44-80：

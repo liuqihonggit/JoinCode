@@ -42,6 +42,17 @@ public readonly record struct SelectionBounds(SelectionPoint Start, SelectionPoi
 public delegate ReadOnlySpan<char> SelectionLineAt(int row);
 
 /// <summary>
+/// 单 cell 文本提供器委托 — row/col（0-based 屏幕网格）→ 该 cell 的源字符；
+/// 宽字符的 SpacerTail 占位 cell 与无法单 char 表达的补充平面 scalar 返回 <c>'\0'</c>。
+/// 提取文本时跳过占位，使 CJK 行复制不插入多余空格（列号仍按 cell 计 —
+/// 与高亮/命中同一网格，避免「列号=字符索引」在宽字符行上偏移）。
+/// </summary>
+/// <param name="row">0-based 屏幕行号。</param>
+/// <param name="col">0-based 屏幕列号。</param>
+/// <returns>该 cell 的字符；占位/不可表达返回 <c>'\0'</c>。</returns>
+public delegate char SelectionCellCharAt(int row, int col);
+
+/// <summary>
 /// 选区用屏幕投影 — 行文本提供器 + 网格尺寸（纯逻辑零 IO：终端事件与渲染由宿主接线）。
 /// 行文本约定：定长 Cols 的行文本（Blank cell 投影为空格）、越界行返回空 span；
 /// 列号 = 行文本索引（1 char = 1 列）。宽字符 SpacerTail 占位不反映在文本中为已知局限
@@ -50,7 +61,9 @@ public delegate ReadOnlySpan<char> SelectionLineAt(int row);
 /// <param name="LineAt">行文本提供器（row → 该行全宽文本；越界行返回空）。</param>
 /// <param name="Cols">屏幕列数。</param>
 /// <param name="Rows">屏幕行数。</param>
-public readonly record struct SelectionScreen(SelectionLineAt LineAt, int Cols, int Rows);
+/// <param name="CellAt">可选 cell 级文本提供器（非 null 时提取文本按 cell 走 —
+/// 宽字符占位跳过；null 时沿用行文本按列裁剪的旧路径，ASCII 行等价）。</param>
+public readonly record struct SelectionScreen(SelectionLineAt LineAt, int Cols, int Rows, SelectionCellCharAt? CellAt = null);
 
 /// <summary>
 /// 终端文本选区状态机 — 对齐基准 ink/selection.ts（流式线性选区：锚点 anchor + 活动点 focus
@@ -304,7 +317,14 @@ public sealed class SelectionState
 
             var colStart = row == bounds.Start.Row ? bounds.Start.Col : 0;
             var colEnd = row == bounds.End.Row ? bounds.End.Col : screen.Cols - 1;
-            AppendRowText(builder, screen.LineAt(row), colStart, colEnd);
+            if (screen.CellAt is { } cellAt)
+            {
+                AppendCellText(builder, cellAt, row, colStart, colEnd, screen.Cols);
+            }
+            else
+            {
+                AppendRowText(builder, screen.LineAt(row), colStart, colEnd);
+            }
         }
 
         return builder.ToString();
@@ -498,6 +518,32 @@ public sealed class SelectionState
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// 追加单行 cell 级片段 — 按列区间 [colStart, colEnd] 取 cell 字符，跳过 <c>'\0'</c>
+    /// 占位（宽字符 SpacerTail / 补充平面 scalar），随后裁尾随空白（与文本级路径同语义）。
+    /// 列号天然是 cell 网格坐标，与高亮 / 命中 / 鼠标事件同一基准 — 修复「列号=字符索引」
+    /// 在 CJK 行上的偏移与复制时逐字插入空格。
+    /// </summary>
+    private static void AppendCellText(StringBuilder builder, SelectionCellCharAt cellAt, int row, int colStart, int colEnd, int cols)
+    {
+        var start = builder.Length;
+        var from = Math.Clamp(colStart, 0, Math.Max(0, cols - 1));
+        var to = Math.Clamp(colEnd, -1, cols - 1);
+        for (var col = from; col <= to; col++)
+        {
+            var ch = cellAt(row, col);
+            if (ch != '\0')
+            {
+                builder.Append(ch);
+            }
+        }
+
+        while (builder.Length > start && char.IsWhiteSpace(builder[^1]))
+        {
+            builder.Length--;
+        }
     }
 
     /// <summary>

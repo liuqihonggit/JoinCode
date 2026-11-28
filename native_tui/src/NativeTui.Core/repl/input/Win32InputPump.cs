@@ -27,6 +27,7 @@ public sealed class Win32InputPump : IInputPump, IDisposable
     private const uint RightButtonDown = 0x0004;
     private const uint MouseWheeled = 0x0008;
     private const uint MouseHorizontalWheeled = 0x0004;
+    private const uint MouseMoved = 0x0001;
     private const uint DoubleClick = 0x0002;
 
     private readonly IntPtr _handle;
@@ -123,7 +124,10 @@ public sealed class Win32InputPump : IInputPump, IDisposable
         return new System.ConsoleKeyInfo(record.UnicodeChar, key, shift, alt, ctrl);
     }
 
-    /// <summary>MOUSE_EVENT → MouseEvent（Press/Release/Wheel 分类，位置 0-based）。</summary>
+    /// <summary>MOUSE_EVENT → MouseEvent（Moved/Drag/Press/Release/Wheel 分类，位置 0-based）。
+    /// MOUSE_MOVED 必须按键态细分：按住左/右键 = Drag（选区拖拽扩展），无按键 = Move
+    ///（hover 高亮通道）；修复前两者分别误落 Press（拖拽每步重锚 → 选区无 focus）与
+    /// Release（hover 永不触发）。</summary>
     private static NativeTui.Core.Repl.MouseEvent DecodeMouse(InputRecord record) =>
         DecodeMouse(record.EventFlags, record.MouseX, record.MouseY, record.ButtonState, record.MouseControlKeyState);
 
@@ -136,6 +140,9 @@ public sealed class Win32InputPump : IInputPump, IDisposable
         {
             var f when (f & MouseWheeled) != 0 => WheelDirection(buttonState),
             var f when (f & MouseHorizontalWheeled) != 0 => HorizontalWheelDirection(buttonState),
+            var f when (f & MouseMoved) != 0 => (buttonState & (LeftButtonDown | RightButtonDown)) != 0
+                ? MouseKind.Drag
+                : MouseKind.Move,
             var f when (f & DoubleClick) != 0 => MouseKind.Press,
             _ => (buttonState & (LeftButtonDown | RightButtonDown)) != 0
                 ? MouseKind.Press

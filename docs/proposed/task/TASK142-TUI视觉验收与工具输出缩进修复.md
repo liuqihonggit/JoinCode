@@ -40,7 +40,7 @@
 | QuickOpen（ctrl+shift+p） | ✅ 真实进程 | ConPTY 直喂 kitty CSI-u `ESC[112;6u`（parser 的双通道之一）到真实 `jcc.exe`：弹「快速打开」+ `❯ 输入以搜索文件…` + `.git/LICENSE/AGENTS.md…` + `… 及 12 项` + `↑↓ 导航 · enter 打开 · esc 关闭`（`Q-kitty-2seg.txt`）。WT 内该键仍被终端命令面板抢占 |
 | GlobalSearch（ctrl+shift+f） | ✅ 真实进程 | 同通道 `ESC[102;6u`：弹「全局搜索」；输入 `MessageRenderer` 后真实 rg 命中 `文件:行号 + 行文本`，列表 `… 还有 92 条+`，footer `↑↓ 导航 · enter 定位 · esc 关闭`（`G1-globalsearch.txt` / `G2-results.txt`） |
 | 工具卡鼠标点击展开 | ✅ 真实 WT | 物理鼠标点击折叠行后，`… +8 lines` 消失并展开全部 11 行（含 `Directory.Build.props`、表格 `| ExitCode | Success | Duration |`、json 块），`M10-click-sweep.txt` / `shot-M10-expanded.png` |
-| 选区拖拽高亮 + 复制 | ⚠️ 未复现 | 物理拖拽后截图无选区反色、剪贴板仍为预置 `CLEARED`（`shot-M13-selection.png`）；与点击命中行存在约 30px 偏移的现象同源，待定位（inline 视口坐标换算可疑） |
+| 选区拖拽高亮 + 复制 | ✅ 真实 WT（修复后） | `SendInput` 相对位移拖拽（按住左键 20 步）→ 选区反色可见（`shot-MD8-selection.png`），Release 即复制；整行选择剪贴板得到 `● 默认回复。`（`shot-MD10-cjkl2.png`）。修复前同操作复制结果为 `认 回 复 。`（宽字符占位空格 + 起点错位，缺陷 D） |
 | unread divider / message actions bar | ⚠️ 未覆盖 | 需构造「滚离底部 + 新消息到达」与光标导航态，本轮未取景 |
 
 ## 三、缺陷与修复
@@ -67,6 +67,19 @@
 - **修复**：可见性判据改为 `!thinkingRedacted && (thinkingDurationMs > 0 || thinkingContent 非空)`（新增私有 `HasThinkingSummary`，`MeasureHeight` 与 `Render` 共用），保证「有内容必有入口」。
 - **验证**：先红测试 `AssistantMessageItem_ThinkingContentWithoutDuration_StillRendersSummary`（修复前 `MeasureHeight` 实际 2、期望 3）→ 绿；真实 WT 复核 `C3-think.txt` 出现 `∴ 思考 · ctrl+o 展开推理`，`C3-expand.txt` 转录可见推理全文。
 
+### 缺陷 D（已修复）：CJK 选区复制插入占位空格、起点按字符索引错位
+
+- **现象（真实终端）**：选中 `● 默认回复。` 整行，剪贴板得到 `认 回 复 。`——每个汉字后多一个空格，且选区起点比鼠标落点晚一个字符。
+- **根因**：选区维护的是 **cell 网格坐标**，而文本提取走 `FrontLineAt`：它把宽字符的 SpacerTail 占位 cell 投影成空格，再按「列号 = 字符索引」裁剪。CJK 每字占 2 cell，于是列号与字符索引逐字漂移，复制文本每个宽字符后夹一个空格。
+- **修复**：`SelectionScreen` 新增可选 `CellAt`（`SelectionCellCharAt`）cell 级文本源；`GetSelectedText` 在该源存在时按 cell 区间取字符、跳过 `'\0'` 占位后再裁尾随空白。`ReplShell.FrontCellCharAt` 把 SpacerTail / 补充平面 scalar 映射为 `'\0'`。高亮 / 命中 / 鼠标坐标本就共用 cell 网格，因此无需改动。
+- **验证**：红测试 `WideCharacters_ExtractWithoutPlaceholderSpaces`（旧路径输出带空格串）→ 绿；真实 WT 复核剪贴板 `● 默认回复。`（`shot-MD10-cjkl2.png`）。
+
+### 缺陷 E（已修复，非默认通道）：`Win32InputPump` 把拖拽/悬停移动误判为 Press/Release
+
+- **现象**：`DecodeMouse` 未识别 `MOUSE_MOVED`（0x0001）。按住左键的移动落进按钮分支变 `Press`（选区每步重锚，永远只有 anchor 没有 focus）；松开按键的移动变 `Release`（hover 高亮的 `Move` 通道永不产生）。
+- **修复**：`MOUSE_MOVED` 按键态细分——有左/右键 → `Drag`，无按键 → `Move`；滚轮/双击优先级不变。
+- **验证**：红测试 `MouseMoved_WithLeftButtonDown_IsDrag`（实际 `Press`）、`MouseMoved_NoButton_IsMove`（实际 `Release`）→ 绿。当前 Windows 宿主默认走 `RawStdinPump`（VT SGR），本项属回退通道语义修正。
+
 ### 取景器失真清单（真机验收教训）
 
 - UIA 文本不覆盖浮层与输入态（命令菜单、输入框内容可能滞后/缺失）→ 以截图判定。
@@ -75,7 +88,8 @@
 - 单个 Enter 偶发丢失 → 文本与 Enter 拆成两次驱动调用补发。
 - WT 内快捷键被抢占时，可改用 ConPTY 直喂 kitty CSI-u 序列（`ESC[codepoint;modifier u`）验证 TUI 真实进程；`modifier=6` 即 Ctrl+Shift。同进程的 `ESC[97u` 已验证可输入 `a`。
 - UIA TextPattern 在 WT 中 `FindText` 不可用、`TextUnit_Line` 退化到整文档、`GetBoundingRectangles` 会跳过空行 → 文本定位可用，几何坐标不可直接用；点击/拖拽须以截图坐标为准。
-- inline 模式下 SGR 行坐标经 `TerminalViewportProbe` 换算，实测点击无需按 UIA 折叠行中心，而在其上约 30px 命中（同一目标不同 y 结果不同）—— 选区拖拽因此未选中，属待定位的坐标对齐问题。
+- 鼠标拖拽注入必须用 `SendInput` 的**相对位移**（`MOUSEEVENTF_MOVE` 逐步 dx/dy）：仅用 `SetCursorPos` 移动时，按住左键期间的 WM_MOUSEMOVE 不产生 SGR Drag 序列（真机日志只有 Press→Release，选区永远无 focus）。此前「坐标偏移 30px」的推断由此而来，实际换算正确。
+- inline 模式 SGR 行换算已用临时诊断实测：`cursorY=6 windowTop=0 contentCursorRow=6 offset=0`，即当前 WT/ConPTY 视口无偏移；`screenRow = sgrRow`。点击落点差异来自像素→行取整与窗口边框，不是换算公式。
 
 ## 四、验收表
 
@@ -85,16 +99,18 @@
 | `SurrogatePairAccumulator`（代理对合成） | `Win32InputPump.Drain` → `KeyPress(KeyKind.Char, 完整对)`；`ReplShell` Char 分支成对整串插入 | ✅ | ✅ 单测 `SurrogatePairAccumulatorTests`（6 例）+ `InputBuffer.InsertText` 保对；通道未启用故无真机截图 |
 | 真实终端取景基建 | `.xxx/tui-visual/read-win-text.ps1`（按句柄读 UIA 文本）、`win-shot.ps1`（按 HWND 截图）、`wt-drive.ps1`（焦点/粘贴/按键/回车/回读）、`term.py`（ConPTY + pyte） | ✅ | ✅ 本轮全部帧均由此产出 |
 | `AssistantMessageItem.HasThinkingSummary`（时长 0 但 CoT 非空仍出摘要行） | `MeasureHeight` / `Render` / `ToggleThinking`（ctrl+o 转录展开） | ✅ | ✅ 红测试 `AssistantMessageItem_ThinkingContentWithoutDuration_StillRendersSummary` → 绿；真实 WT `C3-think.txt` + `C3-expand.txt` |
+| `SelectionScreen.CellAt` + `ReplShell.FrontCellCharAt`（cell 级提取，跳过宽字符占位） | `SelectionState.GetSelectedText`（首/中/尾行全路径）；Release 即复制 | ✅ | ✅ 红测试 `WideCharacters_ExtractWithoutPlaceholderSpaces` → 绿；真实 WT 剪贴板 `● 默认回复。`（`shot-MD10-cjkl2.png`） |
+| `Win32InputPump` MOUSE_MOVED 细分为 Drag/Move | `DecodeMouse` → `ReplShell.HandleMouseEvent` 选区拖拽 / hover 通道 | ✅ | ✅ 红测试 `MouseMoved_WithLeftButtonDown_IsDrag` + `MouseMoved_NoButton_IsMove` → 绿；当前默认通道为 RawStdinPump，无真机依赖 |
 
 ## 五、测试与回归
 
-- `NativeTui.Tests`：3375 通过（新增 8：tab 展开 1 + 代理对 6 + 思考摘要 1）
+- `NativeTui.Tests`：3379 通过（新增 3：CJK 选区提取 1 + Win32 鼠标移动细分 2；累计本轮新增 11）
 - `NativeTui.Host.Tests`：183 通过
 - `jcc.exe` Debug 构建 0 警告 0 错误
 
 ## 六、遗留
 
 - 429/500 错误卡因内建重试（`SuggestedRetryCount=3`）不可稳定取景；如需验收重试动画/最终失败文案，需可控重试次数开关。
-- QuickOpen / GlobalSearch 被 WT 快捷键抢占，真机不可达；如需真机验收，需改 WT keybindings 或换 ConPTY 直喂序列。
-- 鼠标交互面（工具卡 hover/点击展开、选区高亮与复制、unread divider、message actions bar）尚未取景。
+- unread divider 与 message actions bar 尚未构造取景（需「滚离底部 + 新消息到达」与光标导航态）。
+- CJK 选区的**词/行粒度**仍走文本投影（双击中文按「宽字符+占位」分段），字符粒度与整行复制已正确；如需中文分词级选择，需把 `WordBoundsAt` 一并升级为 cell 源。
 - 缺陷 B 若要产品化修复，需先决策是否切换 Windows 输入通道（见第三节方向）。

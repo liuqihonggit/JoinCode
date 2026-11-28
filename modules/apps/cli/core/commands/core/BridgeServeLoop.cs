@@ -36,9 +36,6 @@ internal static class BridgeServeLoop {
     /// <param name="mode">协议字符串（plan/auto/ask/bypass/unattended）</param>
     public delegate PermissionMode? PermissionModeApplier(string mode);
 
-    /// <summary>合法权限模式值清单（error 诱导提示用，与 abs_guard [EnumValue] 一致）。</summary>
-    private const string ValidPermissionModes = "plan, auto, ask, bypass, unattended";
-
     /// <summary>支持的退出码 — 正常退出（quit/Eof/外部取消均收尾后返回 0）。</summary>
     private const int ExitOk = 0;
 
@@ -218,7 +215,7 @@ internal static class BridgeServeLoop {
         }
 
         WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error(
-            $"权限模式 '{mode}' 无法应用（未知值或引擎未提供权限系统）。合法值：{ValidPermissionModes}。bypass 受 settings.json 的 disableBypassPermissionsMode 安全闸管控，被拦截时保持原模式。") { AckSeq = seq });
+            PermissionModeApplierFactory.DescribeFailure(mode)) { AckSeq = seq });
     }
 
     /// <summary>

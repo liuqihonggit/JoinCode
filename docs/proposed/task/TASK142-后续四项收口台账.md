@@ -188,6 +188,9 @@ TASK135 C2 保持 `[~]`，备注本轮进展。
 
 **PR**：<https://github.com/liuqihonggit/JoinCode/pull/761>（`w2` → `main`，四个提交：A `e97579b4c`、B `a06e3a403`、C `9f35b9f2e`、D `a003aad1c`）。
 
+**已合并**：2026-11-28 18:31（local），squash 为 `390660dca fix/feat/test: TASK142 四项收口 … (#761)`。
+五个提交（含台账回填）随之压成一个提交，上面列的原始哈希只作回溯线索。
+
 回归（四提交叠加后实跑，串行）：
 
 | 项目 | 结果 |

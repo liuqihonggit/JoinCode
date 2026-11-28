@@ -54,7 +54,7 @@ internal static class BridgeServeCommand {
             using var stdin = new StreamReader(Console.OpenStandardInput(), Encoding.UTF8);
             using var stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = false };
 
-            var permissionChecker = await ResolvePermissionCheckerAsync(engine.Services).ConfigureAwait(false);
+            var permissionChecker = await PermissionModeApplierFactory.ResolveAsync(engine.Services).ConfigureAwait(false);
             var fastMode = engine.Services.GetService<IFastModeService>();
             WriteEvent(stdout, BuildSessionInfo(permissionChecker, fastMode, options));
 
@@ -78,7 +78,7 @@ internal static class BridgeServeCommand {
                     chatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
                     mainAgent: EngineAgentFactory.CreateMainAgent(engine.Services, sessionObjectId));
                 return RunTurnAsync(controller, input, turnCt);
-            }, ct, BuildPermissionModeApplier(permissionChecker), backgroundPump).ConfigureAwait(false);
+            }, ct, PermissionModeApplierFactory.Create(permissionChecker), backgroundPump).ConfigureAwait(false);
         } finally {
             Console.SetOut(originalOut);
         }
@@ -92,15 +92,6 @@ internal static class BridgeServeCommand {
         return forkManager is not null || teammateExecutor is not null
             ? new BackgroundTaskEventPump(forkManager, teammateExecutor)
             : null;
-    }
-
-    /// <summary>解析引擎权限检查器（等模式/安全闸初始化完成；未注册返回 null — 协议降级为仅展示默认值）。</summary>
-    private static async Task<PermissionChecker?> ResolvePermissionCheckerAsync(IServiceProvider services) {
-        if (services.GetService<IPermissionChecker>() is not PermissionChecker checker)
-            return null;
-
-        await checker.ModeInitialization.ConfigureAwait(false);
-        return checker;
     }
 
     /// <summary>
@@ -122,24 +113,6 @@ internal static class BridgeServeCommand {
             PermissionMode: mode.ToValue(),
             BypassAvailable: checker?.DisableBypassGate is not true,
             Cwd: Environment.CurrentDirectory);
-    }
-
-    /// <summary>
-    /// 构造权限模式应用器 — 解析协议字符串（FromValue）→ 应用（CurrentMode setter 含 bypass 安全闸）→
-    /// 返回实际生效模式（读回 CurrentMode，被闸拦截时与请求值不同）；未知值/无权限系统返回 null。
-    /// </summary>
-    private static BridgeServeLoop.PermissionModeApplier? BuildPermissionModeApplier(PermissionChecker? checker) {
-        if (checker is null)
-            return null;
-
-        return mode => {
-            var parsed = PermissionModeExtensions.FromValue(mode);
-            if (parsed is null)
-                return null;
-
-            checker.CurrentMode = parsed.Value;
-            return checker.CurrentMode;
-        };
     }
 
     /// <summary>写一条协议事件行（单次 Write + LF + Flush，协议统一 \n）。</summary>

@@ -1,7 +1,8 @@
 # TASK144 — SDK 输入侧控制面骨架 + 接线（Phase 0 → Phase 1）
 
 > 承接 [TASK143](TASK143-SDK控制协议权限模式子集.md) §6「本轮不做」。
-> 基准：`w2` = `origin/main` = `9ba381c08`（2026-11-28 核对）。
+> 基准：`w2` = `origin/main` = `2f23c2b6b`（2026-11-28 核对；Phase 0 后被 rebase 到 PR #765 之上，
+> Phase 0 提交 hash 由 `402ac803d` 变为 `a5e7c8ac0`，全部门禁在新基线上重跑过 —— 见 §7）。
 > **用户指令演进**：先「接入先搭个骨架，别直接改」→ Phase 0 零修改完成后追加
 > 「TASK 文档要添加验收方式，并且要一直施工直到验收成功」→ Phase 1 接线到真机通过（§7）。
 
@@ -52,7 +53,7 @@ stdin 行 ──[解析]──> SdkControlCommand ──[SdkControlPlane.Dispatc
 
 ## 3. 施工范围（两阶段）
 
-### Phase 0 — 骨架（已完成，提交 `402ac803d`，零修改）
+### Phase 0 — 骨架（已完成，提交 `a5e7c8ac0`，零修改）
 
 **只新增，不改任何现有文件。**
 
@@ -193,7 +194,7 @@ python non_deliverables_tools/scripts/Verify-StyleGate.py
 
 ## 7. 验证记录
 
-### Phase 0（骨架，提交 `402ac803d`）
+### Phase 0（骨架，提交 `a5e7c8ac0`）
 
 | 项 | 结果 |
 |----|------|
@@ -249,3 +250,12 @@ exit=0
 
 **本轮真机边界**：无可用 provider（模型列表探测 401），因此没有在途回合，
 `interrupt` 的「真打断」仍由 TASK142-B 的 CAS 单测 + 上轮真机覆盖，本轮只验证应答不变量。
+
+### 新基线复跑（rebase 到 `2f23c2b6b` 后，全部重跑，不复用旧结论）
+
+| 门禁 | 结果 |
+|------|------|
+| A 编译（CLI + Host.Tests） | 0 警告 / 0 错误 |
+| B 全量 `Host.Tests` | 1460 通过 / 0 失败（26 s） |
+| C 真机（同一 5 条控制行脚本） | `OK 5/5 应答唯一；mode 实际生效值 = plan；stdout 行类型 = ['auth_status','control_response','system']`，exit 0 |
+| D StyleGate | 总计 1821，退出 0 |

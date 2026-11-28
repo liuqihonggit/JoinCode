@@ -37,8 +37,11 @@
 | `/help` 全量面板 | ✅ | `A5-help.txt`：约 118 行命令清单，底部整宽分隔线与 footer 完整 |
 | ctrl+o 全屏 transcript | ✅ | `A8-transcript.txt`、`C3-expand.txt`：头部 `详细转录 · ctrl+o 切换 · ↑↓ 滚动 · / 搜索 · q 退出`，历史回合 + 思考全文；`q` 退出 |
 | 多行粘贴 chip | ✅ | `shot-A4.png`、`A17-multiline-paste2.txt`：5 行粘贴 → `[Pasted text #1 +4 lines]` |
-| QuickOpen / GlobalSearch | ⚠️ 真机不可达 | WT 抢占 `Ctrl+Shift+P`（终端命令面板）与 `Ctrl+Shift+F`（查找），按键不进入 TUI；仅组件单测覆盖。取景时该面板会吞掉后续所有按键，须先 Esc 退出 |
-| 鼠标交互面（hover/点击展开、选区、unread divider、message actions） | ⚠️ 未覆盖 | 需鼠标注入驱动，本轮未做 |
+| QuickOpen（ctrl+shift+p） | ✅ 真实进程 | ConPTY 直喂 kitty CSI-u `ESC[112;6u`（parser 的双通道之一）到真实 `jcc.exe`：弹「快速打开」+ `❯ 输入以搜索文件…` + `.git/LICENSE/AGENTS.md…` + `… 及 12 项` + `↑↓ 导航 · enter 打开 · esc 关闭`（`Q-kitty-2seg.txt`）。WT 内该键仍被终端命令面板抢占 |
+| GlobalSearch（ctrl+shift+f） | ✅ 真实进程 | 同通道 `ESC[102;6u`：弹「全局搜索」；输入 `MessageRenderer` 后真实 rg 命中 `文件:行号 + 行文本`，列表 `… 还有 92 条+`，footer `↑↓ 导航 · enter 定位 · esc 关闭`（`G1-globalsearch.txt` / `G2-results.txt`） |
+| 工具卡鼠标点击展开 | ✅ 真实 WT | 物理鼠标点击折叠行后，`… +8 lines` 消失并展开全部 11 行（含 `Directory.Build.props`、表格 `| ExitCode | Success | Duration |`、json 块），`M10-click-sweep.txt` / `shot-M10-expanded.png` |
+| 选区拖拽高亮 + 复制 | ⚠️ 未复现 | 物理拖拽后截图无选区反色、剪贴板仍为预置 `CLEARED`（`shot-M13-selection.png`）；与点击命中行存在约 30px 偏移的现象同源，待定位（inline 视口坐标换算可疑） |
+| unread divider / message actions bar | ⚠️ 未覆盖 | 需构造「滚离底部 + 新消息到达」与光标导航态，本轮未取景 |
 
 ## 三、缺陷与修复
 
@@ -70,6 +73,9 @@
 - WT 抢占 `Ctrl+Shift+P` / `Ctrl+Shift+F`，且其命令面板会吞掉后续按键 → 取景前先点标题栏聚焦，必要时 Esc 关闭浮层。
 - `SendKeys("{ESC}/")` 会被 VT 解析为 Meta+`/`，Esc 必须单发、间隔后再发下一键。
 - 单个 Enter 偶发丢失 → 文本与 Enter 拆成两次驱动调用补发。
+- WT 内快捷键被抢占时，可改用 ConPTY 直喂 kitty CSI-u 序列（`ESC[codepoint;modifier u`）验证 TUI 真实进程；`modifier=6` 即 Ctrl+Shift。同进程的 `ESC[97u` 已验证可输入 `a`。
+- UIA TextPattern 在 WT 中 `FindText` 不可用、`TextUnit_Line` 退化到整文档、`GetBoundingRectangles` 会跳过空行 → 文本定位可用，几何坐标不可直接用；点击/拖拽须以截图坐标为准。
+- inline 模式下 SGR 行坐标经 `TerminalViewportProbe` 换算，实测点击无需按 UIA 折叠行中心，而在其上约 30px 命中（同一目标不同 y 结果不同）—— 选区拖拽因此未选中，属待定位的坐标对齐问题。
 
 ## 四、验收表
 

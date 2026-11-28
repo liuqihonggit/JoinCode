@@ -286,34 +286,29 @@ public sealed class ReplShell
     private BashDirectExecutor _bash;
 
 
-    /// <summary>注入上下文折叠项（TASK079 — 首帧插入；/prompt 在 transcript 备用屏内展开查看）。</summary>
-    private PromptContextItem? _promptContextItem;
-
-    /// <summary>注入提示词详情页打开标记（模态 — esc 关闭；TASK079 用户指令"新页面"形态）。</summary>
-    private bool _promptPageOpen;
-
-    /// <summary>注入提示词详情页打开（测试断言面 — 对齐 IsBackgroundTaskDetailOpen 先例）。</summary>
-    internal bool IsPromptPageOpen => _promptPageOpen;
-
-    /// <summary>/prompt 透明化（TASK079 用户指令 — 另开一屏查看首次注入内容）：
-    /// 展开折叠项全文 + 进入 transcript 备用屏（鼠标/滚动/搜索全基建，与子代理查看同模式）
-    /// + 滚到顶（提示词位于消息列表前列）；已展开且 transcript 激活时 → 关闭 transcript。</summary>
-    public void TogglePromptContext()
+    /// <summary>/prompt 透明化（TASK145 — 每轮注入项可回看）：展开目标轮折叠项全文 + 进入
+    /// transcript 备用屏（鼠标/滚动/搜索全基建，与子代理查看同模式）+ 滚到顶；
+    /// transcript 已激活时再触发 = 关闭。target 为 null 时取最新一轮注入项。</summary>
+    /// <param name="target">要查看的注入项（点击命中时指定；null = 最近一轮）。</param>
+    public void TogglePromptContext(PromptContextItem? target = null)
     {
-        // transcript 激活时再触发 = 关闭（切换语义；展开态保持 — ctrl+o 重进仍见全文）
+        // transcript 激活时再触发 = 关闭（切换语义；展开态保持 — 再进仍见全文）
         if (_transcript.IsActive)
         {
             ToggleTranscript();
             return;
         }
 
-        if (_promptContextItem is { } item)
+        var item = target ?? _view.Messages.Items.OfType<PromptContextItem>().LastOrDefault();
+        if (item is null)
         {
-            item.Expanded = true;
-            item.ExpandedContent = _promptContextSnapshot is { } snapshot
-                ? snapshot + Environment.NewLine + Environment.NewLine
-                    + (_promptContextInventory?.Invoke().Text ?? string.Empty)
-                : null;
+            _notifications.Enqueue("本轮尚未注入提示词 — 发送一条消息后可查看", timeout: TimeSpan.FromSeconds(3));
+            return;
+        }
+
+        foreach (var promptItem in _view.Messages.Items.OfType<PromptContextItem>())
+        {
+            promptItem.Expanded = ReferenceEquals(promptItem, item);
         }
 
         ToggleTranscript();
@@ -322,15 +317,6 @@ public sealed class ReplShell
             _transcript.ScrollTo(0);
         }
     }
-
-    /// <summary>注入上下文快照（宿主注入 — 系统提示词全文 + 工具清单；null = 未启用）。</summary>
-    private string? _promptContextSnapshot;
-
-    /// <summary>工具清单惰性求值器（展开时调注册表 — 彼时已装载）。</summary>
-    private Func<(string Text, int Total, int System)>? _promptContextInventory;
-
-    /// <summary>注入快照文件 file URL（OSC 8 链接目标 — null = 未写文件/不支持）。</summary>
-    private string? _promptContextFileUrl;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -774,9 +760,6 @@ public sealed class ReplShell
         KeybindingProfile? keybindings = null,
         string? issueOwnerRepo = null,
         int shellTimeoutSeconds = 120,
-        string? promptContextSnapshot = null,
-        Func<(string Text, int Total, int System)>? promptContextInventory = null,
-        string? promptContextFileUrl = null,
 
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
@@ -799,9 +782,6 @@ public sealed class ReplShell
         _output = output;
         _inline = inline;
         _seedMessages = seedMessages ?? [];
-        _promptContextSnapshot = promptContextSnapshot;
-        _promptContextInventory = promptContextInventory;
-        _promptContextFileUrl = promptContextFileUrl;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
@@ -866,16 +846,13 @@ public sealed class ReplShell
     }
 
     /// <summary>TASK078 — 引擎就绪后注入真实服务（后台预热完成时调用）。
-    /// 更新斜杠补全/主题/命令记忆/状态栏/提示词上下文等首帧占位为真实值。
+    /// 更新斜杠补全/主题/命令记忆/状态栏等首帧占位为真实值。
     /// 幂等 — 重复调用只更新值不重构造 suggester（已就绪时）。</summary>
     internal void AttachEngineServices(
         IReadOnlyList<CommandSuggestion>? commands,
         string? themeName,
         CommandUsageMemory? commandUsage,
         string? statusLineTemplate,
-        string? promptContextSnapshot,
-        Func<(string Text, int Total, int System)>? promptContextInventory,
-        string? promptContextFileUrl,
         string? defaultShell = null,
         bool vimMode = false)
     {
@@ -883,9 +860,6 @@ public sealed class ReplShell
         if (commands is { Count: > 0 }) _suggester = new SlashSuggester(commands, new CommandGrouping(_commandUsage));
         if (themeName is not null) _theme = ThemeSelection.Resolve(themeName);
         if (statusLineTemplate is not null) _statusLineTemplate = statusLineTemplate;
-        _promptContextSnapshot = promptContextSnapshot;
-        _promptContextInventory = promptContextInventory;
-        _promptContextFileUrl = promptContextFileUrl;
         // TASK078 — defaultShell 后注入（首帧用平台默认，引擎就绪后切换用户配置）
         if (defaultShell is not null)
         {
@@ -1704,13 +1678,6 @@ public sealed class ReplShell
         if (_backgroundTaskDetailOpen)
         {
             HandleBackgroundTaskDetailKey(key);
-            return;
-        }
-
-        // TASK079 注入提示词详情页模态（对齐后台任务详情轻量模态形态 — esc 关闭其余吞）
-        if (_promptPageOpen)
-        {
-            HandlePromptPageKey(key);
             return;
         }
 
@@ -2954,7 +2921,6 @@ public sealed class ReplShell
             || _search is not null
             || _view.BackgroundTasks.IsSelectionActive
             || _backgroundTaskDetailOpen
-            || _promptPageOpen
             || (_helpOpen && !isWheel))
         {
             return;
@@ -2985,11 +2951,12 @@ public sealed class ReplShell
             return;
         }
 
-        // TASK077 — hover 高亮：Move 事件经 HitTest 查询，命中 PromptContextItem 时切换 hover 样式。
+        // TASK077 — hover 高亮：Move 事件经 HitTest 查询，命中注入提示词项时切换 hover 样式。
         // DEC 1003 启用无按钮移动上报（Move 事件量经终端节流可控；状态变化由每拍渲染消费）
         // 开关 JCC_NO_HOVER — 设置时禁用 hover 高亮；JCC_NO_MOUSE_TRACKING 隐式禁用（无 Move 事件）
         if (JccFeatureFlags.HoverHighlightEnabled
-            && evt.Kind == MouseKind.Move && _promptContextItem is { } hoverItem)
+            && evt.Kind == MouseKind.Move
+            && _view.Messages.Items.OfType<PromptContextItem>().Any())
         {
             var screenRow = evt.Row;
             if (_inline && _viewportProbe is { } probe)
@@ -2999,10 +2966,9 @@ public sealed class ReplShell
             }
 
             var hitId = _view.HitTests.HitTest(screenRow, evt.Col);
-            var newHovered = hitId == PromptContextItem.HitIdValue;
-            if (hoverItem.IsHovered != newHovered)
+            foreach (var promptItem in _view.Messages.Items.OfType<PromptContextItem>())
             {
-                hoverItem.IsHovered = newHovered;
+                promptItem.IsHovered = PromptContextItem.IsPromptHit(hitId) && promptItem.HitTestId == hitId;
             }
 
             return;
@@ -3098,11 +3064,12 @@ public sealed class ReplShell
             return true;
         }
 
-        // 注入上下文折叠项点击 — 打开提示词详情页（/prompt 同效）
-        // 开关 JCC_NO_CLICK_EXPAND — 设置时禁用点击展开（仅保留 ctrl+o 键盘入口）
-        if (JccFeatureFlags.ClickExpandEnabled && hitId == PromptContextItem.HitIdValue)
+        // 注入提示词折叠项点击 — 打开该轮注入详情页（/prompt 打开最近一轮，同效）
+        // 开关 JCC_NO_CLICK_EXPAND — 设置时禁用点击展开（仅保留 /prompt / ctrl+o 键盘入口）
+        if (JccFeatureFlags.ClickExpandEnabled && PromptContextItem.IsPromptHit(hitId))
         {
-            TogglePromptContext();
+            TogglePromptContext(_view.Messages.Items.OfType<PromptContextItem>()
+                .FirstOrDefault(i => i.HitTestId == hitId));
             return true;
         }
 
@@ -3306,8 +3273,8 @@ public sealed class ReplShell
                 _cursor = new CursorPos(Col: 0, Row: 0);
             }
 
-            // TASK077 — 清除 hover 拘留（退出备用屏时光标不在主屏 PromptContextItem 上）
-            if (_promptContextItem is { } item)
+            // TASK077/TASK145 — 清除 hover 拘留（退出备用屏时光标不在主屏注入项上）
+            foreach (var item in _view.Messages.Items.OfType<PromptContextItem>())
             {
                 item.IsHovered = false;
             }
@@ -3451,42 +3418,6 @@ public sealed class ReplShell
             _backgroundTaskDetailOpen = true;
             AddMessage(new BackgroundTaskDetailDialog(tasks[index], Environment.TickCount64));
         }
-    }
-
-    /// <summary>打开注入提示词详情页（TASK079 用户指令"新页面"— /prompt 或点击折叠项）：
-    /// 挂载 PromptDetailDialog 消息项（紧邻输入框立即可见，终端滚动回看全文）；
-    /// 已打开时重复触发 = 关闭（切换语义）。</summary>
-    internal void ShowPromptPage()
-    {
-        if (_promptPageOpen)
-        {
-            ClosePromptPage();
-            return;
-        }
-
-        if (_promptContextSnapshot is null || _promptContextInventory is null)
-        {
-            return;
-        }
-
-        _promptPageOpen = true;
-        AddMessage(new PromptDetailDialog(_promptContextSnapshot, _promptContextSnapshot.Length, _promptContextInventory));
-    }
-
-    /// <summary>注入提示词详情页模态按键（对齐后台任务详情模态形态 — esc 关闭，其余吞掉）。</summary>
-    private void HandlePromptPageKey(KeyPress key)
-    {
-        if (key.Kind is KeyKind.Escape or KeyKind.LeftArrow)
-        {
-            ClosePromptPage();
-        }
-    }
-
-    /// <summary>关闭注入提示词详情页（移除对话框项 — 回主循环视图）。</summary>
-    private void ClosePromptPage()
-    {
-        _promptPageOpen = false;
-        RemoveDialogItem<PromptDetailDialog>();
     }
 
     /// <summary>后台任务详情对话框模态按键（对齐 HandleHelpKey 轻量模态形态 — 详情只读无交互，
@@ -4689,17 +4620,8 @@ public sealed class ReplShell
             return;
         }
 
-        // TASK078 — 每次注入提示词时在用户消息前添加折叠项（引擎就绪后 _promptContextSnapshot 有值才创建）
-        if (_promptContextSnapshot is not null && _promptContextInventory is not null)
-        {
-            _promptContextItem = new PromptContextItem(
-                $"📎 系统提示词 {_promptContextSnapshot.Length} 字符",
-                _promptContextSnapshot.Length,
-                _promptContextFileUrl);
-            AddMessage(_promptContextItem);
-            _driver.PromptContextItemTarget = _promptContextItem;
-        }
-
+        // TASK145 — 注入提示词折叠项改由引擎 PromptInjected 事件逐轮创建（ReplBridgeDriver），
+        // 此处不再用启动快照占位
         AddMessage(new UserMessageItem(text));
         // E4 接线 — 打断恢复锚点在挂附件项之前记录（_lastSubmittedIndex 恒指用户消息本体，
         /// 附件项插在其后不偏移锚点 — RestoreInterruptedInput 移除段含后续连续附件项）

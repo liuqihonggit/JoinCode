@@ -31,6 +31,7 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(ContextUsage), "context_usage")]
 [JsonDerivedType(typeof(BackgroundTask), "background_task")]
 [JsonDerivedType(typeof(SystemNotice), "system_notice")]
+[JsonDerivedType(typeof(PromptInjected), "prompt_injected")]
 [JsonDerivedType(typeof(Error), "error")]
 public abstract record BridgeEvent
 {
@@ -189,4 +190,8 @@ public abstract record BridgeEvent
 
     /// <summary>系统旁白（TASK130-A5 — hook <c>systemMessage</c>）：独立 dim 行，不结束回合、不进对话正文。</summary>
     public sealed record SystemNotice(string Message) : BridgeEvent;
+
+    /// <summary>每轮提示词注入快照（TASK145 — 预处理后本轮真实注入的系统提示词全文；
+    /// ReplBridgeDriver 据此建该轮 PromptContextItem，逐轮可见可回看）。</summary>
+    public sealed record PromptInjected(string SystemPrompt) : BridgeEvent;
 }

@@ -1,47 +1,34 @@
 namespace NativeTui.Tests.Repl;
 
 /// <summary>
-/// 注入上下文折叠项测试（TASK079 终版 — OSC 8 file 链接形态，不接管鼠标）：
-/// 摘要行渲染（统计 + tokenNote 回填）/ 链接段 SetLinks 声明（支持时）/ 降级路径（不支持时）。
-/// 点击→终端原生打开 .md（OSC 8 由渲染层注入）；/prompt 全页模态在 PromptTransparencyEngineTests。
+/// 注入提示词折叠项测试（TASK145 — 每轮一条）：摘要行渲染（轮次 + 字符数 + tokenNote 回填）/
+/// 唯一命中标识（多条按轮次区分点击目标）/ 展开内容为本轮系统提示词全文。
 /// </summary>
 public sealed class PromptContextItemTests
 {
-    private const string FileUrl = "file:///C:/Users/test/AppData/Local/Temp/jcc-prompt-20261031.md";
-
     private static string RowTextOf(Screen screen, int row, int width = 140) =>
         RowText.Of(screen, row, 0, width).TrimEnd();
 
     [Fact]
-    public void Supported_RendersSummaryAndDeclaresFileLinkSpan()
+    public void RendersRoundAndCharsAndClickHint()
     {
-        var item = new PromptContextItem("📎 首次注入 · 系统提示词 50382 字符 · 点击展开", 50382);
+        var item = new PromptContextItem(round: 2, promptChars: 50382, content: "提示词正文");
         using var screen = new Screen(cols: 140, rows: 3);
 
         Assert.Equal(1, item.MeasureHeight(140));
         item.Render(screen, new Rect(0, 0, 140, 3), Theme.Dark);
 
         var row = RowTextOf(screen, 0);
-        Assert.Contains("📎 首次注入", row);
+        Assert.Contains("📎 第 2 轮注入", row);
         Assert.Contains("50382 字符", row);
         Assert.Contains("点击展开", row);
-    }
-
-    [Fact]
-    public void Unsupported_ShowsFallbackPath_NoLinkSpan()
-    {
-        var item = new PromptContextItem("📎 首次注入 · 系统提示词 50382 字符", 50382);
-        using var screen = new Screen(cols: 140, rows: 3);
-
-        item.Render(screen, new Rect(0, 0, 140, 3), Theme.Dark);
-
-        Assert.Contains("📎 首次注入", RowTextOf(screen, 0));
+        Assert.Equal("📎 第 2 轮注入 · 提示词 50382 字符", item.Summary);
     }
 
     [Fact]
     public void TokenNote_Renders_WhenPromptTokensFilled()
     {
-        var item = new PromptContextItem("📎 首次注入 · 系统提示词 12307 字符", 12307) { PromptTokens = 4200 };
+        var item = new PromptContextItem(round: 1, promptChars: 12307, content: "提示词正文") { PromptTokens = 4200 };
         using var screen = new Screen(cols: 140, rows: 3);
 
         item.Render(screen, new Rect(0, 0, 140, 3), Theme.Dark);
@@ -50,13 +37,24 @@ public sealed class PromptContextItemTests
     }
 
     [Fact]
-    public void NoUrlNoFallback_RendersPlainLinkText()
+    public void HitTestId_IsUniquePerRound_AndPrefixMatched()
     {
-        var item = new PromptContextItem("📎 首次注入", 10);
-        using var screen = new Screen(cols: 140, rows: 3);
+        var first = new PromptContextItem(round: 1, promptChars: 10, content: "一");
+        var second = new PromptContextItem(round: 2, promptChars: 20, content: "二");
 
-        item.Render(screen, new Rect(0, 0, 140, 3), Theme.Dark);
+        Assert.NotEqual(first.HitTestId, second.HitTestId);
+        Assert.True(PromptContextItem.IsPromptHit(first.HitTestId));
+        Assert.True(PromptContextItem.IsPromptHit(second.HitTestId));
+        Assert.False(PromptContextItem.IsPromptHit("tool-result:1"));
+        Assert.False(PromptContextItem.IsPromptHit(null));
+    }
 
-        Assert.Contains("📎 首次注入", RowTextOf(screen, 0));
+    [Fact]
+    public void ExpandedContent_IsThisRoundPromptBody()
+    {
+        var item = new PromptContextItem(round: 3, promptChars: 5, content: "系统提示词");
+
+        Assert.Equal("系统提示词", item.ExpandedContent);
+        Assert.False(item.Expanded);
     }
 }

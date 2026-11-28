@@ -434,75 +434,6 @@ public static class Program {
                 var gitignorePredicate = await LoadGitignorePredicateAsync(session.Services, Environment.CurrentDirectory).ConfigureAwait(false);
                 // TASK078 — /?? //ask 拦截为正常回合
                 var clarifyEngine = new ClarifyModeEngine(pickerEngine, JoinCode.ChatCommands.AskClarifyPrompts.SystemPrompt);
-                // TASK079 — 提示词透明化
-                var toolRegistry = session.Services.GetService<IMcpToolRegistry>();
-                var promptProvider = session.Services.GetService<ISystemPromptProvider>();
-                var toolInventoryCache = new Lazy<(string Text, int Total, int System)>(() =>
-                {
-                    if (toolRegistry is null)
-                    {
-                        return ("（工具注册表不可用）", 0, 0);
-                    }
-
-                    var tools = toolRegistry.GetAllToolsAsync().GetAwaiter().GetResult()  // style-allow: sync-block — TUI 宿主同步装配契约: 启动期一次性拉取工具与提示词
-                        .OrderBy(t => t.Value.Category, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(t => t.Key, StringComparer.Ordinal)
-                        .ToList();
-                    var sb = new System.Text.StringBuilder();
-                    sb.AppendLine($"共 {tools.Count} 个工具：");
-                    string? lastCategory = null;
-                    foreach (var (name, handler) in tools)
-                    {
-                        if (handler.Category != lastCategory)
-                        {
-                            sb.AppendLine();
-                            sb.AppendLine($"[{handler.Category ?? "其他"}]");
-                            lastCategory = handler.Category;
-                        }
-
-                        sb.AppendLine($"  {name} ({handler.Kind.ToValue()}): {handler.Description}");
-                    }
-
-                    var systemCount = tools.Count(t => t.Value.Kind == ToolKind.System);
-                    return (sb.ToString(), tools.Count, systemCount);
-                }, LazyThreadSafetyMode.ExecutionAndPublication);
-                var promptSnapshotBuilder = new Lazy<string>(() =>
-                {
-                    var sb = new System.Text.StringBuilder();
-                    sb.AppendLine("【首次注入的系统提示词】");
-                    if (promptProvider is not null)
-                    {
-                        foreach (var section in promptProvider.GetSections())
-                        {
-                            var content = section.ComputeValueTaskAsync().GetAwaiter().GetResult();  // style-allow: sync-block — TUI 宿主同步装配契约: 启动期一次性拉取工具与提示词
-                            if (!string.IsNullOrWhiteSpace(content))
-                            {
-                                sb.AppendLine($"── {section.Name} ──");
-                                sb.AppendLine(content);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        sb.AppendLine("（系统提示词提供器不可用）");
-                    }
-
-                    sb.AppendLine();
-                    sb.AppendLine("【工具清单】");
-                    sb.AppendLine(toolInventoryCache.Value.Text);
-                    return sb.ToString();
-                }, LazyThreadSafetyMode.ExecutionAndPublication);
-                string? promptFileUrl = null;
-                string? promptFallbackPath = null;
-                try
-                {
-                    promptFallbackPath = Path.Combine(Path.GetTempPath(), $"jcc-prompt-{DateTime.Now:yyyyMMdd-HHmmss}.md");
-                    File.WriteAllText(promptFallbackPath, promptSnapshotBuilder.Value);
-                    promptFileUrl = new Uri(promptFallbackPath).AbsoluteUri;
-                }
-                catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
-
                 var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
 
                 // TASK078 — 填充闭包委托引用（ReplShell 构造时传入的闭包现在生效）
@@ -516,7 +447,6 @@ public static class Program {
                 // TASK078 — 注入真实引擎 + 引擎服务
                 lazyEngine.AttachReal(transparencyEngine);
                 shell.AttachEngineServices(commands, themeName, commandUsage, statusLineTemplate,
-                    promptSnapshotBuilder.Value, () => toolInventoryCache.Value, promptFileUrl,
                     defaultShell, vimMode);
                 transparencyEngine.Attach(shell);
 

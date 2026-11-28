@@ -80,17 +80,21 @@ public sealed class AssistantMessageItem(string text, int thinkingDurationMs = 0
         }
     }
 
-    /// <summary>内容高度 = margin 1 + 正文折行行数（含多行命令输出与超宽软折）+ 思考摘要行（有思考且未脱敏）+ CoT 行数（展开态，含截断守卫）。</summary>
+    /// <summary>内容高度 = margin 1 + 正文折行行数（含多行命令输出与超宽软折）+ 思考摘要行（有思考内容且未脱敏）+ CoT 行数（展开态，含截断守卫）。</summary>
     public int MeasureHeight(int width) =>
         1
         + Math.Max(1, MessageRenderer.WrapAssistantLines(text, width).Count)
-        + (thinkingDurationMs > 0 && !thinkingRedacted ? 1 : 0)
+        + (HasThinkingSummary ? 1 : 0)
         + (IsThinkingExpanded ? CountThinkingLines() : 0);
+
+    /// <summary>思考摘要行可见性 — 时长 &gt; 0（正常计时）或 CoT 全文非空（极快响应时长结算为 0ms 时
+    /// 仍须给出可展开入口，否则思考块在默认视图整块消失、只能 ctrl+o 转录里找到）；脱敏思考不渲染。</summary>
+    private bool HasThinkingSummary => !thinkingRedacted && (thinkingDurationMs > 0 || thinkingContent is { Length: > 0 });
 
     /// <summary>margin 行留空 → 思考摘要行（有思考且未脱敏）→ CoT 全文（展开态）→ 正文。</summary>
     public void Render(Screen screen, Rect frame, Theme theme) {
         var row = frame.Y + 1;
-        if (thinkingDurationMs > 0 && !thinkingRedacted) {
+        if (HasThinkingSummary) {
             MessageRenderer.RenderThinkingSummary(screen, frame with { Y = row++, Height = 1 }, theme, thinkingDurationMs, IsThinkingExpanded);
         }
 

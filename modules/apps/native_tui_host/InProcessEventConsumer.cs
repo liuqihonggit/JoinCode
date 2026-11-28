@@ -246,6 +246,7 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _thinkingStartMs = null;
         var duration = Math.Max(0, _wallClock() - start);
         _thinkingTotalMs += (int)Math.Min(int.MaxValue, duration);
+        Diag.WriteLine($"[THINK] 思考段结算 duration={duration}ms chars={_thinkingContent.Length}");
         WriteEvent(new BridgeEvent.ThinkingEnded(duration));
     }
 

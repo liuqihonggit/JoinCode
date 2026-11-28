@@ -6,7 +6,7 @@ namespace NativeTui.Core.Repl;
 /// 物理行由 MarkdownLayout 按 width-2 缓存布局（宽度变化才重算；高亮随布局一次性算好缓存）；
 /// 段样式经 MessageRenderer.MapMarkdownStyle 映射（Code → permission 色，对齐基准 codespan）；
 /// 代码行高亮在段写完后按色段覆写前景（M7-5 — 高亮器由宿主注入，null = 降级纯文本）。
-/// TASK062 结构化：思考时长 &gt; 0 时正文上方 dim 思考摘要行 + Ctrl+O 展开 CoT（同 AssistantMessageItem 语义）。
+/// TASK062 结构化：存在 CoT 内容或思考时长 &gt; 0 时正文上方 dim 思考摘要行 + Ctrl+O 展开 CoT（同 AssistantMessageItem 语义）。
 /// </summary>
 public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighlighter? highlighter = null, int thinkingDurationMs = 0, string? thinkingContent = null, int messageId = 0, bool thinkingRedacted = false) : IScrollItem, ICursorNavigable, ITextMatchable
 {
@@ -19,7 +19,7 @@ public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighligh
     /// <summary>块模型文档（暴露供宿主断言与演示构造）。</summary>
     public MarkdownDocument Document { get; } = document;
 
-    /// <summary>思考总时长 ms（0 = 无思考不渲染思考行）。</summary>
+    /// <summary>思考总时长 ms（0 = 时长未知/快流回合，不单独决定是否渲染思考行）。</summary>
     public int ThinkingDurationMs => thinkingDurationMs;
 
     /// <summary>CoT 全文（null = 无内容不可展开）。</summary>
@@ -33,6 +33,10 @@ public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighligh
 
     /// <summary>思考块展开态（Ctrl+O 切换）。</summary>
     public bool IsThinkingExpanded { get; private set; }
+
+    /// <summary>思考摘要行可见性 — 时长 &gt; 0（正常计时）或 CoT 全文非空（极快响应时长结算为 0ms 时
+    /// 仍须给出可展开入口，否则思考块在默认视图整块消失、只能 ctrl+o 转录里找到）；脱敏思考不渲染。</summary>
+    private bool HasThinkingSummary => !thinkingRedacted && (thinkingDurationMs > 0 || thinkingContent is { Length: > 0 });
 
     /// <summary>切换思考块展开态（有 CoT 才有效）。</summary>
     public void ToggleThinking() {
@@ -70,14 +74,14 @@ public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighligh
     /// <summary>内容高度 = margin 1 + 布局行数（空文档至少 1 行圆点行）+ 思考摘要行（有思考）+ CoT 行数（展开态）。</summary>
     public int MeasureHeight(int width) =>
         1 + Math.Max(1, LayoutFor(width).Lines.Count)
-        + (thinkingDurationMs > 0 && !thinkingRedacted ? 1 : 0)
+        + (HasThinkingSummary ? 1 : 0)
         + (IsThinkingExpanded ? CountThinkingLines() : 0);
 
     /// <summary>渲染：margin 行留空 → 思考摘要行（有思考且未脱敏）→ CoT（展开态）→ ● text 色（col0）→ 各物理行从 col2 起逐段写 → 代码行覆写高亮前景。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
         var row = frame.Y + 1;
-        if (thinkingDurationMs > 0 && !thinkingRedacted)
+        if (HasThinkingSummary)
         {
             MessageRenderer.RenderThinkingSummary(screen, frame with { Y = row++, Height = 1 }, theme, thinkingDurationMs, IsThinkingExpanded);
         }

@@ -75,7 +75,12 @@
 2. **`BridgeSubprocessManager` 参数纠偏**：应与 (1) 一起改（单独改成 `--format ndjson` 仍会因
    `-p` 缺提示词而失败，改一半比不改更难查）。
    → **TASK138 已改：只拼本仓真实解析的选项，并加门禁单测 `BridgeChildArgumentsTests`**。
-3. **queryId 贯通 `bridge` 服务协议面**（websocket `BridgeServerMessage`）—— 仍待单独立项。
+3. **queryId 贯通 `bridge` 服务协议面** —— TASK142-C 查证为**前提不成立**：
+   本仓"查询协议面"是 `jcc bridge_serve` 的 stdio NDJSON 行协议（ADR 0141），
+   `CliBridge.BridgeRequest.QueryId` / `BridgeEvent.QueryId` 双端镜像早已存在，
+   `BridgeQueryIdContractTests` 4 条 + 真机快照覆盖；`BridgeServerMessage` 是 IDE 类 bridge
+   （get_file / set_selection / execute_command），本身没有"查询"概念，给它加字段只会制造第二真相源。
+   → **不改代码**，见 `TASK142-后续四项收口台账.md` §5.C。
 
 ## 7. 教训
 

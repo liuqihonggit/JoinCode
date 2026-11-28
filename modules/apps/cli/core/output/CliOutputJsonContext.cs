@@ -53,6 +53,8 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkSystemInitMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkResultMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkStreamInputMessage))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(SdkStreamControlRequest))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(SdkStreamControlResponse))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkToolProgressMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkSessionStateChangedMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkApiRetryMessage))]

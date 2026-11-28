@@ -82,6 +82,29 @@ public sealed partial class BridgeMainTests {
         Assert.Null(text);
     }
 
+    /// <summary>
+    /// TASK142-A：SDK 子进程回显的真实 shape 是 <c>message.content = [{type:"text",...}]</c>。
+    /// 提取器此前只处理顶层 content 数组与嵌套字符串 content，嵌套数组会漏掉 —— 父进程拿不到首条用户消息，
+    /// 会话标题派生链整条断掉。判据来自基准侧 sessionRunner.ts 的 extractUserMessageText。
+    /// </summary>
+    [Fact]
+    public void ExtractUserMessageText_SdkNestedContentArray_ReturnsFirstTextBlock() {
+        var ndjson = """{"type":"user","message":{"role":"user","content":[{"type":"text","text":"你好"},{"type":"image","source":{}}]}}""";
+        var text = BridgeSubprocessHandle.ExtractUserMessageText(ndjson);
+        Assert.Equal("你好", text);
+    }
+
+    /// <summary>
+    /// TASK142-A：基准侧 extractUserMessageText 跳过 isReplay（回放确认消息不是真人输入）。
+    /// 本仓提取器此前只认 source:"replay"，会把 isReplay 回执误当首条真人消息拿去命名会话。
+    /// </summary>
+    [Fact]
+    public void ExtractUserMessageText_IsReplayFlag_ReturnsNull() {
+        var ndjson = """{"type":"user","isReplay":true,"message":{"role":"user","content":"回放确认"}}""";
+        var text = BridgeSubprocessHandle.ExtractUserMessageText(ndjson);
+        Assert.Null(text);
+    }
+
     [Fact]
     public void ExtractUserMessageText_EmptyContent_ReturnsNull() {
         var ndjson = """{"type":"user","content":"   "}""";

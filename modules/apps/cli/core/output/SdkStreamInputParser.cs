@@ -20,6 +20,14 @@ public sealed record SdkStreamInputLine(string? Text, string? Diagnostic) {
     /// <param name="text">用户文本。</param>
     /// <returns>解析结果。</returns>
     public static SdkStreamInputLine Turn(string text) => new(text, null);
+
+    /// <summary>control_request / interrupt 的请求 ID（TASK142-B）；非空表示要取消当前回合。</summary>
+    public string? InterruptRequestId { get; init; }
+
+    /// <summary>构造一条 interrupt 控制行。</summary>
+    /// <param name="requestId">控制请求 ID（用于回 control_response）。</param>
+    /// <returns>解析结果。</returns>
+    public static SdkStreamInputLine Interrupt(string requestId) => new(null, null) { InterruptRequestId = requestId };
 }
 
 /// <summary>
@@ -48,6 +56,15 @@ public static class SdkStreamInputParser {
         if (message is null)
             return SdkStreamInputLine.Failed("[INPUT] 空消息，已跳过。");
 
+        // TASK142-B：控制行与用户行走两条不同通道 —— 控制行要能打断在途回合。
+        if (string.Equals(message.Type, "control_request", StringComparison.OrdinalIgnoreCase))
+            return InterpretControlRequest(line);
+
+        // 基准侧 structuredIO.processLine 对这两类是静默忽略（本仓不发 control_request，
+        // 没有待匹配的应答；环境变量更新在本轮无消费方）。
+        if (message.Type is "control_response" or "keep_alive" or "update_environment_variables")
+            return SdkStreamInputLine.Blank;
+
         if (!string.Equals(message.Type, "user", StringComparison.OrdinalIgnoreCase)) {
             return SdkStreamInputLine.Failed(
                 $"[INPUT] 忽略 type=\"{message.Type}\" 的消息：当前仅支持 type=\"user\"（控制协议未实现，见 TASK138）");
@@ -65,6 +82,31 @@ public static class SdkStreamInputParser {
             _ => SdkStreamInputLine.Failed(
                 $"[INPUT] 不支持的 content 类型 {element.ValueKind}（支持字符串或内容块数组），已跳过。"),
         };
+    }
+
+    /// <summary>
+    /// 解释 control_request — 形状取自基准侧 SDKControlRequestSchema；
+    /// 本轮只实现 interrupt，其余子类型给诱导式诊断（说明当前支持什么、下一步怎么做）。
+    /// </summary>
+    /// <param name="line">原始 NDJSON 行</param>
+    /// <returns>解析结果</returns>
+    private static SdkStreamInputLine InterpretControlRequest(string line) {
+        SdkStreamControlRequest? control;
+        try {
+            control = System.Text.Json.JsonSerializer.Deserialize(
+                line, CliOutputJsonContext.Default.SdkStreamControlRequest);
+        } catch (System.Text.Json.JsonException ex) {
+            return SdkStreamInputLine.Failed($"[INPUT] control_request 无法解析（{ex.Message}）；已跳过。");
+        }
+
+        if (control is null || string.IsNullOrWhiteSpace(control.RequestId))
+            return SdkStreamInputLine.Failed("[INPUT] control_request 缺 request_id，已跳过；请补上 request_id 以便回 control_response。");
+
+        if (string.Equals(control.Request?.Subtype, "interrupt", StringComparison.OrdinalIgnoreCase))
+            return SdkStreamInputLine.Interrupt(control.RequestId);
+
+        return SdkStreamInputLine.Failed(
+            $"[INPUT] 暂不支持 control_request.request.subtype=\"{control.Request?.Subtype}\"，已跳过；当前仅支持 interrupt，请用 type=user 提交下一回合（若是 interrupt 请补 request.subtype）。");
     }
 
     /// <summary>拼接内容块数组中的 text 块（其他块类型忽略 — 图片/工具块暂无输入通道）。</summary>

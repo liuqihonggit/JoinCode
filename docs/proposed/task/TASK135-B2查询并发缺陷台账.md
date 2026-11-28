@@ -77,6 +77,10 @@
   - 降级说明：旁路每次快照走 `IFileSystem.AppendAllTextAsync`（打开-写入-关闭），
     `kill -9` 不会丢已写行（只有断电/内核崩溃才涉及 fsync 语义）；收编逻辑已由
     `TranscriptServiceStreamingTests` 6 条覆盖。真进程 `kill -9` 集成用例未做，留真机/CI。
+  - TASK142-D 已把文件系统升级为**真实磁盘**：`TranscriptCrashRecoveryRealFsTests` 2 条
+    （单查询残稿收编+幂等、多查询旁路互不覆盖），验证已写行在"丢弃实例→重启"后不丢。
+    进程级 kill -9 仍未复现：MockServer 返回 1 chunk、回合 <0.5s 结束，旁路写入窗口抓不到；
+    需可控慢速流式 provider 才能补，详见 `TASK142-后续四项收口台账.md` §5.D。
 
 - [x] **C3 `/clear` 与在途后台查询并发未测**
   - 已覆盖：`TranscriptPersistMiddlewareTests.InvokeAsync_SessionSwitchedMidTurn_StillWritesToOriginalSession`

@@ -42,25 +42,36 @@ public sealed class BridgeChildArgumentsTests {
     }
 
     /// <summary>
-    /// 回归锁：TS 独有的五个选项不得再出现。
-    /// <para>其中 <c>--print</c> 曾让子进程 100% 起不来；<c>--sdk-url</c> 在本仓无消费方
+    /// 回归锁：本仓无消费方的 TS 选项不得再出现。
+    /// <para><c>--print</c> 曾让子进程 100% 起不来；<c>--sdk-url</c> 在本仓无消费方
     /// （事件由父进程从 stdout 转发到 ingress）；<c>--session-id</c> 语义也不同
     /// （本仓 <c>--resume</c> 认的是本地会话 ID，不是 bridge 的 <c>cse_*</c>）；
-    /// <c>--replay-user-messages</c> 只影响是否回显，父进程读 stdout 时会主动跳过 source=replay；
-    /// <c>--debug-file</c> 无消费方，文件回溯由父进程落 bridge-transcript-*.json。</para>
+    /// <c>--debug-file</c> 无消费方，文件回溯由父进程落 bridge-transcript-*.json。
+    /// <c>--replay-user-messages</c> 已由 TASK142-A 补上真实消费方（回显用户消息供父进程派生会话标题），
+    /// 所以它从"不得出现"清单里移出，由下一条断言锁住。</para>
     /// </summary>
     [Fact]
-    public void BuildChildArguments_OmitsTsOnlyOptions() {
+    public void BuildChildArguments_OmitsTsOnlyOptionsWithoutConsumer() {
         var args = BridgeSubprocessSpawner.BuildChildArguments(FullOptions());
 
         string[] tsOnly = [
             JccCliArgEnumConstants.Print,
             JccCliArgEnumConstants.SdkUrl,
             JccCliArgEnumConstants.SessionId,
-            JccCliArgEnumConstants.ReplayUserMessages,
             JccCliArgEnumConstants.DebugFile,
         ];
         args.Should().NotIntersectWith(tsOnly);
+    }
+
+    /// <summary>
+    /// TASK142-A：bridge 子进程必须要求回显用户消息 —— 父进程的 OnFirstUserMessage
+    /// （会话标题派生）依赖 stdout 里的 type=user 行；此前删掉该选项只是堵了 Unknown option，
+    /// 却把标题派生链一起切断了。
+    /// </summary>
+    [Fact]
+    public void BuildChildArguments_RequestsReplayUserMessages() {
+        BridgeSubprocessSpawner.BuildChildArguments(FullOptions())
+            .Should().Contain(JccCliArgEnumConstants.ReplayUserMessages);
     }
 
     /// <summary>

@@ -214,6 +214,14 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>每轮提示词注入快照 → PromptInjected（TASK145 — 预处理后本轮真实系统提示词全文；
+    /// ReplBridgeDriver 建对应轮次的 PromptContextItem。显式实现：DIM 默认实现经类类型调用不可见 — 先例同上）。</summary>
+    public void OnPromptInjected(PromptInjectionSnapshot snapshot) {
+        if (!string.IsNullOrEmpty(snapshot.SystemPrompt)) {
+            WriteEvent(new BridgeEvent.PromptInjected(snapshot.SystemPrompt));
+        }
+    }
+
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() {
         List<BridgeEvent>? drained = null;

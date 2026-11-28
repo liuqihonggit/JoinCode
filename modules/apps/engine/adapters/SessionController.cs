@@ -629,6 +629,15 @@ public sealed class SessionController {
         var contextManager = _serviceProvider.GetService<IChatContextManager>();
         if (contextManager is not null) {
             await contextManager.RecordPromptStateAsync(cancellationToken: ct).ConfigureAwait(false);
+            // TASK145 — 预处理完成后读取本轮真实注入的 System 消息（静态前缀 + 动态后缀），
+            // 供提示词透明化 UI 逐轮展示；读取失败不阻断回合（透明化是旁路能力）
+            var messageList = await contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
+            var systemPrompt = string.Join("\n\n", messageList
+                .Where(static m => m.Role == MessageRole.System && !string.IsNullOrWhiteSpace(m.Content))
+                .Select(static m => m.Content));
+            if (!string.IsNullOrWhiteSpace(systemPrompt)) {
+                _consumer.OnPromptInjected(new PromptInjectionSnapshot(systemPrompt));
+            }
         }
 
         // TASK130-A5 — 主代理路径此前完全不执行 UserPromptSubmit hook（那条 hook 只在无主代理的

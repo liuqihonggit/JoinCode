@@ -457,6 +457,8 @@ public sealed class SessionControllerTests {
 
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.SaveContextAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList());
 
         var services = new ServiceCollection();
         services.AddSingleton(contextManager.Object);
@@ -488,8 +490,9 @@ public sealed class SessionControllerTests {
         contextManager.SetupGet(c => c.SessionId).Returns("test-session");
         contextManager.Setup(c => c.AddAssistantMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         contextManager.Setup(c => c.SaveContextAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        // startSnapshot 在 PreProcess 前取（空），结束 snapshot 含 user+assistant
+        // startSnapshot 在 PreProcess 前取（空）→ TASK145 注入快照读取 → 结束 snapshot 含 user+assistant
         contextManager.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList([]))
             .ReturnsAsync(new MessageList([]))
             .ReturnsAsync(new MessageList([
                 new ApiMessage { Role = MessageRole.User, Content = "test" },
@@ -557,6 +560,55 @@ public sealed class SessionControllerTests {
             "主代理路径应在执行前调用 AnalyzeAndInjectAsync 做预处理");
         fileContextService.Verify(f => f.UpdateFileContext(It.IsAny<string>()), Times.AtLeastOnce,
             "主代理路径应在执行前调用 UpdateFileContext 更新文件上下文");
+    }
+
+    /// <summary>TASK145 — 预处理完成后应把本轮真实注入的 System 消息（静态前缀 + 动态后缀）
+    /// 通过 OnPromptInjected 交给消费方；用户消息不进入快照。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_MainAgentPath_EmitsPromptInjectionSnapshot() {
+        var queryEngine = CreateMockQueryEngine();
+        await using var agent = new AgentBase(
+            task: string.Empty,
+            options: null,
+            queryEngine: queryEngine,
+            logger: null,
+            name: "main",
+            role: AgentRole.Coordinator);
+
+        var preprocessor = new Mock<IChatPreprocessor>();
+        var fileContextService = new Mock<IChatFileContextService>();
+        var contextManager = new Mock<IChatContextManager>();
+        contextManager.Setup(c => c.RecordPromptStateAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PromptStateSnapshot {
+                SystemPromptHash = "sys",
+                ToolSpecsHash = "tools",
+                ToolCount = 0,
+                ToolNamesHash = "names",
+                DynamicContentHash = "dyn",
+            });
+        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList([
+                new ApiMessage(MessageRole.System, "静态前缀正文"),
+                new ApiMessage(MessageRole.System, "动态后缀正文"),
+                new ApiMessage(MessageRole.User, "test"),
+            ]));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(preprocessor.Object);
+        services.AddSingleton(fileContextService.Object);
+        services.AddSingleton(contextManager.Object);
+        var sp = services.BuildServiceProvider();
+
+        var chatService = CreateMockChatService(Array.Empty<ChatStreamEvent>());
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session", sp, mainAgent: agent);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
+        var prompt = Assert.Single(consumer.PromptInjections);
+        Assert.Equal("静态前缀正文\n\n动态后缀正文", prompt);
+        Assert.DoesNotContain("test", prompt);
     }
 
     /// <summary>
@@ -959,6 +1011,9 @@ public sealed class SessionControllerTests {
         /// <summary>TASK130-A5 — 系统旁白（hook systemMessage）回调记录。</summary>
         public List<string> SystemNotices { get; } = [];
 
+        /// <summary>TASK145 — 每轮注入快照回调记录（系统提示词全文）。</summary>
+        public List<string> PromptInjections { get; } = [];
+
         public void OnText(string content) => TextEvents.Add(content);
         public void OnThinking(string thinking) => ThinkingEvents.Add(thinking);
         /// <summary>TASK069 #18 — 脱敏思考通知计数（与正常 ThinkingEvents 分开，断言互不污染）。</summary>
@@ -976,5 +1031,8 @@ public sealed class SessionControllerTests {
 
         /// <summary>TASK130-A5 — 显式实现（DIM 默认实现经类类型调用不可见，断言会永远空）。</summary>
         public void OnSystemNotice(string message) => SystemNotices.Add(message);
+
+        /// <summary>TASK145 — 显式实现（同上 — DIM 经类类型调用不可见）。</summary>
+        public void OnPromptInjected(PromptInjectionSnapshot snapshot) => PromptInjections.Add(snapshot.SystemPrompt);
     }
 }

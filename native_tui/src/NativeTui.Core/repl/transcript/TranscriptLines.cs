@@ -37,9 +37,9 @@ public static class TranscriptLines
             SubagentGroupItem group => SubagentLines(group),
             CollapsedToolGroupItem collapsed => CollapsedGroupLines(collapsed),
             CondensedToolProgressItem condensed => CondensedLines(condensed),
-            // TASK079 — 注入上下文折叠项：展开态投影全文（系统提示词+工具清单），塌缩态投影摘要行
-            // TASK107 P10 — Summary/Render 自带 "📎 " 前缀，此处不得再补（否则 "📎 📎 首次注入…"）；
-            // 展开态正文是裸系统提示词，前缀仍需补。
+            // TASK145 — 每轮注入折叠项：展开态投影该轮系统提示词全文，塌缩态投影摘要行
+            // TASK107 P10 — Summary/Render 自带 "📎 " 前缀，此处不得再补（否则 "📎 📎 第 N 轮…"）；
+            // 展开态正文是裸提示词，前缀仍需补。
             PromptContextItem prompt => prompt.Expanded && prompt.ExpandedContent is { } content
                 ? PrefixedLines("📎 ", content)
                 : [prompt.Summary],

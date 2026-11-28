@@ -159,13 +159,13 @@ public sealed class TranscriptVerboseRenderTests
     [Fact]
     public void PromptContext_CollapsedSummary_NotPrefixedTwice()
     {
-        // TASK107 P10 — Summary 自带 📎，投影层再补一次 → "📎 📎 首次注入…"
-        var item = new PromptContextItem("📎 ", promptChars: 87432);
+        // TASK107 P10 — Summary 自带 📎，投影层再补一次 → "📎 📎 第 1 轮注入…"
+        var item = new PromptContextItem(round: 1, promptChars: 87432, content: "提示词正文");
 
         var lines = TranscriptLines.Project(item).ToArray();
 
         var summary = Assert.Single(lines);
-        Assert.Equal("📎 首次注入 · 系统提示词 87432 字符", summary);
+        Assert.Equal("📎 第 1 轮注入 · 提示词 87432 字符", summary);
     }
 
     [Fact]

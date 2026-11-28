@@ -258,6 +258,13 @@ public interface IEventConsumer {
     void OnSystemNotice(string message) { }
 
     /// <summary>
+    /// 每轮提示词注入快照（TASK145 — 预处理完成后携带本轮真实注入的系统提示词全文，
+    /// 供提示词透明化 UI 逐轮展示）。默认空实现 — 既有实现方零改动。
+    /// </summary>
+    /// <param name="snapshot">本轮注入快照</param>
+    void OnPromptInjected(PromptInjectionSnapshot snapshot) { }
+
+    /// <summary>
     /// 文件持久化（TASK073 Phase 4 — 对齐基准侧 system/files_persisted 事件；
     /// NDJSON 模式输出 SdkFilesPersistedMessage。默认空实现 — 既有实现方零改动）
     /// </summary>

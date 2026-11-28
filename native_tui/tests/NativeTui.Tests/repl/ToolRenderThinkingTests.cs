@@ -48,6 +48,21 @@ public sealed class ToolRenderThinkingTests
     }
 
     [Fact]
+    public void AssistantMessageItem_ThinkingContentWithoutDuration_StillRendersSummary() {
+        // 真机取景暴露：mock/极快响应下思考时长结算为 0ms，但 CoT 全文存在 —
+        // 旧条件仅看 duration>0，整块思考在默认视图消失（只能 ctrl+o 转录看到）。
+        // 行为契约：时长 0 但 ThinkingContent 非空 → 仍渲染 "∴ 思考 · ctrl+o 展开推理"。
+        using var screen = new Screen(cols: 40, rows: 6);
+        var item = new AssistantMessageItem("正文", thinkingDurationMs: 0, thinkingContent: "CoT", messageId: 1);
+
+        Assert.Equal(3, item.MeasureHeight(40));
+        item.Render(screen, new Rect(0, 2, 40, 3), Theme.Dark);
+
+        Assert.Equal("∴ 思考 · ctrl+o 展开推理", screen.RowText(3).TrimEnd());
+        Assert.Equal("● 正文", screen.RowText(4).TrimEnd());
+    }
+
+    [Fact]
     public void ExpandedCoT_ContentRowsKeepIndent()
     {
         // 展开 CoT — 内容行 ⎿+2 缩进 dim 逐行（既有形态不动），仅摘要行前缀改 ∴

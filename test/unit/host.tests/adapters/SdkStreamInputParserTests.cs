@@ -25,7 +25,8 @@ public sealed class SdkStreamInputParserTests {
 
     [Fact]
     public void NonUserType_IsDiagnosedNotFatal() {
-        var parsed = JoinCode.Cli.Output.SdkStreamInputParser.Interpret("""{"type":"control_request","request_id":"r1"}""");
+        var parsed = JoinCode.Cli.Output.SdkStreamInputParser.Interpret(
+            """{"type":"assistant","message":{"role":"assistant","content":"我不是输入"}}""");
 
         parsed.Text.Should().BeNull();
         parsed.Diagnostic.Should().Contain("仅支持");
@@ -87,7 +88,8 @@ public sealed class SdkStreamInputParserTests {
 
         parsed.Text.Should().BeNull();
         parsed.Diagnostic.Should().BeNull();
-        parsed.InterruptRequestId.Should().Be("req-1");
+        parsed.IsInterrupt.Should().BeTrue();
+        parsed.ControlRequestId.Should().Be("req-1");
     }
 
     /// <summary>基准侧对 control_response / keep_alive 是静默忽略（本仓不发 control_request，无待处理请求）。</summary>
@@ -99,15 +101,86 @@ public sealed class SdkStreamInputParserTests {
             .Should().Be(SdkStreamInputLine.Blank);
     }
 
-    /// <summary>未实现的控制子类型必须给出诱导式诊断，不能静默吞掉让客户端以为生效了。</summary>
+    /// <summary>
+    /// 未实现的控制子类型必须回 error 并带回 request_id（基准侧 print.ts 末尾同此），
+    /// 只写 stderr 会让 SDK 客户端等一条永远不来的应答。
+    /// </summary>
     [Fact]
-    public void UnsupportedControlSubtype_IsDiagnosedWithInductiveHint() {
+    public void UnsupportedControlSubtype_IsRejectedWithRequestId() {
         var parsed = SdkStreamInputParser.Interpret(
-            """{"type":"control_request","request_id":"r2","request":{"subtype":"set_permission_mode","mode":"bypass"}}""");
+            """{"type":"control_request","request_id":"r2","request":{"subtype":"set_model","model":"x"}}""");
 
         parsed.Text.Should().BeNull();
-        parsed.InterruptRequestId.Should().BeNull();
-        parsed.Diagnostic.Should().Contain("interrupt");
+        parsed.IsInterrupt.Should().BeFalse();
+        parsed.ControlRequestId.Should().Be("r2");
+        parsed.ControlRejection.Should().Contain("set_permission_mode", "拒绝文案要列出已支持的子类型");
+    }
+
+    /// <summary>
+    /// TASK143：<c>set_permission_mode</c> 形状取自基准侧
+    /// <c>SDKControlSetPermissionModeRequestSchema</c>（<c>request.mode</c>）。
+    /// 它必须成为控制指令而不是被诊断掉 —— 否则 SDK 客户端无法在流式会话里调整权限。
+    /// </summary>
+    [Fact]
+    public void ControlSetPermissionMode_IsRecognizedAsControlLine() {
+        var parsed = SdkStreamInputParser.Interpret(
+            """{"type":"control_request","request_id":"req-pm","request":{"subtype":"set_permission_mode","mode":"ask"}}""");
+
+        parsed.Text.Should().BeNull();
+        parsed.Diagnostic.Should().BeNull();
+        parsed.ControlRequestId.Should().Be("req-pm");
+        parsed.RequestedPermissionMode.Should().Be("ask");
+    }
+
+    /// <summary>
+    /// 缺 mode 时必须带回 request_id 走 error 应答 —— 基准侧 handleSetPermissionMode 对每种不满足
+    /// 都回 <c>control_response.error</c>；只写 stderr 会让客户端永久等待这条 request_id。
+    /// </summary>
+    [Fact]
+    public void ControlSetPermissionMode_WithoutMode_IsRejectedWithRequestId() {
+        var parsed = SdkStreamInputParser.Interpret(
+            """{"type":"control_request","request_id":"req-pm2","request":{"subtype":"set_permission_mode"}}""");
+
+        parsed.ControlRequestId.Should().Be("req-pm2", "没有 request_id 就无从回 error");
+        parsed.ControlRejection.Should().NotBeNull();
+        parsed.ControlRejection.Should().Contain("mode");
+    }
+
+    /// <summary>
+    /// 失败应答必须是基准侧的 error 分支形状：<c>{subtype:"error", request_id, error}</c>，
+    /// 而不是把原因塞进 success.response 里让客户端误判成功。
+    /// </summary>
+    [Fact]
+    public void ControlErrorResponse_UsesProtocolErrorBranch() {
+        var json = RelaxedJsonSerializer.Serialize(
+            SdkStreamControlResponse.Failure("req-pm3", "未知权限模式 'bogus'"),
+            JoinCode.Cli.Output.CliOutputJsonContext.Default);
+
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        root.GetProperty("type").GetString().Should().Be("control_response");
+        var body = root.GetProperty("response");
+        body.GetProperty("subtype").GetString().Should().Be("error");
+        body.GetProperty("request_id").GetString().Should().Be("req-pm3");
+        body.GetProperty("error").GetString().Should().Contain("bogus");
+        body.TryGetProperty("response", out _).Should().BeFalse("error 分支没有 response 对象");
+    }
+
+    /// <summary>
+    /// 成功应答把实际生效模式带回（bypass 可能被安全闸拦成别的值）——
+    /// 基准侧 response 是开放 record，带 mode 键合法；不带则客户端无从知道真实状态。
+    /// </summary>
+    [Fact]
+    public void ControlSuccessResponse_ReportsEffectiveMode() {
+        var json = RelaxedJsonSerializer.Serialize(
+            SdkStreamControlResponse.Success("req-pm4", "auto"),
+            JoinCode.Cli.Output.CliOutputJsonContext.Default);
+
+        using var document = JsonDocument.Parse(json);
+        var body = document.RootElement.GetProperty("response");
+        body.GetProperty("subtype").GetString().Should().Be("success");
+        body.GetProperty("request_id").GetString().Should().Be("req-pm4");
+        body.GetProperty("response").GetProperty("mode").GetString().Should().Be("auto");
     }
 
     /// <summary>

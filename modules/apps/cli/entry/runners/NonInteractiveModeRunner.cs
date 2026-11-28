@@ -106,6 +106,10 @@ internal static class NonInteractiveModeRunner {
 
         using var stdin = new StreamReader(Console.OpenStandardInput(), System.Text.Encoding.UTF8);
         using var turnCancellation = new TurnCancellation();
+        // TASK143：权限模式应用器 — 与 bridge_serve 共用同一份解析/应用/失败文案。
+        // 解析失败（引擎未注册 IPermissionChecker）时为 null，控制行会回 error 而不是静默成功。
+        var permissionModeApplier = PermissionModeApplierFactory.Create(
+            await PermissionModeApplierFactory.ResolveAsync(sp).ConfigureAwait(false));
         // 有界邮箱：SDK 客户端连发多条时背压到 stdin 读取，避免无限堆积（S5 门禁亦禁止 unbounded）。
         var lines = System.Threading.Channels.Channel.CreateBounded<Cli.Output.SdkStreamInputLine>(
             new System.Threading.Channels.BoundedChannelOptions(256) {
@@ -125,9 +129,21 @@ internal static class NonInteractiveModeRunner {
                         break;
 
                     var parsed = Cli.Output.SdkStreamInputParser.Interpret(line);
-                    if (parsed.InterruptRequestId is { } requestId) {
+                    // 拒绝优先：带 request_id 的不合法/未实现指令必须回 error，否则客户端永久等待。
+                    if (parsed.ControlRejection is { } rejection && parsed.ControlRequestId is { } rejectedId) {
+                        Console.Error.WriteLine($"[INPUT] {rejection}");
+                        WriteControlResponse(Cli.Output.SdkStreamControlResponse.Failure(rejectedId, rejection));
+                        Diag.WriteLine($"[RUN] control request {rejectedId} rejected");
+                        continue;
+                    }
+                    if (parsed.IsInterrupt && parsed.ControlRequestId is { } interruptId) {
                         turnCancellation.CancelActive();
-                        WriteControlResponse(requestId);
+                        WriteControlResponse(Cli.Output.SdkStreamControlResponse.Success(interruptId));
+                        Diag.WriteLine($"[RUN] control_response sent for {interruptId}");
+                        continue;
+                    }
+                    if (parsed.RequestedPermissionMode is { } requestedMode && parsed.ControlRequestId is { } pmId) {
+                        ApplyPermissionMode(pmId, requestedMode, permissionModeApplier);
                         continue;
                     }
                     if (parsed.Diagnostic is { } diagnostic) {
@@ -256,16 +272,32 @@ internal static class NonInteractiveModeRunner {
     }
 
     /// <summary>
-    /// 回 control_response（TASK142-B）— 形状对齐基准侧 <c>sendControlResponseSuccess</c>：
-    /// <c>{"type":"control_response","response":{"subtype":"success","request_id":"…","response":{}}}</c>。
+    /// 应用 <c>set_permission_mode</c> 控制行（TASK143）— 成功回实际生效模式（bypass 可能被安全闸拦成别的值），
+    /// 失败回协议 error 分支（含合法值清单）。不中断回合循环。
     /// </summary>
-    /// <param name="requestId">原 control_request 的 request_id</param>
-    private static void WriteControlResponse(string requestId) {
-        var response = new Cli.Output.SdkStreamControlResponse {
-            Response = new Cli.Output.SdkStreamControlResponseBody { RequestId = requestId },
-        };
+    /// <param name="requestId">控制请求 ID</param>
+    /// <param name="mode">请求的权限模式（协议字符串）</param>
+    /// <param name="applier">权限模式应用器（null = 引擎无权限系统）</param>
+    private static void ApplyPermissionMode(
+        string requestId,
+        string mode,
+        CliCommands.BridgeServeLoop.PermissionModeApplier? applier) {
+        if (applier?.Invoke(mode) is { } effectiveMode) {
+            WriteControlResponse(Cli.Output.SdkStreamControlResponse.Success(requestId, effectiveMode.ToValue()));
+            Diag.WriteLine($"[RUN] permission mode '{mode}' applied as '{effectiveMode.ToValue()}' for {requestId}");
+            return;
+        }
+
+        // 确定性失败：不回 success —— 否则客户端以为权限已放宽，后续工具调用被拒时无法归因。
+        var failure = PermissionModeApplierFactory.DescribeFailure(mode);
+        WriteControlResponse(Cli.Output.SdkStreamControlResponse.Failure(requestId, failure));
+        Diag.WriteLine($"[RUN] permission mode '{mode}' rejected for {requestId}");
+    }
+
+    /// <summary>写一条控制应答（单次写 + LF，stdout 为纯协议流）。</summary>
+    /// <param name="response">应答消息</param>
+    private static void WriteControlResponse(Cli.Output.SdkStreamControlResponse response) {
         Console.WriteLine(RelaxedJsonSerializer.Serialize(response, Cli.Output.CliOutputJsonContext.Default));
-        Diag.WriteLine($"[RUN] control_response sent for {requestId}");
     }
 
     /// <summary>

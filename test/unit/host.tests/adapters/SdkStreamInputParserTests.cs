@@ -77,9 +77,10 @@ public sealed class SdkStreamInputParserTests {
     }
 
     /// <summary>
-    /// TASK142-B：控制请求的形状来自基准侧 controlSchemas.ts / structuredIO.ts：
+    /// TASK142-B / TASK144：控制请求的形状来自基准侧 controlSchemas.ts / structuredIO.ts：
     /// <c>{"type":"control_request","request_id":"...","request":{"subtype":"interrupt"}}</c>。
     /// 它不能被当成"非 user 消息"诊断掉，否则 SDK 客户端的 interrupt 永远打不断回合。
+    /// <para>TASK144 起解析器只**降级**成 SdkControlCommand，不再自己分派 subtype。</para>
     /// </summary>
     [Fact]
     public void ControlInterrupt_IsRecognizedAsControlLine() {
@@ -88,8 +89,9 @@ public sealed class SdkStreamInputParserTests {
 
         parsed.Text.Should().BeNull();
         parsed.Diagnostic.Should().BeNull();
-        parsed.IsInterrupt.Should().BeTrue();
-        parsed.ControlRequestId.Should().Be("req-1");
+        var control = RequireControl(parsed);
+        control.Subtype.Should().Be("interrupt");
+        control.RequestId.Should().Be("req-1");
     }
 
     /// <summary>基准侧对 control_response / keep_alive 是静默忽略（本仓不发 control_request，无待处理请求）。</summary>
@@ -102,18 +104,19 @@ public sealed class SdkStreamInputParserTests {
     }
 
     /// <summary>
-    /// 未实现的控制子类型必须回 error 并带回 request_id（基准侧 print.ts 末尾同此），
-    /// 只写 stderr 会让 SDK 客户端等一条永远不来的应答。
+    /// 未实现的控制子类型：解析器**不判实现**，照常降级成命令 —— 拒绝由控制面统一回 error
+    /// 并带回 request_id（基准侧 print.ts 末尾同此），只写 stderr 会让 SDK 客户端等一条永远不来的应答。
     /// </summary>
     [Fact]
-    public void UnsupportedControlSubtype_IsRejectedWithRequestId() {
+    public void UnsupportedControlSubtype_IsDowngradedForControlPlaneToReject() {
         var parsed = SdkStreamInputParser.Interpret(
             """{"type":"control_request","request_id":"r2","request":{"subtype":"set_model","model":"x"}}""");
 
         parsed.Text.Should().BeNull();
-        parsed.IsInterrupt.Should().BeFalse();
-        parsed.ControlRequestId.Should().Be("r2");
-        parsed.ControlRejection.Should().Contain("set_permission_mode", "拒绝文案要列出已支持的子类型");
+        parsed.Diagnostic.Should().BeNull("拒绝是控制面的职责，解析器不预判");
+        var control = RequireControl(parsed);
+        control.Subtype.Should().Be("set_model");
+        control.RequestId.Should().Be("r2");
     }
 
     /// <summary>
@@ -128,23 +131,30 @@ public sealed class SdkStreamInputParserTests {
 
         parsed.Text.Should().BeNull();
         parsed.Diagnostic.Should().BeNull();
-        parsed.ControlRequestId.Should().Be("req-pm");
-        parsed.RequestedPermissionMode.Should().Be("ask");
+        var control = RequireControl(parsed);
+        control.Subtype.Should().Be("set_permission_mode");
+        control.RequestId.Should().Be("req-pm");
+        SdkControlPayload.ReadString(control.Payload, "mode").Should().Be("ask");
     }
 
     /// <summary>
-    /// 缺 mode 时必须带回 request_id 走 error 应答 —— 基准侧 handleSetPermissionMode 对每种不满足
-    /// 都回 <c>control_response.error</c>；只写 stderr 会让客户端永久等待这条 request_id。
+    /// 缺 mode 的控制行同样降级成命令（payload 里没有 mode）；「回 error」由控制面负责 ——
+    /// 基准侧 handleSetPermissionMode 对每种不满足都回 <c>control_response.error</c>，
+    /// 只写 stderr 会让客户端永久等待这条 request_id。
     /// </summary>
     [Fact]
-    public void ControlSetPermissionMode_WithoutMode_IsRejectedWithRequestId() {
+    public void ControlSetPermissionMode_WithoutMode_KeepsCommandForPlaneToReject() {
         var parsed = SdkStreamInputParser.Interpret(
             """{"type":"control_request","request_id":"req-pm2","request":{"subtype":"set_permission_mode"}}""");
 
-        parsed.ControlRequestId.Should().Be("req-pm2", "没有 request_id 就无从回 error");
-        parsed.ControlRejection.Should().NotBeNull();
-        parsed.ControlRejection.Should().Contain("mode");
+        var control = RequireControl(parsed);
+        control.RequestId.Should().Be("req-pm2", "没有 request_id 就无从回 error，有 request_id 就必须交给控制面");
+        SdkControlPayload.ReadString(control.Payload, "mode").Should().BeNull();
     }
+
+    /// <summary>取控制命令（无则显式失败，不用 null-forgiving 绕过类型系统 — JCC11003）。</summary>
+    private static SdkControlCommand RequireControl(SdkStreamInputLine parsed) =>
+        parsed.Control ?? throw new InvalidOperationException("控制行必须在解析阶段降级成 SdkControlCommand");
 
     /// <summary>
     /// 失败应答必须是基准侧的 error 分支形状：<c>{subtype:"error", request_id, error}</c>，

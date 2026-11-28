@@ -22,44 +22,20 @@ public sealed record SdkStreamInputLine(string? Text, string? Diagnostic) {
     public static SdkStreamInputLine Turn(string text) => new(text, null);
 
     /// <summary>
-    /// 需要回 <c>control_response</c> 的请求 ID（TASK142-B/143）— interrupt、set_permission_mode
-    /// 以及「带 request_id 但未实现/不合法」的控制行都填这里。
-    /// <para>协议要求：只要对方给了 request_id，就必须回包 —— 基准侧对未知 subtype 也回 error
-    /// （print.ts：<c>sendControlResponseError</c>，注释写明「否则调用方会一直等一条不会来的应答」）。</para>
+    /// 控制请求（TASK144 Phase 1）— 非空表示本行是 <c>control_request</c>，由
+    /// <see cref="SdkControlPlane.Dispatch"/> 执行并回 <c>control_response</c>。
+    /// <para>解析器**不再判断 subtype 是否已实现**：它只把控制行降成
+    /// <see cref="SdkControlCommand"/>（request_id + subtype + 原始 request 对象）。
+    /// 「未实现 / 缺字段 / 处理异常都要回 error」统一由控制面兜底，避免每个新 subtype
+    /// 都在解析器和宿主循环里各写一遍。</para>
     /// </summary>
-    public string? ControlRequestId { get; init; }
+    public SdkControlCommand? Control { get; init; }
 
-    /// <summary>true = 取消当前在途回合（control_request.interrupt）。</summary>
-    public bool IsInterrupt { get; init; }
-
-    /// <summary>set_permission_mode 的目标权限模式（非空表示要改权限模式）。</summary>
-    public string? RequestedPermissionMode { get; init; }
-
-    /// <summary>
-    /// 控制指令的拒绝原因 — 非空时调用方**必须**用 <see cref="ControlRequestId"/> 回
-    /// <c>control_response.error</c>，不能只写 stderr（否则客户端永久等待）。
-    /// </summary>
-    public string? ControlRejection { get; init; }
-
-    /// <summary>构造一条 interrupt 控制行。</summary>
-    /// <param name="requestId">控制请求 ID（用于回 control_response）。</param>
+    /// <summary>构造一条控制请求行。</summary>
+    /// <param name="command">控制请求的执行视图</param>
     /// <returns>解析结果。</returns>
-    public static SdkStreamInputLine Interrupt(string requestId) =>
-        new(null, null) { ControlRequestId = requestId, IsInterrupt = true };
-
-    /// <summary>构造一条 set_permission_mode 控制行。</summary>
-    /// <param name="requestId">控制请求 ID（用于回 control_response）。</param>
-    /// <param name="mode">目标权限模式（协议字符串，由应用器解析）。</param>
-    /// <returns>解析结果。</returns>
-    public static SdkStreamInputLine SetPermissionMode(string requestId, string mode) =>
-        new(null, null) { ControlRequestId = requestId, RequestedPermissionMode = mode };
-
-    /// <summary>构造一条「带 request_id 但无法满足」的控制行（回 error，不尝试应用）。</summary>
-    /// <param name="requestId">控制请求 ID（必须带回，否则客户端无法关联）。</param>
-    /// <param name="rejection">拒绝原因。</param>
-    /// <returns>解析结果。</returns>
-    public static SdkStreamInputLine ControlFailure(string requestId, string rejection) =>
-        new(null, null) { ControlRequestId = requestId, ControlRejection = rejection };
+    public static SdkStreamInputLine ControlCommand(SdkControlCommand command) =>
+        new(null, null) { Control = command };
 }
 
 /// <summary>
@@ -117,12 +93,14 @@ public static class SdkStreamInputParser {
     }
 
     /// <summary>
-    /// 解释 control_request — 形状取自基准侧 SDKControlRequestSchema；
-    /// 已实现 interrupt（TASK142-B）与 set_permission_mode（TASK143），
-    /// 其余子类型给诱导式诊断（说明当前支持什么、下一步怎么做）。
+    /// 解释 control_request — 形状取自基准侧 <c>SDKControlRequestSchema</c>。
+    /// <para>TASK144 Phase 1：本方法只做**降级**（校验 request_id、读出 subtype、保留原始 request 对象），
+    /// 不再按 subtype 分叉。是否已实现、字段是否齐全、处理是否成功，全部由
+    /// <see cref="SdkControlPlane"/> 决定 —— 拒绝文案与「当前支持什么」清单也从注册表生成，
+    /// 不会出现「提示里说支持、实际没接」的漂移。</para>
     /// </summary>
     /// <param name="line">原始 NDJSON 行</param>
-    /// <returns>解析结果</returns>
+    /// <returns>解析结果（控制行产出 <see cref="SdkStreamInputLine.Control"/>）</returns>
     private static SdkStreamInputLine InterpretControlRequest(string line) {
         SdkStreamControlRequest? control;
         try {
@@ -135,25 +113,16 @@ public static class SdkStreamInputParser {
         if (control is null || string.IsNullOrWhiteSpace(control.RequestId))
             return SdkStreamInputLine.Failed("[INPUT] control_request 缺 request_id，已跳过；请补上 request_id 以便回 control_response。");
 
-        if (string.Equals(control.Request?.Subtype, "interrupt", StringComparison.OrdinalIgnoreCase))
-            return SdkStreamInputLine.Interrupt(control.RequestId);
+        // request 缺失或不是对象时 payload 为 Undefined：subtype 读成空，由控制面回 error（仍带 request_id）。
+        var payload = control.Request is { ValueKind: System.Text.Json.JsonValueKind.Object } request
+            ? request
+            : default(System.Text.Json.JsonElement);
 
-        if (control.Request is { } controlRequest
-            && string.Equals(controlRequest.Subtype, "set_permission_mode", StringComparison.OrdinalIgnoreCase)) {
-            // 缺 mode 无法应用，但**必须**带 request_id 回 error —— 基准侧 handleSetPermissionMode
-            // 对每种不满足都回 control_response.error，只写 stderr 会让客户端一直等。
-            if (string.IsNullOrWhiteSpace(controlRequest.Mode))
-                return SdkStreamInputLine.ControlFailure(
-                    control.RequestId,
-                    $"set_permission_mode 缺 request.mode；合法值：{PermissionModeApplierFactory.ValidPermissionModes}。");
-
-            return SdkStreamInputLine.SetPermissionMode(control.RequestId, controlRequest.Mode);
-        }
-
-        // 未实现的子类型也回 error（基准侧 print.ts 末尾同此：否则调用方等一条永远不来的应答）。
-        return SdkStreamInputLine.ControlFailure(
-            control.RequestId,
-            $"Unsupported control request subtype: {control.Request?.Subtype ?? "(missing)"}；当前支持 interrupt 与 set_permission_mode。");
+        return SdkStreamInputLine.ControlCommand(new SdkControlCommand {
+            RequestId = control.RequestId,
+            Subtype = SdkControlPayload.ReadString(payload, "subtype") ?? string.Empty,
+            Payload = payload,
+        });
     }
 
     /// <summary>拼接内容块数组中的 text 块（其他块类型忽略 — 图片/工具块暂无输入通道）。</summary>

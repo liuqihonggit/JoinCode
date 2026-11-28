@@ -110,6 +110,10 @@ internal static class NonInteractiveModeRunner {
         // 解析失败（引擎未注册 IPermissionChecker）时为 null，控制行会回 error 而不是静默成功。
         var permissionModeApplier = PermissionModeApplierFactory.Create(
             await PermissionModeApplierFactory.ResolveAsync(sp).ConfigureAwait(false));
+        // TASK144 Phase 1：控制行统一走控制面 —— subtype 分派、缺字段判定、未实现拒绝、
+        // 「必须回包」兜底都在 SdkControlPlane 内，读循环只负责取消在途回合与写出。
+        var controlPlane = Cli.Output.SdkControlPlane.CreateDefault(
+            permissionModeApplier is null ? null : mode => permissionModeApplier(mode)?.ToValue());
         // 有界邮箱：SDK 客户端连发多条时背压到 stdin 读取，避免无限堆积（S5 门禁亦禁止 unbounded）。
         var lines = System.Threading.Channels.Channel.CreateBounded<Cli.Output.SdkStreamInputLine>(
             new System.Threading.Channels.BoundedChannelOptions(256) {
@@ -129,21 +133,17 @@ internal static class NonInteractiveModeRunner {
                         break;
 
                     var parsed = Cli.Output.SdkStreamInputParser.Interpret(line);
-                    // 拒绝优先：带 request_id 的不合法/未实现指令必须回 error，否则客户端永久等待。
-                    if (parsed.ControlRejection is { } rejection && parsed.ControlRequestId is { } rejectedId) {
-                        Console.Error.WriteLine($"[INPUT] {rejection}");
-                        WriteControlResponse(Cli.Output.SdkStreamControlResponse.Failure(rejectedId, rejection));
-                        Diag.WriteLine($"[RUN] control request {rejectedId} rejected");
-                        continue;
-                    }
-                    if (parsed.IsInterrupt && parsed.ControlRequestId is { } interruptId) {
-                        turnCancellation.CancelActive();
-                        WriteControlResponse(Cli.Output.SdkStreamControlResponse.Success(interruptId));
-                        Diag.WriteLine($"[RUN] control_response sent for {interruptId}");
-                        continue;
-                    }
-                    if (parsed.RequestedPermissionMode is { } requestedMode && parsed.ControlRequestId is { } pmId) {
-                        ApplyPermissionMode(pmId, requestedMode, permissionModeApplier);
+                    // 控制行：一次分发决定「取消 / 诊断 / 应答」三种副作用，应答必定写出
+                    // （outcome.Response 为 required，协议不变量由类型兜住）。
+                    if (parsed.Control is { } control) {
+                        var outcome = controlPlane.Dispatch(control);
+                        if (outcome.CancelActiveTurn)
+                            turnCancellation.CancelActive();
+                        if (outcome.Diagnostic is { } rejection)
+                            Console.Error.WriteLine($"[INPUT] {rejection}");
+                        WriteControlResponse(outcome.Response);
+                        Diag.WriteLine(
+                            $"[RUN] control {control.Subtype} -> {outcome.Response.Response.Subtype} ({control.RequestId})");
                         continue;
                     }
                     if (parsed.Diagnostic is { } diagnostic) {
@@ -269,29 +269,6 @@ internal static class NonInteractiveModeRunner {
             hint: "请检查错误日志获取详细信息",
             retryable: false);
         ctx.ExitCode = (int)ExitCode.GeneralError;
-    }
-
-    /// <summary>
-    /// 应用 <c>set_permission_mode</c> 控制行（TASK143）— 成功回实际生效模式（bypass 可能被安全闸拦成别的值），
-    /// 失败回协议 error 分支（含合法值清单）。不中断回合循环。
-    /// </summary>
-    /// <param name="requestId">控制请求 ID</param>
-    /// <param name="mode">请求的权限模式（协议字符串）</param>
-    /// <param name="applier">权限模式应用器（null = 引擎无权限系统）</param>
-    private static void ApplyPermissionMode(
-        string requestId,
-        string mode,
-        CliCommands.BridgeServeLoop.PermissionModeApplier? applier) {
-        if (applier?.Invoke(mode) is { } effectiveMode) {
-            WriteControlResponse(Cli.Output.SdkStreamControlResponse.Success(requestId, effectiveMode.ToValue()));
-            Diag.WriteLine($"[RUN] permission mode '{mode}' applied as '{effectiveMode.ToValue()}' for {requestId}");
-            return;
-        }
-
-        // 确定性失败：不回 success —— 否则客户端以为权限已放宽，后续工具调用被拒时无法归因。
-        var failure = PermissionModeApplierFactory.DescribeFailure(mode);
-        WriteControlResponse(Cli.Output.SdkStreamControlResponse.Failure(requestId, failure));
-        Diag.WriteLine($"[RUN] permission mode '{mode}' rejected for {requestId}");
     }
 
     /// <summary>写一条控制应答（单次写 + LF，stdout 为纯协议流）。</summary>

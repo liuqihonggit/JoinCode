@@ -170,19 +170,18 @@ public sealed class SdkControlPlaneTests {
 
     /// <summary>
     /// 构造命令：payload 是 <c>request</c> 对象原名（subtype 必带，mode 可选）。
-    /// <para>用 DTO + 源生成上下文造 payload，不手写 JSON（JCC1017）；<c>mode</c> 为 null 时
-    /// 序列化成 <c>"mode":null</c>，<see cref="JoinCode.Cli.Output.SdkControlPayload.ReadString"/>
-    /// 对 null 与缺失同等处理 —— 两条路径都表示「客户端没给 mode」。</para>
+    /// <para>用 <c>JsonObject</c> 结构化构造再序列化，不手写 JSON 字符串（JCC1017）。</para>
     /// </summary>
     private static JoinCode.Cli.Output.SdkControlCommand Command(
         string requestId, string subtype, string? mode = null) {
-        var payload = System.Text.Json.JsonSerializer.SerializeToElement(
-            new JoinCode.Cli.Output.SdkStreamControlRequestBody { Subtype = subtype, Mode = mode },
-            JoinCode.Cli.Output.CliOutputJsonContext.Default.SdkStreamControlRequestBody);
+        var payload = new System.Text.Json.Nodes.JsonObject { ["subtype"] = subtype };
+        if (mode is not null)
+            payload["mode"] = mode;
+        using var document = System.Text.Json.JsonDocument.Parse(payload.ToJsonString());
         return new JoinCode.Cli.Output.SdkControlCommand {
             RequestId = requestId,
             Subtype = subtype,
-            Payload = payload,
+            Payload = document.RootElement.Clone(), // Clone 脱离 document 生命周期，避免 use-after-dispose
         };
     }
 
